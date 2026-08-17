@@ -250,7 +250,7 @@ void main() {
     test('always beats the market base price', () {
       final state = _state(cards: [_card('star', definitionId: 'player_t8_fwd')]);
       final offer = buildOffer(state)!;
-      expect(offer['price'], greaterThan(offer['marketBasePrice']));
+      expect(offer['price'] as num, greaterThan(offer['marketBasePrice'] as num));
     });
   });
 
@@ -285,7 +285,7 @@ void main() {
       setClock(() => 1000);
       final state = _state(
         cards: [_card('star')],
-        market: {'pendingOffer': null, 'grudges': {}, 'lastOfferAt': 900},
+        market: {'pendingOffer': null, 'grudges': <String, dynamic>{}, 'lastOfferAt': 900},
       );
       for (var i = 0; i < 50; i++) {
         expect(maybeGenerateIdleOffer(state), isNull);
@@ -337,7 +337,7 @@ void main() {
       );
       maybeGenerateIdleOffer(state);
       // No grudge — nobody was snubbed, the card just went.
-      expect((_stateMarket(state)['grudges'] as Map), isEmpty);
+      expect(_stateMarket(state)['grudges'] as Map<String, dynamic>, isEmpty);
     });
   });
 
@@ -358,7 +358,7 @@ void main() {
 
       final result = acceptOffer(state);
       expect(result.ok, isTrue);
-      expect((state['resources'] as Map)['fanCoins'], before + (offer['price'] as num));
+      expect((state['resources'] as Map)['fanCoins'] as num, before + (offer['price'] as num));
 
       final cells = (state['grid'] as Map)['cells'] as List;
       expect(cells.any((c) => CardInstance.from(c)?.instanceId == offer['cardInstanceId']), isFalse);

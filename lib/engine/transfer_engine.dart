@@ -348,9 +348,11 @@ int _blendUp(num current, num playerRating) =>
   final oppIdx = opponents is List ? opponents.indexOf(fromTeam) : -1;
   if (oppIdx >= 0 && progression != null) {
     final season = _num(progression['seasonCount'])?.toInt() ?? 1;
-    final ratings = _map(progression['seasonOpponentRatings']) ??
-        (progression['seasonOpponentRatings'] = <String, dynamic>{})
-            as Map<String, dynamic>;
+    var ratings = _map(progression['seasonOpponentRatings']);
+    if (ratings == null) {
+      ratings = <String, dynamic>{};
+      progression['seasonOpponentRatings'] = ratings;
+    }
     final key = 's${season}_o$oppIdx';
     final cur = _num(ratings[key]) ?? before ?? 50;
     final newRating = _blendUp(cur, playerRating);
@@ -497,8 +499,11 @@ String? notifyCardRemoved(Map<String, dynamic> state, String instanceId) {
   if (pending['cardInstanceId'] != instanceId) return null;
 
   final fromTeam = pending['fromTeam'] as String;
-  final grudges = _map(market['grudges']) ??
-      (market['grudges'] = <String, dynamic>{}) as Map<String, dynamic>;
+  var grudges = _map(market['grudges']);
+  if (grudges == null) {
+    grudges = <String, dynamic>{};
+    market['grudges'] = grudges;
+  }
 
   grudges[fromTeam] = <String, dynamic>{
     'matchesLeft': grudgeMatchDuration,
