@@ -10,22 +10,23 @@ rough sense of size, not a target.
 
 ## Where we are
 
-**2,038 tests, 97.2% line coverage, `flutter analyze` clean.** Everything below
+**2,164 tests, 97.3% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
-M0 (save bridge) is finished. **M1 (the logic core) is roughly 75% through by
-module count**, and — more usefully — the whole progression spine now works end
-to end: a season can be played out, the table settles, the pyramid shuffles,
-quests roll and pay, cups run, and the season boundary hands over to the next
-campaign. What is left in M1 is the match ORCHESTRATION (the outer
-`simulateMatch`) plus a long tail of smaller engines.
+M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
+module count**, and — more usefully — the whole spine now works end to end:
+a match can be PLAYED (ninety minutes, injuries, tactic changes, settlement), a
+season played out, the table settles, the pyramid shuffles, quests roll and pay,
+cups run, and the season boundary hands over to the next campaign. `matchEngine.js`
+is fully ported. What is left in M1 is a long tail of smaller engines, none of
+them on the critical path.
 
 ### How to pick this up
 
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fc-flutter
 flutter analyze          # must be clean
-flutter test             # 2,038 passing
+flutter test             # 2,164 passing
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -55,7 +56,9 @@ Two things to know before writing any code:
 
 ### Bugs the parity fixtures have caught so far
 
-Worth reading before writing the next port — all three are the same shape.
+Worth reading before writing the next port. Two shapes, over and over: a draw
+happening in the wrong place, and a Dart type that doesn't serialise the way the
+JS number or object did.
 
 - **`transferEngine`** derived a club's division index from pyramid key order,
   while the same file documents that key order is not ladder order. Fixed in the
@@ -67,6 +70,19 @@ Worth reading before writing the next port — all three are the same shape.
   in this division's pyramid. The JS only draws once it has found one, and a
   table row can name a club that isn't there — so a wasted draw shifted every
   later number and shuffled the entire pyramid differently.
+- **`simulateMatch`** built the AI rotation plan with the draw for HOW MANY subs
+  inside the loop condition, so it was re-rolled every iteration. One extra
+  number, and every later draw in the match moved — it showed up as the wrong
+  added time on the final whistle.
+- **`buildDefaultLineup`** (and `fillLineupGaps`) sorted their (player, slot)
+  pairs with a comparator that returns 0 on a tie, which is only correct if the
+  sort is STABLE. `Array.sort` is; `List.sort` is not. The same squad fielded a
+  different XI. Both use `stableSort` now — if you write a comparator that can
+  return 0, use it.
+- **`roundCoins`** returned a double, so a payout landed in the save as `75.0`
+  where the JS writes `75`. Equal as numbers, different as JSON, and coins are
+  the most-written field there is. Anything going into the save that JS holds as
+  a whole number must arrive as a Dart `int`.
 
 ---
 
@@ -119,28 +135,28 @@ Worth reading before writing the next port — all three are the same shape.
 - [x] `fixture_preview` — `previewFixture`, split out to break the quest/match
       import cycle the JS lives with
 - [x] `scout_engine` (125), `coin_sink_engine` (186)
+- [x] `tactic_coach` — `tacticExpectedPoints`, `injuryCostPoints`,
+      `baselineInjuryRisk`, `suggestTactic`. Split out of `match_tactics` by what
+      it reads: that file is the tactic TABLE every ATK/DEF readout shares, this
+      scores those tactics against a matchup and a squad
+- [x] `match_orchestration` — the outer half of `matchEngine.js`. `simulateMatch`,
+      `simulateHardGoals`, `hardLiveRatings`, `finalizeMatchOutcome` (with
+      `drawContextOf`), `applyMatchRewards`, `reSimulateRemainder`,
+      `bestFormationForFixture` and the cooldowns. **`matchEngine.js` is now
+      fully ported.** Pinned against node over 52 whole matches — result, feed
+      and save — with BOTH streams reproducible: the dump script replaces
+      `Math.random` with a second mulberry32 and `test/support/js_math_random.dart`
+      drives the same one, so the unseeded half is comparable too
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — the match orchestration
+### Next up — `deadline_day_engine`
 
-The last big piece of the spine. Everything it needs is now ported.
-
-- [ ] **`engine/match_orchestration.dart`** — the outer half of
-      `matchEngine.js` (2,709 lines total; the five files already ported are
-      most of the arithmetic, this is the flow around it):
-  - `simulateMatch` — the whole ninety minutes, injuries, windows, tactics,
-    scorer allocation, the result object every screen reads
-  - `simulateHardGoals` — the Pro-mode per-minute path with live fatigue
-  - `finalizeMatchOutcome` — including `drawContextOf`, which stores the three
-    facts the dugout cam and the diorama both read so they can't disagree about
-    the same draw
-  - `applyMatchRewards`, `bestFormationForFixture`
-  - This is the biggest single remaining file. Generate a node fixture for a
-    full simulated match at several seeds before trusting any of it.
+The biggest remaining engine at 1,073 lines, and the only one left with its own
+screen. Nothing blocks it.
 
 ### Remaining engines
 
@@ -171,7 +187,10 @@ Roughly in dependency order — the first three unlock the most.
 
 - [ ] `manager_avatar` — the SVG geometry half (~1,100 lines). Really M3
       material; the unlock half it needs is already done.
-- [ ] `manager_mood` (289) — `moodForScore`, `moodForDraw`
+- [ ] `manager_mood` (289) — `moodForScore`, `moodForDraw`. The three facts
+      `moodForDraw` needs are already stored on `progression.lastMatchResult`
+      by `finalizeMatchOutcome` (`led`, `trailed`, `ratingGap`), so the dugout
+      cam and the diorama cannot disagree about the same draw
 - [ ] `geo_zones` (189)
 - [ ] `pgs_achievements` (107)
 - [ ] `kit_palette` (79)
@@ -189,9 +208,12 @@ Roughly in dependency order — the first three unlock the most.
 
 - [ ] `tool/difftest/` — drive seeded scenarios through both node and Dart and
       diff WHOLE SIMULATED SEASONS rather than function-by-function fixtures.
-      The nine per-module fixtures already in `test/fixtures/` are the
-      groundwork, and the pattern is proven; this is the same idea at the level
-      of "play twenty seasons and compare every byte of the save".
+      The eleven per-module fixtures already in `test/fixtures/` are the
+      groundwork, and the pattern is proven; `match_orchestration_reference`
+      is the closest to it — it already compares a whole match's result, feed
+      and save, off both generators. This is the same idea at the level of
+      "play twenty seasons and compare every byte of the save", and now that
+      a match can be played end to end there is nothing left blocking it.
 
 ---
 
@@ -307,7 +329,15 @@ node tool/dump_fixture_preview_reference.mjs > test/fixtures/fixture_preview_ref
 node tool/dump_cup_engine_reference.mjs    > test/fixtures/cup_engine_reference.json
 node tool/dump_manager_looks_reference.mjs > test/fixtures/manager_looks_reference.json
 node tool/dump_season_end_reference.mjs    > test/fixtures/season_end_reference.json
+node tool/dump_tactic_coach_reference.mjs  > test/fixtures/tactic_coach_reference.json
+node tool/dump_match_orchestration_reference.mjs > test/fixtures/match_orchestration_reference.json
 ```
+
+`match_orchestration_reference.json` is the only one that pins the UNSEEDED
+stream as well: it stubs `Date.now` and replaces `Math.random` with a second
+mulberry32, and the Dart side drives an identical one through `setEventRandom` /
+`setMatchRandom`. Both have to be the SAME instance in a test, because the JS has
+only one `Math.random`.
 
 `quest_engine_reference.json` is special: it ships the SAVE it was generated
 against, and four other fixtures build on that same save. Regenerating it
