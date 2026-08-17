@@ -281,3 +281,34 @@ bool refillLineupFromBench(Map<String, dynamic> state) {
   }
   return changed;
 }
+
+/// The slot an injury just emptied.
+typedef VacatedSlot = ({String slotId, String slotPosition});
+
+/// Pull an injured player off the pitch so their slot shows empty.
+///
+/// NO auto-replacement, in either mode — the manager subs from the bench
+/// themselves, from the match screen. That rule is about the ninety minutes,
+/// not for ever: once the whistle goes the hole is just a trap, and
+/// [refillLineupFromBench] covers it.
+///
+/// Returns the slot that opened up, so a caller can tell the UI which one.
+VacatedSlot? removeInjuredFromLineup(
+  Map<String, dynamic> state,
+  String? injuredInstanceId,
+) {
+  final squad = state['squad'];
+  final lineup = squad is Map ? squad['lineup'] : null;
+  if (lineup is! List) return null;
+
+  for (final raw in lineup) {
+    if (raw is! Map) continue;
+    if (raw['cardInstanceId'] != injuredInstanceId) continue;
+    raw['cardInstanceId'] = null;
+    return (
+      slotId: raw['slotId'] as String? ?? '',
+      slotPosition: raw['slotPosition'] as String? ?? '',
+    );
+  }
+  return null;
+}

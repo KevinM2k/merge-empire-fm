@@ -477,3 +477,13 @@ final List<WeightedEntry<String>> bronzePool = List.unmodifiable([
 final List<WeightedEntry<String>> silverPool = List.unmodifiable([
   for (final p in players.where((p) => p.tier == 3)) WeightedEntry(p.id, 10),
 ]);
+
+/// A card's name for display: whatever the player renamed it to, the name it
+/// was generated with, or its definition's.
+String getCardName(Map<String, dynamic>? card, [String fallback = '']) {
+  final custom = card?['customName'];
+  if (custom is String && custom.isNotEmpty) return custom;
+  final display = card?['displayName'];
+  if (display is String && display.isNotEmpty) return display;
+  return getPlayerDef(card?['definitionId'] as String?)?.name ?? fallback;
+}

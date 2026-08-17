@@ -206,3 +206,105 @@ List<double> poissonPmf(double lambda) {
   }
   return out;
 }
+
+/// One kick in a shootout.
+typedef PenaltyKick = ({
+  String team,
+  bool scored,
+  int homeTotal,
+  int awayTotal,
+  bool suddenDeath,
+});
+
+/// How a shootout finished.
+typedef Shootout = ({
+  bool playerWins,
+  List<PenaltyKick> kicks,
+  int homeScore,
+  int awayScore,
+});
+
+/// A penalty shootout, kick by kick.
+///
+/// About a 75% conversion rate for evenly matched sides, scaling with the
+/// attack-against-defence mismatch. Every input is floored at one so sudden
+/// death can never loop for ever on a zeroed rating.
+Shootout simulatePenaltyShootout(
+  num ourAttack,
+  num ourDefence,
+  num oppAttack,
+  num oppDefence,
+) {
+  final oa = math.max(1, ourAttack);
+  final od = math.max(1, oppDefence);
+  final pa = math.max(1, oppAttack);
+  final pd = math.max(1, ourDefence);
+  final ourProb = 0.55 + 0.4 * (oa / (oa + od));
+  final oppProb = 0.55 + 0.4 * (pa / (pa + pd));
+
+  var homeScore = 0;
+  var awayScore = 0;
+  final kicks = <PenaltyKick>[];
+
+  for (var round = 0; round < 5; round++) {
+    final homeScored = seeded.random() < ourProb;
+    if (homeScored) homeScore++;
+    kicks.add((
+      team: 'home',
+      scored: homeScored,
+      homeTotal: homeScore,
+      awayTotal: awayScore,
+      suddenDeath: false,
+    ));
+
+    // The away side has (5 - round) kicks left at this point; the home side has
+    // (4 - round). Either total being out of reach ends it here.
+    if (homeScore > awayScore + (5 - round)) break;
+    if (awayScore > homeScore + (4 - round)) break;
+
+    final awayScored = seeded.random() < oppProb;
+    if (awayScored) awayScore++;
+    kicks.add((
+      team: 'away',
+      scored: awayScored,
+      homeTotal: homeScore,
+      awayTotal: awayScore,
+      suddenDeath: false,
+    ));
+
+    if (homeScore > awayScore + (4 - round)) break;
+    if (awayScore > homeScore + (4 - round)) break;
+  }
+
+  // Sudden death: BOTH sides kick every round. The tie is only settled once the
+  // away team has answered — breaking early on a home goal would hand them the
+  // win without the away side getting their go.
+  while (homeScore == awayScore) {
+    final homeScored = seeded.random() < ourProb;
+    if (homeScored) homeScore++;
+    kicks.add((
+      team: 'home',
+      scored: homeScored,
+      homeTotal: homeScore,
+      awayTotal: awayScore,
+      suddenDeath: true,
+    ));
+
+    final awayScored = seeded.random() < oppProb;
+    if (awayScored) awayScore++;
+    kicks.add((
+      team: 'away',
+      scored: awayScored,
+      homeTotal: homeScore,
+      awayTotal: awayScore,
+      suddenDeath: true,
+    ));
+  }
+
+  return (
+    playerWins: homeScore > awayScore,
+    kicks: kicks,
+    homeScore: homeScore,
+    awayScore: awayScore,
+  );
+}
