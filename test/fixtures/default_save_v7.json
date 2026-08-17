@@ -1,0 +1,343 @@
+{
+  "version": 7,
+  "createdAt": 1786969747626,
+  "lastSeen": 1786969747626,
+  "resources": {
+    "fanCoins": 1500,
+    "gems": 0,
+    "matchRevenue": 0,
+    "trophies": 0
+  },
+  "energy": {
+    "current": 10,
+    "lastRegenAt": 1786969747626
+  },
+  "boosts": {
+    "incomeBoostActive": false,
+    "incomeBoostEndsAt": 0,
+    "kitSponsorSeason": null,
+    "matchRevBoostSeason": null
+  },
+  "grid": {
+    "cells": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "clubAssets": {
+    "TRAINING": {
+      "owned": false,
+      "tier": 0,
+      "invested": 0,
+      "tapCount": 0
+    },
+    "MERCH": {
+      "owned": false,
+      "tier": 0,
+      "invested": 0,
+      "tapCount": 0
+    },
+    "STADIUM": {
+      "owned": false,
+      "tier": 0,
+      "invested": 0,
+      "tapCount": 0
+    },
+    "MEDIA": {
+      "owned": false,
+      "tier": 0,
+      "invested": 0,
+      "tapCount": 0
+    },
+    "SPONSOR": {
+      "owned": false,
+      "tier": 0,
+      "invested": 0,
+      "tapCount": 0
+    },
+    "ACADEMY": {
+      "owned": false,
+      "tier": 0,
+      "invested": 0,
+      "tapCount": 0
+    },
+    "FANZONE": {
+      "owned": false,
+      "tier": 0,
+      "invested": 0,
+      "tapCount": 0
+    }
+  },
+  "club": {
+    "kitPrimaryColor": "#4caf50",
+    "polishLevel": 0,
+    "managerAvatar": null,
+    "lookPacks": [],
+    "lookItems": []
+  },
+  "ads": {
+    "packUnlocks": []
+  },
+  "squad": {
+    "formation": "4-3-3",
+    "lineup": null
+  },
+  "progression": {
+    "currentDivision": "sunday_league",
+    "trophiesTotal": 0,
+    "matchesPlayed": 0,
+    "matchesWon": 0,
+    "matchesDrawn": 0,
+    "careerWins": 0,
+    "careerDraws": 0,
+    "careerGoalsFor": 0,
+    "careerBackfillDone": true,
+    "careerResetRecoveryDone": true,
+    "lastMatchAt": 0,
+    "divisionsUnlocked": [
+      "sunday_league"
+    ],
+    "seasonOpponents": [],
+    "seasonFixtures": null,
+    "seasonCount": 1,
+    "seasonMatchesPlayed": 0,
+    "seasonWins": 0,
+    "seasonDraws": 0,
+    "seasonLosses": 0,
+    "seasonComplete": false,
+    "seasonHistory": [],
+    "lastSeasonStatus": null,
+    "lastMatchResult": null,
+    "achievements": [],
+    "achievementIdsThisRun": [],
+    "leagueTrophies": [],
+    "equippedBadgeId": null,
+    "badgeManuallySet": false,
+    "discoveredPlayers": [],
+    "playerFoundCounts": {},
+    "cups": {
+      "active": null,
+      "history": [],
+      "availableThisSeason": true
+    }
+  },
+  "shop": {
+    "freeScoutReady": false,
+    "scoutVoucherTier": null,
+    "luckyBootReady": false,
+    "luckyBootUses": 0
+  },
+  "transferMarket": {
+    "pendingOffer": null,
+    "grudges": {}
+  },
+  "deadlineDay": {
+    "session": {
+      "windowStart": 0,
+      "startedAt": 0,
+      "endsAt": 0,
+      "listings": [],
+      "spawned": 0,
+      "marquees": 0,
+      "done": false,
+      "summary": null
+    },
+    "history": [],
+    "notifiedWindows": []
+  },
+  "quests": {
+    "match": {
+      "fixtureKey": null,
+      "active": []
+    },
+    "season": [],
+    "recent": [],
+    "lastRolledSeason": 0,
+    "seasonTally": {},
+    "seasonBaselines": {},
+    "streaks": {
+      "cleanSheet": 0,
+      "win": 0,
+      "unbeaten": 0,
+      "scoring": 0
+    }
+  },
+  "miniGames": {
+    "penaltyLastPlayed": 0,
+    "trainingLastPlayed": 0
+  },
+  "events": {
+    "active": [],
+    "progress": {},
+    "history": [],
+    "devOverride": null
+  },
+  "stats": {
+    "totalMerges": 0,
+    "totalScouts": 0,
+    "highestTier": 1,
+    "sessionCount": 0,
+    "maxCoinsReached": 300,
+    "transfersAccepted": 0,
+    "transfersDeclined": 0,
+    "penaltyRounds": 0,
+    "penaltiesScored": 0,
+    "perfectPenalties": 0,
+    "perfectTrainings": 0
+  },
+  "settings": {
+    "soundEnabled": true,
+    "musicEnabled": false,
+    "soundVolume": 1,
+    "musicVolume": 1,
+    "notificationsEnabled": true,
+    "locale": "en",
+    "regionCode": null,
+    "matchSpeedFast": false,
+    "shownStrategyTip": false,
+    "lightMode": true,
+    "cutawayOurTeam": true,
+    "cutawayOpponent": true,
+    "hardMode": false,
+    "autoTierActions": {},
+    "customPyramids": []
+  },
+  "gemUnlocks": [],
+  "gemGrants": {
+    "tutorialGranted": false,
+    "tutorialBackfilled": true,
+    "divisionFirsts": [],
+    "cupFirsts": [],
+    "firstPrestigeDone": false,
+    "chlTitleThisRun": false,
+    "questDivisionFirsts": []
+  },
+  "prestige": {
+    "level": 0,
+    "incomeMultiplier": 1,
+    "totalTrophies": 0,
+    "points": 0
+  },
+  "careerStats": {
+    "leagueWins": 0,
+    "cupWins": 0,
+    "matchesWon": 0,
+    "totalMerges": 0,
+    "hardModeWins": 0
+  },
+  "tutorial": {
+    "done": false,
+    "step": 0,
+    "borrowedPlayersAdded": false,
+    "borrowedPlayersRemoved": false
+  },
+  "seenTips": [],
+  "rating": {
+    "status": "pending",
+    "promptCount": 0,
+    "lastPromptAt": 0,
+    "nextPromptAt": 0
+  },
+  "definitionRatios": {
+    "player_t1_fwd": 0.88,
+    "player_t2_fwd": 0.72,
+    "player_t3_fwd": 0.76,
+    "player_t4_fwd": 0.86,
+    "player_t5_fwd": 0.81,
+    "player_t6_fwd": 0.9,
+    "player_t7_fwd": 0.91,
+    "player_t8_fwd": 0.79,
+    "player_t9_fwd": 0.91,
+    "player_t1_mid": 0.57,
+    "player_t2_mid": 0.39,
+    "player_t3_mid": 0.56,
+    "player_t4_mid": 0.62,
+    "player_t5_mid": 0.55,
+    "player_t6_mid": 0.46,
+    "player_t7_mid": 0.58,
+    "player_t8_mid": 0.51,
+    "player_t1_def": 0.16,
+    "player_t2_def": 0.14,
+    "player_t3_def": 0.18,
+    "player_t4_def": 0.11,
+    "player_t5_def": 0.3,
+    "player_t6_def": 0.28,
+    "player_t7_def": 0.1,
+    "player_t8_def": 0.15,
+    "player_t1_gk": 0,
+    "player_t2_gk": 0.01,
+    "player_t3_gk": 0.05,
+    "player_t4_gk": 0,
+    "player_t5_gk": 0.01,
+    "player_t6_gk": 0.05,
+    "player_t7_gk": 0.04,
+    "player_t8_gk": 0.05
+  },
+  "clubName": "",
+  "leaderboard": {
+    "playerId": null,
+    "authUid": null,
+    "accountName": null,
+    "authProvider": null,
+    "pgsPlayerId": null,
+    "lastSubmittedAt": 0,
+    "careerSeeded": false,
+    "anonymousLinked": false,
+    "rankingsVisible": true,
+    "optOutApplied": false,
+    "metaClubName": null,
+    "allTimeRepairDone": false
+  },
+  "weather": {
+    "timeZone": null,
+    "lat": null,
+    "lon": null,
+    "locationSource": null,
+    "live": null,
+    "failedAt": null
+  },
+  "ageVerification": {
+    "status": "unknown",
+    "source": null,
+    "checkedAt": 0,
+    "parentalConsentGiven": false,
+    "parentalConsentAt": 0
+  }
+}
