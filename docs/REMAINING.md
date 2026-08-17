@@ -40,6 +40,23 @@ Two things to know before writing any code:
    draw.** Scripts live in `tool/dump_*_reference.mjs`, fixtures in
    `test/fixtures/`. Every one of them has caught something.
 
+### The name
+
+The game is **Merge Empire Football Manager**. That is the display name only —
+`CFBundleDisplayName`, the Android `android:label`, the window title and the store
+listings. The IDENTIFIERS deliberately still read `mergeempirefc`:
+
+- iOS `PRODUCT_BUNDLE_IDENTIFIER` = `com.mergeempirefc.app`
+- Android `applicationId` / `namespace` = `com.mergeempirefc.app`
+- the Dart package, `merge_empire_fc`
+
+The first two are the store's primary key for an existing, published app — change
+either and it is a NEW app, with no upgrade path for anyone who already has it and
+no access to the existing reviews or rankings. The third is internal, and renaming
+it would churn every import in the repo for nothing a player can see.
+`CFBundleName` is the short name iOS truncates hard, so it reads
+"Merge Empire FM".
+
 ### Standing rules
 
 - `lib/engine/`, `lib/data/`, `lib/state/`, `lib/util/` must never import
@@ -282,7 +299,8 @@ transliterated; identity, layout and assets stay.
       read an existing player's local save. Must ship before cutover.
 - [ ] iOS: signing, dSYM upload, App Store Connect
 - [ ] Android: the CI-generated build config, SDK levels, AGP/Gradle
-- [ ] Store listings, whatsnew, changelog
+- [ ] Store listings, whatsnew, changelog — the listing NAME becomes
+      "Merge Empire Football Manager"; the bundle id must not move with it
 
 ---
 

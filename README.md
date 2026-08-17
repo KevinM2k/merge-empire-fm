@@ -1,6 +1,6 @@
 # merge_empire_fc
 
-Merge Empire FC
+Merge Empire Football Manager
 
 ## Getting Started
 

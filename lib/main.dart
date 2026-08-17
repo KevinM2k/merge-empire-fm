@@ -8,8 +8,8 @@ class MergeEmpireApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'Merge Empire FC',
-      home: Scaffold(body: Center(child: Text('Merge Empire FC'))),
+      title: 'Merge Empire Football Manager',
+      home: Scaffold(body: Center(child: Text('Merge Empire Football Manager'))),
     );
   }
 }

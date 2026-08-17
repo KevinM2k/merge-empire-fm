@@ -1,4 +1,4 @@
-# Merge Empire FC — Flutter Port Design
+# Merge Empire Football Manager — Flutter Port Design
 
 **Date:** 2026-08-17
 **Status:** Approved, pending implementation plan
