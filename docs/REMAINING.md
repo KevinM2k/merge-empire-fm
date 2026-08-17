@@ -8,6 +8,25 @@ rough sense of size, not a target.
 
 ---
 
+## What done looks like
+
+The whole game, running on Flutter, with nothing switched off. Concretely: a player
+can install it, have their old save picked up, play matches and seasons, merge,
+scout, trade, take part in events and **spend real money** — every SKU buyable on
+both stores — with cloud save, leaderboards, ads, sound and every language working.
+
+Two consequences worth keeping in view, because both are easy to leave until it is
+too late:
+
+- **A ported engine is not a working feature.** The logic core is nearly finished
+  and almost none of it is reachable yet: there is no UI, no state plumbing and no
+  services. M1 finishing does not move the game closer to playable on its own.
+- **IAP is a chain, and one broken link means no revenue.** See the IAP block in
+  M4 — the engine half is done, the billing bridge, the consent gate and the store
+  configuration are not.
+
+---
+
 ## Where we are
 
 **2,358 tests, 97.4% line coverage, `flutter analyze` clean.** Everything below
@@ -303,13 +322,25 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
 - [ ] `state/game_state.dart` (525) — load, migrate, debounced save, the freeze
       flag on reset
 - [ ] Save on pause / lifecycle change
+- [ ] **`main.js` (1,453) — the wiring.** Bootstrap, the tick loop, and the bus
+      listeners that turn an engine's announcement into a state change. Not a
+      formality: several engines deliberately do NOT apply their own reward and
+      rely on a listener here to do it with the save wrapper. The one that pays
+      achievement coins on `achievement:unlocked` is the example to check first —
+      without it every achievement unlocks and pays nothing.
 
 ---
 
 ## M3 — UI
 
-76 files, ~41.5k lines of vanilla JS. Rebuilt idiomatically rather than
-transliterated; identity, layout and assets stay.
+76 files, 41,560 lines of vanilla JS — measured, not estimated, and the single
+biggest block of work left in the project by a wide margin. Rebuilt idiomatically
+rather than transliterated; identity, layout and assets stay.
+
+The screens are listed by feature below rather than file by file, deliberately: the
+mapping is not one-to-one. For scale, the four that dominate are
+`LeagueScreen` (6,777), `MatchPopup` (3,715), `SquadScreen` (2,264) and
+`ChanceCutaway` (2,036).
 
 - [ ] Shell: five tabs plus the hidden Settings screen
 - [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules
@@ -324,13 +355,40 @@ transliterated; identity, layout and assets stay.
 - [ ] The manager rig — walker, dugout cam, gestures, moods
 - [ ] **Rive** for the walker (MCP still to be installed)
 - [ ] **Kenney.nl sprites** to replace the pitch circles with animated players
+- [ ] **The SVG art that is not player art**: `assets/clubArt` (430),
+      `assets/gemArt` (146), `assets/svgCache` (54). `playerArt` is already ported;
+      these three are not, and the crest, the club-asset tiles and the gem icons
+      all read from them.
 
 ---
 
 ## M4 — services
 
-- [ ] AdMob adapter (the half of `energyEngine` left behind, plus `iapClient`)
-- [ ] Firebase: the analytics sink, Crashlytics
+### IAP, end to end
+
+The engine half is done and **cannot take a payment on its own**. Every link below
+has to land before a single SKU is buyable, and the chain fails silently: a missing
+consent gate ships a compliance problem, a missing store product shows a shop full
+of buttons that error.
+
+- [x] `iap_engine` — the catalogue and the grant step (M1)
+- [ ] `engine/iapClient` (195) — the native billing bridge. Play Billing and
+      StoreKit, via whichever plugin replaces cordova-plugin-purchase
+- [ ] `utils/ageVerification` (134) — `isIapAllowed`, which blocks IAP for
+      Play-verified minors without parental consent. **A legal requirement**
+      (Texas SB 2420), not a nicety, and it gates the purchase flow
+- [ ] `initiatePurchase` — the "user tapped Buy" flow that ties the three
+      together. Deliberately left out of the M1 port because it needs the two
+      above; the pre-flight checks it does are already in the engine
+- [ ] Restore purchases, and re-grant of non-consumables on a fresh install
+- [ ] The Shop screen (`ShopScreen`, 1,387 — counted in M3)
+- [ ] Every SKU created and priced in App Store Connect AND Play Console, in both
+      cases matching `IapProduct.sku` exactly (see M6)
+
+### The rest
+
+- [ ] AdMob adapter — the half of `energyEngine` left behind in M1
+- [ ] Firebase: `services/firebase` (146) init, the analytics sink, Crashlytics
 - [ ] `authService` (662), `playGamesService` (155), `nativeAuthPlugin`
 - [ ] `cloudSaveService` (498), `firestoreRest` (334), `firestoreRestAuth` (83)
 - [ ] `leaderboardService` (1,831)
@@ -339,13 +397,26 @@ transliterated; identity, layout and assets stay.
 - [ ] Local notifications — four of them, all `allowWhileIdle`
 - [ ] `util/sound.js` (782) — synthesised SFX plus the one background track
 - [ ] `util/wake_lock` (54)
-- [ ] `util/ad_consent` (63), `util/network`, `util/open_url`
+- [ ] `util/ad_consent` (63), `util/network` (8), `util/open_url` (15)
+
+**Not being ported**, recorded so nobody goes looking:
+
+- `services/nativeSaveMirror` (77) belongs to the OLD app — it WRITES the mirror
+  the Flutter build reads. Its counterpart here is `legacy_save_bridge`, done in
+  M0, and the write side ships one last time from the old repo (see M6).
+- `utils/devTools` (114) is a dev-only console helper with no shipping surface.
 
 ---
 
 ## M5 — i18n
 
-- [ ] Locale files and the lookup layer
+14 files, 29,438 lines: ten locales at ~2,900 each plus the lookup layer. Bulk, not
+difficulty — but it is a third of the size of the UI and easy to under-budget.
+
+- [ ] `i18n/index` — the lookup layer and the `t()` contract engines already emit
+      keys against (the match feed emits `commentary.flow.*`, the achievements
+      `ach.title.*` / `ach.desc.*`)
+- [ ] The ten locale files: ar, de, en, es, fr, it, ja, ko, pt, zh
 - [ ] Check the long-language layouts (German is the measured worst case)
 
 ---
@@ -359,6 +430,14 @@ transliterated; identity, layout and assets stay.
 - [ ] Android: the CI-generated build config, SDK levels, AGP/Gradle
 - [ ] Store listings, whatsnew, changelog — the listing NAME becomes
       "Merge Empire Football Manager"; the bundle id must not move with it
+- [ ] **The in-app products themselves, in both consoles.** Eleven SKUs, each
+      matching `IapProduct.sku` character for character, with the consumable /
+      non-consumable flag matching `IapProduct.type` — the store is what refuses a
+      repeat purchase of a one-time product, not our code. They already exist for
+      the live app; this is a check, not a creation, and the check matters because
+      a renamed product id is an unbuyable product.
+- [ ] Sandbox purchase pass on both platforms: every SKU bought once, plus a
+      restore on a clean install.
 
 ---
 
