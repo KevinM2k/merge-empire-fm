@@ -339,7 +339,7 @@ int averageFitnessPct(Map<String, dynamic>? state) {
     chosen = [
       for (final slot in lineup)
         if (slot is Map && slot['cardInstanceId'] is String)
-          if (byId[slot['cardInstanceId']] case final card?) card,
+          ?byId[slot['cardInstanceId']],
     ];
   }
   if (chosen.isEmpty) chosen = all;
