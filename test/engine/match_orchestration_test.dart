@@ -529,6 +529,160 @@ void main() {
     });
   });
 
+  group('home advantage', () {
+    test('the Fan Zone lifts us at home and does nothing away', () {
+      // A Sunday League touchline with three mates and a dog is not the Kop, so
+      // the bonus scales with the tier — and only when we are hosting.
+      Map<String, dynamic> hosting({required int fanTier}) {
+        // Season 3, fixture 0 is a home tie under the seeded home/away rule.
+        final s = _state(seasonMatchesPlayed: 0);
+        (s['clubAssets'] as Map)['FANZONE'] = {'owned': true, 'tier': fanTier};
+        return s;
+      }
+
+      seeded.setSeed(1);
+      final bare = simulateMatch(hosting(fanTier: 0), 'regional_league');
+      seeded.setSeed(1);
+      final packed = simulateMatch(hosting(fanTier: 8), 'regional_league');
+      expect(bare['isHome'], isTrue);
+      expect(
+        packed['homeAdvDisplay'] as num,
+        greaterThan(bare['homeAdvDisplay'] as num),
+      );
+
+      // Away, the crowd is theirs, so our own tier buys nothing.
+      seeded.setSeed(1);
+      final away = _state(seasonMatchesPlayed: 4);
+      (away['clubAssets'] as Map)['FANZONE'] = {'owned': true, 'tier': 8};
+      final awayResult = simulateMatch(away, 'regional_league');
+      expect(awayResult['isHome'], isFalse);
+      expect(
+        awayResult['ourAttackRating'],
+        lessThanOrEqualTo(packed['ourAttackRating'] as num),
+      );
+    });
+  });
+
+  group('the loan book', () {
+    test('a settled match reports the loans it ended, as plain data', () {
+      // The report goes onto the result, and a cup result goes into the save —
+      // so it has to be a map, never the record the loan engine returns.
+      final state = _state(cardCount: 12);
+      final cells = (state['grid'] as Map)['cells'] as List;
+      cells[12] = {
+        'instanceId': 'loanee',
+        'definitionId': 'player_t5_mid',
+        'seasonsPlayed': 0,
+        'borrowed': true,
+        'loanMatchesLeft': 1,
+        'loanWage': 5,
+      };
+      final result = simulateMatch(state, 'regional_league');
+      applyMatchRewards(state, result);
+
+      final report = result['loanReport'] as Map<String, dynamic>;
+      expect(report['departed'], hasLength(1));
+      expect((report['departed'] as List).first, isA<Map<String, dynamic>>());
+      expect(() => jsonEncode(result), returnsNormally);
+    });
+
+    test('a returning loanee comes home as plain data too', () {
+      final state = _state(cardCount: 12);
+      final cells = (state['grid'] as Map)['cells'] as List;
+      cells[12] = {
+        'instanceId': 'away',
+        'definitionId': 'player_t5_mid',
+        'seasonsPlayed': 0,
+        'loanedOut': {'toTeam': 'Elsewhere FC', 'matchesLeft': 1},
+      };
+      final result = simulateMatch(state, 'regional_league');
+      applyMatchRewards(state, result);
+
+      final report = result['loanReport'] as Map<String, dynamic>;
+      expect(report['returned'], hasLength(1));
+      expect(
+        ((report['returned'] as List).first as Map)['toTeam'],
+        'Elsewhere FC',
+      );
+      expect(() => jsonEncode(result), returnsNormally);
+    });
+  });
+
+  group('hardLiveRatings', () {
+    test('a Pro-mode tactic change drops a cancelled injury from the sim too', () {
+      // The victim is healed and their slot restored, so the live badge must stop
+      // holding a place for them on the pitch as well.
+      for (var seed = 0; seed < 60; seed++) {
+        seeded.setSeed(seed);
+        final state = _state(hardMode: true, seasonsPlayed: 14);
+        final result = simulateMatch(state, 'champions_cup');
+        final planned = (result['hardSim'] as Map)['injuries'] as List;
+        if (planned.isEmpty) continue;
+        final iid = (planned.first as Map)['iid'];
+        final minute = ((planned.first as Map)['minute'] as num).toInt();
+        if (minute <= 5) continue;
+
+        reSimulateRemainder(
+          result,
+          5,
+          'parkTheBus',
+          (result['homeGoals'] as num).toInt(),
+          (result['awayGoals'] as num).toInt(),
+          state,
+        );
+
+        // The remainder may roll a FRESH knock, which legitimately lands back on
+        // the list — so the rule is that this one is gone, not that the list is.
+        expect(
+          [
+            for (final e in (result['hardSim'] as Map)['injuries'] as List)
+              if ((e as Map)['iid'] == iid && e['minute'] == minute) e,
+          ],
+          isEmpty,
+          reason: 'seed $seed',
+        );
+        expect(
+          [
+            for (final e in result['injuryLog'] as List)
+              if ((e as Map)['iid'] == iid && e['minute'] == minute)
+                e['cancelled'],
+          ],
+          [true],
+          reason: 'seed $seed',
+        );
+        return;
+      }
+      fail('no seed produced a cancellable Pro-mode injury');
+    });
+
+    test('tolerates a save with no strategy timeline', () {
+      final state = _state(hardMode: true);
+      final result = simulateMatch(state, 'regional_league');
+      (result['hardSim'] as Map).remove('stratLog');
+      expect(
+        () => hardLiveRatings(result, 45, state, 'balanced'),
+        returnsNormally,
+      );
+    });
+
+    test('reads the single-injury shape an older save wrote', () {
+      final state = _state(hardMode: true);
+      final result = simulateMatch(state, 'regional_league');
+      final hs = result['hardSim'] as Map;
+      final onPitch = (state['squad'] as Map)['lineup'] as List;
+      hs.remove('injuries');
+      hs['injury'] = {
+        'iid': (onPitch.first as Map)['cardInstanceId'],
+        'slotPosition': 'GK',
+        'minute': 60,
+      };
+      expect(
+        () => hardLiveRatings(result, 30, state, 'balanced'),
+        returnsNormally,
+      );
+    });
+  });
+
   group('bestFormationForFixture', () {
     test('keeps the manager\'s own shape on an exact tie', () {
       // A shape change nobody asked for should have to earn itself.
