@@ -8,7 +8,7 @@ CardInstance _card(String id, {bool injured = false, bool listed = false, Object
       'definitionId': 'player_t1_mid',
       if (injured) 'injured': true,
       if (listed) 'listed': true,
-      if (loanedOut != null) 'loanedOut': loanedOut,
+      'loanedOut': ?loanedOut,
     });
 
 void main() {
