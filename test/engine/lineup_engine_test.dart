@@ -310,7 +310,7 @@ void main() {
 
     test('refuses a malformed lineup', () {
       expect(refillLineupFromBench({'squad': {'lineup': null}}), isFalse);
-      expect(refillLineupFromBench({'squad': {'lineup': []}}), isFalse);
+      expect(refillLineupFromBench({'squad': {'lineup': <dynamic>[]}}), isFalse);
       expect(refillLineupFromBench({}), isFalse);
     });
 
