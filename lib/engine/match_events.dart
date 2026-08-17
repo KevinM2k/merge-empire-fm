@@ -147,6 +147,27 @@ class MatchEvent {
   final bool? big;
   final String? player;
   final int? addedTime;
+
+  /// The feed entry as the match result stores it.
+  ///
+  /// A result crosses the sim, the match screen and the quest engine, so it
+  /// stays a raw map for the same reason the save does. Only the fields this
+  /// event actually carries are written — except a goal's scorer, which keeps
+  /// its keys even when nobody is credited, because an away goal has no scorer
+  /// and the readers index the two lists against each other.
+  Map<String, dynamic> toMap() => {
+    'minute': minute,
+    'type': type,
+    if (team != null) 'team': team,
+    if (type == 'goal') 'scorer': scorer,
+    if (type == 'goal') 'scorerInstanceId': scorerInstanceId,
+    if (textKey != null) 'textKey': textKey,
+    if (xg != null) 'xg': xg,
+    if (shotResult != null) 'shotResult': shotResult,
+    if (big != null) 'big': big,
+    if (player != null) 'player': player,
+    if (addedTime != null) 'addedTime': addedTime,
+  };
 }
 
 /// An injury to place in the feed.

@@ -440,4 +440,55 @@ void main() {
       expect(home, greaterThan(away));
     });
   });
+
+  group('toMap', () {
+    test('carries minute and type for an event with nothing else', () {
+      expect(const MatchEvent(minute: 45, type: 'halftime').toMap(), {
+        'minute': 45,
+        'type': 'halftime',
+      });
+    });
+
+    test('keeps a goal scorer even when nobody is credited', () {
+      // An away goal has no scorer, and the KEYS still have to be there: the
+      // match screen reads them positionally against our own goals.
+      expect(
+        const MatchEvent(minute: 12, type: 'goal', team: 'away').toMap(),
+        {
+          'minute': 12,
+          'type': 'goal',
+          'team': 'away',
+          'scorer': null,
+          'scorerInstanceId': null,
+        },
+      );
+    });
+
+    test('omits a field nothing set, rather than writing a null', () {
+      final map = const MatchEvent(
+        minute: 30,
+        type: 'chance',
+        team: 'home',
+        xg: 0.2,
+        shotResult: 'on_target',
+        big: false,
+      ).toMap();
+      expect(map.keys, isNot(contains('player')));
+      expect(map, {
+        'minute': 30,
+        'type': 'chance',
+        'team': 'home',
+        'xg': 0.2,
+        'shotResult': 'on_target',
+        'big': false,
+      });
+    });
+
+    test('carries the added time a fulltime marker was built with', () {
+      expect(
+        const MatchEvent(minute: 93, type: 'fulltime', addedTime: 3).toMap(),
+        {'minute': 93, 'type': 'fulltime', 'addedTime': 3},
+      );
+    });
+  });
 }
