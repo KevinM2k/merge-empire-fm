@@ -1,0 +1,25 @@
+# Flutter
+build/
+.dart_tool/
+.packages
+.flutter-plugins*
+pubspec.lock
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# macOS
+.DS_Store
+
+# Native build output
+ios/Pods/
+android/.gradle/
+android/local.properties
+
+# Secrets
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
