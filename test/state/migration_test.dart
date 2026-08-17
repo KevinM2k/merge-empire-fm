@@ -151,7 +151,7 @@ void main() {
   group('load-boundary sanitisation', () {
     test('a non-list grid becomes an empty list', () {
       final s = migrate(_legacy({'grid': {'cells': 'corrupt'}}))!;
-      expect((s['grid'] as Map)['cells'], isA<List>());
+      expect((s['grid'] as Map)['cells'], isA<List<dynamic>>());
     });
 
     test('a NaN coin balance is zeroed rather than poisoning income', () {
@@ -721,7 +721,7 @@ void main() {
         _legacy({
           'progression': {
             'seasonCount': 4,
-            'cups': {'active': {'startedSeason': 4}, 'history': []},
+            'cups': {'active': {'startedSeason': 4}, 'history': <dynamic>[]},
           },
         }),
       )!;
@@ -916,14 +916,14 @@ void main() {
 
   group('quests', () {
     test('drops the dead challenges branch', () {
-      final s = migrate(_legacy({'challenges': {'daily': []}}))!;
+      final s = migrate(_legacy({'challenges': {'daily': <dynamic>[]}}))!;
       expect(s.containsKey('challenges'), isFalse);
     });
 
     test('back-fills the whole quest shape', () {
       final s = migrate(_legacy())!;
       final q = s['quests'] as Map;
-      expect(q['match'], {'fixtureKey': null, 'active': []});
+      expect(q['match'], {'fixtureKey': null, 'active': <dynamic>[]});
       expect(q['season'], isEmpty);
       expect(q['recent'], isEmpty);
       expect(q['lastRolledSeason'], 0);
@@ -958,7 +958,7 @@ void main() {
     test('takes the live counters when they are higher', () {
       final s = migrate(
         _legacy({
-          'progression': {'matchesWon': 50, 'matchesDrawn': 10, 'fixtureResults': {}},
+          'progression': {'matchesWon': 50, 'matchesDrawn': 10, 'fixtureResults': <String, dynamic>{}},
         }),
       )!;
       expect((s['progression'] as Map)['careerWins'], 50);
