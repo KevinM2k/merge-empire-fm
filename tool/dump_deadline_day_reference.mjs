@@ -208,19 +208,42 @@ out.gates = [];
 //
 // Each action is recorded with the state it left behind, so an ordering slip in
 // any of them shows up rather than being averaged away.
-const drive = (name, seed, mathSeedValue, plan, over = {}) => {
+// `wantWhen` narrows which listing a plan runs against. Patience is derived from
+// the listing id, and about a third of clubs have none at all — so a plan about
+// countering has to ask for a seller who actually haggles rather than hoping.
+const drive = (name, seed, mathSeedValue, wantKind, plan, over = {}, wantWhen = () => true) => {
   rng.setSeed(seed);
   setMathSeed(mathSeedValue);
   const state = baseState(over);
   dd.startSession(state, WINDOW_START, WINDOW_START, WINDOW_END);
-  const at = WINDOW_START + 1_200_000;
-  dd.tickSession(state, at);
+
+  // Advance the window until a listing of the kind this plan is about is actually
+  // live. Picking a fixed instant left whole kinds untested — the mix is random
+  // and a five-minute fuse means only the last few spawns are ever on the board.
+  let at = WINDOW_START;
+  while (at < WINDOW_END) {
+    dd.tickSession(state, at);
+    const found = state.deadlineDay.session.listings.some(
+      (l) => l.status === 'live' && !dd.listingExpired(l, at) && l.kind === wantKind
+        && wantWhen(l));
+    if (found) break;
+    at += ddData.LISTING_INTERVAL_MS;
+  }
 
   const steps = [];
+  let last = null;
   for (const step of plan) {
-    const board = dd.liveListings(state, at);
-    const target = board.find((l) => step.kind == null || l.kind === step.kind);
+    // Every LIVE listing, not the four on the board: the display cap is a display
+    // decision and the accept paths do not care about it, so driving off
+    // liveListings would leave whole kinds untested at any given instant.
+    const target = step.reuse
+      ? state.deadlineDay.session.listings.find((l) => l.listingId === last)
+      : state.deadlineDay.session.listings.find(
+          (l) => l.status === 'live' && !dd.listingExpired(l, at)
+            && (step.kind == null || l.kind === step.kind)
+            && (step.kind == null || wantWhen(l)));
     if (!target) { steps.push({ action: step.action, kind: step.kind, skipped: 'none_live' }); continue; }
+    last = target.listingId;
     let res;
     switch (step.action) {
       case 'accept':
@@ -241,7 +264,8 @@ const drive = (name, seed, mathSeedValue, plan, over = {}) => {
         throw new Error(`unknown action ${step.action}`);
     }
     steps.push({
-      action: step.action, kind: step.kind, mult: step.mult ?? null,
+      action: step.action, kind: step.kind ?? null, reuse: step.reuse ?? false,
+      mult: step.mult ?? null,
       listingId: target.listingId,
       result: stripIds(res),
       listing: stripIds(state.deadlineDay.session.listings.find((l) => l.listingId === target.listingId)),
@@ -249,48 +273,71 @@ const drive = (name, seed, mathSeedValue, plan, over = {}) => {
   }
 
   out[name] = {
-    seed, mathSeed: mathSeedValue, steps,
+    seed, mathSeed: mathSeedValue, wantKind, atOffset: at - WINDOW_START, steps,
     summary: dd.endSession(state, WINDOW_END),
     state: digest(state),
   };
 };
 
-drive('sellSide', 11, 101, [
+drive('sellSide', 11, 101, 'bid', [
   { action: 'accept', kind: 'bid' },
   { action: 'dismiss', kind: 'bid' },
   { action: 'accept', kind: 'loanOut' },
 ]);
 
 // Haggling: a sensible push, a greedy one, and pushing again after a counter.
-drive('haggle', 11, 101, [
+drive('haggle', 11, 101, 'bid', [
   { action: 'askForMore', kind: 'bid', mult: 1.1 },
-  { action: 'askForMore', kind: 'bid', mult: 1.45 },
-  { action: 'askForMore', kind: 'bid', mult: 1.45 },
-  { action: 'accept', kind: 'bid' },
+  { action: 'askForMore', reuse: true, mult: 1.45 },
+  { action: 'askForMore', reuse: true, mult: 1.45 },
+  { action: 'accept', reuse: true },
 ]);
 
-drive('greed', 11, 101, [
+drive('greed', 11, 101, 'bid', [
   { action: 'askForMore', kind: 'bid', mult: 3 },
 ]);
 
-drive('buySide', 11, 101, [
+drive('buySide', 11, 101, 'signing', [
   { action: 'accept', kind: 'signing' },
   { action: 'accept', kind: 'loan' },
 ]);
 
 // Offering under the asking price: a lowball, a serious short offer, then taking
 // whatever number they came back with.
-drive('offers', 11, 101, [
+// A lowball is an insult: the player comes off the market rather than being
+// merely refused, which is the buy-side equivalent of pushing a buyer too far.
+drive('lowball', 11, 101, 'signing', [
   { action: 'submitOffer', kind: 'signing', mult: 0.3 },
-  { action: 'submitOffer', kind: 'signing', mult: 0.9 },
-  { action: 'acceptCounter', kind: 'signing' },
 ]);
 
-drive('pauseResume', 11, 101, [
+// A serious short offer gets a number back, and their number stays on the table.
+drive('offers', 11, 101, 'signing', [
+  { action: 'submitOffer', kind: 'signing', mult: 0.9 },
+  { action: 'acceptCounter', reuse: true },
+], {}, (l) => (l.haggleRounds ?? 0) > 0);
+
+// A club with no patience says no flat, with no figure of its own. It will still
+// take a good enough number outright — refusing to haggle is not refusing to sell.
+drive('noPatience', 11, 101, 'signing', [
+  { action: 'submitOffer', kind: 'signing', mult: 0.9 },
+  { action: 'submitOffer', reuse: true, mult: 0.95 },
+], {}, (l) => (l.haggleRounds ?? 0) === 0);
+
+// Offering more than we hold is refused before the seller is ever consulted.
+drive('cannotAfford', 11, 101, 'signing', [
+  { action: 'submitOffer', kind: 'signing', mult: 0.9 },
+], { resources: { fanCoins: 1 } });
+
+drive('dismissed', 11, 101, 'signing', [
+  { action: 'dismiss', kind: 'signing' },
+  { action: 'accept', reuse: true },
+]);
+
+drive('pauseResume', 11, 101, 'signing', [
   { action: 'pause', kind: 'signing' },
-  { action: 'pause', kind: 'signing' },
-  { action: 'resume', kind: 'signing' },
-  { action: 'resume', kind: 'signing' },
+  { action: 'pause', reuse: true },
+  { action: 'resume', reuse: true },
+  { action: 'resume', reuse: true },
 ]);
 
 // ── re-entry, and the one-session rule ────────────────────────────────────

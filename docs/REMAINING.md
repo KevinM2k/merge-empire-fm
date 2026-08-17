@@ -10,7 +10,7 @@ rough sense of size, not a target.
 
 ## Where we are
 
-**2,213 tests, 97.4% line coverage, `flutter analyze` clean.** Everything below
+**2,275 tests, 97.4% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -26,7 +26,7 @@ them on the critical path.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fc-flutter
 flutter analyze          # must be clean
-flutter test             # 2,213 passing
+flutter test             # 2,275 passing
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -155,6 +155,10 @@ JS number or object did.
 - [x] `negotiation_engine` (381) + `data/negotiation` (135) — valuation, offers,
       counters and the transfer list. Deadline Day imports eight functions from
       it, so it has to land first whatever order the list is written in
+- [x] `deadline_day_engine` (1,073) + `data/deadline_day` (140) — the live
+      wall-clock trading session. Pinned against node over whole SESSIONS at
+      fixed instants, plus every interaction path, because the risk here is the
+      schedule being anchored to the player rather than to the window
 - [x] `tactic_coach` — `tacticExpectedPoints`, `injuryCostPoints`,
       `baselineInjuryRisk`, `suggestTactic`. Split out of `match_tactics` by what
       it reads: that file is the tactic TABLE every ATK/DEF readout shares, this
@@ -173,18 +177,16 @@ JS number or object did.
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `deadline_day_engine`
+### Next up — `iap_engine`
 
-The biggest remaining engine at 1,073 lines, and the only one left with its own
-screen. Its dependency, `negotiation_engine`, is now in — it imports eight
-functions from it, so the two could not be done the other way round however the
-list was ordered.
+The catalogue and purchase application, 500 lines. Nothing blocks it. After that
+`achievement_engine` is the next one with real reach, at 81 state predicates over
+data that is already ported.
 
 ### Remaining engines
 
 Roughly in dependency order — the first three unlock the most.
 
-- [ ] `deadline_day_engine` (1,073) + `data/deadline_day` (140)
 - [ ] `iap_engine` (500) — the catalogue and purchase application
 - [ ] `achievement_engine` (145) + `data/achievements` (301) — 81 state
       predicates; needs `events` (done)
@@ -321,6 +323,16 @@ transliterated; identity, layout and assets stay.
 - [ ] **Register the iPhone at developer.apple.com** → Certificates, Identifiers
       & Profiles → Devices. It unblocks every iOS device pass, and has been
       blocking since v1.15.9 of the old app.
+- [ ] **A signing hands over a different card from the one the feed showed.**
+      `_acceptSigning` rolls a FRESH instance and copies only the name, so the
+      variant, the trait and the ATK/DEF split you were shown are not what lands
+      on the grid. The feed reads `listing.card` (EventScreen.js:1316) and the
+      pre-roll exists precisely so "the portrait, the rating and the stat split on
+      the offer are exactly what lands on your grid" — so the JS contradicts its
+      own comment. Reproduced faithfully in the port rather than fixed, because
+      placing `listing.card` instead would change which card arrives AND consume
+      fewer draws, shifting every later listing in the window. Worth fixing
+      deliberately; see `_acceptSigning` in `engine/deadline_day_engine.dart`.
 - [ ] The `wc2026` event slot is dormant — its window closed in July — and is to
       be reused for something else. It is kept whole because its shape and tests
       are the spec for whatever replaces it: a bracket event with a pickable
