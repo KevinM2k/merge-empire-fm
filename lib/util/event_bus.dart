@@ -41,6 +41,15 @@ void off(String event, BusHandler handler) {
   _listeners[event]?.remove(handler);
 }
 
+/// Drop every registration.
+///
+/// The app never calls this — the bus lives as long as the process. It exists
+/// for tests: a handler registered in one case would otherwise still be
+/// listening in the next, and a closure that captures the previous case's state
+/// firing against the current one is a failure that reads as a bug in the code
+/// under test.
+void clearBus() => _listeners.clear();
+
 void emit(String event, [Object? args]) {
   final handlers = _listeners[event];
   if (handlers == null || handlers.isEmpty) return;
