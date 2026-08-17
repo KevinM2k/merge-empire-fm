@@ -6,8 +6,8 @@ The running list for the Flutter port. Tick a box when the module is ported
 Sources are `../merge-empire-fc/src/`. Line counts are the JS originals, as a
 rough sense of size, not a target.
 
-**Where we are:** M1 (logic core) is about 60% through by module count.
-1,652 tests, 97.1% line coverage, `flutter analyze` clean.
+**Where we are:** M1 (logic core) is about 70% through by module count.
+1,900 tests, 97.4% line coverage, `flutter analyze` clean.
 
 **Standing rules**
 - `lib/engine/`, `lib/data/`, `lib/state/`, `lib/util/` must never import
@@ -64,6 +64,13 @@ rough sense of size, not a target.
 - [x] `engine/sell_engine.dart` (27)
 - [x] `engine/auto_tier_engine.dart` (148)
 - [x] `engine/event_engine.dart` (330)
+- [x] `data/quests.dart` (1,042) — the 77-quest bank, a compile-time constant
+- [x] `engine/quest_engine.dart` + `engine/quest_match.dart` (1,468) — both
+      tracks, split by what they read: the save, and a match result
+- [x] `engine/fixture_preview.dart` — `previewFixture`, split out of the match
+      engine to break the quest/match import cycle the JS lives with
+- [x] `engine/scout_engine.dart` (125)
+- [x] `engine/coin_sink_engine.dart` (186)
 - [x] `util/analytics.dart` — pluggable sink, so engines can log without Firebase
 - [x] `util/sorting.dart` — stable sort, which Dart's `List.sort` is not
 
@@ -72,13 +79,7 @@ rough sense of size, not a target.
 `progressionEngine.endSeason` is the last piece of progression and needs all of
 these first. This is the critical path.
 
-- [ ] `data/quests.dart` (1,042) — the 75-quest bank
-- [ ] `engine/quest_engine.dart` (1,468) — **the big one**. Two tracks off one
-      bank; match quests evaluated at full time, season quests accumulated or
-      derived. Carries a lot of invariants worth pinning: family exclusion via
-      `QUEST_TAGS`, `feasible`, `fitsInSeason`, mid-season baselines, the
-      no-wallet/no-ad rule, the one-gem-per-division capstone.
-- [ ] `data/cups.dart` is done; `engine/cup_engine.dart` (637) is not
+- [ ] `engine/cup_engine.dart` (637) — `data/cups.dart` is already done
 - [ ] `engine/progression_season_end.dart` — `endSeason`, `processAgeRegression`,
       prestige, `trackEvent`. Depends on quests, cups, gems, events, auto-tier,
       and `managerAvatar` for the prestige cosmetics carry-over.
@@ -98,10 +99,8 @@ these first. This is the critical path.
 - [ ] `engine/pyramid_names_engine.dart` (313)
 - [ ] `engine/daily_reward_engine.dart` (270)
 - [ ] `engine/scout_voucher_engine.dart` (253)
-- [ ] `engine/coin_sink_engine.dart` (186)
 - [ ] `engine/club_asset_tiers.dart` (148)
 - [ ] `engine/achievement_engine.dart` (145) + `data/achievements.dart` (301)
-- [ ] `engine/scout_engine.dart` (125)
 - [ ] `engine/ad_gate_engine.dart` (86)
 - [ ] `engine/boot_room_engine.dart` (205)
 - [ ] `engine/badge_engine.dart` (59)
