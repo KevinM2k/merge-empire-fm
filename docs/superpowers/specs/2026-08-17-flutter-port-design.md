@@ -281,12 +281,10 @@ and coverage gate. Testing is not a phase at the end.
    (`CapacitorStorage`) differently from `shared_preferences` (`flutter.`). Reading the
    legacy key needs a platform channel on both platforms. Spiked in M0 because every
    downstream milestone depends on it.
-   **Status after M0: retired on iOS, open on Android.** Key formats were confirmed
-   from the plugin source — Android stores the key unprefixed in SharedPreferences
-   file `CapacitorStorage`; iOS prefixes it as
-   `CapacitorStorage.mergeEmpireFC_save_native`. A real v7 save round-trips
-   losslessly on iOS. The Android handler compiles but its integration test has not
-   been run for want of an emulator image.
+   **Status after M0: retired.** Key formats were confirmed from the plugin source —
+   Android stores the key unprefixed in SharedPreferences file `CapacitorStorage`;
+   iOS prefixes it as `CapacitorStorage.mergeEmpireFC_save_native`. A real v7 save
+   round-trips losslessly on both iOS and Android.
 3. **The precursor Capacitor release.** Players whose save exists only in
    `localStorage` are unreachable until the existing app force-writes the native
    mirror. If the Flutter build ships before enough players have taken that update,
