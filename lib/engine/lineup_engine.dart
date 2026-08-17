@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/player_rating.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/sorting.dart';
 
 /// How much a player loses playing out of position.
 ///
@@ -89,7 +90,13 @@ List<LineupSlot> buildDefaultLineup(
     }
   }
 
-  pairs.sort((a, b) {
+  // STABLE, and load-bearing. The comparator returns 0 for two pairs of equal
+  // in-slot value, so which of two identical players takes which slot falls back
+  // entirely on the order the pairs were built in — player-major, slot-minor.
+  // The JS leans on `Array.sort` being stable for that; Dart's `List.sort` is
+  // not, and an unstable sort here quietly fields a different XI from the same
+  // squad.
+  stableSort(pairs, (a, b) {
     if (b.eff != a.eff) return b.eff.compareTo(a.eff);
     // Equal in-slot value: prefer the fresher player. Rotation flavour.
     if (!fatigue) return 0;
@@ -163,7 +170,9 @@ List<LineupSlot> fillLineupGaps(
       pairs.add(_Pair(eff, pi, ei));
     }
   }
-  pairs.sort((a, b) => b.eff.compareTo(a.eff));
+  // Stable for the same reason as [buildDefaultLineup]: equal in-slot value
+  // leaves the pair build order as the only tie-break.
+  stableSort(pairs, (a, b) => b.eff.compareTo(a.eff));
 
   final usedPlayers = <int>{};
   final usedSlots = <int>{};

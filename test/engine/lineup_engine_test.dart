@@ -137,6 +137,38 @@ void main() {
       ]);
       expect(lineup.every((s) => s.cardInstanceId == null), isTrue);
     });
+
+    test('breaks a tie by grid order, then slot order', () {
+      // Eleven identical players means the pair scores tie in whole blocks, and
+      // which of two equal cards takes which slot is then decided purely by the
+      // ORDER the pairs were built in — player-major, slot-minor. The JS relies
+      // on Array.sort being stable for exactly this; Dart's List.sort is not, so
+      // an unstable sort here quietly produces a different XI from the same
+      // squad. The assignment below is the JS answer, pinned.
+      final lineup = buildDefaultLineup('4-4-2', [
+        for (var i = 0; i < 11; i++)
+          _card('c$i', definitionId: 'player_t3_mid'),
+      ]);
+      expect(
+        {for (final s in lineup) s.slotId: s.cardInstanceId},
+        // The four midfield slots go first — no position penalty — and take the
+        // first four cards. The defenders and forwards share the next tier, and
+        // the keeper's slot is the worst fit for a midfielder, so it goes last.
+        {
+          'gk': 'c10',
+          'rb': 'c4',
+          'rcb': 'c5',
+          'lcb': 'c6',
+          'lb': 'c7',
+          'rm': 'c0',
+          'rcm': 'c1',
+          'lcm': 'c2',
+          'lm': 'c3',
+          'rs': 'c8',
+          'ls': 'c9',
+        },
+      );
+    });
   });
 
   group('buildDefaultLineup with fatigue', () {
@@ -186,6 +218,40 @@ void main() {
     test('fills empty slots', () {
       final filled = fillLineupGaps(emptyLineup(), '4-3-3', [_card('a')]);
       expect(filled.where((s) => s.cardInstanceId != null).length, 1);
+    });
+
+    test('breaks a tie by grid order, then slot order', () {
+      // Same stability requirement as buildDefaultLineup, and the same reason:
+      // the comparator returns 0 for equal in-slot value, so the pair build
+      // order is the only thing deciding between identical players.
+      final filled = fillLineupGaps(
+        [
+          for (final s in getFormation('4-4-2').slots)
+            LineupSlot(
+              slotId: s.slotId,
+              slotPosition: s.slotPosition,
+              cardInstanceId: null,
+            ),
+        ],
+        '4-4-2',
+        [
+          for (var i = 0; i < 11; i++)
+            _card('c$i', definitionId: 'player_t3_mid'),
+        ],
+      );
+      expect({for (final s in filled) s.slotId: s.cardInstanceId}, {
+        'gk': 'c10',
+        'rb': 'c4',
+        'rcb': 'c5',
+        'lcb': 'c6',
+        'lb': 'c7',
+        'rm': 'c0',
+        'rcm': 'c1',
+        'lcm': 'c2',
+        'lm': 'c3',
+        'rs': 'c8',
+        'ls': 'c9',
+      });
     });
 
     test('leaves placed players undisturbed', () {

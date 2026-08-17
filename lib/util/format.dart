@@ -93,13 +93,20 @@ int _jsRound(double v) => (v + 0.5).floor();
 /// Rounds coin amounts to the nearest "nice" step that scales with magnitude:
 /// nearest 5 for hundreds, 50 for thousands, 5000 for hundred-thousands.
 /// Values under 10 keep their exact value.
-num roundCoins(num? n) {
+///
+/// Returns an `int`, always. The step is a whole number by construction, so the
+/// result is one too — and it has to arrive as an int rather than a double that
+/// happens to be whole. Coin amounts go straight into the save, a save is
+/// compared byte for byte after a cloud round trip, and `75.0` encodes
+/// differently from `75` while comparing equal in Dart. JS has only one number
+/// type and writes the integral value, so this is what matches it.
+int roundCoins(num? n) {
   if (n == null) return 0;
   final abs = n.abs();
   if (abs < 10) return _jsRound(n.toDouble());
   final factor = math.max(
-    5.0,
-    5 * math.pow(10, (math.log(abs) / math.ln10).floor() - 2).toDouble(),
+    5,
+    5 * math.pow(10, (math.log(abs) / math.ln10).floor() - 2).toInt(),
   );
   return _jsRound(n / factor) * factor;
 }

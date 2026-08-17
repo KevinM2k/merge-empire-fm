@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -140,6 +141,18 @@ void main() {
     test('values under 10 keep their exact value', () {
       for (var i = 0; i < 10; i++) {
         expect(roundCoins(i), i);
+      }
+    });
+
+    test('always returns a whole number, not a double that happens to be whole', () {
+      // Coin amounts go straight into the save, and a save is compared byte for
+      // byte after a cloud round trip. `75.0` and `75` are equal as numbers and
+      // DIFFERENT as JSON, so returning a double here would rewrite every coin
+      // field the moment a match paid out.
+      for (final n in <num>[0, 5, 9, 9.6, 10, 74.2, 100, 999, 1234, 987654.3]) {
+        final rounded = roundCoins(n);
+        expect(rounded, isA<int>(), reason: '$n');
+        expect(jsonEncode({'coins': rounded}), '{"coins":$rounded}', reason: '$n');
       }
     });
   });
