@@ -287,7 +287,7 @@ void main() {
             },
         ],
       },
-      'grid': {'cells': [for (final c in grid) c?.raw]},
+      'grid': <String, dynamic>{'cells': <dynamic>[for (final c in grid) c?.raw]},
     };
 
     test('fills a hole left by an injury that has healed', () {
