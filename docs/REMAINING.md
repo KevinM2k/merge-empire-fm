@@ -10,7 +10,7 @@ rough sense of size, not a target.
 
 ## Where we are
 
-**2,275 tests, 97.4% line coverage, `flutter analyze` clean.** Everything below
+**2,358 tests, 97.4% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -26,7 +26,7 @@ them on the critical path.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fc-flutter
 flutter analyze          # must be clean
-flutter test             # 2,275 passing
+flutter test             # 2,358 passing
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -159,6 +159,15 @@ JS number or object did.
       wall-clock trading session. Pinned against node over whole SESSIONS at
       fixed instants, plus every interaction path, because the risk here is the
       schedule being anchored to the player rather than to the window
+- [x] `iap_engine` (500) — the catalogue and the grant step. **The pure half
+      only**, the same split `energy_engine` took: `initiatePurchase` needs native
+      billing and the parental-consent gate, both M4. The whole catalogue is
+      compared field by field, because a SKU is a live store product id and a typo
+      is a product nobody can buy
+- [x] `achievement_engine` (145) + `data/achievements` (301) — all 81 predicates,
+      each fired against the state that should unlock it AND a near-miss that
+      should not, since a predicate missing one condition passes every positive
+      case
 - [x] `tactic_coach` — `tacticExpectedPoints`, `injuryCostPoints`,
       `baselineInjuryRisk`, `suggestTactic`. Split out of `match_tactics` by what
       it reads: that file is the tactic TABLE every ATK/DEF readout shares, this
@@ -177,19 +186,15 @@ JS number or object did.
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `iap_engine`
+### Next up — `event_cup_engine`
 
-The catalogue and purchase application, 500 lines. Nothing blocks it. After that
-`achievement_engine` is the next one with real reach, at 81 state predicates over
-data that is already ported.
+371 lines, and the last engine with a whole screen behind it. After that it is the
+small tail: mini-games, weather, the news and advice generators, the daily reward.
 
 ### Remaining engines
 
 Roughly in dependency order — the first three unlock the most.
 
-- [ ] `iap_engine` (500) — the catalogue and purchase application
-- [ ] `achievement_engine` (145) + `data/achievements` (301) — 81 state
-      predicates; needs `events` (done)
 - [ ] `event_cup_engine` (371)
 - [ ] `mini_games_engine` (368) + `data/mini_games` (234)
 - [ ] `weather_engine` (330)
@@ -226,6 +231,57 @@ Roughly in dependency order — the first three unlock the most.
 - [ ] `stat_display` (23)
 - [ ] `storage` (1,051) — most of it is `migrate()`, already ported; audit what
       is left over and delete this line if nothing is
+
+### Bugs carried over from the JS
+
+Found while porting, reproduced faithfully rather than fixed, because each one is a
+gameplay or economy decision rather than a mechanical slip. All are pinned by a test
+so the current behaviour is visible and a deliberate change is a one-line edit.
+
+- [ ] **A Deadline Day signing hands over a different card from the one the feed
+      showed.** `_acceptSigning` rolls a FRESH instance and copies only the name,
+      so the variant, the trait and the ATK/DEF split you were shown are not what
+      lands on the grid. The feed reads `listing.card` (EventScreen.js:1316) and
+      the pre-roll exists precisely so "the portrait, the rating and the stat split
+      on the offer are exactly what lands on your grid" — the JS contradicts its
+      own comment. Placing `listing.card` instead would change which card arrives
+      AND consume fewer draws, shifting every later listing in the window.
+      See `_acceptSigning` in `engine/deadline_day_engine.dart`.
+- [ ] **Achievements can never be re-unlocked, though the engine is built to let
+      them.** `checkAchievements` gates on ids earned THIS RUN — a list cleared on
+      prestige or reset, with a comment saying that is what makes them
+      re-unlockable — and then ALSO on ids earned ever. The second guard subsumes
+      the first, so clearing the per-run list achieves nothing, the branch that
+      increments a `count` and reports `isReUnlock` is unreachable, and both are
+      always 1 and false. Removing the guard turns every achievement into a coin
+      faucet on every reset, so it needs a decision about the economy first.
+      See `checkAchievements` in `engine/achievement_engine.dart`.
+- [ ] **`hard_100_wins` pays 100 coins; `win_100_matches` pays 1,000.** Every cup,
+      Pro-mode, mini-game, reset and event achievement is missing from
+      `ACHIEVEMENT_COIN_REWARDS` and falls to the default of 100. Reads like an
+      oversight rather than a decision, but it is tuning.
+- [ ] **Two achievements are both called "Living Legend"** — `prestige_level_10`
+      and `merge_to_legend`. Cosmetic, and a one-word fix, but it is user-facing
+      copy so it wants a chosen replacement rather than an invented one.
+- [ ] **`vipPrestigeLinked` is dead code, and the comment above `vip_pass`
+      describes it as live.** That comment says the pass runs until the next
+      prestige with "no wall-clock timer"; the product actually carries
+      `vipDays: 30`. One of the two is wrong. The branch is ported and unreachable,
+      so switching it on is a data change.
+- [ ] Two smaller dead ends, ported as defensive and worth deleting if nothing is
+      going to use them: `product.energy` (no product carries it — every energy
+      product uses `energyAdd`), and `WC_RATING_BY_NATION` in `achievements.js`,
+      which is declared and never read. The latter is simply not ported.
+
+### Fixed in the port rather than carried
+
+- **`purchaseProduct` crashed on a save with no `shop` branch.** It writes
+  `state.shop.totalSpent` while only creating the branch inside two of the grant
+  branches, so a coin bundle threw. Unreachable in the app — the schema always
+  writes `shop` — but a real latent crash, and the JS's own
+  `state.shop = state.shop ?? {}` elsewhere shows the defensiveness was intended.
+  The port creates it up front, which cannot change behaviour where it exists.
+- The two stable-sort bugs and `roundCoins`, above.
 
 ### The differential harness
 
@@ -323,16 +379,6 @@ transliterated; identity, layout and assets stay.
 - [ ] **Register the iPhone at developer.apple.com** → Certificates, Identifiers
       & Profiles → Devices. It unblocks every iOS device pass, and has been
       blocking since v1.15.9 of the old app.
-- [ ] **A signing hands over a different card from the one the feed showed.**
-      `_acceptSigning` rolls a FRESH instance and copies only the name, so the
-      variant, the trait and the ATK/DEF split you were shown are not what lands
-      on the grid. The feed reads `listing.card` (EventScreen.js:1316) and the
-      pre-roll exists precisely so "the portrait, the rating and the stat split on
-      the offer are exactly what lands on your grid" — so the JS contradicts its
-      own comment. Reproduced faithfully in the port rather than fixed, because
-      placing `listing.card` instead would change which card arrives AND consume
-      fewer draws, shifting every later listing in the window. Worth fixing
-      deliberately; see `_acceptSigning` in `engine/deadline_day_engine.dart`.
 - [ ] The `wc2026` event slot is dormant — its window closed in July — and is to
       be reused for something else. It is kept whole because its shape and tests
       are the spec for whatever replaces it: a bracket event with a pickable
@@ -365,6 +411,10 @@ node tool/dump_manager_looks_reference.mjs > test/fixtures/manager_looks_referen
 node tool/dump_season_end_reference.mjs    > test/fixtures/season_end_reference.json
 node tool/dump_tactic_coach_reference.mjs  > test/fixtures/tactic_coach_reference.json
 node tool/dump_match_orchestration_reference.mjs > test/fixtures/match_orchestration_reference.json
+node tool/dump_negotiation_reference.mjs   > test/fixtures/negotiation_reference.json
+node tool/dump_deadline_day_reference.mjs  > test/fixtures/deadline_day_reference.json
+node tool/dump_iap_reference.mjs           > test/fixtures/iap_reference.json
+node tool/dump_achievements_reference.mjs  > test/fixtures/achievements_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
