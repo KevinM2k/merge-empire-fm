@@ -35,10 +35,6 @@ const MATCHUPS = [
   { name: 'championsCup', ourAtk: 96, ourDef: 95, oppAtk: 94, oppDef: 97 },
 ];
 
-// Shapes the AI actually fields, by their attack share — Counter Attack's
-// multiplier reads this and nothing else on the dial does.
-const RATIOS = [null, 0.35, 0.402, 0.43, 0.457, 0.5];
-
 const out = {};
 
 // ── tacticExpectedPoints ──────────────────────────────────────────────────
@@ -170,4 +166,4 @@ out.lineups = {
   deepBench: fm.buildDefaultLineup('4-4-2', tierSquad(4, 15).grid.cells),
 };
 
-process.stdout.write(JSON.stringify(out, null, 2));
+process.stdout.write(JSON.stringify(out));
