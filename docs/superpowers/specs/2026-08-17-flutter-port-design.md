@@ -273,10 +273,20 @@ and coverage gate. Testing is not a phase at the end.
 1. **LeagueScreen diorama and match scenes.** ~15k lines of bespoke DOM/CSS animation
    with no mechanical port path. Biggest unknown; M0 probes the technique before M3
    commits to it.
+   **Status after M0: open.** Both a `CustomPainter` and a widget-tree rig are built,
+   tested and committed, but the choice needs profile-mode timings from a physical
+   device, which this session could not produce. See `2026-08-17-m0-findings.md`.
+   M3 must also evaluate **Rive** for the articulated manager-avatar walker.
 2. **Save-bridge platform channel.** Capacitor prefixes Preferences keys
    (`CapacitorStorage`) differently from `shared_preferences` (`flutter.`). Reading the
    legacy key needs a platform channel on both platforms. Spiked in M0 because every
    downstream milestone depends on it.
+   **Status after M0: retired on iOS, open on Android.** Key formats were confirmed
+   from the plugin source — Android stores the key unprefixed in SharedPreferences
+   file `CapacitorStorage`; iOS prefixes it as
+   `CapacitorStorage.mergeEmpireFC_save_native`. A real v7 save round-trips
+   losslessly on iOS. The Android handler compiles but its integration test has not
+   been run for want of an emulator image.
 3. **The precursor Capacitor release.** Players whose save exists only in
    `localStorage` are unreachable until the existing app force-writes the native
    mirror. If the Flutter build ships before enough players have taken that update,
