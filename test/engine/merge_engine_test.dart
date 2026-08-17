@@ -346,7 +346,7 @@ void main() {
 
       // Four T1s become two T2s, which become one T3.
       expect(merges, 3);
-      final remaining = cells.whereType<Map>().toList();
+      final remaining = cells.whereType<Map<String, dynamic>>().toList();
       expect(remaining.length, 1);
       expect(remaining.single['definitionId'], 'player_t3_fwd');
     });
@@ -356,7 +356,7 @@ void main() {
         for (var i = 0; i < 3; i++) _card('player_t1_fwd', instanceId: 'a$i'),
       ];
       mergeAll(cells);
-      final remaining = cells.whereType<Map>().toList();
+      final remaining = cells.whereType<Map<String, dynamic>>().toList();
       expect(remaining.length, 2);
     });
 
@@ -367,7 +367,7 @@ void main() {
       final merges = mergeAll(cells, maxTier: 2);
       expect(merges, 2);
       expect(
-        cells.whereType<Map>().every((c) => c['definitionId'] == 'player_t2_fwd'),
+        cells.whereType<Map<String, dynamic>>().every((c) => c['definitionId'] == 'player_t2_fwd'),
         isTrue,
       );
     });
@@ -390,7 +390,7 @@ void main() {
         _card('player_t1_fwd', variant: 2, instanceId: 'f'),
       ];
       expect(mergeAll(cells), 0);
-      expect(cells.whereType<Map>().length, 2);
+      expect(cells.whereType<Map<String, dynamic>>().length, 2);
     });
 
     test('merges same-gender pairs across different variants', () {

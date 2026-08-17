@@ -86,7 +86,7 @@ CardInstance createInstance(String definitionId, {bool? preferredFemale}) {
     // base rating. Club assets get no energy at all.
     if (def != null) 'energy': getCardRating(def, ratingBonus: ratingBonus),
     if (def != null) 'energyUpdatedAt': now(),
-    if (displayName != null) 'displayName': displayName,
+    'displayName': ?displayName,
     'stats': <String, dynamic>{
       'goals': 0,
       'assists': 0,
