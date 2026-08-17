@@ -10,6 +10,8 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'package:merge_empire_fc/data/players.dart';
+
 class CardInstance {
   CardInstance(this.raw);
 
@@ -66,6 +68,23 @@ class CardInstance {
 
   /// Ours, here, and fit enough to be picked.
   bool get isSelectable => !injured && !isUnavailable;
+
+  /// The single source of truth for what a card is CALLED.
+  ///
+  /// Precedence: a player-set custom name, then the instance's rolled display
+  /// name, then the definition's name, then [fallback]. Every user-facing
+  /// surface reads through this, so a rename lands everywhere at once.
+  ///
+  /// A custom name is purely cosmetic — nothing here feeds rating, income,
+  /// merge eligibility or sell value — and merging produces a brand-new
+  /// instance, so the name is deliberately NOT inherited by the merged card.
+  String name([String fallback = '']) {
+    final custom = customName;
+    if (custom != null && custom.isNotEmpty) return custom;
+    final rolled = displayName;
+    if (rolled != null && rolled.isNotEmpty) return rolled;
+    return getPlayerDef(definitionId)?.name ?? fallback;
+  }
 
   @override
   String toString() => 'CardInstance($instanceId, $definitionId)';
