@@ -10,7 +10,7 @@ rough sense of size, not a target.
 
 ## Where we are
 
-**2,164 tests, 97.3% line coverage, `flutter analyze` clean.** Everything below
+**2,213 tests, 97.4% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -26,7 +26,7 @@ them on the critical path.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fc-flutter
 flutter analyze          # must be clean
-flutter test             # 2,164 passing
+flutter test             # 2,213 passing
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -135,6 +135,9 @@ JS number or object did.
 - [x] `fixture_preview` — `previewFixture`, split out to break the quest/match
       import cycle the JS lives with
 - [x] `scout_engine` (125), `coin_sink_engine` (186)
+- [x] `negotiation_engine` (381) + `data/negotiation` (135) — valuation, offers,
+      counters and the transfer list. Deadline Day imports eight functions from
+      it, so it has to land first whatever order the list is written in
 - [x] `tactic_coach` — `tacticExpectedPoints`, `injuryCostPoints`,
       `baselineInjuryRisk`, `suggestTactic`. Split out of `match_tactics` by what
       it reads: that file is the tactic TABLE every ATK/DEF readout shares, this
@@ -156,7 +159,9 @@ JS number or object did.
 ### Next up — `deadline_day_engine`
 
 The biggest remaining engine at 1,073 lines, and the only one left with its own
-screen. Nothing blocks it.
+screen. Its dependency, `negotiation_engine`, is now in — it imports eight
+functions from it, so the two could not be done the other way round however the
+list was ordered.
 
 ### Remaining engines
 
@@ -166,7 +171,6 @@ Roughly in dependency order — the first three unlock the most.
 - [ ] `iap_engine` (500) — the catalogue and purchase application
 - [ ] `achievement_engine` (145) + `data/achievements` (301) — 81 state
       predicates; needs `events` (done)
-- [ ] `negotiation_engine` (381) + `data/negotiation` (135)
 - [ ] `event_cup_engine` (371)
 - [ ] `mini_games_engine` (368) + `data/mini_games` (234)
 - [ ] `weather_engine` (330)
