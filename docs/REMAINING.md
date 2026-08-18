@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,590 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
+**2,607 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -285,14 +285,19 @@ data below.
 
 ### Remaining data
 
+- [x] `manager_mood` (289) — `moodForScore`, `moodForDraw`, the gesture rota and
+      the ball plays. The thresholds are deliberately the match popup's, so the
+      walker cannot celebrate a result Coach Colin has just called unacceptable;
+      the fixture pins the draw EDGE across the whole grid, and a test enforces
+      the rule the rota exists for — a gesture marked as a celebration may only
+      carry `elated` and `pleased` weights
+- [x] `pgs_achievements` (107) — the Play Games id map. Six of the 76 are mapped;
+      the rest are null and silently skipped until the Console list is published
+- [x] `kit_palette` (79) — what a kit id actually paints with. `kitSwatchCss`
+      still returns the web build's CSS string: the pattern DATA is the same
+      either way, and turning it into a Flutter gradient is an M3 decision
 - [ ] `manager_avatar` — the SVG geometry half (~1,100 lines). Really M3
       material; the unlock half it needs is already done.
-- [ ] `manager_mood` (289) — `moodForScore`, `moodForDraw`. The three facts
-      `moodForDraw` needs are already stored on `progression.lastMatchResult`
-      by `finalizeMatchOutcome` (`led`, `trailed`, `ratingGap`), so the dugout
-      cam and the diorama cannot disagree about the same draw
-- [ ] `pgs_achievements` (107)
-- [ ] `kit_palette` (79)
 
 ### Remaining utils
 
@@ -575,6 +580,7 @@ node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_referen
 node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.json
 node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_reference.json
 node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json
+node tool/dump_manager_mood_reference.mjs  > test/fixtures/manager_mood_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
