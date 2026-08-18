@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:merge_empire_fc/ui/widgets/probe_card.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -19,10 +19,18 @@ void main() {
                   childAspectRatio: 0.7,
                 ),
             itemCount: 200,
-            itemBuilder: (context, i) => ProbeCard(
-              name: 'Player $i',
-              rating: 40 + (i % 60),
-              kitColor: const Color(0xFF4CAF50),
+            // The REAL card now, not the M0 probe. The probe existed to measure
+            // this budget before there was anything to measure; keeping it once
+            // the card shipped would mean profiling a widget nobody renders.
+            itemBuilder: (context, i) => PlayerCard(
+              view: (
+                name: 'Player $i',
+                tier: 1 + (i % 9),
+                rating: 40 + (i % 60),
+                position: ['FWD', 'MID', 'DEF', 'GK'][i % 4],
+                injured: i % 11 == 0,
+                onLoan: i % 17 == 0,
+              ),
             ),
           ),
         ),
