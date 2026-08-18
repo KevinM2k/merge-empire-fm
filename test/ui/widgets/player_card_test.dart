@@ -14,6 +14,7 @@ const CardView _view = (
   position: 'FWD',
   injured: false,
   onLoan: false,
+  variant: 0,
   fitness: null,
 );
 
@@ -111,6 +112,7 @@ void main() {
         position: 'MID',
         injured: false,
         onLoan: false,
+        variant: 0,
         fitness: null,
       ));
       final border = decorationOf(tester).border! as Border;
@@ -132,6 +134,7 @@ void main() {
       position: 'MID',
       injured: false,
       onLoan: false,
+        variant: 0,
         fitness: null,
     ));
     expect(find.text('X'), findsOneWidget);
@@ -154,6 +157,7 @@ void main() {
       position: 'DEF',
       injured: true,
       onLoan: true,
+        variant: 0,
         fitness: null,
     ));
     expect(find.byIcon(Icons.healing), findsOneWidget);
@@ -184,6 +188,7 @@ void main() {
       position: 'GK',
       injured: false,
       onLoan: false,
+        variant: 0,
         fitness: null,
     ));
     expect(tester.takeException(), isNull);
@@ -209,6 +214,7 @@ void main() {
         position: 'MID',
         injured: false,
         onLoan: false,
+        variant: 0,
         fitness: 0.5,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
@@ -225,6 +231,7 @@ void main() {
         position: 'MID',
         injured: false,
         onLoan: false,
+        variant: 0,
         fitness: 0.1,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
@@ -244,6 +251,7 @@ void main() {
           position: 'MID',
           injured: false,
           onLoan: false,
+          variant: 0,
           fitness: value,
         ));
         expect(tester.takeException(), isNull, reason: '$value');

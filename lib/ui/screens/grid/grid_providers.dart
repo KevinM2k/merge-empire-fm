@@ -39,6 +39,7 @@ CardView? cardViewFor(Object? raw, {bool proMode = false}) {
     position: def.position,
     injured: card.injured,
     onLoan: card.raw['loanMatchesLeft'] != null || card.loanedOut != null,
+    variant: (card.raw['variant'] as num?)?.toInt() ?? 0,
     fitness: proMode ? energyPct(card) : null,
   );
 }

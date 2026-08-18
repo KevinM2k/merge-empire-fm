@@ -16,6 +16,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
 /// Everything the card paints, resolved by the caller.
 ///
@@ -28,6 +29,10 @@ typedef CardView = ({
   String position,
   bool injured,
   bool onLoan,
+
+  /// Which portrait to draw. Null draws none.
+  int? variant,
+
   /// 0..1, or null in casual mode.
   ///
   /// Per-player fitness is a PRO-MODE idea — casual play has team energy pips
@@ -43,6 +48,7 @@ class PlayerCard extends StatelessWidget {
     this.light = false,
     this.onTap,
     this.selected = false,
+    this.kitColor,
   });
 
   final CardView view;
@@ -53,6 +59,10 @@ class PlayerCard extends StatelessWidget {
 
   final VoidCallback? onTap;
   final bool selected;
+
+  /// The club's colour, so a squad reads as one team. Falls back to the tier
+  /// accent, which is what a card outside a squad context should wear.
+  final Color? kitColor;
 
   TierTheme get _theme => tierThemes[view.tier] ?? tierThemes[1]!;
 
@@ -88,79 +98,99 @@ class PlayerCard extends StatelessWidget {
               width: selected ? 3 : 2,
             ),
           ),
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
             children: [
-              // Flexible, not fixed: a card is small, and a selected one loses
-              // another pixel each side to its thicker border. The chips shrink
-              // rather than overflowing the header.
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Flexible(
-                    child: _Chip(
-                      label: '${view.rating}',
-                      background: cssColor(theme.labelBg),
-                      foreground: accentLight,
-                      bold: true,
+              if (view.variant != null)
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: 0.55,
+                    child: PlayerPortrait(
+                      variantIndex: view.variant!,
+                      kitColor: kitColor ?? accent,
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  Flexible(
-                    child: _Chip(
-                      label: positionLabel[view.position] ?? view.position,
-                      background: cssColor(theme.labelBg),
-                      foreground: accentLight,
-                    ),
-                  ),
-                ],
-              ),
-              // Status before the name: an injury is the thing a player is
-              // scanning a full grid for.
-              if (view.injured || view.onLoan)
-                Row(
+                ),
+              Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (view.injured)
-                      const Icon(
-                        Icons.healing,
-                        size: 14,
-                        color: Colors.redAccent,
+                    // Flexible, not fixed: a card is small, and a selected one loses
+                    // another pixel each side to its thicker border. The chips shrink
+                    // rather than overflowing the header.
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Flexible(
+                          child: _Chip(
+                            label: '${view.rating}',
+                            background: cssColor(theme.labelBg),
+                            foreground: accentLight,
+                            bold: true,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Flexible(
+                          child: _Chip(
+                            label:
+                                positionLabel[view.position] ?? view.position,
+                            background: cssColor(theme.labelBg),
+                            foreground: accentLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Status before the name: an injury is the thing a player is
+                    // scanning a full grid for.
+                    if (view.injured || view.onLoan)
+                      Row(
+                        children: [
+                          if (view.injured)
+                            const Icon(
+                              Icons.healing,
+                              size: 14,
+                              color: Colors.redAccent,
+                            ),
+                          if (view.onLoan)
+                            const Icon(
+                              Icons.swap_horiz,
+                              size: 14,
+                              color: Colors.lightBlueAccent,
+                            ),
+                        ],
                       ),
-                    if (view.onLoan)
-                      const Icon(
-                        Icons.swap_horiz,
-                        size: 14,
-                        color: Colors.lightBlueAccent,
+                    if (view.fitness != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            key: const ValueKey('card-fitness'),
+                            value: view.fitness!.clamp(0.0, 1.0),
+                            minHeight: 3,
+                            backgroundColor: cssColor(theme.labelBg),
+                            valueColor: AlwaysStoppedAnimation(
+                              view.fitness! < 0.34
+                                  ? Colors.redAccent
+                                  : accentLight,
+                            ),
+                          ),
+                        ),
                       ),
-                  ],
-                ),
-              if (view.fitness != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      key: const ValueKey('card-fitness'),
-                      value: view.fitness!.clamp(0.0, 1.0),
-                      minHeight: 3,
-                      backgroundColor: cssColor(theme.labelBg),
-                      valueColor: AlwaysStoppedAnimation(
-                        view.fitness! < 0.34 ? Colors.redAccent : accentLight,
+                    Text(
+                      view.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: light ? const Color(0xFF1A1A1A) : Colors.white,
                       ),
                     ),
-                  ),
-                ),
-              Text(
-                view.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: light ? const Color(0xFF1A1A1A) : Colors.white,
+                  ],
                 ),
               ),
             ],

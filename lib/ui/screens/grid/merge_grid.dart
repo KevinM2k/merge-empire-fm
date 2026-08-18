@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -41,17 +42,27 @@ class MergeGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cells = ref.watch(gridCellsProvider);
 
-    return GridView.builder(
-      key: const ValueKey('merge-grid'),
-      padding: const EdgeInsets.fromLTRB(8, 64, 8, 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: Grid.cols,
-        childAspectRatio: 0.78,
-        mainAxisSpacing: 6,
-        crossAxisSpacing: 6,
-      ),
-      itemCount: cells.length,
-      itemBuilder: (context, i) => _Slot(cell: cells[i], onDrop: _drop),
+    return Column(
+      children: [
+        Expanded(
+          child: GridView.builder(
+            key: const ValueKey('merge-grid'),
+            padding: const EdgeInsets.fromLTRB(8, 64, 8, 8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: Grid.cols,
+              childAspectRatio: 0.78,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+            ),
+            itemCount: cells.length,
+            itemBuilder: (context, i) => _Slot(cell: cells[i], onDrop: _drop),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: AddPlayerButton(),
+        ),
+      ],
     );
   }
 }
@@ -130,8 +141,6 @@ class GridScreen extends StatelessWidget {
   const GridScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: t('nav.players'),
-    child: const MergeGrid(),
-  );
+  Widget build(BuildContext context) =>
+      Semantics(label: t('nav.players'), child: const MergeGrid());
 }

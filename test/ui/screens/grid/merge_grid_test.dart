@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
+import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
 /// The lowest-tier player, so a merge of two makes a predictable third.
 String get _baseDefId => players.firstWhere((p) => p.tier == 1).id;
@@ -286,6 +287,78 @@ void main() {
       await settleSave(tester);
 
       expect(container.read(gridCellsProvider)[0].card!.fitness, isNotNull);
+    });
+  });
+
+  group('Add Player', () {
+    testWidgets('an empty grid can be filled from the button', (tester) async {
+      // The state the game opens in: no cards, nothing to merge, nobody to
+      // field. This is the way out of it.
+      final container = await pumpGrid(tester);
+      expect(filledCells(container), 0);
+      expect(find.byKey(const ValueKey('add-player')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(filledCells(container), 1);
+      expect(find.byType(PlayerCard), findsWidgets);
+    });
+
+    testWidgets('and again, and again', (tester) async {
+      final container = await pumpGrid(tester);
+      for (var i = 1; i <= 3; i++) {
+        await tester.tap(find.byKey(const ValueKey('add-player')));
+        await tester.pumpAndSettle();
+        await settleSave(tester);
+        expect(filledCells(container), i);
+      }
+    });
+
+    testWidgets('signing charges the coins', (tester) async {
+      final container = await pumpGrid(tester);
+      final before = container.read(coinsProvider);
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(container.read(coinsProvider), lessThan(before));
+    });
+
+    testWidgets('a skint club is refused and told why', (tester) async {
+      final container = await pumpGrid(tester);
+      container.read(gameProvider).update(
+        (s) => (s['resources'] as Map<String, dynamic>)['fanCoins'] = 0,
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(
+        tester
+            .widget<ElevatedButton>(find.byKey(const ValueKey('add-player')))
+            .onPressed,
+        isNull,
+      );
+      expect(find.byKey(const ValueKey('add-player-blocked')), findsOneWidget);
+      expect(filledCells(container), 0);
+    });
+  });
+
+  group('the card art', () {
+    testWidgets('a signed player has a portrait', (tester) async {
+      // The variant table has carried skin, hair and gender since M1; the JS
+      // header called the portraits "UI work for a later milestone".
+      await pumpGrid(tester);
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(find.byType(PlayerPortrait), findsWidgets);
+    });
+
+    test('every shipped variant resolves to a portrait', () {
+      for (var i = 0; i < playerVariants; i++) {
+        expect(cardViewFor(_card(_baseDefId, 'a', variant: i))!.variant, i);
+      }
     });
   });
 }
