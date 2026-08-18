@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,550 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
+**2,567 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -255,21 +255,25 @@ JS number or object did.
       one-voucher rule lives in two files that cannot import each other, so the
       test drives `anyVoucherArmed` and `gem_engine`'s `scout_voucher_gem`
       against the same shop shapes and asserts they agree
+- [x] `boot_room_engine` (205) — the match-3 board as pure logic: runs, gravity,
+      refill, cascades and the deadlock reshuffle. Randomness is an argument, so
+      the fixture pins whole settles off a shared mulberry32 — which catches the
+      refill ORDER (column by column, top-up counted upward) as well as the
+      results, and the L and T shapes where one cell is in two runs at once
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `boot_room_engine`
+### Next up — `club_asset_tiers`
 
-205 lines, then `club_asset_tiers` and the handful of sub-100-line engines.
+148 lines, then the four sub-100-line engines and the last of the data.
 
 ### Remaining engines
 
 Roughly in dependency order.
 
-- [ ] `boot_room_engine` (205)
 - [ ] `club_asset_tiers` (148)
 - [ ] `ad_gate_engine` (86)
 - [ ] `badge_engine` (59)
@@ -564,6 +568,7 @@ node tool/dump_deadline_news_reference.mjs > test/fixtures/deadline_news_referen
 node tool/dump_deal_advice_reference.mjs   > test/fixtures/deal_advice_reference.json
 node tool/dump_daily_reward_reference.mjs  > test/fixtures/daily_reward_reference.json
 node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_reference.json
+node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
