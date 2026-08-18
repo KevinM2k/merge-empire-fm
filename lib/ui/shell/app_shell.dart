@@ -17,6 +17,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/providers/bus_providers.dart';
+import 'package:merge_empire_fc/ui/popups/energy_sheet.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
@@ -128,6 +129,11 @@ class AppShellState extends ConsumerState<AppShell>
     // event — arrives here.
     ref.listen(shellControllerProvider, (_, next) {
       _applyTab(next.tab, noSlide: next.noSlide);
+    });
+    // The HUD's energy + asks for this rather than opening it, so the button
+    // stays a button and the shell owns what a route means.
+    ref.listen(busEventProvider('nav:energy'), (_, _) {
+      showEnergySheet(context, ref);
     });
     ref.listen(busEventProvider('reveal:start'), (_, _) {
       if (!_revealActive) setState(() => _revealActive = true);
