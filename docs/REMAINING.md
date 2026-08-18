@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,237 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,244 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -126,7 +126,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,235 passing, 2 skipped
+flutter test             # 3,242 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -768,8 +768,11 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       mid-round cannot farm the reward timer.
       A game with no screen yet is LISTED and says so rather than being offered
       — the menu-row-to-nowhere bug, avoided deliberately.
-      Still to build: Training Drills, Keepy Uppys, Through Ball, Whack,
-      Teamwork and the Boot Room (whose engine is already ported)
+      **The Boot Room is playable too** — a match-three whose every rule is
+      `boot_room_engine`'s, laid out in full rather than in a lazy grid because
+      a board the player cannot see all of is not a board.
+      Still to build: Training Drills, Keepy Uppys, Through Ball, Whack and
+      Teamwork.
 - [ ] Trophy room
 - [ ] Deadline Day screen
 - [ ] The manager rig — walker, dugout cam, gestures, moods
