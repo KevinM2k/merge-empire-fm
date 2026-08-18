@@ -34,3 +34,41 @@ String formatDuration(int ms) {
 
 T clamp<T extends num>(T value, T min, T max) =>
     value < min ? min : (value > max ? max : value);
+
+const List<String> _weekdayNames = [
+  'Sun',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+];
+
+const List<String> _monthNames = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/// JS `Date.prototype.toDateString()` — `Tue Aug 18 2026`, in LOCAL time.
+///
+/// Reproduced to the character because the result is not a display string: the
+/// daily ledgers key off it and the key is written to the save. A different
+/// format would read every existing `shop.skipAdDay` as a different day, which
+/// hands the player their allowance back on the next boot.
+String dateString([int? ms]) {
+  final d = DateTime.fromMillisecondsSinceEpoch(ms ?? now());
+  final day = '${d.day}'.padLeft(2, '0');
+  return '${_weekdayNames[d.weekday % 7]} ${_monthNames[d.month - 1]} $day '
+      '${d.year}';
+}

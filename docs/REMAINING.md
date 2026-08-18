@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,402 tests, 97.5% line coverage, `flutter analyze` clean.** Everything below
+**2,448 tests, 97.5% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -207,23 +207,30 @@ JS number or object did.
       that shares nothing with the JS one. Eight runs cover every conditional the
       win branch has: winning as the best- and worst-rated nation, a clean sheet
       across the whole bracket, and going out in the first round and the semi
+- [x] `mini_games_engine` (368) + `data/mini_games` (234) — seven games' worth of
+      cooldowns, payouts and stat counters. The JS spells out `penaltyReady`,
+      `msUntilPenalty`, `effectivePenaltyCooldown` and their six identical
+      siblings; those are one table and four functions taking a kind here, which
+      is how the callers already work. The `record*Result` family is NOT
+      collapsed — each writes a different set of counters, and the counters are
+      quest and achievement targets, so a wrong key is a quest that can never be
+      finished. `util/time`'s `dateString` lands with it: the free-skip ledger
+      keys off JS `toDateString()` and that key is written to the save
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `mini_games_engine`
+### Next up — `weather_engine`
 
-368 lines plus a 234-line data file, and the last engine with a whole screen
-behind it. After that it is the small tail: weather, the news and advice
-generators, the daily reward.
+330 lines. From here it is the small tail: weather, the pyramid names, the news
+and advice generators, the daily reward, and the handful of sub-100-line engines.
 
 ### Remaining engines
 
-Roughly in dependency order — the first two unlock the most.
+Roughly in dependency order.
 
-- [ ] `mini_games_engine` (368) + `data/mini_games` (234)
 - [ ] `weather_engine` (330)
 - [ ] `pyramid_names_engine` (313)
 - [ ] `deadline_news_engine` (310)
@@ -295,6 +302,14 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       prestige with "no wall-clock timer"; the product actually carries
       `vipDays: 30`. One of the two is wrong. The branch is ported and unreachable,
       so switching it on is a data change.
+- [ ] **Finishing Goalkeeper Practice can DRAIN an upgraded energy tank.**
+      `recordTrainingComplete` clamps against `ENERGY.MAX` (10) rather than
+      `getEnergyMax(state)` (15 with the Energy Director upgrade), so a player
+      sitting above ten pips is clamped back down by a game that grants no
+      energy at all — and the returned `energyGranted` reads as a negative
+      "grant". The grant being zero is what hides it. One-line fix, but it is a
+      live economy change for anyone holding the upgrade. See
+      `recordTrainingComplete` in `engine/mini_games_engine.dart`.
 - [ ] Two smaller dead ends, ported as defensive and worth deleting if nothing is
       going to use them: `product.energy` (no product carries it — every energy
       product uses `energyAdd`), and `WC_RATING_BY_NATION` in `achievements.js`,
@@ -503,6 +518,7 @@ node tool/dump_deadline_day_reference.mjs  > test/fixtures/deadline_day_referenc
 node tool/dump_iap_reference.mjs           > test/fixtures/iap_reference.json
 node tool/dump_achievements_reference.mjs  > test/fixtures/achievements_reference.json
 node tool/dump_event_cup_reference.mjs     > test/fixtures/event_cup_reference.json
+node tool/dump_mini_games_reference.mjs    > test/fixtures/mini_games_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED

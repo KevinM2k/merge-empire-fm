@@ -95,4 +95,77 @@ void main() {
       expect(clamp(1.5, 0.0, 1.0), 1.0);
     });
   });
+
+  group('dateString', () {
+    // Reproduces JS `Date.prototype.toDateString()` to the character. Not a
+    // display string: the daily ledgers key off it and the key is written to the
+    // save, so a different format reads every existing `shop.skipAdDay` as
+    // another day and hands the player their allowance back on the next boot.
+    //
+    // Built from local DateTimes rather than fixed epoch stamps so the test says
+    // the same thing in every timezone, which is what the JS does too — it
+    // formats local wall-clock time.
+    test('matches node, weekday and padded day included', () {
+      expect(
+        dateString(DateTime(2026, 8, 18, 12).millisecondsSinceEpoch),
+        'Tue Aug 18 2026',
+      );
+      expect(
+        dateString(DateTime(2026, 8, 5, 12).millisecondsSinceEpoch),
+        'Wed Aug 05 2026',
+      );
+      expect(
+        dateString(DateTime(2026, 1, 1, 12).millisecondsSinceEpoch),
+        'Thu Jan 01 2026',
+      );
+      expect(
+        dateString(DateTime(1999, 12, 31, 12).millisecondsSinceEpoch),
+        'Fri Dec 31 1999',
+      );
+    });
+
+    test('every weekday and month name is reachable', () {
+      // Sunday is index 0 in the JS name table and 7 in Dart's `weekday`, so a
+      // wrong wrap shows up on exactly one day of the week.
+      final names = <String>{};
+      for (var i = 0; i < 7; i++) {
+        names.add(
+          dateString(
+            DateTime(2026, 3, 1 + i, 12).millisecondsSinceEpoch,
+          ).split(' ').first,
+        );
+      }
+      expect(names, {'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'});
+
+      final months = <String>[];
+      for (var m = 1; m <= 12; m++) {
+        months.add(
+          dateString(
+            DateTime(2026, m, 15, 12).millisecondsSinceEpoch,
+          ).split(' ')[1],
+        );
+      }
+      expect(months, [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ]);
+    });
+
+    test('defaults to the clock, which tests can pin', () {
+      final at = DateTime(2026, 8, 18, 12).millisecondsSinceEpoch;
+      setClock(() => at);
+      addTearDown(resetClock);
+      expect(dateString(), 'Tue Aug 18 2026');
+    });
+  });
 }
