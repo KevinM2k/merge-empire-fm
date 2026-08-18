@@ -307,7 +307,14 @@ class GameState {
 
   /// Drop the change stream. Only a test that builds several of these needs it;
   /// the app's one lives as long as the process.
-  void dispose() => _changes.close();
+  ///
+  /// A debounced write still armed is FLUSHED rather than dropped: the timer
+  /// would otherwise outlive the object that armed it and fire into a disposed
+  /// state, and the bytes it holds are a real change somebody made.
+  void dispose() {
+    if (_saveTimer != null) saveNow();
+    _changes.close();
+  }
 
   /// Freeze pending saves, stamp the save, and flush — so a reload sees a clean
   /// state rather than a stale one with offline earnings still owed.

@@ -2657,4 +2657,5 @@ const Map<String, String> enCatalog = <String, String>{
   'product.gems_large.name': 'Bag of Gems',
   'product.gems_large.desc': '{gems} gems',
   'toast.cup_gems': '+{n} 💎 for lifting the {cup}!',
+  'settings.comingSoon': 'Coming soon',
 };

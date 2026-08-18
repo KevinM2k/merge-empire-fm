@@ -2657,4 +2657,5 @@ const Map<String, String> jaCatalog = <String, String>{
   'quests.capstone_title': '報酬',
   'quests.capstone_reward': 'ジェム{n}個',
   'quests.capstone_toast': '{division}制覇 — ジェム{n}個獲得!',
+  'settings.comingSoon': '近日公開',
 };

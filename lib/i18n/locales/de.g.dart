@@ -2657,4 +2657,5 @@ const Map<String, String> deCatalog = <String, String>{
   'quests.capstone_title': 'Belohnung',
   'quests.capstone_reward': '{n} Edelstein',
   'quests.capstone_toast': '{division} geschafft — {n} Edelstein erhalten!',
+  'settings.comingSoon': 'Demnächst',
 };

@@ -2657,4 +2657,5 @@ const Map<String, String> arCatalog = <String, String>{
   'quests.capstone_title': 'مكافأة',
   'quests.capstone_reward': '{n} جوهرة',
   'quests.capstone_toast': 'اكتمل {division} — حصلت على {n} جوهرة!',
+  'settings.comingSoon': 'قريباً',
 };

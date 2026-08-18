@@ -283,4 +283,19 @@ void main() {
             as Map<String, dynamic>;
     expect(stored['clubName'], isNot('About To Be Wiped'));
   });
+
+  test('dispose flushes a debounced write rather than dropping it', () {
+    // dispose() is test-only, and a timer left armed would fire into a state
+    // nobody owns any more — taking a real change with it.
+    final loaded = _loaded(_before('softRich'));
+    loaded.game.update((s) => s['clubName'] = 'Late Change FC');
+    expect(loaded.game.savePending, isTrue);
+
+    loaded.game.dispose();
+    expect(loaded.game.savePending, isFalse);
+    final stored =
+        jsonDecode(loaded.store.values[saveKeyPrimary]!)
+            as Map<String, dynamic>;
+    expect(stored['clubName'], 'Late Change FC');
+  });
 }

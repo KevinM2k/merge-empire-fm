@@ -2657,4 +2657,5 @@ const Map<String, String> frCatalog = <String, String>{
   'quests.capstone_title': 'Récompense',
   'quests.capstone_reward': '{n} gemme',
   'quests.capstone_toast': '{division} terminée — {n} gemme obtenue !',
+  'settings.comingSoon': 'Bientôt disponible',
 };

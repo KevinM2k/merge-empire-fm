@@ -2657,4 +2657,5 @@ const Map<String, String> zhCatalog = <String, String>{
   'quests.capstone_title': '奖励',
   'quests.capstone_reward': '{n}颗宝石',
   'quests.capstone_toast': '{division}全部完成 — 获得{n}颗宝石！',
+  'settings.comingSoon': '即将推出',
 };
