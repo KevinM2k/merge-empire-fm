@@ -12,6 +12,8 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
+import 'package:merge_empire_fc/ui/screens/season/season_end_button.dart';
+import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 /// Why the button is dead, in copy that already ships.
@@ -61,6 +63,11 @@ class PlayMatchButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A finished season is not a refusal to explain, it is a different button:
+    // the way on is to close the season, and telling the player "no" without
+    // offering it is the dead end this replaced.
+    if (ref.watch(seasonCompleteProvider)) return const EndSeasonButton();
+
     final blocked = ref.watch(matchBlockedProvider);
     final reason = blocked == null
         ? null
