@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**2,998 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,015 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -123,7 +123,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 2,996 passing, 2 skipped
+flutter test             # 3,013 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -422,8 +422,12 @@ its own module — spec, plan, build — and they are independent, so the order 
 matter of what unblocks most:
 
 - **Merge grid** is the one with the hard problems: drag and drop, lazy card
-  mounting and the frame budget. Worth doing early for what it teaches, and
-  late for how much it depends on.
+  mounting and the frame budget. The card itself is already ported, so what is
+  left is the grid around it.
+- **Squad** (2,264) needs the same card and the lineup engines, both ported.
+- **Club** (838) is the smallest, but its tiles are drawn from
+  `assets/clubArt.js` (430 lines of SVG), which is NOT ported — and porting it
+  needs a decision first: `flutter_svg` as a dependency, or a `CustomPainter`.
 - **League** is the biggest single screen in the project (6,777 lines) and owns
   the diorama, so it wants the profile-mode timings under "Open questions"
   answered first.
@@ -608,7 +612,16 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       `docs/superpowers/specs/2026-08-18-shell-design.md`. Still to land with
       the League screen: tapping Play resets it to the Overview sub-tab, which
       has nowhere to go until sub-tabs exist
-- [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules
+- [x] **The player card** — `lib/ui/widgets/player_card.dart`, with its tier
+      palette in `lib/data/card_theme.dart` pinned against `Card.js`. The most
+      repeated widget in the game, so a `RepaintBoundary` each, and the M0 probe
+      is retired: `integration_test/card_perf_test.dart` profiles the real card
+      now. It takes a `CardView` record rather than a save map, so a screen
+      resolves the values with the engines it already has.
+      Still to add when a screen needs them: the income bar, the trait chip, the
+      sponsor drawback marker and the art itself (`assets/svgCache`, below)
+- [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules.
+      The card is done; what is left is the GRID
 - [x] Shop screen (1,387) — `lib/ui/screens/shop/`. All seven shelves, in the
       JS's own order. See
       `docs/superpowers/specs/2026-08-18-shop-screen-design.md`.
