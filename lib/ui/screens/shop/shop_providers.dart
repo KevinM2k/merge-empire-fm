@@ -12,7 +12,40 @@ import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
+import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+
+/// The coin-priced consumables: the sponge and the two season boosts.
+typedef ConsumableTile = ({
+  String id,
+  String nameKey,
+  String descKey,
+  int cost,
+  String? blocked,
+});
+
+const List<({String id, String nameKey, String descKey})> shopConsumables = [
+  (id: 'magic_sponge', nameKey: 'shop.sponge_name', descKey: 'shop.sponge_desc'),
+  (
+    id: 'kit_sponsor',
+    nameKey: 'shop.kit_sponsor_name',
+    descKey: 'shop.kit_sponsor_desc',
+  ),
+  (id: 'match_rev', nameKey: 'shop.tv_deal_name', descKey: 'shop.tv_deal_desc'),
+];
+
+final consumableTilesProvider = savePick<List<ConsumableTile>>(
+  (s) => [
+    for (final row in shopConsumables)
+      (
+        id: row.id,
+        nameKey: row.nameKey,
+        descKey: row.descKey,
+        cost: consumableCost(s, row.id),
+        blocked: consumableBlocked(s, row.id),
+      ),
+  ],
+);
 
 typedef GemItemTile = ({GemItem item, String? blocked});
 

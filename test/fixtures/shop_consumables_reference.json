@@ -1,0 +1,258 @@
+{
+  "scaled": {
+    "sunday_league": {
+      "sponge_base": 1500,
+      "kit_sponsor": 5000,
+      "match_rev": 3500,
+      "matchRevenueBase": 100
+    },
+    "amateur_cup": {
+      "sponge_base": 3750,
+      "kit_sponsor": 12500,
+      "match_rev": 8750,
+      "matchRevenueBase": 250
+    },
+    "regional_league": {
+      "sponge_base": 9000,
+      "kit_sponsor": 30000,
+      "match_rev": 21000,
+      "matchRevenueBase": 600
+    },
+    "national_league": {
+      "sponge_base": 22500,
+      "kit_sponsor": 75000,
+      "match_rev": 52500,
+      "matchRevenueBase": 1500
+    },
+    "elite_league": {
+      "sponge_base": 60000,
+      "kit_sponsor": 200000,
+      "match_rev": 140000,
+      "matchRevenueBase": 4000
+    },
+    "continental": {
+      "sponge_base": 300000,
+      "kit_sponsor": 1000000,
+      "match_rev": 700000,
+      "matchRevenueBase": 20000
+    },
+    "champions_cup": {
+      "sponge_base": 1800000,
+      "kit_sponsor": 6000000,
+      "match_rev": 4200000,
+      "matchRevenueBase": 120000
+    }
+  },
+  "sponge": {
+    "sunday_league": [
+      {
+        "uses": 0,
+        "cost": 1500
+      },
+      {
+        "uses": 1,
+        "cost": 2250
+      },
+      {
+        "uses": 2,
+        "cost": 3000
+      },
+      {
+        "uses": 3,
+        "cost": 3750
+      },
+      {
+        "uses": 4,
+        "cost": 4500
+      },
+      {
+        "uses": 5,
+        "cost": 4500
+      },
+      {
+        "uses": 10,
+        "cost": 4500
+      }
+    ],
+    "amateur_cup": [
+      {
+        "uses": 0,
+        "cost": 3750
+      },
+      {
+        "uses": 1,
+        "cost": 5650
+      },
+      {
+        "uses": 2,
+        "cost": 7500
+      },
+      {
+        "uses": 3,
+        "cost": 9400
+      },
+      {
+        "uses": 4,
+        "cost": 11500
+      },
+      {
+        "uses": 5,
+        "cost": 11500
+      },
+      {
+        "uses": 10,
+        "cost": 11500
+      }
+    ],
+    "regional_league": [
+      {
+        "uses": 0,
+        "cost": 9000
+      },
+      {
+        "uses": 1,
+        "cost": 13500
+      },
+      {
+        "uses": 2,
+        "cost": 18000
+      },
+      {
+        "uses": 3,
+        "cost": 22500
+      },
+      {
+        "uses": 4,
+        "cost": 27000
+      },
+      {
+        "uses": 5,
+        "cost": 27000
+      },
+      {
+        "uses": 10,
+        "cost": 27000
+      }
+    ],
+    "national_league": [
+      {
+        "uses": 0,
+        "cost": 22500
+      },
+      {
+        "uses": 1,
+        "cost": 34000
+      },
+      {
+        "uses": 2,
+        "cost": 45000
+      },
+      {
+        "uses": 3,
+        "cost": 56500
+      },
+      {
+        "uses": 4,
+        "cost": 67500
+      },
+      {
+        "uses": 5,
+        "cost": 67500
+      },
+      {
+        "uses": 10,
+        "cost": 67500
+      }
+    ],
+    "elite_league": [
+      {
+        "uses": 0,
+        "cost": 60000
+      },
+      {
+        "uses": 1,
+        "cost": 90000
+      },
+      {
+        "uses": 2,
+        "cost": 120000
+      },
+      {
+        "uses": 3,
+        "cost": 150000
+      },
+      {
+        "uses": 4,
+        "cost": 180000
+      },
+      {
+        "uses": 5,
+        "cost": 180000
+      },
+      {
+        "uses": 10,
+        "cost": 180000
+      }
+    ],
+    "continental": [
+      {
+        "uses": 0,
+        "cost": 300000
+      },
+      {
+        "uses": 1,
+        "cost": 450000
+      },
+      {
+        "uses": 2,
+        "cost": 600000
+      },
+      {
+        "uses": 3,
+        "cost": 750000
+      },
+      {
+        "uses": 4,
+        "cost": 900000
+      },
+      {
+        "uses": 5,
+        "cost": 900000
+      },
+      {
+        "uses": 10,
+        "cost": 900000
+      }
+    ],
+    "champions_cup": [
+      {
+        "uses": 0,
+        "cost": 1800000
+      },
+      {
+        "uses": 1,
+        "cost": 2700000
+      },
+      {
+        "uses": 2,
+        "cost": 3600000
+      },
+      {
+        "uses": 3,
+        "cost": 4500000
+      },
+      {
+        "uses": 4,
+        "cost": 5400000
+      },
+      {
+        "uses": 5,
+        "cost": 5400000
+      },
+      {
+        "uses": 10,
+        "cost": 5400000
+      }
+    ]
+  }
+}

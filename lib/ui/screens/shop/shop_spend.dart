@@ -4,17 +4,17 @@
 /// rows, and every row states its own price — which is the only reason one
 /// section can hold two currencies and stay legible.
 ///
-/// The three COIN rows are not buyable yet, and that is a port gap rather than a
-/// product decision: their purchase logic lives inside the JS `ShopScreen`
-/// rather than in an engine, so there is nothing ported to call. They are shown
-/// priced and disabled instead of hidden. The gem rows go through `buyGemItem`,
-/// which owns both the debit and the effect.
+/// The coin rows go through `shop_consumables_engine`, which was extracted from
+/// the JS `ShopScreen` for this screen to call; the gem rows go through
+/// `buyGemItem`. Both engines own the debit AND the effect, so a row here can
+/// only ask and never price or grant anything itself.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
+import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
@@ -30,26 +30,19 @@ import 'package:merge_empire_fc/util/format.dart';
 String blockedCopy(String reason) => switch (reason) {
   'insufficient_gems' || 'insufficientGems' => t('shop.toast.not_enough_gems'),
   'already_owned' => t('shop.owned'),
-  'already_held' || 'alreadyHeld' => t('shop.already_active'),
+  'already_held' || 'alreadyHeld' || 'already_active' =>
+    t('shop.already_active'),
+  'insufficient_coins' => t('toast.not_enough_coins'),
+  'no_injured' => t('shop.toast.no_injured'),
   _ => t('settings.comingSoon'),
 };
-
-/// The coin-priced consumables, named by the keys the JS uses.
-const List<({String id, String nameKey, String descKey})> coinConsumables = [
-  (id: 'magic_sponge', nameKey: 'shop.sponge_name', descKey: 'shop.sponge_desc'),
-  (
-    id: 'kit_sponsor',
-    nameKey: 'shop.kit_sponsor_name',
-    descKey: 'shop.kit_sponsor_desc',
-  ),
-  (id: 'match_rev', nameKey: 'shop.tv_deal_name', descKey: 'shop.tv_deal_desc'),
-];
 
 class BoostsSection extends ConsumerWidget {
   const BoostsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final coins = ref.watch(consumableTilesProvider);
     final gems = ref.watch(gemItemTilesProvider);
     final game = ref.read(gameProvider);
 
@@ -57,13 +50,18 @@ class BoostsSection extends ConsumerWidget {
       id: ShopSectionId.boosts,
       child: Column(
         children: [
-          for (final row in coinConsumables)
+          for (final row in coins)
             ShopTile(
               tileKey: 'coin-${row.id}',
               title: t(row.nameKey),
               subtitle: t(row.descKey),
-              price: t('shop.buy'),
-              disabledReason: t('settings.comingSoon'),
+              price: formatCoins(row.cost),
+              disabledReason: row.blocked == null
+                  ? null
+                  : blockedCopy(row.blocked!),
+              onBuy: row.blocked != null
+                  ? null
+                  : () => game.update((s) => buyConsumable(s, row.id)),
             ),
           for (final tile in gems)
             ShopTile(
