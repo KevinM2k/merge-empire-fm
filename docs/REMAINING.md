@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,475 tests, 97.5% line coverage, `flutter analyze` clean.** Everything below
+**2,489 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -224,22 +224,27 @@ JS number or object did.
       a different ORDER give a different sky for the same roll. Reading the
       device timezone is left to M4, the same split `energy_engine` took;
       `resolveCoords` takes the zone as an argument
+- [x] `pyramid_names_engine` (313) — renaming the AI clubs, and saving the
+      56-name set as a preset. A rename is a PROPAGATION across eleven
+      name-keyed structures, so the fixture compares the whole save after each
+      one rather than a summary; the apply is two-phase because re-applying a
+      preset after a few seasons routinely asks two clubs to swap names, and one
+      pass would collide with a name that is itself about to move
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `pyramid_names_engine`
+### Next up — `deadline_news_engine`
 
-313 lines. From here it is the small tail: the pyramid names, the news and advice
-generators, the daily reward, and the handful of sub-100-line engines.
+310 lines. From here it is the small tail: the news and advice generators, the
+daily reward, and the handful of sub-100-line engines.
 
 ### Remaining engines
 
 Roughly in dependency order.
 
-- [ ] `pyramid_names_engine` (313)
 - [ ] `deadline_news_engine` (310)
 - [ ] `deal_advice_engine` (310)
 - [ ] `daily_reward_engine` (270)
@@ -529,6 +534,7 @@ node tool/dump_achievements_reference.mjs  > test/fixtures/achievements_referenc
 node tool/dump_event_cup_reference.mjs     > test/fixtures/event_cup_reference.json
 node tool/dump_mini_games_reference.mjs    > test/fixtures/mini_games_reference.json
 node tool/dump_weather_reference.mjs       > test/fixtures/weather_reference.json
+node tool/dump_pyramid_names_reference.mjs > test/fixtures/pyramid_names_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
