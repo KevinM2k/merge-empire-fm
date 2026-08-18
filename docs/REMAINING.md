@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**2,974 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**2,998 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -52,8 +52,9 @@ pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
 over to the next campaign — and the JS and the port agree about all of it.
 
 **It runs, and there is now one thing a player can actually do.** The app boots
-into a themed five-tab shell with a live HUD, Settings works, and the Shop's gem
-shelves take real gems and grant real items. Four tabs are still placeholders —
+into a themed five-tab shell with a live HUD, Settings works, and the Shop's
+coin and gem shelves both take real currency and grant real items — the sponge
+heals, the season boosts arm, the vouchers load. Four tabs are still placeholders —
 the grid, the squad, the league and the club — and each is its own module.
 
 ### How far along, honestly
@@ -122,7 +123,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 2,972 passing, 2 skipped
+flutter test             # 2,996 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -399,20 +400,17 @@ was: the decision here, the platform read in M3 or M4.
       back a PLAN — which copy to use, which bytes to stash — so M2 wires it to
       real persistence without re-deciding any of it
 
-### Still unported from M1, found while building the Shop
+### Found and fixed while building the Shop
 
-- [ ] **The Shop's three coin consumables have no engine.** `magic_sponge`,
+- [x] **The Shop's three coin consumables had no engine.** `magic_sponge`,
       `kit_sponsor` and `match_rev` are bought with coins, and their pricing and
-      effects live inside `ui/screens/ShopScreen.js` rather than in an engine —
+      effects lived inside `ui/screens/ShopScreen.js` rather than in an engine —
       so unlike every other purchase on that screen there was nothing ported to
-      call. The Shop renders them priced and disabled.
-      Extracting them is a small engine module: `_scaledCost` scales by
-      division, the sponge's price escalates with `shop.spongeUses`
-      (`min(3, 1 + uses * 0.5)`), and the two season boosts set flags the match
-      engine already reads. **Wants a node fixture** — it is exactly the
-      "non-obvious arithmetic" the standing rules name.
-      Not to be confused with `engine/coinSinkEngine.js`, which IS ported and
-      belongs to the Club screen, not the Shop.
+      call. Now `engine/shop_consumables_engine.dart`, lifted OUT of a view
+      rather than translated across, and pinned by
+      `tool/dump_shop_consumables_reference.mjs` over every division and the
+      whole sponge ramp. Not to be confused with `engine/coinSinkEngine.js`,
+      which was already ported and belongs to the Club screen, not the Shop.
 
 ### Next up — the remaining four tab bodies
 
@@ -623,11 +621,6 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       - the free shelf's ad GATE is live (`ad_gate_engine` decides ready,
         waiting or capped) but the watch button needs AdMob
       - Restore Purchases is present and disabled
-      - **the three coin consumables (`magic_sponge`, `kit_sponsor`,
-        `match_rev`) are shown priced and disabled — a PORT GAP, not an M4
-        one.** Their purchase logic lives inside the JS `ShopScreen` rather
-        than in an engine, so there was nothing ported to call. See the entry
-        under M1 below
       - Manager Looks buys nothing at all: the pack tiles are progress, and an
         individual pack unlocks by rewarded video in the customiser
 - [ ] Squad screen (2,264)
@@ -821,6 +814,7 @@ node tool/dump_daily_reward_reference.mjs  > test/fixtures/daily_reward_referenc
 node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_reference.json
 node tool/dump_i18n_reference.mjs          > test/fixtures/i18n_reference.json
 node tool/dump_kit_theme_reference.mjs     > test/fixtures/kit_theme_reference.json
+node tool/dump_shop_consumables_reference.mjs > test/fixtures/shop_consumables_reference.json
 node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.json
 node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_reference.json
 node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json
