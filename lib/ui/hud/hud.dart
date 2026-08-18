@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/shell/shell_quick_nav.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
@@ -38,8 +39,9 @@ class Hud extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          const QuickNavButton(),
           HudChip(
             key: const ValueKey('hud-coins'),
             icon: Icons.monetization_on,
