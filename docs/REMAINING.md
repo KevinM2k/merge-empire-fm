@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,078 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,090 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -41,8 +41,8 @@ save, the loop, the listeners that pay, the providers and the lifecycle
 observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
 suite — which was M5 and landed early so no screen has to hardcode English.
 **M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing,
-Settings, the **Shop**, the **merge grid**, the **Squad** and the **Club** are
-in. One of the five tab bodies is still a placeholder.
+Settings and all **five tab bodies** are in. No tab is a placeholder any more —
+what is left inside them is listed under "The screens".
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -54,8 +54,9 @@ over to the next campaign — and the JS and the port agree about all of it.
 **It runs, and the core loop is playable.** The app boots into a themed five-tab
 shell with a live HUD; cards merge on the Players tab; the side is picked on the
 Squad tab; facilities are built and upgraded on the Club tab; the Shop's coin and
-gem shelves take real currency and grant real items; Settings works. One tab is
-still a placeholder — League. Four tabs are still placeholders —
+gem shelves take real currency and grant real items; the table and the schedule
+read on the Play tab; Settings works. What no tab has yet is the DIORAMA, the
+live match and the mini-games. Four tabs are still placeholders —
 the grid, the squad, the league and the club — and each is its own module.
 
 ### How far along, honestly
@@ -124,7 +125,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,076 passing, 2 skipped
+flutter test             # 3,088 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -413,14 +414,13 @@ was: the decision here, the platform read in M3 or M4.
       whole sponge ramp. Not to be confused with `engine/coinSinkEngine.js`,
       which was already ported and belongs to the Club screen, not the Shop.
 
-### Next up — the remaining four tab bodies
+### Next up — inside the screens
 
 Nothing is left in M1 or M2, M5 came forward to join them, M3's scaffold is up,
 and the Shop is the first tab with a real body.
 
-Four tabs are still `PlaceholderScreen`: grid, squad, league and club. Each is
-its own module — spec, plan, build — and they are independent, so the order is a
-matter of what unblocks most:
+Every tab now has a real body. What is left is the things INSIDE them, and they
+are independent, so the order is a matter of what unblocks most:
 
 - **`assets/clubArt.js`** (430 lines) is the Club tab's artwork, and the
   question of how to draw it is **settled: a `CustomPainter`, no new
@@ -673,8 +673,14 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       they use (`buildCost`, `tapCost`, `tierThreshold`) was already ported.
       Still to add: the artwork (below), the upgrade-path sheet, the stadium
       colour picker, and hold-to-invest
-- [ ] League screen (6,777) — the diorama, the table, fixtures, training, and
-      the Overview sub-tab that tapping Play must reset to
+- [x] League screen (6,777) — `lib/ui/screens/league/`, PARTIAL and deliberately
+      so. The four sub-tabs, a real table (`buildLeagueTable`) and a real
+      schedule off `seasonFixtures`. Tapping Play resets to Overview — the rule
+      the shell module had to defer, now closed and tested.
+      **Overview is the DIORAMA and stays named rather than half-built**: 6,777
+      lines with a parallax scene and a ball simulation, and the port design
+      gates its technique on profile-mode timings from a physical device, which
+      is still open below. Training is likewise pending its mini-games.
 - [ ] The live match page (a takeover screen, not a popup)
 - [ ] Season-end takeover
 - [x] The three popup shapes — bottom sheet, Coach Colin card, quick-nav menu.
