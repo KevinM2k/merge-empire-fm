@@ -121,14 +121,16 @@ void _sanitiseLoadBoundary(Map<String, dynamic> data) {
   final resources = _map(data['resources']);
   if (resources != null) {
     final coins = _num(resources['fanCoins']);
-    resources['fanCoins'] =
-        (coins != null && coins.isFinite && coins >= 0) ? coins : 0;
+    resources['fanCoins'] = (coins != null && coins.isFinite && coins >= 0)
+        ? coins
+        : 0;
 
     // Gems are permanent and can only be earned or bought, so a NaN or
     // negative would either brick a purchase or mint currency.
     final gems = _num(resources['gems']);
-    resources['gems'] =
-        (gems != null && gems.isFinite && gems > 0) ? gems.floor() : 0;
+    resources['gems'] = (gems != null && gems.isFinite && gems > 0)
+        ? gems.floor()
+        : 0;
 
     // A save with no coins AND no players is a broken start, not a hard-earned
     // bankruptcy — hand back the starting float.
@@ -200,7 +202,13 @@ void _migrateGridCards(Map<String, dynamic> data) {
         'matchesPlayed': 0,
       };
     } else {
-      for (final k in ['goals', 'assists', 'tackles', 'saves', 'matchesPlayed']) {
+      for (final k in [
+        'goals',
+        'assists',
+        'tackles',
+        'saves',
+        'matchesPlayed',
+      ]) {
         if (stats[k] is! num) stats[k] = 0;
       }
     }
@@ -367,8 +375,14 @@ void _migrateSquad(Map<String, dynamic> data) {
 void _migrateSettings(Map<String, dynamic> data) {
   if (data['clubName'] == null) data['clubName'] = '';
 
+  // `soundEnabled` is seeded only when the whole branch is being created, which
+  // is the JS's behaviour and therefore the save's shape. Seeding it
+  // unconditionally added a key to every existing save that did not have one —
+  // harmless to read, and still a difference in the bytes. The differential
+  // reset comparison is what surfaced it.
+  final hadSettings = data['settings'] is Map<String, dynamic>;
   final settings = _ensureMap(data, 'settings');
-  settings['soundEnabled'] ??= true;
+  if (!hadSettings) settings['soundEnabled'] = true;
   settings['notificationsEnabled'] ??= true;
 
   // Existing saves keep the language they have been playing in — auto-detection
@@ -468,9 +482,16 @@ void _migrateTutorialAndTips(Map<String, dynamic> data) {
   // Brand-new games start with an empty list, so this only hits old saves.
   if (data['seenTips'] is! List) {
     data['seenTips'] = <dynamic>[
-      'injury', 'loss', 'promotion', 'merge', 'energy',
-      'club_assets', 'training', 'traits',
-      'sponsor', 'transfer_offer',
+      'injury',
+      'loss',
+      'promotion',
+      'merge',
+      'energy',
+      'club_assets',
+      'training',
+      'traits',
+      'sponsor',
+      'transfer_offer',
     ];
   }
 }
