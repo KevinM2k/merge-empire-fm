@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
+import 'package:merge_empire_fc/ui/screens/league/league_screen.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
@@ -307,5 +308,52 @@ void main() {
       isFalse,
       reason: 'back restores it too',
     );
+  });
+
+  testWidgets('tapping Play always lands on Overview', (tester) async {
+    // The JS rule, and the one the shell module had to defer because there were
+    // no sub-tabs to reset to. Tapping Play is "take me home".
+    final container = ProviderContainer(
+      overrides: [
+        saveStoreProvider.overrideWithValue(
+          MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(gameProvider).load();
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: const AppShell(),
+          ),
+        ),
+      ),
+    );
+    await settle(tester);
+
+    final league = tester.state<LeagueScreenState>(find.byType(LeagueScreen));
+    league.setSubTab(LeagueSubTab.table);
+    await settle(tester);
+    expect(league.subTab, LeagueSubTab.table);
+
+    // Away and back.
+    await tester.tap(find.byKey(const ValueKey('tab-shop')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-league')));
+    await settle(tester);
+    expect(league.subTab, LeagueSubTab.overview);
+
+    // And again while Play is ALREADY the tab, which is the case the rule is
+    // really about.
+    league.setSubTab(LeagueSubTab.fixtures);
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-league')));
+    await settle(tester);
+    expect(league.subTab, LeagueSubTab.overview);
   });
 }

@@ -16,12 +16,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/bus_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
-import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
+import 'package:merge_empire_fc/ui/screens/league/league_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
@@ -54,6 +53,9 @@ class AppShellState extends ConsumerState<AppShell>
   ShellTab _active = defaultTab;
   EnterMode _enter = EnterMode.none;
 
+  /// Lets a tap on the Play tab reach the League screen's sub-tabs.
+  final GlobalKey<LeagueScreenState> _leagueKey = GlobalKey();
+
   /// The card-reveal overlay dims the whole screen and sits UNDER the HUD, so
   /// an unhidden HUD punches through its dim. The JS flags the body element for
   /// the same reason.
@@ -83,6 +85,11 @@ class AppShellState extends ConsumerState<AppShell>
       ref.read(shellControllerProvider.notifier).goTab(tab, noSlide: noSlide);
 
   void _applyTab(ShellTab tab, {required bool noSlide}) {
+    // Tapping Play always lands on Overview, even when the player was last on
+    // the table. Tapping Play is "take me home", and last week's table is not
+    // home. Done even when Play is ALREADY the tab, which is the case the JS
+    // rule is really about.
+    if (tab == ShellTab.league) _leagueKey.currentState?.resetToOverview();
     if (tab == _active) return;
     final mode = enterModeFor(from: _active, to: tab, noSlide: noSlide);
     setState(() {
@@ -155,6 +162,8 @@ class AppShellState extends ConsumerState<AppShell>
                       for (final tab in tabOrder)
                         TickerMode(
                           enabled: tab == _active,
+                          // Exhaustive over ShellTab: every tab has a real
+                          // screen now, so there is no fallback left to write.
                           child: widget.screenFor?.call(tab) ??
                               switch (tab) {
                                 ShellTab.grid => const GridScreen(
@@ -163,15 +172,14 @@ class AppShellState extends ConsumerState<AppShell>
                                 ShellTab.squad => const SquadScreen(
                                   key: ValueKey('screen-squad'),
                                 ),
+                                ShellTab.league => LeagueScreen(
+                                  key: _leagueKey,
+                                ),
                                 ShellTab.club => const ClubScreen(
                                   key: ValueKey('screen-club'),
                                 ),
                                 ShellTab.shop => const ShopScreen(
                                   key: ValueKey('screen-shop'),
-                                ),
-                                _ => PlaceholderScreen(
-                                  key: ValueKey('screen-${tab.name}'),
-                                  label: t(tab.labelKey),
                                 ),
                               },
                         ),
