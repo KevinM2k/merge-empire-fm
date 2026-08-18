@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**2,737 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**2,806 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -38,7 +38,8 @@ every data table but one, every utility, and the differential harness. The one
 exception is `managerAvatar`'s SVG geometry, which is drawing rather than logic
 and is listed under M3 where it belongs. **M2 (the state layer) is done** — the
 save, the loop, the listeners that pay, the providers and the lifecycle
-observer.
+observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
+suite — which was M5 and landed early so no screen has to hardcode English.
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -54,7 +55,10 @@ last. What is missing is every screen. M3 is the whole of what a player sees.
 ### How far along, honestly
 
 Measured, not estimated: `101,866` lines of non-test JS in `../merge-empire-fc/src`,
-of which roughly **25,000 are ported — about 24%.**
+of which roughly **54,000 are ported — about 53%.**
+
+That number doubled in one module and it should not be read as the work
+doubling. See the first bullet below the table.
 
 | Area | JS lines | State |
 |---|---|---|
@@ -64,17 +68,21 @@ of which roughly **25,000 are ported — about 24%.**
 | `state/` + `main.js` | 2,333 | done |
 | `assets/` | 853 | `playerArt` done; `clubArt` 430, `gemArt` 146, `svgCache` 54 left |
 | `services/` | 4,144 | only `nativeSaveMirror` has a counterpart |
-| `i18n/` | 29,123 | only `detect.js` (56) |
+| `i18n/` | 29,123 | done — the lookup layer and all ten catalogues |
 | `ui/` | 40,329 | none |
 
-Do not read 24% as "a quarter of the work", in either direction:
+Do not read 53% as "half the work", in either direction:
 
-- **i18n is 29% of what remains and nowhere near 29% of the effort.** Ten locale
-  files of translated strings: bulk, not difficulty.
+- **29,067 of those lines are the ten locale catalogues**, converted by a script
+  in an afternoon. They were 29% of the port by line count and nothing like 29%
+  of the effort — which is exactly why the percentage jumped from 24% to 53%
+  without the game getting materially closer to playable. Discount them and the
+  real figure is nearer 25%.
 - **The UI will not be a line-for-line port.** 40,329 lines of hand-rolled DOM
   manipulation becomes materially less Dart, so that denominator is soft.
-- **The port is more verbose than its source.** 25,000 lines of JS became 33,789
-  lines of `lib/` and 34,784 lines of tests.
+- **The port is more verbose than its source.** 25,000 lines of hand-written JS
+  became 33,913 lines of `lib/` and 35,235 lines of tests. The catalogues add
+  another 26,626 generated lines that nobody reads or maintains.
 
 The useful summary is that the correctness-critical half is finished and proven,
 and the visible half has not started.
@@ -101,7 +109,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 2,737 passing
+flutter test             # 2,804 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -134,8 +142,11 @@ it would churn every import in the repo for nothing a player can see.
 
 ### Standing rules
 
-- `lib/engine/`, `lib/data/`, `lib/state/`, `lib/util/` must never import
-  `package:flutter/*` — enforced by `test/architecture_test.dart`.
+- `lib/engine/`, `lib/data/`, `lib/i18n/`, `lib/state/`, `lib/util/` must never
+  import `package:flutter/*` — enforced by `test/architecture_test.dart`.
+- **Every user-facing string goes through `t()`.** Never a literal. The key must
+  exist in `en`, or `test/i18n/call_sites_test.dart` fails the build.
+- Nothing ending `.g.dart` is edited by hand — change the generator and re-run it.
 - Seeded gameplay randomness goes through `util/random.dart`; anything mirroring
   JS `Math.random()` uses `dart:math`. Mixing them shifts every later draw.
   **The draw ORDER matters as much as the formula** — see the bugs below.
@@ -369,9 +380,10 @@ was: the decision here, the platform read in M3 or M4.
 
 ### Next up — M3
 
-Nothing is left in M1 or M2. The game boots, loads, ticks and saves; what it has
-no way to do is show any of it. M3 is the biggest block of work in the project
-and everything a player can see.
+Nothing is left in M1 or M2, and M5 came forward to join them: the game boots,
+loads, ticks, saves and can now say all of it in ten languages. What it has no
+way to do is SHOW any of it. M3 is the biggest block of work in the project and
+everything a player can see. Start at "The screens".
 
 ### Bugs carried over from the JS
 
@@ -525,10 +537,11 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 - **One-shot signals come off `busEventProvider('name')`; values do not.** A
   stream a widget subscribed to late has already missed its event, so anything
   that lives on the save is a derived provider.
-- **There is no `t()` yet.** M5 has not started, and the engines already emit
-  translation KEYS (`commentary.flow.*`, `ach.title.*`). Decide early whether to
-  land `i18n/index` first or hardcode English and retrofit — retrofitting 76
-  screens' worth of strings is the expensive way round.
+- **Use `t()` from the first line of every screen. Never hardcode English.**
+  `lib/i18n/i18n.dart` is in and all ten catalogues with it, so there is nothing
+  to retrofit and no reason to. `test/i18n/call_sites_test.dart` scans `lib/` and
+  fails the build if a screen names a key English does not have — which is the
+  test that stops `ach.title.foo` rendering across a card.
 
 ### The screens
 
@@ -606,14 +619,27 @@ of buttons that error.
 
 ## M5 — i18n
 
-14 files, 29,438 lines: ten locales at ~2,900 each plus the lookup layer. Bulk, not
-difficulty — but it is a third of the size of the UI and easy to under-budget.
+**Done bar the layout check**, and landed before M3 rather than after it: the
+engines already emit translation keys, so the match feed and the trophy room
+could not render at all without a lookup layer. See
+`docs/superpowers/specs/2026-08-18-i18n-layer-design.md`.
 
-- [ ] `i18n/index` — the lookup layer and the `t()` contract engines already emit
-      keys against (the match feed emits `commentary.flow.*`, the achievements
-      `ach.title.*` / `ach.desc.*`)
-- [ ] The ten locale files: ar, de, en, es, fr, it, ja, ko, pt, zh
-- [ ] Check the long-language layouts (German is the measured worst case)
+- [x] `i18n/index` (62) — `lib/i18n/i18n.dart`. Three-step fallback (active
+      catalogue → English → the raw key), literal `{param}` substitution that
+      throws on neither a param with no placeholder nor the reverse, and an
+      unknown locale narrowed to English. Synchronous and Flutter-free, because
+      it is called from `build` methods and from the engines' formatters alike
+- [x] The ten locale files: ar, de, en, es, fr, it, ja, ko, pt, zh — 2,652 keys
+      each, generated into `lib/i18n/locales/*.g.dart` by `tool/gen_i18n.mjs`.
+      **Not ARB**: 30 keys are not valid Dart identifiers, and the engines look
+      keys up at runtime from strings, which `gen_l10n` cannot do at all
+- [x] The guard suite, ported from `i18n.test.js` — key parity, no invented
+      placeholders, the call-site scan, the id-built keys the scan cannot see,
+      and the gendered-pronoun check on English
+- [ ] Check the long-language layouts (German is the measured worst case) —
+      needs screens, so it stays here rather than moving
+- [ ] The Settings language picker, and the JS guard that asserts it lists
+      exactly `supportedLocales`. Lands with the Settings screen in M3
 
 ---
 
@@ -671,7 +697,11 @@ difficulty — but it is a third of the size of the UI and easy to under-budget.
 Each regenerates a `test/fixtures/*.json` from the live JS. Re-run one whenever
 the source module changes.
 
+`tool/gen_i18n.mjs` is the odd one out: it writes `lib/i18n/locales/*.g.dart`
+rather than a fixture, and wants re-running whenever a catalogue changes.
+
 ```bash
+node tool/gen_i18n.mjs                     # → lib/i18n/locales/*.g.dart
 node tool/dump_default_save.mjs            > tool/default_save_v7.json
 node tool/dump_random_reference.mjs        # prints; values are pasted into the test
 node tool/dump_team_name_order.mjs         > test/fixtures/team_name_order.json
@@ -698,6 +728,7 @@ node tool/dump_deadline_news_reference.mjs > test/fixtures/deadline_news_referen
 node tool/dump_deal_advice_reference.mjs   > test/fixtures/deal_advice_reference.json
 node tool/dump_daily_reward_reference.mjs  > test/fixtures/daily_reward_reference.json
 node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_reference.json
+node tool/dump_i18n_reference.mjs          > test/fixtures/i18n_reference.json
 node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.json
 node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_reference.json
 node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json
