@@ -69,13 +69,14 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
         raw['instanceId'] as String: raw,
   };
   final shape = {for (final slot in getFormation(_formationId(s)).slots) slot.slotId: slot};
+  final pro = isProMode(s);
 
   return [
     for (final slot in lineup)
       () {
         final geometry = shape[slot.slotId];
         final raw = slot.cardInstanceId == null ? null : byId[slot.cardInstanceId];
-        final view = cardViewFor(raw);
+        final view = cardViewFor(raw, proMode: pro);
         return (
           slotId: slot.slotId,
           slotPosition: slot.slotPosition,
@@ -98,12 +99,16 @@ final benchProvider = savePick<List<({String instanceId, CardView card})>>((s) {
     for (final slot in lineup)
       if (slot.cardInstanceId != null) slot.cardInstanceId,
   };
+  final pro = isProMode(s);
   return [
     for (final raw in gridCells(s))
       if (raw is Map<String, dynamic> &&
           !picked.contains(raw['instanceId']) &&
-          cardViewFor(raw) != null)
-        (instanceId: raw['instanceId'] as String, card: cardViewFor(raw)!),
+          cardViewFor(raw, proMode: pro) != null)
+        (
+          instanceId: raw['instanceId'] as String,
+          card: cardViewFor(raw, proMode: pro)!,
+        ),
   ];
 });
 

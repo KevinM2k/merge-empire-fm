@@ -14,6 +14,7 @@ const CardView _view = (
   position: 'FWD',
   injured: false,
   onLoan: false,
+  fitness: null,
 );
 
 Future<void> pumpCard(
@@ -110,6 +111,7 @@ void main() {
         position: 'MID',
         injured: false,
         onLoan: false,
+        fitness: null,
       ));
       final border = decorationOf(tester).border! as Border;
       expect(
@@ -130,6 +132,7 @@ void main() {
       position: 'MID',
       injured: false,
       onLoan: false,
+        fitness: null,
     ));
     expect(find.text('X'), findsOneWidget);
   });
@@ -151,6 +154,7 @@ void main() {
       position: 'DEF',
       injured: true,
       onLoan: true,
+        fitness: null,
     ));
     expect(find.byIcon(Icons.healing), findsOneWidget);
     expect(find.byIcon(Icons.swap_horiz), findsOneWidget);
@@ -180,10 +184,70 @@ void main() {
       position: 'GK',
       injured: false,
       onLoan: false,
+        fitness: null,
     ));
     expect(tester.takeException(), isNull);
     final text = tester.widget<Text>(find.textContaining('Wojciech'));
     expect(text.overflow, TextOverflow.ellipsis);
     expect(text.maxLines, 1);
+  });
+
+  group('fitness', () {
+    testWidgets('is not drawn at all in casual mode', (tester) async {
+      // Per-player fitness is a Pro-mode idea; casual play has team energy pips.
+      // A bar pinned at 100% for every casual player is a number that never
+      // moves, which is worse than no bar.
+      await pumpCard(tester, _view);
+      expect(find.byKey(const ValueKey('card-fitness')), findsNothing);
+    });
+
+    testWidgets('is drawn when the save is in Pro mode', (tester) async {
+      await pumpCard(tester, (
+        name: 'X',
+        tier: 5,
+        rating: 70,
+        position: 'MID',
+        injured: false,
+        onLoan: false,
+        fitness: 0.5,
+      ));
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byKey(const ValueKey('card-fitness')),
+      );
+      expect(bar.value, 0.5);
+    });
+
+    testWidgets('a spent player is flagged red', (tester) async {
+      await pumpCard(tester, (
+        name: 'X',
+        tier: 5,
+        rating: 70,
+        position: 'MID',
+        injured: false,
+        onLoan: false,
+        fitness: 0.1,
+      ));
+      final bar = tester.widget<LinearProgressIndicator>(
+        find.byKey(const ValueKey('card-fitness')),
+      );
+      expect(bar.valueColor!.value, Colors.redAccent);
+    });
+
+    testWidgets('an out-of-range value is clamped rather than thrown at', (
+      tester,
+    ) async {
+      for (final value in [-0.5, 1.5]) {
+        await pumpCard(tester, (
+          name: 'X',
+          tier: 5,
+          rating: 70,
+          position: 'MID',
+          injured: false,
+          onLoan: false,
+          fitness: value,
+        ));
+        expect(tester.takeException(), isNull, reason: '$value');
+      }
+    });
   });
 }

@@ -9,6 +9,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
+import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -26,7 +27,7 @@ List<dynamic> gridCells(Map<String, dynamic>? state) {
 
 /// The view for one stored card, resolved through the same engines the rest of
 /// the game uses — the widget is handed values, never asked to compute them.
-CardView? cardViewFor(Object? raw) {
+CardView? cardViewFor(Object? raw, {bool proMode = false}) {
   final card = CardInstance.from(raw);
   if (card == null) return null;
   final def = getPlayerDef(card.definitionId);
@@ -38,8 +39,13 @@ CardView? cardViewFor(Object? raw) {
     position: def.position,
     injured: card.injured,
     onLoan: card.raw['loanMatchesLeft'] != null || card.loanedOut != null,
+    fitness: proMode ? energyPct(card) : null,
   );
 }
+
+/// Pro mode. Named for the old "Hard" label; the UI says Pro.
+bool isProMode(Map<String, dynamic>? s) =>
+    _map(s?['settings'])?['hardMode'] == true;
 
 final gridCellsProvider = savePick<List<GridCell>>((s) {
   final cells = gridCells(s);
@@ -47,11 +53,12 @@ final gridCellsProvider = savePick<List<GridCell>>((s) {
   // a grid that silently grows by one reads as the game glitching, where a
   // locked slot reads as something to work towards.
   final owned = getMaxPlayers(s);
+  final pro = isProMode(s);
   return [
     for (var i = 0; i < Grid.totalCells; i++)
       (
         index: i,
-        card: i < cells.length ? cardViewFor(cells[i]) : null,
+        card: i < cells.length ? cardViewFor(cells[i], proMode: pro) : null,
         locked: i >= owned,
       ),
   ];

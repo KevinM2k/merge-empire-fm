@@ -30,6 +30,8 @@ void main() {
                 position: ['FWD', 'MID', 'DEF', 'GK'][i % 4],
                 injured: i % 11 == 0,
                 onLoan: i % 17 == 0,
+                // Pro mode: the bar is the extra paint the budget has to hold.
+                fitness: (i % 100) / 100,
               ),
             ),
           ),

@@ -28,6 +28,12 @@ typedef CardView = ({
   String position,
   bool injured,
   bool onLoan,
+  /// 0..1, or null in casual mode.
+  ///
+  /// Per-player fitness is a PRO-MODE idea — casual play has team energy pips
+  /// instead — so null means "this game has no such number", not "full". A bar
+  /// pinned at 100% for every casual player would be a number that never moves.
+  double? fitness,
 });
 
 class PlayerCard extends StatelessWidget {
@@ -130,6 +136,22 @@ class PlayerCard extends StatelessWidget {
                         color: Colors.lightBlueAccent,
                       ),
                   ],
+                ),
+              if (view.fitness != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      key: const ValueKey('card-fitness'),
+                      value: view.fitness!.clamp(0.0, 1.0),
+                      minHeight: 3,
+                      backgroundColor: cssColor(theme.labelBg),
+                      valueColor: AlwaysStoppedAnimation(
+                        view.fitness! < 0.34 ? Colors.redAccent : accentLight,
+                      ),
+                    ),
+                  ),
                 ),
               Text(
                 view.name,

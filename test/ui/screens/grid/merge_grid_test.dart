@@ -264,4 +264,28 @@ void main() {
     expect(cardViewFor(_card('no-such-player', 'a')), isNull);
     expect(cardViewFor(null), isNull);
   });
+
+  group('Pro mode', () {
+    test('casual cards carry no fitness, Pro ones do', () {
+      final raw = _card(_baseDefId, 'a');
+      expect(cardViewFor(raw)!.fitness, isNull);
+      expect(cardViewFor(raw, proMode: true)!.fitness, isNotNull);
+    });
+
+    testWidgets('the grid reads Pro mode off the save', (tester) async {
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a')},
+      );
+      expect(container.read(gridCellsProvider)[0].card!.fitness, isNull);
+
+      container.read(gameProvider).update(
+        (s) => (s['settings'] as Map<String, dynamic>)['hardMode'] = true,
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(container.read(gridCellsProvider)[0].card!.fitness, isNotNull);
+    });
+  });
 }
