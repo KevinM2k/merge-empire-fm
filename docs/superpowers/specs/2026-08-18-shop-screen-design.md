@@ -49,7 +49,7 @@ there by the shell module for exactly this screen.
 
 ## Architecture
 
-Seven files under `lib/ui/screens/shop/`, split by what changes together rather
+Eight files under `lib/ui/screens/shop/`, split by what changes together rather
 than one per section:
 
 | File | Responsibility |
@@ -59,7 +59,8 @@ than one per section:
 | `shop_tiles.dart` | the five shapes, and the price/afford/disabled states |
 | `shop_paid.dart` | Offers, Gems, Coins — real money, disabled |
 | `shop_free.dart` | the rewarded-video shelf — disabled |
-| `shop_spend.dart` | Boosts & Consumables, Vouchers, Looks — live |
+| `shop_spend.dart` | Boosts & Consumables, Vouchers — live |
+| `shop_looks.dart` | the Style Vault hero and the pack progress tiles |
 | `shop_providers.dart` | the derived providers each section reads |
 
 ## What the JS encodes, and must survive
@@ -99,6 +100,7 @@ through `game.update(...)`:
 - **Gem items** — `spendGems` plus the item's own grant.
 - **Vouchers** — `voucherTiersFor` builds the ladder, `voucherCost` prices a
   rung, and `voucherBlocked` is what greys one out and says why.
+
 `gemItemBlocked` already exists specifically for this screen — its own doc says
 it was split out "so the Shop can grey a row with a reason instead of failing on
 tap", and it returns one of six reasons. `voucherBlocked` does the same job with
