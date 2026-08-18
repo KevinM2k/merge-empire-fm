@@ -11,10 +11,11 @@ The first real tab body. The shell put a frame around the game and the HUD reads
 its numbers, but no screen yet lets a player DO anything — this one does, and it
 is also the last UI piece M4's billing work needs before a SKU can be bought.
 
-Three of its seven sections spend coins and gems, whose engines are all ported.
-Those go live. The other four spend real money or watch an advert, and both of
-those bridges are M4, so they render fully and their buy controls ship disabled
-with a visible reason — the pattern `settings_screen.dart` set.
+Two of its seven sections spend coins and gems, whose engines are all ported.
+Those go live. Four spend real money or watch an advert, and both of those
+bridges are M4, so they render fully and their buy controls ship disabled with a
+visible reason — the pattern `settings_screen.dart` set. The seventh, Manager
+Looks, turns out to buy nothing here at all: see below.
 
 ## What is already there
 
@@ -29,7 +30,15 @@ it is the first caller for a lot of it.
 | 4 Coins | real money | `iap_engine` | as above |
 | 5 Boosts & Consumables | coins, gems | `coin_sink_engine`, `gem_engine` | **live** |
 | 6 Scout Vouchers | gems | `scout_voucher_engine` | **live** |
-| 7 Manager Looks | gems | `look_pack_engine` | **live** |
+| 7 Manager Looks | real money (the Vault only) | `look_pack_engine`, `iap_engine` | **display + M4** |
+
+The last row is not what it looks like from the section's name, and it was worth
+checking rather than assuming. **Nothing in Manager Looks is bought with gems.**
+The section is the Style Vault — an `IapProduct` carrying `styleVault: true`, so
+real money and therefore M4 — sitting over a grid of pack tiles that are pure
+PROGRESS: `lookTileState` reports owned-of-total per pack, and an individual pack
+is unlocked one rewarded video at a time in the customiser, not here. The tiles
+are shown under the Vault so its value is visible rather than asserted.
 
 The catalogue already carries 84 `shop.*` keys, including every section heading,
 every toast and `shop.voucher.one_at_a_time`. No new copy is expected; anything
@@ -82,24 +91,30 @@ own module — but keeps one glyph per section, chosen in one place.
 
 ## The live half
 
-Boosts & Consumables, Scout Vouchers and Manager Looks call the ported engines
-for real, through `game.update(...)`:
+Boosts & Consumables and Scout Vouchers call the ported engines for real,
+through `game.update(...)`:
 
 - **Coin sinks** — `purchaseCoinSink(state, id)`, whose `SinkPurchase` record
   reports what happened; `peekCost` prices a tile and `isUnlocked` gates it.
 - **Gem items** — `spendGems` plus the item's own grant.
 - **Vouchers** — `voucherTiersFor` builds the ladder, `voucherCost` prices a
   rung, and `voucherBlocked` is what greys one out and says why.
-- **Look packs** — `lookTileState` answers owned / affordable / locked per pack.
+`gemItemBlocked` already exists specifically for this screen — its own doc says
+it was split out "so the Shop can grey a row with a reason instead of failing on
+tap", and it returns one of six reasons. `voucherBlocked` does the same job with
+a `VoucherBlock` enum. Neither needs a wrapper here.
+
+`lookTileState` is read-only: it prices and counts a pack for display.
 
 **This is the first screen on which a player can change the save**, so the tests
 assert the balance moved and the item landed, not that a button existed.
 
 ## The disabled half
 
-Offers, Gems packs, Coin packs, the free shelf and Restore Purchases all render
-their real tiles at their real prices, read off `IapProduct.price`, with the buy
-control disabled and a visible reason beneath it.
+Offers, Gems packs, Coin packs, the Style Vault, the free shelf and Restore
+Purchases all render their real tiles at their real prices, read off
+`IapProduct.price`, with the buy control disabled and a visible reason beneath
+it.
 
 `purchaseProduct` in `iap_engine` is the GRANT step — what runs once a store has
 confirmed a payment — so nothing on this screen calls it until M4's bridge
@@ -120,6 +135,8 @@ anchor is two movements fighting, and reads as a glitch.
 - Section order, and all seven present.
 - Each live purchase deducting the right currency and granting the right thing,
   through the real engine rather than a stub.
+- The Looks pack tiles showing owned-of-total and offering no purchase, and the
+  Vault above them disabled like every other real-money control.
 - An unaffordable tile disabled, with the reason visible.
 - A blocked voucher greyed with its own reason, and the section-level note
   present exactly once.
@@ -133,8 +150,8 @@ anchor is two movements fighting, and reads as a glitch.
 
 ## Scope
 
-In: all seven sections, the shared frame and tile shapes, the live buy flows, the
-disabled paid flows, and the deep-link handoff.
+In: all seven sections, the shared frame and tile shapes, the two live buy flows,
+the disabled paid flows, the Looks progress tiles, and the deep-link handoff.
 
 Out: the billing bridge, AdMob, and Restore's actual behaviour — all M4. Out too:
 the JS's hand-drawn icon set, the other four tab bodies, and any toast system
