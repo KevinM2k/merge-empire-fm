@@ -169,6 +169,59 @@ void main() {
     expect(screenState(tester, ShellTab.grid).ticks, greaterThan(gridTicks));
   });
 
+  testWidgets('swiping left moves to the next tab', (tester) async {
+    await pumpShell(tester);
+    await tester.fling(find.byType(IndexedStack), const Offset(-200, 0), 1000);
+    await settle(tester);
+    expect(activeTabOf(tester), ShellTab.club);
+  });
+
+  testWidgets('swiping right moves back', (tester) async {
+    await pumpShell(tester);
+    await tester.fling(find.byType(IndexedStack), const Offset(200, 0), 1000);
+    await settle(tester);
+    expect(activeTabOf(tester), ShellTab.squad);
+  });
+
+  testWidgets('a swipe past the last tab does nothing', (tester) async {
+    await pumpShell(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-shop')));
+    await settle(tester);
+    await tester.fling(find.byType(IndexedStack), const Offset(-200, 0), 1000);
+    await settle(tester);
+    expect(activeTabOf(tester), ShellTab.shop);
+  });
+
+  testWidgets('a swipe past the first tab does nothing', (tester) async {
+    await pumpShell(tester);
+    await tester.tap(find.byKey(const ValueKey('tab-grid')));
+    await settle(tester);
+    await tester.fling(find.byType(IndexedStack), const Offset(200, 0), 1000);
+    await settle(tester);
+    expect(activeTabOf(tester), ShellTab.grid);
+  });
+
+  testWidgets('a tab tap slides, and a deep link does not', (tester) async {
+    await pumpShell(tester);
+    final shell = tester.state<AppShellState>(find.byType(AppShell));
+
+    shell.goTab(ShellTab.shop);
+    await tester.pump();
+    // Mid-slide: the incoming screen is still off to one side.
+    final mid = tester.widget<SlideTransition>(find.byKey(const ValueKey('tab-slide')));
+    expect(mid.position.value, isNot(Offset.zero));
+
+    await tester.pump(const Duration(milliseconds: 300));
+    shell.goTab(ShellTab.grid, noSlide: true);
+    await tester.pump();
+    final deep = tester.widget<SlideTransition>(find.byKey(const ValueKey('tab-slide')));
+    expect(
+      deep.position.value,
+      Offset.zero,
+      reason: 'a deep link arrives already in place',
+    );
+  });
+
   testWidgets('the tab labels are translated, not hardcoded', (tester) async {
     await pumpShell(tester);
     expect(find.text(t('nav.shop')), findsOneWidget);
