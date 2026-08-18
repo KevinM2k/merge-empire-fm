@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,567 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
+**2,590 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -260,24 +260,28 @@ JS number or object did.
       the fixture pins whole settles off a shared mulberry32 — which catches the
       refill ORDER (column by column, top-up counted upward) as well as the
       results, and the L and T shapes where one cell is in two runs at once
+- [x] `club_asset_tiers` (148) — the Club screen's tier cards. Every line is
+      derived from the gate function the game actually uses, with unlocks as a
+      DIFF across the tier boundary, so a card cannot claim a perk the engine
+      does not grant or miss one it does. The test pins both directions
+- [x] `ad_gate_engine` (86), `badge_engine` (59), `look_pack_engine` (48) — the
+      rewarded-ad frequency window, the shirt badge and the look-pack shop tile.
+      One shared fixture: none of the three is big enough to earn its own
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `club_asset_tiers`
+### Next up — the last of the data and the utils
 
-148 lines, then the four sub-100-line engines and the last of the data.
+**Every engine in M1 is now ported.** What is left of the logic core is the data
+and utility tail below, and the differential harness.
 
 ### Remaining engines
 
-Roughly in dependency order.
-
-- [ ] `club_asset_tiers` (148)
-- [ ] `ad_gate_engine` (86)
-- [ ] `badge_engine` (59)
-- [ ] `look_pack_engine` (48)
+None. `manager_avatar`'s SVG half is really M3 material and is listed under the
+data below.
 
 ### Remaining data
 
@@ -569,6 +573,8 @@ node tool/dump_deal_advice_reference.mjs   > test/fixtures/deal_advice_reference
 node tool/dump_daily_reward_reference.mjs  > test/fixtures/daily_reward_reference.json
 node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_reference.json
 node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.json
+node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_reference.json
+node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED

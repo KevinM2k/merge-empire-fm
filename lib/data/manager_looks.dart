@@ -30,29 +30,83 @@ const List<String> buildIds = [
 const List<String> outfitIds = ['kit', 'tracksuit', 'coat', 'suit'];
 
 const List<String> hairStyleIds = [
-  'crop', 'buzz', 'shaved', 'afro', 'pony', 'bun', 'flow', 'mohawk',
-  'spikes', 'mullet', 'curtains', 'dreads', 'slick', 'fauxhawk', 'braids',
+  'crop',
+  'buzz',
+  'shaved',
+  'afro',
+  'pony',
+  'bun',
+  'flow',
+  'mohawk',
+  'spikes',
+  'mullet',
+  'curtains',
+  'dreads',
+  'slick',
+  'fauxhawk',
+  'braids',
 ];
 
 const List<String> facialHairIds = [
-  'none', 'stubble', 'moustache', 'goatee', 'beard', 'full',
-  'pencil', 'handlebar', 'muttonchops', 'braided',
+  'none',
+  'stubble',
+  'moustache',
+  'goatee',
+  'beard',
+  'full',
+  'pencil',
+  'handlebar',
+  'muttonchops',
+  'braided',
 ];
 
 const List<String> hatIds = [
-  'none', 'headband', 'cap', 'beanie', 'crown', 'flatcap', 'bucket',
-  'snapback', 'visor', 'sunhat', 'santa', 'tophat', 'viking', 'party',
-  'hardhat', 'headphones', 'laurel', 'diamond',
+  'none',
+  'headband',
+  'cap',
+  'beanie',
+  'crown',
+  'flatcap',
+  'bucket',
+  'snapback',
+  'visor',
+  'sunhat',
+  'santa',
+  'tophat',
+  'viking',
+  'party',
+  'hardhat',
+  'headphones',
+  'laurel',
+  'diamond',
 ];
 
 const List<String> faceIds = [
-  'none', 'specs', 'shades', 'aviators', 'goggles', 'monocle', 'cigar',
-  'whistle', 'nosestrip', 'eyeblack', 'warpaint', 'facepaint',
+  'none',
+  'specs',
+  'shades',
+  'aviators',
+  'goggles',
+  'monocle',
+  'cigar',
+  'whistle',
+  'nosestrip',
+  'eyeblack',
+  'warpaint',
+  'facepaint',
 ];
 
 const List<String> ballIds = [
-  'classic', 'retro', 'winter', 'beach', 'gold',
-  'disco', 'flame', 'eightball', 'star', 'futsal',
+  'classic',
+  'retro',
+  'winter',
+  'beach',
+  'gold',
+  'disco',
+  'flame',
+  'eightball',
+  'star',
+  'futsal',
 ];
 
 const List<String> neckIds = ['none', 'scarf'];
@@ -336,7 +390,10 @@ List<String> _ownedPacks(Map<String, dynamic>? state) {
 /// pack later must not silently re-lock it for someone who paid for the pack.
 Set<String> ownedLookItems(Map<String, dynamic>? state) {
   final list = (state?['club'] as Map<String, dynamic>?)?['lookItems'];
-  return {if (list is List) for (final key in list) '$key'};
+  return {
+    if (list is List)
+      for (final key in list) '$key',
+  };
 }
 
 /// The Fan Zone tier actually in effect — zero when the asset isn't built.
@@ -505,8 +562,16 @@ const Map<String, bool> _legacyAccFace = {'specs': true, 'shades': true};
 /// NEW item can never be mistaken for a legacy value just because the two
 /// happen to share a name.
 const Set<String> _legacyAccIds = {
-  'none', 'headband', 'cap', 'beanie', 'specs', 'shades', 'crown',
-  'headphones', 'laurel', 'diamond',
+  'none',
+  'headband',
+  'cap',
+  'beanie',
+  'specs',
+  'shades',
+  'crown',
+  'headphones',
+  'laurel',
+  'diamond',
 };
 
 final math.Random _unseeded = math.Random();
@@ -577,16 +642,20 @@ ManagerLook normalizeAvatar(Object? a) {
   // slot. Fold it into whichever of the two now owns that item, and only when
   // the new field is absent — a save written since the split is authoritative.
   final legacy = _legacyAccIds.contains(a['acc']) ? '${a['acc']}' : null;
-  final hat = a['hat'] ??
+  final hat =
+      a['hat'] ??
       (legacy != null && _legacyAccFace[legacy] != true ? legacy : 'none');
-  final face = a['face'] ??
+  final face =
+      a['face'] ??
       (legacy != null && _legacyAccFace[legacy] == true ? legacy : 'none');
 
   return <String, dynamic>{
     'build': buildIds.contains(a['build']) ? a['build'] : 'regular',
     'outfit': outfitIds.contains(a['outfit']) ? a['outfit'] : 'kit',
     'style': hairStyleIds.contains(a['style']) ? a['style'] : base['style'],
-    'hair': hairColorId(a['hair'] as String?) != null ? a['hair'] : base['hair'],
+    'hair': hairColorId(a['hair'] as String?) != null
+        ? a['hair']
+        : base['hair'],
     'skin': a['skin'] is String ? a['skin'] : base['skin'],
     'skinShade': a['skinShade'] is String ? a['skinShade'] : base['skinShade'],
     'beard': facialHairIds.contains(a['beard']) ? a['beard'] : 'none',
@@ -632,3 +701,15 @@ ManagerLook sanitizeAvatar(Map<String, dynamic>? state, Object? a) {
         : hairColorValue(freeHairColorId),
   };
 }
+
+/// Item keys the Fan Zone hands over at exactly this tier.
+///
+/// The Club screen's upgrade card diffs this across a tier boundary rather than
+/// listing the rewards by hand, so a card cannot claim a look the gate does not
+/// grant.
+List<String> looksUnlockedAtTier(int tier) =>
+    fanzoneLookUnlocks[tier] ?? const [];
+
+/// Item keys a cup win unlocks, for the trophy-lift celebration.
+List<String> looksUnlockedByCup(String? cupId) =>
+    cupLookUnlocks[cupId] ?? const [];
