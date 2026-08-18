@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
@@ -30,7 +31,15 @@ import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.screenFor});
+
+  /// Test seam: what to put in each tab.
+  ///
+  /// The shell's own tests are about the stack, the tickers and the
+  /// transitions, not about any screen — and pinning them to whichever tab
+  /// happened to still be a placeholder meant they broke every time a real
+  /// screen landed. They pass placeholders for all five instead.
+  final Widget Function(ShellTab tab)? screenFor;
 
   @override
   ConsumerState<AppShell> createState() => AppShellState();
@@ -145,18 +154,22 @@ class AppShellState extends ConsumerState<AppShell>
                       for (final tab in tabOrder)
                         TickerMode(
                           enabled: tab == _active,
-                          child: switch (tab) {
-                            ShellTab.grid => const GridScreen(
-                              key: ValueKey('screen-grid'),
-                            ),
-                            ShellTab.shop => const ShopScreen(
-                              key: ValueKey('screen-shop'),
-                            ),
-                            _ => PlaceholderScreen(
-                              key: ValueKey('screen-${tab.name}'),
-                              label: t(tab.labelKey),
-                            ),
-                          },
+                          child: widget.screenFor?.call(tab) ??
+                              switch (tab) {
+                                ShellTab.grid => const GridScreen(
+                                  key: ValueKey('screen-grid'),
+                                ),
+                                ShellTab.squad => const SquadScreen(
+                                  key: ValueKey('screen-squad'),
+                                ),
+                                ShellTab.shop => const ShopScreen(
+                                  key: ValueKey('screen-shop'),
+                                ),
+                                _ => PlaceholderScreen(
+                                  key: ValueKey('screen-${tab.name}'),
+                                  label: t(tab.labelKey),
+                                ),
+                              },
                         ),
                     ],
                   ),
