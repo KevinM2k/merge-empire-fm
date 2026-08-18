@@ -14,6 +14,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:merge_empire_fc/data/kit_palette.dart';
+
 /// A colour as hue (0-360), saturation and lightness (both 0-100), rounded the
 /// way the CSS the theme emits needs them.
 typedef Hsl = ({int h, int s, int l});
@@ -127,3 +129,210 @@ const Map<String, int> patternHueRotate = {
   'empire': -120,
   'void': 150,
 };
+
+/// One kit's derived surfaces, as CSS colour strings.
+///
+/// Values are kept in the form the JS emits them — `#rrggbb`, `#rgb`, or
+/// `hsl(h,s%,l%)` — rather than normalised, so the fixture comparison is
+/// byte-exact and no conversion sits between the two runtimes. Turning these
+/// into `Color`s is `lib/ui/theme/`'s job and nowhere else's.
+class KitSurfaces {
+  const KitSurfaces({
+    required this.bg,
+    required this.surface,
+    required this.surface2,
+    required this.border,
+    required this.textMuted,
+    required this.accent,
+    required this.accentBright,
+    required this.accentBrightInk,
+    required this.accentInk,
+    required this.hueRotate,
+  });
+
+  final String bg;
+  final String surface;
+  final String surface2;
+  final String border;
+  final String textMuted;
+  final String accent;
+  final String accentBright;
+  final String accentBrightInk;
+  final String accentInk;
+
+  /// Degrees the kit art is rotated by.
+  final int hueRotate;
+}
+
+/// The accent each pattern kit paints its LIGHT theme from. Dark is a separate
+/// story — five of the six are fixed tables, and only turf derives.
+const Map<String, String> _patternLightAccent = {
+  'turf': '#2e7d32',
+  'humbug': '#d32f2f',
+  'sunset': '#e64a19',
+  'midnight': '#3355ee',
+  'empire': '#0099cc',
+  'void': '#7733cc',
+};
+
+/// Light mode is one neutral card stack for every kit; only the accent moves.
+const String _lightBg = '#ffffff';
+const String _lightSurface = '#eef0f3';
+const String _lightSurface2 = '#e3e6ea';
+const String _lightBorder = '#d0d5db';
+const String _lightTextMuted = '#5b616b';
+
+KitSurfaces _lightFrom(String accentHex, int hueRotate) {
+  final hsl = hexToHsl(accentHex);
+  return KitSurfaces(
+    bg: _lightBg,
+    surface: _lightSurface,
+    surface2: _lightSurface2,
+    border: _lightBorder,
+    textMuted: _lightTextMuted,
+    accent: accentHex,
+    accentBright: 'hsl(${hsl.h},60%,36%)',
+    accentBrightInk: inkFor(hslToHex(hsl.h, 60, 36)),
+    accentInk: inkFor(accentHex),
+    hueRotate: hueRotate,
+  );
+}
+
+/// The dark theme for a derived kit — turf, and any club colour.
+///
+/// Turf differs from a club colour in two places, both because it sits on a
+/// green stripe texture rather than a flat near-black: its muted text is paler
+/// and less saturated, and its ink is fixed rather than measured.
+///
+/// For a club colour the CHOICE of `accentInk` goes through [inkFor], where the
+/// JS kept an older `lightness > 55` test that hands white ink to a yellow or a
+/// cyan accent — invisible text on the button. The JS's own light path already
+/// calls [inkFor] and its comment says why. See "Fixed in the port rather than
+/// carried" in docs/REMAINING.md.
+///
+/// The two INKS stay the JS's own, so a kit it already got right does not shift
+/// shade. Only which of the two is picked changes.
+KitSurfaces _darkFrom(
+  String accentHex,
+  int hueRotate, {
+  double mutedSat = 0.4,
+  int mutedLightness = 55,
+  String? ink,
+}) {
+  final hsl = hexToHsl(accentHex);
+  final h = hsl.h;
+  final sat = kitSaturation(hsl.s);
+  return KitSurfaces(
+    bg: 'hsl($h,$sat%,7%)',
+    surface: 'hsl($h,${(sat * 0.75).round()}%,12%)',
+    surface2: 'hsl($h,${(sat * 0.65).round()}%,16%)',
+    border: 'hsl($h,${(sat * 0.55).round()}%,22%)',
+    textMuted: 'hsl($h,${(sat * mutedSat).round()}%,$mutedLightness%)',
+    accent: accentHex,
+    accentBright: 'hsl($h,90%,70%)',
+    accentBrightInk: '#0d0d0d',
+    accentInk: ink ?? (inkFor(accentHex) == inkDark ? darkModeInkDark : inkLight),
+    hueRotate: hueRotate,
+  );
+}
+
+/// The near-black this branch of the JS prints on a pale accent. Not [inkDark] —
+/// the two differ by three values and only this one belongs to the dark theme.
+const String darkModeInkDark = '#0d0d0d';
+
+/// The five pattern kits whose dark theme is a hand-picked table rather than a
+/// derivation. Transcribed from the branches of `applyKitColor`.
+const Map<String, KitSurfaces> _patternDark = {
+  'humbug': KitSurfaces(
+    bg: '#111',
+    surface: '#1a1a1a',
+    surface2: '#222',
+    border: '#3a3a3a',
+    textMuted: '#d0d0d0',
+    accent: '#d32f2f',
+    accentBright: '#ff5c5c',
+    accentBrightInk: '#0d0d0d',
+    accentInk: '#ffffff',
+    hueRotate: 180,
+  ),
+  'sunset': KitSurfaces(
+    bg: '#1a0800',
+    surface: '#2a1008',
+    surface2: '#3a1a0c',
+    border: '#5a2a14',
+    textMuted: '#d4956a',
+    accent: '#ff6b35',
+    accentBright: '#ffb347',
+    accentBrightInk: '#0d0d0d',
+    accentInk: '#0d0d0d',
+    hueRotate: 30,
+  ),
+  'midnight': KitSurfaces(
+    bg: '#03030f',
+    surface: '#08081e',
+    surface2: '#0e0e2c',
+    border: '#1a1a44',
+    textMuted: '#7070b0',
+    accent: '#4466ff',
+    accentBright: '#88aaff',
+    accentBrightInk: '#0d0d0d',
+    accentInk: '#ffffff',
+    hueRotate: -90,
+  ),
+  'empire': KitSurfaces(
+    bg: '#001418',
+    surface: '#001e24',
+    surface2: '#002830',
+    border: '#00404e',
+    textMuted: '#4aa8c0',
+    accent: '#00c8ff',
+    accentBright: '#7ee8fa',
+    accentBrightInk: '#0d0d0d',
+    accentInk: '#001418',
+    hueRotate: -120,
+  ),
+  'void': KitSurfaces(
+    bg: '#030006',
+    surface: '#09000f',
+    surface2: '#100018',
+    border: '#220030',
+    textMuted: '#7a50a0',
+    accent: '#9933ff',
+    accentBright: '#cc88ff',
+    accentBrightInk: '#0d0d0d',
+    accentInk: '#ffffff',
+    hueRotate: 150,
+  ),
+};
+
+/// Turf is the one pattern kit whose dark theme derives rather than tabulates.
+const String _turfGreen = '#2e7d32';
+
+/// The palette for a kit id — one of the six pattern names, or a `#rrggbb`.
+///
+/// Anything unrecognised lands on the default green rather than throwing: the id
+/// comes off the save, so a future build's kit must not brick an older one.
+KitSurfaces buildKitSurfaces({required String kitId, required bool light}) {
+  final patternAccent = _patternLightAccent[kitId];
+  final known = patternAccent != null || kitId.startsWith('#');
+  final hueRotate = patternHueRotate[kitId];
+
+  if (light) {
+    final accent = patternAccent ?? (known ? kitId : defaultKitColor);
+    return _lightFrom(accent, hueRotate ?? kitHueRotate(hexToHsl(accent).h));
+  }
+
+  final table = _patternDark[kitId];
+  if (table != null) return table;
+  if (kitId == 'turf') {
+    return _darkFrom(
+      _turfGreen,
+      hueRotate ?? 0,
+      mutedSat: 0.3,
+      mutedLightness: 82,
+      ink: inkLight,
+    );
+  }
+  final accent = known ? kitId : defaultKitColor;
+  return _darkFrom(accent, kitHueRotate(hexToHsl(accent).h));
+}
