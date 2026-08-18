@@ -3,6 +3,8 @@
 /// Three, and only three. A fourth is a change to the spec, not a new file.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,14 +13,44 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/save_slots.dart';
+import 'package:merge_empire_fc/state/save_store.dart';
+import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/util/time.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 
 late BuildContext hostContext;
 
 Future<void> pumpHost(WidgetTester tester) async {
+  // Today's reward already claimed, so the HOST's own boot popups stay out of
+  // the way of the tests about the shapes themselves.
+  final state = createDefaultState();
+  // The branch is created lazily by the engine, so it may not be in a fresh
+  // save at all.
+  state['dailyReward'] = <String, dynamic>{
+    'cycleDay': 1,
+    'lastClaimDayKey': dateString(),
+    'streak': 1,
+    'longestStreak': 1,
+    'totalClaims': 1,
+    'lastAutoPopupDayKey': dateString(),
+  };
+
+  final container = ProviderContainer(
+    overrides: [
+      saveStoreProvider.overrideWithValue(
+        MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(gameProvider).load();
+
   await tester.pumpWidget(
-    ProviderScope(
+    UncontrolledProviderScope(
+      container: container,
       child: MaterialApp(
         theme: buildAppTheme(kitId: '#4caf50', light: false),
         home: PopupHost(

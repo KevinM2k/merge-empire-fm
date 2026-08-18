@@ -9,6 +9,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/popups/boot_popups.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 
 class PopupHost extends ConsumerStatefulWidget {
@@ -29,7 +32,18 @@ class PopupHostState extends ConsumerState<PopupHost> {
     // queue holds noHostBlocker, so anything boot queued has waited rather than
     // been dropped for want of somewhere to open.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unblockPopups(noHostBlocker);
+      if (!mounted) return;
+      // Queue what this boot owes BEFORE releasing the blocker, so the two are
+      // one step and nothing drains against an empty queue first.
+      final game = ref.read(gameProvider);
+      queueBootPopups(
+        context: () => context,
+        game: game,
+        offline: game.state == null
+            ? (earned: 0, offlineMs: 0)
+            : processOfflineEarnings(game.state!),
+      );
+      unblockPopups(noHostBlocker);
     });
   }
 
