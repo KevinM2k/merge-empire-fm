@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**2,806 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**2,938 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -40,6 +40,8 @@ and is listed under M3 where it belongs. **M2 (the state layer) is done** — th
 save, the loop, the listeners that pay, the providers and the lifecycle
 observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
 suite — which was M5 and landed early so no screen has to hardcode English.
+**M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing
+and Settings are in. The five tab bodies are still placeholders.
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -48,14 +50,15 @@ injuries, tactic changes, settlement), a season plays out, the table settles, th
 pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
 over to the next campaign — and the JS and the port agree about all of it.
 
-**It runs, and nobody can see it.** The state layer is in — the app boots, loads
-the save off the device, ticks, pays and saves — so the engines are reachable at
-last. What is missing is every screen. M3 is the whole of what a player sees.
+**It runs, and now there is something to look at — but nothing to do.** The app
+boots into a themed five-tab shell with a live HUD, and Settings works. What no
+tab has yet is a body: the grid, the squad, the league, the club and the shop
+are all placeholders. Each is its own module from here.
 
 ### How far along, honestly
 
 Measured, not estimated: `101,866` lines of non-test JS in `../merge-empire-fc/src`,
-of which roughly **54,000 are ported — about 53%.**
+of which roughly **56,000 are ported — about 55%.**
 
 That number doubled in one module and it should not be read as the work
 doubling. See the first bullet below the table.
@@ -69,7 +72,7 @@ doubling. See the first bullet below the table.
 | `assets/` | 853 | `playerArt` done; `clubArt` 430, `gemArt` 146, `svgCache` 54 left |
 | `services/` | 4,144 | only `nativeSaveMirror` has a counterpart |
 | `i18n/` | 29,123 | done — the lookup layer and all ten catalogues |
-| `ui/` | 40,329 | none |
+| `ui/` | 40,329 | the shell, HUD, theme, popup shapes and Settings; no tab body |
 
 Do not read 53% as "half the work", in either direction:
 
@@ -80,9 +83,13 @@ Do not read 53% as "half the work", in either direction:
   real figure is nearer 25%.
 - **The UI will not be a line-for-line port.** 40,329 lines of hand-rolled DOM
   manipulation becomes materially less Dart, so that denominator is soft.
-- **The port is more verbose than its source.** 25,000 lines of hand-written JS
-  became 33,913 lines of `lib/` and 35,235 lines of tests. The catalogues add
-  another 26,626 generated lines that nobody reads or maintains.
+- **The UI is where the port gets SHORTER.** The shell replaced roughly 1,100
+  lines of `App.js`, `HUD.js` and `popupQueue.js` with about 1,300 lines of
+  Dart — but a large part of what it did not have to port was workaround:
+  `screenFreeze.js` in full, the two-frame `requestAnimationFrame` dance before
+  every slide, the swipe-vs-drag exclusion list, and the re-parenting that let
+  one wrapper serve tabs, sheets and overlays. `TickerMode`, routes and the
+  gesture arena are those four, and they are one line each.
 
 The useful summary is that the correctness-critical half is finished and proven,
 and the visible half has not started.
@@ -109,7 +116,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 2,804 passing, 2 skipped
+flutter test             # 2,936 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -147,6 +154,14 @@ it would churn every import in the repo for nothing a player can see.
 - **Every user-facing string goes through `t()`.** Never a literal. The key must
   exist in `en`, or `test/i18n/call_sites_test.dart` fails the build.
 - Nothing ending `.g.dart` is edited by hand — change the generator and re-run it.
+- **Read the theme through `Theme.of(context).extension<KitTheme>()!`.** Never a
+  hardcoded colour: the whole palette is derived from the club's kit.
+- **Navigate through `shellControllerProvider`**, not by emitting a bus event by
+  hand. The bus listeners in `shell_controller.dart` are the only code that
+  should know those strings.
+- **A popup is one of three shapes** — bottom sheet, Coach Colin card, quick-nav
+  menu — and goes on screen through `enqueuePopup`. Do not invent a fourth; that
+  is a change to the spec first.
 - Seeded gameplay randomness goes through `util/random.dart`; anything mirroring
   JS `Math.random()` uses `dart:math`. Mixing them shifts every later draw.
   **The draw ORDER matters as much as the formula** — see the bugs below.
@@ -450,6 +465,18 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
   `state.shop = state.shop ?? {}` elsewhere shows the defensiveness was intended.
   The port creates it up front, which cannot change behaviour where it exists.
 - The two stable-sort bugs and `roundCoins`, above.
+- **A yellow or cyan kit printed white text on its own accent, in dark mode.**
+  `kitTheme.js` grew `inkFor` — a WCAG relative-luminance measure — precisely to
+  fix this, and calls it on the light path with a comment saying so. The derived
+  DARK path kept the older `lightness > 55` test, which hands white ink to any
+  pale accent. `#ffd700` and `#00c8ff` both fail it; `empire` avoids it only
+  because that kit's ink is hand-picked. The port measures in both modes, using
+  the two inks the JS already paints with so a kit it got right does not shift
+  shade. Pinned in `test/util/kit_theme_test.dart`, with the JS's wrong answer
+  kept in the fixture so the divergence stays visible.
+- **`GameState.dispose()` left its debounced write armed.** The method is
+  documented as test-only, and the timer it left behind would fire into a
+  disposed object, taking a real change with it. It flushes now.
 
 ### The differential harness
 
@@ -519,7 +546,7 @@ mapping is not one-to-one. For scale, the four that dominate are
 `LeagueScreen` (6,777), `MatchPopup` (3,715), `SquadScreen` (2,264) and
 `ChanceCutaway` (2,036).
 
-### What M2 left you to build on
+### What M2 and the shell left you to build on
 
 The plumbing a screen needs already exists. Use it rather than reaching past it.
 
@@ -530,6 +557,9 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 - **Write through `game.update(...)`.** That is what schedules the save and
   notifies the providers. A raw write to the map needs a `notifyChanged()` and is
   only correct where the tick loop does it, for a reason spelled out there.
+- **Put the screen in `AppShell`'s IndexedStack**, replacing that tab's
+  `PlaceholderScreen`. It gets `TickerMode` for free, so nothing offscreen
+  animates and no screen needs a freeze of its own.
 - **A takeover screen MUST set `tickGatesProvider` while it is up.** That is the
   whole reason the gates are a record rather than a DOM query: without it the loop
   will drop a transfer bid over the match, or Coach Colin on top of a mini-game.
@@ -545,13 +575,19 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 
 ### The screens
 
-- [ ] Shell: five tabs plus the hidden Settings screen
+- [x] Shell: five tabs plus the hidden Settings screen — `lib/ui/shell/`,
+      `lib/ui/theme/`, `lib/ui/hud/`, `lib/ui/popups/`. See
+      `docs/superpowers/specs/2026-08-18-shell-design.md`. Still to land with
+      the League screen: tapping Play resets it to the Overview sub-tab, which
+      has nowhere to go until sub-tabs exist
 - [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules
 - [ ] Squad, Club, League, Shop screens
 - [ ] The live match page (a takeover screen, not a popup)
 - [ ] Season-end takeover
-- [ ] The three popup shapes — bottom sheet, Coach Colin card, quick-nav menu.
-      Do not invent a fourth.
+- [x] The three popup shapes — bottom sheet, Coach Colin card, quick-nav menu.
+      Do not invent a fourth. The queue behind them is `util/popup_queue.dart`,
+      and it holds a no-host blocker from boot so a card queued before any widget
+      existed waits rather than being dropped
 - [ ] Mini-games: Penalty Training, Boot Room, Pitch Invaders, the rest
 - [ ] Trophy room
 - [ ] Deadline Day screen
@@ -729,6 +765,7 @@ node tool/dump_deal_advice_reference.mjs   > test/fixtures/deal_advice_reference
 node tool/dump_daily_reward_reference.mjs  > test/fixtures/daily_reward_reference.json
 node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_reference.json
 node tool/dump_i18n_reference.mjs          > test/fixtures/i18n_reference.json
+node tool/dump_kit_theme_reference.mjs     > test/fixtures/kit_theme_reference.json
 node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.json
 node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_reference.json
 node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json

@@ -47,6 +47,16 @@ class _GameHostState extends ConsumerState<GameHost>
     _runner = ref.read(gameRunnerProvider)..boot();
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());
     _runner.start();
+    // Announce the load, one frame later.
+    //
+    // The theme and the HUD both read a derived value ABOVE this host, so they
+    // are computed before boot() has a save to answer with and would hold their
+    // pre-load answer until the first tick happened to notify — a second or so
+    // of default-green app. It cannot go in boot(): this is initState, and
+    // Riverpod refuses a provider write inside a widget lifecycle.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _runner.game.notifyChanged();
+    });
   }
 
   /// Detect the leaderboard region once, and keep it.

@@ -7,6 +7,9 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_host.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
+import 'package:merge_empire_fc/ui/popups/popup_host.dart';
+import 'package:merge_empire_fc/ui/shell/app_shell.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/services/prefs_save_store.dart';
 
 Future<void> main() async {
@@ -35,6 +38,7 @@ class MergeEmpireApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Merge Empire Football Manager',
+      theme: ref.watch(appThemeProvider),
       // Arabic reads right to left. This is the whole of what the JS did by
       // setting document.dir.
       locale: Locale(ref.watch(localeProvider)),
@@ -45,26 +49,10 @@ class MergeEmpireApp extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       home: const GameHost(
-        child: Scaffold(body: SafeArea(child: _Placeholder())),
-      ),
-    );
-  }
-}
-
-/// Stands in until M3. It watches two derived providers rather than the save,
-/// which is the pattern every real screen follows.
-class _Placeholder extends ConsumerWidget {
-  const _Placeholder();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(ref.watch(clubNameProvider)),
-          Text('${ref.watch(coinsProvider)}'),
-        ],
+        // PopupHost sits above the shell: it releases the queue's no-host
+        // blocker, so anything queued during boot has waited rather than been
+        // dropped for want of somewhere to open.
+        child: PopupHost(child: AppShell()),
       ),
     );
   }
