@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,220 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,237 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -126,7 +126,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,218 passing, 2 skipped
+flutter test             # 3,235 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -729,7 +729,7 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       **Overview is the DIORAMA and stays named rather than half-built**: 6,777
       lines with a parallax scene and a ball simulation, and the port design
       gates its technique on profile-mode timings from a physical device, which
-      is still open below. Training is likewise pending its mini-games.
+      is still open below. Training is now a real list of drills.
 - [x] The live match page — `lib/ui/screens/match/`, a takeover screen as the
       note said. It PLAYS OUT a match `simulateMatch` has already decided:
       `match_clock.dart` is pure logic that only chooses when an already-decided
@@ -759,7 +759,17 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       Do not invent a fourth. The queue behind them is `util/popup_queue.dart`,
       and it holds a no-host blocker from boot so a card queued before any widget
       existed waits rather than being dropped
-- [ ] Mini-games: Penalty Training, Boot Room, Pitch Invaders, the rest
+- [~] Mini-games — `lib/ui/screens/minigames/`. The Training tab lists all
+      seven, unlocked a tier at a time by the Club's Training Ground, and
+      **Penalty Training is playable**. Its shot resolution came out of the JS
+      component into `engine/penalty_game_engine.dart`; the keeper's smart-dive
+      ramp was already ported with the data.
+      The cooldown starts on ENTRY rather than on finishing, so walking away
+      mid-round cannot farm the reward timer.
+      A game with no screen yet is LISTED and says so rather than being offered
+      — the menu-row-to-nowhere bug, avoided deliberately.
+      Still to build: Training Drills, Keepy Uppys, Through Ball, Whack,
+      Teamwork and the Boot Room (whose engine is already ported)
 - [ ] Trophy room
 - [ ] Deadline Day screen
 - [ ] The manager rig — walker, dugout cam, gestures, moods
