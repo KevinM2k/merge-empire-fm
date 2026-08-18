@@ -31,6 +31,11 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Material's own widget strings, and the RTL Directionality Arabic needs. Our
+  # catalogue is generated — see lib/i18n.
+  flutter_localizations:
+    sdk: flutter
+
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.6.1
   intl: ^0.20.2
