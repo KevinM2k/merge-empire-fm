@@ -2658,4 +2658,6 @@ const Map<String, String> arCatalog = <String, String>{
   'quests.capstone_reward': '{n} جوهرة',
   'quests.capstone_toast': 'اكتمل {division} — حصلت على {n} جوهرة!',
   'settings.comingSoon': 'قريباً',
+  'match.full_time': 'نهاية المباراة',
+  'match.half_time': 'استراحة الشوط',
 };

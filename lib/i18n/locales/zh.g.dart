@@ -2658,4 +2658,6 @@ const Map<String, String> zhCatalog = <String, String>{
   'quests.capstone_reward': '{n}颗宝石',
   'quests.capstone_toast': '{division}全部完成 — 获得{n}颗宝石！',
   'settings.comingSoon': '即将推出',
+  'match.full_time': '全场结束',
+  'match.half_time': '中场休息',
 };

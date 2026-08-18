@@ -2658,4 +2658,6 @@ const Map<String, String> jaCatalog = <String, String>{
   'quests.capstone_reward': 'ジェム{n}個',
   'quests.capstone_toast': '{division}制覇 — ジェム{n}個獲得!',
   'settings.comingSoon': '近日公開',
+  'match.full_time': '試合終了',
+  'match.half_time': 'ハーフタイム',
 };

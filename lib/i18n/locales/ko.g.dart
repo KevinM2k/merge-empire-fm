@@ -2658,4 +2658,6 @@ const Map<String, String> koCatalog = <String, String>{
   'quests.capstone_reward': '젬 {n}개',
   'quests.capstone_toast': '{division} 완료 — 젬 {n}개 획득!',
   'settings.comingSoon': '곧 제공됩니다',
+  'match.full_time': '경기 종료',
+  'match.half_time': '하프타임',
 };

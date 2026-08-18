@@ -2658,4 +2658,6 @@ const Map<String, String> itCatalog = <String, String>{
   'quests.capstone_reward': '{n} gemma',
   'quests.capstone_toast': '{division} completata — {n} gemma ottenuta!',
   'settings.comingSoon': 'Prossimamente',
+  'match.full_time': 'Fine partita',
+  'match.half_time': 'Intervallo',
 };

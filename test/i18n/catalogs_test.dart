@@ -16,9 +16,9 @@ void main() {
   Set<String> placeholders(String s) =>
       placeholder.allMatches(s).map((m) => m.group(0)!).toSet();
 
-  test('ten catalogues, 2653 keys each', () {
+  test('ten catalogues, 2655 keys each', () {
     expect(catalogs.length, 10);
-    expect(en.length, 2653);
+    expect(en.length, 2655);
   });
 
   test('the shipped catalogues match the list the detector narrows to', () {
