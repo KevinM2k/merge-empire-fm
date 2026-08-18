@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/screens/league/league_screen.dart';
+import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
@@ -200,10 +201,8 @@ class AppShellState extends ConsumerState<AppShell>
                 visible: !_revealActive,
                 maintainState: true,
                 child: Hud(
-                  onSettings: () => openRoute<void>(
-                    context,
-                    const Scaffold(body: Center(child: Text('Settings'))),
-                  ),
+                  onSettings: () =>
+                      openRoute<void>(context, const SettingsScreen()),
                 ),
               ),
             ),

@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
+import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
@@ -145,6 +146,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 800));
       expect(tester.widget<Text>(find.byType(Text)).data, '1,000');
     });
+  });
+
+  testWidgets('the cog opens the real Settings screen', (tester) async {
+    // It opened a stub for three modules — reachable in a test, dead in the
+    // running app.
+    await pumpShellWithHud(tester);
+    await tester.tap(find.byKey(const ValueKey('hud-cog')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
   });
 
   testWidgets('the HUD gets out of the way of a card reveal', (tester) async {
