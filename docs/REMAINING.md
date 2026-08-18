@@ -416,22 +416,27 @@ was: the decision here, the platform read in M3 or M4.
 
 ### Next up — inside the screens
 
-Nothing is left in M1 or M2, M5 came forward to join them, M3's scaffold is up,
-and the Shop is the first tab with a real body.
+M1, M2 and M5 are done, M3's scaffold is up, and all five tabs have a real body.
+What is left is the things INSIDE them. They are independent, so the order is a
+matter of what unblocks most:
 
-Every tab now has a real body. What is left is the things INSIDE them, and they
-are independent, so the order is a matter of what unblocks most:
-
-- **`assets/clubArt.js`** (430 lines) is the Club tab's artwork, and the
-  question of how to draw it is **settled: a `CustomPainter`, no new
-  dependency.** Counted, rather than assumed: 116 `rect`, 24 `circle`, 11
-  `ellipse`, 4 `polygon`, 7 `line`, 18 `text`, three gradients and just 15
-  `path`s — all of them simple `M…Q…` quadratics that `Path.quadraticBezierTo`
-  draws directly. `flutter_svg` would be a dependency carried for hand-built
-  primitives. The Club tiles show a tier badge until it lands.
-- **League** is the biggest single screen in the project (6,777 lines) and owns
-  the diorama, so it wants the profile-mode timings under "Open questions"
-  answered first.
+- **The live match page** is the biggest gap by player impact. Every screen now
+  points at a match nobody can play: `MatchPopup` (3,715) and `ChanceCutaway`
+  (2,036) are a takeover screen, not a popup, and the whole match engine is
+  ported and proven by the differential harness.
+- **The diorama** (League → Overview) is the highest-RISK piece, and the one
+  thing here still gated on an open question: the port design ties its technique
+  to profile-mode timings from a physical device, which have not been taken.
+- **`assets/clubArt.js`** (430 lines) is the Club tab's artwork, and how to draw
+  it is **settled: a `CustomPainter`, no new dependency.** Counted rather than
+  assumed: 116 `rect`, 24 `circle`, 11 `ellipse`, 4 `polygon`, 7 `line`, 18
+  `text`, three gradients and just 15 `path`s — all simple `M…Q…` quadratics
+  that `Path.quadraticBezierTo` draws directly. `flutter_svg` would be a
+  dependency carried for hand-built primitives.
+- **The merge animation** (`MergeAnimation.js`, 928 lines of GSAP) — the merge
+  works, but lands with no celebration.
+- **Mini-games** (League → Training), the **sell and transfer flows**, and the
+  **trophy room**, each self-contained.
 
 ### Bugs carried over from the JS
 
