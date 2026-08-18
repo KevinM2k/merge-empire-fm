@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,737 tests, `flutter analyze` clean.** Everything below the M1 heading that
+**2,737 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
