@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,535 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
+**2,550 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -249,23 +249,26 @@ JS number or object did.
       runtimes build their own instants at local noon. The streak and the cycle
       day are pinned apart: they are different numbers, and a repaired streak of
       nine sits on cycle day 6
+- [x] `scout_voucher_engine` (253) — the guaranteed-floor scout. What is buyable
+      is DERIVED from the division's scout odds, which is the rule the whole item
+      rests on: a voucher compresses time and never raises the ceiling. The
+      one-voucher rule lives in two files that cannot import each other, so the
+      test drives `anyVoucherArmed` and `gem_engine`'s `scout_voucher_gem`
+      against the same shop shapes and asserts they agree
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `scout_voucher_engine`
+### Next up — `boot_room_engine`
 
-253 lines, then the handful of sub-100-line engines and the last of the data.
+205 lines, then `club_asset_tiers` and the handful of sub-100-line engines.
 
 ### Remaining engines
 
 Roughly in dependency order.
 
-- [ ] `scout_voucher_engine` (253) — a test must pin it against `gemEngine`'s
-      `scout_voucher_gem.heldWhen`; the two halves of the one-voucher rule can't
-      import each other
 - [ ] `boot_room_engine` (205)
 - [ ] `club_asset_tiers` (148)
 - [ ] `ad_gate_engine` (86)
@@ -560,6 +563,7 @@ node tool/dump_pyramid_names_reference.mjs > test/fixtures/pyramid_names_referen
 node tool/dump_deadline_news_reference.mjs > test/fixtures/deadline_news_reference.json
 node tool/dump_deal_advice_reference.mjs   > test/fixtures/deal_advice_reference.json
 node tool/dump_daily_reward_reference.mjs  > test/fixtures/daily_reward_reference.json
+node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
