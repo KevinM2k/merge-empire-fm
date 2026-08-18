@@ -18,9 +18,10 @@ both stores — with cloud save, leaderboards, ads, sound and every language wor
 Two consequences worth keeping in view, because both are easy to leave until it is
 too late:
 
-- **A ported engine is not a working feature.** The logic core is nearly finished
-  and almost none of it is reachable yet: there is no UI, no state plumbing and no
-  services. M1 finishing does not move the game closer to playable on its own.
+- **A ported engine is not a working feature.** The logic core and the state
+  layer are both finished and a player would still see nothing: there is no UI
+  and there are no services. Ticking those two milestones did not, on its own,
+  move the game closer to playable.
 - **IAP is a chain, and one broken link means no revenue.** See the IAP block in
   M4 — the engine half is done, the billing bridge, the consent gate and the store
   configuration are not.
@@ -33,11 +34,11 @@ too late:
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
-every data table but one, every utility, and the differential harness. **M2 (the
-state layer) is done** — the save, the loop, the listeners that pay, the
-providers and the lifecycle observer. The
-exception is `manager_avatar`'s SVG geometry, which is drawing rather than logic
-and is listed under M3 where it belongs.
+every data table but one, every utility, and the differential harness. The one
+exception is `managerAvatar`'s SVG geometry, which is drawing rather than logic
+and is listed under M3 where it belongs. **M2 (the state layer) is done** — the
+save, the loop, the listeners that pay, the providers and the lifecycle
+observer.
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -49,6 +50,51 @@ over to the next campaign — and the JS and the port agree about all of it.
 **It runs, and nobody can see it.** The state layer is in — the app boots, loads
 the save off the device, ticks, pays and saves — so the engines are reachable at
 last. What is missing is every screen. M3 is the whole of what a player sees.
+
+### How far along, honestly
+
+Measured, not estimated: `101,866` lines of non-test JS in `../merge-empire-fc/src`,
+of which roughly **25,000 are ported — about 24%.**
+
+| Area | JS lines | State |
+|---|---|---|
+| `engine/` | 15,331 | done bar `iapClient.js` (195) |
+| `data/` | 6,357 | done bar `managerAvatar.js` (1,458) |
+| `utils/` | 3,396 | done bar 1,170 (`sound` 782, `ageVerification` 134, `devTools` 114, `adConsent` 63, `wakeLock` 54, `openUrl` 15, `network` 8) |
+| `state/` + `main.js` | 2,333 | done |
+| `assets/` | 853 | `playerArt` done; `clubArt` 430, `gemArt` 146, `svgCache` 54 left |
+| `services/` | 4,144 | only `nativeSaveMirror` has a counterpart |
+| `i18n/` | 29,123 | only `detect.js` (56) |
+| `ui/` | 40,329 | none |
+
+Do not read 24% as "a quarter of the work", in either direction:
+
+- **i18n is 29% of what remains and nowhere near 29% of the effort.** Ten locale
+  files of translated strings: bulk, not difficulty.
+- **The UI will not be a line-for-line port.** 40,329 lines of hand-rolled DOM
+  manipulation becomes materially less Dart, so that denominator is soft.
+- **The port is more verbose than its source.** 25,000 lines of JS became 33,789
+  lines of `lib/` and 34,784 lines of tests.
+
+The useful summary is that the correctness-critical half is finished and proven,
+and the visible half has not started.
+
+### Where the JS modules went
+
+Several JS files were split or renamed on the way over, so a filename comparison
+will report them missing when they are not. Check here before concluding
+something was skipped.
+
+| JS source | Dart |
+|---|---|
+| `engine/matchEngine.js` (2,709) | `match_orchestration`, `match_events`, `match_resolution`, `match_tactics`, `goal_model`, `squad_rating` |
+| `engine/progressionEngine.js` (1,381) | `league_table`, `league_pyramid`, `season_fixtures`, `season_end`, `team_names` |
+| `engine/ratingEngine.js` (111) | `player_rating` |
+| `utils/storage.js` (1,051) | `state/save_slots`, `state/save_codec`, `state/migration` |
+| `data/managerAvatar.js` (1,458) | `data/manager_looks` (the unlock half only — the SVG geometry is M3) |
+| `engine/energyEngine.js` (310) | `engine/energy_engine` + `data/ad_units` (the AdMob call itself is M4) |
+| `main.js` (1,453) | `state/game_tick`, `state/game_wiring`, `state/game_runner` |
+| `utils/eventBus.js` | `util/event_bus` + `providers/bus_providers` |
 
 ### How to pick this up
 
@@ -461,6 +507,31 @@ mapping is not one-to-one. For scale, the four that dominate are
 `LeagueScreen` (6,777), `MatchPopup` (3,715), `SquadScreen` (2,264) and
 `ChanceCutaway` (2,036).
 
+### What M2 left you to build on
+
+The plumbing a screen needs already exists. Use it rather than reaching past it.
+
+- **Read values through a derived provider, never the save map.** The save is one
+  mutable instance, so `==` never fires and a widget watching it directly would
+  never rebuild. `providers/game_providers.dart` has `savePick(...)` — add a
+  provider next to `coinsProvider` for whatever the screen needs.
+- **Write through `game.update(...)`.** That is what schedules the save and
+  notifies the providers. A raw write to the map needs a `notifyChanged()` and is
+  only correct where the tick loop does it, for a reason spelled out there.
+- **A takeover screen MUST set `tickGatesProvider` while it is up.** That is the
+  whole reason the gates are a record rather than a DOM query: without it the loop
+  will drop a transfer bid over the match, or Coach Colin on top of a mini-game.
+  Clear it on the way out.
+- **One-shot signals come off `busEventProvider('name')`; values do not.** A
+  stream a widget subscribed to late has already missed its event, so anything
+  that lives on the save is a derived provider.
+- **There is no `t()` yet.** M5 has not started, and the engines already emit
+  translation KEYS (`commentary.flow.*`, `ach.title.*`). Decide early whether to
+  land `i18n/index` first or hardcode English and retrofit — retrofitting 76
+  screens' worth of strings is the expensive way round.
+
+### The screens
+
 - [ ] Shell: five tabs plus the hidden Settings screen
 - [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules
 - [ ] Squad, Club, League, Shop screens
@@ -632,7 +703,12 @@ node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_r
 node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json
 node tool/dump_manager_mood_reference.mjs  > test/fixtures/manager_mood_reference.json
 node tool/dump_utils_reference.mjs         > test/fixtures/utils_reference.json
+node tool/dump_game_state_reference.mjs    > test/fixtures/game_state_reference.json
 ```
+
+The differential harness is separate and is not a fixture: `node tool/difftest/run.mjs`
+plays whole seasons through both runtimes and diffs the save. See
+`tool/difftest/README.md`.
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
 stream as well: it stubs `Date.now` and replaces `Math.random` with a second
