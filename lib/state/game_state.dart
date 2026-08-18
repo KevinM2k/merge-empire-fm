@@ -115,6 +115,18 @@ class GameState {
   Map<String, dynamic>? _state;
   Timer? _saveTimer;
 
+  /// Fires after every change that went through [update], and after a reset or
+  /// a cloud restore replaced the contents.
+  ///
+  /// The save is ONE mutable map, so nothing downstream can diff it — a
+  /// reactive layer has to be told. Synchronous, because a widget rebuilding a
+  /// frame late after a coin lands is a visible stutter.
+  final StreamController<void> _changes = StreamController<void>.broadcast(
+    sync: true,
+  );
+
+  Stream<void> get changes => _changes.stream;
+
   /// A real event — not passive idle income — is waiting on a cloud upload.
   bool _cloudDirty = false;
 
@@ -223,6 +235,7 @@ class GameState {
     _replaceContents(migrated);
     _writeSave();
     _bootedOnDefault = false;
+    notifyChanged();
     return true;
   }
 
@@ -271,8 +284,23 @@ class GameState {
   }) {
     final result = mutator(_state!);
     scheduleSave(syncCloud: syncCloud);
+    notifyChanged();
     return result;
   }
+
+  /// Announce that the save moved.
+  ///
+  /// [update] does this for you. It is public for the paths that mutate the map
+  /// directly and still have to wake the UI — the game loop credits idle income
+  /// straight onto the resources branch every second, and going through
+  /// [update] there would schedule a save on every tick.
+  void notifyChanged() {
+    if (!_changes.isClosed) _changes.add(null);
+  }
+
+  /// Drop the change stream. Only a test that builds several of these needs it;
+  /// the app's one lives as long as the process.
+  void dispose() => _changes.close();
 
   /// Freeze pending saves, stamp the save, and flush — so a reload sees a clean
   /// state rather than a stale one with offline earnings still owed.
@@ -375,6 +403,7 @@ class GameState {
     // Keep the durable mirror in step with the restore, or an eviction recovery
     // could resurrect the save the cloud just replaced.
     _mirrorNative(force: true);
+    notifyChanged();
     return true;
   }
 
@@ -769,6 +798,7 @@ class GameState {
     // Overwrite the durable mirror with the post-reset state, so a later
     // eviction recovery cannot resurrect the pre-reset game.
     _mirrorNative(force: true);
+    notifyChanged();
   }
 
   /// Read the reset flag without clearing it.

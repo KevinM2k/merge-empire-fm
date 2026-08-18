@@ -1,0 +1,160 @@
+/// The thing that actually runs the game: the save, the loop, the listeners and
+/// the timer that drives them. Ported from the boot and tick wiring in
+/// `../merge-empire-fc/src/main.js`.
+///
+/// The JS keeps all of this in module scope and reaches for the DOM whenever it
+/// needs to know what the screen is doing. Here the screen answers a question
+/// instead — [gates] is a callback the UI layer supplies — so the whole loop can
+/// be started, ticked and stopped in a test with no widget binding anywhere.
+///
+/// What it does NOT do is draw, announce a toast, or play a sound. It emits on
+/// the bus and the layer with a screen listens.
+///
+/// Deliberately Flutter-free so it runs under plain `dart test`.
+library;
+
+import 'dart:async';
+
+import 'package:merge_empire_fc/state/game_state.dart';
+import 'package:merge_empire_fc/state/game_tick.dart';
+import 'package:merge_empire_fc/state/game_wiring.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/util/time.dart';
+
+Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
+
+/// Emitted at most this often while idle income is trickling.
+///
+/// The rate labels have to stay live without a bus event on every frame, so a
+/// sub-coin delta waits and a whole coin does not.
+const int coinEmitIntervalMs = 500;
+
+class GameRunner {
+  GameRunner({
+    required this.game,
+    TickGates Function()? gates,
+    bool Function()? hidden,
+  }) : _gates = gates ?? (() => clearScreen),
+       _hidden = hidden ?? (() => false),
+       wiring = GameWiring(game);
+
+  final GameState game;
+  final GameWiring wiring;
+  final TickGates Function() _gates;
+  final bool Function() _hidden;
+
+  GameLoop? _loop;
+  Timer? _timer;
+  int _lastCoinEmitAt = 0;
+
+  bool get running => _timer != null;
+
+  /// Load the save, register the listeners, and run the sweeps that a boot owes
+  /// the player before the first frame.
+  Map<String, dynamic> boot() {
+    final state = game.load();
+    wiring.attach();
+    // Anything unlocked by an older build gets its achievement row and its
+    // badge now, rather than on the next thing that happens to fire a sweep.
+    wiring.bootSweep();
+    return state;
+  }
+
+  /// Start the loop. Calling it twice is a no-op rather than two loops.
+  void start() {
+    if (_timer != null) return;
+    _loop ??= GameLoop(startedAt: now());
+    _timer = Timer.periodic(
+      const Duration(milliseconds: tickIntervalMs),
+      (_) => tickOnce(),
+    );
+  }
+
+  void stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  /// The app went away: save what is pending and flush the durable mirror,
+  /// which is the whole point of having one.
+  void pause() {
+    stop();
+    game.saveNow();
+    game.flushNativeMirror();
+  }
+
+  /// The app came back.
+  ///
+  /// The elapsed time is SKIPPED rather than ticked: it belongs to the offline
+  /// earnings calculation, and running it through the loop as well would pay
+  /// for it twice.
+  void resume() {
+    _loop?.skipElapsed();
+    start();
+  }
+
+  /// One turn, with whatever the screen is doing folded in.
+  TickReport tickOnce() {
+    final state = game.state;
+    final loop = _loop;
+    if (state == null || loop == null) {
+      throw StateError('the runner has to boot before it can tick');
+    }
+    final report = loop.tick(state, gates: _gates(), hidden: _hidden());
+    _announce(state, report);
+    return report;
+  }
+
+  /// Turn a tick into bus events and a save.
+  ///
+  /// The income line deliberately does NOT go through `update`: it moves the
+  /// coin balance every second, and a debounced save reset that often would
+  /// never land. It schedules a save with no cloud sync instead — passive income
+  /// recomputes from `lastSeen` on load, so it need not churn the cloud — and
+  /// wakes the UI directly.
+  void _announce(Map<String, dynamic> state, TickReport report) {
+    if (report.coinsEarned > 0) {
+      game.scheduleSave(syncCloud: false);
+      game.notifyChanged();
+      final at = now();
+      if (at - _lastCoinEmitAt >= coinEmitIntervalMs ||
+          report.coinsEarned >= 1) {
+        _lastCoinEmitAt = at;
+        emit('coins:updated', _map(state['resources'])?['fanCoins']);
+      }
+    }
+
+    if (report.energyChanged) {
+      emit('energy:updated', _map(state['energy'])?['current']);
+      game.notifyChanged();
+    }
+
+    if (report.fitnessRecovered > 0) {
+      emit('playerEnergy:updated', report.fitnessRecovered);
+      game.notifyChanged();
+    }
+
+    if (report.injuriesHealed) {
+      // The HUD's rate readout moves when a player comes back, so it is told
+      // the same way a coin landing tells it.
+      emit('coins:updated', _map(state['resources'])?['fanCoins']);
+      game.notifyChanged();
+    }
+
+    if (report.loansRecalled.isNotEmpty) {
+      emit('loan:wages-unpaid', {'departed': report.loansRecalled});
+      emit('coins:updated', _map(state['resources'])?['fanCoins']);
+    }
+
+    if (report.transferOffer != null) {
+      emit('transfer:offered', report.transferOffer);
+    }
+
+    // An event window crossing and a loan going home are not things to lose to
+    // a debounce.
+    if (report.needsImmediateSave) {
+      game.saveNow();
+      game.notifyChanged();
+    }
+  }
+}
