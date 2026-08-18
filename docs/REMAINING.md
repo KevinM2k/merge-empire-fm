@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,115 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,130 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -54,9 +54,9 @@ over to the next campaign — and the JS and the port agree about all of it.
 **It runs, and the core loop is playable.** The app boots into a themed five-tab
 shell with a live HUD; cards merge on the Players tab; the side is picked on the
 Squad tab; facilities are built and upgraded on the Club tab; the Shop's coin and
-gem shelves take real currency and grant real items; the table and the schedule
-read on the Play tab; Settings works. What no tab has yet is the DIORAMA, the
-live match and the mini-games. Four tabs are still placeholders —
+gem shelves take real currency and grant real items; and from the Play tab a
+match is played, settled and paid. **The loop closes.** What is missing is the
+polish around it — the diorama, the cutaway, the mini-games and the animations. Four tabs are still placeholders —
 the grid, the squad, the league and the club — and each is its own module.
 
 ### How far along, honestly
@@ -125,7 +125,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,113 passing, 2 skipped
+flutter test             # 3,128 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -420,10 +420,6 @@ M1, M2 and M5 are done, M3's scaffold is up, and all five tabs have a real body.
 What is left is the things INSIDE them. They are independent, so the order is a
 matter of what unblocks most:
 
-- **Starting a match from the fixture list.** The match SCREEN is in and the
-  engine is in; what is missing is the button between them, plus
-  `finalizeMatchOutcome` and `applyMatchRewards` on the way out. Small, and it
-  is what turns five working screens into a playable game.
 - **The diorama** (League → Overview) is the highest-RISK piece, and the one
   thing here still gated on an open question: the port design ties its technique
   to profile-mode timings from a physical device, which have not been taken.
@@ -693,8 +689,14 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       harness proves. The score counts the goals SHOWN rather than reading the
       result, so the number can never run ahead of the commentary explaining it.
       Claims `tickGatesProvider.matchOpen` while up.
+      Started from the Fixtures tab: `match_launcher.dart` spends the pip and
+      simulates, `finalizeMatchOutcome` runs at full time with the screen still
+      up, and `applyMatchRewards` only once the player DISMISSES it — deferred
+      because the doubling offer lives on the closing screen, and paying before
+      it is answered would make the offer meaningless.
       Still to add: `ChanceCutaway` (2,036), in-match subs and tactic changes,
-      the stats and tactics tabs, and the button that starts one
+      the stats and tactics tabs, the transfer-offer expiry on kickoff, and the
+      tutorial's forced first win
 - [ ] Season-end takeover
 - [x] The three popup shapes — bottom sheet, Coach Colin card, quick-nav menu.
       Do not invent a fourth. The queue behind them is `util/popup_queue.dart`,
