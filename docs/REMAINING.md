@@ -30,79 +30,75 @@ too late:
 
 ## Where we are
 
-**3,244 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
-isn't ticked is what remains.
+**3,244 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
+that is not ticked is what remains.
 
-M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
-every data table but one, every utility, and the differential harness. The one
-exception is `managerAvatar`'s SVG geometry, which is drawing rather than logic
-and is listed under M3 where it belongs. **M2 (the state layer) is done** — the
-save, the loop, the listeners that pay, the providers and the lifecycle
-observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
-suite — which was M5 and landed early so no screen has to hardcode English.
-**M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing,
-Settings and all **five tab bodies** are in. No tab is a placeholder any more —
-what is left inside them is listed under "The screens".
+M0 (save bridge), **M1 (the logic core)** and **M2 (the state layer)** are all
+finished, and **M5 (i18n)** came forward to join them — the lookup layer, all ten
+catalogues and the guard suite landed before the first screen, so nothing has
+ever had to hardcode English.
 
-The proof that it is done, rather than merely all ticked: the harness plays six
-whole seasons through both runtimes, casual and Pro, and every byte of the save
-matches at every one of 336 matches a run. A match is PLAYED (ninety minutes,
-injuries, tactic changes, settlement), a season plays out, the table settles, the
-pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
-over to the next campaign — and the JS and the port agree about all of it.
+**M3 is well under way.** The theme, the five-tab shell, the HUD, the popup
+plumbing, the toast layer and all five tab bodies are in. No tab is a
+placeholder. What is left is inside them, and it is listed in one place under
+"What is actually left".
 
-**It runs, and the core loop is playable.** The app boots into a themed five-tab
-shell with a live HUD; players are SIGNED and merged on the Players tab; the side
-is picked on the Squad tab; facilities are built and upgraded on the Club tab; the Shop's coin and
-gem shelves take real currency and grant real items; and from the Play tab a
-match is played, settled and paid — and a finished season rolls on into the
-next. **The loop closes, and it repeats.** What is missing is the
-polish around it — the diorama, the cutaway, the mini-games and the animations. Four tabs are still placeholders —
-the grid, the squad, the league and the club — and each is its own module.
+The proof M1 is done, rather than merely all ticked: the differential harness
+plays six whole seasons through both runtimes, casual and Pro, and every byte of
+the save matches at every one of 336 matches a run. A match is PLAYED (ninety
+minutes, injuries, tactic changes, settlement), a season plays out, the table
+settles, the pyramid shuffles, quests roll and pay, cups run, and the season
+boundary hands over to the next campaign — and the JS and the port agree about
+all of it.
+
+### The loop closes, and it repeats
+
+A player can now, on a fresh save: sign a player, merge them, sell one, pick a
+side and a formation and a tactic, build and upgrade the club's facilities, spend
+coins and gems in the shop, train at two mini-games, play a match, watch it out,
+be paid for it, claim a quest, finish a season, and be promoted or relegated into
+the next one — with artwork, a live HUD, toasts and working settings around it.
+
+What is missing is no longer function. It is depth (the events, the cups, the
+transfer market, four more drills), spectacle (the diorama, the cutaway, the
+scout reveal) and everything in M4.
 
 ### How far along, honestly
 
-Measured, not estimated: `101,866` lines of non-test JS in `../merge-empire-fc/src`,
-of which roughly **57,000 are ported — about 56%.**
-
-Most of that is the ten locale catalogues, which is why the figure is a poor
-guide to effort. See the first bullet below the table.
+Measured, not estimated: `101,906` lines of non-test JS in
+`../merge-empire-fc/src`, of which roughly **66,000 are ported — about 65%.**
 
 | Area | JS lines | State |
 |---|---|---|
 | `engine/` | 15,331 | done bar `iapClient.js` (195) |
-| `data/` | 6,357 | done bar `managerAvatar.js` (1,458) |
+| `data/` | 6,357 | done bar `managerAvatar.js`'s SVG half (~1,100) |
 | `utils/` | 3,396 | done bar 1,170 (`sound` 782, `ageVerification` 134, `devTools` 114, `adConsent` 63, `wakeLock` 54, `openUrl` 15, `network` 8) |
 | `state/` + `main.js` | 2,333 | done |
-| `assets/` | 853 | `playerArt` done; `clubArt` 430, `gemArt` 146, `svgCache` 54 left |
-| `services/` | 4,144 | only `nativeSaveMirror` has a counterpart |
-| `i18n/` | 29,123 | done — the lookup layer and all ten catalogues |
-| `ui/` | 40,329 | the shell, HUD, theme, popup shapes, Settings and the Shop |
+| `assets/` | 853 | `playerArt` and `clubArt` done; `gemArt` (146) and `svgCache` (54) left |
+| `i18n/` | 29,163 | done — the lookup layer and all ten catalogues |
+| `services/` | 4,144 | none — this is M4 |
+| `ui/` | 40,329 | roughly 12,000: the shell, HUD, theme, popups, and all five tabs |
 
-Do not read 56% as "over half the work", in either direction:
+Do not read 65% as "two thirds of the work", in either direction:
 
-- **29,067 of those lines are the ten locale catalogues**, converted by a script
-  in an afternoon. They were 29% of the port by line count and nothing like 29%
-  of the effort — which is why the figure jumped from 24% to 53% in one module
-  without the game getting materially closer to playable. Discount them and the
-  real figure is nearer 27%.
+- **29,100 of those lines are the ten locale catalogues**, converted by a script
+  in an afternoon. They are 29% of the port by line count and nothing like 29%
+  of the effort. Discount them and the real figure is nearer 51%.
 - **The UI will not be a line-for-line port.** 40,329 lines of hand-rolled DOM
-  manipulation becomes materially less Dart, so that denominator is soft.
-- **The port is more verbose than its source**, except where it is not. 27,000
-  lines of hand-written JS became 36,703 lines of `lib/` and 37,539 lines of
-  tests, plus 26,636 generated catalogue lines nobody reads. The shell is the
-  exception: it replaced roughly 2,200 lines of `App.js`, `HUD.js`,
-  `popupQueue.js` and `SettingsScreen.js` with about 1,900 lines of Dart,
-  because much of what it did NOT have to port was workaround —
+  manipulation becomes materially less Dart, so that denominator is soft — and
+  the `ui/` figure above is the one honest estimate in the table rather than a
+  measurement, because several JS files are half-ported by design.
+- **The port is more verbose than its source, except where it is not.** The
+  hand-written JS so far became 42,182 lines of `lib/` and 42,003 lines of
+  tests, plus 27,663 generated lines (the catalogues and the club art) that
+  nobody reads or maintains. But the shell REPLACED roughly 2,200 lines of
+  `App.js`, `HUD.js`, `popupQueue.js` and `SettingsScreen.js` with about 1,900
+  lines of Dart, because much of what it did not have to port was workaround:
   `screenFreeze.js` in full, the two-frame `requestAnimationFrame` dance before
   every slide, the swipe-vs-drag exclusion list, and the re-parenting that let
   one wrapper serve tabs, sheets and overlays. `TickerMode`, routes and the
-  gesture arena are those four, and they are one line each. Expect the same on
-  every screen that follows.
-
-The useful summary is that the correctness-critical half is finished and proven,
-the frame around the visible half is up, and none of the five screens a player
-actually plays with exists yet.
+  gesture arena are those four, one line each. Expect the same on every screen
+  that follows.
 
 ### Where the JS modules went
 
@@ -442,26 +438,60 @@ was: the decision here, the platform read in M3 or M4.
       whole sponge ramp. Not to be confused with `engine/coinSinkEngine.js`,
       which was already ported and belongs to the Club screen, not the Shop.
 
-### Next up — inside the screens
+### What is actually left
 
-M1, M2 and M5 are done, M3's scaffold is up, and all five tabs have a real body.
-What is left is the things INSIDE them. They are independent, so the order is a
-matter of what unblocks most:
+One place, so nobody has to reconstruct it from seven milestone headings. Ordered
+by what a player would notice first, not by size.
 
-- **The diorama** (League → Overview) is the highest-RISK piece, and the one
-  thing here still gated on an open question: the port design ties its technique
-  to profile-mode timings from a physical device, which have not been taken.
-- **The stadium HERO on the Club screen** is the one piece of artwork still
-  unrendered. Its six background images are the only things in the game using
-  `linearGradient` / `radialGradient` / `stop`, and `ui/widgets/svg_canvas.dart`
-  does not do gradients — it needs `fill="url(#id)"` and a `<defs>` table first.
-  A test in `test/ui/widgets/svg_canvas_test.dart` asserts exactly this, so the
-  gap is pinned rather than remembered.
-- **The rest of `MergeAnimation.js`** (928 lines): the multi-card scout REVEAL,
-  the centre-screen reveal, floating income labels and the promotion
-  celebration. The merge burst itself is done.
-- **Mini-games** (League → Training), the **sell and transfer flows**, and the
-  **trophy room**, each self-contained.
+**Screens that do not exist at all.** Each is self-contained; the engines behind
+every one of them are already ported and tested.
+
+| Screen | JS lines | Engine | Note |
+|---|---|---|---|
+| Deadline Day | 2,909 | `deadline_day_engine` | a whole timed event; the biggest single one left |
+| Transfers | — | `transfer_engine`, `negotiation_engine` | offers never fire: nothing calls `maybeGenerateOffer` after a match |
+| Cups | — | `cup_engine`, `event_cup_engine` | they DO run, at the season boundary; only the toast ever mentions one |
+| Trophy room | 447 | `achievement_engine`, `badge_engine` | `openShellSheet` and the quick-nav menu are both ready for it |
+| Player Index | 473 | `players`, `player_art` | as above |
+| Leaderboard | 478 | none — `leaderboardService` (1,831) is M4 and unported | needs the SERVICE before the screen is worth writing |
+| Events | — | `event_engine` | the shell's Event route and forced-dark are built and unused |
+| Manager customiser | 571 | `manager_looks`, `manager_mood` | the Shop sells the Vault that unlocks these |
+
+**Mini-games still to build**: Training Drills, Keepy Uppys, Through Ball, Whack,
+Teamwork. Penalty Training and the Boot Room are playable; the pattern for a new
+one is `lib/ui/screens/minigames/` plus a row in `playableMiniGames`.
+
+**Spectacle.**
+
+- **The diorama** (League → Overview) is the highest-RISK piece left and the one
+  thing still gated on an open question: the port design ties its technique to
+  profile-mode timings from a physical device, which have not been taken.
+- **`ChanceCutaway`** (2,036) and the rest of the live match: in-match subs,
+  tactic changes, the stats and tactics tabs.
+- **The scout REVEAL** — signing drops a card into the grid with no reveal, no
+  new-discovery badge and no batch sizes.
+- **The rest of `MergeAnimation.js`** (928): the centre-screen reveal, floating
+  income labels, the promotion celebration. The merge burst is done.
+- **The stadium HERO** on the Club screen — the only artwork still unrendered.
+  Its six backgrounds are the only things in the game using `linearGradient` /
+  `radialGradient` / `stop`, and `ui/widgets/svg_canvas.dart` does not do
+  gradients: it needs `fill="url(#id)"` and a `<defs>` table. A test in
+  `test/ui/widgets/svg_canvas_test.dart` pins exactly this.
+- **`manager_avatar`'s SVG half** (~1,100) and the remaining art
+  (`gemArt` 146, `svgCache` 54).
+- **The manager rig** — walker, dugout cam, gestures, moods. Rive is still to be
+  installed.
+
+**Depth inside screens that DO exist.**
+
+- Club: the upgrade-path sheet, the stadium colour picker, hold-to-invest.
+- Squad: career stats, the transfer/offer surface.
+- Grid: lazy card mounting, if a profile run asks for it.
+- Season end: the season table, the quest auto-payout lines, cup results.
+- Match: the tutorial's forced first win, transfer-offer expiry on kickoff.
+
+**Then M4 in full** — see its own section. The Shop's IAP surface is finished and
+waiting on the billing bridge; nothing else in M4 has been started.
 
 ### Bugs carried over from the JS
 
