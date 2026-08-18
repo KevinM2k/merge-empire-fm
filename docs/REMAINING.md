@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,503 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
+**2,516 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -237,22 +237,26 @@ JS number or object did.
       build-up). `util/random` gained a `Mulberry32` class for it — the shared
       global stream is now one instance of it, rather than a second copy of the
       algorithm
+- [x] `deal_advice_engine` (310) — Coach Colin's read on a listing. No strings:
+      it returns reason IDS and the UI maps them, the same rule the club-asset
+      tiers follow. The fixture derives every price from `playerValue` at
+      generation time, so each case lands in the band it is named for, and it
+      pins the CAPS specifically — a cap applied as a demotion prints "worth
+      doing" over "we're already well stocked"
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `deal_advice_engine`
+### Next up — `daily_reward_engine`
 
-310 lines. From here it is the small tail: the advice generator, the daily
-reward, and the handful of sub-100-line engines.
+270 lines, then the handful of sub-100-line engines and the last of the data.
 
 ### Remaining engines
 
 Roughly in dependency order.
 
-- [ ] `deal_advice_engine` (310)
 - [ ] `daily_reward_engine` (270)
 - [ ] `scout_voucher_engine` (253) — a test must pin it against `gemEngine`'s
       `scout_voucher_gem.heldWhen`; the two halves of the one-voucher rule can't
@@ -327,6 +331,13 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       "grant". The grant being zero is what hides it. One-line fix, but it is a
       live economy change for anyone holding the upgrade. See
       `recordTrainingComplete` in `engine/mini_games_engine.dart`.
+- [ ] **Two of Coach Colin's reasons can never fire.** `too_dear` needs a price
+      above the balance on a deal that is NOT blocked, but both buy-side kinds
+      gate on the same comparison, so that state does not exist. `no_room` needs
+      zero free slots on a signing that is still allowed, and the squad cap (30)
+      is twice the grid (15), so it cannot happen either. Both are ported and
+      commented; deleting them is a decision about whether the gates might ever
+      diverge from the advice.
 - [ ] Two smaller dead ends, ported as defensive and worth deleting if nothing is
       going to use them: `product.energy` (no product carries it — every energy
       product uses `energyAdd`), and `WC_RATING_BY_NATION` in `achievements.js`,
@@ -542,6 +553,7 @@ node tool/dump_mini_games_reference.mjs    > test/fixtures/mini_games_reference.
 node tool/dump_weather_reference.mjs       > test/fixtures/weather_reference.json
 node tool/dump_pyramid_names_reference.mjs > test/fixtures/pyramid_names_reference.json
 node tool/dump_deadline_news_reference.mjs > test/fixtures/deadline_news_reference.json
+node tool/dump_deal_advice_reference.mjs   > test/fixtures/deal_advice_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
