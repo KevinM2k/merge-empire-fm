@@ -13,9 +13,6 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
-/// Seeded off the wall clock, matching the JS module's `let seed = Date.now()`.
-int _seed = DateTime.now().millisecondsSinceEpoch.toSigned(32);
-
 /// `Math.imul` — a 32-bit signed multiply.
 ///
 /// Both operands are int32, so the product needs at most 63 bits and fits a
@@ -25,37 +22,54 @@ int _imul(int a, int b) => (a * b).toSigned(32);
 /// JS `x >>> n` — an unsigned 32-bit shift.
 int _ushr(int x, int n) => x.toUnsigned(32) >> n;
 
-double _mulberry32() {
-  _seed = _seed.toSigned(32);
-  _seed = (_seed + 0x6d2b79f5).toSigned(32);
-  var t = _imul(_seed ^ _ushr(_seed, 15), 1 | _seed);
-  // JS: t = (t + Math.imul(...)) ^ t — the `^` is what coerces the sum back to
-  // int32, so the truncation belongs on the sum, not on the xor.
-  t = (t + _imul(t ^ _ushr(t, 7), 61 | t)).toSigned(32) ^ t;
-  return (t ^ _ushr(t, 14)).toUnsigned(32) / 4294967296;
+/// One mulberry32 stream.
+///
+/// The functions below run a single SHARED instance, which is what gameplay
+/// draws from and what the differential fixtures pin. Anything that needs a
+/// stream of its own — output that must come out identical every time it is
+/// rebuilt, seeded off something other than the game's own sequence — makes
+/// another rather than disturbing that one.
+class Mulberry32 {
+  Mulberry32(this.seed);
+
+  int seed;
+
+  double next() {
+    seed = seed.toSigned(32);
+    seed = (seed + 0x6d2b79f5).toSigned(32);
+    var t = _imul(seed ^ _ushr(seed, 15), 1 | seed);
+    // JS: t = (t + Math.imul(...)) ^ t — the `^` is what coerces the sum back to
+    // int32, so the truncation belongs on the sum, not on the xor.
+    t = (t + _imul(t ^ _ushr(t, 7), 61 | t)).toSigned(32) ^ t;
+    return (t ^ _ushr(t, 14)).toUnsigned(32) / 4294967296;
+  }
 }
 
-void setSeed(int s) => _seed = s;
+/// Seeded off the wall clock, matching the JS module's `let seed = Date.now()`.
+final Mulberry32 _shared = Mulberry32(
+  DateTime.now().millisecondsSinceEpoch.toSigned(32),
+);
+
+void setSeed(int s) => _shared.seed = s;
 
 /// Run [fn] off a known seed, then put the shared stream back exactly where it
 /// was. For anything that must come out the SAME every time it is computed — a
 /// table the UI rebuilds on every render, say — while leaving gameplay's own
 /// randomness untouched. Restores the seed even if [fn] throws.
 T withSeed<T>(int s, T Function() fn) {
-  final prev = _seed;
-  _seed = s;
+  final prev = _shared.seed;
+  _shared.seed = s;
   try {
     return fn();
   } finally {
-    _seed = prev;
+    _shared.seed = prev;
   }
 }
 
-double random() => _mulberry32();
+double random() => _shared.next();
 
 /// Inclusive of both [min] and [max].
-int randomInt(int min, int max) =>
-    (random() * (max - min + 1)).floor() + min;
+int randomInt(int min, int max) => (random() * (max - min + 1)).floor() + min;
 
 /// One entry in a [weightedPick] pool.
 class WeightedEntry<T> {

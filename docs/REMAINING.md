@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,489 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
+**2,503 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -230,22 +230,28 @@ JS number or object did.
       one rather than a summary; the apply is two-phase because re-applying a
       preset after a few seasons routinely asks two clubs to swap names, and one
       pass would collide with a name that is itself about to move
+- [x] `deadline_news_engine` (310) — the ticker under the event banner, in its
+      three phases. Deterministic by design: the strip is rebuilt on every League
+      re-render and a fresh draw would reshuffle the rumours mid-read, so it runs
+      off a stream of its OWN seeded on the window (or an hour bucket through the
+      build-up). `util/random` gained a `Mulberry32` class for it — the shared
+      global stream is now one instance of it, rather than a second copy of the
+      algorithm
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `deadline_news_engine`
+### Next up — `deal_advice_engine`
 
-310 lines. From here it is the small tail: the news and advice generators, the
-daily reward, and the handful of sub-100-line engines.
+310 lines. From here it is the small tail: the advice generator, the daily
+reward, and the handful of sub-100-line engines.
 
 ### Remaining engines
 
 Roughly in dependency order.
 
-- [ ] `deadline_news_engine` (310)
 - [ ] `deal_advice_engine` (310)
 - [ ] `daily_reward_engine` (270)
 - [ ] `scout_voucher_engine` (253) — a test must pin it against `gemEngine`'s
@@ -535,6 +541,7 @@ node tool/dump_event_cup_reference.mjs     > test/fixtures/event_cup_reference.j
 node tool/dump_mini_games_reference.mjs    > test/fixtures/mini_games_reference.json
 node tool/dump_weather_reference.mjs       > test/fixtures/weather_reference.json
 node tool/dump_pyramid_names_reference.mjs > test/fixtures/pyramid_names_reference.json
+node tool/dump_deadline_news_reference.mjs > test/fixtures/deadline_news_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
