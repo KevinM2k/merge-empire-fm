@@ -35,7 +35,10 @@ const Map<String, String> miniGameTitleKeys = {
 ///
 /// Listing one without a screen would be the menu-row-to-nowhere bug again, so
 /// the rest are shown LOCKED with a reason rather than offered.
-const Set<String> playableMiniGames = {MiniGameKind.penalty};
+const Set<String> playableMiniGames = {
+  MiniGameKind.penalty,
+  MiniGameKind.bootRoom,
+};
 
 final miniGamesProvider = savePick<List<MiniGameRow>>((s) {
   final clubAssets = s['clubAssets'];

@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
+import 'package:merge_empire_fc/engine/mini_games_engine.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -52,6 +54,16 @@ class _GameRow extends StatelessWidget {
     return null;
   }
 
+  void _open(BuildContext context) {
+    final screen = switch (game.kind) {
+      MiniGameKind.bootRoom => const BootRoomScreen(),
+      _ => const PenaltyScreen(),
+    };
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(fullscreenDialog: true, builder: (_) => screen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
@@ -72,14 +84,7 @@ class _GameRow extends StatelessWidget {
             : Text(reason, style: TextStyle(color: kit.textMuted, fontSize: 11)),
         trailing: reason == null ? const Icon(Icons.play_arrow) : null,
         enabled: reason == null,
-        onTap: reason != null
-            ? null
-            : () => Navigator.of(context).push<void>(
-                MaterialPageRoute(
-                  fullscreenDialog: true,
-                  builder: (_) => const PenaltyScreen(),
-                ),
-              ),
+        onTap: reason != null ? null : () => _open(context),
       ),
     );
   }
