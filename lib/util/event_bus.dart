@@ -50,6 +50,13 @@ void off(String event, BusHandler handler) {
 /// under test.
 void clearBus() => _listeners.clear();
 
+/// How many handlers are registered for [event].
+///
+/// Also for tests. A subscription that outlives the thing that made it is
+/// invisible from the outside — the events still arrive, they just arrive twice
+/// — so the only way to assert a teardown happened is to count.
+int busListenerCount(String event) => _listeners[event]?.length ?? 0;
+
 void emit(String event, [Object? args]) {
   final handlers = _listeners[event];
   if (handlers == null || handlers.isEmpty) return;

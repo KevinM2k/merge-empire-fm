@@ -242,7 +242,14 @@ class GameState {
   // ── Saving ────────────────────────────────────────────────────────────────
 
   /// Stamp the save and write it now.
+  ///
+  /// Drops any debounced write still armed: it would write the same bytes a
+  /// moment later, and after a pause that is a write racing the process going
+  /// away. A pending CLOUD sync is not lost with it — `_cloudDirty` is sticky,
+  /// so the next real event uploads.
   void saveNow() {
+    _saveTimer?.cancel();
+    _saveTimer = null;
     if (_state == null || _frozen) return;
     _state!['lastSeen'] = now();
     _writeSave();

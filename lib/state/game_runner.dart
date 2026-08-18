@@ -53,6 +53,7 @@ class GameRunner {
   /// the player before the first frame.
   Map<String, dynamic> boot() {
     final state = game.load();
+    _loop ??= GameLoop(startedAt: now());
     wiring.attach();
     // Anything unlocked by an older build gets its achievement row and its
     // badge now, rather than on the next thing that happens to fire a sweep.

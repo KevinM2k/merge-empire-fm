@@ -29,11 +29,13 @@ too late:
 
 ## Where we are
 
-**2,647 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
-the M1 heading that isn't ticked is what remains.
+**2,737 tests, `flutter analyze` clean.** Everything below the M1 heading that
+isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
-every data table but one, every utility, and the differential harness. The
+every data table but one, every utility, and the differential harness. **M2 (the
+state layer) is done** — the save, the loop, the listeners that pay, the
+providers and the lifecycle observer. The
 exception is `manager_avatar`'s SVG geometry, which is drawing rather than logic
 and is listed under M3 where it belongs.
 
@@ -44,16 +46,16 @@ injuries, tactic changes, settlement), a season plays out, the table settles, th
 pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
 over to the next campaign — and the JS and the port agree about all of it.
 
-**None of it is reachable yet.** M2 is the next thing that moves the game
-towards playable: there is no UI, no state plumbing and no services, and an
-engine nobody can call is worth nothing to a player.
+**It runs, and nobody can see it.** The state layer is in — the app boots, loads
+the save off the device, ticks, pays and saves — so the engines are reachable at
+last. What is missing is every screen. M3 is the whole of what a player sees.
 
 ### How to pick this up
 
 ```bash
-cd ~/code/github/kevinm2k/merge-empire-fc-flutter
+cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 2,647 passing
+flutter test             # 2,737 passing
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -309,7 +311,8 @@ was: the decision here, the platform read in M3 or M4.
 - [x] `device` (130) — the low-end policy: the hardware heuristic and the
       frame-window verdict. Reading the hardware and driving the probe are M3/M4
 - [x] `region` (55) — the region code. `ensurePlayerRegion` reports whether it
-      wrote, rather than calling `scheduleSave` itself, because that is M2
+      wrote, rather than calling `scheduleSave` itself, because that is M2 —
+      `providers/game_host.dart` is the caller it was waiting for
 - [x] `stat_display` (23)
 - [x] `storage` (1,051) — audited. `migrate()` was already ported and the JSON
       round trip is `save_codec`; what was left is the SLOT policy, now
@@ -318,10 +321,11 @@ was: the decision here, the platform read in M3 or M4.
       back a PLAN — which copy to use, which bytes to stash — so M2 wires it to
       real persistence without re-deciding any of it
 
-### Next up — M2
+### Next up — M3
 
-Nothing is left in M1. The next thing that moves the game towards playable is
-the state layer — see the M2 block below, and `main.js` in particular.
+Nothing is left in M1 or M2. The game boots, loads, ticks and saves; what it has
+no way to do is show any of it. M3 is the biggest block of work in the project
+and everything a player can see.
 
 ### Bugs carried over from the JS
 
@@ -412,17 +416,37 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
 
 ## M2 — state and reactivity
 
-- [ ] Riverpod providers over the save
-- [ ] Republish the event bus into providers (the bus itself stays pure Dart)
-- [ ] `state/game_state.dart` (525) — load, migrate, debounced save, the freeze
-      flag on reset
-- [ ] Save on pause / lifecycle change
-- [ ] **`main.js` (1,453) — the wiring.** Bootstrap, the tick loop, and the bus
-      listeners that turn an engine's announcement into a state change. Not a
-      formality: several engines deliberately do NOT apply their own reward and
-      rely on a listener here to do it with the save wrapper. The one that pays
-      achievement coins on `achievement:unlocked` is the example to check first —
-      without it every achievement unlocks and pays nothing.
+**Done.** The game now boots, loads a real save off the device, runs its loop,
+pays what the engines announce, and saves when the player leaves. There is still
+nothing to look at — that is M3 — but everything under it is running.
+
+- [x] `state/game_state.dart` (525) — load, migrate, debounced save, the freeze
+      flag on reset. Also the native mirror, the cloud restore, and the boot
+      ladder from `save_slots`' recovery plan
+- [x] **`main.js` (1,453) — the wiring.** Split three ways, because the JS keeps
+      the loop, the listeners and the DOM lookups in one module scope:
+      `state/game_tick.dart` is one turn as a pure function of the save and a
+      `TickGates` record; `state/game_wiring.dart` is the bus listeners that
+      write to the save; `state/game_runner.dart` owns the timer and turns a
+      tick into bus events. The listener that pays achievement coins is tested
+      first, as the note here said to
+- [x] Riverpod providers over the save — `providers/game_providers.dart`. One
+      revision counter fed by `GameState.changes`, and a derived provider per
+      value, so a coin landing rebuilds the coin label and nothing else. The
+      save is one mutable map, so watching it directly would never fire
+- [x] Republish the event bus into providers — `providers/bus_providers.dart`.
+      The bus itself is untouched and still Flutter-free
+- [x] Save on pause / lifecycle change — `providers/game_host.dart`. Note it
+      does NOT pause on `inactive`: that fires for the notification shade and
+      the app switcher, and stopping the loop there is a stall the player never
+      asked for
+- [x] Real persistence — `services/prefs_save_store.dart`. Read into memory once
+      at boot and written through, because the `SaveStore` contract is
+      synchronous and the debounced save fires from a timer
+
+What is deliberately still stubbed, and lands with the service it belongs to:
+the cloud upload hook (`uploadCloudSave`) and the native mirror reader are
+constructor seams on `GameState` with nothing plugged into them yet — M4.
 
 ---
 
