@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,015 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,029 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -41,8 +41,8 @@ save, the loop, the listeners that pay, the providers and the lifecycle
 observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
 suite — which was M5 and landed early so no screen has to hardcode English.
 **M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing,
-Settings and the **Shop** are in. Four of the five tab bodies are still
-placeholders.
+Settings, the **Shop** and the **merge grid** are in. Three of the five tab
+bodies are still placeholders.
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -51,10 +51,10 @@ injuries, tactic changes, settlement), a season plays out, the table settles, th
 pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
 over to the next campaign — and the JS and the port agree about all of it.
 
-**It runs, and there is now one thing a player can actually do.** The app boots
-into a themed five-tab shell with a live HUD, Settings works, and the Shop's
-coin and gem shelves both take real currency and grant real items — the sponge
-heals, the season boosts arm, the vouchers load. Four tabs are still placeholders —
+**It runs, and the core loop is playable.** The app boots into a themed five-tab
+shell with a live HUD; cards merge on the Players tab; the Shop's coin and gem
+shelves take real currency and grant real items; Settings works. Three tabs are
+still placeholders — squad, league and club. Four tabs are still placeholders —
 the grid, the squad, the league and the club — and each is its own module.
 
 ### How far along, honestly
@@ -123,7 +123,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,013 passing, 2 skipped
+flutter test             # 3,027 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -421,10 +421,8 @@ Four tabs are still `PlaceholderScreen`: grid, squad, league and club. Each is
 its own module — spec, plan, build — and they are independent, so the order is a
 matter of what unblocks most:
 
-- **Merge grid** is the one with the hard problems: drag and drop, lazy card
-  mounting and the frame budget. The card itself is already ported, so what is
-  left is the grid around it.
-- **Squad** (2,264) needs the same card and the lineup engines, both ported.
+- **Squad** (2,264) is the obvious next one: it needs the same card and the
+  lineup engines, and all of them are ported.
 - **Club** (838) is the smallest, but its tiles are drawn from
   `assets/clubArt.js` (430 lines of SVG), which is NOT ported — and porting it
   needs a decision first: `flutter_svg` as a dependency, or a `CustomPainter`.
@@ -620,8 +618,17 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       resolves the values with the engines it already has.
       Still to add when a screen needs them: the income bar, the trait chip, the
       sponsor drawback marker and the art itself (`assets/svgCache`, below)
-- [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules.
-      The card is done; what is left is the GRID
+- [x] Merge grid — `lib/ui/screens/grid/`. Drag to merge, drag to move, three
+      columns by thirteen, slots past the roster shown locked rather than
+      hidden. `attemptMerge` owns every rule; the widget reports two indices.
+      **Not ported, and deliberately**: the `pan-y` touch-action workaround, the
+      `card-dragging` body class and the hand-rolled 200ms hold, all of which
+      exist in the JS to stop a card drag and the tab swipe fighting.
+      `LongPressDraggable` plus the gesture arena is what the three were
+      approximating, and a test asserts a quick flick does not pick a card up.
+      Still to add: the merge ANIMATION (`MergeAnimation.js`, 928 lines, GSAP →
+      explicit controllers), lazy mounting if a profile run asks for it, and the
+      card art
 - [x] Shop screen (1,387) — `lib/ui/screens/shop/`. All seven shelves, in the
       JS's own order. See
       `docs/superpowers/specs/2026-08-18-shop-screen-design.md`.
