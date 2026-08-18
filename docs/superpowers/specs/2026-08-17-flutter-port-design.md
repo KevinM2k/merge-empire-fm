@@ -181,14 +181,18 @@ favour of the normal `cloud_firestore` SDK.
 
 ### i18n
 
-10 locales × ~2,900 keys. A `tool/` script converts `src/i18n/locales/*.js` to ARB,
-then `flutter_localizations` + `intl`.
+**Superseded by `2026-08-18-i18n-layer-design.md`.** This section chose ARB +
+`gen_l10n`; measuring the catalogues ruled it out. 30 of the 2,652 keys are not
+valid identifiers, and the engines resolve keys at runtime from strings, which
+`gen_l10n` cannot do at all. Generated `Map<String, String>` catalogues plus a
+hand-written lookup layer instead. The per-key fallback warned about below is
+still the requirement, and the new design carries it.
 
-`gen_l10n` does not fall back per-key, but the source `t()` does — returning the
-English string when a key is missing in the active locale, and the raw key when it is
-missing everywhere. A custom lookup wrapper must reproduce that exactly, or missing
-translations will surface as blank UI instead of English. Arabic RTL is native via
-`Directionality`.
+10 locales × 2,652 keys. `gen_l10n` does not fall back per-key, but the source
+`t()` does — returning the English string when a key is missing in the active
+locale, and the raw key when it is missing everywhere. A custom lookup wrapper
+must reproduce that exactly, or missing translations will surface as blank UI
+instead of English. Arabic RTL is native via `Directionality`.
 
 ## Testing
 
