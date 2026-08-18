@@ -130,14 +130,14 @@ void main() {
     // The IndexedStack contract. A tab rebuilt from scratch on every visit loses
     // its scroll position and anything mid-animation.
     await pumpShell(tester);
-    screenState(tester, ShellTab.grid).bump();
+    screenState(tester, ShellTab.squad).bump();
 
     await tester.tap(find.byKey(const ValueKey('tab-shop')));
     await tester.pump(const Duration(milliseconds: 32));
-    await tester.tap(find.byKey(const ValueKey('tab-grid')));
+    await tester.tap(find.byKey(const ValueKey('tab-squad')));
     await tester.pump(const Duration(milliseconds: 32));
 
-    expect(screenState(tester, ShellTab.grid).bumps, 1);
+    expect(screenState(tester, ShellTab.squad).bumps, 1);
   });
 
   testWidgets('an offscreen tab stops ticking', (tester) async {
@@ -146,9 +146,9 @@ void main() {
     await pumpShell(tester);
 
     expect(
-      screenState(tester, ShellTab.grid).isTicking,
+      screenState(tester, ShellTab.squad).isTicking,
       isFalse,
-      reason: 'grid starts offscreen',
+      reason: 'squad starts offscreen',
     );
     expect(
       screenState(tester, ShellTab.league).isTicking,
@@ -156,20 +156,20 @@ void main() {
       reason: 'league is the opening tab',
     );
 
-    await tester.tap(find.byKey(const ValueKey('tab-grid')));
+    await tester.tap(find.byKey(const ValueKey('tab-squad')));
     await tester.pump(const Duration(milliseconds: 32));
 
-    expect(screenState(tester, ShellTab.grid).isTicking, isTrue);
+    expect(screenState(tester, ShellTab.squad).isTicking, isTrue);
     expect(screenState(tester, ShellTab.league).isTicking, isFalse);
 
     // And the flag is not just cosmetic: the muted screen is handed no frames.
     final leagueTicks = screenState(tester, ShellTab.league).ticks;
-    final gridTicks = screenState(tester, ShellTab.grid).ticks;
+    final squadTicks = screenState(tester, ShellTab.squad).ticks;
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
     expect(screenState(tester, ShellTab.league).ticks, leagueTicks);
-    expect(screenState(tester, ShellTab.grid).ticks, greaterThan(gridTicks));
+    expect(screenState(tester, ShellTab.squad).ticks, greaterThan(squadTicks));
   });
 
   testWidgets('swiping left moves to the next tab', (tester) async {

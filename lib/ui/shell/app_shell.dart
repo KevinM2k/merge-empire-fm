@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/bus_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
+import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
@@ -144,12 +145,18 @@ class AppShellState extends ConsumerState<AppShell>
                       for (final tab in tabOrder)
                         TickerMode(
                           enabled: tab == _active,
-                          child: tab == ShellTab.shop
-                              ? const ShopScreen(key: ValueKey('screen-shop'))
-                              : PlaceholderScreen(
-                                  key: ValueKey('screen-${tab.name}'),
-                                  label: t(tab.labelKey),
-                                ),
+                          child: switch (tab) {
+                            ShellTab.grid => const GridScreen(
+                              key: ValueKey('screen-grid'),
+                            ),
+                            ShellTab.shop => const ShopScreen(
+                              key: ValueKey('screen-shop'),
+                            ),
+                            _ => PlaceholderScreen(
+                              key: ValueKey('screen-${tab.name}'),
+                              label: t(tab.labelKey),
+                            ),
+                          },
                         ),
                     ],
                   ),
