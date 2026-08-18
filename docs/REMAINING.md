@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,136 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,155 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -52,8 +52,8 @@ pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
 over to the next campaign — and the JS and the port agree about all of it.
 
 **It runs, and the core loop is playable.** The app boots into a themed five-tab
-shell with a live HUD; cards merge on the Players tab; the side is picked on the
-Squad tab; facilities are built and upgraded on the Club tab; the Shop's coin and
+shell with a live HUD; players are SIGNED and merged on the Players tab; the side
+is picked on the Squad tab; facilities are built and upgraded on the Club tab; the Shop's coin and
 gem shelves take real currency and grant real items; and from the Play tab a
 match is played, settled and paid — and a finished season rolls on into the
 next. **The loop closes, and it repeats.** What is missing is the
@@ -126,7 +126,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,134 passing, 2 skipped
+flutter test             # 3,153 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -621,8 +621,11 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       is retired: `integration_test/card_perf_test.dart` profiles the real card
       now. It takes a `CardView` record rather than a save map, so a screen
       resolves the values with the engines it already has.
-      Still to add when a screen needs them: the income bar, the trait chip, the
-      sponsor drawback marker and the art itself (`assets/svgCache`, below)
+      **Portraits are on it** — `ui/widgets/player_portrait.dart`, a
+      `CustomPainter` off the variant table M1 already carried, whose header
+      called the JS's inline SVG portraits "UI work for a later milestone".
+      Still to add when a screen needs them: the income bar, the trait chip and
+      the sponsor drawback marker
 - [x] Merge grid — `lib/ui/screens/grid/`. Drag to merge, drag to move, three
       columns by thirteen, slots past the roster shown locked rather than
       hidden. `attemptMerge` owns every rule; the widget reports two indices.
@@ -631,9 +634,15 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       exist in the JS to stop a card drag and the tab swipe fighting.
       `LongPressDraggable` plus the gesture arena is what the three were
       approximating, and a test asserts a quick flick does not pick a card up.
+      **Add Player** is on it — `engine/scout_signing_engine.dart`, another flow
+      that only ever lived in the JS screen. It is the action the game OPENS on:
+      a fresh save has an empty grid, so without it there is nothing to merge,
+      nobody to field and no way to start. Found by PLAYING the thing rather
+      than by reading the source, which is worth remembering.
       Still to add: the merge ANIMATION (`MergeAnimation.js`, 928 lines, GSAP →
-      explicit controllers), lazy mounting if a profile run asks for it, the
-      card art, and the sell flow.
+      explicit controllers), the scout REVEAL (batch sizes, new-discovery and
+      auto-sell badges), lazy mounting if a profile run asks for it, and the
+      sell flow.
       **Worth knowing before writing a grid test:** a card loaded WITHOUT a
       `variant` is backfilled with a random one, and the engine refuses to merge
       two players of different genders — so a fixture that omits `variant` makes
