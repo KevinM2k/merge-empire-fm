@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**2,938 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**2,974 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -40,8 +40,9 @@ and is listed under M3 where it belongs. **M2 (the state layer) is done** — th
 save, the loop, the listeners that pay, the providers and the lifecycle
 observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
 suite — which was M5 and landed early so no screen has to hardcode English.
-**M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing
-and Settings are in. The five tab bodies are still placeholders.
+**M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing,
+Settings and the **Shop** are in. Four of the five tab bodies are still
+placeholders.
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -50,15 +51,15 @@ injuries, tactic changes, settlement), a season plays out, the table settles, th
 pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
 over to the next campaign — and the JS and the port agree about all of it.
 
-**It runs, and now there is something to look at — but nothing to do.** The app
-boots into a themed five-tab shell with a live HUD, and Settings works. What no
-tab has yet is a body: the grid, the squad, the league, the club and the shop
-are all placeholders. Each is its own module from here.
+**It runs, and there is now one thing a player can actually do.** The app boots
+into a themed five-tab shell with a live HUD, Settings works, and the Shop's gem
+shelves take real gems and grant real items. Four tabs are still placeholders —
+the grid, the squad, the league and the club — and each is its own module.
 
 ### How far along, honestly
 
 Measured, not estimated: `101,866` lines of non-test JS in `../merge-empire-fc/src`,
-of which roughly **56,000 are ported — about 55%.**
+of which roughly **57,000 are ported — about 56%.**
 
 Most of that is the ten locale catalogues, which is why the figure is a poor
 guide to effort. See the first bullet below the table.
@@ -72,9 +73,9 @@ guide to effort. See the first bullet below the table.
 | `assets/` | 853 | `playerArt` done; `clubArt` 430, `gemArt` 146, `svgCache` 54 left |
 | `services/` | 4,144 | only `nativeSaveMirror` has a counterpart |
 | `i18n/` | 29,123 | done — the lookup layer and all ten catalogues |
-| `ui/` | 40,329 | the shell, HUD, theme, popup shapes and Settings; no tab body |
+| `ui/` | 40,329 | the shell, HUD, theme, popup shapes, Settings and the Shop |
 
-Do not read 55% as "over half the work", in either direction:
+Do not read 56% as "over half the work", in either direction:
 
 - **29,067 of those lines are the ten locale catalogues**, converted by a script
   in an afternoon. They were 29% of the port by line count and nothing like 29%
@@ -84,7 +85,7 @@ Do not read 55% as "over half the work", in either direction:
 - **The UI will not be a line-for-line port.** 40,329 lines of hand-rolled DOM
   manipulation becomes materially less Dart, so that denominator is soft.
 - **The port is more verbose than its source**, except where it is not. 27,000
-  lines of hand-written JS became 36,004 lines of `lib/` and 36,878 lines of
+  lines of hand-written JS became 36,703 lines of `lib/` and 37,539 lines of
   tests, plus 26,636 generated catalogue lines nobody reads. The shell is the
   exception: it replaced roughly 2,200 lines of `App.js`, `HUD.js`,
   `popupQueue.js` and `SettingsScreen.js` with about 1,900 lines of Dart,
@@ -121,7 +122,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 2,936 passing, 2 skipped
+flutter test             # 2,972 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -398,19 +399,30 @@ was: the decision here, the platform read in M3 or M4.
       back a PLAN — which copy to use, which bytes to stash — so M2 wires it to
       real persistence without re-deciding any of it
 
-### Next up — the tab bodies
+### Still unported from M1, found while building the Shop
 
-Nothing is left in M1 or M2, M5 came forward to join them, and M3's scaffold is
-up: the game boots into a themed shell, says everything in ten languages, and has
-a HUD, working Settings and somewhere to put a popup.
+- [ ] **The Shop's three coin consumables have no engine.** `magic_sponge`,
+      `kit_sponsor` and `match_rev` are bought with coins, and their pricing and
+      effects live inside `ui/screens/ShopScreen.js` rather than in an engine —
+      so unlike every other purchase on that screen there was nothing ported to
+      call. The Shop renders them priced and disabled.
+      Extracting them is a small engine module: `_scaledCost` scales by
+      division, the sponge's price escalates with `shop.spongeUses`
+      (`min(3, 1 + uses * 0.5)`), and the two season boosts set flags the match
+      engine already reads. **Wants a node fixture** — it is exactly the
+      "non-obvious arithmetic" the standing rules name.
+      Not to be confused with `engine/coinSinkEngine.js`, which IS ported and
+      belongs to the Club screen, not the Shop.
 
-What it has not got is a single screen a player does anything on. All five tabs
-are `PlaceholderScreen`. Each is its own module — spec, plan, build — and they
-are independent, so the order is a matter of what unblocks most:
+### Next up — the remaining four tab bodies
 
-- **Shop** is the natural first. It is self-contained (no diorama, no match
-  engine, no drag and drop), the engine half is done, and it is on the IAP
-  critical path — M4 cannot be finished without it.
+Nothing is left in M1 or M2, M5 came forward to join them, M3's scaffold is up,
+and the Shop is the first tab with a real body.
+
+Four tabs are still `PlaceholderScreen`: grid, squad, league and club. Each is
+its own module — spec, plan, build — and they are independent, so the order is a
+matter of what unblocks most:
+
 - **Merge grid** is the one with the hard problems: drag and drop, lazy card
   mounting and the frame budget. Worth doing early for what it teaches, and
   late for how much it depends on.
@@ -599,10 +611,25 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       the League screen: tapping Play resets it to the Overview sub-tab, which
       has nowhere to go until sub-tabs exist
 - [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules
-- [ ] Shop screen (1,387) — the SKU shelves, the coin and gem sections the HUD
-      deep-links into, and the buy flow's UI half. `ShopSection` and the
-      `pendingShopSection` handoff are already in `shell_controller.dart`;
-      call `consumePendingShopSection()` once scrolled
+- [x] Shop screen (1,387) — `lib/ui/screens/shop/`. All seven shelves, in the
+      JS's own order. See
+      `docs/superpowers/specs/2026-08-18-shop-screen-design.md`.
+      **What is deliberately inert in it, and why**, so M4 knows what it is
+      plugging into:
+      - Offers, Gems packs, Coin packs and the Style Vault render real prices
+        with dead buttons — they need `iapClient`. Nothing calls
+        `purchaseProduct`, which is the post-payment GRANT step, and a test
+        reads the source to keep it that way
+      - the free shelf's ad GATE is live (`ad_gate_engine` decides ready,
+        waiting or capped) but the watch button needs AdMob
+      - Restore Purchases is present and disabled
+      - **the three coin consumables (`magic_sponge`, `kit_sponsor`,
+        `match_rev`) are shown priced and disabled — a PORT GAP, not an M4
+        one.** Their purchase logic lives inside the JS `ShopScreen` rather
+        than in an engine, so there was nothing ported to call. See the entry
+        under M1 below
+      - Manager Looks buys nothing at all: the pack tiles are progress, and an
+        individual pack unlocks by rewarded video in the customiser
 - [ ] Squad screen (2,264)
 - [ ] Club screen
 - [ ] League screen (6,777) — the diorama, the table, fixtures, training, and
@@ -648,7 +675,10 @@ of buttons that error.
       together. Deliberately left out of the M1 port because it needs the two
       above; the pre-flight checks it does are already in the engine
 - [ ] Restore purchases, and re-grant of non-consumables on a fresh install
-- [ ] The Shop screen (`ShopScreen`, 1,387 — counted in M3)
+- [x] The Shop screen (`ShopScreen`, 1,387 — counted in M3). **The UI is
+      finished and waiting on the bridge**: every real-money tile renders its
+      real price with a dead button, and nothing calls `purchaseProduct`. Wiring
+      `iapClient` to those buttons is the whole of what is left on this line
 - [ ] Every SKU created and priced in App Store Connect AND Play Console, in both
       cases matching `IapProduct.sku` exactly (see M6)
 
