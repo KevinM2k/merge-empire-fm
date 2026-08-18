@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,448 tests, 97.5% line coverage, `flutter analyze` clean.** Everything below
+**2,475 tests, 97.5% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -216,22 +216,29 @@ JS number or object did.
       quest and achievement targets, so a wrong key is a quest that can never be
       finished. `util/time`'s `dateString` lands with it: the free-skip ledger
       keys off JS `toDateString()` and that key is written to the save
+- [x] `weather_engine` (330) + `data/geo_zones` (189) — what the sky is doing
+      over the diorama, live where there is a reading and modelled where there
+      is not. Pure by construction: `nowMs` and `rand` are arguments, so the
+      fixture pins twenty rolls across every band and season, which catches the
+      real risk — the weighted walk subtracts as it goes, so the same weights in
+      a different ORDER give a different sky for the same roll. Reading the
+      device timezone is left to M4, the same split `energy_engine` took;
+      `resolveCoords` takes the zone as an argument
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `weather_engine`
+### Next up — `pyramid_names_engine`
 
-330 lines. From here it is the small tail: weather, the pyramid names, the news
-and advice generators, the daily reward, and the handful of sub-100-line engines.
+313 lines. From here it is the small tail: the pyramid names, the news and advice
+generators, the daily reward, and the handful of sub-100-line engines.
 
 ### Remaining engines
 
 Roughly in dependency order.
 
-- [ ] `weather_engine` (330)
 - [ ] `pyramid_names_engine` (313)
 - [ ] `deadline_news_engine` (310)
 - [ ] `deal_advice_engine` (310)
@@ -253,7 +260,6 @@ Roughly in dependency order.
       `moodForDraw` needs are already stored on `progression.lastMatchResult`
       by `finalizeMatchOutcome` (`led`, `trailed`, `ratingGap`), so the dugout
       cam and the diorama cannot disagree about the same draw
-- [ ] `geo_zones` (189)
 - [ ] `pgs_achievements` (107)
 - [ ] `kit_palette` (79)
 
@@ -416,7 +422,10 @@ of buttons that error.
 - [ ] `cloudSaveService` (498), `firestoreRest` (334), `firestoreRestAuth` (83)
 - [ ] `leaderboardService` (1,831)
 - [ ] `feedbackService` (195) — dormant; the Settings button is hidden
-- [ ] `weatherService` (157)
+- [ ] `weatherService` (157) — and with it the device's IANA timezone, which the
+      JS reads from `Intl`. Dart has no equivalent without a plugin, so
+      `data/geo_zones` takes the zone as an argument and this is the half that
+      has to supply it
 - [ ] Local notifications — four of them, all `allowWhileIdle`
 - [ ] `util/sound.js` (782) — synthesised SFX plus the one background track
 - [ ] `util/wake_lock` (54)
@@ -519,6 +528,7 @@ node tool/dump_iap_reference.mjs           > test/fixtures/iap_reference.json
 node tool/dump_achievements_reference.mjs  > test/fixtures/achievements_reference.json
 node tool/dump_event_cup_reference.mjs     > test/fixtures/event_cup_reference.json
 node tool/dump_mini_games_reference.mjs    > test/fixtures/mini_games_reference.json
+node tool/dump_weather_reference.mjs       > test/fixtures/weather_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
