@@ -2660,4 +2660,5 @@ const Map<String, String> itCatalog = <String, String>{
   'settings.comingSoon': 'Prossimamente',
   'match.full_time': 'Fine partita',
   'match.half_time': 'Intervallo',
+  'play.season_over': 'Stagione conclusa',
 };

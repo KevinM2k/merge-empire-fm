@@ -102,15 +102,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void deactivate() {
     // Hand the screen back, or every later tick still believes a match is on.
     //
-    // Guarded because the whole ProviderScope can go first — at app teardown,
-    // and in any test that disposes its container before the tree unmounts. If
-    // the scope is gone there are no more ticks to gate, so there is nothing to
-    // put right and nothing to report.
-    try {
-      _gates.state = clearScreenGates;
-    } on StateError {
-      // The scope outlived by nothing.
-    }
+    // Deferred off the frame because Riverpod refuses a provider write inside a
+    // widget lifecycle, and leaving a route IS one. Guarded because the whole
+    // scope can go first — at app teardown, and in a test that disposes its
+    // container before the tree unmounts; if the scope has gone there are no
+    // ticks left to gate and nothing to put right.
+    final gates = _gates;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        gates.state = clearScreenGates;
+      } on StateError {
+        // Nothing left to tell.
+      }
+    });
     super.deactivate();
   }
 

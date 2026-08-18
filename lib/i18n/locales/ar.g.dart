@@ -2660,4 +2660,5 @@ const Map<String, String> arCatalog = <String, String>{
   'settings.comingSoon': 'قريباً',
   'match.full_time': 'نهاية المباراة',
   'match.half_time': 'استراحة الشوط',
+  'play.season_over': 'انتهى الموسم',
 };

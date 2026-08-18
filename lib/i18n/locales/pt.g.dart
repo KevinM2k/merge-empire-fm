@@ -2660,4 +2660,5 @@ const Map<String, String> ptCatalog = <String, String>{
   'settings.comingSoon': 'Em breve',
   'match.full_time': 'Fim de Jogo',
   'match.half_time': 'Intervalo',
+  'play.season_over': 'Temporada concluída',
 };

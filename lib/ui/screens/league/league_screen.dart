@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/league/league_providers.dart';
+import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 enum LeagueSubTab {
@@ -207,15 +208,45 @@ class FixturesView extends ConsumerWidget {
     final fixtures = ref.watch(fixturesProvider);
 
     if (fixtures.isEmpty) {
-      return Center(
+      return Column(
         key: const ValueKey('league-fixtures-empty'),
-        child: Text(
-          t('common.loading'),
-          style: TextStyle(color: kit.textMuted),
-        ),
+        children: [
+          Expanded(
+            child: Center(
+              child: Text(
+                t('common.loading'),
+                style: TextStyle(color: kit.textMuted),
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: PlayMatchButton(),
+          ),
+        ],
       );
     }
 
+    return Column(
+      children: [
+        Expanded(child: _FixtureList(fixtures: fixtures)),
+        const Padding(
+          padding: EdgeInsets.all(12),
+          child: PlayMatchButton(),
+        ),
+      ],
+    );
+  }
+}
+
+class _FixtureList extends StatelessWidget {
+  const _FixtureList({required this.fixtures});
+
+  final List<FixtureRow> fixtures;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
     return ListView.builder(
       key: const ValueKey('league-fixtures'),
       itemCount: fixtures.length,

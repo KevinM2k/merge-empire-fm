@@ -2660,4 +2660,5 @@ const Map<String, String> zhCatalog = <String, String>{
   'settings.comingSoon': '即将推出',
   'match.full_time': '全场结束',
   'match.half_time': '中场休息',
+  'play.season_over': '赛季结束',
 };

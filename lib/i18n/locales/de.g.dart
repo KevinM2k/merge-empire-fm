@@ -2660,4 +2660,5 @@ const Map<String, String> deCatalog = <String, String>{
   'settings.comingSoon': 'Demnächst',
   'match.full_time': 'Spielende',
   'match.half_time': 'Halbzeit',
+  'play.season_over': 'Saison beendet',
 };

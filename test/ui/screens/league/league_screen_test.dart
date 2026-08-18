@@ -6,14 +6,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/league/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/league/league_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+
+Future<void> settleSave(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
 Future<ProviderContainer> pumpLeague(
   WidgetTester tester, {
@@ -195,4 +200,117 @@ void main() {
       );
     });
   });
+
+  group('playing a match', () {
+    testWidgets('the fixtures tab offers a Play button', (tester) async {
+      await pumpLeague(tester, mutate: playedSeason);
+      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('play-match')), findsOneWidget);
+    });
+
+    testWidgets('a squad too small is refused, and told why', (tester) async {
+      // canPlayMatch folds three refusals together; the button names which.
+      await pumpLeague(tester, mutate: playedSeason);
+      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<ElevatedButton>(find.byKey(const ValueKey('play-match')))
+            .onPressed,
+        isNull,
+      );
+      expect(find.byKey(const ValueKey('play-blocked')), findsOneWidget);
+    });
+
+    testWidgets('a ready save can start one, and it takes over', (tester) async {
+      final container = await pumpLeague(tester, mutate: readyToPlay);
+      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
+      await tester.pumpAndSettle();
+
+      final energyBefore = container.read(energyProvider);
+      expect(
+        tester
+            .widget<ElevatedButton>(find.byKey(const ValueKey('play-match')))
+            .onPressed,
+        isNotNull,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('play-match')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('match-screen')), findsOneWidget);
+      expect(container.read(energyProvider), lessThan(energyBefore));
+      expect(container.read(tickGatesProvider).matchOpen, isTrue);
+
+      // Close it: the clock is a periodic timer, and a test that walks away
+      // mid-match leaves it pending.
+      await tester.tap(find.byKey(const ValueKey('match-skip')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('match-close')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('full time commits, and closing pays', (tester) async {
+      // The coins land on dismissal, not at full time: the doubling offer lives
+      // on the closing screen.
+      final container = await pumpLeague(tester, mutate: readyToPlay);
+      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
+      await tester.pumpAndSettle();
+
+      final playedBefore =
+          (container.read(gameProvider).state!['progression']
+              as Map<String, dynamic>)['matchesPlayed'] as num;
+
+      await tester.tap(find.byKey(const ValueKey('play-match')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('match-skip')));
+      await tester.pumpAndSettle();
+
+      // Full time: the season has moved on, and the gates are still claimed.
+      expect(
+        (container.read(gameProvider).state!['progression']
+            as Map<String, dynamic>)['matchesPlayed'],
+        greaterThan(playedBefore),
+      );
+
+      final coinsAtFullTime = container.read(coinsProvider);
+      await tester.tap(find.byKey(const ValueKey('match-close')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('match-screen')), findsNothing);
+      expect(container.read(coinsProvider), greaterThanOrEqualTo(coinsAtFullTime));
+      expect(
+        container.read(tickGatesProvider).matchOpen,
+        isFalse,
+        reason: 'the screen handed the gates back',
+      );
+      await settleSave(tester);
+    });
+  });
+}
+
+/// A save that can actually take the field.
+void readyToPlay(Map<String, dynamic> s) {
+  playedSeason(s);
+  (s['energy'] as Map<String, dynamic>)['current'] = 10;
+  final def = players.firstWhere((p) => p.tier == 1);
+  final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+  for (var i = 0; i < 11; i++) {
+    cells[i] = <String, dynamic>{
+      'definitionId': def.id,
+      'instanceId': 'c$i',
+      'variant': 0,
+    };
+  }
+  (s['squad'] as Map<String, dynamic>)['lineup'] = [
+    for (var i = 0; i < 11; i++)
+      <String, dynamic>{
+        'slotId': 's$i',
+        'slotPosition': 'MID',
+        'cardInstanceId': 'c$i',
+      },
+  ];
 }

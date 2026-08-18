@@ -2660,4 +2660,5 @@ const Map<String, String> koCatalog = <String, String>{
   'settings.comingSoon': '곧 제공됩니다',
   'match.full_time': '경기 종료',
   'match.half_time': '하프타임',
+  'play.season_over': '시즌 종료',
 };

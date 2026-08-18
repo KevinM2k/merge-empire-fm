@@ -2660,4 +2660,5 @@ const Map<String, String> jaCatalog = <String, String>{
   'settings.comingSoon': '近日公開',
   'match.full_time': '試合終了',
   'match.half_time': 'ハーフタイム',
+  'play.season_over': 'シーズン終了',
 };
