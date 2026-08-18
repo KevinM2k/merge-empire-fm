@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -92,6 +94,8 @@ class SquadHeader extends ConsumerWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final ratings = ref.watch(squadRatingsProvider);
     final formation = getFormation(ref.watch(formationIdProvider));
+    final tactic =
+        strategies[ref.watch(strategyIdProvider)] ?? strategies[defaultStrategy]!;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 64, 12, 8),
@@ -145,14 +149,28 @@ class SquadHeader extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              formation.label,
-              key: const ValueKey('squad-formation'),
-              style: TextStyle(color: kit.textMuted, fontSize: 13),
-            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('squad-formation'),
+                  onPressed: () => showFormationPicker(context, ref),
+                  child: Text(formation.label),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('squad-tactic'),
+                  onPressed: () => showTacticPicker(context, ref),
+                  child: Text(
+                    '${tactic.icon}  ${tactic.shortName}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -291,6 +293,96 @@ void main() {
         container.read(pitchSlotsProvider).where((s) => s.card != null).length,
         11,
       );
+    });
+  });
+
+  group('the pickers', () {
+    testWidgets('the formation chip opens a picker and changes the shape', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester);
+      expect(container.read(formationIdProvider), defaultFormation);
+
+      await tester.tap(find.byKey(const ValueKey('squad-formation')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('formation-picker')), findsOneWidget);
+
+      final other = formations.keys.firstWhere((id) => id != defaultFormation);
+      await tester.tap(find.byKey(ValueKey('formation-$other')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(container.read(formationIdProvider), other);
+      expect(
+        container.read(pitchSlotsProvider).length,
+        getFormation(other).slots.length,
+      );
+    });
+
+    testWidgets('changing the shape carries the eleven across', (tester) async {
+      // migrateLineup maps players onto the new slots by position. Starting
+      // again would wipe a side the player had just picked.
+      final container = await pumpSquad(tester, cards: 14);
+      expect(
+        container.read(pitchSlotsProvider).where((s) => s.card != null).length,
+        11,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('squad-formation')));
+      await tester.pumpAndSettle();
+      final other = formations.keys.firstWhere((id) => id != defaultFormation);
+      await tester.tap(find.byKey(ValueKey('formation-$other')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(
+        container.read(pitchSlotsProvider).where((s) => s.card != null).length,
+        11,
+        reason: 'still a full side',
+      );
+      expect(container.read(benchProvider).length, 3);
+    });
+
+    testWidgets('the tactic chip opens a picker and changes the tactic', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester);
+      expect(container.read(strategyIdProvider), defaultStrategy);
+
+      await tester.tap(find.byKey(const ValueKey('squad-tactic')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('tactic-picker')), findsOneWidget);
+
+      final other = strategies.keys.firstWhere((id) => id != defaultStrategy);
+      await tester.tap(find.byKey(ValueKey('tactic-$other')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(container.read(strategyIdProvider), other);
+    });
+
+    testWidgets('every tactic states its trade', (tester) async {
+      // The hint is the whole reason a tactic is a choice rather than a setting.
+      await pumpSquad(tester);
+      await tester.tap(find.byKey(const ValueKey('squad-tactic')));
+      await tester.pumpAndSettle();
+      for (final strategy in strategies.values) {
+        expect(
+          find.byKey(ValueKey('tactic-${strategy.id}')),
+          findsOneWidget,
+          reason: strategy.id,
+        );
+        expect(strategy.hint, isNotEmpty, reason: strategy.id);
+      }
+    });
+
+    testWidgets('an unshipped tactic on the save falls back', (tester) async {
+      final container = await pumpSquad(tester);
+      container.read(gameProvider).update(
+        (s) => (s['squad'] as Map<String, dynamic>)['strategyId'] = 'no-such',
+      );
+      await settleSave(tester);
+      expect(container.read(strategyIdProvider), defaultStrategy);
     });
   });
 }
