@@ -8,7 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Discipline alone does not survive 37 engines, so it is checked.
 void main() {
-  const pureDirs = ['lib/engine', 'lib/data', 'lib/state', 'lib/util'];
+  const pureDirs = [
+    'lib/engine',
+    'lib/data',
+    'lib/i18n',
+    'lib/state',
+    'lib/util',
+  ];
 
   final flutterImport = RegExp(
     r'''^\s*import\s+['"]package:flutter/''',

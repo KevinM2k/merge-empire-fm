@@ -1,0 +1,99 @@
+/// The lookup layer, pinned against the live JS runtime.
+///
+/// The cases that matter are the failures: a key missing from the active
+/// catalogue, a key missing everywhere, a param with nowhere to go and a
+/// placeholder with no param. A screen hits all four, and none of them throw.
+///
+/// Regenerate with tool/dump_i18n_reference.mjs.
+library;
+
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/util/format.dart';
+
+void main() {
+  final reference =
+      jsonDecode(File('test/fixtures/i18n_reference.json').readAsStringSync())
+          as Map<String, dynamic>;
+
+  tearDown(() {
+    resetLocale();
+    resetFormatLocale();
+  });
+
+  group('t() matches the JS', () {
+    for (final row
+        in (reference['resolve'] as List).cast<Map<String, dynamic>>()) {
+      test('${row['label']} (${row['locale']})', () {
+        setLocale(row['locale'] as String);
+        final params = (row['params'] as Map<String, dynamic>?) ?? const {};
+        expect(t(row['key'] as String, params), row['value']);
+      });
+    }
+  });
+
+  group('tName() matches the JS', () {
+    setUp(() => setLocale('en'));
+
+    // Rebuilt rather than read off the fixture: a Dart map literal cannot come
+    // out of JSON typed as the mixed (String | Map) argument tName takes.
+    final cases = <String, String Function()>{
+      'by id': () => tName('nav', 'squad'),
+      'by object': () => tName('nav', {'id': 'squad', 'name': 'Fallback'}),
+      'unknown id falls back to name': () =>
+          tName('nav', {'id': 'nope', 'name': 'Fallback'}),
+      'unknown id, no name, falls back to id': () => tName('nav', 'nope'),
+      'unknown id, object with no name': () => tName('nav', {'id': 'nope'}),
+    };
+
+    for (final row
+        in (reference['tName'] as List).cast<Map<String, dynamic>>()) {
+      final label = row['label'] as String;
+      test(label, () => expect(cases[label]!(), row['value']));
+    }
+
+    test('every JS case is covered', () {
+      expect(cases.length, (reference['tName'] as List).length);
+    });
+  });
+
+  test('setLocale narrows to a shipped catalogue', () {
+    for (final row
+        in (reference['locale'] as List).cast<Map<String, dynamic>>()) {
+      setLocale(row['set'] as String);
+      expect(getLocale(), row['got'], reason: 'set ${row['set']}');
+    }
+  });
+
+  test('the shipped ids match the JS', () {
+    expect(localeIds, (reference['locales'] as List).cast<String>());
+  });
+
+  test('setLocale drives the number formatter too', () {
+    // format.dart has carried a setFormatLocale seam since M1 waiting for this.
+    setLocale('fr');
+    expect(getFormatLocale(), 'fr');
+    setLocale('xx');
+    expect(getFormatLocale(), 'en');
+  });
+
+  test('resetLocale returns to English', () {
+    setLocale('ja');
+    resetLocale();
+    expect(getLocale(), 'en');
+  });
+
+  test('a null id is tolerated by tName', () {
+    setLocale('en');
+    expect(tName('nav', null), '');
+  });
+
+  test('a null id is tolerated by setLocale', () {
+    setLocale('ja');
+    setLocale(null);
+    expect(getLocale(), 'en');
+  });
+}

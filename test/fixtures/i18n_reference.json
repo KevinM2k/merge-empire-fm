@@ -1,0 +1,168 @@
+{
+  "resolve": [
+    {
+      "label": "plain",
+      "locale": "en",
+      "key": "nav.squad",
+      "params": null,
+      "value": "Squad"
+    },
+    {
+      "label": "plain translated",
+      "locale": "fr",
+      "key": "nav.squad",
+      "params": null,
+      "value": "Effectif"
+    },
+    {
+      "label": "one param",
+      "locale": "en",
+      "key": "gems.toast.season",
+      "params": {
+        "n": 5
+      },
+      "value": "Season milestone — 5 gems! 💎"
+    },
+    {
+      "label": "two params",
+      "locale": "en",
+      "key": "toast.cup_gems",
+      "params": {
+        "n": 3,
+        "cup": "The Cup"
+      },
+      "value": "+3 💎 for lifting the The Cup!"
+    },
+    {
+      "label": "param with no placeholder",
+      "locale": "es",
+      "key": "event.news.after.missed",
+      "params": {
+        "n": 2,
+        "s": "s"
+      },
+      "value": "2 ofertas quedaron sobre la mesa"
+    },
+    {
+      "label": "placeholder with no param",
+      "locale": "en",
+      "key": "gems.toast.season",
+      "params": {},
+      "value": "Season milestone — {n} gems! 💎"
+    },
+    {
+      "label": "no params at all",
+      "locale": "en",
+      "key": "gems.toast.season",
+      "params": null,
+      "value": "Season milestone — {n} gems! 💎"
+    },
+    {
+      "label": "numeric param",
+      "locale": "en",
+      "key": "gems.toast.tutorial",
+      "params": {
+        "n": 10
+      },
+      "value": "Welcome gift — 10 gems! 💎"
+    },
+    {
+      "label": "missing everywhere",
+      "locale": "en",
+      "key": "no.such.key.anywhere",
+      "params": null,
+      "value": "no.such.key.anywhere"
+    },
+    {
+      "label": "missing everywhere, translated locale",
+      "locale": "ja",
+      "key": "no.such.key.anywhere",
+      "params": null,
+      "value": "no.such.key.anywhere"
+    },
+    {
+      "label": "unknown locale falls back to en",
+      "locale": "xx",
+      "key": "nav.squad",
+      "params": null,
+      "value": "Squad"
+    },
+    {
+      "label": "rtl catalogue",
+      "locale": "ar",
+      "key": "nav.shop",
+      "params": null,
+      "value": "المتجر"
+    },
+    {
+      "label": "key with a space",
+      "locale": "en",
+      "key": "event.wc2026.fact.Bosnia and Herzegovina.0",
+      "params": null,
+      "value": "First International Cup was 2014 — beat Iran but went out in the group. Back a decade later."
+    },
+    {
+      "label": "key with a diacritic",
+      "locale": "en",
+      "key": "event.wc2026.fact.Türkiye.0",
+      "params": null,
+      "value": "Third place in 2002 — their best ever finish. Hasn't been back to a International Cup since 2002."
+    }
+  ],
+  "tName": [
+    {
+      "label": "by id",
+      "value": "Squad"
+    },
+    {
+      "label": "by object",
+      "value": "Squad"
+    },
+    {
+      "label": "unknown id falls back to name",
+      "value": "Fallback"
+    },
+    {
+      "label": "unknown id, no name, falls back to id",
+      "value": "nope"
+    },
+    {
+      "label": "unknown id, object with no name",
+      "value": "nope"
+    }
+  ],
+  "locale": [
+    {
+      "set": "en",
+      "got": "en"
+    },
+    {
+      "set": "fr",
+      "got": "fr"
+    },
+    {
+      "set": "ar",
+      "got": "ar"
+    },
+    {
+      "set": "xx",
+      "got": "en"
+    },
+    {
+      "set": "",
+      "got": "en"
+    }
+  ],
+  "locales": [
+    "en",
+    "es",
+    "pt",
+    "fr",
+    "de",
+    "it",
+    "ja",
+    "ko",
+    "zh",
+    "ar"
+  ]
+}
