@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,044 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,049 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -123,7 +123,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,042 passing, 2 skipped
+flutter test             # 3,047 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -651,8 +651,14 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       rating, ATK and DEF all come from `computeSquadRatings`. A slot emptied by
       hand is REFILLED from the bench, because `cleanAndFillLineup` is what stops
       an empty slot surviving a sale.
-      Still to add: the formation and tactic pickers (the chips are read-only),
-      per-player fitness, the sell and transfer flows, and career stats
+      The formation and tactic pickers are live — both bottom sheets, and a
+      shape change goes through `migrateLineup` so the eleven carries across.
+      Still to add: per-player fitness, the sell and transfer flows, and career
+      stats.
+      **Note on copy:** tactic and formation NAMES come from the data
+      (`Strategy.name`, `Formation.label`), not the catalogue — there are no
+      `tactic.*` or `formation.*` keys in any of the ten, so they read English
+      in the JS too. Translating them is a catalogue change, not a port gap
 - [ ] Club screen
 - [ ] League screen (6,777) — the diorama, the table, fixtures, training, and
       the Overview sub-tab that tapping Play must reset to
