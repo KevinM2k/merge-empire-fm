@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,358 tests, 97.4% line coverage, `flutter analyze` clean.** Everything below
+**2,402 tests, 97.5% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -199,22 +199,30 @@ JS number or object did.
       and save — with BOTH streams reproducible: the dump script replaces
       `Math.random` with a second mulberry32 and `test/support/js_math_random.dart`
       drives the same one, so the unseeded half is comparable too
+- [x] `event_cup_engine` (371) — the bracket that runs alongside the league cup.
+      Pinned over whole tournaments rather than per function, because the other
+      fifteen nations are simulated IN ARREARS — seven ties the moment the player
+      wins the R16, three after the quarter-final, one after the semi — so
+      advancing the bracket a beat early or late gives a plausible tournament
+      that shares nothing with the JS one. Eight runs cover every conditional the
+      win branch has: winning as the best- and worst-rated nation, a clean sheet
+      across the whole bracket, and going out in the first round and the semi
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `event_cup_engine`
+### Next up — `mini_games_engine`
 
-371 lines, and the last engine with a whole screen behind it. After that it is the
-small tail: mini-games, weather, the news and advice generators, the daily reward.
+368 lines plus a 234-line data file, and the last engine with a whole screen
+behind it. After that it is the small tail: weather, the news and advice
+generators, the daily reward.
 
 ### Remaining engines
 
-Roughly in dependency order — the first three unlock the most.
+Roughly in dependency order — the first two unlock the most.
 
-- [ ] `event_cup_engine` (371)
 - [ ] `mini_games_engine` (368) + `data/mini_games` (234)
 - [ ] `weather_engine` (330)
 - [ ] `pyramid_names_engine` (313)
@@ -494,6 +502,7 @@ node tool/dump_negotiation_reference.mjs   > test/fixtures/negotiation_reference
 node tool/dump_deadline_day_reference.mjs  > test/fixtures/deadline_day_reference.json
 node tool/dump_iap_reference.mjs           > test/fixtures/iap_reference.json
 node tool/dump_achievements_reference.mjs  > test/fixtures/achievements_reference.json
+node tool/dump_event_cup_reference.mjs     > test/fixtures/event_cup_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
