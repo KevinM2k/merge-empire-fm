@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,130 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,136 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -55,7 +55,8 @@ over to the next campaign — and the JS and the port agree about all of it.
 shell with a live HUD; cards merge on the Players tab; the side is picked on the
 Squad tab; facilities are built and upgraded on the Club tab; the Shop's coin and
 gem shelves take real currency and grant real items; and from the Play tab a
-match is played, settled and paid. **The loop closes.** What is missing is the
+match is played, settled and paid — and a finished season rolls on into the
+next. **The loop closes, and it repeats.** What is missing is the
 polish around it — the diorama, the cutaway, the mini-games and the animations. Four tabs are still placeholders —
 the grid, the squad, the league and the club — and each is its own module.
 
@@ -125,7 +126,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,128 passing, 2 skipped
+flutter test             # 3,134 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -697,7 +698,16 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       Still to add: `ChanceCutaway` (2,036), in-match subs and tactic changes,
       the stats and tactics tabs, the transfer-offer expiry on kickoff, and the
       tutorial's forced first win
-- [ ] Season-end takeover
+- [x] Season-end takeover — `lib/ui/screens/season/`. Not polish: without it
+      the game STOPPED at the fourteenth match, because `simulateMatch` sets
+      `progression.seasonComplete`, every gate then refuses, and nothing offered
+      a route on. The Play button becomes an End Season button, `endSeason`
+      settles the whole thing in one call, and the takeover reports it.
+      The season number is captured BEFORE that call — `endSeason` rolls
+      `seasonCount` on as part of its work, and the summary is about the season
+      that finished.
+      Still to add: the season table on the card, the quest auto-payout lines,
+      and the cup results the copy already has keys for
 - [x] The three popup shapes — bottom sheet, Coach Colin card, quick-nav menu.
       Do not invent a fourth. The queue behind them is `util/popup_queue.dart`,
       and it holds a no-host blocker from boot so a card queued before any widget
