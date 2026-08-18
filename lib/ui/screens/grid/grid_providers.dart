@@ -16,7 +16,12 @@ import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
 /// One slot: a card, an empty slot the player has room for, or a slot beyond
 /// the roster they have not grown into yet.
-typedef GridCell = ({int index, CardView? card, bool locked});
+typedef GridCell = ({
+  int index,
+  String? instanceId,
+  CardView? card,
+  bool locked,
+});
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
@@ -59,6 +64,9 @@ final gridCellsProvider = savePick<List<GridCell>>((s) {
     for (var i = 0; i < Grid.totalCells; i++)
       (
         index: i,
+        instanceId: i < cells.length && cells[i] is Map<String, dynamic>
+            ? (cells[i] as Map<String, dynamic>)['instanceId'] as String?
+            : null,
         card: i < cells.length ? cardViewFor(cells[i], proMode: pro) : null,
         locked: i >= owned,
       ),

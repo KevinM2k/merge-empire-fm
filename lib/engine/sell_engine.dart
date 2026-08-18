@@ -42,3 +42,55 @@ double baseSellPrice(
   }
   return base;
 }
+
+/// One rung of the sell market.
+class MarketTier {
+  const MarketTier({required this.labelKey, required this.mult});
+
+  final String labelKey;
+
+  /// The floor of this rung; a roll lands at or above it.
+  final double mult;
+}
+
+/// Five rungs, cheapest first. A roll lands on one and adds a little on top.
+const List<MarketTier> marketTiers = [
+  MarketTier(labelKey: 'sell.market_lowball', mult: 0.5),
+  MarketTier(labelKey: 'sell.market_modest', mult: 0.9),
+  MarketTier(labelKey: 'sell.market_fair', mult: 1.3),
+  MarketTier(labelKey: 'sell.market_great', mult: 1.8),
+  MarketTier(labelKey: 'sell.market_jackpot', mult: 2.8),
+];
+
+/// Which rung a multiplier sits on.
+MarketTier marketTierFor(double mult) {
+  for (var i = marketTiers.length - 1; i >= 0; i--) {
+    if (mult >= marketTiers[i].mult) return marketTiers[i];
+  }
+  return marketTiers.first;
+}
+
+/// Mirrors JS `Math.random()`, so this is `dart:math` rather than the seeded
+/// generator — the sell roll is not part of the deterministic gameplay stream.
+math.Random _sellRng = math.Random();
+
+void setSellRandom(math.Random rng) => _sellRng = rng;
+
+void resetSellRandom() => _sellRng = math.Random();
+
+/// Roll a market multiplier for [card].
+///
+/// In-form and sponsored players attract better bids: `luck` shifts the roll
+/// toward the low-`r` branches, which are the valuable ones. Capped so it
+/// improves the odds without ever guaranteeing a jackpot.
+double rollMarketMult(CardInstance? card) {
+  final form = (card?.raw['form'] as num?)?.toDouble() ?? 0;
+  final sponsored = card?.raw['sponsor'] != null;
+  final luck = math.min(0.35, math.max(0.0, form * 0.04 + (sponsored ? 0.12 : 0)));
+  final r = math.max(0.0, _sellRng.nextDouble() - luck);
+  if (r < 0.10) return marketTiers[4].mult + _sellRng.nextDouble() * 0.5;
+  if (r < 0.30) return marketTiers[3].mult + _sellRng.nextDouble() * 0.4;
+  if (r < 0.60) return marketTiers[2].mult + _sellRng.nextDouble() * 0.3;
+  if (r < 0.85) return marketTiers[1].mult + _sellRng.nextDouble() * 0.3;
+  return marketTiers[0].mult + _sellRng.nextDouble() * 0.3;
+}

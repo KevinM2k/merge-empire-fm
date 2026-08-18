@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -103,6 +104,14 @@ class _Slot extends ConsumerWidget {
           view: card,
           light: Theme.of(context).brightness == Brightness.light,
           selected: hovered,
+          // A tap opens the sell sheet; the DRAG is the merge. Two gestures,
+          // two meanings, and the arena keeps them apart.
+          onTap: () {
+            final id = cell.instanceId;
+            if (id != null) {
+              showSellSheet(context, ref, instanceId: id, view: card);
+            }
+          },
         );
         return LongPressDraggable<int>(
           data: cell.index,

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
+import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -359,6 +360,76 @@ void main() {
       for (var i = 0; i < playerVariants; i++) {
         expect(cardViewFor(_card(_baseDefId, 'a', variant: i))!.variant, i);
       }
+    });
+  });
+
+  group('selling', () {
+    testWidgets('tapping a card opens the sell sheet', (tester) async {
+      // Until this, the grid was one-way and a tap did nothing at all.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('sell-sheet')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sell-price')), findsOneWidget);
+    });
+
+    testWidgets('confirming sells at the price on screen', (tester) async {
+      // The multiplier is rolled once, when the sheet opens. Rolling again on
+      // confirm would pay out a different number from the one just agreed.
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a')},
+      );
+      final coinsBefore = container.read(coinsProvider);
+
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+      final quoted = tester
+          .widget<Text>(find.byKey(const ValueKey('sell-price')))
+          .data!;
+
+      await tester.ensureVisible(find.byKey(const ValueKey('sell-confirm')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('sell-confirm')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(filledCells(container), 0, reason: 'the card is gone');
+      final gained = container.read(coinsProvider) - coinsBefore;
+      expect(formatCoins(gained), quoted);
+    });
+
+    testWidgets('cancelling changes nothing', (tester) async {
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a')},
+      );
+      final before = container.read(coinsProvider);
+
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('sell-cancel')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('sell-cancel')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(filledCells(container), 1);
+      expect(container.read(coinsProvider), before);
+    });
+
+    testWidgets('a loanee cannot be sold, and is told why', (tester) async {
+      // Not ours to sell: the loan engine is still tracking a contract.
+      await pumpGrid(
+        tester,
+        cards: {
+          0: {..._card(_baseDefId, 'a'), 'loanMatchesLeft': 3},
+        },
+      );
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('sell-blocked')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sell-confirm')), findsNothing);
     });
   });
 }
