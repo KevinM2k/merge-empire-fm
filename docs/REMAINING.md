@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,155 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,171 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -126,7 +126,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,153 passing, 2 skipped
+flutter test             # 3,169 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -156,6 +156,28 @@ no access to the existing reviews or rankings. The third is internal, and renami
 it would churn every import in the repo for nothing a player can see.
 `CFBundleName` is the short name iOS truncates hard, so it reads
 "Merge Empire FM".
+
+### Reachability — check it, do not assume it
+
+An audit prompted by a player opening the app found three things BUILT, TESTED
+and unreachable: the popup queue that nothing queued into, the quick-nav menu
+nothing showed, and a HUD cog wired to a stub `Scaffold`. Every one had passing
+tests, which is exactly why none of them were noticed.
+
+Widget tests construct the state they need. They prove a part works; they say
+nothing about whether a new player can get to it. **Before calling a module
+done, grep for who CALLS it** — and where the answer is "only its own test",
+that is the module's real status.
+
+Still unreachable, and known:
+
+- [ ] The quick-nav menu — one of the three popup shapes, nothing shows it
+- [ ] Trophy room, Player Index and Leaderboard — `openShellSheet` exists and
+      nothing calls it, and those three screens do not exist yet either
+- [ ] The HUD's energy `+` emits `nav:energy` and nothing listens
+- [ ] Twelve ported engines have no screen at all: `daily_reward` (now reachable
+      at boot), `deadline_day`, `event`, `mini_games`, `boot_room`, `cup`,
+      `achievement`, `quest`, `transfer`, `sell`, `loan`, `badge`
 
 ### Standing rules
 
