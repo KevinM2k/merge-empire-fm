@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,030 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,044 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -41,8 +41,8 @@ save, the loop, the listeners that pay, the providers and the lifecycle
 observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
 suite — which was M5 and landed early so no screen has to hardcode English.
 **M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing,
-Settings, the **Shop** and the **merge grid** are in. Three of the five tab
-bodies are still placeholders.
+Settings, the **Shop**, the **merge grid** and the **Squad** are in. Two of the
+five tab bodies are still placeholders.
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -52,9 +52,9 @@ pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
 over to the next campaign — and the JS and the port agree about all of it.
 
 **It runs, and the core loop is playable.** The app boots into a themed five-tab
-shell with a live HUD; cards merge on the Players tab; the Shop's coin and gem
-shelves take real currency and grant real items; Settings works. Three tabs are
-still placeholders — squad, league and club. Four tabs are still placeholders —
+shell with a live HUD; cards merge on the Players tab; the side is picked on the
+Squad tab; the Shop's coin and gem shelves take real currency and grant real
+items; Settings works. Two tabs are still placeholders — league and club. Four tabs are still placeholders —
 the grid, the squad, the league and the club — and each is its own module.
 
 ### How far along, honestly
@@ -123,7 +123,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,028 passing, 2 skipped
+flutter test             # 3,042 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -421,8 +421,6 @@ Four tabs are still `PlaceholderScreen`: grid, squad, league and club. Each is
 its own module — spec, plan, build — and they are independent, so the order is a
 matter of what unblocks most:
 
-- **Squad** (2,264) is the obvious next one: it needs the same card and the
-  lineup engines, and all of them are ported.
 - **Club** (838) is the smallest, but its tiles are drawn from
   `assets/clubArt.js` (430 lines of SVG), which is NOT ported — and porting it
   needs a decision first: `flutter_svg` as a dependency, or a `CustomPainter`.
@@ -648,7 +646,13 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       - Restore Purchases is present and disabled
       - Manager Looks buys nothing at all: the pack tiles are progress, and an
         individual pack unlocks by rewarded video in the customiser
-- [ ] Squad screen (2,264)
+- [x] Squad screen (2,264) — `lib/ui/screens/squad/`. The eleven on the pitch by
+      formation, the bench under it, drag to pick or swap, and a header whose
+      rating, ATK and DEF all come from `computeSquadRatings`. A slot emptied by
+      hand is REFILLED from the bench, because `cleanAndFillLineup` is what stops
+      an empty slot surviving a sale.
+      Still to add: the formation and tactic pickers (the chips are read-only),
+      per-player fitness, the sell and transfer flows, and career stats
 - [ ] Club screen
 - [ ] League screen (6,777) — the diorama, the table, fixtures, training, and
       the Overview sub-tab that tapping Play must reset to
