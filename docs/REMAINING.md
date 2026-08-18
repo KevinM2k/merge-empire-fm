@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,090 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,115 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -125,7 +125,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,088 passing, 2 skipped
+flutter test             # 3,113 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -420,10 +420,10 @@ M1, M2 and M5 are done, M3's scaffold is up, and all five tabs have a real body.
 What is left is the things INSIDE them. They are independent, so the order is a
 matter of what unblocks most:
 
-- **The live match page** is the biggest gap by player impact. Every screen now
-  points at a match nobody can play: `MatchPopup` (3,715) and `ChanceCutaway`
-  (2,036) are a takeover screen, not a popup, and the whole match engine is
-  ported and proven by the differential harness.
+- **Starting a match from the fixture list.** The match SCREEN is in and the
+  engine is in; what is missing is the button between them, plus
+  `finalizeMatchOutcome` and `applyMatchRewards` on the way out. Small, and it
+  is what turns five working screens into a playable game.
 - **The diorama** (League → Overview) is the highest-RISK piece, and the one
   thing here still gated on an open question: the port design ties its technique
   to profile-mode timings from a physical device, which have not been taken.
@@ -686,7 +686,15 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       lines with a parallax scene and a ball simulation, and the port design
       gates its technique on profile-mode timings from a physical device, which
       is still open below. Training is likewise pending its mini-games.
-- [ ] The live match page (a takeover screen, not a popup)
+- [x] The live match page — `lib/ui/screens/match/`, a takeover screen as the
+      note said. It PLAYS OUT a match `simulateMatch` has already decided:
+      `match_clock.dart` is pure logic that only chooses when an already-decided
+      event appears, which keeps the engine exactly what the differential
+      harness proves. The score counts the goals SHOWN rather than reading the
+      result, so the number can never run ahead of the commentary explaining it.
+      Claims `tickGatesProvider.matchOpen` while up.
+      Still to add: `ChanceCutaway` (2,036), in-match subs and tactic changes,
+      the stats and tactics tabs, and the button that starts one
 - [ ] Season-end takeover
 - [x] The three popup shapes — bottom sheet, Coach Colin card, quick-nav menu.
       Do not invent a fourth. The queue behind them is `util/popup_queue.dart`,
@@ -874,6 +882,7 @@ node tool/dump_scout_voucher_reference.mjs > test/fixtures/scout_voucher_referen
 node tool/dump_i18n_reference.mjs          > test/fixtures/i18n_reference.json
 node tool/dump_kit_theme_reference.mjs     > test/fixtures/kit_theme_reference.json
 node tool/dump_shop_consumables_reference.mjs > test/fixtures/shop_consumables_reference.json
+node tool/dump_card_theme_reference.mjs    > test/fixtures/card_theme_reference.json
 node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.json
 node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_reference.json
 node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json
