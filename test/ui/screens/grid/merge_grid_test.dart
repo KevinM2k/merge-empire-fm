@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -21,9 +22,21 @@ import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 /// The lowest-tier player, so a merge of two makes a predictable third.
 String get _baseDefId => players.firstWhere((p) => p.tier == 1).id;
 
-Map<String, dynamic> _card(String id, String instanceId) => {
+int get _maleVariant =>
+    List.generate(playerVariants, (i) => i).firstWhere((i) => !isVariantFemale(i));
+int get _femaleVariant =>
+    List.generate(playerVariants, (i) => i).firstWhere(isVariantFemale);
+
+/// A stored card.
+///
+/// `variant` is set explicitly and matched across a pair on purpose. A card
+/// without one is backfilled at load with a RANDOM variant, and the merge rule
+/// refuses two players of different genders — correctly, but it made a merge
+/// test pass about one run in three. A real saved card always has a variant.
+Map<String, dynamic> _card(String id, String instanceId, {int variant = 0}) => {
   'definitionId': id,
   'instanceId': instanceId,
+  'variant': variant,
 };
 
 Future<ProviderContainer> pumpGrid(
@@ -57,6 +70,23 @@ Future<ProviderContainer> pumpGrid(
   );
   await tester.pumpAndSettle();
   return container;
+}
+
+
+/// Drop the card at [from] onto [to] by driving the DragTarget directly.
+///
+/// A synthesised long-press drag is not reliably recognised in a widget test —
+/// it passed about two runs in three — and a flaky test that asserts "nothing
+/// merged" is worse than useless, because a gesture that silently fails makes
+/// it pass. The gesture itself is Flutter's; what is ours is the WIRING, so
+/// that is what this drives. The hold is asserted separately, as a contract.
+void dropOn(WidgetTester tester, int from, Key to) {
+  final target = tester.widget<DragTarget<int>>(
+    find.ancestor(of: find.byKey(to), matching: find.byType(DragTarget<int>)),
+  );
+  target.onAcceptWithDetails!(
+    DragTargetDetails<int>(data: from, offset: Offset.zero),
+  );
 }
 
 Future<void> settleSave(WidgetTester tester) =>
@@ -111,24 +141,31 @@ void main() {
   });
 
   group('dragging', () {
-    testWidgets('two of a kind onto each other merges them', (tester) async {
+    testWidgets('a card is picked up on a HOLD, not a flick', (tester) async {
+      // The hold is what lets a card drag and the tab swipe share the grid. The
+      // JS needs a pan-y touch-action rule, a body class and a hand-rolled
+      // timer for this; the delay on the draggable is all of it here.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      final draggable = tester.widget<LongPressDraggable<int>>(
+        find.ancestor(
+          of: find.byKey(const ValueKey('grid-card-0')),
+          matching: find.byType(LongPressDraggable<int>),
+        ),
+      );
+      expect(draggable.delay, const Duration(milliseconds: 200));
+      expect(draggable.data, 0);
+    });
+
+    testWidgets('two of a kind dropped on each other merge', (tester) async {
       final container = await pumpGrid(
         tester,
         cards: {0: _card(_baseDefId, 'a'), 1: _card(_baseDefId, 'b')},
       );
       expect(filledCells(container), 2);
 
-      final from = find.byKey(const ValueKey('grid-card-0'));
-      final gesture = await tester.startGesture(tester.getCenter(from));
-      await tester.pump(const Duration(milliseconds: 300));
-      await gesture.moveTo(
-        tester.getCenter(find.byKey(const ValueKey('grid-card-1'))),
-      );
-      await tester.pump();
-      await gesture.up();
+      dropOn(tester, 0, const ValueKey('grid-card-1'));
       await tester.pumpAndSettle();
       await settleSave(tester);
-
       // Two became one, and the one is a tier higher.
       expect(filledCells(container), 1);
       final survivor = container
@@ -138,18 +175,13 @@ void main() {
       expect(survivor.tier, 2);
     });
 
-    testWidgets('a card onto an empty slot moves it', (tester) async {
-      final container = await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+    testWidgets('a card dropped on an empty slot moves', (tester) async {
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a')},
+      );
 
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byKey(const ValueKey('grid-card-0'))),
-      );
-      await tester.pump(const Duration(milliseconds: 300));
-      await gesture.moveTo(
-        tester.getCenter(find.byKey(const ValueKey('grid-empty-1'))),
-      );
-      await tester.pump();
-      await gesture.up();
+      dropOn(tester, 0, const ValueKey('grid-empty-1'));
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -158,24 +190,41 @@ void main() {
       expect(container.read(gridCellsProvider)[1].card, isNotNull);
     });
 
-    testWidgets('a quick flick does not pick a card up', (tester) async {
-      // The hold is what lets the tab swipe and a card drag share the grid.
+    testWidgets('two of the same player but different genders swap, not merge', (
+      tester,
+    ) async {
+      // The engine's rule, and the reason a merge test needs an explicit
+      // variant: a card loaded without one is backfilled with a random variant,
+      // and a mismatched pair swaps rather than merging.
       final container = await pumpGrid(
         tester,
-        cards: {0: _card(_baseDefId, 'a'), 1: _card(_baseDefId, 'b')},
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _femaleVariant),
+        },
       );
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byKey(const ValueKey('grid-card-0'))),
-      );
-      // Moved immediately, with no hold.
-      await gesture.moveTo(
-        tester.getCenter(find.byKey(const ValueKey('grid-card-1'))),
-      );
-      await gesture.up();
+
+      dropOn(tester, 0, const ValueKey('grid-card-1'));
       await tester.pumpAndSettle();
       await settleSave(tester);
 
-      expect(filledCells(container), 2, reason: 'nothing merged');
+      expect(filledCells(container), 2, reason: 'swapped, not merged');
+    });
+
+    testWidgets('a slot refuses a drop from itself', (tester) async {
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      final target = tester.widget<DragTarget<int>>(
+        find.ancestor(
+          of: find.byKey(const ValueKey('grid-card-0')),
+          matching: find.byType(DragTarget<int>),
+        ),
+      );
+      expect(
+        target.onWillAcceptWithDetails!(
+          DragTargetDetails<int>(data: 0, offset: Offset.zero),
+        ),
+        isFalse,
+      );
     });
   });
 
@@ -191,38 +240,13 @@ void main() {
         },
       );
 
-      final gesture = await tester.startGesture(
-        tester.getCenter(find.byKey(const ValueKey('grid-card-0'))),
-      );
-      await tester.pump(const Duration(milliseconds: 300));
-      await gesture.moveTo(
-        tester.getCenter(find.byKey(const ValueKey('grid-card-1'))),
-      );
-      await tester.pump();
-      await gesture.up();
+      dropOn(tester, 0, const ValueKey('grid-card-1'));
       await tester.pumpAndSettle();
       await settleSave(tester);
 
       expect(filledCells(container), 2, reason: 'both still there');
     });
 
-    testWidgets('a card dropped on itself changes nothing', (tester) async {
-      final container = await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
-      final before = jsonEncode(gridCells(container.read(gameProvider).state));
-
-      final centre = tester.getCenter(find.byKey(const ValueKey('grid-card-0')));
-      final gesture = await tester.startGesture(centre);
-      await tester.pump(const Duration(milliseconds: 300));
-      await gesture.moveTo(centre);
-      await gesture.up();
-      await tester.pumpAndSettle();
-      await settleSave(tester);
-
-      expect(
-        jsonEncode(gridCells(container.read(gameProvider).state)),
-        before,
-      );
-    });
   });
 
   test('the card view is resolved through the engines, not guessed', () {

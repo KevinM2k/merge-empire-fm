@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,029 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,030 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -123,7 +123,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,027 passing, 2 skipped
+flutter test             # 3,028 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -628,7 +628,12 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       approximating, and a test asserts a quick flick does not pick a card up.
       Still to add: the merge ANIMATION (`MergeAnimation.js`, 928 lines, GSAP →
       explicit controllers), lazy mounting if a profile run asks for it, and the
-      card art
+      card art.
+      **Worth knowing before writing a grid test:** a card loaded WITHOUT a
+      `variant` is backfilled with a random one, and the engine refuses to merge
+      two players of different genders — so a fixture that omits `variant` makes
+      a merge test pass about one run in three. Set it explicitly and match it
+      across a pair
 - [x] Shop screen (1,387) — `lib/ui/screens/shop/`. All seven shelves, in the
       JS's own order. See
       `docs/superpowers/specs/2026-08-18-shop-screen-design.md`.
