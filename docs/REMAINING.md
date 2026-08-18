@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,171 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,196 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -126,7 +126,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,169 passing, 2 skipped
+flutter test             # 3,194 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -174,10 +174,12 @@ Still unreachable, and known:
 - [ ] The quick-nav menu — one of the three popup shapes, nothing shows it
 - [ ] Trophy room, Player Index and Leaderboard — `openShellSheet` exists and
       nothing calls it, and those three screens do not exist yet either
-- [ ] The HUD's energy `+` emits `nav:energy` and nothing listens
-- [ ] Twelve ported engines have no screen at all: `daily_reward` (now reachable
-      at boot), `deadline_day`, `event`, `mini_games`, `boot_room`, `cup`,
-      `achievement`, `quest`, `transfer`, `sell`, `loan`, `badge`
+- [ ] Still no screen at all: `deadline_day`, `event`, `mini_games`,
+      `boot_room`, `cup`, `quest`, `transfer`, `badge`
+
+Cleared since the audit: the boot popups (`daily_reward` and the offline
+earnings), the toast layer (`achievement`, `cup`, `quest`, `loan` all now say
+something), the energy sheet, and selling (`sell`).
 
 ### Standing rules
 
