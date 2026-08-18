@@ -191,4 +191,42 @@ void main() {
       );
     });
   });
+
+  group('the artwork', () {
+    testWidgets('every tile draws its real art', (tester) async {
+      // It was a tier badge until clubArt landed.
+      await pumpClub(tester, coins: 100000);
+      for (final key in AssetCategory.all) {
+        expect(
+          find.byKey(ValueKey('club-art-$key'), skipOffstage: false),
+          findsOneWidget,
+          reason: key,
+        );
+      }
+    });
+
+    testWidgets('an unbuilt facility shows what it WOULD look like, dimmed', (
+      tester,
+    ) async {
+      // A preview is a better prompt than an empty square.
+      await pumpClub(tester, coins: 100000);
+      final dimmed = tester.widget<Opacity>(
+        find.byKey(const ValueKey('club-art-$_key'), skipOffstage: false),
+      );
+      expect(dimmed.opacity, lessThan(1));
+
+      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(
+        tester
+            .widget<Opacity>(
+              find.byKey(const ValueKey('club-art-$_key'), skipOffstage: false),
+            )
+            .opacity,
+        1,
+      );
+    });
+  });
 }

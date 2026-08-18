@@ -13,11 +13,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/club_art.g.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// One facility, resolved.
@@ -120,21 +122,23 @@ class _AssetPanel extends ConsumerWidget {
           children: [
             Row(
               children: [
-                // Stands in for the artwork until clubArt lands.
+                // The real artwork, drawn from the SVG the JS composes. An
+                // unbuilt facility shows its tier-one art dimmed: what it will
+                // look like is a better prompt than an empty square.
                 Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
+                  width: 52,
+                  height: 52,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: kit.surface2,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: kit.border),
                   ),
-                  child: Text(
-                    tile.owned ? '${tile.tier}' : '—',
-                    style: TextStyle(
-                      color: kit.accentBright,
-                      fontWeight: FontWeight.w800,
+                  child: Opacity(
+                    key: ValueKey('club-art-${tile.key}'),
+                    opacity: tile.owned ? 1 : 0.35,
+                    child: SvgArt(
+                      svg: clubArtFor(tile.key, tile.owned ? tile.tier : 1),
                     ),
                   ),
                 ),
