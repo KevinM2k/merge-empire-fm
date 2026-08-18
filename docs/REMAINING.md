@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,516 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
+**2,535 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -243,21 +243,26 @@ JS number or object did.
       generation time, so each case lands in the band it is named for, and it
       pins the CAPS specifically — a cap applied as a demotion prints "worth
       doing" over "we're already well stocked"
+- [x] `daily_reward_engine` (270) — the seven-day login calendar, the only
+      repeating gem faucet in the game. Everything turns on a LOCAL day key, so
+      the fixture ships calendar components rather than epoch stamps and both
+      runtimes build their own instants at local noon. The streak and the cycle
+      day are pinned apart: they are different numbers, and a repaired streak of
+      nine sits on cycle day 6
 
 **Utils**
 
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — `daily_reward_engine`
+### Next up — `scout_voucher_engine`
 
-270 lines, then the handful of sub-100-line engines and the last of the data.
+253 lines, then the handful of sub-100-line engines and the last of the data.
 
 ### Remaining engines
 
 Roughly in dependency order.
 
-- [ ] `daily_reward_engine` (270)
 - [ ] `scout_voucher_engine` (253) — a test must pin it against `gemEngine`'s
       `scout_voucher_gem.heldWhen`; the two halves of the one-voucher rule can't
       import each other
@@ -554,6 +559,7 @@ node tool/dump_weather_reference.mjs       > test/fixtures/weather_reference.jso
 node tool/dump_pyramid_names_reference.mjs > test/fixtures/pyramid_names_reference.json
 node tool/dump_deadline_news_reference.mjs > test/fixtures/deadline_news_reference.json
 node tool/dump_deal_advice_reference.mjs   > test/fixtures/deal_advice_reference.json
+node tool/dump_daily_reward_reference.mjs  > test/fixtures/daily_reward_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
