@@ -8,6 +8,7 @@ import 'package:merge_empire_fc/providers/game_host.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
+import 'package:merge_empire_fc/ui/popups/toast_host.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/services/prefs_save_store.dart';
@@ -52,7 +53,9 @@ class MergeEmpireApp extends ConsumerWidget {
         // PopupHost sits above the shell: it releases the queue's no-host
         // blocker, so anything queued during boot has waited rather than been
         // dropped for want of somewhere to open.
-        child: PopupHost(child: AppShell()),
+        // ToastHost inside PopupHost: a toast never blocks and never waits, so
+        // it sits under whatever the queue has put up rather than over it.
+        child: PopupHost(child: ToastHost(child: AppShell())),
       ),
     );
   }
