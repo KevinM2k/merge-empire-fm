@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,055 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,078 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -41,8 +41,8 @@ save, the loop, the listeners that pay, the providers and the lifecycle
 observer. **The i18n layer is in** — `t()`, all ten catalogues and the guard
 suite — which was M5 and landed early so no screen has to hardcode English.
 **M3 has started**: the theme, the five-tab shell, the HUD, the popup plumbing,
-Settings, the **Shop**, the **merge grid** and the **Squad** are in. Two of the
-five tab bodies are still placeholders.
+Settings, the **Shop**, the **merge grid**, the **Squad** and the **Club** are
+in. One of the five tab bodies is still a placeholder.
 
 The proof that it is done, rather than merely all ticked: the harness plays six
 whole seasons through both runtimes, casual and Pro, and every byte of the save
@@ -53,8 +53,9 @@ over to the next campaign — and the JS and the port agree about all of it.
 
 **It runs, and the core loop is playable.** The app boots into a themed five-tab
 shell with a live HUD; cards merge on the Players tab; the side is picked on the
-Squad tab; the Shop's coin and gem shelves take real currency and grant real
-items; Settings works. Two tabs are still placeholders — league and club. Four tabs are still placeholders —
+Squad tab; facilities are built and upgraded on the Club tab; the Shop's coin and
+gem shelves take real currency and grant real items; Settings works. One tab is
+still a placeholder — League. Four tabs are still placeholders —
 the grid, the squad, the league and the club — and each is its own module.
 
 ### How far along, honestly
@@ -123,7 +124,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,053 passing, 2 skipped
+flutter test             # 3,076 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -421,9 +422,13 @@ Four tabs are still `PlaceholderScreen`: grid, squad, league and club. Each is
 its own module — spec, plan, build — and they are independent, so the order is a
 matter of what unblocks most:
 
-- **Club** (838) is the smallest, but its tiles are drawn from
-  `assets/clubArt.js` (430 lines of SVG), which is NOT ported — and porting it
-  needs a decision first: `flutter_svg` as a dependency, or a `CustomPainter`.
+- **`assets/clubArt.js`** (430 lines) is the Club tab's artwork, and the
+  question of how to draw it is **settled: a `CustomPainter`, no new
+  dependency.** Counted, rather than assumed: 116 `rect`, 24 `circle`, 11
+  `ellipse`, 4 `polygon`, 7 `line`, 18 `text`, three gradients and just 15
+  `path`s — all of them simple `M…Q…` quadratics that `Path.quadraticBezierTo`
+  draws directly. `flutter_svg` would be a dependency carried for hand-built
+  primitives. The Club tiles show a tier badge until it lands.
 - **League** is the biggest single screen in the project (6,777 lines) and owns
   the diorama, so it wants the profile-mode timings under "Open questions"
   answered first.
@@ -661,7 +666,13 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       (`Strategy.name`, `Formation.label`), not the catalogue — there are no
       `tactic.*` or `formation.*` keys in any of the ten, so they read English
       in the JS too. Translating them is a catalogue change, not a port gap
-- [ ] Club screen
+- [x] Club screen (838) — `lib/ui/screens/club/`. All seven facilities, build
+      and invest, the tier bar and every refusal explained.
+      Build and invest were ANOTHER flow living in the JS screen rather than an
+      engine, so `engine/club_asset_engine.dart` lifts them out; the arithmetic
+      they use (`buildCost`, `tapCost`, `tierThreshold`) was already ported.
+      Still to add: the artwork (below), the upgrade-path sheet, the stadium
+      colour picker, and hold-to-invest
 - [ ] League screen (6,777) — the diorama, the table, fixtures, training, and
       the Overview sub-tab that tapping Play must reset to
 - [ ] The live match page (a takeover screen, not a popup)
