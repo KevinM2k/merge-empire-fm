@@ -62,7 +62,7 @@ List<_Queued> _queue = [];
 _Queued? _active;
 int _seq = 0;
 bool _drainScheduled = false;
-final Set<String> _blockers = {};
+final Set<String> _blockers = {noHostBlocker};
 
 /// Drain on a microtask rather than inline, so everything enqueued in one
 /// synchronous run is sorted together before anything opens.
@@ -93,7 +93,17 @@ bool isPopupPending(String id) =>
 /// tip cannot slip into the gap between one popup closing and the next opening.
 bool hasPopupWork() => _active != null || _queue.isNotEmpty;
 
-/// Nothing may open while a blocker is held — a match, the tutorial.
+/// Held from the start, and released by the widget that can actually open a
+/// popup.
+///
+/// Boot queues the welcome-back card long before any widget exists. Without this
+/// the microtask drain would run first, the `show` callback would fail for want
+/// of a host, and the catch below would treat that as "shown and closed" —
+/// silently dropping the entry that holds the player's overnight coins. There is
+/// no host, so this is a blocker like any other.
+const String noHostBlocker = 'no-popup-host';
+
+/// Nothing may open while a blocker is held — no host, a match, the tutorial.
 bool arePopupsBlocked() => _blockers.isNotEmpty;
 
 void blockPopups(String tag) => _blockers.add(tag);
@@ -145,5 +155,7 @@ void resetPopupQueue() {
   _active = null;
   _seq = 0;
   _drainScheduled = false;
-  _blockers.clear();
+  _blockers
+    ..clear()
+    ..add(noHostBlocker);
 }

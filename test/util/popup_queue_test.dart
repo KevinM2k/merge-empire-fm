@@ -33,6 +33,9 @@ class _Recorder {
 Future<void> settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
+  // The queue starts holding noHostBlocker so a popup queued at boot waits for
+  // a host rather than being dropped. These tests are the host.
+  setUp(() => unblockPopups(noHostBlocker));
   tearDown(resetPopupQueue);
 
   test('drains in priority order regardless of enqueue order', () async {
@@ -182,7 +185,7 @@ void main() {
     expect(PopupPriority.welcomeBack, lessThan(PopupPriority.dailyReward));
   });
 
-  test('reset drops everything without showing it', () async {
+  test('reset drops everything and re-holds the host blocker', () async {
     final rec = _Recorder();
     blockPopups('match');
     enqueuePopup(rec.entry('a', 10));
@@ -190,6 +193,22 @@ void main() {
     await settle();
     expect(rec.opened, isEmpty);
     expect(hasPopupWork(), isFalse);
-    expect(arePopupsBlocked(), isFalse);
+    // Back to the boot state: no host, so nothing may open.
+    expect(arePopupsBlocked(), isTrue);
+  });
+
+  test('nothing opens before a host releases the blocker', () async {
+    // The state the app boots in. Dropping this entry is the player's overnight
+    // coins gone, so it must wait.
+    resetPopupQueue();
+    final rec = _Recorder();
+    enqueuePopup(rec.entry('welcome', PopupPriority.welcomeBack));
+    await settle();
+    expect(rec.opened, isEmpty);
+    expect(hasPopupWork(), isTrue);
+
+    unblockPopups(noHostBlocker);
+    await settle();
+    expect(rec.opened, ['welcome']);
   });
 }
