@@ -109,21 +109,22 @@ void main() {
       expect(stateOf(tester).subTab, LeagueSubTab.overview);
     });
 
-    testWidgets('the diorama and training are named, not half-built', (
-      tester,
-    ) async {
-      // The diorama's technique is gated on profile timings from a device.
+    testWidgets('the diorama is named rather than half-built', (tester) async {
+      // Its technique is gated on profile timings from a physical device, so
+      // it stays named until those exist.
       await pumpLeague(tester);
       expect(
         find.byKey(const ValueKey('league-overview-pending')),
         findsOneWidget,
       );
+    });
+
+    testWidgets('training is a real list of drills now', (tester) async {
+      await pumpLeague(tester);
       await tester.tap(find.byKey(const ValueKey('league-subtab-training')));
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('league-training-pending')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('training-view')), findsOneWidget);
+      expect(find.byKey(const ValueKey('training-penalty')), findsOneWidget);
     });
   });
 

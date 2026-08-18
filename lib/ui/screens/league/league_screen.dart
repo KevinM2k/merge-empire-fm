@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/league/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 enum LeagueSubTab {
@@ -64,7 +65,7 @@ class LeagueScreenState extends ConsumerState<LeagueScreen> {
             LeagueSubTab.overview => const _OverviewPending(),
             LeagueSubTab.table => const LeagueTableView(),
             LeagueSubTab.fixtures => const FixturesView(),
-            LeagueSubTab.training => const _TrainingPending(),
+            LeagueSubTab.training => const TrainingView(),
           },
         ),
       ],
@@ -318,16 +319,6 @@ class _OverviewPending extends StatelessWidget {
   Widget build(BuildContext context) => _Pending(
     key: const ValueKey('league-overview-pending'),
     label: t('subnav.overview'),
-  );
-}
-
-class _TrainingPending extends StatelessWidget {
-  const _TrainingPending();
-
-  @override
-  Widget build(BuildContext context) => _Pending(
-    key: const ValueKey('league-training-pending'),
-    label: t('subnav.training'),
   );
 }
 
