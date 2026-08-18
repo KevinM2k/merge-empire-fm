@@ -32,20 +32,28 @@ too late:
 **2,647 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
-M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
-module count**, and — more usefully — the whole spine now works end to end:
-a match can be PLAYED (ninety minutes, injuries, tactic changes, settlement), a
-season played out, the table settles, the pyramid shuffles, quests roll and pay,
-cups run, and the season boundary hands over to the next campaign. `matchEngine.js`
-is fully ported. What is left in M1 is a long tail of smaller engines, none of
-them on the critical path.
+M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
+every data table but one, every utility, and the differential harness. The
+exception is `manager_avatar`'s SVG geometry, which is drawing rather than logic
+and is listed under M3 where it belongs.
+
+The proof that it is done, rather than merely all ticked: the harness plays six
+whole seasons through both runtimes, casual and Pro, and every byte of the save
+matches at every one of 336 matches a run. A match is PLAYED (ninety minutes,
+injuries, tactic changes, settlement), a season plays out, the table settles, the
+pyramid shuffles, quests roll and pay, cups run, and the season boundary hands
+over to the next campaign — and the JS and the port agree about all of it.
+
+**None of it is reachable yet.** M2 is the next thing that moves the game
+towards playable: there is no UI, no state plumbing and no services, and an
+engine nobody can call is worth nothing to a player.
 
 ### How to pick this up
 
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fc-flutter
 flutter analyze          # must be clean
-flutter test             # 2,358 passing
+flutter test             # 2,647 passing
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -157,6 +165,17 @@ JS number or object did.
 - [x] `manager_looks` — the unlock half of `managerAvatar.js` (packs, gates,
       ownership, normalise, sanitise). The SVG geometry stays for M3.
 - [x] `ad_units` — the AdMob tables, split out of `energyEngine`
+- [x] `manager_mood` (289) — `moodForScore`, `moodForDraw`, the gesture rota and
+      the ball plays. The thresholds are deliberately the match popup's, so the
+      walker cannot celebrate a result Coach Colin has just called unacceptable;
+      the fixture pins the draw EDGE across the whole grid, and a test enforces
+      the rule the rota exists for — a gesture marked as a celebration may only
+      carry `elated` and `pleased` weights
+- [x] `pgs_achievements` (107) — the Play Games id map. Six of the 76 are mapped;
+      the rest are null and silently skipped until the Console list is published
+- [x] `kit_palette` (79) — what a kit id actually paints with. `kitSwatchCss`
+      still returns the web build's CSS string: the pattern DATA is the same
+      either way, and turning it into a Flutter gradient is an M3 decision
 
 **Engines**
 
@@ -280,36 +299,8 @@ JS number or object did.
 - [x] `analytics` — pluggable sink, so engines log without importing Firebase
 - [x] `sorting` — stable sort, which Dart's `List.sort` is not
 
-### Next up — the last of the data and the utils
-
-**Every engine in M1 is now ported.** What is left of the logic core is the data
-and utility tail below, and the differential harness.
-
-### Remaining engines
-
-None. `manager_avatar`'s SVG half is really M3 material and is listed under the
-data below.
-
-### Remaining data
-
-- [x] `manager_mood` (289) — `moodForScore`, `moodForDraw`, the gesture rota and
-      the ball plays. The thresholds are deliberately the match popup's, so the
-      walker cannot celebrate a result Coach Colin has just called unacceptable;
-      the fixture pins the draw EDGE across the whole grid, and a test enforces
-      the rule the rota exists for — a gesture marked as a celebration may only
-      carry `elated` and `pleased` weights
-- [x] `pgs_achievements` (107) — the Play Games id map. Six of the 76 are mapped;
-      the rest are null and silently skipped until the Console list is published
-- [x] `kit_palette` (79) — what a kit id actually paints with. `kitSwatchCss`
-      still returns the web build's CSS string: the pattern DATA is the same
-      either way, and turning it into a Flutter gradient is an M3 decision
-- [ ] `manager_avatar` — the SVG geometry half (~1,100 lines). Really M3
-      material; the unlock half it needs is already done.
-
-### Remaining utils
-
-None. The four that were left are done, each split the same way the AdMob half
-of `energy_engine` was — the decision here, the platform read in M3 or M4:
+The last four were each split the same way the AdMob half of `energy_engine`
+was: the decision here, the platform read in M3 or M4.
 
 - [x] `kit_theme` (417) — the colour maths: hex to HSL and back, WCAG luminance,
       and `inkFor`, which used to be an HSL-lightness test and gave a yellow kit
@@ -326,6 +317,11 @@ of `energy_engine` was — the decision here, the platform read in M3 or M4:
       a process killed mid-write wiping a player's progress. `recoverSave` hands
       back a PLAN — which copy to use, which bytes to stash — so M2 wires it to
       real persistence without re-deciding any of it
+
+### Next up — M2
+
+Nothing is left in M1. The next thing that moves the game towards playable is
+the state layer — see the M2 block below, and `main.js` in particular.
 
 ### Bugs carried over from the JS
 
@@ -454,6 +450,9 @@ mapping is not one-to-one. For scale, the four that dominate are
 - [ ] The manager rig — walker, dugout cam, gestures, moods
 - [ ] **Rive** for the walker (MCP still to be installed)
 - [ ] **Kenney.nl sprites** to replace the pitch circles with animated players
+- [ ] `manager_avatar` — the SVG geometry half (~1,100 lines). Moved here from
+      M1: it is drawing rather than logic, and the unlock half it needs is
+      already done.
 - [ ] **The SVG art that is not player art**: `assets/clubArt` (430),
       `assets/gemArt` (146), `assets/svgCache` (54). `playerArt` is already ported;
       these three are not, and the crest, the club-asset tiles and the gem icons
