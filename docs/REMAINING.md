@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,607 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
+**2,643 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -301,12 +301,24 @@ data below.
 
 ### Remaining utils
 
-- [ ] `kit_theme` (417)
-- [ ] `device` (130)
-- [ ] `region` (55)
-- [ ] `stat_display` (23)
-- [ ] `storage` (1,051) — most of it is `migrate()`, already ported; audit what
-      is left over and delete this line if nothing is
+None. The four that were left are done, each split the same way the AdMob half
+of `energy_engine` was — the decision here, the platform read in M3 or M4:
+
+- [x] `kit_theme` (417) — the colour maths: hex to HSL and back, WCAG luminance,
+      and `inkFor`, which used to be an HSL-lightness test and gave a yellow kit
+      WHITE ink on a yellow button. The per-kit table of CSS custom properties is
+      M3: Flutter has a `ThemeData`, not custom properties
+- [x] `device` (130) — the low-end policy: the hardware heuristic and the
+      frame-window verdict. Reading the hardware and driving the probe are M3/M4
+- [x] `region` (55) — the region code. `ensurePlayerRegion` reports whether it
+      wrote, rather than calling `scheduleSave` itself, because that is M2
+- [x] `stat_display` (23)
+- [x] `storage` (1,051) — audited. `migrate()` was already ported and the JSON
+      round trip is `save_codec`; what was left is the SLOT policy, now
+      `state/save_slots.dart`. Not incidental: the last-good mirror is what stops
+      a process killed mid-write wiping a player's progress. `recoverSave` hands
+      back a PLAN — which copy to use, which bytes to stash — so M2 wires it to
+      real persistence without re-deciding any of it
 
 ### Bugs carried over from the JS
 
@@ -581,6 +593,7 @@ node tool/dump_boot_room_reference.mjs     > test/fixtures/boot_room_reference.j
 node tool/dump_club_asset_tiers_reference.mjs > test/fixtures/club_asset_tiers_reference.json
 node tool/dump_small_engines_reference.mjs > test/fixtures/small_engines_reference.json
 node tool/dump_manager_mood_reference.mjs  > test/fixtures/manager_mood_reference.json
+node tool/dump_utils_reference.mjs         > test/fixtures/utils_reference.json
 ```
 
 `match_orchestration_reference.json` is the only one that pins the UNSEEDED
