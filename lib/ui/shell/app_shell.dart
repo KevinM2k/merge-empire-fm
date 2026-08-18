@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/bus_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
+import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
@@ -161,6 +162,9 @@ class AppShellState extends ConsumerState<AppShell>
                                 ),
                                 ShellTab.squad => const SquadScreen(
                                   key: ValueKey('screen-squad'),
+                                ),
+                                ShellTab.club => const ClubScreen(
+                                  key: ValueKey('screen-club'),
                                 ),
                                 ShellTab.shop => const ShopScreen(
                                   key: ValueKey('screen-shop'),
