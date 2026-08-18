@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,049 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
+**3,055 tests, 97.8% line coverage, `flutter analyze` clean.** Everything below the M1 heading that
 isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is done** — every engine,
@@ -123,7 +123,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,047 passing, 2 skipped
+flutter test             # 3,053 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -625,8 +625,8 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       `LongPressDraggable` plus the gesture arena is what the three were
       approximating, and a test asserts a quick flick does not pick a card up.
       Still to add: the merge ANIMATION (`MergeAnimation.js`, 928 lines, GSAP →
-      explicit controllers), lazy mounting if a profile run asks for it, and the
-      card art.
+      explicit controllers), lazy mounting if a profile run asks for it, the
+      card art, and the sell flow.
       **Worth knowing before writing a grid test:** a card loaded WITHOUT a
       `variant` is backfilled with a random one, and the engine refuses to merge
       two players of different genders — so a fixture that omits `variant` makes
@@ -653,8 +653,10 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       an empty slot surviving a sale.
       The formation and tactic pickers are live — both bottom sheets, and a
       shape change goes through `migrateLineup` so the eleven carries across.
-      Still to add: per-player fitness, the sell and transfer flows, and career
-      stats.
+      Per-player fitness is on the card, PRO MODE ONLY — casual play has team
+      energy pips instead, so `CardView.fitness` is null there rather than a bar
+      pinned at full.
+      Still to add: the sell and transfer flows, and career stats.
       **Note on copy:** tactic and formation NAMES come from the data
       (`Strategy.name`, `Formation.label`), not the catalogue — there are no
       `tactic.*` or `formation.*` keys in any of the ten, so they read English
