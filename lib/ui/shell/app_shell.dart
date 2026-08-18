@@ -43,8 +43,8 @@ class AppShellState extends ConsumerState<AppShell>
   EnterMode _enter = EnterMode.none;
 
   /// The card-reveal overlay dims the whole screen and sits UNDER the HUD, so
-  /// an unhidden HUD punches through its dim. The JS flags <body> for the same
-  /// reason.
+  /// an unhidden HUD punches through its dim. The JS flags the body element for
+  /// the same reason.
   bool _revealActive = false;
 
   late final AnimationController _slide;
