@@ -60,8 +60,8 @@ are all placeholders. Each is its own module from here.
 Measured, not estimated: `101,866` lines of non-test JS in `../merge-empire-fc/src`,
 of which roughly **56,000 are ported — about 55%.**
 
-That number doubled in one module and it should not be read as the work
-doubling. See the first bullet below the table.
+Most of that is the ten locale catalogues, which is why the figure is a poor
+guide to effort. See the first bullet below the table.
 
 | Area | JS lines | State |
 |---|---|---|
@@ -74,25 +74,30 @@ doubling. See the first bullet below the table.
 | `i18n/` | 29,123 | done — the lookup layer and all ten catalogues |
 | `ui/` | 40,329 | the shell, HUD, theme, popup shapes and Settings; no tab body |
 
-Do not read 53% as "half the work", in either direction:
+Do not read 55% as "over half the work", in either direction:
 
 - **29,067 of those lines are the ten locale catalogues**, converted by a script
   in an afternoon. They were 29% of the port by line count and nothing like 29%
-  of the effort — which is exactly why the percentage jumped from 24% to 53%
+  of the effort — which is why the figure jumped from 24% to 53% in one module
   without the game getting materially closer to playable. Discount them and the
-  real figure is nearer 25%.
+  real figure is nearer 27%.
 - **The UI will not be a line-for-line port.** 40,329 lines of hand-rolled DOM
   manipulation becomes materially less Dart, so that denominator is soft.
-- **The UI is where the port gets SHORTER.** The shell replaced roughly 1,100
-  lines of `App.js`, `HUD.js` and `popupQueue.js` with about 1,300 lines of
-  Dart — but a large part of what it did not have to port was workaround:
+- **The port is more verbose than its source**, except where it is not. 27,000
+  lines of hand-written JS became 36,004 lines of `lib/` and 36,878 lines of
+  tests, plus 26,636 generated catalogue lines nobody reads. The shell is the
+  exception: it replaced roughly 2,200 lines of `App.js`, `HUD.js`,
+  `popupQueue.js` and `SettingsScreen.js` with about 1,900 lines of Dart,
+  because much of what it did NOT have to port was workaround —
   `screenFreeze.js` in full, the two-frame `requestAnimationFrame` dance before
   every slide, the swipe-vs-drag exclusion list, and the re-parenting that let
   one wrapper serve tabs, sheets and overlays. `TickerMode`, routes and the
-  gesture arena are those four, and they are one line each.
+  gesture arena are those four, and they are one line each. Expect the same on
+  every screen that follows.
 
 The useful summary is that the correctness-critical half is finished and proven,
-and the visible half has not started.
+the frame around the visible half is up, and none of the five screens a player
+actually plays with exists yet.
 
 ### Where the JS modules went
 
@@ -393,12 +398,25 @@ was: the decision here, the platform read in M3 or M4.
       back a PLAN — which copy to use, which bytes to stash — so M2 wires it to
       real persistence without re-deciding any of it
 
-### Next up — M3
+### Next up — the tab bodies
 
-Nothing is left in M1 or M2, and M5 came forward to join them: the game boots,
-loads, ticks, saves and can now say all of it in ten languages. What it has no
-way to do is SHOW any of it. M3 is the biggest block of work in the project and
-everything a player can see. Start at "The screens".
+Nothing is left in M1 or M2, M5 came forward to join them, and M3's scaffold is
+up: the game boots into a themed shell, says everything in ten languages, and has
+a HUD, working Settings and somewhere to put a popup.
+
+What it has not got is a single screen a player does anything on. All five tabs
+are `PlaceholderScreen`. Each is its own module — spec, plan, build — and they
+are independent, so the order is a matter of what unblocks most:
+
+- **Shop** is the natural first. It is self-contained (no diorama, no match
+  engine, no drag and drop), the engine half is done, and it is on the IAP
+  critical path — M4 cannot be finished without it.
+- **Merge grid** is the one with the hard problems: drag and drop, lazy card
+  mounting and the frame budget. Worth doing early for what it teaches, and
+  late for how much it depends on.
+- **League** is the biggest single screen in the project (6,777 lines) and owns
+  the diorama, so it wants the profile-mode timings under "Open questions"
+  answered first.
 
 ### Bugs carried over from the JS
 
@@ -581,7 +599,14 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       the League screen: tapping Play resets it to the Overview sub-tab, which
       has nowhere to go until sub-tabs exist
 - [ ] Merge grid — drag and drop, lazy card mounting, the frame-budget rules
-- [ ] Squad, Club, League, Shop screens
+- [ ] Shop screen (1,387) — the SKU shelves, the coin and gem sections the HUD
+      deep-links into, and the buy flow's UI half. `ShopSection` and the
+      `pendingShopSection` handoff are already in `shell_controller.dart`;
+      call `consumePendingShopSection()` once scrolled
+- [ ] Squad screen (2,264)
+- [ ] Club screen
+- [ ] League screen (6,777) — the diorama, the table, fixtures, training, and
+      the Overview sub-tab that tapping Play must reset to
 - [ ] The live match page (a takeover screen, not a popup)
 - [ ] Season-end takeover
 - [x] The three popup shapes — bottom sheet, Coach Colin card, quick-nav menu.
