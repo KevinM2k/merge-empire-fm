@@ -19,14 +19,25 @@ import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
+import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
-class MergeGrid extends ConsumerWidget {
+class MergeGrid extends ConsumerStatefulWidget {
   const MergeGrid({super.key});
+
+  @override
+  ConsumerState<MergeGrid> createState() => MergeGridState();
+}
+
+class MergeGridState extends ConsumerState<MergeGrid> {
+  /// The cell a merge just landed in, so exactly one card celebrates.
+  int? _burstAt;
+  int _burstTier = 1;
 
   void _drop(WidgetRef ref, int from, int to) {
     final game = ref.read(gameProvider);
@@ -35,12 +46,21 @@ class MergeGrid extends ConsumerWidget {
       (s) => attemptMerge(from, to, gridCells(s), maxTier: maxTier),
     );
     // The engine says WHAT happened; the rest of the app decides what to make
-    // of it. A merge is worth a sound and an animation, a refused drag is not.
-    if (result.ok) emit('card:placed', result.result?.instanceId);
+    // of it. A refused drag is worth nothing at all.
+    if (!result.ok) return;
+    emit('card:placed', result.result?.instanceId);
+    // Only a MERGE is celebrated. A move and a swap are the player tidying up,
+    // and applauding those would make the burst mean nothing.
+    if (result.action == MergeAction.merge) {
+      setState(() {
+        _burstAt = to;
+        _burstTier = getPlayerDef(result.result?.definitionId)?.tier ?? 1;
+      });
+    }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final cells = ref.watch(gridCellsProvider);
 
     return Column(
@@ -56,7 +76,15 @@ class MergeGrid extends ConsumerWidget {
               crossAxisSpacing: 6,
             ),
             itemCount: cells.length,
-            itemBuilder: (context, i) => _Slot(cell: cells[i], onDrop: _drop),
+            itemBuilder: (context, i) => _Slot(
+              cell: cells[i],
+              onDrop: _drop,
+              bursting: _burstAt == i,
+              burstTier: _burstTier,
+              onBurstDone: () {
+                if (mounted && _burstAt == i) setState(() => _burstAt = null);
+              },
+            ),
           ),
         ),
         const Padding(
@@ -69,10 +97,19 @@ class MergeGrid extends ConsumerWidget {
 }
 
 class _Slot extends ConsumerWidget {
-  const _Slot({required this.cell, required this.onDrop});
+  const _Slot({
+    required this.cell,
+    required this.onDrop,
+    this.bursting = false,
+    this.burstTier = 1,
+    this.onBurstDone,
+  });
 
   final GridCell cell;
   final void Function(WidgetRef ref, int from, int to) onDrop;
+  final bool bursting;
+  final int burstTier;
+  final VoidCallback? onBurstDone;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,14 +150,19 @@ class _Slot extends ConsumerWidget {
             }
           },
         );
-        return LongPressDraggable<int>(
-          data: cell.index,
-          // A hold, not an instant grab: a flick across the grid is the tab
-          // swipe, and the arena hands it over only once the hold has won.
-          delay: const Duration(milliseconds: 200),
-          feedback: SizedBox(width: 84, height: 108, child: tile),
-          childWhenDragging: _Empty(border: kit.border),
-          child: tile,
+        return MergeBurst(
+          tier: burstTier,
+          playing: bursting,
+          onDone: onBurstDone,
+          child: LongPressDraggable<int>(
+            data: cell.index,
+            // A hold, not an instant grab: a flick across the grid is the tab
+            // swipe, and the arena hands it over only once the hold has won.
+            delay: const Duration(milliseconds: 200),
+            feedback: SizedBox(width: 84, height: 108, child: tile),
+            childWhenDragging: _Empty(border: kit.border),
+            child: tile,
+          ),
         );
       },
     );

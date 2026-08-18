@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -430,6 +431,52 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('sell-blocked')), findsOneWidget);
       expect(find.byKey(const ValueKey('sell-confirm')), findsNothing);
+    });
+  });
+
+  group('the merge celebration', () {
+    testWidgets('a merge bursts at the cell it landed in', (tester) async {
+      // Merging is the core action and it landed in silence.
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a'), 1: _card(_baseDefId, 'b')},
+      );
+      dropOn(tester, 0, const ValueKey('grid-card-1'));
+      await tester.pump();
+
+      final bursts = tester
+          .stateList<MergeBurstState>(find.byType(MergeBurst))
+          .where((b) => b.isPlaying);
+      expect(bursts.length, 1, reason: 'exactly one cell celebrates');
+
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(filledCells(container), 1);
+    });
+
+    testWidgets('a move does not', (tester) async {
+      // A move is the player tidying up; applauding it would make the burst
+      // mean nothing.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      dropOn(tester, 0, const ValueKey('grid-empty-1'));
+      await tester.pump();
+      expect(
+        tester
+            .stateList<MergeBurstState>(find.byType(MergeBurst))
+            .where((b) => b.isPlaying),
+        isEmpty,
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('a rarer merge is a louder one', (tester) async {
+      // The JS scales the particle count by tier, so a Legend lands harder
+      // than a bronze.
+      expect(particlesForTier(9), greaterThan(particlesForTier(1)));
+      // And an unknown tier is still drawable.
+      expect(particlesForTier(99), greaterThan(0));
+      expect(particlesForTier(0), greaterThan(0));
     });
   });
 }
