@@ -29,7 +29,7 @@ too late:
 
 ## Where we are
 
-**2,643 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
+**2,647 tests, 97.7% line coverage, `flutter analyze` clean.** Everything below
 the M1 heading that isn't ticked is what remains.
 
 M0 (save bridge) is finished. **M1 (the logic core) is roughly 80% through by
@@ -95,6 +95,13 @@ it would churn every import in the repo for nothing a player can see.
 Worth reading before writing the next port. Two shapes, over and over: a draw
 happening in the wrong place, and a Dart type that doesn't serialise the way the
 JS number or object did.
+
+- **`buildLeagueTable` wrote two keys the wrong way round.** It filled a local
+  map and assigned it to `opponentTablePositions` AFTER the loop that writes
+  `playerTablePosition`, so the two keys landed in the progression branch in the
+  opposite order from the JS. Every value agreed; the bytes did not. Caught by
+  the differential harness, which is the only test that compares a save as a
+  save rather than as a bag of values.
 
 - **`transferEngine`** derived a club's division index from pyramid key order,
   while the same file documents that key order is not ladder order. Fixed in the
@@ -388,14 +395,22 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
 
 ### The differential harness
 
-- [ ] `tool/difftest/` — drive seeded scenarios through both node and Dart and
-      diff WHOLE SIMULATED SEASONS rather than function-by-function fixtures.
-      The eleven per-module fixtures already in `test/fixtures/` are the
-      groundwork, and the pattern is proven; `match_orchestration_reference`
-      is the closest to it — it already compares a whole match's result, feed
-      and save, off both generators. This is the same idea at the level of
-      "play twenty seasons and compare every byte of the save", and now that
-      a match can be played end to end there is nothing left blocking it.
+- [x] `tool/difftest/` — six whole seasons, casual and Pro, driven through both
+      runtimes and compared at every step: 336 matches a run, the save hashed
+      after each one and compared in full at every season boundary. See
+      `tool/difftest/README.md`.
+
+      It earned its keep on the first run. Every value in the save agreed and
+      the BYTES did not: `buildLeagueTable` created `opponentTablePositions`
+      after the loop that writes `playerTablePosition`, so the two keys landed
+      in the progression branch the other way round from the JS. No per-module
+      fixture could have caught it — each one compares values, and this is the
+      only test that compares the save as a save.
+
+      Scope, honestly: it plays LEAGUE seasons. Merges, scouts, the shop, cups
+      and the event tracks are not driven yet, so the parts of the save they
+      write are only carried along. Adding them is a matter of extending the
+      driver at both ends, which is now one function each side.
 
 ---
 

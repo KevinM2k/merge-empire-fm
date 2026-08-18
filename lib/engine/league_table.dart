@@ -160,7 +160,13 @@ List<LeagueRow> buildLeagueTable(Map<String, dynamic> state) {
 
   final sorted = stableSorted([player, ...opponents], byLeaguePosition);
 
+  // The branch is created BEFORE the loop, which is the JS's order and
+  // therefore the save's: `playerTablePosition` is written from inside the loop,
+  // so filling a local map and assigning it afterwards put the two keys in the
+  // progression branch the other way round. The differential harness is what
+  // caught it — every value agreed and the bytes did not.
   final tablePositions = <String, dynamic>{};
+  prog['opponentTablePositions'] = tablePositions;
   final positions = <String, int>{};
   for (var i = 0; i < sorted.length; i++) {
     final team = sorted[i];
@@ -171,15 +177,15 @@ List<LeagueRow> buildLeagueTable(Map<String, dynamic> state) {
     }
     positions[_tableKey(team)] = i + 1;
   }
-  prog['opponentTablePositions'] = tablePositions;
 
   _trackTableMovement(state, season, played, positions);
   final prev = _prevPositions(prog);
   for (final team in sorted) {
     final was = prev?[_tableKey(team)];
     team.prevPos = (was as num?)?.toInt();
-    team.posDelta =
-        team.prevPos == null ? null : team.prevPos! - positions[_tableKey(team)]!;
+    team.posDelta = team.prevPos == null
+        ? null
+        : team.prevPos! - positions[_tableKey(team)]!;
   }
 
   return sorted;
@@ -411,9 +417,7 @@ List<LeagueRow> buildPyramidTable(Map<String, dynamic> state, String divId) {
   final rounds = math.max(0, (teams.length - 1) * 2);
   final played = math.min(rounds, _int(prog['seasonMatchesPlayed']));
 
-  final splits = [
-    for (final t in teams) splitForTeam(_int(t['rating']), t),
-  ];
+  final splits = [for (final t in teams) splitForTeam(_int(t['rating']), t)];
   final won = List<int>.filled(teams.length, 0);
   final drawn = List<int>.filled(teams.length, 0);
   final lost = List<int>.filled(teams.length, 0);
@@ -433,7 +437,8 @@ List<LeagueRow> buildPyramidTable(Map<String, dynamic> state, String divId) {
 
   seeded.withSeed((divSeed + season * 7919).abs(), () {
     for (var round = 0; round < played; round++) {
-      final secondLeg = round >= n - 1; // reverse the venues after one full turn
+      final secondLeg =
+          round >= n - 1; // reverse the venues after one full turn
       for (var m = 0; m < n / 2; m++) {
         final a = order[m];
         final b = order[n - 1 - m];
@@ -503,7 +508,8 @@ String? seasonStatusFor(
   String divId,
   LeagueRow? row,
 ) {
-  final rec = (state?['progression'] as Map<String, dynamic>?)?['lastSeasonStatus'];
+  final rec =
+      (state?['progression'] as Map<String, dynamic>?)?['lastSeasonStatus'];
   if (rec is! Map<String, dynamic> || row == null) return null;
   if (row.isPlayer) {
     return rec['playerDivision'] == divId ? rec['player'] as String? : null;
