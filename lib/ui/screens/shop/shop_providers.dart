@@ -7,21 +7,12 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/data/coin_sinks.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
-import 'package:merge_empire_fc/engine/coin_sink_engine.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-
-typedef CoinSinkTile = ({
-  CoinSink sink,
-  num cost,
-  bool unlocked,
-  bool affordable,
-});
 
 typedef GemItemTile = ({GemItem item, String? blocked});
 
@@ -33,25 +24,6 @@ typedef LookPackTile = ({String packId, LookTile tile});
 final shopProductsProvider = Provider<List<IapProduct>>(
   (ref) => getShopProducts(),
 );
-
-num _coins(Map<String, dynamic> s) {
-  final res = s['resources'];
-  final v = res is Map<String, dynamic> ? res['fanCoins'] : null;
-  return v is num ? v : 0;
-}
-
-final coinSinkTilesProvider = savePick<List<CoinSinkTile>>((s) {
-  final coins = _coins(s);
-  return [
-    for (final sink in coinSinks)
-      (
-        sink: sink,
-        cost: peekCost(s, sink.id),
-        unlocked: isUnlocked(s, sink.id),
-        affordable: coins >= peekCost(s, sink.id),
-      ),
-  ];
-});
 
 final gemItemTilesProvider = savePick<List<GemItemTile>>(
   (s) => [

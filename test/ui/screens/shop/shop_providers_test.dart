@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:merge_empire_fc/data/coin_sinks.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
@@ -15,41 +14,6 @@ void main() {
     final products = container.read(shopProductsProvider);
     expect(products, isNotEmpty);
     expect(products.every((p) => p.eventGated == null), isTrue);
-  });
-
-  test('a coin sink is priced, gated and afforded off the save', () {
-    final poor = shopContainer((s) {
-      (s['resources'] as Map<String, dynamic>)['fanCoins'] = 100;
-    });
-    final tiles = poor.read(coinSinkTilesProvider);
-    expect(tiles.length, coinSinks.length);
-    final kit = tiles.firstWhere((t) => t.sink.id == 'kit_redesign');
-    expect(kit.cost, greaterThan(0));
-    expect(kit.affordable, isFalse, reason: '100 coins buys nothing');
-
-    final rich = shopContainer((s) {
-      (s['resources'] as Map<String, dynamic>)['fanCoins'] = 999999;
-    });
-    expect(
-      rich
-          .read(coinSinkTilesProvider)
-          .firstWhere((t) => t.sink.id == 'kit_redesign')
-          .affordable,
-      isTrue,
-    );
-  });
-
-  test('a sink above the current division reads as locked', () {
-    final container = shopContainer((_) {});
-    final youth = container
-        .read(coinSinkTilesProvider)
-        .firstWhere((t) => t.sink.id == 'youth_academy');
-    expect(youth.unlocked, isFalse);
-    // And one at the bottom of the ladder is open from the start.
-    final kit = container
-        .read(coinSinkTilesProvider)
-        .firstWhere((t) => t.sink.id == 'kit_redesign');
-    expect(kit.unlocked, isTrue);
   });
 
   test('gem tiles carry the engine s own blocked reason', () {
