@@ -6,6 +6,7 @@
 /// asserted rather than believed.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -18,6 +19,8 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
+import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -230,5 +233,72 @@ void main() {
     await pumpShell(tester);
     expect(find.text(t('nav.shop')), findsOneWidget);
     expect(t('nav.shop'), isNot('Shop'), reason: 'fr should differ from en');
+  });
+
+  testWidgets('a sheet opens over the shell and closes on back', (tester) async {
+    await pumpShell(tester);
+    final context = tester.element(find.byType(IndexedStack));
+    unawaited(
+      openShellSheet(context, ShellSheet.trophies, const Text('sheet body')),
+    );
+    await settle(tester);
+    await settle(tester);
+    expect(find.text('sheet body'), findsOneWidget);
+
+    // The Android back button, which the JS has to route through nav:back after
+    // asking itself whether a sheet is open.
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    await settle(tester);
+    expect(find.text('sheet body'), findsNothing);
+    expect(activeTabOf(tester), ShellTab.league);
+  });
+
+  testWidgets('the event route forces dark only for a themed event', (
+    tester,
+  ) async {
+    final container = await pumpShell(tester);
+    final context = tester.element(find.byType(IndexedStack));
+    // ConsumerState exposes a WidgetRef, which is what the real caller has.
+    final ref = tester.state<AppShellState>(find.byType(AppShell)).ref;
+    expect(container.read(forcedDarkProvider), isFalse);
+
+    // Deadline Day: no palette, so the player's light mode survives.
+    unawaited(
+      openEventRoute(
+        context,
+        ref,
+        const Scaffold(body: Text('plain event')),
+        hasPalette: false,
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+    expect(container.read(forcedDarkProvider), isFalse);
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    await settle(tester);
+
+    // A themed event is a fixed dark showpiece for as long as it is up.
+    unawaited(
+      openEventRoute(
+        context,
+        ref,
+        const Scaffold(body: Text('themed event')),
+        hasPalette: true,
+      ),
+    );
+    await settle(tester);
+    await settle(tester);
+    expect(container.read(forcedDarkProvider), isTrue);
+
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    await settle(tester);
+    expect(
+      container.read(forcedDarkProvider),
+      isFalse,
+      reason: 'back restores it too',
+    );
   });
 }

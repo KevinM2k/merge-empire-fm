@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
+import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
@@ -30,8 +31,9 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => AppShellState();
 }
 
-/// Public so a test — and, until Task 6's controller lands, a deep link — can
-/// drive [goTab] directly. The same seam Flutter's own ScaffoldState exposes.
+/// Public so a test can drive [goTab] directly, the same seam Flutter's own
+/// ScaffoldState exposes. Production navigation goes through
+/// [shellControllerProvider], which this watches.
 class AppShellState extends ConsumerState<AppShell>
     with SingleTickerProviderStateMixin {
   ShellTab _active = defaultTab;
@@ -43,15 +45,24 @@ class AppShellState extends ConsumerState<AppShell>
   void initState() {
     super.initState();
     _slide = AnimationController(vsync: this, duration: tabSlideDuration);
+    // The engines emit navigation onto the bus; this is the only thing that
+    // listens for it.
+    attachShellBusListeners(ref.read(shellControllerProvider.notifier));
   }
 
   @override
   void dispose() {
+    detachShellBusListeners();
     _slide.dispose();
     super.dispose();
   }
 
-  void goTab(ShellTab tab, {bool noSlide = false}) {
+  /// Every route into the shell goes through the controller, so there is one
+  /// answer to "which tab, and did it slide" rather than two racing.
+  void goTab(ShellTab tab, {bool noSlide = false}) =>
+      ref.read(shellControllerProvider.notifier).goTab(tab, noSlide: noSlide);
+
+  void _applyTab(ShellTab tab, {required bool noSlide}) {
     if (tab == _active) return;
     final mode = enterModeFor(from: _active, to: tab, noSlide: noSlide);
     setState(() {
@@ -85,6 +96,11 @@ class AppShellState extends ConsumerState<AppShell>
 
   @override
   Widget build(BuildContext context) {
+    // Navigation that came from anywhere but the tab bar — a deep link, a bus
+    // event — arrives here.
+    ref.listen(shellControllerProvider, (_, next) {
+      _applyTab(next.tab, noSlide: next.noSlide);
+    });
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Scaffold(
       body: Container(
@@ -118,7 +134,10 @@ class AppShellState extends ConsumerState<AppShell>
           ),
         ),
       ),
-      bottomNavigationBar: ShellTabBar(active: _active, onTap: goTab),
+      bottomNavigationBar: ShellTabBar(
+        active: _active,
+        onTap: (tab) => goTab(tab),
+      ),
     );
   }
 }
