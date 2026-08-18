@@ -17,8 +17,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/providers/bus_providers.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
@@ -38,6 +41,11 @@ class AppShellState extends ConsumerState<AppShell>
     with SingleTickerProviderStateMixin {
   ShellTab _active = defaultTab;
   EnterMode _enter = EnterMode.none;
+
+  /// The card-reveal overlay dims the whole screen and sits UNDER the HUD, so
+  /// an unhidden HUD punches through its dim. The JS flags <body> for the same
+  /// reason.
+  bool _revealActive = false;
 
   late final AnimationController _slide;
 
@@ -101,38 +109,71 @@ class AppShellState extends ConsumerState<AppShell>
     ref.listen(shellControllerProvider, (_, next) {
       _applyTab(next.tab, noSlide: next.noSlide);
     });
+    ref.listen(busEventProvider('reveal:start'), (_, _) {
+      if (!_revealActive) setState(() => _revealActive = true);
+    });
+    ref.listen(busEventProvider('reveal:end'), (_, _) {
+      if (_revealActive) setState(() => _revealActive = false);
+    });
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Scaffold(
-      body: Container(
-        decoration: kit.background,
-        child: SafeArea(
-          bottom: false,
-          child: GestureDetector(
-            onHorizontalDragEnd: _onDragEnd,
-            child: SlideTransition(
-              key: const ValueKey('tab-slide'),
-              position: Tween<Offset>(
-                begin: _beginOffset,
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: _slide, curve: Curves.easeOutCubic),
-              ),
-              child: IndexedStack(
-                index: tabOrder.indexOf(_active),
-                children: [
-                  for (final tab in tabOrder)
-                    TickerMode(
-                      enabled: tab == _active,
-                      child: PlaceholderScreen(
-                        key: ValueKey('screen-${tab.name}'),
-                        label: t(tab.labelKey),
+      body: Stack(
+        children: [
+          Container(
+            decoration: kit.background,
+            child: SafeArea(
+              bottom: false,
+              child: GestureDetector(
+                onHorizontalDragEnd: _onDragEnd,
+                child: SlideTransition(
+                  key: const ValueKey('tab-slide'),
+                  position:
+                      Tween<Offset>(
+                        begin: _beginOffset,
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: _slide,
+                          curve: Curves.easeOutCubic,
+                        ),
                       ),
-                    ),
-                ],
+                  child: IndexedStack(
+                    index: tabOrder.indexOf(_active),
+                    children: [
+                      for (final tab in tabOrder)
+                        TickerMode(
+                          enabled: tab == _active,
+                          child: PlaceholderScreen(
+                            key: ValueKey('screen-${tab.name}'),
+                            label: t(tab.labelKey),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Visibility(
+                key: const ValueKey('hud-layer'),
+                visible: !_revealActive,
+                maintainState: true,
+                child: Hud(
+                  onSettings: () => openRoute<void>(
+                    context,
+                    const Scaffold(body: Center(child: Text('Settings'))),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: ShellTabBar(
         active: _active,
