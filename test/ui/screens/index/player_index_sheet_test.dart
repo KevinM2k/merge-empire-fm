@@ -62,6 +62,14 @@ Future<ProviderContainer> _pump(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
+          // The home screen's walker loops forever, so `pumpAndSettle` would
+          // never settle. He honours reduce-motion; declaring it here is what a
+          // device with that setting on would do.
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
+
           home: viaShell
               ? const AppShell()
               : Scaffold(
@@ -114,10 +122,7 @@ void main() {
       // One definition is TWO rows. Counting it once is the bug that would make
       // a completed index read half full forever.
       expect(allIndexEntries, hasLength(players.length * 2));
-      expect(
-        allIndexEntries.where((e) => e.female),
-        hasLength(players.length),
-      );
+      expect(allIndexEntries.where((e) => e.female), hasLength(players.length));
     });
 
     test('is ordered tier, then position down the pitch, then gender', () {
@@ -226,7 +231,10 @@ void main() {
       await tester.tap(card);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('pi-recipe-$_foundKey')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('pi-recipe-$_foundKey')),
+        findsOneWidget,
+      );
       expect(find.text(t('pi.stats_title').toUpperCase()), findsNothing);
       expect(
         find.text(t('pi.scout_availability').toUpperCase()),
@@ -257,7 +265,9 @@ void main() {
       await _pump(tester, _save(), viaShell: true);
       await tester.tap(find.byKey(const ValueKey('dock-menu')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('quick-nav-scene.dock.index')));
+      await tester.tap(
+        find.byKey(const ValueKey('quick-nav-scene.dock.index')),
+      );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('player-index')), findsOneWidget);
     });

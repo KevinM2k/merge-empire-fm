@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_screen.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -117,6 +118,19 @@ class _Scene extends ConsumerWidget {
                 t('play.matchLabel', {'n': match}),
                 key: const ValueKey('home-match-label'),
                 style: TextStyle(fontSize: 12, color: kit.textMuted),
+              ),
+              // He stands between the header and the footer. `TickerMode` stops
+              // him when the tab is offscreen, which is the whole reason the
+              // shell puts every tab in one — no freeze of his own needed.
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ManagerWalker(
+                    kit: kit.accent,
+                    skin: const Color(0xFFEEBB8C),
+                    hair: const Color(0xFF3A2A1C),
+                  ),
+                ),
               ),
             ],
           ),
