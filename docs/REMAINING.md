@@ -30,8 +30,18 @@ too late:
 
 ## Where we are
 
-**3,244 tests, 97.6% line coverage, `flutter analyze` clean.** Everything below
-that is not ticked is what remains.
+**3,314 tests, `flutter analyze` clean.** Everything below that is not ticked
+is what remains.
+
+**The port had been shipping the game's FALLBACK graphics as if they were the
+artwork.** `assets/svgCache.js` was listed here as 54 unported lines and read as
+trivial; it is the path resolver, and the real game is PNG-first — every player
+card, club facility, trophy and stadium is generated artwork, with the
+hand-drawn SVG behind it as the `onerror` case. 11MB of it is bundled now and
+`test/data/art_paths_test.dart` walks every path the resolver can produce. Two
+things fell out of it: the stadium hero was never blocked on gradients in
+`svg_canvas` (that SVG is the fallback; the hero is a photograph), and the
+Club tiles and cards had been drawing the wrong thing since they landed.
 
 M0 (save bridge), **M1 (the logic core)** and **M2 (the state layer)** are all
 finished, and **M5 (i18n)** came forward to join them — the lookup layer, all ten
@@ -59,9 +69,30 @@ coins and gems in the shop, train at two mini-games, play a match, watch it out,
 be paid for it, claim a quest, finish a season, and be promoted or relegated into
 the next one — with artwork, a live HUD, toasts and working settings around it.
 
-What is missing is no longer function. It is depth (the events, the cups, the
-transfer market, four more drills), spectacle (the diorama, the cutaway, the
-scout reveal) and everything in M4.
+They can also open the Trophy Room and the Player Index from the burger, take a
+rival's bid or turn it down, sign a sponsor, trade through a Deadline Day
+window, and watch a chance play out on a 2D pitch.
+
+What is missing is no longer function. It is depth (the cups, four more drills,
+the manager customiser), spectacle (the diorama, the manager rig, the scout
+reveal) and everything in M4.
+
+**Three engines had no caller at all** — the pattern is worth naming, because
+it is the inverse of the reachability trap below and the same audit does not
+catch it. A screen nothing reaches is invisible; an ENGINE nothing calls is
+invisible AND still running its consequences:
+
+- `main.js`'s `recordDiscovery` was never ported, so `discoveredPlayers` never
+  grew: the Player Index would have read 0 of 66 forever and a season quest
+  could never advance.
+- `maybeGenerateOffer` had no caller, so post-match transfer bids never fired.
+- `transfer:offered` — the idle bid — was emitted by the tick with nothing
+  listening. That one had teeth: an unanswered offer times out after five
+  minutes and the timeout is scored as a DECLINE, so players were collecting
+  grudges from bids they were never shown.
+
+**Before calling an engine done, grep for who calls it**, the same way you grep
+for who reaches a screen.
 
 ### How far along, honestly
 
@@ -122,9 +153,15 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,242 passing, 2 skipped
+flutter test             # 3,314 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
+
+**Do not run `dart format lib/ test/`.** It reformats ~186 files, collapses
+multi-line `if` bodies onto one line and trips
+`curly_braces_in_flow_control_structures` in about ten pre-existing files —
+turning a clean analyze into eleven issues and burying the real change. Format
+only the files you touched.
 
 Two things to know before writing any code:
 
@@ -167,13 +204,16 @@ that is the module's real status.
 
 Still unreachable, and known:
 
-- [ ] Trophy room, Player Index and Leaderboard — `openShellSheet` exists and
-      nothing calls it, and those three screens do not exist yet either. They
-      belong in the quick-nav menu, which is now shown and has room for them:
-      a menu row leading nowhere is the bug that menu was written to fix, so
-      they go in WITH their screens, not before
-- [ ] Still no screen at all: `deadline_day`, `event`, `mini_games`,
-      `boot_room`, `cup`, `transfer`, `badge`
+- [ ] The Leaderboard — it needs `leaderboardService` (M4) before the screen is
+      worth writing, so its quick-nav tile stays out until then. A menu row
+      leading nowhere is the bug that menu was written to fix.
+
+Cleared since: the Trophy Room and the Player Index (both in the quick-nav
+menu, and the Trophy Room also off a HUD badge — which is the only place the
+game SHOWS the badge, so "Set as Badge" had been a button with no visible
+effect); the Event screen and Deadline Day, off the strip in the home screen's
+sticky footer; transfer bids and sponsor offers, off the end of a match; the
+2D cutaway, on the match screen.
 
 Cleared since the audit: the boot popups (`daily_reward` and the offline
 earnings), the toast layer (`achievement`, `cup`, `quest`, `loan` all now say
@@ -448,39 +488,51 @@ every one of them are already ported and tested.
 
 | Screen | JS lines | Engine | Note |
 |---|---|---|---|
-| Deadline Day | 2,909 | `deadline_day_engine` | a whole timed event; the biggest single one left |
-| Transfers | — | `transfer_engine`, `negotiation_engine` | offers never fire: nothing calls `maybeGenerateOffer` after a match |
 | Cups | — | `cup_engine`, `event_cup_engine` | they DO run, at the season boundary; only the toast ever mentions one |
-| Trophy room | 447 | `achievement_engine`, `badge_engine` | `openShellSheet` and the quick-nav menu are both ready for it |
-| Player Index | 473 | `players`, `player_art` | as above |
 | Leaderboard | 478 | none — `leaderboardService` (1,831) is M4 and unported | needs the SERVICE before the screen is worth writing |
-| Events | — | `event_engine` | the shell's Event route and forced-dark are built and unused |
-| Manager customiser | 571 | `manager_looks`, `manager_mood` | the Shop sells the Vault that unlocks these |
+| Manager customiser | 571 | `manager_looks`, `manager_mood` | the Shop sells the Vault that unlocks these; wants `manager_avatar`'s SVG half, or the Rive rig |
+
+Built since this table was written: **Deadline Day** and the **Event** screen
+that hosts it (`lib/ui/screens/events/`), **Transfers** (the bid card, plus the
+two triggers that had no caller), the **Trophy Room**, the **Player Index**, and
+the **2D cutaway**. The event CUP branch is built too and nothing reaches it —
+`wc2026`'s window closed in July, so it permanently reports `ended`; it is there
+because that engine and its tests are the spec for whatever reuses the slot.
 
 **Mini-games still to build**: Training Drills, Keepy Uppys, Through Ball, Whack,
 Teamwork. Penalty Training and the Boot Room are playable; the pattern for a new
 one is `lib/ui/screens/minigames/` plus a row in `playableMiniGames`.
+
+Penalty Training was rebuilt: it had four corner BUTTONS, and the goal itself is
+the target. Buttons cannot miss, so `penalty.wide_left`, `penalty.post` and
+`penalty.crossbar` were shipped copy in all ten catalogues that nothing could
+reach — and `game.penalty.instructions` has always read "Tap anywhere — aim for
+corners or risk hitting the woodwork!", describing an interaction the screen did
+not have. **Where the shipped copy and the port disagree, the copy is usually
+right.**
 
 **Spectacle.**
 
 - **The diorama** (League → Overview) is the highest-RISK piece left and the one
   thing still gated on an open question: the port design ties its technique to
   profile-mode timings from a physical device, which have not been taken.
-- **`ChanceCutaway`** (2,036) and the rest of the live match: in-match subs,
-  tactic changes, the stats and tactics tabs.
+- The rest of the live match: in-match subs, tactic changes, the stats and
+  tactics tabs. (`ChanceCutaway` is done — see the match entry below.)
 - **The scout REVEAL** — signing drops a card into the grid with no reveal, no
   new-discovery badge and no batch sizes.
 - **The rest of `MergeAnimation.js`** (928): the centre-screen reveal, floating
   income labels, the promotion celebration. The merge burst is done.
-- **The stadium HERO** on the Club screen — the only artwork still unrendered.
-  Its six backgrounds are the only things in the game using `linearGradient` /
-  `radialGradient` / `stop`, and `ui/widgets/svg_canvas.dart` does not do
-  gradients: it needs `fill="url(#id)"` and a `<defs>` table. A test in
-  `test/ui/widgets/svg_canvas_test.dart` pins exactly this.
+- ~~The stadium HERO~~ — done, and it never needed the gradient work this entry
+  described. That SVG is the FALLBACK; the hero a player sees is a photograph,
+  and all eight tiers ship. `svg_canvas` still has no gradients and still does
+  not need any.
 - **`manager_avatar`'s SVG half** (~1,100) and the remaining art
   (`gemArt` 146, `svgCache` 54).
-- **The manager rig** — walker, dugout cam, gestures, moods. Rive is still to be
-  installed.
+- **The manager rig** — walker, dugout cam, gestures, moods. **Blocked on Rive**:
+  there is no Rive MCP reachable from the session, and a `.riv` has to be
+  authored in their editor or generated through that MCP. Install it, or drop a
+  `.riv` in the repo, and the mount points go in around it. Left unbuilt rather
+  than half-built.
 
 **Depth inside screens that DO exist.**
 
@@ -670,9 +722,10 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 
 - [x] Shell: five tabs plus the hidden Settings screen — `lib/ui/shell/`,
       `lib/ui/theme/`, `lib/ui/hud/`, `lib/ui/popups/`. See
-      `docs/superpowers/specs/2026-08-18-shell-design.md`. Still to land with
-      the League screen: tapping Play resets it to the Overview sub-tab, which
-      has nowhere to go until sub-tabs exist
+      `docs/superpowers/specs/2026-08-18-shell-design.md`. The home tab has no
+      sub-tabs to reset to any more, so "tapping Play takes you home" holds by
+      construction — the table and the fixtures close OVER the screen rather
+      than replacing it.
 - [x] **The player card** — `lib/ui/widgets/player_card.dart`, with its tier
       palette in `lib/data/card_theme.dart` pinned against `Card.js`. The most
       repeated widget in the game, so a `RepaintBoundary` each, and the M0 probe
@@ -752,14 +805,23 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       preview is a better prompt than an empty square.
       Still to add: the stadium hero (gradients, above), the upgrade-path sheet,
       the stadium colour picker, and hold-to-invest
-- [x] League screen (6,777) — `lib/ui/screens/league/`, PARTIAL and deliberately
-      so. The four sub-tabs, a real table (`buildLeagueTable`) and a real
-      schedule off `seasonFixtures`. Tapping Play resets to Overview — the rule
-      the shell module had to defer, now closed and tested.
-      **Overview is the DIORAMA and stays named rather than half-built**: 6,777
-      lines with a parallax scene and a ball simulation, and the port design
-      gates its technique on profile-mode timings from a physical device, which
-      is still open below. Training is now a real list of drills.
+- [x] Home screen (6,777) — `lib/ui/screens/home/`, PARTIAL and deliberately so.
+      **It had SUB-TABS across the top and should never have had them.** That is
+      the arrangement the JS moved away from: ten orbs used to run up both sides
+      of the diorama and the scene was carrying more furniture than scene, so
+      nine of them went behind one burger and the Overview/Table/Fixtures/
+      Training strip went with them. The layout is Coach Colin bottom left, the
+      burger bottom right, and the Play button in the sticky footer — where it
+      belongs, rather than two taps deep under a fixture list. The table, the
+      fixtures and the training ground are quick-nav sheets.
+      The quick-nav MENU changed shape with it: it was a bottom sheet and the JS
+      says in as many words that it must not be — "a 3×3 grid wants the middle
+      of the screen, and the sheet's chrome promises scrollable content about
+      something that has none". As a sheet its last group sat below the fold.
+      **Overview is the DIORAMA and stays named rather than half-built**: a
+      parallax scene and a ball simulation, and the port design gates its
+      technique on profile-mode timings from a physical device, which is still
+      open below. It is the natural home for the Rive walker.
 - [x] The live match page — `lib/ui/screens/match/`, a takeover screen as the
       note said. It PLAYS OUT a match `simulateMatch` has already decided:
       `match_clock.dart` is pure logic that only chooses when an already-decided
@@ -772,7 +834,16 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       up, and `applyMatchRewards` only once the player DISMISSES it — deferred
       because the doubling offer lives on the closing screen, and paying before
       it is answered would make the offer meaningless.
-      Still to add: `ChanceCutaway` (2,036), in-match subs and tactic changes,
+      **The 2D cutaway is in** — `lib/ui/screens/match/cutaway/`, and the port's
+      first and so far only use of Flame. A persistent top-down pitch sits above
+      the feed and a chance cuts in over it, with Kenney's CC0 sports sprites
+      (green us, red them, white keepers). The 29 scripted passages came across
+      as DATA in attack space — `p` toward the goal being attacked, `q` across
+      it — so one table serves both teams shooting both ways instead of four
+      mirrored copies that would drift. A test walks every sequence to its end,
+      which is how the four free kicks were caught hanging: their scripts end on
+      the foul, so the runner ran out of instructions.
+      Still to add: in-match subs and tactic changes,
       the stats and tactics tabs, the transfer-offer expiry on kickoff, and the
       tutorial's forced first win
 - [x] Season-end takeover — `lib/ui/screens/season/`. Not polish: without it
