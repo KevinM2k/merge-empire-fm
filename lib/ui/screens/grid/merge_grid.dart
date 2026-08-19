@@ -1,13 +1,22 @@
 /// The merge grid — the Players tab, and the game's core loop.
 ///
-/// Three columns by thirteen rows. A card is dragged onto another to merge, or
-/// onto an empty slot to move; `merge_flow_engine.dart` owns every rule about
-/// which of those happened, whether it was allowed and what the game counts for
-/// it, so this widget only reports two indices and repaints.
+/// Three columns by thirteen rows, widening to four and five on a bigger screen
+/// and narrowing to two on a small one, exactly the ladder `.grid-container`
+/// climbs. A card is dragged onto another to merge, or onto an empty slot to
+/// move; `merge_flow_engine.dart` owns every rule about which of those happened,
+/// whether it was allowed and what the game counts for it, so this widget only
+/// reports two indices and repaints.
+///
+/// **The cards are POSITIONED, not laid out by a grid delegate.** A `GridView`
+/// rebuilds a reordered list in place, so the sort landed as an instant snap:
+/// every card teleported and nothing told the player what had moved. Each card
+/// is an `AnimatedPositioned` keyed by its instance instead, so changing its
+/// index IS the animation — the JS does the same thing the hard way with a
+/// measure/invert/play pass over `getBoundingClientRect`.
 ///
 /// The JS carries a `pan-y` touch-action workaround, a `card-dragging` body
 /// class and a 200ms hold before a drag starts, all to stop a card drag and the
-/// tab swipe fighting over the same gesture. None of it is ported: Flutter's
+/// tab swipe fighting over the same gesture. None of that is ported: Flutter's
 /// gesture arena is what that code was hand-building, and `LongPressDraggable`
 /// wins the arena on its own.
 library;
@@ -26,8 +35,24 @@ import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
-import 'package:merge_empire_fc/util/format.dart';
+
+/// `aspect-ratio: 3 / 4` on `.cell`.
+const double _cellAspect = 4 / 3;
+const double _gap = 6;
+const double _pad = 8;
+
+/// The HUD floats over every screen, so the first thing on a tab has to clear it.
+const double _hudClearance = 56;
+
+/// `.grid-container`'s column ladder, by viewport width.
+int gridColumnsFor(double width) {
+  if (width >= 800) return 5;
+  if (width >= 640) return 4;
+  if (width < 359) return 2;
+  return Grid.cols;
+}
 
 class MergeGrid extends ConsumerStatefulWidget {
   const MergeGrid({super.key});
@@ -41,7 +66,12 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   int? _burstAt;
   int _burstTier = 1;
 
-  Future<void> _drop(WidgetRef ref, int from, int to) async {
+  /// The card under the finger. Every other card dims behind it, which is the
+  /// JS's `.grid-container.is-dragging` rule — it makes the legal targets the
+  /// only bright thing on the screen.
+  int? _dragging;
+
+  Future<void> _drop(int from, int to) async {
     final game = ref.read(gameProvider);
     final maxTier = ref.read(maxMergeTierProvider);
     // `performMerge`, not `attemptMerge`: the move is one line of what a merge
@@ -81,39 +111,154 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   Widget build(BuildContext context) {
     final cells = ref.watch(gridCellsProvider);
 
-    return Column(
+    return Stack(
       children: [
-        const _GridStatusStrip(),
-        Expanded(
-          child: GridView.builder(
-            key: const ValueKey('merge-grid'),
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: Grid.cols,
-              childAspectRatio: 0.78,
-              mainAxisSpacing: 6,
-              crossAxisSpacing: 6,
+        Column(
+          children: [
+            // The bar is the FIRST thing on the tab, above the grid. The port had
+            // it under the cards with the pills on top, which is the JS's order
+            // inverted: the pills are a readout and belong beside the last row
+            // they describe, and the two controls a player came here to press
+            // belong where the thumb lands first.
+            const Padding(
+              padding: EdgeInsets.fromLTRB(_pad, _hudClearance, _pad, 0),
+              child: ScoutActionBar(),
             ),
-            itemCount: cells.length,
-            itemBuilder: (context, i) => _Slot(
-              cell: cells[i],
-              onDrop: _drop,
-              bursting: _burstAt == i,
-              burstTier: _burstTier,
-              onBurstDone: () {
-                if (mounted && _burstAt == i) setState(() => _burstAt = null);
-              },
+            Expanded(
+              child: SingleChildScrollView(
+                key: const ValueKey('merge-grid'),
+                padding: const EdgeInsets.fromLTRB(_pad, _pad, _pad, 12),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cols = gridColumnsFor(
+                      MediaQuery.sizeOf(context).width,
+                    );
+                    final cellW =
+                        (constraints.maxWidth - _gap * (cols - 1)) / cols;
+                    final cellH = cellW * _cellAspect;
+                    final rows = (Grid.totalCells / cols).ceil();
+
+                    Offset at(int i) => Offset(
+                      (i % cols) * (cellW + _gap),
+                      (i ~/ cols) * (cellH + _gap),
+                    );
+
+                    return Column(
+                      children: [
+                        SizedBox(
+                          height: rows * cellH + (rows - 1) * _gap,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              // The slots never move, so they are one static
+                              // layer under every card. Only the cards animate.
+                              for (final cell in cells)
+                                Positioned(
+                                  left: at(cell.index).dx,
+                                  top: at(cell.index).dy,
+                                  width: cellW,
+                                  height: cellH,
+                                  child: _SlotTarget(
+                                    cell: cell,
+                                    onDrop: _drop,
+                                  ),
+                                ),
+                              for (final cell in cells)
+                                if (cell.card != null)
+                                  AnimatedPositioned(
+                                    // Keyed by the CARD, not the slot — that is
+                                    // what lets the widget follow its card into
+                                    // a new index rather than being rebuilt in
+                                    // place.
+                                    key: ValueKey(
+                                      'grid-card-${cell.instanceId}',
+                                    ),
+                                    duration: const Duration(
+                                      milliseconds: 350,
+                                    ),
+                                    curve: Curves.easeInOutCubic,
+                                    left: at(cell.index).dx,
+                                    top: at(cell.index).dy,
+                                    width: cellW,
+                                    height: cellH,
+                                    child: _CardSlot(
+                                      cell: cell,
+                                      width: cellW,
+                                      height: cellH,
+                                      dimmed:
+                                          _dragging != null &&
+                                          _dragging != cell.index,
+                                      bursting: _burstAt == cell.index,
+                                      burstTier: _burstTier,
+                                      onDragStart: () =>
+                                          setState(() => _dragging = cell.index),
+                                      onDragEnd: () =>
+                                          setState(() => _dragging = null),
+                                      onBurstDone: () {
+                                        if (mounted &&
+                                            _burstAt == cell.index) {
+                                          setState(() => _burstAt = null);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                            ],
+                          ),
+                        ),
+                        // Under the last row of cards, which is where the JS puts
+                        // them and what they describe.
+                        const _GridStatusStrip(),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [_GridTools(), SizedBox(height: 8), AddPlayerButton()],
-          ),
-        ),
+        const _SortFab(),
       ],
+    );
+  }
+}
+
+/// Sort, as a floating action rather than a third button in the bar.
+///
+/// It EXISTS ONLY while the grid is out of order — which means it never needs a
+/// label, because it only ever appears when pressing it does something. That is
+/// also what freed the bar's width for the two controls a player actually uses.
+class _SortFab extends ConsumerWidget {
+  const _SortFab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    if (!ref.watch(gridNeedsSortProvider)) return const SizedBox.shrink();
+    final game = ref.read(gameProvider);
+
+    return Positioned(
+      right: 14,
+      bottom: 14,
+      child: Material(
+        key: const ValueKey('grid-sort'),
+        color: kit.accent,
+        borderRadius: BorderRadius.circular(999),
+        elevation: 6,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => game.update((s) => sortGridByTier(gridCells(s))),
+          child: Tooltip(
+            message: t('players.sort'),
+            child: SizedBox(
+              height: 40,
+              width: 48,
+              child: Center(
+                child: GameIcon('sort', size: 17, color: kit.accentInk),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -136,7 +281,7 @@ class _GridStatusStrip extends ConsumerWidget {
     final tutorialDone = ref.watch(tutorialDoneProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 56, 8, 6),
+      padding: const EdgeInsets.only(top: 10),
       child: Wrap(
         alignment: WrapAlignment.center,
         spacing: 8,
@@ -148,8 +293,12 @@ class _GridStatusStrip extends ConsumerWidget {
               'count': counted.filled,
               'max': counted.max,
             }),
-            ink: full ? Colors.redAccent : kit.accentBright,
-            border: full ? Colors.redAccent : kit.border,
+            // A red WASH, not red text on the standard plate: at capacity the
+            // pill is the answer to "why can I not sign anyone", and it has to
+            // carry from the corner of the eye.
+            fill: full ? const Color(0x40E53935) : kit.surface2,
+            ink: full ? const Color(0xFFE57373) : kit.accentBright,
+            border: full ? const Color(0x80E53935) : kit.accent,
           ),
           // Hidden until the tutorial is done, where the rules are dormant
           // anyway — a switch that cannot do anything yet is worse than none.
@@ -158,13 +307,18 @@ class _GridStatusStrip extends ConsumerWidget {
               pillKey: 'grid-autosell',
               label:
                   '${t('settings.autoTier')}: '
-                  '${ref.watch(autoTierSummaryProvider)} ›',
+                  '${ref.watch(autoTierSummaryProvider)}',
+              fill: ref.watch(autoTierActiveProvider)
+                  ? kit.accent.withValues(alpha: 0.16)
+                  : kit.surface2,
               ink: ref.watch(autoTierActiveProvider)
                   ? kit.accentBright
                   : kit.textMuted,
               border: ref.watch(autoTierActiveProvider)
                   ? kit.accent
                   : kit.border,
+              // Only this one is a button, so it carries the affordance the
+              // badge does not.
               onTap: () => showAutoTierSheet(context),
             ),
         ],
@@ -177,6 +331,7 @@ class _Pill extends StatelessWidget {
   const _Pill({
     required this.pillKey,
     required this.label,
+    required this.fill,
     required this.ink,
     required this.border,
     this.onTap,
@@ -184,180 +339,258 @@ class _Pill extends StatelessWidget {
 
   final String pillKey;
   final String label;
+  final Color fill;
   final Color ink;
   final Color border;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     return InkWell(
       key: ValueKey(pillKey),
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         decoration: BoxDecoration(
-          color: kit.surface2,
-          borderRadius: BorderRadius.circular(999),
+          color: fill,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: border),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: ink,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: ink,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 5),
+              Opacity(
+                opacity: 0.7,
+                child: GameIcon('chevron', size: 10, color: ink),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 }
 
-/// Merge All and Sort.
+/// The empty slot, and the drop target over it.
 ///
-/// Both take themselves away when they would do nothing — a "Merge All (0)"
-/// and a Sort on an already-sorted grid are buttons that answer a tap with
-/// silence, which teaches the player to stop pressing them.
-class _GridTools extends ConsumerWidget {
-  const _GridTools();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pairs = ref.watch(mergeablePairsProvider);
-    final needsSort = ref.watch(gridNeedsSortProvider);
-    final maxTier = ref.watch(maxMergeTierProvider);
-    final sweepCost = ref.watch(mergeAllCostProvider);
-    final canAfford = ref.watch(coinsProvider) >= sweepCost;
-    final game = ref.read(gameProvider);
-    if (pairs == 0 && !needsSort) return const SizedBox.shrink();
-
-    return Row(
-      children: [
-        if (pairs > 0)
-          Expanded(
-            child: OutlinedButton.icon(
-              key: const ValueKey('merge-all'),
-              // Dead rather than hidden when the money is not there: the button
-              // carries its price, so a player who cannot pay can still see what
-              // it would cost. The engine refuses either way.
-              onPressed: canAfford
-                  ? () => game.update((s) => runMergeAll(s, maxTier: maxTier))
-                  : null,
-              icon: const Icon(Icons.merge, size: 16),
-              // The sweep is a convenience being bought, so the fee rides on the
-              // button beside the count, the way the scout's price does.
-              label: Text(
-                '${t('players.mergeAll')} ($pairs) · ${formatCoins(sweepCost)}',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        if (pairs > 0 && needsSort) const SizedBox(width: 8),
-        if (needsSort)
-          Expanded(
-            child: OutlinedButton.icon(
-              key: const ValueKey('grid-sort'),
-              onPressed: () => game.update((s) => sortGridByTier(gridCells(s))),
-              icon: const Icon(Icons.sort, size: 16),
-              label: Text(t('players.sort')),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _Slot extends ConsumerWidget {
-  const _Slot({
-    required this.cell,
-    required this.onDrop,
-    this.bursting = false,
-    this.burstTier = 1,
-    this.onBurstDone,
-  });
+/// The target lives on the SLOT rather than the card so a drop onto an empty
+/// square still lands — the card layer only covers filled indices.
+class _SlotTarget extends StatelessWidget {
+  const _SlotTarget({required this.cell, required this.onDrop});
 
   final GridCell cell;
-  final void Function(WidgetRef ref, int from, int to) onDrop;
-  final bool bursting;
-  final int burstTier;
-  final VoidCallback? onBurstDone;
+  final void Function(int from, int to) onDrop;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
 
     if (cell.locked) {
-      return _Empty(
-        key: ValueKey('grid-locked-${cell.index}'),
+      return _Slot(
+        slotKey: 'grid-locked-${cell.index}',
         border: kit.border,
+        fill: kit.surface,
         child: Icon(Icons.lock_outline, size: 16, color: kit.textMuted),
       );
     }
 
-    final card = cell.card;
-
     return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != cell.index,
-      onAcceptWithDetails: (details) => onDrop(ref, details.data, cell.index),
-      builder: (context, candidate, _) {
-        final hovered = candidate.isNotEmpty;
-        if (card == null) {
-          return _Empty(
-            key: ValueKey('grid-empty-${cell.index}'),
-            border: hovered ? kit.accent : kit.border,
-          );
-        }
-        final tile = PlayerCard(
-          key: ValueKey('grid-card-${cell.index}'),
-          view: card,
-          light: Theme.of(context).brightness == Brightness.light,
-          selected: hovered,
-          // A tap opens the sell sheet; the DRAG is the merge. Two gestures,
-          // two meanings, and the arena keeps them apart.
-          onTap: () {
-            final id = cell.instanceId;
-            if (id != null) {
-              showSellSheet(context, ref, instanceId: id, view: card);
-            }
-          },
-        );
-        return MergeBurst(
-          tier: burstTier,
-          playing: bursting,
-          onDone: onBurstDone,
-          child: LongPressDraggable<int>(
-            data: cell.index,
-            // A hold, not an instant grab: a flick across the grid is the tab
-            // swipe, and the arena hands it over only once the hold has won.
-            delay: const Duration(milliseconds: 200),
-            feedback: SizedBox(width: 84, height: 108, child: tile),
-            childWhenDragging: _Empty(border: kit.border),
-            child: tile,
-          ),
-        );
-      },
+      // Keyed on the SLOT, not on whatever is sitting in it: the cards are their
+      // own layer now, so a filled slot's drop target is a sibling of its card
+      // rather than an ancestor.
+      key: ValueKey('grid-drop-${cell.index}'),
+      onWillAcceptWithDetails: (d) => d.data != cell.index,
+      onAcceptWithDetails: (d) => onDrop(d.data, cell.index),
+      builder: (context, candidate, _) => _Slot(
+        slotKey: cell.card == null
+            ? 'grid-empty-${cell.index}'
+            : 'grid-slot-${cell.index}',
+        border: candidate.isNotEmpty ? kit.accent : kit.border,
+        fill: kit.surface,
+        // A card sits on top of a filled slot, so the dashes only ever show
+        // where there is nothing — which is what makes an empty square read as
+        // a place a card could go.
+        dashed: cell.card == null,
+      ),
     );
   }
 }
 
-class _Empty extends StatelessWidget {
-  const _Empty({super.key, required this.border, this.child});
+/// One card, draggable.
+class _CardSlot extends ConsumerWidget {
+  const _CardSlot({
+    required this.cell,
+    required this.width,
+    required this.height,
+    required this.dimmed,
+    required this.bursting,
+    required this.burstTier,
+    required this.onDragStart,
+    required this.onDragEnd,
+    required this.onBurstDone,
+  });
 
+  final GridCell cell;
+  final double width;
+  final double height;
+  final bool dimmed;
+  final bool bursting;
+  final int burstTier;
+  final VoidCallback onDragStart;
+  final VoidCallback onDragEnd;
+  final VoidCallback onBurstDone;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final card = cell.card!;
+    final tile = PlayerCard(
+      view: card,
+      light: Theme.of(context).brightness == Brightness.light,
+      // A tap opens the sell sheet; the DRAG is the merge. Two gestures, two
+      // meanings, and the arena keeps them apart.
+      onTap: () {
+        final id = cell.instanceId;
+        if (id != null) {
+          showSellSheet(context, ref, instanceId: id, view: card);
+        }
+      },
+    );
+
+    return MergeBurst(
+      tier: burstTier,
+      playing: bursting,
+      onDone: onBurstDone,
+      child: AnimatedOpacity(
+        // Every other card recedes while one is in the air. The JS also
+        // desaturates; opacity alone reads the same and costs no filter.
+        opacity: dimmed ? 0.28 : 1,
+        duration: const Duration(milliseconds: 150),
+        child: LongPressDraggable<int>(
+          data: cell.index,
+          // A hold, not an instant grab: a flick across the grid is the tab
+          // swipe, and the arena hands it over only once the hold has won.
+          delay: const Duration(milliseconds: 200),
+          onDragStarted: onDragStart,
+          onDragEnd: (_) => onDragEnd(),
+          onDraggableCanceled: (_, _) => onDragEnd(),
+          onDragCompleted: onDragEnd,
+          // The card under the finger is the SAME SIZE as the card it left, and
+          // lifted rather than shrunk. It had been hard-coded to 84×108, so on
+          // any phone wider than the smallest one a card visibly shrank the
+          // moment it was picked up.
+          feedback: Transform.scale(
+            scale: 1.06,
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: Material(
+                color: Colors.transparent,
+                elevation: 12,
+                borderRadius: BorderRadius.circular(12),
+                child: PlayerCard(
+                  view: card,
+                  light: Theme.of(context).brightness == Brightness.light,
+                ),
+              ),
+            ),
+          ),
+          // The slot it came from shows through as empty, which is the JS's
+          // `.cell-floating`.
+          childWhenDragging: const SizedBox.shrink(),
+          child: SizedBox(
+            key: ValueKey('grid-card-${cell.index}'),
+            width: width,
+            height: height,
+            child: tile,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A slot with nothing in it: `1.5px dashed`, which Flutter's `Border` cannot
+/// draw, so it is painted.
+class _Slot extends StatelessWidget {
+  const _Slot({
+    required this.slotKey,
+    required this.border,
+    required this.fill,
+    this.child,
+    this.dashed = false,
+  });
+
+  final String slotKey;
   final Color border;
+  final Color fill;
   final Widget? child;
+  final bool dashed;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: border),
-        borderRadius: const BorderRadius.all(Radius.circular(10)),
-      ),
+    return CustomPaint(
+      key: ValueKey(slotKey),
+      painter: _SlotPainter(border: border, fill: fill, dashed: dashed),
       child: Center(child: child ?? const SizedBox.shrink()),
     );
   }
+}
+
+class _SlotPainter extends CustomPainter {
+  const _SlotPainter({
+    required this.border,
+    required this.fill,
+    required this.dashed,
+  });
+
+  final Color border;
+  final Color fill;
+  final bool dashed;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(12),
+    );
+    canvas.drawRRect(rect, Paint()..color = fill);
+    final stroke = Paint()
+      ..color = border
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    if (!dashed) {
+      canvas.drawRRect(rect, stroke);
+      return;
+    }
+    // 5-on, 4-off, walked along the rounded rect's own outline so the dashes
+    // follow the corners instead of being clipped by them.
+    for (final metric in (Path()..addRRect(rect)).computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        canvas.drawPath(
+          metric.extractPath(d, (d + 5).clamp(0, metric.length)),
+          stroke,
+        );
+        d += 9;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SlotPainter old) =>
+      old.border != border || old.fill != fill || old.dashed != dashed;
 }
 
 /// The Players tab.

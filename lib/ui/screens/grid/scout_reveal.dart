@@ -25,6 +25,8 @@ library;
 
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -409,7 +411,34 @@ class _RevealCard extends StatelessWidget {
               view: card.view,
               light: Theme.of(context).brightness == Brightness.light,
             )
-          : _CardBack(kit: kit, size: size),
+          // Counter-rotated: the wrapper is at 180° while the back is showing,
+          // which would otherwise mirror the ball and the wordmark. The JS gets
+          // this from `preserve-3d` plus its own `rotateY(180deg)` on the back
+          // face; with one widget swapped for the other it has to be said.
+          : Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()..rotateY(math.pi),
+              child: _CardBack(kit: kit, size: size, tier: card.view.tier),
+            ),
+    );
+
+    // Every card is rimmed in its own tier's glow, face up or face down — the
+    // JS puts this on the wrapper so it survives the rotation.
+    body = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: revealGlowFor(card.view.tier).withValues(alpha: 0.6),
+            blurRadius: card.view.tier >= 7
+                ? size * 0.28
+                : card.view.tier >= 5
+                ? size * 0.2
+                : size * 0.12,
+          ),
+        ],
+      ),
+      child: body,
     );
 
     // A first sighting is haloed rather than confettied. The JS rains pieces
@@ -456,44 +485,109 @@ class _RevealCard extends StatelessWidget {
 
     return Transform.scale(
       scale: pop * (1 - settle * 0.85),
-      // The flip is drawn as a horizontal squeeze rather than a real 3D
-      // rotation: at these sizes the perspective is invisible, and a scale is
-      // one matrix instead of a transform hierarchy per card.
+      // A REAL rotation about Y, under the JS's own 1100px perspective. It had
+      // been faked as a horizontal squeeze, on the reasoning that the
+      // perspective is invisible at this size — it is not: a squeeze reads as
+      // the card being crushed rather than turned, and at the halfway point it
+      // collapses to a line with no edge to follow.
       child: Transform(
         alignment: Alignment.center,
-        transform: Matrix4.diagonal3Values(
-          reduceMotion ? 1 : (flip - 0.5).abs() * 2,
-          1,
-          1,
-        ),
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 1 / 1100)
+          ..rotateY(reduceMotion ? 0 : (1 - flip) * math.pi),
         child: Opacity(opacity: (1 - settle).clamp(0.0, 1.0), child: body),
       ),
     );
   }
 }
 
+/// The tier glow a reveal is lit by — purple for a legend, gold for a star,
+/// green for everyone else. The card back is rimmed in it, so a legendary turns
+/// up behind a legendary-coloured back.
+Color revealGlowFor(int tier) => tier >= 7
+    ? const Color(0xFFB06AFF)
+    : tier >= 5
+    ? const Color(0xFFFFD700)
+    : const Color(0xFF4CAF50);
+
 /// The face-down card. No question mark: the flip shows the real player, so the
-/// back is the club's own, not a placeholder for one.
+/// back is the club's OWN, not a placeholder for one.
+///
+/// It had been drawn from the kit's surfaces, which on most kits is the same
+/// near-black as the overlay behind it — so the back of the card was invisible
+/// and the flip looked like a card appearing out of nothing. This is the JS's
+/// own back: a deep navy-to-indigo plate, rimmed in the tier's glow, carrying
+/// the ball and the club wordmark.
 class _CardBack extends StatelessWidget {
-  const _CardBack({required this.kit, required this.size});
+  const _CardBack({required this.kit, required this.size, this.tier = 1});
 
   final KitTheme kit;
   final double size;
+  final int tier;
 
   @override
   Widget build(BuildContext context) {
+    final glow = revealGlowFor(tier);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kit.accent.withValues(alpha: 0.4), width: 2),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [kit.surface2, kit.bg],
+        border: Border.all(color: glow.withValues(alpha: 0.4), width: 2),
+        gradient: const LinearGradient(
+          begin: Alignment(-0.7, -1),
+          end: Alignment(0.7, 1),
+          colors: [Color(0xFF0D1B2A), Color(0xFF100030)],
         ),
       ),
-      child: Center(
-        child: Text('⚽', style: TextStyle(fontSize: size * 0.36)),
+      child: Stack(
+        children: [
+          // `inset 0 0 24px rgba(0,0,0,0.55)` — a vignette, which a BoxShadow
+          // cannot draw inward, so it is a gradient overlay instead.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: RadialGradient(
+                  radius: 0.9,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.55),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '⚽',
+                  style: TextStyle(
+                    fontSize: size * 0.34,
+                    height: 1,
+                    shadows: [
+                      Shadow(
+                        color: glow.withValues(alpha: 0.53),
+                        blurRadius: 12,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: size * 0.06),
+                Text(
+                  'MERGE EMPIRE FC',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: (size * 0.072).clamp(6, 12),
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                    color: Colors.white.withValues(alpha: 0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

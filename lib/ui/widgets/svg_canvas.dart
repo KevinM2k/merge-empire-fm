@@ -25,13 +25,20 @@
 /// the stadium.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 final RegExp _tag = RegExp(r'<(\w+)([^>]*?)/?>', multiLine: true);
 final RegExp _attr = RegExp(r'([\w:-]+)\s*=\s*"([^"]*)"');
 final RegExp _textTag = RegExp(r'<text([^>]*)>([^<]*)</text>', multiLine: true);
 final RegExp _viewBox = RegExp(r'viewBox\s*=\s*"([^"]*)"');
-final RegExp _number = RegExp(r'-?[\d.]+');
+/// One SVG number.
+///
+/// NOT `-?[\d.]+`: path data packs numbers without separators, so `1.5.35` is
+/// two of them — `1.5` and `.35` — and the greedy form swallowed both and then
+/// threw on the result. Every compact path in the artwork hit this.
+final RegExp _number = RegExp(r'[+-]?(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?');
 final RegExp _gradientTag = RegExp(
   r'<(linearGradient|radialGradient)([^>]*)>(.*?)</\1>',
   multiLine: true,
@@ -168,18 +175,44 @@ Size viewBoxOf(String svg) {
   return Size(double.parse(parts[2]), double.parse(parts[3]));
 }
 
+final _rotate = RegExp(r'rotate\(\s*(-?[\d.]+)[,\s]+(-?[\d.]+)[,\s]+(-?[\d.]+)\s*\)');
+
+final _rgba = RegExp(
+  r'rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)\s*(?:[,/]\s*([\d.]+)\s*)?\)',
+);
+
 Color? _colour(String? value, double opacity) {
   if (value == null || value.isEmpty || value == 'none') return null;
   var hex = value.trim();
+  // The icon set rims its coins in `rgba(0,0,0,0.30)`, and hex-only parsing
+  // dropped every one of those strokes.
+  final rgb = _rgba.firstMatch(hex);
+  if (rgb != null) {
+    double c(int g) => (double.tryParse(rgb.group(g) ?? '') ?? 0).clamp(0, 255);
+    final a = double.tryParse(rgb.group(4) ?? '') ?? 1.0;
+    return Color.fromARGB(
+      ((a * opacity).clamp(0.0, 1.0) * 255).round(),
+      c(1).round(),
+      c(2).round(),
+      c(3).round(),
+    );
+  }
   if (!hex.startsWith('#')) return null;
   hex = hex.substring(1);
-  if (hex.length == 3) {
+  if (hex.length == 3 || hex.length == 4) {
     hex = hex.split('').map((c) => '$c$c').join();
+  }
+  // #rrggbbaa — how the reveal writes its tier glows (`${glow}66`).
+  var alpha = opacity;
+  if (hex.length == 8) {
+    final a = int.tryParse(hex.substring(6), radix: 16);
+    if (a != null) alpha *= a / 255;
+    hex = hex.substring(0, 6);
   }
   if (hex.length != 6) return null;
   final parsed = int.tryParse(hex, radix: 16);
   if (parsed == null) return null;
-  return Color(0xFF000000 | parsed).withValues(alpha: opacity.clamp(0.0, 1.0));
+  return Color(0xFF000000 | parsed).withValues(alpha: alpha.clamp(0.0, 1.0));
 }
 
 double _n(Map<String, String> a, String key, [double fallback = 0]) =>
@@ -245,8 +278,13 @@ class SvgPainter extends CustomPainter {
       // The shape's own box, for a gradient in bounding-box units. Computed per
       // node and BEFORE the paints, because the paint depends on it.
       final bounds = _boundsOf(node);
-      final fillP = _paintFor(a['fill'], opacity, bounds);
-      final strokeP = _paintFor(a['stroke'], opacity, bounds);
+      // Per-channel opacity. Half the icon set tints a fill under its own
+      // stroke with `fill-opacity`, and ignoring it painted those solid.
+      final fillO = opacity * (double.tryParse(a['fill-opacity'] ?? '') ?? 1.0);
+      final strokeO =
+          opacity * (double.tryParse(a['stroke-opacity'] ?? '') ?? 1.0);
+      final fillP = _paintFor(a['fill'], fillO, bounds);
+      final strokeP = _paintFor(a['stroke'], strokeO, bounds);
       final strokeWidth = _n(a, 'stroke-width', 1);
       // Read as booleans below, so the switch reads the way it did.
       final fill = fillP;
@@ -269,6 +307,22 @@ class SvgPainter extends CustomPainter {
           _ => StrokeJoin.miter,
         };
 
+      // `transform="rotate(deg cx cy)"` — the bandage icon is a rect drawn
+      // straight and then turned, and without this it lay flat.
+      final xform = _rotate.firstMatch(a['transform'] ?? '');
+      if (xform != null) {
+        canvas.save();
+        canvas.translate(
+          double.tryParse(xform.group(2) ?? '') ?? 0,
+          double.tryParse(xform.group(3) ?? '') ?? 0,
+        );
+        canvas.rotate((double.tryParse(xform.group(1)!) ?? 0) * math.pi / 180);
+        canvas.translate(
+          -(double.tryParse(xform.group(2) ?? '') ?? 0),
+          -(double.tryParse(xform.group(3) ?? '') ?? 0),
+        );
+      }
+
       switch (node.type) {
         case 'rect':
           final rect = Rect.fromLTWH(
@@ -286,7 +340,14 @@ class SvgPainter extends CustomPainter {
                   )
                 : canvas.drawRect(rect, fillPaint());
           }
-          if (stroke != null) canvas.drawRect(rect, strokePaint());
+          if (stroke != null) {
+            r > 0
+                ? canvas.drawRRect(
+                    RRect.fromRectXY(rect, r, _n(a, 'ry', r)),
+                    strokePaint(),
+                  )
+                : canvas.drawRect(rect, strokePaint());
+          }
 
         case 'circle':
           final c = Offset(_n(a, 'cx'), _n(a, 'cy'));
@@ -331,6 +392,7 @@ class SvgPainter extends CustomPainter {
           // Unknown element: skip it. A missing flourish beats a blank tile.
           break;
       }
+      if (xform != null) canvas.restore();
     }
     canvas.restore();
   }

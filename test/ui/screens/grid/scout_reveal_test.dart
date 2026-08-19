@@ -104,9 +104,7 @@ Future<ProviderContainer> pumpButton(
 }
 
 bool _buttonDead(WidgetTester tester) =>
-    tester
-        .widget<ElevatedButton>(find.byKey(const ValueKey('add-player')))
-        .onPressed ==
+    tester.widget<InkWell>(find.byKey(const ValueKey('add-player'))).onTap ==
     null;
 
 /// Past the point where the flip has landed, with a frame to spare.

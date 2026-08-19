@@ -86,16 +86,20 @@ Future<ProviderContainer> pumpGrid(
   return container;
 }
 
-/// Drop the card at [from] onto [to] by driving the DragTarget directly.
+/// Drop the card at [from] onto the slot at [to] by driving the DragTarget.
 ///
 /// A synthesised long-press drag is not reliably recognised in a widget test —
 /// it passed about two runs in three — and a flaky test that asserts "nothing
 /// merged" is worse than useless, because a gesture that silently fails makes
 /// it pass. The gesture itself is Flutter's; what is ours is the WIRING, so
 /// that is what this drives. The hold is asserted separately, as a contract.
-void dropOn(WidgetTester tester, int from, Key to) {
+///
+/// Addressed by slot INDEX rather than by the widget in it: the cards are their
+/// own animated layer now, so a card's drop target is its sibling, not its
+/// ancestor.
+void dropOn(WidgetTester tester, int from, int to) {
   final target = tester.widget<DragTarget<int>>(
-    find.ancestor(of: find.byKey(to), matching: find.byType(DragTarget<int>)),
+    find.byKey(ValueKey('grid-drop-$to')),
   );
   target.onAcceptWithDetails!(
     DragTargetDetails<int>(data: from, offset: Offset.zero),
@@ -128,10 +132,13 @@ void main() {
   group('the grid', () {
     testWidgets('is three columns wide, as the data says', (tester) async {
       await pumpGrid(tester);
-      final delegate =
-          tester.widget<GridView>(find.byType(GridView)).gridDelegate
-              as SliverGridDelegateWithFixedCrossAxisCount;
-      expect(delegate.crossAxisCount, Grid.cols);
+      // The cards are positioned rather than delegated to a grid, so the column
+      // count is the ladder `.grid-container` climbs — asserted at the width a
+      // phone actually has.
+      expect(gridColumnsFor(400), Grid.cols);
+      expect(gridColumnsFor(320), 2);
+      expect(gridColumnsFor(700), 4);
+      expect(gridColumnsFor(900), 5);
     });
 
     testWidgets('offers a slot for every cell the schema holds', (
@@ -194,7 +201,7 @@ void main() {
       );
       expect(filledCells(container), 2);
 
-      dropOn(tester, 0, const ValueKey('grid-card-1'));
+      dropOn(tester, 0, 1);
       await tester.pumpAndSettle();
       await settleSave(tester);
       // Two became one, and the one is a tier higher.
@@ -212,7 +219,7 @@ void main() {
         cards: {0: _card(_baseDefId, 'a')},
       );
 
-      dropOn(tester, 0, const ValueKey('grid-empty-1'));
+      dropOn(tester, 0, 1);
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -235,7 +242,7 @@ void main() {
         },
       );
 
-      dropOn(tester, 0, const ValueKey('grid-card-1'));
+      dropOn(tester, 0, 1);
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -245,10 +252,7 @@ void main() {
     testWidgets('a slot refuses a drop from itself', (tester) async {
       await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
       final target = tester.widget<DragTarget<int>>(
-        find.ancestor(
-          of: find.byKey(const ValueKey('grid-card-0')),
-          matching: find.byType(DragTarget<int>),
-        ),
+        find.byKey(const ValueKey('grid-drop-0')),
       );
       expect(
         target.onWillAcceptWithDetails!(
@@ -271,7 +275,7 @@ void main() {
         },
       );
 
-      dropOn(tester, 0, const ValueKey('grid-card-1'));
+      dropOn(tester, 0, 1);
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -350,7 +354,13 @@ void main() {
       expect(container.read(coinsProvider), lessThan(before));
     });
 
-    testWidgets('a skint club is refused and told why', (tester) async {
+    testWidgets('a skint club is refused, with the price still on show', (
+      tester,
+    ) async {
+      // The whole group greys out together and KEEPS its price. A caption under
+      // the bar would say the same thing and reflow the grid down every time the
+      // coins ran out, which is why the JS does not have one — the dead button
+      // carrying a number the HUD says you cannot afford is the explanation.
       final container = await pumpGrid(tester);
       container
           .read(gameProvider)
@@ -362,11 +372,11 @@ void main() {
 
       expect(
         tester
-            .widget<ElevatedButton>(find.byKey(const ValueKey('add-player')))
-            .onPressed,
+            .widget<InkWell>(find.byKey(const ValueKey('add-player')))
+            .onTap,
         isNull,
       );
-      expect(find.byKey(const ValueKey('add-player-blocked')), findsOneWidget);
+      expect(find.text(t('players.addPlayer')), findsOneWidget);
       expect(filledCells(container), 0);
     });
   });
@@ -402,6 +412,16 @@ void main() {
 
     testWidgets('and opens the sheet that sets it', (tester) async {
       final container = await pumpGrid(tester, tutorialDone: true);
+      // The pills sit under the LAST row of cards, so reaching them means
+      // scrolling the grid — which is where the JS puts them and what they
+      // describe. The Settings row carries the same sheet for anyone who does
+      // not want the scroll.
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('grid-autosell')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('grid-autosell')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('auto-tier-sheet')), findsOneWidget);
@@ -421,11 +441,10 @@ void main() {
   });
 
   group('the tools row', () {
-    testWidgets('Merge All carries the pair count and its price', (
-      tester,
-    ) async {
+    testWidgets('Merge carries its price', (tester) async {
       // The sweep is a convenience being bought, so the fee is on the button
-      // rather than discovered after the tap.
+      // rather than discovered after the tap. No pair count: the JS label is
+      // the word and the price, and the count was the port's own addition.
       final container = await pumpGrid(
         tester,
         cards: {0: _card(_baseDefId, 'a'), 1: _card(_baseDefId, 'b')},
@@ -433,16 +452,17 @@ void main() {
       final cost = mergeAllCost(container.read(gameProvider).state);
       expect(cost, greaterThan(0));
 
-      final label = tester
-          .widget<Text>(
+      final labels = tester
+          .widgetList<Text>(
             find.descendant(
               of: find.byKey(const ValueKey('merge-all')),
               matching: find.byType(Text),
             ),
           )
-          .data!;
-      expect(label, contains('(1)'));
-      expect(label, contains(formatCoins(cost)));
+          .map((w) => w.data ?? '')
+          .join(' ');
+      expect(labels, contains(t('players.merge')));
+      expect(labels, contains(formatCoins(cost)));
     });
 
     testWidgets('tapping it sweeps the grid and charges once', (tester) async {
@@ -484,19 +504,23 @@ void main() {
       await settleSave(tester);
 
       expect(
-        tester
-            .widget<OutlinedButton>(find.byKey(const ValueKey('merge-all')))
-            .onPressed,
+        tester.widget<InkWell>(find.byKey(const ValueKey('merge-all'))).onTap,
         isNull,
       );
       expect(filledCells(container), 2);
     });
 
-    testWidgets('and it is not there at all with nothing to merge', (
+    testWidgets('and is dead, not gone, with nothing to merge', (
       tester,
     ) async {
+      // Hidden would reflow the bar every time a pair appeared or went. It
+      // stays put and goes dead, which is what the JS does.
       await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
-      expect(find.byKey(const ValueKey('merge-all')), findsNothing);
+      expect(find.byKey(const ValueKey('merge-all')), findsOneWidget);
+      expect(
+        tester.widget<InkWell>(find.byKey(const ValueKey('merge-all'))).onTap,
+        isNull,
+      );
     });
   });
 
@@ -598,7 +622,7 @@ void main() {
         tester,
         cards: {0: _card(_baseDefId, 'a'), 1: _card(_baseDefId, 'b')},
       );
-      dropOn(tester, 0, const ValueKey('grid-card-1'));
+      dropOn(tester, 0, 1);
       await tester.pump();
 
       final bursts = tester
@@ -615,7 +639,7 @@ void main() {
       // A move is the player tidying up; applauding it would make the burst
       // mean nothing.
       await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
-      dropOn(tester, 0, const ValueKey('grid-empty-1'));
+      dropOn(tester, 0, 1);
       await tester.pump();
       expect(
         tester
