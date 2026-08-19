@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/popups/daily_reward_sheet.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -79,8 +80,8 @@ Future<void> _showWelcomeBack(
           final resources = s['resources'];
           if (resources is Map<String, dynamic>) {
             final coins = resources['fanCoins'];
-            resources['fanCoins'] =
-                ((coins is num ? coins : 0) + earned).round();
+            resources['fanCoins'] = ((coins is num ? coins : 0) + earned)
+                .round();
           }
         }),
       ),
@@ -92,30 +93,16 @@ Future<void> _showWelcomeBack(
   );
 }
 
+/// The daily reward. A SHEET rather than a coach card, because the cycle is the
+/// thing worth showing — see `daily_reward_sheet.dart`.
 Future<void> _showDailyReward(
   BuildContext context, {
   required GameState game,
-}) {
-  final status = getDailyRewardStatus(game.state ?? {});
-  return showCoachCard<void>(
-    context,
-    titleKey: 'daily.title',
-    bodyKey: 'daily.day',
-    bodyParams: {'n': status.day},
-    actions: [
-      CoachAction(labelKey: 'daily.close', onTap: () {}),
-      CoachAction(
-        labelKey: 'daily.claim',
-        onTap: () => game.update((s) => claimDailyReward(s)),
-      ),
-    ],
-  );
-}
+}) => showDailyRewardSheet(context, game: game);
 
 /// Whether this boot owes the player anything at all.
 bool bootHasWork(Map<String, dynamic>? state, OfflineEarnings offline) =>
-    offline.earned > 0 ||
-    !getDailyRewardStatus(state ?? {}).claimedToday;
+    offline.earned > 0 || !getDailyRewardStatus(state ?? {}).claimedToday;
 
 /// Kept so the caller does not have to know the label key.
 String welcomeLine(OfflineEarnings offline) =>

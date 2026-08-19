@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -90,27 +91,67 @@ void main() {
   });
 
   testWidgets('an unclaimed daily reward is offered at boot', (tester) async {
+    // A SHEET, not a coach card: the cycle is the thing worth showing, and the
+    // card it used to be said "Day 3" and nothing else.
     await boot(tester, saveWith());
-    expect(find.byKey(const ValueKey('coach-card')), findsOneWidget);
-    expect(find.text(t('daily.claim')), findsOneWidget);
+    expect(find.byKey(const ValueKey('daily-reward-sheet')), findsOneWidget);
+    expect(find.byKey(const ValueKey('daily-claim')), findsOneWidget);
+    expect(find.byKey(const ValueKey('daily-streak')), findsOneWidget);
   });
 
-  testWidgets('claiming it pays, and it is not offered twice', (tester) async {
+  testWidgets('and it shows the whole week, day seven included', (
+    tester,
+  ) async {
+    // Day seven pays the only recurring gems in the game. A popup that does not
+    // show it is a login reward with its payoff hidden.
+    await boot(tester, saveWith());
+    for (var day = 1; day <= cycleDays; day++) {
+      expect(
+        find.byKey(ValueKey('daily-day-$day')),
+        findsOneWidget,
+        reason: 'day $day',
+      );
+    }
+  });
+
+  testWidgets('claiming it pays, says what it paid, and is not offered twice', (
+    tester,
+  ) async {
     final container = await boot(tester, saveWith());
     final before = container.read(coinsProvider);
 
-    await tester.tap(find.text(t('daily.claim')));
+    await tester.tap(find.byKey(const ValueKey('daily-claim')));
     await tester.pumpAndSettle();
-
     await settleSave(tester);
+
     expect(container.read(coinsProvider), greaterThan(before));
-    expect(find.byKey(const ValueKey('coach-card')), findsNothing);
+    // Still up, reporting what arrived — a reward that vanishes as it is taken
+    // is one the player never saw.
+    expect(find.byKey(const ValueKey('daily-items')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('daily-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('daily-reward-sheet')), findsNothing);
     expect(hasPopupWork(), isFalse);
+  });
+
+  testWidgets('the ad double is present and dead until AdMob lands', (
+    tester,
+  ) async {
+    await boot(tester, saveWith());
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.byKey(const ValueKey('daily-claim-double')),
+          )
+          .onPressed,
+      isNull,
+    );
   });
 
   testWidgets('an already-claimed day offers nothing', (tester) async {
     await boot(tester, saveWith(claimedToday: true));
-    expect(find.byKey(const ValueKey('coach-card')), findsNothing);
+    expect(find.byKey(const ValueKey('daily-reward-sheet')), findsNothing);
   });
 
   testWidgets('offline earnings are offered, and paid on Collect', (

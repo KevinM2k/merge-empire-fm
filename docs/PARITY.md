@@ -187,6 +187,19 @@ All seven shelves are present and in the JS's own order.
 - [ ] The quest block on the home card, which is where the JS shows the match
       track before kick-off rather than behind the burger
 
+## Boot popups — `WelcomeBackPopup.js`, `DailyRewardPopup.js`
+
+- [x] Welcome back, with the offline earnings it holds
+- [x] **The daily reward, as a SHEET**: the seven-day cycle with today marked,
+      the streak, the trained-yesterday bonus, and what a claim actually paid.
+      It was a coach card reading "Day 3" — `getDailyRewardPreview` and
+      `canRepairStreak` were both ported with no caller, so the cycle and the
+      broken-streak branch were invisible, and day seven's gems (the only
+      recurring gem faucet in the game) were never advertised.
+- [x] The broken-streak branch, with both ways out
+- [ ] The repair itself and Claim ×2, which need a rewarded ad (M4). Both are
+      present and disabled rather than hidden.
+
 ## Settings — `screens/SettingsScreen.js`
 
 52 interactive elements in the JS, the most of any screen after the events.
