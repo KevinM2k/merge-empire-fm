@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -15,6 +16,8 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 
 const String _key = AssetCategory.training;
 
@@ -210,23 +213,31 @@ void main() {
     ) async {
       // A preview is a better prompt than an empty square.
       await pumpClub(tester, coins: 100000);
-      final dimmed = tester.widget<Opacity>(
+      ArtImage art() => tester.widget<ArtImage>(
         find.byKey(const ValueKey('club-art-$_key'), skipOffstage: false),
       );
-      expect(dimmed.opacity, lessThan(1));
+      expect(art().dimmed, isTrue);
 
       await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
       await tester.pumpAndSettle();
       await settleSave(tester);
 
-      expect(
-        tester
-            .widget<Opacity>(
-              find.byKey(const ValueKey('club-art-$_key'), skipOffstage: false),
-            )
-            .opacity,
-        1,
+      expect(art().dimmed, isFalse);
+    });
+
+    testWidgets('a tile asks for the generated art, not the drawing', (
+      tester,
+    ) async {
+      // PNG-first is the whole point: the port had been shipping the JS's
+      // `onerror` fallback as though it were the artwork.
+      await pumpClub(tester, coins: 100000);
+      final art = tester.widget<ArtImage>(
+        find.byKey(const ValueKey('club-art-$_key'), skipOffstage: false),
       );
+      expect(art.path, clubAssetImagePath(_key, 1));
+      // And the drawing is still there behind it, for a facility whose art has
+      // not been generated yet.
+      expect(art.fallback, isA<SvgArt>());
     });
   });
 }

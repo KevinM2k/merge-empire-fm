@@ -14,8 +14,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
 /// Everything the card paints, resolved by the caller.
@@ -103,9 +105,16 @@ class PlayerCard extends StatelessWidget {
             children: [
               if (view.variant != null)
                 Positioned.fill(
-                  child: Opacity(
-                    opacity: 0.55,
-                    child: PlayerPortrait(
+                  // `contain`, not `cover`: the art is drawn to fill a portrait
+                  // frame and cropping it takes the head off.
+                  child: ArtImage(
+                    path: playerImagePath(
+                      view.position,
+                      view.tier,
+                      view.variant!,
+                    ),
+                    fit: BoxFit.contain,
+                    fallback: PlayerPortrait(
                       variantIndex: view.variant!,
                       kitColor: kitColor ?? accent,
                     ),

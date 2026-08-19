@@ -4,21 +4,22 @@
 /// costs, when a tier turns over and why a button is dead. The screen asks and
 /// paints.
 ///
-/// The tiles carry no ARTWORK yet. `assets/clubArt.js` is 430 lines of
-/// hand-built SVG — 116 rects, 24 circles, 11 ellipses and fifteen simple
-/// quadratics — which is a `CustomPainter` and needs no new dependency, but it
-/// is its own module. A tier badge stands in until then, so the screen is
-/// usable rather than blocked on illustration.
+/// The tiles are PNG-first, like the JS: the generated art per (category, tier)
+/// with `club_art.g.dart`'s composed SVG as the fallback underneath. Both are
+/// wanted — the artwork is generated per tier and a newly added facility can
+/// legitimately have none yet, in which case a drawing beats a hole.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_art.g.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -122,9 +123,11 @@ class _AssetPanel extends ConsumerWidget {
           children: [
             Row(
               children: [
-                // The real artwork, drawn from the SVG the JS composes. An
-                // unbuilt facility shows its tier-one art dimmed: what it will
-                // look like is a better prompt than an empty square.
+                // The generated artwork, with the composed SVG behind it as the
+                // fallback — the same order the JS uses, and the reason both
+                // exist. An unbuilt facility shows its tier-one art dimmed:
+                // what it will look like is a better prompt than an empty
+                // square.
                 Container(
                   width: 52,
                   height: 52,
@@ -134,10 +137,15 @@ class _AssetPanel extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: kit.border),
                   ),
-                  child: Opacity(
+                  child: ArtImage(
                     key: ValueKey('club-art-${tile.key}'),
-                    opacity: tile.owned ? 1 : 0.35,
-                    child: SvgArt(
+                    path: clubAssetImagePath(
+                      tile.key,
+                      tile.owned ? tile.tier : 1,
+                    ),
+                    dimmed: !tile.owned,
+                    dimBrightness: 0.45,
+                    fallback: SvgArt(
                       svg: clubArtFor(tile.key, tile.owned ? tile.tier : 1),
                     ),
                   ),

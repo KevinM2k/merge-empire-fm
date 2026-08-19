@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
 /// The lowest-tier player, so a merge of two makes a predictable third.
@@ -348,13 +349,18 @@ void main() {
 
   group('the card art', () {
     testWidgets('a signed player has a portrait', (tester) async {
-      // The variant table has carried skin, hair and gender since M1; the JS
-      // header called the portraits "UI work for a later milestone".
+      // PNG-first, like the JS: the generated art with the drawn portrait as
+      // its fallback. The variant table has carried skin, hair and gender
+      // since M1, and it now picks which of the two files to ask for.
       await pumpGrid(tester);
       await tester.tap(find.byKey(const ValueKey('add-player')));
       await tester.pumpAndSettle();
       await settleSave(tester);
-      expect(find.byType(PlayerPortrait), findsWidgets);
+
+      final art = tester.widgetList<ArtImage>(find.byType(ArtImage));
+      expect(art, isNotEmpty);
+      expect(art.first.path, startsWith('assets/players/'));
+      expect(art.first.fallback, isA<PlayerPortrait>());
     });
 
     test('every shipped variant resolves to a portrait', () {
