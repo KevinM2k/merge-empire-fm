@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,462 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,473 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 

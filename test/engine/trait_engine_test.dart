@@ -5,6 +5,7 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 CardInstance _card(
   String id, {
@@ -21,7 +22,11 @@ CardInstance _card(
 
 List<Map<String, dynamic>> _lineup(List<String?> ids) => [
   for (var i = 0; i < 11; i++)
-    {'slotId': 's$i', 'slotPosition': 'MID', 'cardInstanceId': ids.length > i ? ids[i] : null},
+    {
+      'slotId': 's$i',
+      'slotPosition': 'MID',
+      'cardInstanceId': ids.length > i ? ids[i] : null,
+    },
 ];
 
 void main() {
@@ -125,7 +130,13 @@ void main() {
     });
 
     test('an out-of-range level gets nothing', () {
-      expect(getTraitBonus(_card('a', traitId: 'finisher', level: 9), 'FWD').atkBonus, 0);
+      expect(
+        getTraitBonus(
+          _card('a', traitId: 'finisher', level: 9),
+          'FWD',
+        ).atkBonus,
+        0,
+      );
     });
 
     test('directional bonuses arrive pre-scaled', () {
@@ -162,18 +173,27 @@ void main() {
 
     test('a universal trait applies to every position', () {
       for (final pos in ['FWD', 'MID', 'DEF', 'GK']) {
-        final b = getTraitBonus(_card('a', traitId: 'allrounder', level: 2), pos);
+        final b = getTraitBonus(
+          _card('a', traitId: 'allrounder', level: 2),
+          pos,
+        );
         expect(b.atkBonus, closeTo(6 * traitStatScale, 1e-9), reason: pos);
       }
     });
 
     test('stamina is never position-gated', () {
-      final b = getTraitBonus(_card('a', traitId: 'iron_lungs', level: 3), 'GK');
+      final b = getTraitBonus(
+        _card('a', traitId: 'iron_lungs', level: 3),
+        'GK',
+      );
       expect(b.staminaMult, 0.60);
     });
 
     test('a trait with no stamina effect reports a neutral multiplier', () {
-      expect(getTraitBonus(_card('a', traitId: 'finisher'), 'FWD').staminaMult, 1);
+      expect(
+        getTraitBonus(_card('a', traitId: 'finisher'), 'FWD').staminaMult,
+        1,
+      );
     });
   });
 
@@ -262,15 +282,21 @@ void main() {
     test('a position-locked trait still resolves squad-wide', () {
       // Commanding is GK-locked; its matchday cut must not be zeroed just
       // because the aggregator has no slot position to hand.
-      final grid = <CardInstance?>[_card('gk', traitId: 'commanding', level: 3)];
+      final grid = <CardInstance?>[
+        _card('gk', traitId: 'commanding', level: 3),
+      ];
       expect(computeSquadTraitTotals(grid).matchRevBonus, 0.20);
     });
 
     test('match revenue is capped', () {
       final grid = <CardInstance?>[
-        for (var i = 0; i < 11; i++) _card('x$i', traitId: 'commanding', level: 3),
+        for (var i = 0; i < 11; i++)
+          _card('x$i', traitId: 'commanding', level: 3),
       ];
-      expect(computeSquadTraitTotals(grid).matchRevBonus, maxSquadMatchRevBonus);
+      expect(
+        computeSquadTraitTotals(grid).matchRevBonus,
+        maxSquadMatchRevBonus,
+      );
     });
 
     test('team injury reduction is capped', () {
@@ -336,6 +362,98 @@ void main() {
         getTraitBonus(card, 'FWD').atkBonus,
         closeTo(13 * traitStatScale, 1e-9),
       );
+    });
+  });
+
+  group('a paid roll', () {
+    /// A save holding one card, with money.
+    Map<String, dynamic> stateWith({
+      num coins = 100000,
+      String? traitId,
+      bool loanedOut = false,
+      int? loanMatchesLeft,
+    }) => {
+      'resources': <String, dynamic>{'fanCoins': coins},
+      'settings': <String, dynamic>{'hardMode': false},
+      'grid': <String, dynamic>{
+        'cells': <dynamic>[
+          <String, dynamic>{
+            'instanceId': 'a',
+            'definitionId': 'player_t5_fwd',
+            if (traitId != null) 'trait': {'id': traitId, 'level': 1},
+            if (loanedOut) 'loanedOut': {'toTeam': 'Elsewhere'},
+            'loanMatchesLeft': ?loanMatchesLeft,
+          },
+        ],
+      },
+    };
+
+    num coinsOf(Map<String, dynamic> s) =>
+        (s['resources'] as Map<String, dynamic>)['fanCoins'] as num;
+
+    test('charges the tier price and lands a trait', () {
+      final s = stateWith();
+      final before = coinsOf(s);
+      final result = rollTraitForCard(s, 'a');
+
+      expect(result.ok, isTrue);
+      expect(result.roll, isNotNull);
+      expect(result.cost, traitRollCost(getPlayerDef('player_t5_fwd')));
+      expect(coinsOf(s), before - result.cost);
+      final card = ((s['grid'] as Map<String, dynamic>)['cells'] as List).first;
+      expect((card as Map<String, dynamic>)['trait'], isNotNull);
+    });
+
+    test('and the coins stay whole numbers', () {
+      final s = stateWith();
+      rollTraitForCard(s, 'a');
+      expect(coinsOf(s), isA<int>());
+    });
+
+    test('says when it overwrote something', () {
+      // A roll is a gamble on a card that may already carry something good.
+      final s = stateWith(traitId: 'anchor');
+      expect(rollTraitForCard(s, 'a').replaced, isTrue);
+      expect(rollTraitForCard(stateWith(), 'a').replaced, isFalse);
+    });
+
+    test('a club that cannot pay is refused, and keeps its coins', () {
+      final s = stateWith(coins: 1);
+      final result = rollTraitForCard(s, 'a');
+      expect(result.ok, isFalse);
+      expect(result.reason, 'insufficient_coins');
+      expect(result.cost, greaterThan(0), reason: 'so the UI can quote it');
+      expect(coinsOf(s), 1);
+    });
+
+    test('a player out on loan cannot be improved', () {
+      // They cannot take the field, so the coins would buy nothing this season.
+      final s = stateWith(loanedOut: true);
+      final result = rollTraitForCard(s, 'a');
+      expect(result.reason, 'unavailable');
+      expect(coinsOf(s), 100000);
+    });
+
+    test('nor can a loanee we have borrowed', () {
+      // The trait would go back with them.
+      final s = stateWith(loanMatchesLeft: 3);
+      expect(rollTraitForCard(s, 'a').reason, 'unavailable');
+    });
+
+    test('a card that has gone is refused rather than crashed on', () {
+      expect(rollTraitForCard(stateWith(), 'nobody').reason, 'unknown_card');
+    });
+
+    test('it announces the roll, so a screen can react to it', () {
+      final s = stateWith();
+      final heard = <Object?>[];
+      void listener(Object? args) => heard.add(args);
+      on('trait:rolled', listener);
+      addTearDown(() => off('trait:rolled', listener));
+
+      rollTraitForCard(s, 'a');
+      expect(heard, hasLength(1));
+      expect((heard.single as Map)['instanceId'], 'a');
     });
   });
 }

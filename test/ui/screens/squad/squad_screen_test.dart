@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -94,6 +95,18 @@ Future<void> settleSave(WidgetTester tester) =>
 /// a third of a portrait screen — so a test reaches it the way a player does.
 Future<void> openBench(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('squad-subs')));
+  await tester.pumpAndSettle();
+}
+
+/// Open the detail sheet of the first player on the pitch.
+Future<void> openDetailOfFirst(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  final slot = container
+      .read(pitchSlotsProvider)
+      .firstWhere((s) => s.cardInstanceId != null);
+  await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
   await tester.pumpAndSettle();
 }
 
@@ -525,6 +538,87 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('detail-sell-cancel')));
       await tester.pumpAndSettle();
       expect(container.read(benchProvider).length + 11, greaterThan(11));
+    });
+
+    testWidgets('the trait wheel is on it, priced', (tester) async {
+      // `rollTrait`, `applyTrait` and `traitRollCost` were all ported with
+      // nothing able to spend a coin on them.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('detail-trait')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('detail-trait-roll')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-trait-label')), findsOneWidget);
+    });
+
+    testWidgets('rolling charges, spins, and lands a trait', (tester) async {
+      final container = await pumpSquad(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await openDetailOfFirst(tester, container);
+      final before = container.read(coinsProvider);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('detail-trait-roll')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
+      await tester.pump();
+
+      // Mid-spin the button is dead, so a second tap cannot buy a roll the
+      // player is still watching.
+      expect(
+        tester
+            .widget<ElevatedButton>(
+              find.byKey(const ValueKey('detail-trait-roll')),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.pump(
+        TraitBlockState.spin + const Duration(milliseconds: 100),
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(container.read(coinsProvider), lessThan(before));
+      final card = cardById(
+        container.read(gameProvider).state,
+        slot.cardInstanceId!,
+      );
+      expect(card?.raw['trait'], isNotNull);
+    });
+
+    testWidgets('a club that cannot pay is told, not just greyed out', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester);
+      container
+          .read(gameProvider)
+          .update(
+            (s) => (s['resources'] as Map<String, dynamic>)['fanCoins'] = 0,
+          );
+      await tester.pumpAndSettle();
+      await openDetailOfFirst(tester, container);
+
+      await tester.ensureVisible(find.byKey(const ValueKey('detail-trait')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('detail-trait-blocked')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<ElevatedButton>(
+              find.byKey(const ValueKey('detail-trait-roll')),
+            )
+            .onPressed,
+        isNull,
+      );
+      await settleSave(tester);
     });
   });
 

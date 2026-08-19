@@ -76,8 +76,14 @@ gaps are in this list.
   - [x] Recall from loan (`.detail-recall`)
   - [x] Send back early (`.detail-sendback`)
   - [x] Swap into the XI / send to the bench (`.detail-xi-btn`)
+  - [x] **The trait wheel**, priced on the control. `rollTrait`, `applyTrait` and
+        `traitRollCost` were all ported with nothing able to spend a coin on
+        them. Refused for a loanee and for anyone out on loan, each with its own
+        line: one's trait would go back with them, the other cannot take the
+        field. The JS's two DOM reels are not ported — what they are FOR is the
+        beat between paying and finding out, so the pool shuffles past the label
+        and lands on what was rolled.
   - [ ] Rename (`.detail-rename-btn`)
-  - [ ] The trait wheel
   - [ ] The market-value BAR — the price is there, the coloured gauge is not
 
 ## Home — `screens/LeagueScreen.js`, `components/PitchScene.js`

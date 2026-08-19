@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Fallback when a tier has no entry in the cost table.
@@ -251,6 +252,87 @@ String traitLabel(Map<String, dynamic>? traitInstance) {
   return lvl.isNotEmpty
       ? '${trait.icon} ${trait.name} $lvl'
       : '${trait.icon} ${trait.name}';
+}
+
+/// What a paid roll did.
+typedef TraitRollResult = ({
+  bool ok,
+
+  /// `unknown_card`, `unavailable` or `insufficient_coins`.
+  String? reason,
+  TraitRoll? roll,
+
+  /// A trait was overwritten. Worth saying: a roll is a gamble on a card that
+  /// may already have something the player likes.
+  bool replaced,
+  num cost,
+});
+
+TraitRollResult _rollFail(String reason, {num cost = 0}) =>
+    (ok: false, reason: reason, roll: null, replaced: false, cost: cost);
+
+/// Pay for a roll and apply what it lands on.
+///
+/// The JS charges inside its roulette component, which is why the port had the
+/// roll, the cost and the pool ported and nothing that could spend a coin on
+/// them. The gate, the debit and the write belong together: a roll that charged
+/// and then failed to apply would be the worst possible bug in a paid gamble.
+///
+/// A player who is not available is refused outright — a loanee is not ours to
+/// improve, and one out on loan cannot take the field, so the coins would buy
+/// nothing either way.
+TraitRollResult rollTraitForCard(
+  Map<String, dynamic> state,
+  String? instanceId,
+) {
+  final cells = state['grid'] is Map<String, dynamic>
+      ? (state['grid'] as Map<String, dynamic>)['cells']
+      : null;
+  CardInstance? card;
+  if (cells is List) {
+    for (final raw in cells) {
+      final c = CardInstance.from(raw);
+      if (c != null && c.instanceId == instanceId) {
+        card = c;
+        break;
+      }
+    }
+  }
+  if (card == null) return _rollFail('unknown_card');
+  if (card.isUnavailable || card.raw['loanMatchesLeft'] != null) {
+    return _rollFail('unavailable');
+  }
+
+  final def = getPlayerDef(card.definitionId);
+  if (def == null) return _rollFail('unknown_card');
+  final cost = traitRollCost(def);
+
+  final resources = state['resources'];
+  final coins = resources is Map<String, dynamic>
+      ? resources['fanCoins']
+      : null;
+  if (coins is! num || coins < cost) {
+    return _rollFail('insufficient_coins', cost: cost);
+  }
+
+  final hardMode =
+      state['settings'] is Map<String, dynamic> &&
+      (state['settings'] as Map<String, dynamic>)['hardMode'] == true;
+  final roll = rollTrait(def.position, hardMode: hardMode);
+  final replaced = applyTrait(card, roll);
+  // The debit lands as an int: coins are the most-written field in the save and
+  // the JS holds them whole.
+  (resources as Map<String, dynamic>)['fanCoins'] = (coins - cost).toInt();
+
+  emit('coins:updated', (resources)['fanCoins']);
+  emit('trait:rolled', {
+    'instanceId': card.instanceId,
+    'id': roll.id,
+    'level': roll.level,
+    'replaced': replaced,
+  });
+
+  return (ok: true, reason: null, roll: roll, replaced: replaced, cost: cost);
 }
 
 /// Assigns a rolled trait to a card, mutating it. `none` normalises to level 1,

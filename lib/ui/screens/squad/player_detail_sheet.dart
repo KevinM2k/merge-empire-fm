@@ -24,15 +24,19 @@
 /// the player just agreed to.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/sell_engine.dart';
+import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -187,11 +191,31 @@ class _PlayerDetail extends ConsumerWidget {
             ),
           ],
         ],
-        const SizedBox(height: 8),
-        Text(
-          t('squad.detail.no_traits_on_loan'),
-          style: TextStyle(fontSize: 11, color: kit.textMuted),
-        ).takeIf(onLoanToUs),
+        const SizedBox(height: 10),
+        // The trait block, which is the third thing this sheet is FOR and was
+        // missing entirely: `rollTrait`, `applyTrait` and `traitRollCost` were
+        // all ported with nothing able to spend a coin on them.
+        //
+        // Whose player they are decides what it says. A loanee's trait would go
+        // back with them; one out on loan cannot take the field, so the roll
+        // would buy nothing this season.
+        if (onLoanToUs)
+          Text(
+            t('squad.detail.no_traits_on_loan'),
+            key: const ValueKey('detail-trait-loanee'),
+            style: TextStyle(fontSize: 11, color: kit.textMuted),
+          )
+        else if (outOnLoan)
+          Text(
+            t('squad.detail.no_traits_while_away', {
+              'name': card.name(),
+              'team': '${_map(card.loanedOut)?['toTeam'] ?? ''}',
+            }),
+            key: const ValueKey('detail-trait-away'),
+            style: TextStyle(fontSize: 11, color: kit.textMuted),
+          )
+        else
+          TraitBlock(instanceId: instanceId, def: def),
       ],
     );
   }
@@ -307,12 +331,6 @@ class _PlayerDetail extends ConsumerWidget {
     ref.read(gameProvider).update((s) => recallLoan(s, card.instanceId));
     if (context.mounted) Navigator.of(context).pop();
   }
-}
-
-extension on Widget {
-  /// Render this only when [when]. Keeps a conditional trailing note from
-  /// needing its own `if` in a long child list.
-  Widget takeIf(bool when) => when ? this : const SizedBox.shrink();
 }
 
 /// The photo, the headline numbers and the name.
@@ -943,6 +961,139 @@ class _RecallBlock extends StatelessWidget {
             onPressed: onRecall,
             child: Text(t('squad.detail.recall_loan')),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The trait wheel, as much of it as belongs in a sheet. Ported from
+/// `mountTraitRoulette` in `ui/components/TraitRoulette.js`.
+///
+/// The JS spins two DOM reels behind a pull lever. What the reels are FOR is the
+/// beat between paying and finding out, so that is what is ported: the pool
+/// shuffles past for a moment and lands on what was rolled. Two reels drawn as
+/// strips of repeated tiles is 285 lines of DOM that a single animated label
+/// says just as well — and the outcome was decided before the first frame either
+/// way.
+///
+/// **The cost is on the control**, because a roll is a gamble with the player's
+/// coins and "how much was that?" must not be a question they ask afterwards.
+class TraitBlock extends ConsumerStatefulWidget {
+  const TraitBlock({super.key, required this.instanceId, required this.def});
+
+  final String instanceId;
+  final PlayerDef def;
+
+  @override
+  ConsumerState<TraitBlock> createState() => TraitBlockState();
+}
+
+class TraitBlockState extends ConsumerState<TraitBlock> {
+  /// How long the pool shuffles past before it lands.
+  static const Duration spin = Duration(milliseconds: 720);
+
+  Timer? _ticker;
+  int _frame = 0;
+
+  /// Test seam.
+  bool get spinning => _ticker != null;
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  void _roll() {
+    if (_ticker != null) return;
+    // Rolled and PAID up front, then revealed: a spin that decided afterwards
+    // would have to be unwound when the debit turned out to be refused. The
+    // engine's own gate is the backstop — the button is already dead when the
+    // coins are not there — so a refusal here simply does not spin.
+    final result = ref
+        .read(gameProvider)
+        .update((s) => rollTraitForCard(s, widget.instanceId));
+    if (!result.ok) return;
+
+    var frames = 0;
+    setState(() => _frame = 0);
+    _ticker = Timer.periodic(const Duration(milliseconds: 60), (timer) {
+      if (!mounted) return;
+      frames++;
+      setState(() => _frame++);
+      if (frames * 60 < spin.inMilliseconds) return;
+      timer.cancel();
+      // The label reads the save from here on, which is where the new trait
+      // already is: the spin was only ever hiding it.
+      setState(() => _ticker = null);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final card = cardById(ref.watch(gameProvider).state, widget.instanceId);
+    final cost = traitRollCost(widget.def);
+    final coins = ref.watch(coinsProvider);
+    final pool = getTraitPoolForPosition(
+      widget.def.position,
+      hardMode: ref.watch(proModeProvider),
+    );
+    // Mid-spin the label is whatever went past; otherwise it is what they have.
+    final current = spinning
+        ? '${pool[_frame % pool.length].icon} ${pool[_frame % pool.length].name}'
+        : traitLabel(_map(card?.raw['trait']));
+
+    return Container(
+      key: const ValueKey('detail-trait'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kit.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kit.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            t('squad.trait').toUpperCase(),
+            style: TextStyle(
+              color: kit.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            current.isEmpty ? t('trait.name.none') : current,
+            key: const ValueKey('detail-trait-label'),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: spinning ? kit.textMuted : kit.accentBright,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            key: const ValueKey('detail-trait-roll'),
+            onPressed: spinning || coins < cost ? null : _roll,
+            child: Text(t('game.trait.cost', {'cost': formatCoins(cost)})),
+          ),
+          if (coins < cost)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                t('game.trait.need_coins', {'cost': formatCoins(cost)}),
+                key: const ValueKey('detail-trait-blocked'),
+                style: TextStyle(fontSize: 11, color: kit.textMuted),
+              ),
+            ),
+          // What a roll REPLACED is deliberately not spelled out: the JS flashes
+          // the reel green or red and says nothing, and there is no catalogue key
+          // for it in any of the ten. The label going from one trait to another
+          // in front of the player is the message.
         ],
       ),
     );
