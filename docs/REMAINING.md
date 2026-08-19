@@ -30,10 +30,19 @@ too late:
 
 ## Where we are
 
-**3,314 tests, `flutter analyze` clean.** Everything below that is not ticked
-is what remains.
+**3,328 tests, `flutter analyze` clean.** Everything below that is not ticked
+is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
+layout-by-layout diff of the JS against the port, taken from the source.
 
-**The port had been shipping the game's FALLBACK graphics as if they were the
+**Read that before porting another screen.** The port was being built screen by
+screen with the gaps surfacing as bug reports from playing, which is the slowest
+way to find them and unnecessary when the whole source is here. Every gap a
+player reported was already visible in `src/ui/`.
+
+**Three things worth knowing before anything else**, because each was invisible
+to the way the port was being checked.
+
+**1. The port had been shipping the game's FALLBACK graphics as if they were the
 artwork.** `assets/svgCache.js` was listed here as 54 unported lines and read as
 trivial; it is the path resolver, and the real game is PNG-first — every player
 card, club facility, trophy and stadium is generated artwork, with the
@@ -42,6 +51,23 @@ hand-drawn SVG behind it as the `onerror` case. 11MB of it is bundled now and
 things fell out of it: the stadium hero was never blocked on gradients in
 `svg_canvas` (that SVG is the fallback; the hero is a photograph), and the
 Club tiles and cards had been drawing the wrong thing since they landed.
+
+**2. Three engines had no caller at all.** `recordDiscovery` was never ported,
+so `discoveredPlayers` never grew — the Player Index would have read 0 of 66
+forever. `maybeGenerateOffer` had no caller, so post-match transfer bids never
+fired. And `transfer:offered` was emitted by the tick with NOTHING listening,
+which had teeth: an unanswered bid times out after five minutes and the timeout
+is scored as a decline, so players were collecting grudges from offers they were
+never shown. A reachability audit does not catch these — the control is not
+missing, the engine behind it is simply never called. **Grep for who calls an
+engine, not just for who reaches a screen.**
+
+**3. Where the shipped copy and the port disagree, the copy is usually right.**
+`game.penalty.instructions` has always read "Tap anywhere — aim for corners or
+risk hitting the woodwork!" while the screen had four corner buttons, and
+`penalty.wide_left`, `penalty.post` and `penalty.crossbar` sat translated in all
+ten catalogues with nothing able to reach them — buttons cannot miss. The same
+shape of tell found the artwork.
 
 M0 (save bridge), **M1 (the logic core)** and **M2 (the state layer)** are all
 finished, and **M5 (i18n)** came forward to join them — the lookup layer, all ten
@@ -69,46 +95,32 @@ coins and gems in the shop, train at two mini-games, play a match, watch it out,
 be paid for it, claim a quest, finish a season, and be promoted or relegated into
 the next one — with artwork, a live HUD, toasts and working settings around it.
 
-They can also open the Trophy Room and the Player Index from the burger, take a
-rival's bid or turn it down, sign a sponsor, trade through a Deadline Day
-window, and watch a chance play out on a 2D pitch.
+They can also open the Trophy Room, the Player Index and the Leaderboard from
+the burger, sort and auto-merge the grid, scout in batches, open a player and
+sell, recall or bench them, take a rival's bid or turn it down, sign a sponsor,
+trade through a Deadline Day window, and watch a chance play out on a 2D pitch
+with the manager walking on the home screen behind it.
 
-What is missing is no longer function. It is depth (the cups, four more drills,
-the manager customiser), spectacle (the diorama, the manager rig, the scout
-reveal) and everything in M4.
-
-**Three engines had no caller at all** — the pattern is worth naming, because
-it is the inverse of the reachability trap below and the same audit does not
-catch it. A screen nothing reaches is invisible; an ENGINE nothing calls is
-invisible AND still running its consequences:
-
-- `main.js`'s `recordDiscovery` was never ported, so `discoveredPlayers` never
-  grew: the Player Index would have read 0 of 66 forever and a season quest
-  could never advance.
-- `maybeGenerateOffer` had no caller, so post-match transfer bids never fired.
-- `transfer:offered` — the idle bid — was emitted by the tick with nothing
-  listening. That one had teeth: an unanswered offer times out after five
-  minutes and the timeout is scored as a DECLINE, so players were collecting
-  grudges from bids they were never shown.
-
-**Before calling an engine done, grep for who calls it**, the same way you grep
-for who reaches a screen.
+What is missing is no longer function. It is depth (the cups, the customiser,
+four more drills, the per-screen controls in `docs/PARITY.md`), spectacle (the
+parallax scene, the scout reveal, the rest of the merge animation) and
+everything in M4.
 
 ### How far along, honestly
 
 Measured, not estimated: `101,906` lines of non-test JS in
-`../merge-empire-fc/src`, of which roughly **66,000 are ported — about 65%.**
+`../merge-empire-fc/src`, of which roughly **74,000 are ported — about 73%.**
 
 | Area | JS lines | State |
 |---|---|---|
 | `engine/` | 15,331 | done bar `iapClient.js` (195) |
-| `data/` | 6,357 | done bar `managerAvatar.js`'s SVG half (~1,100) |
+| `data/` | 6,357 | done — `managerAvatar.js`'s SVG half is now `manager_art.g.dart` |
 | `utils/` | 3,396 | done bar 1,170 (`sound` 782, `ageVerification` 134, `devTools` 114, `adConsent` 63, `wakeLock` 54, `openUrl` 15, `network` 8) |
 | `state/` + `main.js` | 2,333 | done |
-| `assets/` | 853 | `playerArt` and `clubArt` done; `gemArt` (146) and `svgCache` (54) left |
+| `assets/` | 853 | `playerArt`, `clubArt` and `svgCache`'s path half done; `gemArt` (146) left |
 | `i18n/` | 29,163 | done — the lookup layer and all ten catalogues |
 | `services/` | 4,144 | none — this is M4 |
-| `ui/` | 40,329 | roughly 12,000: the shell, HUD, theme, popups, and all five tabs |
+| `ui/` | 40,329 | roughly 20,000: the shell, HUD, theme, popups, all five tabs, the events, the cutaway and the sheets behind the burger |
 
 Do not read 65% as "two thirds of the work", in either direction:
 
@@ -119,10 +131,10 @@ Do not read 65% as "two thirds of the work", in either direction:
   manipulation becomes materially less Dart, so that denominator is soft — and
   the `ui/` figure above is the one honest estimate in the table rather than a
   measurement, because several JS files are half-ported by design.
-- **The port is more verbose than its source, except where it is not.** The
-  hand-written JS so far became 42,182 lines of `lib/` and 42,003 lines of
-  tests, plus 27,663 generated lines (the catalogues and the club art) that
-  nobody reads or maintains. But the shell REPLACED roughly 2,200 lines of
+- **The port is more verbose than its source, except where it is not.** `lib/`
+  is 81,091 lines across 210 files and the tests are 44,081, of which roughly
+  27,800 are generated (the catalogues, the club art and now the manager art)
+  that nobody reads or maintains. But the shell REPLACED roughly 2,200 lines of
   `App.js`, `HUD.js`, `popupQueue.js` and `SettingsScreen.js` with about 1,900
   lines of Dart, because much of what it did not have to port was workaround:
   `screenFreeze.js` in full, the two-frame `requestAnimationFrame` dance before
@@ -153,7 +165,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,314 passing, 2 skipped
+flutter test             # 3,328 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -165,10 +177,13 @@ only the files you touched.
 
 Two things to know before writing any code:
 
-1. **Read `../merge-empire-fc/src/<module>.js` in full before porting it.** The
-   comments in that repo carry the reasoning for nearly every decision, and most
-   of them are worth keeping. The port's comments are a rewrite of them, not a
-   copy.
+1. **Read `../merge-empire-fc/src/<module>.js` in full before porting it** —
+   and its CSS in `src/ui/styles/`. The comments in that repo carry the
+   reasoning for nearly every decision, and most of them are worth keeping; the
+   port's comments are a rewrite of them, not a copy. The CSS is not decoration
+   either: it states column counts, backgrounds and which container wraps what,
+   and diffing it caught a case where the port had ADDED the very thing a
+   comment says was removed.
 2. **Generate a node fixture for anything with non-obvious arithmetic or an RNG
    draw.** Scripts live in `tool/dump_*_reference.mjs`, fixtures in
    `test/fixtures/`. Every one of them has caught something.
@@ -202,23 +217,20 @@ nothing about whether a new player can get to it. **Before calling a module
 done, grep for who CALLS it** — and where the answer is "only its own test",
 that is the module's real status.
 
-Still unreachable, and known:
+Nothing built is currently unreachable. Every screen in `lib/ui/screens/` is
+reached from a tab, the burger, a dock orb, the end of a match or the strip in
+the home screen's footer, and each has a test that starts at the shell rather
+than constructing the sheet.
 
-- [ ] The Leaderboard — it needs `leaderboardService` (M4) before the screen is
-      worth writing, so its quick-nav tile stays out until then. A menu row
-      leading nowhere is the bug that menu was written to fix.
+Two are reachable but INCOMPLETE, and say so on screen rather than pretending:
 
-Cleared since: the Trophy Room and the Player Index (both in the quick-nav
-menu, and the Trophy Room also off a HUD badge — which is the only place the
-game SHOWS the badge, so "Set as Badge" had been a button with no visible
-effect); the Event screen and Deadline Day, off the strip in the home screen's
-sticky footer; transfer bids and sponsor offers, off the end of a match; the
-2D cutaway, on the match screen.
-
-Cleared since the audit: the boot popups (`daily_reward` and the offline
-earnings), the toast layer (`achievement`, `cup`, `quest`, `loan` all now say
-something), the energy sheet, selling (`sell`), and the quests sheet — which the
-quick-nav menu now reaches, the menu itself having been unreachable too.
+- The **Leaderboard** shows its signed-out and offline states — both of which the
+  JS really has — because the ranked list needs `leaderboardService` (M4). The
+  tile is there so the Shop is not selling a rank with no door to look at it
+  through.
+- The event **cup bracket** is built and nothing reaches it: `wc2026`'s window
+  closed in July so it permanently reports `ended`. It exists because that
+  engine and its tests are the specification for whatever reuses the slot.
 
 ### Standing rules
 
@@ -480,67 +492,64 @@ was: the decision here, the platform read in M3 or M4.
 
 ### What is actually left
 
-One place, so nobody has to reconstruct it from seven milestone headings. Ordered
-by what a player would notice first, not by size.
+One place, so nobody has to reconstruct it from seven milestone headings.
 
-**Screens that do not exist at all.** Each is self-contained; the engines behind
-every one of them are already ported and tested.
+**`docs/PARITY.md` is the working queue.** It is a control-by-control and
+layout-by-layout diff of `../merge-empire-fc/src/ui/` against `lib/ui/`, taken
+from the source rather than from playing. Read it first; this section is the
+shape of the remaining work, that one is the list.
+
+**Screens that do not exist at all.** The engines behind both are ported and
+tested.
 
 | Screen | JS lines | Engine | Note |
 |---|---|---|---|
 | Cups | — | `cup_engine`, `event_cup_engine` | they DO run, at the season boundary; only the toast ever mentions one |
-| Leaderboard | 478 | none — `leaderboardService` (1,831) is M4 and unported | needs the SERVICE before the screen is worth writing |
-| Manager customiser | 571 | `manager_looks`, `manager_mood` | the Shop sells the Vault that unlocks these; wants `manager_avatar`'s SVG half, or the Rive rig |
+| Manager customiser | 571 | `manager_looks`, `manager_mood`, `manager_art.g.dart` | the Shop sells the Vault that unlocks these, and the parts are now generated |
 
-Built since this table was written: **Deadline Day** and the **Event** screen
-that hosts it (`lib/ui/screens/events/`), **Transfers** (the bid card, plus the
-two triggers that had no caller), the **Trophy Room**, the **Player Index**, and
-the **2D cutaway**. The event CUP branch is built too and nothing reaches it —
-`wc2026`'s window closed in July, so it permanently reports `ended`; it is there
-because that engine and its tests are the spec for whatever reuses the slot.
+Built since this table was first written: **Deadline Day** and the **Event**
+screen that hosts it, **Transfers** (the bid and sponsor cards, plus the two
+triggers that had no caller), the **Trophy Room**, the **Player Index**, the
+**2D cutaway**, the **player detail sheet**, the **next-match card**, the
+**walker**, and the **Leaderboard**'s signed-out and offline states. The event
+CUP branch is built and nothing reaches it — `wc2026`'s window closed in July,
+so it permanently reports `ended`; it is there because that engine and its tests
+are the spec for whatever reuses the slot.
 
 **Mini-games still to build**: Training Drills, Keepy Uppys, Through Ball, Whack,
 Teamwork. Penalty Training and the Boot Room are playable; the pattern for a new
 one is `lib/ui/screens/minigames/` plus a row in `playableMiniGames`.
 
-Penalty Training was rebuilt: it had four corner BUTTONS, and the goal itself is
-the target. Buttons cannot miss, so `penalty.wide_left`, `penalty.post` and
-`penalty.crossbar` were shipped copy in all ten catalogues that nothing could
-reach — and `game.penalty.instructions` has always read "Tap anywhere — aim for
-corners or risk hitting the woodwork!", describing an interaction the screen did
-not have. **Where the shipped copy and the port disagree, the copy is usually
-right.**
-
 **Spectacle.**
 
-- **The diorama** (League → Overview) is the highest-RISK piece left and the one
-  thing still gated on an open question: the port design ties its technique to
-  profile-mode timings from a physical device, which have not been taken.
+- **The diorama's parallax scene** — the world that scrolls behind the walker,
+  evolving with the division. The walker himself is in; this is the backdrop.
+  Still the piece the port design gates on profile-mode timings from a physical
+  device, which have not been taken.
 - The rest of the live match: in-match subs, tactic changes, the stats and
-  tactics tabs. (`ChanceCutaway` is done — see the match entry below.)
-- **The scout REVEAL** — signing drops a card into the grid with no reveal, no
-  new-discovery badge and no batch sizes.
+  tactics tabs, and the doubling offer on the closing screen.
+- **The scout REVEAL** — a signing still drops into the grid with no reveal, no
+  new-discovery badge and no auto-sell marker. The batch sizes it used to be
+  listed with are done.
 - **The rest of `MergeAnimation.js`** (928): the centre-screen reveal, floating
   income labels, the promotion celebration. The merge burst is done.
-- ~~The stadium HERO~~ — done, and it never needed the gradient work this entry
-  described. That SVG is the FALLBACK; the hero a player sees is a photograph,
-  and all eight tiers ship. `svg_canvas` still has no gradients and still does
-  not need any.
-- **`manager_avatar`'s SVG half** (~1,100) and the remaining art
-  (`gemArt` 146, `svgCache` 54).
-- **The manager rig** — walker, dugout cam, gestures, moods. **Blocked on Rive**:
-  there is no Rive MCP reachable from the session, and a `.riv` has to be
-  authored in their editor or generated through that MCP. Install it, or drop a
-  `.riv` in the repo, and the mount points go in around it. Left unbuilt rather
-  than half-built.
+- The dugout cam, gestures and moods — the rest of the manager rig.
+- The remaining art: `gemArt` (146) and `svgCache`'s SVG half (54).
 
 **Depth inside screens that DO exist.**
 
-- Club: the upgrade-path sheet, the stadium colour picker, hold-to-invest.
-- Squad: career stats, the transfer/offer surface.
+- Club: kit redesign, the upgrade-path ladder, the club stats block,
+  hold-to-invest.
+- Squad: rename, the trait wheel, the market-value gauge.
+- Shop: the Lucky Boot and match-cooldown ad buttons.
+- Settings: 52 interactive elements in the JS, not yet diffed at all.
 - Grid: lazy card mounting, if a profile run asks for it.
 - Season end: the season table, the quest auto-payout lines, cup results.
 - Match: the tutorial's forced first win, transfer-offer expiry on kickoff.
+
+**Layout still to diff** against `src/ui/styles/` the way the Shop was: Club,
+the Players grid, the match page, the home scene, the HUD, and `glass.css`,
+which is app-wide.
 
 **Then M4 in full** — see its own section. The Shop's IAP surface is finished and
 waiting on the billing bridge; nothing else in M4 has been started.
@@ -865,6 +874,12 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       **Penalty Training is playable**. Its shot resolution came out of the JS
       component into `engine/penalty_game_engine.dart`; the keeper's smart-dive
       ramp was already ported with the data.
+      **The GOAL is the target**, not four corner buttons. Buttons cannot miss,
+      so the woodwork and wayward outcomes were shipped copy in ten catalogues
+      that nothing could reach — and the instruction line already told the
+      player to tap anywhere. The quadrant they hit picks the corner the engine
+      is asked about; off target never reaches it, because the keeper had
+      nothing to do with it.
       The cooldown starts on ENTRY rather than on finishing, so walking away
       mid-round cannot farm the reward timer.
       A game with no screen yet is LISTED and says so rather than being offered
@@ -874,18 +889,26 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       a board the player cannot see all of is not a board.
       Still to build: Training Drills, Keepy Uppys, Through Ball, Whack and
       Teamwork.
-- [ ] Trophy room
-- [ ] Deadline Day screen
-- [ ] The manager rig — walker, dugout cam, gestures, moods
-- [ ] **Rive** for the walker (MCP still to be installed)
-- [ ] **Kenney.nl sprites** to replace the pitch circles with animated players
-- [ ] `manager_avatar` — the SVG geometry half (~1,100 lines). Moved here from
-      M1: it is drawing rather than logic, and the unlock half it needs is
-      already done.
-- [ ] **The SVG art that is not player art**: `assets/clubArt` (430),
-      `assets/gemArt` (146), `assets/svgCache` (54). `playerArt` is already ported;
-      these three are not, and the crest, the club-asset tiles and the gem icons
-      all read from them.
+- [x] Trophy room — `lib/ui/screens/trophies/`, off the burger and a HUD badge.
+      That badge is the only place the game SHOWS the badge you set, so without
+      it "Set as Badge" was a button with no visible effect.
+- [x] Deadline Day — `lib/ui/screens/events/`, inside the Event screen that
+      hosts it.
+- [x] **Kenney.nl sprites** — the 2D cutaway draws its two sides from the CC0
+      sports pack (green us, red them, white keepers). They are top-down and
+      there is no run cycle in the pack: heading is rotation, which is how
+      Kenney's own sample works.
+- [x] `manager_avatar`'s SVG half — generated into `lib/data/manager_art.g.dart`
+      by `tool/gen_manager_art.mjs`, the same way the club art was. Hair keeps
+      its back/front split because the head is drawn between the two.
+- [x] The walker — `lib/ui/screens/home/manager_walker.dart`.
+      **Rive was considered and dropped: it is paid.** The rig is drawn from the
+      generated parts instead.
+- [ ] The rest of the manager rig — dugout cam, gestures, moods
+- [ ] The manager CUSTOMISER, which is what the generated parts are for
+- [ ] **The SVG art that is not player art**: `assets/gemArt` (146), which the
+      gem icons read from. `playerArt`, `clubArt` and `svgCache`'s path half are
+      done.
 
 ---
 

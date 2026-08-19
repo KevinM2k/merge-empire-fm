@@ -38,7 +38,6 @@ gaps are in this list.
 ## Squad — `screens/SquadScreen.js`
 
 - [x] The eleven by formation, drag to pick or swap
-- [x] Bench under the pitch
 - [x] Formation picker
 - [x] Tactic picker
 - [x] Rating / ATK / DEF header
@@ -79,9 +78,8 @@ gaps are in this list.
 - [x] **The Leaderboard tile**, with the signed-out and offline states the JS
       really shows. The ranked list needs `leaderboardService` (M4).
 - [ ] The parallax scene behind him, evolving with the division
-- [ ] The customiser his parts are now generated for
-      (`data/manager_art.g.dart`) — hair, beard, hat, outfit, neck
-- [ ] **CUSTOMISE badge** → the manager customiser
+- [ ] **CUSTOMISE badge** → the manager customiser. Its parts are generated
+      already (`data/manager_art.g.dart`): hair, beard, hat, outfit, neck.
 - [ ] Prestige orb, when a prestige is available
 - [ ] Daily-reward orb with its streak count
 - [ ] The news ticker
