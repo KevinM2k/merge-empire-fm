@@ -176,6 +176,9 @@ class GameState {
     }
 
     _state = plan.save ?? createDefaultState();
+    // Whichever way the save arrived — loaded, recovered or freshly made — it is
+    // not waiting on a tutorial this app cannot run. See `settleTutorial`.
+    settleTutorial(_state);
     _bootedOnDefault = plan.bootedOnDefault;
 
     // Rebuilt from a fallback: write it straight back to the primary slot so the

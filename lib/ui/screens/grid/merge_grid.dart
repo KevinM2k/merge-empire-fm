@@ -757,16 +757,25 @@ class _MergeRingState extends State<_MergeRing>
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
+                      // The ring is a BORDER. It was a `BoxShadow` with
+                      // `BlurStyle.inner` and no blur radius, which is not an
+                      // inset outline — with nothing to blur it fills the whole
+                      // rounded rect, so every card with a pair on the grid came
+                      // out a flat gold tile with the player buried under it.
+                      // The CSS this came from says `inset 0 0 0 3px`; the 3px is
+                      // the spread of a stroke, not of a shadow.
+                      border: Border.all(
+                        color: ink.withValues(alpha: 0.95),
+                        width: 3,
+                      ),
+                      // The bloom, which IS a shadow — and has a blur radius, so
+                      // `inner` gives the glow inside the stroke that the second
+                      // CSS shadow does.
                       boxShadow: [
                         BoxShadow(
-                          color: ink.withValues(alpha: 0.95),
-                          spreadRadius: -3,
-                          blurStyle: BlurStyle.inner,
-                        ),
-                        BoxShadow(
-                          color: ink.withValues(alpha: 0.5 + 0.3 * t),
-                          blurRadius: 18 + 10 * t,
-                          spreadRadius: 2,
+                          color: ink.withValues(alpha: 0.32 + 0.28 * t),
+                          blurRadius: 16 + 10 * t,
+                          spreadRadius: -2,
                           blurStyle: BlurStyle.inner,
                         ),
                       ],

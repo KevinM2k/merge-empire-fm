@@ -12,7 +12,8 @@
 /// - **Coach Colin bottom left**, the one thing here that talks to you;
 /// - **the burger bottom right**, holding the table, the fixtures, the index,
 ///   the quests, the training ground and the trophies;
-/// - a sticky footer: the event strip, and the button that plays the match.
+/// - a sticky footer: the Deadline Day strip, and the button that plays the
+///   match.
 ///
 /// The two orbs hang off the footer's TOP edge rather than being measured from
 /// the bottom of the screen. That is deliberate in the JS and worth keeping:
@@ -24,9 +25,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
-import 'package:merge_empire_fc/ui/screens/events/event_screen.dart';
+import 'package:merge_empire_fc/ui/screens/home/event_strip.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
@@ -151,7 +150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  const _EventStrip(),
+                  const EventStrip(),
                   const PlayMatchButton(),
                 ],
               ),
@@ -196,73 +195,6 @@ class _Scene extends ConsumerWidget {
         // reading them.
         look: ref.watch(managerLookProvider),
         mood: mood,
-      ),
-    );
-  }
-}
-
-/// The way in to a live or upcoming event.
-///
-/// It rides in the sticky footer rather than above the match card. Over the
-/// card it pushed everything down on a page with no spare height; here it sits
-/// with the Play button, which is where the thumb already is, and for most of
-/// the month it is not there at all.
-class _EventStrip extends ConsumerWidget {
-  const _EventStrip();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final live = ref.watch(activeEventProvider);
-    final upcoming = ref.watch(upcomingEventProvider);
-    final id = live ?? upcoming;
-    if (id == null) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: GestureDetector(
-        key: const ValueKey('home-event-strip'),
-        onTap: () => openEventScreen(context, ref),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            color: kit.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: live != null ? kit.accent : kit.border),
-          ),
-          child: Row(
-            children: [
-              Text(
-                live != null ? '●' : '⏳',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: live != null ? kit.accentBright : kit.textMuted,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  tName('event', id),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              Text(
-                live != null
-                    ? t('event.deadline.live')
-                    : t('event.banner.coming_up'),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                  color: live != null ? kit.accentBright : kit.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

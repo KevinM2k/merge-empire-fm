@@ -188,11 +188,7 @@ class _AssetPanel extends ConsumerWidget {
   /// moment on this screen a player is paying for looked exactly like a number
   /// changing. `showFeatureUnlock` is the JS's payoff beat, and a tier-up gets it
   /// as well as a first build: the two are the same kind of event.
-  Future<void> _buy(
-    BuildContext context,
-    WidgetRef ref,
-    GameState game,
-  ) async {
+  Future<void> _buy(BuildContext context, WidgetRef ref, GameState game) async {
     final wasOwned = tile.owned;
     game.update(
       (s) => wasOwned ? investInAsset(s, tile.key) : buildAsset(s, tile.key),
@@ -218,7 +214,8 @@ class _AssetPanel extends ConsumerWidget {
       // The Stadium is the one facility that unlocks something ELSE — a tier of
       // it opens new kit colours — and it rides on the same card rather than
       // arriving as a second popup behind this one.
-      bonus: tile.key == AssetCategory.stadium &&
+      bonus:
+          tile.key == AssetCategory.stadium &&
               stadiumColourUnlocks.containsKey(tier)
           ? t('club.kit_design')
           : null,
@@ -291,6 +288,8 @@ class _AssetPanel extends ConsumerWidget {
                       ),
                       Text(
                         t('asset.${tile.key}.hint'),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: kit.textMuted, fontSize: 12),
                       ),
                     ],
@@ -312,6 +311,12 @@ class _AssetPanel extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 10),
+            // ONE LINE EACH, and the button capped. Nothing here wraps: the row
+            // is a status, a reason and an action, and a long localised label or
+            // a seven-figure price used to widen the button until the two texts
+            // beside it wrapped to five or six lines apiece — which is what
+            // opened the tall band of empty card under every heading. A row that
+            // cannot wrap cannot do that.
             Row(
               children: [
                 Expanded(
@@ -319,6 +324,8 @@ class _AssetPanel extends ConsumerWidget {
                     tile.owned
                         ? t('club.tier_n', {'n': tile.tier})
                         : t('club.build'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: kit.textMuted, fontSize: 12),
                   ),
                 ),
@@ -327,20 +334,30 @@ class _AssetPanel extends ConsumerWidget {
                     child: Text(
                       reason,
                       textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: kit.textMuted, fontSize: 11),
                     ),
                   ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  key: ValueKey('club-action-${tile.key}'),
-                  onPressed: !buildable
-                      ? null
-                      : () => _buy(context, ref, game),
-                  child: Text(
-                    tile.maxed
-                        ? t('shop.owned')
-                        : '${tile.owned ? t('club.invest') : t('club.build')}'
-                              ' ${formatCoins(tile.nextCost)}',
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.42,
+                  ),
+                  child: ElevatedButton(
+                    key: ValueKey('club-action-${tile.key}'),
+                    onPressed: !buildable
+                        ? null
+                        : () => _buy(context, ref, game),
+                    child: Text(
+                      tile.maxed
+                          ? t('shop.owned')
+                          : '${tile.owned ? t('club.invest') : t('club.build')}'
+                                ' ${formatCoins(tile.nextCost)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                    ),
                   ),
                 ),
               ],

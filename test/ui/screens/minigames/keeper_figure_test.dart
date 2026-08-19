@@ -1,16 +1,15 @@
 /// The penalty keeper.
 ///
-/// He was five flat rectangles with the arms permanently out. The JS has eight
-/// kit tiers and a rig; both are ported, and the posing is Flutter's own
-/// animated transforms rather than a clock in the widget.
+/// He was five flat SVG layers rotated about named joints, which at the size he
+/// appears on the scene came out as an orange slab with two mitts on stubs. He
+/// is drawn here now, with a hinge in every limb — and the whole pose is ONE
+/// interpolated value, so a dive cannot arrive limb by limb.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:merge_empire_fc/data/keeper_art.g.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/keeper_figure.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
-import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 
 Future<void> pumpKeeper(
   WidgetTester tester, {
@@ -35,64 +34,28 @@ Future<void> pumpKeeper(
   ),
 );
 
-double turnsOf(WidgetTester tester, Key key) =>
-    tester.widget<AnimatedRotation>(find.byKey(key)).turns;
+KeeperPainter painterOf(WidgetTester tester) => tester
+    .widgetList<CustomPaint>(find.byType(CustomPaint))
+    .map((c) => c.painter)
+    .whereType<KeeperPainter>()
+    .single;
 
 void main() {
-  group('the art', () {
-    test('there is a kit for every tier the palette names', () {
-      expect(keeperArt.keys, containsAll([for (var t = 1; t <= 8; t++) t]));
-      expect(keeperLayers.keys, keeperArt.keys);
-    });
-
-    test('every tier is cut into five pieces, each of them drawable', () {
-      for (final entry in keeperLayers.entries) {
-        final layers = entry.value;
-        for (final svg in [
-          layers.body,
-          layers.armL,
-          layers.armR,
-          layers.legL,
-          layers.legR,
-        ]) {
-          expect(parseSvg(svg), isNotEmpty, reason: 'tier ${entry.key}');
-        }
+  group('the kit', () {
+    test('there is one for every tier the division ramp can ask for', () {
+      for (var tier = 1; tier <= 8; tier++) {
+        expect(keeperKits.containsKey(tier), isTrue, reason: 'tier $tier');
       }
+      // And they are not the same kit twice: the opposition visibly improves.
+      expect(keeperKitFor(2).shirt, isNot(keeperKitFor(8).shirt));
     });
 
-    test('a limb carries the gradient its sleeve is painted with', () {
-      // Cut out of the whole figure, so the `<defs>` had to come with it — a
-      // layer that left the definition behind draws an unpainted arm.
-      final layers = keeperLayers[3]!;
-      expect(parseGradients(layers.armL), isNotEmpty);
-      expect(parseGradients(layers.armR), isNotEmpty);
+    test('and an unknown tier falls back rather than throwing', () {
+      expect(keeperKitFor(99), keeperKitFor(3));
+      expect(keeperKitFor(-1), keeperKitFor(3));
     });
 
-    test('the body no longer holds the limbs it was cut from', () {
-      final layers = keeperLayers[3]!;
-      expect(layers.body, isNot(contains('k-arm-l')));
-      expect(layers.body, isNot(contains('k-leg-r')));
-      expect(layers.body, contains('<defs>'), reason: 'it keeps the palette');
-    });
-
-    test('the number on the shirt is the tier', () {
-      for (final tier in keeperArt.keys) {
-        final text = RegExp(
-          r'<text[^>]*>\s*(\d)\s*</text>',
-        ).firstMatch(keeperArt[tier]!);
-        expect(text?.group(1), '$tier');
-      }
-    });
-
-    test('the palette really differs by tier', () {
-      // The point of eight of them: a Champions Cup keeper must not look like a
-      // Sunday League one.
-      expect(keeperArt[2], isNot(keeperArt[8]));
-    });
-  });
-
-  group('which kit', () {
-    test('rises with the division, and stops at the top', () {
+    test('the division picks it', () {
       expect(keeperTierForDivision(0), 2, reason: 'Sunday League');
       expect(keeperTierForDivision(3), 5);
       expect(keeperTierForDivision(6), 8, reason: 'Champions Cup');
@@ -102,34 +65,17 @@ void main() {
   });
 
   group('the pose', () {
-    test('a low shot lays him out, a high one only leans him', () {
-      // A keeper full-length at a shot into the top corner looked like he had
-      // simply fallen over.
+    test('a low dive lays him out and a high one only leans him', () {
       expect(KeeperPose.lowLeft.bodyDegrees, -75);
       expect(KeeperPose.highLeft.bodyDegrees, -22);
       expect(KeeperPose.lowRight.bodyDegrees, 75);
       expect(KeeperPose.highRight.bodyDegrees, 22);
       expect(KeeperPose.ready.bodyDegrees, 0);
-    });
-
-    test('the lead arm reaches further than the trailing one', () {
-      expect(
-        KeeperPose.lowLeft.armLeftDegrees.abs(),
-        greaterThan(KeeperPose.lowLeft.armRightDegrees.abs()),
-      );
-      expect(
-        KeeperPose.lowRight.armRightDegrees.abs(),
-        greaterThan(KeeperPose.lowRight.armLeftDegrees.abs()),
-      );
-    });
-
-    test('standing still means standing still', () {
-      expect(KeeperPose.ready.armLeftDegrees, 0);
-      expect(KeeperPose.ready.legRightDegrees, 0);
       expect(KeeperPose.ready.diving, isFalse);
+      expect(KeeperPose.lowRight.diving, isTrue);
     });
 
-    test('a dive is picked from which side of the goal the ball went', () {
+    test('and the tap decides which one', () {
       expect(poseFor(x: 20, y: 40, midX: 50), KeeperPose.lowLeft);
       expect(poseFor(x: 20, y: 10, midX: 50), KeeperPose.highLeft);
       expect(poseFor(x: 80, y: 40, midX: 50), KeeperPose.lowRight);
@@ -137,57 +83,69 @@ void main() {
     });
   });
 
-  group('the figure', () {
-    testWidgets('stands with every limb square', (tester) async {
-      await pumpKeeper(tester);
-      expect(turnsOf(tester, const ValueKey('penalty-keeper')), 0);
-      for (final joint in ['armL', 'armR', 'legL', 'legR']) {
-        expect(turnsOf(tester, ValueKey('keeper-limb-$joint')), 0);
+  group('the rig', () {
+    test('stands square, with the two sides mirrored', () {
+      const ready = KeeperRig.ready;
+      expect(ready.body, 0);
+      expect(ready.armL, -ready.armR);
+      expect(ready.legL, -ready.legR);
+    });
+
+    test('and a dive throws BOTH arms the way he went', () {
+      // Up in the figure's own space, because the body has already turned: a
+      // limb pointing up on a rig lying at 75 degrees points along the goal
+      // line, which is where the ball is.
+      final right = KeeperRig.of(KeeperPose.lowRight);
+      expect(right.body, greaterThan(0));
+      expect(right.armR, greaterThan(90), reason: 'the lead arm reaches');
+      expect(right.armL, greaterThan(90), reason: 'the trailing arm follows');
+      expect(
+        right.armR.abs(),
+        greaterThan(right.armL.abs()),
+        reason: 'and the lead one reaches further',
+      );
+
+      final left = KeeperRig.of(KeeperPose.lowLeft);
+      expect(left.armL, lessThan(-90));
+      expect(left.armR, lessThan(-90));
+    });
+
+    test('and BENDS its knees rather than pointing two planks', () {
+      // A straight leg on a diving keeper is a plank going sideways.
+      for (final pose in [KeeperPose.lowLeft, KeeperPose.lowRight]) {
+        final rig = KeeperRig.of(pose);
+        expect(
+          rig.kneeL.abs() + rig.kneeR.abs(),
+          greaterThan(30),
+          reason: '$pose',
+        );
       }
     });
 
-    testWidgets('and a dive turns the body AND the four limbs', (tester) async {
+    test('and interpolates as ONE value, so nothing arrives early', () {
+      final half = KeeperRig.lerp(
+        KeeperRig.ready,
+        KeeperRig.of(KeeperPose.lowRight),
+        0.5,
+      );
+      final end = KeeperRig.of(KeeperPose.lowRight);
+      // Every angle is exactly halfway, on one curve.
+      expect(half.body, (KeeperRig.ready.body + end.body) / 2);
+      expect(half.armR, (KeeperRig.ready.armR + end.armR) / 2);
+      expect(half.legL, (KeeperRig.ready.legL + end.legL) / 2);
+    });
+  });
+
+  group('the figure', () {
+    testWidgets('draws, and at the pose it was given', (tester) async {
       await pumpKeeper(tester, pose: KeeperPose.lowRight);
-      expect(
-        turnsOf(tester, const ValueKey('penalty-keeper')),
-        greaterThan(0),
-        reason: 'to his right',
-      );
-      expect(
-        turnsOf(tester, const ValueKey('keeper-limb-armR')),
-        greaterThan(0),
-        reason: 'the lead arm goes with him',
-      );
-      expect(
-        turnsOf(tester, const ValueKey('keeper-limb-legR')),
-        lessThan(0),
-        reason: 'the push-off leg extends back',
-      );
+      await tester.pumpAndSettle();
+      expect(painterOf(tester).rig.body, greaterThan(0));
     });
 
-    testWidgets('a limb turns about its own joint, not the middle', (
-      tester,
-    ) async {
-      // A shoulder rotation about the centre of the box swings the arm out of
-      // its socket, which is what the CSS transform-origins are for.
-      await pumpKeeper(tester, pose: KeeperPose.lowLeft);
-      final arm = tester.widget<AnimatedRotation>(
-        find.byKey(const ValueKey('keeper-limb-armL')),
-      );
-      expect(arm.alignment, jointAlignment('armL'));
-      expect(arm.alignment, isNot(Alignment.center));
-    });
-
-    testWidgets('the whole figure pivots off the ground', (tester) async {
-      await pumpKeeper(tester, pose: KeeperPose.lowLeft);
-      expect(
-        tester
-            .widget<AnimatedRotation>(
-              find.byKey(const ValueKey('penalty-keeper')),
-            )
-            .alignment,
-        Alignment.bottomCenter,
-      );
+    testWidgets('wears the tier it was given', (tester) async {
+      await pumpKeeper(tester, tier: 7);
+      expect(painterOf(tester).kit, keeperKitFor(7));
     });
 
     testWidgets('he shifts his weight while he waits', (tester) async {
@@ -210,14 +168,14 @@ void main() {
       await pumpKeeper(tester);
       final state = tester.state<KeeperFigureState>(find.byType(KeeperFigure));
       expect(state.swaying, isFalse);
-      expect(find.byType(SvgArt), findsWidgets, reason: 'still on his line');
+      expect(painterOf(tester).sway, 0, reason: 'still on his line');
     });
 
     testWidgets('an unknown tier falls back rather than throwing', (
       tester,
     ) async {
       await pumpKeeper(tester, tier: 99);
-      expect(find.byType(SvgArt), findsWidgets);
+      expect(painterOf(tester).kit, keeperKitFor(3));
     });
   });
 }

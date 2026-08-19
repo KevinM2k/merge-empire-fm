@@ -21,6 +21,26 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
+/// Mark the tutorial done on a save that has no way of doing it.
+///
+/// **Nothing in this app can finish a tutorial.** The scripted one is the single
+/// part of the JS that is not ported — no screen writes `tutorial.done`, and
+/// `createDefaultState` copies the JS's default leaf for leaf, which is `false`.
+/// Five finished features read that flag and refuse to appear while it says so:
+/// the x-N scout batch control, the auto-sell pill, sponsor offers, rival
+/// transfer bids and the auto-tier rules. Every save the port has ever written
+/// sat behind all five of them permanently.
+///
+/// It is applied on the way IN rather than in the default state, because the
+/// default state is pinned to the JS's and a test compares them leaf for leaf.
+/// This is the same argument `tutorialDoneProvider` already makes about saves
+/// written before the flag existed: a save that is not mid-tutorial is not
+/// mid-tutorial, and one that cannot leave the tutorial never was.
+void settleTutorial(Map<String, dynamic>? state) {
+  final tutorial = state?['tutorial'];
+  if (tutorial is Map<String, dynamic>) tutorial['done'] = true;
+}
+
 Map<String, dynamic> createDefaultState() {
   final createdAt = now();
 
@@ -147,7 +167,8 @@ Map<String, dynamic> createDefaultState() {
 
     'transferMarket': <String, dynamic>{
       'pendingOffer': null,
-      'grudges': <String, dynamic>{}, // teamName -> { matchesLeft, boost, reason }
+      'grudges':
+          <String, dynamic>{}, // teamName -> { matchesLeft, boost, reason }
     },
 
     // Transfer Deadline Day — one live, wall-clock trading session per daily
@@ -283,6 +304,9 @@ Map<String, dynamic> createDefaultState() {
       'hardModeWins': 0,
     },
 
+    // FALSE here, and true by the time anyone reads it — see `settleTutorial`.
+    // This map is pinned to the JS's default save leaf for leaf, so the fix for
+    // a tutorial that cannot be finished does not belong in it.
     'tutorial': <String, dynamic>{
       'done': false,
       'step': 0,
@@ -306,7 +330,6 @@ Map<String, dynamic> createDefaultState() {
     'definitionRatios': generateDefinitionRatios(),
 
     'clubName': '', // set on first launch via the name picker
-
     // Online leaderboard identity — anonymous UUID until optional sign-in.
     'leaderboard': <String, dynamic>{
       'playerId': null, // generated on first boot

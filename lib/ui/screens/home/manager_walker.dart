@@ -76,6 +76,41 @@ const _Track _shinFar = [(0, 13), (0.25, 60), (0.5, 6), (0.75, 4), (1, 13)];
 const _Track _armNear = [(0, 27), (0.5, -27), (1, 27)];
 const _Track _armFar = [(0, -27), (0.5, 27), (1, -27)];
 
+/// THE ANKLE IS A JOINT, not a fraction of the shin.
+///
+/// It was `-shin * 0.72` — one number taking back most of whatever the shin was
+/// doing — and that cannot be right at both ends of a stride, because the foot
+/// is doing opposite things at them. At toe-off the rear shin is up at 60 and
+/// the foot should be pointing DOWN off it at about 40 to the ground; the
+/// proportional take-back put it at 14, which is a flat foot dragged along
+/// behind him. At heel strike the front foot should be toe-UP and it was toed
+/// down instead. The back foot never bent because nothing told it to.
+///
+/// These are absolute degrees relative to the shin, and they are tuned against
+/// the sum: the boot's angle to the ground is thigh + shin + ankle, and it is
+/// that sum which has to read.
+const _Track _ankleNear = [(0, 13), (0.25, -1), (0.5, 0), (0.75, -32), (1, 13)];
+const _Track _ankleFar = [(0, 0), (0.25, -32), (0.5, 13), (0.75, -1), (1, 0)];
+
+/// And so is the elbow. The JS hangs the forearm at a static -52, which is a
+/// hinge that never hinges — the arm swings from the shoulder as one plank. It
+/// closes as the arm comes forward and opens as it goes back, which is what an
+/// arm does.
+const _Track _elbowNear = [
+  (0, -38),
+  (0.25, -52),
+  (0.5, -68),
+  (0.75, -52),
+  (1, -38),
+];
+const _Track _elbowFar = [
+  (0, -68),
+  (0.25, -52),
+  (0.5, -38),
+  (0.75, -52),
+  (1, -68),
+];
+
 /// How far the whole figure rises, twice a stride.
 const double _bob = 4;
 
@@ -325,34 +360,174 @@ Color? _colourOf(String hex) {
 }
 
 /// The ground he walks on.
+///
+/// Painted rather than a `RadialGradient` in a `BoxDecoration`, and that is not
+/// a preference: a radial gradient sizes its radius off the box's SHORTEST side,
+/// and this box is 50 wide by 8 tall. The gradient came out an 8px disc lost in
+/// the middle of it — a full stop under his boots rather than a shadow. Scaling
+/// a circular shader into an ellipse is the only way to get one that is wide.
 class _GroundShadow extends StatelessWidget {
   const _GroundShadow();
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      borderRadius: const BorderRadius.all(Radius.elliptical(60, 6)),
-      gradient: RadialGradient(
-        colors: [
-          Colors.black.withValues(alpha: 0.34),
-          Colors.black.withValues(alpha: 0),
-        ],
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      const CustomPaint(size: Size.infinite, painter: _ShadowPainter());
 }
 
-/// The skull, which the two hair layers are drawn either side of.
+class _ShadowPainter extends CustomPainter {
+  const _ShadowPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.scale(1, size.height / size.width);
+    final r = size.width / 2;
+    canvas.drawCircle(
+      Offset.zero,
+      r,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Colors.black.withValues(alpha: 0.34),
+            Colors.black.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: Offset.zero, radius: r)),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_ShadowPainter old) => false;
+}
+
+/// The head: the skull the two hair layers are drawn either side of, and the
+/// FACE in it.
+///
+/// There was no face. The skull was one skin circle and the only feature on it
+/// was the mood mouth, drawn over the top out of `manager_art.g.dart` — so the
+/// gaffer had a mouth, and glasses if he owned any, and otherwise a blank disc
+/// where his eyes should be.
+///
+/// **He is in three-quarter profile facing right**, which the shipped art
+/// already assumed and is worth stating: the `specs` frame is ONE lens at
+/// (67.3, 47.4) with an arm running back to the left ear, and every mouth is
+/// drawn around x 70. So one eye reads, the nose breaks the right-hand
+/// silhouette, and the ear sits at the back on the left. Two symmetrical eyes
+/// on this head would fight both of those.
+///
+/// The features are drawn UNDER `overHead`, which is exactly where they belong:
+/// a pair of shades has to cover the eye, a beard has to cover the jaw, and a
+/// hat has to sit on the hair.
 class _HeadPainter extends CustomPainter {
   const _HeadPainter({required this.skin});
 
   final Color skin;
 
+  /// The skull, from the art's own space.
+  static const Offset _centre = Offset(62, 48.5);
+  static const double _radius = 12.5;
+
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
-    canvas.drawCircle(const Offset(62, 48.5), 12.5, Paint()..color = skin);
+
+    final shade = Color.lerp(skin, Colors.black, 0.22)!;
+    final skinPaint = Paint()..color = skin;
+
+    // The ear first, so the skull covers all but its outer edge — an ear drawn
+    // on top of the head is a handle.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: const Offset(51.8, 50.4),
+        width: 5.4,
+        height: 6.6,
+      ),
+      Paint()..color = shade,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: const Offset(52.4, 50.4),
+        width: 2.6,
+        height: 3.4,
+      ),
+      Paint()..color = Color.lerp(skin, Colors.black, 0.38)!,
+    );
+
+    // The nose breaks the silhouette on the right rather than sitting inside
+    // it: a nose that does not cross the outline is a smudge on a cheek.
+    canvas.drawPath(
+      Path()
+        ..moveTo(72.6, 46.6)
+        ..quadraticBezierTo(76.6, 50.2, 73.2, 52.4)
+        ..close(),
+      skinPaint,
+    );
+
+    canvas.drawCircle(_centre, _radius, skinPaint);
+
+    // Lit from the sky, the same direction as the rest of the figure.
+    canvas.drawCircle(
+      _centre,
+      _radius,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.13),
+            Colors.black.withValues(alpha: 0.13),
+          ],
+        ).createShader(Rect.fromCircle(center: _centre, radius: _radius)),
+    );
+
+    // The eye, where the glasses' lens lands.
+    const eye = Offset(67.3, 47.4);
+    canvas.drawOval(
+      Rect.fromCenter(center: eye, width: 4.6, height: 3.6),
+      Paint()..color = const Color(0xFFFAF7F2),
+    );
+    canvas.drawCircle(
+      eye.translate(0.7, 0.25),
+      1.35,
+      Paint()..color = const Color(0xFF2A1F18),
+    );
+    // A brow, and it is the one feature doing any acting: without it the eye
+    // reads as a bead.
+    canvas.drawLine(
+      const Offset(64.3, 43.4),
+      const Offset(70.2, 42.9),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.55)
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round,
+    );
+    // The far eye, mostly hidden round the curve of the head — a hint, not a
+    // second full eye.
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(59.6, 47.8), width: 2.6, height: 3),
+      Paint()..color = const Color(0x66FAF7F2),
+    );
+    canvas.drawCircle(
+      const Offset(59.9, 48),
+      0.9,
+      Paint()..color = const Color(0xCC2A1F18),
+    );
+
+    // The jaw, which is what stops the head reading as a ball on a stick.
+    canvas.drawArc(
+      Rect.fromCircle(center: _centre.translate(0.5, 1), radius: _radius - 0.8),
+      _deg(20),
+      _deg(120),
+      false,
+      Paint()
+        ..color = shade.withValues(alpha: 0.5)
+        ..strokeWidth = 1.2
+        ..style = PaintingStyle.stroke,
+    );
+
     canvas.restore();
   }
 
@@ -399,38 +574,59 @@ class _WalkerPainter extends CustomPainter {
     canvas.restore();
   }
 
+  /// Where each leg hangs from. TWO hips, not one.
+  ///
+  /// Both legs used to pivot on the same point and be drawn at the same x, so
+  /// the figure had one leg-shaped stack with a second one hidden exactly
+  /// behind it — which is why the far leg never looked attached to anything.
+  /// They are 4 apart now, both well inside the shorts.
+  static const double _hipY = 95;
+  double _hipX(bool near) => near ? 60 : 56;
+
   void _leg(Canvas canvas, {required bool near}) {
     final legs = near ? kit : _shade(kit);
     final flesh = near ? skin : _shade(skin);
     final boot = near ? const Color(0xFF141414) : const Color(0xFF0B0B0B);
     final thigh = _sample(near ? _thighNear : _thighFar, t);
     final shin = _sample(near ? _shinNear : _shinFar, t);
+    final ankle = _sample(near ? _ankleNear : _ankleFar, t);
 
-    _about(canvas, const Offset(58, 96), thigh, () {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(53.5, 96, 9, 30),
-          const Radius.circular(4.5),
-        ),
-        Paint()..color = legs,
+    final x = _hipX(near);
+    final hip = Offset(x, _hipY);
+    final knee = Offset(x, _hipY + 30);
+    final foot = Offset(x, _hipY + 54);
+
+    // CAPSULES from the joint, not rectangles whose top edge happens to pass
+    // through it. A rotated rectangle swings its own corners out of the socket,
+    // which is what opened a wedge of background at the hip on every stride;
+    // a round-capped stroke is a circle at the pivot however far it turns, so
+    // the joint cannot come apart.
+    _about(canvas, hip, thigh, () {
+      canvas.drawLine(
+        hip,
+        knee,
+        Paint()
+          ..color = legs
+          ..strokeWidth = 10
+          ..strokeCap = StrokeCap.round,
       );
-      _about(canvas, const Offset(58, 126), shin, () {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            const Rect.fromLTWH(54.5, 126, 7, 24),
-            const Radius.circular(3.5),
-          ),
-          Paint()..color = flesh,
+      _about(canvas, knee, shin, () {
+        canvas.drawLine(
+          knee,
+          foot,
+          Paint()
+            ..color = flesh
+            ..strokeWidth = 8
+            ..strokeCap = StrokeCap.round,
         );
-        // The ankle takes back most of the shin's swing, so the boot stays
-        // nearer the ground than the leg above it. Without it the foot pointed
-        // wherever the shin did, which is the one thing that made the figure
-        // read as a puppet.
-        _about(canvas, const Offset(58, 149), -shin * 0.72, () {
+        _about(canvas, foot, ankle, () {
+          // The boot runs FORWARD from the ankle, so the heel sits under the leg
+          // and the toe leads — a boot centred on the ankle pivots about its own
+          // middle and reads as a skate.
           canvas.drawRRect(
             RRect.fromRectAndRadius(
-              const Rect.fromLTWH(54.5, 147, 15, 5),
-              const Radius.circular(3),
+              Rect.fromLTWH(foot.dx - 3.5, foot.dy - 2, 15, 5.5),
+              const Radius.circular(2.75),
             ),
             Paint()..color = boot,
           );
@@ -454,18 +650,25 @@ class _WalkerPainter extends CustomPainter {
           ),
           Paint()..color = sleeve,
         );
-        // The forearm hangs at a fixed break from the upper arm — the JS gives it
-        // a static -52° rather than a track of its own.
-        _about(canvas, const Offset(56, 80), -52, () {
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              const Rect.fromLTWH(53, 80, 6, 17),
-              const Radius.circular(3),
-            ),
-            Paint()..color = flesh,
-          );
-          canvas.drawCircle(const Offset(56, 96), 3.8, Paint()..color = flesh);
-        });
+        _about(
+          canvas,
+          const Offset(56, 80),
+          _sample(near ? _elbowNear : _elbowFar, t),
+          () {
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                const Rect.fromLTWH(53, 80, 6, 17),
+                const Radius.circular(3),
+              ),
+              Paint()..color = flesh,
+            );
+            canvas.drawCircle(
+              const Offset(56, 96),
+              3.8,
+              Paint()..color = flesh,
+            );
+          },
+        );
       },
     );
   }
@@ -475,7 +678,10 @@ class _WalkerPainter extends CustomPainter {
     // read as a romper suit.
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(50.5, 88, 15, 15),
+        // Down to 105 and out to 66: both hip sockets are at y 95, and the
+        // shorts have to still be over them when a thigh has swung 31 degrees.
+        // At 88..103 the far one came out from under the hem at the extremes.
+        const Rect.fromLTWH(50, 88, 16.5, 17),
         const Radius.circular(4),
       ),
       Paint()..color = Color.lerp(kit, Colors.black, 0.22)!,

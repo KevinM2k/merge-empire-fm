@@ -159,18 +159,25 @@ void main() {
       );
     });
 
-    testWidgets('mid-tutorial it says the rules are not live yet', (
+    testWidgets('no save is left mid-tutorial, so the rules are live', (
       tester,
     ) async {
-      // They are dormant by design: every Sunday League draw is bronze, so a
-      // live bronze rule would soft-lock "scout until you have three".
+      // The dormant state is still built and still correct — every Sunday
+      // League draw is bronze, so a live bronze rule would soft-lock "scout
+      // until you have three". What no longer exists is a save that can BE in
+      // it: the scripted tutorial is the one part of the JS that is not ported,
+      // so nothing here has ever set `tutorial.done`, and a save asking to wait
+      // for it would wait for ever. The migration writes it done and this is
+      // the assertion that it does.
       await pumpRow(tester, _save(tutorialDone: false));
       await tester.tap(find.byKey(const ValueKey('auto-tier-row')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('auto-tier-dormant')), findsOneWidget);
+      expect(find.byKey(const ValueKey('auto-tier-dormant')), findsNothing);
     });
 
-    testWidgets('and once it is done, it does not', (tester) async {
+    testWidgets('and a save that says so plainly is no different', (
+      tester,
+    ) async {
       await pumpRow(tester, _save());
       await tester.tap(find.byKey(const ValueKey('auto-tier-row')));
       await tester.pumpAndSettle();

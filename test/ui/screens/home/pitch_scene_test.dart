@@ -44,57 +44,30 @@ void main() {
       expect(box.width, tester.getRect(find.byType(PitchScene)).width);
     });
 
-    testWidgets('and the mown lanes have height to be seen in', (tester) async {
+    testWidgets('and the mown surface fills it', (tester) async {
       await pumpScene(tester);
-      final lanes = find.byKey(const ValueKey('pitch-mown'));
-      expect(lanes, findsWidgets);
-      expect(
-        tester.getRect(lanes.first).height,
-        greaterThan(100),
-        reason: 'a lane with no height is an invisible pitch',
-      );
-    });
-
-    testWidgets('and every scrolling segment has height to be seen in', (
-      tester,
-    ) async {
-      // The scroller's Row must STRETCH its children. Centred, a segment that
-      // does not name its own height gets loose constraints and collapses to
-      // zero — which is how the whole pitch went missing while the stand, which
-      // does name one, kept rendering.
-      await pumpScene(tester);
-      // The SEGMENT, not the band it sits in — the band is positioned and always
-      // reports the right height whether or not anything inside it drew.
-      final lanes = find.byKey(const ValueKey('pitch-lane'));
-      expect(lanes, findsWidgets, reason: 'no lanes at all');
-      final lane = tester.getRect(lanes.first);
-      expect(
-        lane.height,
-        greaterThan(8),
-        reason: 'a lane collapsed to ${lane.height}px — the pitch is not there',
-      );
-      // And it fills the band rather than sitting as a sliver in it.
+      final mow = find.byKey(const ValueKey('pitch-mown'));
+      expect(mow, findsOneWidget, reason: 'nothing mows the pitch');
       final turf = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
-      expect(lane.height, closeTo(turf.height, 1));
-      expect(lane.width, closeTo(84, 0.5));
+      final box = tester.getRect(mow);
+      expect(box.height, closeTo(turf.height, 1));
+      expect(box.width, closeTo(turf.width, 1));
     });
 
     testWidgets('and the thing that actually PAINTS has height too', (
       tester,
     ) async {
-      // The segment box measuring right is not the same claim as the pitch
-      // being on screen, and the difference is exactly how this shipped broken:
-      // the lane was a full-height `SizedBox` around a `Row` of two `Expanded`
-      // `ColoredBox`es, and the Row's default centre alignment handed both of
-      // them LOOSE heights. They came out 42×0. Every box above them measured
-      // correctly and the player saw sky.
+      // A box measuring right is not the same claim as the pitch being on
+      // screen, and the difference is exactly how this shipped broken: the
+      // lanes were `Expanded` `ColoredBox`es under a Row whose default centre
+      // alignment handed them LOOSE heights, so they came out 42x0. Every box
+      // above them measured correctly and the player saw sky.
       await pumpScene(tester);
-      final lane = find.byKey(const ValueKey('pitch-lane')).first;
       final painters = find.descendant(
-        of: lane,
+        of: find.byKey(const ValueKey('pitch-mown')),
         matching: find.byType(CustomPaint),
       );
-      expect(painters, findsWidgets, reason: 'nothing paints the lane');
+      expect(painters, findsWidgets, reason: 'nothing paints the turf');
       for (final element in painters.evaluate()) {
         final size = (element.renderObject! as RenderBox).size;
         expect(

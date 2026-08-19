@@ -60,7 +60,10 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
   KeeperPose _pose = KeeperPose.ready;
 
   static const ({double x, double y}) _spot = (x: 50, y: 78);
-  static const ({double x, double y}) _line = (x: 50, y: 34);
+
+  /// On the goal line, which is the ground — not 34% up the picture, where he
+  /// was standing in mid-air under his own crossbar.
+  static const ({double x, double y}) _line = (x: 50, y: goalLinePercent);
 
   /// Test seams.
   int get scored => _taken.where((r) => r.scored).length;

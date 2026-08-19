@@ -75,8 +75,44 @@ const double farSegmentWidth = 480;
 /// The ad boards on the horizon.
 const double hoardingHeight = 13;
 
-/// Two lanes to a segment: 42px each, and 42 divides 420 ten times.
-const double mownSegmentWidth = 84;
+/// The mowing fan — the mown stripes, in PERSPECTIVE.
+///
+/// The port had them as flat parallel lanes on a scrolling strip, and both
+/// halves of that were wrong. They had no convergence, so the pitch read as a
+/// wall of green bands rather than as ground going away from you; and the strip
+/// translated ONE 84px segment per `grassDuration` where the JS translates its
+/// whole 420px period, so the surface crawled at a fifth of his stride and he
+/// moonwalked over it.
+///
+/// **THE TRICK, and it is the JS's**: paint the fan on a box a THIRD of the
+/// pitch's width and stretch it back out. Two problems solve each other. Stripe
+/// width here is ANGULAR, and equal angles subtend more pixels the further they
+/// sit from the axis, so a full-width fan visibly fattens its lanes at the left
+/// and right edges — a third-width box only ever uses the middle ~10° of the
+/// fan, where that is under 1%. And stretching horizontally multiplies every
+/// ray's horizontal run without touching its vertical one, so the convergence
+/// comes out about 3× stronger than the same apex would give at full width.
+/// The stretch and the apex are independent dials after that: the stretch for
+/// how hard the lanes lean, the apex for the shape of the fall-off.
+const double _mowStretch = 2.941;
+
+/// Where the fan converges, in pitch-box heights above the box's top edge.
+const double _mowApex = -0.95;
+
+/// One lane pair, in radians. The sweep must travel exactly one full period or
+/// the loop jumps.
+final double _mowPeriod = 5.2 * math.pi / 180;
+
+/// **THE MASTER DIAL FOR THE WHOLE GRASS SURFACE**, as a ratio of the stride.
+///
+/// A ray's horizontal travel for a given rotation is proportional to its
+/// distance BELOW the apex, so the fan sweeps faster the lower down the box you
+/// look — that IS the perspective working, and it is also why the tufts need
+/// three bands to keep up with it. Where it is pinned: the row under his boots,
+/// ~60% up the pitch box, which is 1.35 box-heights below an apex at -95%. That
+/// lands within a few percent of the 84px/s the walk cycle is cut for, which is
+/// the one end of the pitch the eye actually checks.
+const double _mowRatio = 0.3313;
 
 /// Where the tufts live, as a fraction of the way up the pitch box. Not pixels:
 /// they used to be `[0, 30, 62]px` off the bottom edge, which crammed all three
@@ -524,7 +560,8 @@ class _HoardingPainter extends CustomPainter {
   bool shouldRepaint(_HoardingPainter old) => old.kitColor != kitColor;
 }
 
-/// The ground: mown stripes, then the three tuft bands over them.
+/// The ground: the turf, the mowing fan over it, the tuft bands, and the haze
+/// that puts the far end of it in the distance.
 class _Turf extends StatelessWidget {
   const _Turf({required this.mood});
 
@@ -536,30 +573,22 @@ class _Turf extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Mown lanes travelling with the surface. One segment is two lanes, so
-        // one segment per loop wraps seamlessly.
-        _Scroller(
-          key: const ValueKey('pitch-mown'),
-          duration: grass,
-          segmentWidth: mownSegmentWidth,
-          child: const _MownSegment(),
-        ),
-        // Aerial perspective: the turf DARKENS toward the horizon, so distance
-        // reads as distance rather than as a paler green.
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.42),
-                  Colors.black.withValues(alpha: 0.1),
-                  Colors.transparent,
-                ],
-                stops: const [0, 0.35, 1],
-              ),
+        // The turf. Brighter at his boots and darker toward the horizon, which
+        // is the first half of reading as ground rather than as a green wall.
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF2A7231), Color(0xFF3A9441), Color(0xFF48AD50)],
+              stops: [0, 0.45, 1],
             ),
+          ),
+        ),
+        _MowFan(
+          key: const ValueKey('pitch-mown'),
+          duration: Duration(
+            microseconds: (grass.inMicroseconds * _mowRatio).round(),
           ),
         ),
         // Each band is a FULL-HEIGHT strip whose tufts sit at their own depth
@@ -576,45 +605,159 @@ class _Turf extends StatelessWidget {
               child: _TuftSegment(band: band),
             ),
           ),
+        // Distance shade, OVER the fan and everything growing out of the turf.
+        // It stops before it reaches him: the shading has to fall off short of
+        // his boots or he ends up standing in a vignette.
+        const Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x57061A0C),
+                    Color(0x29061A0C),
+                    Color(0x0A061A0C),
+                    Color(0x00061A0C),
+                  ],
+                  stops: [0, 0.3, 0.52, 0.68],
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
-class _MownSegment extends StatelessWidget {
-  const _MownSegment();
+/// The mown stripes as a fan of rays converging on an apex above the pitch.
+///
+/// It SWEEPS rather than translating, and that is the whole point: a ray's
+/// horizontal travel for a given rotation is proportional to its distance below
+/// the apex, so the near grass moves fast and the far grass barely moves. A
+/// translating strip gives every depth the same speed, which is a conveyor belt
+/// rather than a pitch — and pinning that one speed anywhere but under his boots
+/// is what has him skating.
+class _MowFan extends StatefulWidget {
+  const _MowFan({super.key, required this.duration});
+
+  final Duration duration;
 
   @override
-  Widget build(BuildContext context) => const SizedBox(
-    key: ValueKey('pitch-lane'),
-    width: mownSegmentWidth,
-    // Named rather than inherited: a loose height constraint anywhere above
-    // this is what once collapsed the lanes to 42×0 and painted the pitch as
-    // sky. `infinity` resolves to whatever the strip's own height is, tight or
-    // loose.
-    height: double.infinity,
-    child: CustomPaint(painter: _MownPainter()),
+  State<_MowFan> createState() => _MowFanState();
+}
+
+class _MowFanState extends State<_MowFan> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+
+  /// Same bargain the scrolling strips make — see `_ScrollerState._sync`.
+  void _sync() {
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_c.isAnimating) _c.stop();
+      return;
+    }
+    if (!_c.isAnimating) _c.repeat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_MowFan old) {
+    super.didUpdateWidget(old);
+    if (old.duration != widget.duration) {
+      final running = _c.isAnimating;
+      _c.stop();
+      _c.duration = widget.duration;
+      if (running) _c.repeat();
+    }
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _c,
+    builder: (context, _) => CustomPaint(
+      // Named rather than inherited: a loose height constraint anywhere above
+      // this is what once collapsed the surface to nothing and painted the
+      // pitch as sky.
+      size: Size.infinite,
+      painter: _MowPainter(phase: _c.value),
+    ),
   );
 }
 
-class _MownPainter extends CustomPainter {
-  const _MownPainter();
+class _MowPainter extends CustomPainter {
+  const _MowPainter({required this.phase});
+
+  /// How far through one lane pair the sweep is, 0 to 1.
+  final double phase;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final half = size.width / 2;
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, half, size.height),
-      Paint()..color = const Color(0xFF2E7D3A),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(half, 0, size.width - half, size.height),
-      Paint()..color = const Color(0xFF276E33),
+    final h = size.height;
+    if (h <= 0 || size.width <= 0) return;
+    final inner = size.width / _mowStretch;
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    // Into the third-width space the fan is drawn in, then stretched back out.
+    canvas.translate(size.width / 2, 0);
+    canvas.scale(_mowStretch, 1);
+
+    final apexY = _mowApex * h;
+    // Enough of the fan to cover the box's far corners, plus a lane either side
+    // so the sweep never uncovers an edge.
+    final half = math.atan2(inner / 2, -apexY) + _mowPeriod * 2;
+    final reach = (h - apexY) * 1.6;
+    final light = Paint()..color = const Color(0x0EFFFFFF);
+    final dark = Paint()..color = const Color(0x0D000000);
+
+    // MINUS the phase: increasing the angle sweeps a ray to the right, and the
+    // world has to move right-to-left past a man walking on the spot.
+    final first = -(half / _mowPeriod).ceil() * _mowPeriod - phase * _mowPeriod;
+    for (var a = first; a < half; a += _mowPeriod) {
+      _wedge(canvas, apexY, a, a + _mowPeriod / 2, reach, light);
+      _wedge(canvas, apexY, a + _mowPeriod / 2, a + _mowPeriod, reach, dark);
+    }
+    canvas.restore();
+  }
+
+  /// One lane, as the wedge between two rays out of the apex.
+  void _wedge(
+    Canvas canvas,
+    double apexY,
+    double from,
+    double to,
+    double reach,
+    Paint paint,
+  ) {
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, apexY)
+        ..lineTo(reach * math.sin(from), apexY + reach * math.cos(from))
+        ..lineTo(reach * math.sin(to), apexY + reach * math.cos(to))
+        ..close(),
+      paint,
     );
   }
 
   @override
-  bool shouldRepaint(_MownPainter old) => false;
+  bool shouldRepaint(_MowPainter old) => old.phase != phase;
 }
 
 class _TuftSegment extends StatelessWidget {

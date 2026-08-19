@@ -225,10 +225,13 @@ class _QuestTile extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Expanded(
+            // WRAPS, and is not cut off. The ask is the whole content of the
+            // row — "Win by two goals or more" truncated to "Win by two goals
+            // or…" is a different instruction — and the block is a column that
+            // can grow a line, so there is nothing to protect by clipping it.
             child: Text(
               row.text,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
               style: TextStyle(
                 fontSize: 10.5,
                 height: 1.3,

@@ -30,6 +30,15 @@ typedef GoalFrame = ({double left, double right, double top, double bottom});
 
 const GoalFrame goalFrame = (left: 11, right: 89, top: 6, bottom: 47);
 
+/// Where the grass meets the goal in the photograph, in scene percent.
+///
+/// NOT [goalFrame]`.bottom`: that is the bottom of the SHOT box — the line
+/// below which a tap is a grounded shot rather than one over the bar — and it
+/// sits a few percent above the turf. The keeper stands on the ground, and
+/// standing him on the shot box put his boots a good thirty pixels in the air
+/// inside his own six-yard box. He was floating because he was.
+const double goalLinePercent = 52;
+
 /// The keeper's box: 13% of the scene's WIDTH, at 2:3. Off the width and not the
 /// height, so he keeps his proportions whatever shape the scene is given — the
 /// JS sizes him the same way (`width:13%; aspect-ratio:2/3`).
@@ -105,10 +114,10 @@ Aim resolveAim(double x, double y) {
 
 /// Where the keeper ends up when they dive to a corner, in scene percent.
 ({double x, double y}) keeperLanding(PenaltyCorner corner) => switch (corner) {
-  PenaltyCorner.topLeft => (x: 22, y: 14),
-  PenaltyCorner.topRight => (x: 78, y: 14),
-  PenaltyCorner.bottomLeft => (x: 22, y: 40),
-  PenaltyCorner.bottomRight => (x: 78, y: 40),
+  PenaltyCorner.topLeft => (x: 24, y: 22),
+  PenaltyCorner.topRight => (x: 76, y: 22),
+  PenaltyCorner.bottomLeft => (x: 24, y: 46),
+  PenaltyCorner.bottomRight => (x: 76, y: 46),
 };
 
 /// The scene: the goal, the keeper, the ball, and the tap target over all three.
@@ -183,6 +192,22 @@ class PenaltyScene extends StatelessWidget {
                   // instead hung half of him below the goal line and left him
                   // hovering above the six-yard box, which is exactly what he
                   // looked like: a keeper floating.
+                  // His shadow, on the ground he is standing on. It was
+                  // written and never placed, which is half of why he read as
+                  // pasted onto the photograph: nothing in the scene said where
+                  // his feet were. It shrinks and fades as he leaves the floor,
+                  // because a diving keeper IS off the ground.
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOut,
+                    left: at(keeper).dx - _keeperWidth(w) * 0.55,
+                    top: at(keeper).dy - _keeperWidth(w) * 0.11,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 260),
+                      opacity: keeperPose.diving ? 0.35 : 1,
+                      child: keeperShadow(width: _keeperWidth(w) * 1.1),
+                    ),
+                  ),
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 260),
                     curve: Curves.easeOut,

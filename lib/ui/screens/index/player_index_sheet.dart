@@ -246,15 +246,16 @@ class _FilterBar extends StatelessWidget {
     // own `tierName` where it does not.
     final tiers = <int>{for (final p in players) p.tier}.toList()..sort();
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      // No visible scrollbar: it is a row of four on a phone and five on a
-      // tablet, and a track under them reads as a component rather than as
-      // overflow.
-      physics: const ClampingScrollPhysics(),
-      child: Row(
-        spacing: 4,
-        children: [
+    // FOUR EQUAL COLUMNS, not a scrolling strip. It was horizontally scrollable,
+    // which is the same thing as running off the edge as far as the eye is
+    // concerned: two of the four filters were off the right of a phone with no
+    // affordance saying so, so they were simply not there. Each one takes a
+    // quarter of the width and ellipsises its own label instead — a filter you
+    // can see and read half of beats one you cannot see at all.
+    return Row(
+      spacing: 4,
+      children: [
+        for (final filter in <Widget>[
           _Dropdown<String?>(
             fieldKey: 'position',
             label: t('pi.filter.position'),
@@ -317,8 +318,9 @@ class _FilterBar extends StatelessWidget {
               found: v,
             )),
           ),
-        ],
-      ),
+        ])
+          Expanded(child: filter),
+      ],
     );
   }
 }
@@ -354,7 +356,7 @@ class _Dropdown<T> extends StatelessWidget {
 
     return Container(
       key: ValueKey('pi-filter-$fieldKey'),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.only(left: 8, right: 2),
       decoration: BoxDecoration(
         color: kit.surface2,
         borderRadius: BorderRadius.circular(8),
@@ -364,11 +366,30 @@ class _Dropdown<T> extends StatelessWidget {
         child: DropdownButton<T>(
           value: value,
           isDense: true,
+          // Fills its quarter and ellipsises inside it. Without this the button
+          // sizes to its widest ITEM, which is what pushed the row past the
+          // screen in the first place.
+          isExpanded: true,
+          iconSize: 16,
           dropdownColor: kit.surface,
           hint: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 11, color: kit.textMuted),
           ),
+          selectedItemBuilder: (context) => [
+            for (final (optionValue, optionLabel) in options)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  optionValue == null ? label : optionLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+          ],
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,

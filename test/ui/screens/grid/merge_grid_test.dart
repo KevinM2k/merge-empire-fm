@@ -418,9 +418,7 @@ void main() {
       await settleSave(tester);
 
       expect(
-        tester
-            .widget<InkWell>(find.byKey(const ValueKey('add-player')))
-            .onTap,
+        tester.widget<InkWell>(find.byKey(const ValueKey('add-player'))).onTap,
         isNull,
       );
       expect(find.text(t('players.addPlayer')), findsOneWidget);
@@ -479,10 +477,16 @@ void main() {
       expect(activeAutoTiers(container.read(gameProvider).state), contains(1));
     });
 
-    testWidgets('mid-tutorial the pill is not offered at all', (tester) async {
-      // The rules are dormant then, so a switch onto them would do nothing.
+    testWidgets('a fresh save is offered it, because it is not mid-tutorial', (
+      tester,
+    ) async {
+      // It used to be withheld here, on the grounds that the auto-tier rules are
+      // dormant during the tutorial and a switch onto them would do nothing.
+      // True, and unreachable: the tutorial is not ported, nothing sets
+      // `tutorial.done`, and a fresh save sat behind this gate — along with the
+      // x-N batch control, sponsors, rival bids and auto-tier — permanently.
       await pumpGrid(tester);
-      expect(find.byKey(const ValueKey('grid-autosell')), findsNothing);
+      expect(find.byKey(const ValueKey('grid-autosell')), findsOneWidget);
       expect(find.byKey(const ValueKey('grid-count')), findsOneWidget);
     });
   });
@@ -557,9 +561,7 @@ void main() {
       expect(filledCells(container), 2);
     });
 
-    testWidgets('and is dead, not gone, with nothing to merge', (
-      tester,
-    ) async {
+    testWidgets('and is dead, not gone, with nothing to merge', (tester) async {
       // Hidden would reflow the bar every time a pair appeared or went. It
       // stays put and goes dead, which is what the JS does.
       await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
@@ -715,9 +717,9 @@ void main() {
       // The rule the grid greys out by, and it is the merge rule exactly — not
       // "everything except the card in my hand". Dimming every other card said
       // nothing about which squares would take it.
-      final other = players.firstWhere(
-        (p) => p.tier == 1 && p.id != _baseDefId,
-      ).id;
+      final other = players
+          .firstWhere((p) => p.tier == 1 && p.id != _baseDefId)
+          .id;
       final container = await pumpGrid(
         tester,
         cards: {
@@ -745,10 +747,7 @@ void main() {
           1: _card(_baseDefId, 'b', variant: _femaleVariant),
         },
       );
-      expect(
-        mergeTargetsFor(container.read(gameProvider).state, 0),
-        isEmpty,
-      );
+      expect(mergeTargetsFor(container.read(gameProvider).state, 0), isEmpty);
     });
 
     testWidgets('a loaned card in hand has no targets at all', (tester) async {
@@ -764,10 +763,7 @@ void main() {
           1: _card(_baseDefId, 'b', variant: _maleVariant),
         },
       );
-      expect(
-        mergeTargetsFor(container.read(gameProvider).state, 0),
-        isEmpty,
-      );
+      expect(mergeTargetsFor(container.read(gameProvider).state, 0), isEmpty);
     });
 
     testWidgets('and a loaned card is never a target either', (tester) async {
@@ -781,10 +777,7 @@ void main() {
           },
         },
       );
-      expect(
-        mergeTargetsFor(container.read(gameProvider).state, 0),
-        isEmpty,
-      );
+      expect(mergeTargetsFor(container.read(gameProvider).state, 0), isEmpty);
     });
   });
 
@@ -839,9 +832,9 @@ void main() {
     testWidgets('marks BOTH halves of a pair, and nothing else', (
       tester,
     ) async {
-      final other = players.firstWhere(
-        (p) => p.tier == 1 && p.id != _baseDefId,
-      ).id;
+      final other = players
+          .firstWhere((p) => p.tier == 1 && p.id != _baseDefId)
+          .id;
       final container = await pumpGrid(
         tester,
         cards: {
