@@ -19,8 +19,7 @@ class CoinCounter extends StatelessWidget {
       tween: Tween<double>(end: value.toDouble()),
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeOut,
-      builder: (context, v, _) =>
-          Text(formatCoinsCompact(v), style: style),
+      builder: (context, v, _) => Text(formatCoinsCompact(v), style: style),
     );
   }
 }

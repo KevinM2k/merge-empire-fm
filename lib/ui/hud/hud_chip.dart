@@ -17,7 +17,10 @@ class HudChip extends StatelessWidget {
     this.onTap,
     this.trailing,
     this.semanticLabel,
+    this.onScene = false,
   });
+
+  /// True on the Play tab, where the chip floats on the diorama's sky.
 
   final IconData icon;
 
@@ -33,28 +36,45 @@ class HudChip extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailing;
   final String? semanticLabel;
+  final bool onScene;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    // DARK GLASS, in both themes. It was `surface` at 85%, which in light mode
-    // is a near-white pill carrying pale-green figures — over the diorama's sky
-    // that is white on blue-white, and the whole HUD went missing the moment
-    // anyone turned light mode on. The panel hands its own subtree the dark
-    // build of the kit, so the ink inside flips with the surface.
-    final body = GlassPanel(
-      radius: 14,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: iconColor ?? kit.accentBright),
-          const SizedBox(width: 4),
-          child,
-          if (trailing != null) ...[const SizedBox(width: 4), trailing!],
-        ],
-      ),
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: iconColor ?? kit.accentBright),
+        const SizedBox(width: 4),
+        child,
+        if (trailing != null) ...[const SizedBox(width: 4), trailing!],
+      ],
     );
+
+    // GLASS ONLY OVER THE SCENE.
+    //
+    // Dark glass on the diorama, because there the alternative is a near-white
+    // pill carrying pale-green figures on a blue-white sky, which is how the
+    // whole HUD went missing the moment light mode was on. But dark glass on
+    // the Shop or the Club — pale pages in light mode — is not glass at all,
+    // it is four black boxes sitting on a white screen. The JS scopes its glass
+    // to the Play tab for exactly this reason and keeps a themed chip
+    // everywhere else.
+    final body = onScene
+        ? GlassPanel(
+            radius: 14,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: row,
+          )
+        : Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: kit.surface.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kit.border),
+            ),
+            child: row,
+          );
     return Semantics(
       label: semanticLabel,
       button: onTap != null,

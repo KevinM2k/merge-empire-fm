@@ -116,7 +116,10 @@ class ShopTile extends StatelessWidget {
             for (final line in lines)
               Padding(padding: const EdgeInsets.only(top: 2), child: line),
             // Pushes the button down so every one in a row lines up however
-            // tall the text above it is.
+            // tall the text above it is. The row is now only as tall as its
+            // tallest tile (see `ShopGrid`), so on that tile this is nothing and
+            // on its shorter neighbour it is the difference — which is what it
+            // was always supposed to be, rather than half the tile.
             const Spacer(),
             const SizedBox(height: 10),
             ElevatedButton(

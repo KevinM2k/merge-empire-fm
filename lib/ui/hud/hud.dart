@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
@@ -83,18 +84,24 @@ class Hud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The whole HUD is written for DARK GLASS, so the whole HUD is built under
-    // the dark build of the kit — the figures, the captions and the icons as
-    // well as the chips they sit in. Resolving the ink out here in the app's own
-    // theme is what put pale-green numbers on a near-white pill the moment light
-    // mode was on; the `Builder` is what puts the rest of this method under it.
+    // On the Play tab the whole HUD is written for DARK GLASS, so the whole HUD
+    // is built under the dark build of the kit — the figures, the captions and
+    // the icons as well as the chips they sit in. Resolving the ink out here in
+    // the app's own theme is what put pale-green numbers on a near-white pill
+    // the moment light mode was on; the `Builder` is what puts the rest of this
+    // method under it.
+    //
+    // Everywhere else it keeps the app's own theme, because everywhere else the
+    // page underneath is the app's own surface — see `HudChip.onScene`.
+    final onScene = ref.watch(shellControllerProvider).tab == ShellTab.home;
+    if (!onScene) return _bar(context, ref, onScene: false);
     return Theme(
       data: ref.watch(glassThemeProvider),
-      child: Builder(builder: (context) => _bar(context, ref)),
+      child: Builder(builder: (context) => _bar(context, ref, onScene: true)),
     );
   }
 
-  Widget _bar(BuildContext context, WidgetRef ref) {
+  Widget _bar(BuildContext context, WidgetRef ref, {required bool onScene}) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final shell = ref.read(shellControllerProvider.notifier);
     final valueStyle = TextStyle(
@@ -105,22 +112,30 @@ class Hud extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      // TOGETHER, not spread. `spaceBetween` pushes the badge to one edge and
+      // the cog to the other and opens whatever is left between the three
+      // resource chips — so on a wide phone they drift apart into four
+      // unrelated things instead of reading as one strip of status.
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           IconButton(
             key: const ValueKey('hud-badge'),
             tooltip: t('trophy.title'),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
+            // BIG. It is the club's own crest and the way into the trophy
+            // room, and at 26 it was the smallest thing on a bar of 16px icons
+            // sitting in chips — a badge that reads as a bullet point.
             icon: BadgeIcon(
               badgeId: ref.watch(equippedBadgeProvider),
-              size: 26,
+              size: 38,
             ),
             onPressed: () => showTrophyRoomSheet(context),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           HudChip(
+            onScene: onScene,
             key: const ValueKey('hud-coins'),
             iconColor: hudCoinInk,
             icon: Icons.monetization_on,
@@ -135,8 +150,9 @@ class Hud extends ConsumerWidget {
               style: valueStyle,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           HudChip(
+            onScene: onScene,
             key: const ValueKey('hud-energy'),
             icon: Icons.bolt,
             iconColor: hudEnergyInk,
@@ -177,8 +193,9 @@ class Hud extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           HudChip(
+            onScene: onScene,
             key: const ValueKey('hud-gems'),
             icon: Icons.diamond,
             iconColor: hudGemInk,
@@ -188,8 +205,9 @@ class Hud extends ConsumerWidget {
             onTap: () => shell.deepLinkShop(ShopSection.gems),
             child: Text('${ref.watch(gemsProvider)}', style: valueStyle),
           ),
-          const SizedBox(width: 6),
+          const Spacer(),
           HudChip(
+            onScene: onScene,
             key: const ValueKey('hud-cog'),
             icon: Icons.settings,
             semanticLabel: t('hud.aria.settings'),

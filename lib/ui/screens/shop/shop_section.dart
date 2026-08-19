@@ -1,6 +1,8 @@
 /// The shared section frame. Seven shelves, one heading treatment.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -137,15 +139,45 @@ class ShopGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty) return const SizedBox.shrink();
-    return GridView.count(
-      crossAxisCount: columns,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      // Taller than wide: the glyph, two lines of text and a button stack up.
-      childAspectRatio: columns >= 3 ? 0.72 : 0.95,
-      children: children,
+    // ROWS OF EQUAL COLUMNS, sized to their CONTENT — not a grid with an aspect
+    // ratio. An aspect ratio decides a tile's height from its width, so a tile
+    // holding a title, a line of description and a button was given a box half
+    // as tall again as it needed and had to fill the difference with a `Spacer`.
+    // That gap is the same on every tile in the shop, under every title, and it
+    // is why the shelves read as half empty.
+    //
+    // `IntrinsicHeight` is what keeps the two tiles in a row the same height as
+    // each other — which is the one thing the aspect ratio was genuinely buying
+    // — while letting the ROW be as tall as its tallest tile and no taller.
+    final rows = <List<Widget>>[];
+    for (var i = 0; i < children.length; i += columns) {
+      rows.add(children.sublist(i, math.min(i + columns, children.length)));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var r = 0; r < rows.length; r++) ...[
+          if (r > 0) const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var c = 0; c < columns; c++) ...[
+                  if (c > 0) const SizedBox(width: 10),
+                  // The last row can be short; the empty columns still take
+                  // their share so the tiles that ARE there keep their width
+                  // rather than stretching across the shelf.
+                  Expanded(
+                    child: c < rows[r].length
+                        ? rows[r][c]
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
