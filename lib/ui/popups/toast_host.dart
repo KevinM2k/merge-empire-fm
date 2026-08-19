@@ -82,6 +82,36 @@ Toast? toastFor(String event, Object? args) {
         good: true,
       );
 
+    case 'merge:refused':
+      // The pair was fine and the DIVISION said no: the player is being told to
+      // keep climbing, not that they did something wrong.
+      if (data?['reason'] == 'division_locked') {
+        return (
+          text: t('grid.tier_unlock_higher', {'tier': data?['tier'] ?? 0}),
+          good: false,
+        );
+      }
+      if (data?['reason'] == 'insufficient_coins') {
+        final coins = data?['coins'];
+        return (
+          text: t('merge.need_coins', {
+            'coins': formatCoins(coins is num ? coins : 0),
+          }),
+          good: false,
+        );
+      }
+      return null;
+
+    case 'transfer:grudge':
+      // A bid died with the card it was for. Pooled copy, so the club's reaction
+      // is not the same sentence every time.
+      final team = data?['team'];
+      if (team is! String || team.isEmpty) return null;
+      return (
+        text: tPool('transfer.declined_grudge', {'team': team}),
+        good: false,
+      );
+
     case 'loan:expired':
       // Named, because the copy has a {name} and an unfilled placeholder
       // renders as literal "{name}" on screen.
@@ -103,6 +133,8 @@ const List<String> toastEvents = [
   'quests:swept',
   'scout:short',
   'scout:auto_sold',
+  'merge:refused',
+  'transfer:grudge',
   'loan:expired',
 ];
 

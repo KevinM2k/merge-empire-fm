@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -362,6 +363,86 @@ void main() {
       );
       expect(find.byKey(const ValueKey('add-player-blocked')), findsOneWidget);
       expect(filledCells(container), 0);
+    });
+  });
+
+  group('the tools row', () {
+    testWidgets('Merge All carries the pair count and its price', (
+      tester,
+    ) async {
+      // The sweep is a convenience being bought, so the fee is on the button
+      // rather than discovered after the tap.
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a'), 1: _card(_baseDefId, 'b')},
+      );
+      final cost = mergeAllCost(container.read(gameProvider).state);
+      expect(cost, greaterThan(0));
+
+      final label = tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('merge-all')),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+      expect(label, contains('(1)'));
+      expect(label, contains(formatCoins(cost)));
+    });
+
+    testWidgets('tapping it sweeps the grid and charges once', (tester) async {
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a'),
+          1: _card(_baseDefId, 'b'),
+          2: _card(_baseDefId, 'c'),
+          3: _card(_baseDefId, 'd'),
+        },
+      );
+      final cost = mergeAllCost(container.read(gameProvider).state);
+      final coinsBefore = container.read(coinsProvider);
+
+      await tester.tap(find.byKey(const ValueKey('merge-all')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(filledCells(container), lessThan(4));
+      expect(container.read(coinsProvider), coinsBefore - cost);
+    });
+
+    testWidgets('a club that cannot pay sees the price on a dead button', (
+      tester,
+    ) async {
+      // Dead rather than hidden: the pairs are still there and so is the reason
+      // they cannot be swept.
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a'), 1: _card(_baseDefId, 'b')},
+      );
+      container
+          .read(gameProvider)
+          .update(
+            (s) => (s['resources'] as Map<String, dynamic>)['fanCoins'] = 0,
+          );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const ValueKey('merge-all')))
+            .onPressed,
+        isNull,
+      );
+      expect(filledCells(container), 2);
+    });
+
+    testWidgets('and it is not there at all with nothing to merge', (
+      tester,
+    ) async {
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      expect(find.byKey(const ValueKey('merge-all')), findsNothing);
     });
   });
 

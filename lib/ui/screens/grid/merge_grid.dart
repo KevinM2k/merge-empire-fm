@@ -1,9 +1,9 @@
 /// The merge grid — the Players tab, and the game's core loop.
 ///
 /// Three columns by thirteen rows. A card is dragged onto another to merge, or
-/// onto an empty slot to move; `attemptMerge` owns every rule about which of
-/// those happened and whether it was allowed, so this widget only reports two
-/// indices and repaints.
+/// onto an empty slot to move; `merge_flow_engine.dart` owns every rule about
+/// which of those happened, whether it was allowed and what the game counts for
+/// it, so this widget only reports two indices and repaints.
 ///
 /// The JS carries a `pan-y` touch-action workaround, a `card-dragging` body
 /// class and a 200ms hold before a drag starts, all to stop a card drag and the
@@ -16,16 +16,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
+import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
-import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
+import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
+import 'package:merge_empire_fc/util/format.dart';
 
 class MergeGrid extends ConsumerStatefulWidget {
   const MergeGrid({super.key});
@@ -39,23 +40,40 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   int? _burstAt;
   int _burstTier = 1;
 
-  void _drop(WidgetRef ref, int from, int to) {
+  Future<void> _drop(WidgetRef ref, int from, int to) async {
     final game = ref.read(gameProvider);
     final maxTier = ref.read(maxMergeTierProvider);
+    // `performMerge`, not `attemptMerge`: the move is one line of what a merge
+    // IS to the game — the career count, the quest track and a rival's dead bid
+    // are the rest of it, and they lived in the JS screen.
     final result = game.update(
-      (s) => attemptMerge(from, to, gridCells(s), maxTier: maxTier),
+      (s) => performMerge(s, from, to, maxTier: maxTier),
     );
     // The engine says WHAT happened; the rest of the app decides what to make
-    // of it. A refused drag is worth nothing at all.
+    // of it. A refused drag is worth nothing at all — it has already said so on
+    // the bus, where the toast layer is listening.
     if (!result.ok) return;
     // Only a MERGE is celebrated. A move and a swap are the player tidying up,
     // and applauding those would make the burst mean nothing.
-    if (result.action == MergeAction.merge) {
-      setState(() {
-        _burstAt = to;
-        _burstTier = getPlayerDef(result.result?.definitionId)?.tier ?? 1;
-      });
-    }
+    if (result.action != MergeAction.merge) return;
+    setState(() {
+      _burstAt = to;
+      _burstTier = result.tier;
+    });
+
+    // A player nobody has ever seen gets the same turn-over a signing does. It
+    // is the only card a merge produces that is worth stopping the grid for, and
+    // reusing the scout's reveal is what stops the two drifting apart.
+    if (!result.isNewDiscovery) return;
+    final view = cardViewFor(
+      gridCells(game.state)[to],
+      proMode: ref.read(proModeProvider),
+    );
+    if (view == null || !mounted) return;
+    await showScoutReveal(context, (
+      cards: [(view: view, badge: null, isNewDiscovery: true, vanish: false)],
+      caption: t('grid.new_player_found'),
+    ));
   }
 
   @override
@@ -111,6 +129,8 @@ class _GridTools extends ConsumerWidget {
     final pairs = ref.watch(mergeablePairsProvider);
     final needsSort = ref.watch(gridNeedsSortProvider);
     final maxTier = ref.watch(maxMergeTierProvider);
+    final sweepCost = ref.watch(mergeAllCostProvider);
+    final canAfford = ref.watch(coinsProvider) >= sweepCost;
     final game = ref.read(gameProvider);
     if (pairs == 0 && !needsSort) return const SizedBox.shrink();
 
@@ -120,15 +140,19 @@ class _GridTools extends ConsumerWidget {
           Expanded(
             child: OutlinedButton.icon(
               key: const ValueKey('merge-all'),
-              onPressed: () {
-                game.update((s) => mergeAll(gridCells(s), maxTier: maxTier));
-                // One announcement for the batch, not one per pair: the
-                // achievement sweep and the quest counters both listen, and a
-                // twelve-pair sweep is one action the player took.
-                emit('merge:happened');
-              },
+              // Dead rather than hidden when the money is not there: the button
+              // carries its price, so a player who cannot pay can still see what
+              // it would cost. The engine refuses either way.
+              onPressed: canAfford
+                  ? () => game.update((s) => runMergeAll(s, maxTier: maxTier))
+                  : null,
               icon: const Icon(Icons.merge, size: 16),
-              label: Text('${t('players.mergeAll')} ($pairs)'),
+              // The sweep is a convenience being bought, so the fee rides on the
+              // button beside the count, the way the scout's price does.
+              label: Text(
+                '${t('players.mergeAll')} ($pairs) · ${formatCoins(sweepCost)}',
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         if (pairs > 0 && needsSort) const SizedBox(width: 8),

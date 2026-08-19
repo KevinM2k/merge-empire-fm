@@ -6,6 +6,7 @@
 library;
 
 import 'package:merge_empire_fc/engine/merge_engine.dart';
+import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
@@ -84,19 +85,11 @@ final maxMergeTierProvider = savePick<int>((s) {
 /// How many pairs a Merge All would actually eliminate.
 ///
 /// Counted rather than assumed, because the button carries the number and a
-/// "Merge All (0)" is a button that does nothing. `mergeAll` is run against a
-/// COPY — asking the question must not answer it.
-final mergeablePairsProvider = savePick<int>((s) {
-  final probe = [
-    for (final c in gridCells(s))
-      if (c is Map<String, dynamic>) <String, dynamic>{...c} else c,
-  ];
-  final id = _map(s['progression'])?['currentDivision'] as String?;
-  return mergeAll(
-    probe,
-    maxTier: getDivision(id ?? divisions.first.id).maxPlayerTier,
-  );
-});
+/// "Merge All (0)" is a button that does nothing.
+final mergeablePairsProvider = savePick<int>((s) => mergeablePairs(s));
+
+/// What the sweep costs — half a scout, on the button beside the count.
+final mergeAllCostProvider = savePick<int>(mergeAllCost);
 
 /// Whether sorting would move anything. The button takes itself away when the
 /// grid is already in order rather than sitting there doing nothing.

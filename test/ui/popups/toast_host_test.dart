@@ -67,6 +67,41 @@ void main() {
       expect(toast.good, isTrue);
     });
 
+    test('a division ceiling is explained, not just refused', () {
+      final toast = toastFor('merge:refused', {
+        'reason': 'division_locked',
+        'tier': 4,
+      });
+      expect(toast!.text, t('grid.tier_unlock_higher', {'tier': 4}));
+      expect(toast.good, isFalse);
+    });
+
+    test('a sweep nobody can pay for quotes the price', () {
+      final toast = toastFor('merge:refused', {
+        'reason': 'insufficient_coins',
+        'coins': 250,
+      });
+      expect(toast!.text, contains('250'));
+    });
+
+    test('a refusal with no reason it can explain stays quiet', () {
+      expect(toastFor('merge:refused', {'reason': 'same_cell'}), isNull);
+    });
+
+    test('a club whose bid died says something, from the pool', () {
+      final toast = toastFor('transfer:grudge', {'team': 'Real Somewhere'});
+      expect(toast!.text, contains('Real Somewhere'));
+      expect(
+        toast.text,
+        isNot(contains('|')),
+        reason: 'one line, not all of them',
+      );
+    });
+
+    test('a grudge with no club named stays quiet', () {
+      expect(toastFor('transfer:grudge', {'team': ''}), isNull);
+    });
+
     test('an expired loan names the player, or stays quiet', () {
       // The copy carries a {name}, and an unfilled placeholder renders as
       // literal "{name}" on screen.

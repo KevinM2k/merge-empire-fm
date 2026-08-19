@@ -114,20 +114,6 @@ Signing _fail(String reason) => (
   voucherRandom: false,
 );
 
-/// Has this card never been seen before?
-///
-/// `card:placed` fires synchronously inside [placeCard] and the save's discovery
-/// listener answers it, so by the time this is asked the count is already one
-/// for a first-ever sighting. That coupling is the JS's own and is why the
-/// question is asked here rather than before the draw — under plain `dart test`,
-/// with no listener attached, nothing has counted and the answer is false.
-bool _isFirstSighting(Map<String, dynamic> state, Object? raw) {
-  final card = CardInstance.from(raw);
-  if (card == null) return false;
-  final counts = _map(_map(state['progression'])?['playerFoundCounts']);
-  return (_num(counts?[card.discoveryKey]) ?? 0) == 1;
-}
-
 /// Sign one player into the first empty slot.
 ///
 /// The voucher is READ before the draw and only spent after the card lands. The
@@ -180,7 +166,7 @@ Signing signPlayer(Map<String, dynamic> state) {
     idx: idx,
     cost: cost,
     wasFree: free,
-    isNewDiscovery: _isFirstSighting(state, raw),
+    isNewDiscovery: isFirstSighting(state, raw),
     autoSell: autoSell,
     sellCoins: autoSell
         ? autoSellPrice(

@@ -243,6 +243,27 @@ MergeResult attemptMerge(
   return MergeResult(ok: true, action: MergeAction.merge, result: newCard);
 }
 
+/// Has this card never been seen before?
+///
+/// `card:placed` and `merge:complete` both fire synchronously — inside
+/// [placeCard] and [attemptMerge] — and the save's discovery listener answers
+/// them, so by the time a caller asks, the count is already one for a first-ever
+/// sighting. The coupling is the JS's own; it is read HERE, next to the two
+/// events that feed it, so the scout flow and the merge flow cannot drift on
+/// what "new" means.
+///
+/// Under plain `dart test`, with no listener attached, nothing has counted and
+/// the answer is false.
+bool isFirstSighting(Map<String, dynamic>? state, Object? raw) {
+  final card = CardInstance.from(raw);
+  if (card == null) return false;
+  final prog = state?['progression'];
+  final counts = prog is Map ? prog['playerFoundCounts'] : null;
+  if (counts is! Map) return false;
+  final seen = counts[card.discoveryKey];
+  return seen is num && seen == 1;
+}
+
 /// Index of the first empty slot, or -1.
 ///
 /// Treats null and a missing entry alike — old saves sometimes had undefined

@@ -35,6 +35,38 @@ void main() {
     }
   });
 
+  group('tPool()', () {
+    setUp(() => setLocale('en'));
+
+    test('picks ONE line out of a pooled key', () {
+      // The pool is the copy: rendered straight, the player would read all of
+      // it with pipes in between.
+      final whole = t('transfer.declined_grudge', {'team': 'Real Somewhere'});
+      expect(whole, contains('|'), reason: 'this key really is a pool');
+
+      final lines = whole.split('|');
+      for (var i = 0; i < 40; i++) {
+        expect(
+          lines,
+          contains(
+            tPool('transfer.declined_grudge', {'team': 'Real Somewhere'}),
+          ),
+        );
+      }
+    });
+
+    test('a key with no pipes comes back whole', () {
+      expect(tPool('nav.squad'), t('nav.squad'));
+    });
+
+    test('fills its params, the same as t()', () {
+      expect(
+        tPool('transfer.declined_grudge', {'team': 'Athletic'}),
+        contains('Athletic'),
+      );
+    });
+  });
+
   group('tName() matches the JS', () {
     setUp(() => setLocale('en'));
 

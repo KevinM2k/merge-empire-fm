@@ -9,6 +9,8 @@
 /// set `document.documentElement.dir`; that half is `MaterialApp.locale` now.
 library;
 
+import 'dart:math' as math;
+
 import 'package:merge_empire_fc/i18n/catalogs.g.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -47,6 +49,21 @@ String t(String key, [Map<String, Object?> params = const {}]) {
   var out = template;
   params.forEach((k, v) => out = out.replaceAll('{$k}', '$v'));
   return out;
+}
+
+/// Pooled copy — one line out of several, separated by `|`.
+///
+/// Dozens of catalogue entries are written this way: the coach's read on a
+/// squad, a rival's reaction to a lost bid. The pool IS the copy, so a caller
+/// that rendered `t()` straight would print all of them separated by pipes.
+///
+/// `dart:math` rather than the seeded generator, deliberately: this mirrors the
+/// JS's own `Math.random()` and nothing about which sentence a player reads may
+/// perturb the draw order that gameplay depends on.
+String tPool(String key, [Map<String, Object?> params = const {}]) {
+  final lines = t(key, params).split('|');
+  if (lines.length == 1) return lines.first;
+  return lines[math.Random().nextInt(lines.length)];
 }
 
 /// Resolve a division, cup or tier by its data-file id, falling back to the
