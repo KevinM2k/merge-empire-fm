@@ -25,7 +25,11 @@ typedef ConsumableTile = ({
 });
 
 const List<({String id, String nameKey, String descKey})> shopConsumables = [
-  (id: 'magic_sponge', nameKey: 'shop.sponge_name', descKey: 'shop.sponge_desc'),
+  (
+    id: 'magic_sponge',
+    nameKey: 'shop.sponge_name',
+    descKey: 'shop.sponge_desc',
+  ),
   (
     id: 'kit_sponsor',
     nameKey: 'shop.kit_sponsor_name',
@@ -60,7 +64,8 @@ final shopProductsProvider = Provider<List<IapProduct>>(
 
 final gemItemTilesProvider = savePick<List<GemItemTile>>(
   (s) => [
-    for (final item in gemItems) (item: item, blocked: gemItemBlocked(s, item.id)),
+    for (final item in gemItems)
+      (item: item, blocked: gemItemBlocked(s, item.id)),
   ],
 );
 
@@ -71,7 +76,11 @@ final voucherTilesProvider = savePick<List<VoucherTile>>((s) {
       : null;
   return [
     for (final floor in voucherTiersFor(division))
-      (floor: floor, cost: voucherCost(floor), blocked: voucherBlocked(s, floor)),
+      (
+        floor: floor,
+        cost: voucherCost(floor),
+        blocked: voucherBlocked(s, floor),
+      ),
   ];
 });
 

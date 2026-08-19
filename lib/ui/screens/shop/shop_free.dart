@@ -39,7 +39,7 @@ class FreeShelfSection extends ConsumerWidget {
 
     return ShopSectionFrame(
       id: ShopSectionId.free,
-      child: Column(
+      child: ShopGrid(
         children: [
           ShopTile(
             tileKey: 'ad-match-cooldown',

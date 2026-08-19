@@ -33,7 +33,7 @@ class _PaidShelf extends ConsumerWidget {
         .toList();
     return ShopSectionFrame(
       id: id,
-      child: Column(
+      child: ShopGrid(
         children: [
           for (final product in products)
             ShopTile(
@@ -56,10 +56,8 @@ class OffersSection extends StatelessWidget {
   const OffersSection({super.key});
 
   @override
-  Widget build(BuildContext context) => const _PaidShelf(
-    id: ShopSectionId.offers,
-    categories: {'bundle', 'vip'},
-  );
+  Widget build(BuildContext context) =>
+      const _PaidShelf(id: ShopSectionId.offers, categories: {'bundle', 'vip'});
 }
 
 /// Hard currency, and the only way to buy it — there is deliberately no
@@ -92,7 +90,7 @@ class RestoreRow extends StatelessWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 18, 12, 32),
-      child: Column(
+      child: ShopGrid(
         children: [
           OutlinedButton(
             key: const ValueKey('shop-restore'),

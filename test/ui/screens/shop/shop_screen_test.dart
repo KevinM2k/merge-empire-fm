@@ -59,7 +59,9 @@ void main() {
     expect(seen, shopSectionOrder);
   });
 
-  testWidgets('the gems section survives owning the style vault', (tester) async {
+  testWidgets('the gems section survives owning the style vault', (
+    tester,
+  ) async {
     // A section that deletes itself takes the player's balance off screen.
     await pumpShop(tester, (s) {
       (s['shop'] as Map<String, dynamic>)['styleVault'] = true;

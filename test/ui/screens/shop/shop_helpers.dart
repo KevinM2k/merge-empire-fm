@@ -13,7 +13,9 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
-ProviderContainer shopContainer(void Function(Map<String, dynamic> state) mutate) {
+ProviderContainer shopContainer(
+  void Function(Map<String, dynamic> state) mutate,
+) {
   final state = createDefaultState();
   mutate(state);
   final container = ProviderContainer(

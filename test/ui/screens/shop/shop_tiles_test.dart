@@ -8,10 +8,15 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 
+/// A tile is a GRID CELL — its button is pushed to the bottom so every button
+/// in a row lines up — so it needs a bounded height, the way the grid gives it
+/// one. Pumped into an unbounded scroller it has nothing to push against.
 Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
   MaterialApp(
     theme: buildAppTheme(kitId: '#4caf50', light: false),
-    home: Scaffold(body: SingleChildScrollView(child: child)),
+    home: Scaffold(
+      body: SingleChildScrollView(child: SizedBox(height: 220, child: child)),
+    ),
   ),
 );
 
@@ -44,11 +49,14 @@ void main() {
       tester,
       const ShopSectionFrame(id: ShopSectionId.coins, child: Text('inner')),
     );
-    expect(find.text(t('shop.section.coins')), findsOneWidget);
+    // Uppercased, the way the JS sets every shelf heading.
+    expect(find.text(t('shop.section.coins').toUpperCase()), findsOneWidget);
     expect(find.text('inner'), findsOneWidget);
   });
 
-  testWidgets('a section note is rendered once, above the child', (tester) async {
+  testWidgets('a section note is rendered once, above the child', (
+    tester,
+  ) async {
     await pump(
       tester,
       ShopSectionFrame(

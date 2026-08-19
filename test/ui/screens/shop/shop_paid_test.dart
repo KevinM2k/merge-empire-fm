@@ -108,17 +108,15 @@ void main() {
       }
     });
 
-    testWidgets('a spent daily cap reads as a cap, not as ready', (tester) async {
+    testWidgets('a spent daily cap reads as a cap, not as ready', (
+      tester,
+    ) async {
       // The gate is real even though the button is not.
-      await pumpShopWidget(
-        tester,
-        (s) {
-          for (var i = 0; i < 20; i++) {
-            recordPackAd(s);
-          }
-        },
-        FreeShelfSection.new,
-      );
+      await pumpShopWidget(tester, (s) {
+        for (var i = 0; i < 20; i++) {
+          recordPackAd(s);
+        }
+      }, FreeShelfSection.new);
       expect(find.text(t('shop.daily_cap')), findsWidgets);
     });
   });

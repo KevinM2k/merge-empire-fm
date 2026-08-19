@@ -13,20 +13,33 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 /// things those currencies buy, then cosmetics. What it replaced had coins split
 /// across two sections with a cash section wedged between them.
 enum ShopSectionId {
-  offers('shop.section.offers', Icons.local_offer),
-  free('shop.section.free', Icons.card_giftcard),
-  gems('shop.section.gems', Icons.diamond),
-  coins('shop.section.coins', Icons.monetization_on),
-  boosts('shop.section.boosts', Icons.bolt),
-  vouchers('shop.section.vouchers', Icons.confirmation_number),
-  looks('shop.section.looks', Icons.checkroom);
+  offers('shop.section.offers', Icons.local_offer, Color(0xFFFFB300)),
+  free('shop.section.free', Icons.card_giftcard, Color(0xFFFFD54A)),
+  gems('shop.section.gems', Icons.diamond, Color(0xFF7FD4FF)),
+  coins('shop.section.coins', Icons.monetization_on, Color(0xFFFFC83C)),
+  boosts('shop.section.boosts', Icons.bolt, Color(0xFF66BB6A)),
+  vouchers(
+    'shop.section.vouchers',
+    Icons.confirmation_number,
+    Color(0xFF66BB6A),
+  ),
+  looks('shop.section.looks', Icons.checkroom, Color(0xFFB98BFF));
 
-  const ShopSectionId(this.titleKey, this.icon);
+  const ShopSectionId(this.titleKey, this.icon, this.ink);
 
   final String titleKey;
 
   /// Line art, not emoji: a section heading is interface.
   final IconData icon;
+
+  /// **Each shelf has its OWN colour**, and that is what makes seven of them
+  /// scannable. Painting them all in the club's accent — which the port did —
+  /// turns the shop into one long undifferentiated list, and the whole point of
+  /// a section heading is that you can find your way back to it.
+  ///
+  /// The solid value; the rule under it uses a translucent version, because
+  /// line art washes out at the rule's alpha.
+  final Color ink;
 }
 
 const List<ShopSectionId> shopSectionOrder = ShopSectionId.values;
@@ -58,25 +71,39 @@ class ShopSectionFrame extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: kit.accent.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(id.icon, size: 16, color: kit.accent),
-              ),
+              // NO DISC. Every icon in this shop used to sit in a bordered,
+              // tinted box and the gem tiles never did — and the gem tiles are
+              // the ones that look right. A frame around a glyph adds a
+              // rectangle competing with the card's own edge and shrinks the art
+              // to pay for it. Bigger glyph, no box.
+              Icon(id.icon, size: 20, color: id.ink),
               const SizedBox(width: 8),
               Text(
-                t(id.titleKey),
-                style: TextStyle(
-                  color: kit.accentBright,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                t(id.titleKey).toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(child: Divider(color: kit.border)),
+              const SizedBox(width: 8),
+              // The rule runs to the right edge and fades out. It stops the
+              // heading floating unattached above its content, and does most of
+              // the work of "this is a section" without a heavy container round
+              // everything.
+              Expanded(
+                child: Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        id.ink.withValues(alpha: 0.45),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           if (note != null)
@@ -91,6 +118,34 @@ class ShopSectionFrame extends StatelessWidget {
           child,
         ],
       ),
+    );
+  }
+}
+
+/// A shelf, laid out.
+///
+/// The column count is per-shelf and MEASURED rather than picked — the JS notes
+/// that the voucher shelf is three across because at the shop's own type sizes
+/// "WORLD CLASS" is 103px of text, and four across gives each tile 78px, which
+/// wraps the name and pushes the description to three lines.
+class ShopGrid extends StatelessWidget {
+  const ShopGrid({required this.children, this.columns = 2, super.key});
+
+  final List<Widget> children;
+  final int columns;
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.isEmpty) return const SizedBox.shrink();
+    return GridView.count(
+      crossAxisCount: columns,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      // Taller than wide: the glyph, two lines of text and a button stack up.
+      childAspectRatio: columns >= 3 ? 0.72 : 0.95,
+      children: children,
     );
   }
 }

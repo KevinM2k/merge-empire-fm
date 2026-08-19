@@ -30,8 +30,9 @@ import 'package:merge_empire_fc/util/format.dart';
 String blockedCopy(String reason) => switch (reason) {
   'insufficient_gems' || 'insufficientGems' => t('shop.toast.not_enough_gems'),
   'already_owned' => t('shop.owned'),
-  'already_held' || 'alreadyHeld' || 'already_active' =>
-    t('shop.already_active'),
+  'already_held' ||
+  'alreadyHeld' ||
+  'already_active' => t('shop.already_active'),
   'insufficient_coins' => t('toast.not_enough_coins'),
   'no_injured' => t('shop.toast.no_injured'),
   _ => t('settings.comingSoon'),
@@ -48,7 +49,7 @@ class BoostsSection extends ConsumerWidget {
 
     return ShopSectionFrame(
       id: ShopSectionId.boosts,
-      child: Column(
+      child: ShopGrid(
         children: [
           for (final row in coins)
             ShopTile(
@@ -98,7 +99,7 @@ class VouchersSection extends ConsumerWidget {
     return ShopSectionFrame(
       id: ShopSectionId.vouchers,
       note: t('shop.voucher.one_at_a_time'),
-      child: Column(
+      child: ShopGrid(
         children: [
           for (final tile in tiles)
             ShopTile(

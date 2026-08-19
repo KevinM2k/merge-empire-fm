@@ -27,6 +27,11 @@ void main() {
           .firstWhere((t) => t.blocked == null);
       final before = container.read(gemsProvider);
 
+      // The shelves are grids now, so a tile can sit below the fold.
+      await tester.ensureVisible(
+        find.byKey(ValueKey('shop-buy-gem-${live.item.id}')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('shop-buy-gem-${live.item.id}')));
       await tester.pumpAndSettle();
       await settleSave(tester);
@@ -71,6 +76,11 @@ void main() {
       );
       final before = container.read(coinsProvider);
 
+      // The shelves are grids now, so a tile can sit below the fold.
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('shop-buy-coin-kit_sponsor')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('shop-buy-coin-kit_sponsor')));
       await tester.pumpAndSettle();
       await settleSave(tester);
@@ -80,15 +90,11 @@ void main() {
     });
 
     testWidgets('a boost already running this season is dead', (tester) async {
-      final container = await pumpShopWidget(
-        tester,
-        (s) {
-          (s['resources'] as Map<String, dynamic>)['fanCoins'] = 999999;
-          (s['boosts'] as Map<String, dynamic>)['kitSponsorSeason'] =
-              (s['progression'] as Map<String, dynamic>)['seasonCount'];
-        },
-        BoostsSection.new,
-      );
+      final container = await pumpShopWidget(tester, (s) {
+        (s['resources'] as Map<String, dynamic>)['fanCoins'] = 999999;
+        (s['boosts'] as Map<String, dynamic>)['kitSponsorSeason'] =
+            (s['progression'] as Map<String, dynamic>)['seasonCount'];
+      }, BoostsSection.new);
       expect(
         tester
             .widget<ElevatedButton>(
@@ -142,6 +148,11 @@ void main() {
           .firstWhere((t) => t.blocked == null);
       final before = container.read(gemsProvider);
 
+      // The shelves are grids now, so a tile can sit below the fold.
+      await tester.ensureVisible(
+        find.byKey(ValueKey('shop-buy-voucher-${open.floor}')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('shop-buy-voucher-${open.floor}')));
       await tester.pumpAndSettle();
       await settleSave(tester);
@@ -150,7 +161,9 @@ void main() {
       expect(heldVoucherTier(container.read(gameProvider).state), open.floor);
     });
 
-    testWidgets('once one is armed every other rung is blocked', (tester) async {
+    testWidgets('once one is armed every other rung is blocked', (
+      tester,
+    ) async {
       final container = await pumpShopWidget(
         tester,
         (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
@@ -160,6 +173,11 @@ void main() {
           .read(voucherTilesProvider)
           .firstWhere((t) => t.blocked == null);
 
+      // The shelves are grids now, so a tile can sit below the fold.
+      await tester.ensureVisible(
+        find.byKey(ValueKey('shop-buy-voucher-${open.floor}')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('shop-buy-voucher-${open.floor}')));
       await tester.pumpAndSettle();
       await settleSave(tester);

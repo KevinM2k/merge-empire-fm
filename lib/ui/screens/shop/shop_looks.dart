@@ -30,7 +30,7 @@ class LooksSection extends ConsumerWidget {
     return ShopSectionFrame(
       id: ShopSectionId.looks,
       note: t('shop.vault.progress', {'n': owned, 'total': tiles.length}),
-      child: Column(
+      child: ShopGrid(
         children: [
           if (vault != null)
             ShopTile(
