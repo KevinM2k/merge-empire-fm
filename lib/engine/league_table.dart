@@ -519,3 +519,22 @@ String? seasonStatusFor(
   if (entry is! Map<String, dynamic>) return null;
   return entry['division'] == divId ? entry['status'] as String? : null;
 }
+
+/// Which band of the table a position sits in.
+///
+/// Ported from `_tableZone` in `ui/screens/LeagueScreen.js`, and the two edge
+/// cases are the whole of it: the Champions Cup has nothing above it, so only
+/// FIRST is a prize rather than the top two; and Sunday League has nothing below
+/// it, so no position is a drop.
+enum LeagueZone { champion, promotion, relegation, midtable }
+
+LeagueZone leagueZoneFor(int pos, int rowCount, String divisionId) {
+  final isTop = divisionId == 'champions_cup';
+  final isBottom = divisionId == 'sunday_league';
+  if (isTop && pos == 1) return LeagueZone.champion;
+  if (!isTop && pos <= 2) return LeagueZone.promotion;
+  // TWO rows wide, not one — a side one place off the bottom is in the fight,
+  // and colouring only the last row said otherwise.
+  if (!isBottom && pos >= rowCount - 1) return LeagueZone.relegation;
+  return LeagueZone.midtable;
+}

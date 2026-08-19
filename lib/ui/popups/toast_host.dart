@@ -31,6 +31,13 @@ Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 Toast? toastFor(String event, Object? args) {
   final data = _map(args);
   switch (event) {
+    // A line the UI raised itself, already localised. The engines all name their
+    // own event; this is for the handful of refusals that live in a widget and
+    // have nowhere else to say so — a locked kit swatch, for one.
+    case 'toast:info':
+      final text = args is String ? args : '${data?['text'] ?? ''}';
+      return text.isEmpty ? null : (text: text, good: false);
+
     case 'achievement:unlocked':
       return (text: t('ach.unlocked'), good: true);
 
@@ -139,6 +146,7 @@ Toast? toastFor(String event, Object? args) {
 
 /// Every event the layer listens to.
 const List<String> toastEvents = [
+  'toast:info',
   'achievement:unlocked',
   'cup:won',
   'quest:completed',

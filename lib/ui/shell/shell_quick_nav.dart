@@ -14,7 +14,15 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
+import 'package:merge_empire_fc/engine/league_table.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/popups/daily_reward_sheet.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/index/player_index_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/leaderboard/leaderboard_sheet.dart';
@@ -41,6 +49,10 @@ List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
       QuickNavItem(
         labelKey: 'subnav.table',
         icon: Icons.format_list_numbered,
+        // The one live VALUE in the menu rather than a door: the tile carries the
+        // league position its old dock button did, coloured by the zone it sits
+        // in. Gold for the title race, accent for promotion, red for the drop.
+        badge: _TablePositionBadge(),
         onTap: () => showLeagueTableSheet(context),
       ),
       QuickNavItem(
@@ -56,12 +68,25 @@ List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
       QuickNavItem(
         labelKey: 'quests.title',
         icon: Icons.checklist,
+        dot: ref.watch(claimableQuestsProvider) > 0,
         onTap: () => showQuestsSheet(context, ref),
       ),
       QuickNavItem(
         labelKey: 'subnav.training',
         icon: Icons.fitness_center,
+        dot: ref.watch(miniGamesReadyProvider) > 0,
         onTap: () => showTrainingSheet(context),
+      ),
+      // **Daily was missing entirely.** It is a reward waiting to be taken, so
+      // it is the one tile in here that is actively owed to the player — and the
+      // only route to it was a dock orb the port never built. Nagging until it
+      // is claimed is the point of it.
+      QuickNavItem(
+        labelKey: 'scene.dock.daily',
+        icon: Icons.calendar_today,
+        dot: ref.watch(dailyRewardUnclaimedProvider),
+        onTap: () =>
+            showDailyRewardSheet(context, game: ref.read(gameProvider)),
       ),
     ],
   ),
@@ -82,10 +107,79 @@ List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
   ),
 ];
 
+/// Whether today's reward is still there to take.
+final dailyRewardUnclaimedProvider = savePick<bool>(
+  (s) => !getDailyRewardStatus(s).claimedToday,
+);
+
 /// Whether anything behind the burger is asking to be looked at.
 ///
 /// The OR of every tile's own badge, so nothing that used to nag from the scene
-/// goes quiet just because it moved one tap deeper.
+/// goes quiet just because it moved one tap deeper. It had only ever counted
+/// quests, so a ready drill and an unclaimed daily left the burger silent.
 final quickNavNeedsAttentionProvider = Provider<bool>(
-  (ref) => ref.watch(claimableQuestsProvider) > 0,
+  (ref) =>
+      ref.watch(claimableQuestsProvider) > 0 ||
+      ref.watch(miniGamesReadyProvider) > 0 ||
+      ref.watch(dailyRewardUnclaimedProvider),
 );
+
+/// The player's position, coloured by the zone it sits in.
+///
+/// Two rows wide at the bottom, one at the top — except in the Champions Cup
+/// where only first place goes up, and Sunday League where there is nowhere
+/// below to fall to. `leagueZoneFor` owns those rules.
+class _TablePositionBadge extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = ref.watch(leagueTableProvider);
+    final index = rows.indexWhere((LeagueRow r) => r.isPlayer);
+    if (index < 0) {
+      return Icon(
+        Icons.format_list_numbered,
+        color: Theme.of(context).extension<KitTheme>()!.accent,
+        size: 26,
+      );
+    }
+    final pos = index + 1;
+    final divisionId = ref.watch(currentDivisionProvider);
+    final colour = switch (leagueZoneFor(pos, rows.length, divisionId)) {
+      LeagueZone.champion => const Color(0xFFFFD700),
+      LeagueZone.promotion => Theme.of(
+        context,
+      ).extension<KitTheme>()!.accentBright,
+      LeagueZone.relegation => const Color(0xFFF87171),
+      LeagueZone.midtable => Colors.white,
+    };
+
+    return SizedBox(
+      height: 26,
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$pos',
+              style: TextStyle(
+                fontSize: 22,
+                height: 1.1,
+                fontWeight: FontWeight.w900,
+                color: colour,
+              ),
+            ),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.top,
+              child: Text(
+                ordinalSuffix(pos),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: colour,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

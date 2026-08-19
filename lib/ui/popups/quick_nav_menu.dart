@@ -21,11 +21,24 @@ class QuickNavItem {
     required this.labelKey,
     required this.icon,
     required this.onTap,
+    this.dot = false,
+    this.badge,
   });
 
   final String labelKey;
   final IconData icon;
   final VoidCallback onTap;
+
+  /// Something behind this tile wants attention. The burger's own dot is the OR
+  /// of these, so nothing that used to nag from the scene goes quiet just
+  /// because it moved one tap deeper.
+  final bool dot;
+
+  /// A live VALUE in place of the glyph — the table tile carries the league
+  /// position its dock button used to, zone colour and all. It is the one thing
+  /// in here that is a readout rather than a door, which is why it earns the
+  /// exception.
+  final Widget? badge;
 }
 
 class QuickNavGroup {
@@ -137,7 +150,27 @@ class _QuickNavTile extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(item.icon, color: kit.accent, size: 26),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  item.badge ?? Icon(item.icon, color: kit.accent, size: 26),
+                  if (item.dot)
+                    Positioned(
+                      right: -3,
+                      top: -2,
+                      child: Container(
+                        key: ValueKey('quick-nav-dot-${item.labelKey}'),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFF44336),
+                          border: Border.all(color: kit.surface2, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 6),
               Text(
                 t(item.labelKey),

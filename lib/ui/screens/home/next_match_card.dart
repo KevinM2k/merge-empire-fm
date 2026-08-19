@@ -42,6 +42,7 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
+import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
 
 /// One club's half of the card.
@@ -72,7 +73,8 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
   final preview = previewFixture(s);
   if (preview == null) return null;
 
-  final clubName = s['clubName'] is String && (s['clubName'] as String).isNotEmpty
+  final clubName =
+      s['clubName'] is String && (s['clubName'] as String).isNotEmpty
       ? s['clubName'] as String
       : t('common.your_club');
 
@@ -174,13 +176,10 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
 
   // Where the extra rating came from, when a club asset is supplying some.
   final cells = _map(s['grid'])?['cells'];
-  final breakdown = computeSquadRatingBreakdown(
-    [
-      for (final raw in (cells is List ? cells : const []))
-        CardInstance.from(raw),
-    ],
-    fatigue: _map(s['settings'])?['hardMode'] == true,
-  );
+  final breakdown = computeSquadRatingBreakdown([
+    for (final raw in (cells is List ? cells : const []))
+      CardInstance.from(raw),
+  ], fatigue: _map(s['settings'])?['hardMode'] == true);
 
   return (
     left: preview.isHome ? usSide : themSide,
@@ -289,7 +288,10 @@ class _Row extends StatelessWidget {
       children: [
         Expanded(child: Center(child: left)),
         const SizedBox(width: nmGap),
-        SizedBox(width: nmGutter, child: Center(child: gutter)),
+        SizedBox(
+          width: nmGutter,
+          child: Center(child: gutter),
+        ),
         const SizedBox(width: nmGap),
         Expanded(child: Center(child: right)),
       ],
@@ -350,7 +352,7 @@ class _PosChip extends StatelessWidget {
                 WidgetSpan(
                   alignment: PlaceholderAlignment.top,
                   child: Text(
-                    _ordinal(pos),
+                    ordinalSuffix(pos),
                     style: const TextStyle(
                       fontSize: 7.5,
                       fontWeight: FontWeight.w800,
@@ -380,16 +382,6 @@ class _PosChip extends StatelessWidget {
       ),
     );
   }
-}
-
-String _ordinal(int n) {
-  if (n % 100 >= 11 && n % 100 <= 13) return 'th';
-  return switch (n % 10) {
-    1 => 'st',
-    2 => 'nd',
-    3 => 'rd',
-    _ => 'th',
-  };
 }
 
 /// The club, and the biggest thing on the card — everything under it is an

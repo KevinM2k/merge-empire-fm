@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
@@ -94,6 +95,10 @@ class ClubScreen extends ConsumerWidget {
         children: [
           _StadiumHero(tier: ref.watch(stadiumTierProvider)),
           const SizedBox(height: 10),
+          // The club's COLOURS, which theme the whole app. Directly under the
+          // hero, because the hero is the other thing on this screen that is
+          // about how the club looks rather than what it earns.
+          const KitRedesignRow(),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(

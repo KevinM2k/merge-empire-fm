@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
@@ -181,9 +182,20 @@ void main() {
       expect(find.byKey(const ValueKey('quick-nav-badge')), findsOneWidget);
     });
 
-    testWidgets('and stays away when nothing is', (tester) async {
-      await pumpShell(tester, saveWithQuests());
-      expect(find.byKey(const ValueKey('quick-nav-badge')), findsNothing);
+    testWidgets('and counts the daily and the drills, not just quests', (
+      tester,
+    ) async {
+      // The burger's dot is the OR of every tile's own, so nothing that used to
+      // nag from the scene goes quiet just because it moved a tap deeper. It had
+      // only counted quests, which left a ready drill and an unclaimed daily
+      // reward — both of them owed to the player — saying nothing at all.
+      final container = await pumpShell(tester, saveWithQuests());
+      // Nothing to CLAIM on the quest track...
+      expect(container.read(claimableQuestsProvider), 0);
+      // ...but a fresh save has its training drills charged, and a drill you can
+      // play is a thing owed to the player just as much as a claimable quest.
+      expect(container.read(miniGamesReadyProvider), greaterThan(0));
+      expect(find.byKey(const ValueKey('quick-nav-badge')), findsOneWidget);
     });
   });
 

@@ -140,3 +140,18 @@ String formatTimeOfDay(DateTime at) {
     return '';
   }
 }
+
+/// `1` → `st`, `2` → `nd`, `13` → `th`.
+///
+/// One copy, because two surfaces print an ordinal — the next-match card's
+/// standings chip and the quick-nav's table tile — and a table that said 3rd in
+/// one place and 3th in the other is the failure this avoids.
+String ordinalSuffix(int n) {
+  if (n % 100 >= 11 && n % 100 <= 13) return 'th';
+  return switch (n % 10) {
+    1 => 'st',
+    2 => 'nd',
+    3 => 'rd',
+    _ => 'th',
+  };
+}

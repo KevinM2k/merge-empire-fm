@@ -660,4 +660,84 @@ void main() {
       expect(particlesForTier(0), greaterThan(0));
     });
   });
+
+  group('what a held card can merge with', () {
+    testWidgets('a matching pair is a target, a different player is not', (
+      tester,
+    ) async {
+      // The rule the grid greys out by, and it is the merge rule exactly — not
+      // "everything except the card in my hand". Dimming every other card said
+      // nothing about which squares would take it.
+      final other = players.firstWhere(
+        (p) => p.tier == 1 && p.id != _baseDefId,
+      ).id;
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+          2: _card(other, 'c', variant: _maleVariant),
+        },
+      );
+      final targets = mergeTargetsFor(container.read(gameProvider).state, 0);
+      expect(targets, contains(1));
+      expect(targets, isNot(contains(2)));
+      // Never itself.
+      expect(targets, isNot(contains(0)));
+    });
+
+    testWidgets('and two of the same player of different genders are not', (
+      tester,
+    ) async {
+      // They swap rather than merge, so offering the swap as a merge target
+      // promises something the engine then refuses.
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _femaleVariant),
+        },
+      );
+      expect(
+        mergeTargetsFor(container.read(gameProvider).state, 0),
+        isEmpty,
+      );
+    });
+
+    testWidgets('a loaned card in hand has no targets at all', (tester) async {
+      // Deliberately the whole grid: dropping it still swaps, and the point is
+      // that nothing is offered as a MERGE before the player lets go.
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: {
+            ..._card(_baseDefId, 'a', variant: _maleVariant),
+            'loanMatchesLeft': 3,
+          },
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      expect(
+        mergeTargetsFor(container.read(gameProvider).state, 0),
+        isEmpty,
+      );
+    });
+
+    testWidgets('and a loaned card is never a target either', (tester) async {
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: {
+            ..._card(_baseDefId, 'b', variant: _maleVariant),
+            'loanMatchesLeft': 3,
+          },
+        },
+      );
+      expect(
+        mergeTargetsFor(container.read(gameProvider).state, 0),
+        isEmpty,
+      );
+    });
+  });
 }
