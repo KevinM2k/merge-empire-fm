@@ -18,6 +18,10 @@ typedef TimelineEvent = ({
   String? team,
   String? scorer,
   String? textKey,
+
+  /// `on_target` or `off`, on a chance. The feed does not use it; the 2D
+  /// cutaway does, because it is the difference between a save and a miss.
+  String? shotResult,
 });
 
 /// The state of a match at some point through it.
@@ -44,6 +48,7 @@ List<TimelineEvent> timelineOf(Map<String, dynamic> result) {
           team: e['team'] as String?,
           scorer: e['scorer'] as String?,
           textKey: e['textKey'] as String?,
+          shotResult: e['shotResult'] as String?,
         ),
   ]..sort((a, b) => a.minute.compareTo(b.minute));
 }

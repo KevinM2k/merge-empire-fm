@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -42,19 +43,29 @@ class MatchScreen extends ConsumerStatefulWidget {
 
 class MatchScreenState extends ConsumerState<MatchScreen> {
   late final List<TimelineEvent> _timeline = timelineOf(widget.result);
-  late final int _end =
-      fullTime((widget.result['addedTime'] as num?)?.toInt() ?? 0);
+  late final int _end = fullTime(
+    (widget.result['addedTime'] as num?)?.toInt() ?? 0,
+  );
 
   Timer? _timer;
   int _minute = 0;
   bool _reported = false;
 
+  /// The chance currently playing out on the pitch, or null for the idle one.
+  ///
+  /// Set when the clock reaches an event worth watching and cleared when the
+  /// clip finishes. The clock does NOT wait for it: the passage is a retelling
+  /// of something already decided, so a slow clip must not hold the match up.
+  CutawayClip? _clip;
+
+  /// The last minute a clip was cut for, so a rebuild does not restart one.
+  int _clippedMinute = -1;
+
   /// Held from initState: `ref` is not usable once the widget is disposed, and
   /// handing the gates back is exactly a teardown job.
   late final StateController<TickGates> _gates;
 
-  MatchFrame get frame =>
-      frameAt(widget.result, _minute, timeline: _timeline);
+  MatchFrame get frame => frameAt(widget.result, _minute, timeline: _timeline);
 
   @override
   void initState() {
@@ -79,14 +90,43 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       _finish();
       return;
     }
-    setState(() => _minute++);
+    setState(() {
+      _minute++;
+      _cutIfWorthWatching();
+    });
+  }
+
+  /// Put the newest event on the pitch, when it is one you can watch.
+  void _cutIfWorthWatching() {
+    for (final event in _timeline) {
+      if (event.minute != _minute || event.minute == _clippedMinute) continue;
+      final ours = event.team == 'home'
+          ? widget.result['isHome'] == true
+          : widget.result['isHome'] != true;
+      final clip = clipFor(
+        event,
+        // We defend the left end, so our attacks run right.
+        ourSideLeft: true,
+        ours: ours,
+        // Seeded off the minute so the same match replays the same chances.
+        seed: (widget.result['seed'] as num?)?.toInt() ?? 0 + event.minute,
+      );
+      if (clip == null) continue;
+      _clippedMinute = event.minute;
+      _clip = clip;
+      return;
+    }
   }
 
   /// Jump to full time. The result was decided before the first whistle, so
   /// skipping costs the player the story and nothing else.
   void skipToEnd() {
     if (!mounted) return;
-    setState(() => _minute = _end);
+    // Nothing to watch on the way to full time.
+    setState(() {
+      _minute = _end;
+      _clip = null;
+    });
     _finish();
   }
 
@@ -148,6 +188,23 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               finished: f.finished,
             ),
             const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              // Capped rather than left at its natural aspect height: the pitch
+              // is landscape and would otherwise take a third of a tall phone
+              // and all of a short one, pushing the feed off the bottom.
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.3,
+                ),
+                child: CutawayStage(
+                  clip: _clip,
+                  onDone: (_) {
+                    if (mounted) setState(() => _clip = null);
+                  },
+                ),
+              ),
+            ),
             Expanded(
               child: ListView.builder(
                 key: const ValueKey('match-feed'),
@@ -243,9 +300,7 @@ class _Scoreboard extends StatelessWidget {
                   ),
                 ),
               ),
-              Expanded(
-                child: Text(right, overflow: TextOverflow.ellipsis),
-              ),
+              Expanded(child: Text(right, overflow: TextOverflow.ellipsis)),
             ],
           ),
           const SizedBox(height: 4),
