@@ -331,10 +331,7 @@ int mergeAll(List<dynamic> cells, {Map<String, dynamic>? stats, int? maxTier}) {
 /// Returns true when anything moved, so a caller can skip an animation that has
 /// nothing to show.
 bool sortGridByTier(List<dynamic> cells) {
-  final filled = [
-    for (final c in cells)
-      if (c != null) c,
-  ];
+  final filled = [for (final c in cells) ?c];
   final before = [for (final c in cells) CardInstance.from(c)?.instanceId];
 
   // Stable, so two cards of the same tier and rating keep the order the player
