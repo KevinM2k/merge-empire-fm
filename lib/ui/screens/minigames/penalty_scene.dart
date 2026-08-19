@@ -19,6 +19,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/engine/penalty_game_engine.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/keeper_figure.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 
 /// The artwork's aspect, so a percentage means the same thing at every width.
@@ -110,6 +111,8 @@ class PenaltyScene extends StatelessWidget {
     required this.onShoot,
     required this.ball,
     required this.keeper,
+    required this.keeperTier,
+    required this.keeperPose,
     required this.ballVisible,
     super.key,
   });
@@ -122,6 +125,12 @@ class PenaltyScene extends StatelessWidget {
 
   /// Where the keeper is now, in scene percent.
   final ({double x, double y}) keeper;
+
+  /// Which kit he is in — the division's, so the opposition visibly improves.
+  final int keeperTier;
+
+  /// Which way he went, if he has gone.
+  final KeeperPose keeperPose;
 
   final bool ballVisible;
 
@@ -154,20 +163,23 @@ class PenaltyScene extends StatelessWidget {
                     ),
                   ),
                   // The keeper is drawn rather than photographed: there is no
-                  // keeper sprite in the shipped assets, and one drawn to the
-                  // same frame moves with the goal instead of floating over it.
+                  // keeper sprite in the shipped assets — the Kenney pack is
+                  // top-down and this is the view from the penalty spot — and one
+                  // drawn to the same frame moves with the goal instead of
+                  // floating over it.
+                  //
+                  // `keeper_figure.dart` is the JS's own illustration, rigged and
+                  // posed with Flutter's animated transforms. What was here was
+                  // five rectangles with the arms permanently out.
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 260),
                     curve: Curves.easeOut,
-                    left: at(keeper).dx - w * 0.055,
-                    top: at(keeper).dy - h * 0.09,
+                    left: at(keeper).dx - w * 0.075,
+                    top: at(keeper).dy - h * 0.13,
                     child: SizedBox(
-                      width: w * 0.11,
-                      height: h * 0.18,
-                      child: const CustomPaint(
-                        key: ValueKey('penalty-keeper'),
-                        painter: _KeeperPainter(),
-                      ),
+                      width: w * 0.15,
+                      height: h * 0.26,
+                      child: KeeperFigure(tier: keeperTier, pose: keeperPose),
                     ),
                   ),
                   if (ballVisible)
@@ -261,49 +273,4 @@ class _GoalPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GoalPainter oldDelegate) => false;
-}
-
-/// The keeper. Gloves out, because that is the whole of what he is here to do.
-class _KeeperPainter extends CustomPainter {
-  const _KeeperPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final kit = Paint()..color = const Color(0xFFFFC107);
-    final skin = Paint()..color = const Color(0xFFE8B48C);
-    final shorts = Paint()..color = const Color(0xFF212121);
-
-    // Body.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.28, h * 0.28, w * 0.44, h * 0.4),
-        Radius.circular(w * 0.1),
-      ),
-      kit,
-    );
-    // Arms, out wide.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, h * 0.3, w, h * 0.1),
-        Radius.circular(h * 0.05),
-      ),
-      kit,
-    );
-    // Head.
-    canvas.drawCircle(Offset(w * 0.5, h * 0.16), w * 0.16, skin);
-    // Legs.
-    canvas.drawRect(
-      Rect.fromLTWH(w * 0.3, h * 0.66, w * 0.16, h * 0.32),
-      shorts,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(w * 0.54, h * 0.66, w * 0.16, h * 0.32),
-      shorts,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_KeeperPainter oldDelegate) => false;
 }

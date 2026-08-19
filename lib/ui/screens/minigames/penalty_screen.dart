@@ -27,6 +27,8 @@ import 'package:merge_empire_fc/engine/penalty_game_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/keeper_figure.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_scene.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -53,6 +55,9 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
   ({double x, double y}) _ball = _spot;
   ({double x, double y}) _keeper = _line;
   bool _ballVisible = true;
+
+  /// Which way he went, so the figure can be POSED rather than slid across.
+  KeeperPose _pose = KeeperPose.ready;
 
   static const ({double x, double y}) _spot = (x: 50, y: 78);
   static const ({double x, double y}) _line = (x: 50, y: 34);
@@ -127,6 +132,14 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
       // and a goal look like the same strike until the keeper gets there.
       _ball = (x: aim.x, y: aim.y);
       _keeper = keeperTo;
+      // A dive he never had to make would read as a save he nearly got to.
+      _pose = aim.corner == null
+          ? KeeperPose.ready
+          : poseFor(
+              x: keeperTo.x,
+              y: keeperTo.y,
+              midX: (goalFrame.left + goalFrame.right) / 2,
+            );
     });
 
     if (_taken.length >= Penalty.attempts) {
@@ -146,6 +159,7 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
         _ballVisible = !finished;
         _ball = _spot;
         _keeper = _line;
+        _pose = KeeperPose.ready;
       });
     });
   }
@@ -207,6 +221,10 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
                       onShoot: shootAt,
                       ball: _ball,
                       keeper: _keeper,
+                      keeperTier: keeperTierForDivision(
+                        ref.watch(divisionIndexProvider),
+                      ),
+                      keeperPose: _pose,
                       ballVisible: _ballVisible,
                     ),
                   ),

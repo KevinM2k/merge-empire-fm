@@ -7,6 +7,7 @@ library;
 
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
+import 'package:merge_empire_fc/data/quests.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 
 /// One game, and whether it can be played right now.
@@ -73,4 +74,16 @@ final miniGamesReadyProvider = savePick<int>((s) {
             miniGameReady(s, k),
       )
       .length;
+});
+
+/// Which rung of the ladder the club is on.
+///
+/// The penalty keeper's kit is picked from it — Sunday League faces a rookie,
+/// the Champions Cup a world-class one — which is the visual half of the
+/// smart-dive ramp the engine scales with the same number.
+final divisionIndexProvider = savePick<int>((s) {
+  final prog = s['progression'];
+  final id = prog is Map ? prog['currentDivision'] as String? : null;
+  final idx = divisionIndex(id);
+  return idx < 0 ? 0 : idx;
 });

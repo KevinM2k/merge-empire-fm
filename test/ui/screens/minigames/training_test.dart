@@ -62,6 +62,14 @@ Future<ProviderContainer> pumpTraining(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
+          // The keeper shifts his weight on a loop while he waits, so
+          // `pumpAndSettle` would never settle. He honours reduce-motion;
+          // declaring it here is what a device with that setting on would do —
+          // the same thing the home screen's walker needs.
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
           home: const Scaffold(body: TrainingView()),
         ),
       ),
