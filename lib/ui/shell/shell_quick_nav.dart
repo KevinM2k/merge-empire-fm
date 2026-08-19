@@ -17,15 +17,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/index/player_index_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/leaderboard/leaderboard_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/training_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 
 /// What the menu offers.
 ///
-/// The Leaderboard is the one tile the JS has that is not here: it needs
-/// `leaderboardService` before the screen is worth writing, and a menu row
-/// leading nowhere is the bug this menu was built to fix.
+/// The Leaderboard is here with its OFFLINE state rather than absent. The
+/// ranked list needs `leaderboardService` (M4), but the signed-out and offline
+/// screens are ones the JS really shows — so the tile is not a row leading
+/// nowhere, and the Shop no longer sells a rank with no door to look at it
+/// through.
 List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
   QuickNavGroup(
     titleKey: 'quicknav.group.league',
@@ -65,6 +68,11 @@ List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
   QuickNavGroup(
     titleKey: 'quicknav.group.rewards',
     items: [
+      QuickNavItem(
+        labelKey: 'scene.dock.global',
+        icon: Icons.public,
+        onTap: () => showLeaderboardSheet(context),
+      ),
       QuickNavItem(
         labelKey: 'scene.dock.trophies',
         icon: Icons.emoji_events,

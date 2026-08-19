@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_screen.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -52,6 +53,9 @@ class HomeScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // What the Play button is about to do, directly above it.
+                  NextMatchCard(),
+                  SizedBox(height: 10),
                   // The dock rail: one row, both orbs, sharing the footer's top
                   // edge so they are level by construction.
                   Row(children: [CoachDock(), Spacer(), MenuDock()]),
