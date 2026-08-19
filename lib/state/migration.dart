@@ -333,15 +333,6 @@ void _migrateSquad(Map<String, dynamic> data) {
       for (final c in rawCells) CardInstance.from(c),
   ];
 
-  List<Map<String, dynamic>> encode(List<LineupSlot> slots) => [
-    for (final s in slots)
-      <String, dynamic>{
-        'slotId': s.slotId,
-        'slotPosition': s.slotPosition,
-        'cardInstanceId': s.cardInstanceId,
-      },
-  ];
-
   // 4-2-4 was removed: migrate to 4-3-3, preserving positions where possible.
   if (squad['formation'] == '4-2-4') {
     final oldRaw = squad['lineup'];
@@ -355,15 +346,15 @@ void _migrateSquad(Map<String, dynamic> data) {
             cardInstanceId: _map(s)?['cardInstanceId'] as String?,
           ),
       ];
-      squad['lineup'] = encode(migrateLineup(old, '4-3-3'));
+      squad['lineup'] = encodeLineup(migrateLineup(old, '4-3-3'));
     } else {
-      squad['lineup'] = encode(buildDefaultLineup('4-3-3', cards));
+      squad['lineup'] = encodeLineup(buildDefaultLineup('4-3-3', cards));
     }
   }
 
   final lineup = squad['lineup'];
   if (lineup is! List || lineup.length != 11) {
-    squad['lineup'] = encode(
+    squad['lineup'] = encodeLineup(
       buildDefaultLineup(squad['formation'] as String?, cards),
     );
   }

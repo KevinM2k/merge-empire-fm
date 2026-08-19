@@ -85,7 +85,9 @@ List<LineupSlot> buildDefaultLineup(
     for (var si = 0; si < slots.length; si++) {
       final fat = fatigue ? fatigueRatingFactor(p.fitnessPct! / 100) : 1.0;
       final eff =
-          p.rating * (1 - positionPenalty(p.def.position, slots[si].slotPosition)) * fat;
+          p.rating *
+          (1 - positionPenalty(p.def.position, slots[si].slotPosition)) *
+          fat;
       pairs.add(_Pair(eff, pi, si));
     }
   }
@@ -100,8 +102,9 @@ List<LineupSlot> buildDefaultLineup(
     if (b.eff != a.eff) return b.eff.compareTo(a.eff);
     // Equal in-slot value: prefer the fresher player. Rotation flavour.
     if (!fatigue) return 0;
-    return candidates[b.playerIdx].fitnessPct!
-        .compareTo(candidates[a.playerIdx].fitnessPct!);
+    return candidates[b.playerIdx].fitnessPct!.compareTo(
+      candidates[a.playerIdx].fitnessPct!,
+    );
   });
 
   // Greedy assignment: take the best remaining pair whose player and slot are
@@ -109,10 +112,13 @@ List<LineupSlot> buildDefaultLineup(
   final usedPlayers = <int>{};
   final usedSlots = <int>{};
   final assignments = <String, String>{};
-  final target = candidates.length < slots.length ? candidates.length : slots.length;
+  final target = candidates.length < slots.length
+      ? candidates.length
+      : slots.length;
 
   for (final pair in pairs) {
-    if (usedPlayers.contains(pair.playerIdx) || usedSlots.contains(pair.slotIdx)) {
+    if (usedPlayers.contains(pair.playerIdx) ||
+        usedSlots.contains(pair.slotIdx)) {
       continue;
     }
     usedPlayers.add(pair.playerIdx);
@@ -166,7 +172,11 @@ List<LineupSlot> fillLineupGaps(
     for (var ei = 0; ei < emptyIndices.length; ei++) {
       final eff =
           getEffectiveRating(available[pi]) *
-          (1 - positionPenalty(def.position, lineup[emptyIndices[ei]].slotPosition));
+          (1 -
+              positionPenalty(
+                def.position,
+                lineup[emptyIndices[ei]].slotPosition,
+              ));
       pairs.add(_Pair(eff, pi, ei));
     }
   }
@@ -177,16 +187,19 @@ List<LineupSlot> fillLineupGaps(
   final usedPlayers = <int>{};
   final usedSlots = <int>{};
   final assignments = <int, String>{};
-  final target =
-      available.length < emptyIndices.length ? available.length : emptyIndices.length;
+  final target = available.length < emptyIndices.length
+      ? available.length
+      : emptyIndices.length;
 
   for (final pair in pairs) {
-    if (usedPlayers.contains(pair.playerIdx) || usedSlots.contains(pair.slotIdx)) {
+    if (usedPlayers.contains(pair.playerIdx) ||
+        usedSlots.contains(pair.slotIdx)) {
       continue;
     }
     usedPlayers.add(pair.playerIdx);
     usedSlots.add(pair.slotIdx);
-    assignments[emptyIndices[pair.slotIdx]] = available[pair.playerIdx].instanceId;
+    assignments[emptyIndices[pair.slotIdx]] =
+        available[pair.playerIdx].instanceId;
     if (usedSlots.length == target) break;
   }
 
@@ -227,6 +240,55 @@ List<LineupSlot> cleanAndFillLineup(
   ];
 
   return fillLineupGaps(cleaned, formationId, gridCells);
+}
+
+/// Keep the SAVED lineup in step with the grid.
+///
+/// The eleven is stored, but every screen that shows it runs it through
+/// `cleanAndFillLineup` on the way out — so a fresh save could display a full
+/// side while `squad.lineup` was still empty, and `canPlayMatch` counts the
+/// STORED slots. A player who had scouted eleven men was told their squad was
+/// too small, by a screen that had just drawn them all.
+///
+/// The JS re-syncs at each call site: after a scout batch, after a sale, after
+/// a merge. One function on the events those already emit covers all three, and
+/// cannot be forgotten at a fourth.
+///
+/// Returns true when the stored lineup changed.
+bool syncLineupWithGrid(Map<String, dynamic> state) {
+  final squad = state['squad'];
+  if (squad is! Map<String, dynamic>) return false;
+  final cells = state['grid'];
+  final raw = cells is Map<String, dynamic> ? cells['cells'] : null;
+  if (raw is! List) return false;
+
+  final gridCells = [for (final c in raw) CardInstance.from(c)];
+  final formationId = squad['formation'] as String? ?? defaultFormation;
+  final stored = squad['lineup'];
+
+  final next = stored is List && stored.length == 11
+      ? cleanAndFillLineup(decodeLineup(stored), formationId, gridCells)
+      : buildDefaultLineup(formationId, gridCells);
+
+  final encoded = encodeLineup(next);
+  // Compared before writing: this runs on every placement and merge, and a
+  // pointless write would mark the save dirty on a no-op.
+  if (stored is List && stored.length == encoded.length) {
+    var same = true;
+    for (var i = 0; i < encoded.length; i++) {
+      final was = stored[i];
+      if (was is! Map ||
+          was['slotId'] != encoded[i]['slotId'] ||
+          was['cardInstanceId'] != encoded[i]['cardInstanceId']) {
+        same = false;
+        break;
+      }
+    }
+    if (same) return false;
+  }
+
+  squad['lineup'] = encoded;
+  return true;
 }
 
 /// Puts the best available bench players into every hole in the saved lineup.

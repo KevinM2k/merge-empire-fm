@@ -57,7 +57,9 @@ class LineupSlot {
       LineupSlot(
         slotId: slotId,
         slotPosition: slotPosition,
-        cardInstanceId: clearCard ? null : (cardInstanceId ?? this.cardInstanceId),
+        cardInstanceId: clearCard
+            ? null
+            : (cardInstanceId ?? this.cardInstanceId),
       );
 
   @override
@@ -159,6 +161,32 @@ const Map<String, Formation> formations = {
 
 const String defaultFormation = '4-3-3';
 
+/// The lineup as the SAVE holds it.
+///
+/// Shared because three callers write it — the migration, the squad screen and
+/// the wiring that keeps it in step with the grid — and three copies of the key
+/// names is three chances to spell one of them differently.
+List<Map<String, dynamic>> encodeLineup(List<LineupSlot> slots) => [
+  for (final slot in slots)
+    <String, dynamic>{
+      'slotId': slot.slotId,
+      'slotPosition': slot.slotPosition,
+      'cardInstanceId': slot.cardInstanceId,
+    },
+];
+
+/// Read a saved lineup back.
+List<LineupSlot> decodeLineup(Object? raw) => [
+  if (raw is List)
+    for (final row in raw)
+      if (row is Map<String, dynamic>)
+        LineupSlot(
+          slotId: row['slotId'] as String? ?? '',
+          slotPosition: row['slotPosition'] as String? ?? 'MID',
+          cardInstanceId: row['cardInstanceId'] as String?,
+        ),
+];
+
 Formation getFormation(String? id) =>
     formations[id] ?? formations[defaultFormation]!;
 
@@ -187,7 +215,10 @@ List<CardInstance> benchCandidates(
 /// Preserve existing position assignments when switching formations. Cards that
 /// fit the new shape's positions keep their role; the rest fall into whatever
 /// slots remain rather than being dropped.
-List<LineupSlot> migrateLineup(List<LineupSlot> fromLineup, String toFormationId) {
+List<LineupSlot> migrateLineup(
+  List<LineupSlot> fromLineup,
+  String toFormationId,
+) {
   final newSlots = getFormation(toFormationId).slots;
 
   // Group the old lineup's cards by the position they were playing.

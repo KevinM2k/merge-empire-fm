@@ -16,6 +16,7 @@ library;
 
 import 'package:merge_empire_fc/engine/achievement_engine.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
+import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -118,6 +119,21 @@ class GameWiring {
         if (card == null || card.definitionId.isEmpty) return;
         _game.update((s) => _recordDiscovery(s, card));
       });
+    }
+
+    // Keep the stored eleven in step with the grid.
+    //
+    // Every screen fills the lineup on the way OUT, so a fresh save showed a
+    // full side while `squad.lineup` was empty — and `canPlayMatch` counts the
+    // stored slots, so a player with eleven scouted men was told their squad
+    // was too small by the screen that had just drawn them.
+    for (final event in const [
+      'card:placed',
+      'merge:complete',
+      'player:sold',
+      'transfer:accepted',
+    ]) {
+      _listen(event, (_) => _game.update(syncLineupWithGrid));
     }
 
     // The achievement sweep, after every announcement that could unlock
