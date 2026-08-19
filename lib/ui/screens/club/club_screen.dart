@@ -115,16 +115,14 @@ class ClubScreen extends ConsumerWidget {
 
 /// The photo across the top of the Club screen, one per Stadium tier.
 ///
-/// `docs/REMAINING.md` had this blocked on teaching `svg_canvas` about
-/// `linearGradient`, `radialGradient` and `<defs>`, because the JS's fallback
-/// draws the six grounds as gradient-filled SVG. It is only the FALLBACK: the
-/// hero a player actually sees is a photograph, and all eight are bundled. The
-/// gradient work was never on the path to this screen.
+/// The hero a player actually sees is a photograph, and all eight are bundled —
+/// a test in `test/data/art_paths_test.dart` keeps it that way. What stands in
+/// when one is missing is the JS's OWN fallback art: six grounds drawn as
+/// gradient-filled SVG, which `svg_canvas` can draw now that it understands
+/// `<defs>` and `url(#id)`.
 ///
-/// What stands in when a photo is missing is a plain two-stop gradient rather
-/// than a port of that SVG. Flutter draws gradients natively, nothing else in
-/// the game wants the SVG machinery, and every tier's photo exists — a test in
-/// `test/data/art_paths_test.dart` keeps it that way.
+/// It was a flat two-stop kit gradient while the painter could not, which was a
+/// stand-in for a stand-in.
 class _StadiumHero extends StatelessWidget {
   const _StadiumHero({required this.tier});
 
@@ -145,16 +143,26 @@ class _StadiumHero extends StatelessWidget {
           child: ArtImage(
             key: ValueKey('club-stadium-hero-$tier'),
             path: stadiumBackgroundPath(tier),
-            fallback: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [kit.surface2, kit.surface],
-                ),
-              ),
-            ),
+            fallback: _fallbackArt(kit),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// The JS's own fallback ground for this tier, or the kit gradient when the
+  /// tier is past the six it draws.
+  Widget _fallbackArt(KitTheme kit) {
+    final index = tier - 1;
+    if (index >= 0 && index < stadiumBackgrounds.length) {
+      return SvgArt(svg: stadiumBackgrounds[index]);
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [kit.surface2, kit.surface],
         ),
       ),
     );
