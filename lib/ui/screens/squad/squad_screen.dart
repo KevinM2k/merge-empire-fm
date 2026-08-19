@@ -13,7 +13,9 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
+import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -73,13 +75,26 @@ class SquadScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
+    return Stack(
       key: const ValueKey('squad-screen'),
       children: [
-        const SquadHeader(),
-        Expanded(child: _Pitch(onAssign: _assign)),
-        const Divider(height: 1),
-        SizedBox(height: 132, child: _Bench(onAssign: _assign)),
+        Column(
+          children: [
+            const SquadHeader(),
+            // The pitch takes everything that is left. It used to give a
+            // hundred and thirty pixels to a bench strip that was showing three
+            // cards at a time.
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: _Pitch(onAssign: _assign),
+              ),
+            ),
+          ],
+        ),
+        // Subs sits over the pitch, bottom RIGHT — bottom left is the coach's,
+        // everywhere he appears.
+        const Positioned(right: 16, bottom: 16, child: _SubsButton()),
       ],
     );
   }
@@ -259,34 +274,27 @@ class _Pitch extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final slots = ref.watch(pitchSlotsProvider);
-    final kit = Theme.of(context).extension<KitTheme>()!;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const cardW = 62.0;
-        const cardH = 80.0;
-        return Stack(
-          key: const ValueKey('squad-pitch'),
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: kit.surface.withValues(alpha: 0.4),
-                  border: Border.all(color: kit.border),
+    return SquadPitch(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const cardW = 62.0;
+          const cardH = 80.0;
+          return Stack(
+            key: const ValueKey('squad-pitch'),
+            children: [
+              for (final slot in slots)
+                Positioned(
+                  left: (slot.x / 100) * (constraints.maxWidth - cardW),
+                  top: (slot.y / 100) * (constraints.maxHeight - cardH),
+                  width: cardW,
+                  height: cardH,
+                  child: _SlotTarget(slot: slot, onAssign: onAssign),
                 ),
-              ),
-            ),
-            for (final slot in slots)
-              Positioned(
-                left: (slot.x / 100) * (constraints.maxWidth - cardW),
-                top: (slot.y / 100) * (constraints.maxHeight - cardH),
-                width: cardW,
-                height: cardH,
-                child: _SlotTarget(slot: slot, onAssign: onAssign),
-              ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -354,60 +362,85 @@ class _SlotTarget extends ConsumerWidget {
   }
 }
 
-class _Bench extends ConsumerWidget {
-  const _Bench({required this.onAssign});
-
-  final void Function(WidgetRef ref, SquadDrag drag, String slotId) onAssign;
+/// Subs — the way to the bench.
+///
+/// The bench was an inline strip under the pitch showing three cards at a time
+/// and eating a hundred and thirty pixels of a portrait screen. It is a SHEET
+/// in the JS for that reason, opened from a button, and the pitch gets the room
+/// back.
+///
+/// The count rides on the button: the bench is now out of sight, and a door
+/// with nothing behind it should say so before it is opened.
+class _SubsButton extends ConsumerWidget {
+  const _SubsButton();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bench = ref.watch(benchProvider);
-    final kit = Theme.of(context).extension<KitTheme>()!;
-
-    if (bench.isEmpty) {
-      return Center(
-        child: Text(
-          t('squad.no_players'),
-          key: const ValueKey('squad-bench-empty'),
-          style: TextStyle(color: kit.textMuted, fontSize: 12),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      key: const ValueKey('squad-bench'),
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.all(8),
-      itemCount: bench.length,
-      separatorBuilder: (_, _) => const SizedBox(width: 6),
-      itemBuilder: (context, i) {
-        final entry = bench[i];
-        final tile = SizedBox(
-          width: 74,
-          child: PlayerCard(
-            key: ValueKey('squad-bench-${entry.instanceId}'),
-            view: entry.card,
-            light: Theme.of(context).brightness == Brightness.light,
-          ),
-        );
-        return LongPressDraggable<SquadDrag>(
-          data: (instanceId: entry.instanceId, fromSlotId: null),
-          delay: const Duration(milliseconds: 200),
-          feedback: const SizedBox(width: 74, height: 100),
-          childWhenDragging: const SizedBox(width: 74),
-          child: GestureDetector(
-            onTap: () => _openDetail(
-              context,
-              ref,
-              instanceId: entry.instanceId,
-              // No slot: they are on the bench, so there is nothing to bench
-              // them from and nothing to swap.
-              slotId: null,
-            ),
-            child: tile,
-          ),
-        );
-      },
+    final count = ref.watch(benchProvider).length;
+    return FloatingActionButton.extended(
+      key: const ValueKey('squad-subs'),
+      heroTag: 'squad-subs',
+      onPressed: () => showBenchSheet(context, ref),
+      icon: const Icon(Icons.groups, size: 18),
+      label: Text(t('squad.bench.count', {'n': count})),
     );
   }
+}
+
+/// The bench, as real cards.
+///
+/// Tapping one opens the player, the same sheet the pitch opens — which is
+/// where Send On lives, so a benched player can be brought into the side
+/// without a drag.
+Future<void> showBenchSheet(BuildContext context, WidgetRef ref) {
+  return showBottomSheetPopup<void>(
+    context,
+    heightFraction: 0.72,
+    child: Consumer(
+      builder: (sheetContext, sheetRef, _) {
+        final kit = Theme.of(sheetContext).extension<KitTheme>()!;
+        final bench = sheetRef.watch(benchProvider);
+        if (bench.isEmpty) {
+          return Center(
+            key: const ValueKey('squad-bench-empty'),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                t('squad.bench.empty'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: kit.textMuted),
+              ),
+            ),
+          );
+        }
+        return GridView.builder(
+          key: const ValueKey('squad-bench'),
+          padding: const EdgeInsets.all(12),
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 92,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 0.78,
+          ),
+          itemCount: bench.length,
+          itemBuilder: (context, i) {
+            final entry = bench[i];
+            return GestureDetector(
+              onTap: () => _openDetail(
+                sheetContext,
+                sheetRef,
+                instanceId: entry.instanceId,
+                slotId: null,
+              ),
+              child: PlayerCard(
+                key: ValueKey('squad-bench-${entry.instanceId}'),
+                view: entry.card,
+                light: Theme.of(context).brightness == Brightness.light,
+              ),
+            );
+          },
+        );
+      },
+    ),
+  );
 }

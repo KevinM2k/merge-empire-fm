@@ -90,6 +90,13 @@ Future<ProviderContainer> pumpSquad(
 Future<void> settleSave(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
+/// The bench lives behind the Subs button now — it was an inline strip eating
+/// a third of a portrait screen — so a test reaches it the way a player does.
+Future<void> openBench(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('squad-subs')));
+  await tester.pumpAndSettle();
+}
+
 void drop(WidgetTester tester, SquadDrag drag, String slotId) {
   final target = tester.widget<DragTarget<SquadDrag>>(
     find.ancestor(
@@ -144,8 +151,21 @@ void main() {
 
     testWidgets('says so when there is nobody on it', (tester) async {
       await pumpSquad(tester, cards: 11);
+      await openBench(tester);
       expect(find.byKey(const ValueKey('squad-bench-empty')), findsOneWidget);
-      expect(find.text(t('squad.no_players')), findsOneWidget);
+      expect(find.text(t('squad.bench.empty')), findsOneWidget);
+    });
+
+    testWidgets('the Subs button carries the count', (tester) async {
+      // The bench is out of sight now, so a door with nothing behind it has to
+      // say so before it is opened.
+      final container = await pumpSquad(tester, cards: 14);
+      expect(
+        find.text(
+          t('squad.bench.count', {'n': container.read(benchProvider).length}),
+        ),
+        findsOneWidget,
+      );
     });
   });
 
@@ -421,6 +441,7 @@ void main() {
       final container = await pumpSquad(tester, cards: 14);
       final benched = container.read(benchProvider).first;
 
+      await openBench(tester);
       await tester.tap(
         find.byKey(ValueKey('squad-bench-${benched.instanceId}')),
       );
@@ -451,6 +472,7 @@ void main() {
     ) async {
       final container = await pumpSquad(tester, cards: 14);
       final benched = container.read(benchProvider).first;
+      await openBench(tester);
       await tester.tap(
         find.byKey(ValueKey('squad-bench-${benched.instanceId}')),
       );
