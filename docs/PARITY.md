@@ -12,9 +12,12 @@ from the source rather than from playing, and it is the work queue.
 against the `ValueKey`s in the matching `lib/ui/screens/` directory. Ticked
 means present and reachable, not merely present.
 
-**A caveat on "layout".** Where the note says the layout differs, that is not a
-control gap and it is not in this list — it needs the two put side by side on a
-device. Those are collected at the bottom rather than guessed at.
+**Layout counts too.** An earlier version of this file punted on layout as
+"needs a device". That was wrong: `src/ui/styles/` is 13,454 lines of CSS and it
+states the structure exactly — column counts, backgrounds, which container wraps
+what. Diffing it found things the control diff could not, including one case
+where the port had added the very thing a CSS comment says was removed. Layout
+gaps are in this list.
 
 ---
 
@@ -39,21 +42,26 @@ device. Those are collected at the bottom rather than guessed at.
 - [x] Formation picker
 - [x] Tactic picker
 - [x] Rating / ATK / DEF header
-- [ ] **Auto-fill / auto-rotate** (`.auto-lineup-btn`). Two different jobs
+- [x] **Auto-fill / auto-rotate** (`.auto-lineup-btn`). Two different jobs
       behind one button: casual picks the shape that wins the NEXT FIXTURE
       (`bestFormationForFixture`), Pro rotates personnel to the freshest fit
       within the manager's chosen shape and never switches tactics under them.
-- [ ] **Clear lineup** (`.clear-lineup-btn`)
-- [ ] **The player detail sheet** — the biggest single gap on this screen, and
-      everything below is inside it:
-  - [ ] Career stats grid, rating and income header
-  - [ ] Fitness bar with the next-recovery readout (Pro)
+- [x] **Clear lineup** (`.clear-lineup-btn`)
+- [x] **The pitch.** The eleven were floating on the page background — a
+      formation-shaped list rather than a team. 7:10, fitted to both axes, with
+      the markings drawn in the JS's own `0 0 100 140` space and stretched.
+- [x] **The bench is a SHEET**, behind a Subs button. It was an inline strip
+      showing three cards and taking a third of a portrait screen.
+- [x] **The player detail sheet** — everything below is inside it:
+  - [x] Career stats grid, rating and income header
+  - [x] Fitness bar (Pro)
+  - [x] Sell, with its own confirm — refused for a loanee or anyone out on loan
+  - [x] Recall from loan (`.detail-recall`)
+  - [x] Send back early (`.detail-sendback`)
+  - [x] Swap into the XI / send to the bench (`.detail-xi-btn`)
   - [ ] Rename (`.detail-rename-btn`)
-  - [ ] Sell, with its own confirm — refused below `minSquadPlayers`, and for a
-        loanee or anyone out on loan
-  - [ ] Recall from loan (`.detail-recall`)
-  - [ ] Send back early (`.detail-sendback`)
-  - [ ] Swap into the XI / send to the bench (`.detail-xi-btn`)
+  - [ ] The trait wheel
+  - [ ] The market-value BAR — the price is there, the coloured gauge is not
 
 ## Home — `screens/LeagueScreen.js`, `components/PitchScene.js`
 
@@ -88,11 +96,22 @@ device. Those are collected at the bottom rather than guessed at.
 
 ## Shop — `screens/ShopScreen.js`
 
-All seven shelves are present and in the JS's own order. What is missing is
-inside them:
+All seven shelves are present and in the JS's own order.
 
 - [x] Offers, Gems, Coins, Boosts, Vouchers, Free, Looks
 - [x] Restore Purchases (present, disabled — needs the billing bridge)
+- [x] **Layout.** The tiles were `ListTile`s in a `Column` — a settings screen
+      rather than a shop. They are centred cards in a grid now, glyph on top,
+      button pinned to the bottom so every button in a row lines up whatever the
+      text above it does, and the description clamped to two lines because
+      otherwise one long one sets the height of its whole row.
+- [x] **Per-shelf colour.** Each section has its own ink — offers amber, gems
+      blue, looks purple. The port painted all seven in the club's accent, which
+      made the shop one undifferentiated list.
+- [x] **No disc behind the section icon.** The port had added a tinted circle;
+      the CSS comment says in as many words that it was taken OUT, because a
+      frame round a glyph competes with the card's own edge and shrinks the art
+      to pay for it.
 - [ ] **Lucky Boot ad button** (`.lucky-boot-ad-btn`)
 - [ ] **Match-cooldown ad button** (`.match-cooldown-ad-btn`)
 - [ ] The premium section's emoji header (`shop.section.premium_emoji` — the one
@@ -124,12 +143,16 @@ Not yet diffed control by control.
 
 ---
 
-## Not control gaps — needs a device
+## Still to diff for layout
 
-Collected rather than guessed at. Each wants the JS and the port side by side.
+The same treatment as the shop, against `src/ui/styles/`:
 
-- Club screen layout
-- Shop screen layout
+- [ ] Club — `screens.css` `.club-grid`, `.asset-*`
+- [ ] Players grid — `grid.css` (872 lines)
+- [ ] Match page — `match-page.css` (1,041 lines)
+- [ ] Home — `league-scene.css` (4,444 lines, the biggest by far)
+- [ ] HUD — `hud.css`
+- [ ] The glass treatment — `glass.css` (983 lines), which is app-wide
 
 ---
 
