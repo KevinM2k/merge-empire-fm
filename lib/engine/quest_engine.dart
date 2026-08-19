@@ -237,7 +237,10 @@ typedef RollContext = ({QuestContext quest, int divIdx, int matchesLeft});
 /// the whole squad rating, and none of this changes between three draws. The
 /// fixture is only read for the MATCH scope: a season quest can't depend on one
 /// fixture, and the preview isn't free.
-RollContext questContext(Map<String, dynamic>? state, [String scope = 'match']) {
+RollContext questContext(
+  Map<String, dynamic>? state, [
+  String scope = 'match',
+]) {
   FixturePreview? fixture;
   if (scope == 'match') {
     try {
@@ -253,7 +256,10 @@ RollContext questContext(Map<String, dynamic>? state, [String scope = 'match']) 
       for (final c in cells)
         if (c is Map<String, dynamic>) c,
   ];
-  final fit = [for (final c in cards) if (c['injured'] != true) c];
+  final fit = [
+    for (final c in cards)
+      if (c['injured'] != true) c,
+  ];
 
   final rawLineup = _map(state?['squad'])?['lineup'];
   final lineupIds = <String>{
@@ -265,7 +271,10 @@ RollContext questContext(Map<String, dynamic>? state, [String scope = 'match']) 
   // No XI set means the sim draws its scorers from the whole squad, so "is
   // there a defender on the pitch" is really "is there a defender at all".
   final onPitch = lineupIds.isNotEmpty
-      ? [for (final c in fit) if (lineupIds.contains(c['instanceId'])) c]
+      ? [
+          for (final c in fit)
+            if (lineupIds.contains(c['instanceId'])) c,
+        ]
       : fit;
   String? positionOf(Map<String, dynamic> c) =>
       getPlayerDef(c['definitionId'] as String?)?.position;
@@ -277,7 +286,8 @@ RollContext questContext(Map<String, dynamic>? state, [String scope = 'match']) 
   final matchesLeft = math.max(
     0,
     matchesPerSeason -
-        (_num(_map(state?['progression'])?['seasonMatchesPlayed'])?.toInt() ?? 0),
+        (_num(_map(state?['progression'])?['seasonMatchesPlayed'])?.toInt() ??
+            0),
   );
 
   // Faces left to meet WITHOUT being promoted. Each definition has two variants
@@ -286,7 +296,8 @@ RollContext questContext(Map<String, dynamic>? state, [String scope = 'match']) 
   // of it, and measuring against every face is what handed "discover 4 new
   // players" to a Sunday League save that had met all the faces it can produce.
   final met = <String>{
-    if (_map(state?['progression'])?['discoveredPlayers'] case final List<dynamic> d)
+    if (_map(state?['progression'])?['discoveredPlayers']
+        case final List<dynamic> d)
       for (final id in d) '$id',
   };
   var undiscovered = 0;
@@ -363,10 +374,7 @@ int questTarget(QuestDef def, Map<String, dynamic>? state, int divIdx) {
   final base = resolveTarget(def, divIdx);
   final lift = def.lift;
   if (def.progress == null || lift == null) return base;
-  return math.max(
-    base,
-    math.min(lift, _derivedValue(def, state).toInt() + 1),
-  );
+  return math.max(base, math.min(lift, _derivedValue(def, state).toInt() + 1));
 }
 
 /// Where a DELTA-measuring derived quest counted from: the value its reader had
@@ -421,7 +429,10 @@ num seasonProgressSoFar(QuestDef? def, Map<String, dynamic> state) {
 
   if (def.progress != null) {
     if (!def.baseline) return _derivedValue(def, state);
-    return math.max(0, _derivedValue(def, state) - _seasonBaselineFor(def, state));
+    return math.max(
+      0,
+      _derivedValue(def, state) - _seasonBaselineFor(def, state),
+    );
   }
 
   final streakKey = streakStateKey[def.action];
@@ -657,12 +668,9 @@ List<Map<String, dynamic>> rollMatchQuests(
   // Top up rather than redrawing the set the player has already read.
   if (match['fixtureKey'] == fixtureKey && active.isNotEmpty) {
     active.addAll(
-      rollQuests(
-        state,
-        'match',
-        matchQuestCount - active.length,
-        [for (final c in _matchTrack(state)) '${c['id']}'],
-      ),
+      rollQuests(state, 'match', matchQuestCount - active.length, [
+        for (final c in _matchTrack(state)) '${c['id']}',
+      ]),
     );
     return _matchTrack(state);
   }
@@ -673,6 +681,28 @@ List<Map<String, dynamic>> rollMatchQuests(
   return _matchTrack(state);
 }
 
+/// The key that identifies the match a player is about to play.
+///
+/// The same shape `simulateMatch` stamps on its result (`s1_m0`), because that is
+/// what pins a match track to a fixture: a re-render, a tab switch or a screen
+/// reopening must not redraw quests the player has already read, and a match
+/// being PLAYED must move them on.
+String nextFixtureKey(Map<String, dynamic>? state) {
+  final prog = _map(state?['progression']);
+  final season = _num(prog?['seasonCount'])?.toInt() ?? 1;
+  final played = _num(prog?['seasonMatchesPlayed'])?.toInt() ?? 0;
+  return 's${season}_m$played';
+}
+
+/// Make sure a track exists for the next match, rolling one only if needed.
+///
+/// **The port had no caller for [rollMatchQuests] at all**, so the match track
+/// was empty for every match ever played: three quests per fixture, each with a
+/// payout, none of which could be drawn, shown or won. Called from the places
+/// that either SHOW the track or consume it, and idempotent so all of them can.
+List<Map<String, dynamic>> ensureMatchQuests(Map<String, dynamic> state) =>
+    rollMatchQuests(state, nextFixtureKey(state));
+
 /// Roll the season track.
 ///
 /// Called at a season boundary; [seasonCount] guards against re-rolling
@@ -682,7 +712,8 @@ List<Map<String, dynamic>> rollSeasonQuests(
   int? seasonCount,
 ]) {
   final q = ensureQuests(state);
-  final season = seasonCount ??
+  final season =
+      seasonCount ??
       _num(_map(state['progression'])?['seasonCount'])?.toInt() ??
       1;
   final track = _list(q, 'season');
@@ -694,12 +725,9 @@ List<Map<String, dynamic>> rollSeasonQuests(
   // progress on the quests that are still perfectly valid.
   if (q['lastRolledSeason'] == season && track.isNotEmpty) {
     track.addAll(
-      rollQuests(
-        state,
-        'season',
-        seasonQuestCount - track.length,
-        [for (final c in _seasonTrack(state)) '${c['id']}'],
-      ),
+      rollQuests(state, 'season', seasonQuestCount - track.length, [
+        for (final c in _seasonTrack(state)) '${c['id']}',
+      ]),
     );
     refreshDerivedQuests(state);
     return _seasonTrack(state);
@@ -740,9 +768,9 @@ List<Map<String, dynamic>> rollSeasonQuests(
 /// worthless at the top and breaks the economy at the bottom.
 int questRewardCoins(Map<String, dynamic>? state, num? coinsMultiplier) {
   if (coinsMultiplier == null || coinsMultiplier == 0) return 0;
-  final base =
-      getDivision('${_map(state?['progression'])?['currentDivision']}')
-          .matchRevenueBase;
+  final base = getDivision(
+    '${_map(state?['progression'])?['currentDivision']}',
+  ).matchRevenueBase;
   return math.max(1, (coinsMultiplier * base / 100).round());
 }
 
@@ -909,7 +937,12 @@ RerollResult rerollQuests(Map<String, dynamic> state) {
       if (c['completed'] != true) c,
   ];
   if (targets.isEmpty) {
-    return (ok: false, reason: 'nothing_to_reroll', cost: 0, replaced: const []);
+    return (
+      ok: false,
+      reason: 'nothing_to_reroll',
+      cost: 0,
+      replaced: const [],
+    );
   }
 
   final divIdx = _currentDivIdx(state);
@@ -923,12 +956,22 @@ RerollResult rerollQuests(Map<String, dynamic> state) {
   final pool = rollableQuests(state, 'season');
   final onTrack = {for (final c in _seasonTrack(state)) '${c['id']}'};
   if (!pool.any((def) => !onTrack.contains(def.id))) {
-    return (ok: false, reason: 'nothing_to_reroll', cost: 0, replaced: const []);
+    return (
+      ok: false,
+      reason: 'nothing_to_reroll',
+      cost: 0,
+      replaced: const [],
+    );
   }
 
   final cost = rerollCost(state);
   if (cost > 0 && !spendGems(state, cost, 'quest_reroll')) {
-    return (ok: false, reason: 'not_enough_gems', cost: cost, replaced: const []);
+    return (
+      ok: false,
+      reason: 'not_enough_gems',
+      cost: cost,
+      replaced: const [],
+    );
   }
   if (cost == 0) {
     q['seasonFreeRerollsUsed'] =
@@ -998,7 +1041,12 @@ ClaimOutcome claimQuest(Map<String, dynamic> state, String questId) {
     return (ok: false, reason: 'not_complete', granted: null, capstone: null);
   }
   if (inst['claimedAt'] != null) {
-    return (ok: false, reason: 'already_claimed', granted: null, capstone: null);
+    return (
+      ok: false,
+      reason: 'already_claimed',
+      granted: null,
+      capstone: null,
+    );
   }
 
   final def = getQuest(questId);
@@ -1052,9 +1100,9 @@ SweepResult sweepUnclaimedSeasonQuests(Map<String, dynamic> state) {
 }
 
 /// How many season quests are complete but not yet claimed — the badge count.
-int unclaimedCount(Map<String, dynamic> state) => _seasonTrack(state)
-    .where((c) => c['completed'] == true && c['claimedAt'] == null)
-    .length;
+int unclaimedCount(Map<String, dynamic> state) => _seasonTrack(
+  state,
+).where((c) => c['completed'] == true && c['claimedAt'] == null).length;
 
 // ── The division capstone — the one and only gem route ──────────────────────
 

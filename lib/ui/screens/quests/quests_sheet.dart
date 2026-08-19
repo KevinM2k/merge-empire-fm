@@ -64,12 +64,21 @@ final matchQuestsProvider = savePick<List<QuestRow>>((s) {
 /// How many season quests are sitting there completed and unclaimed.
 final claimableQuestsProvider = savePick<int>((s) {
   final season = ensureQuests(s)['season'];
-  return _rowsFrom(season is List ? season : const [])
-      .where((q) => q.completed && !q.claimed)
-      .length;
+  return _rowsFrom(
+    season is List ? season : const [],
+  ).where((q) => q.completed && !q.claimed).length;
 });
 
+/// What a reroll would cost, and whether one is possible at all.
+final questRerollProvider = savePick<({bool can, int cost, int free})>(
+  (s) => (can: canReroll(s), cost: rerollCost(s), free: freeRerollsLeft(s)),
+);
+
 Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
+  // The track for the next match, rolled on the way in. Guarded on the fixture
+  // key, so opening the sheet twice shows the same three quests rather than
+  // redrawing the set the player has just read.
+  ref.read(gameProvider).update(ensureMatchQuests);
   return showBottomSheetPopup<void>(
     context,
     heightFraction: 0.8,
@@ -107,18 +116,29 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
             for (final quest in season)
               _QuestTile(
                 quest: quest,
+                track: 'season',
                 onClaim: quest.completed && !quest.claimed
                     ? () => game.update((s) => claimQuest(s, quest.id))
                     : null,
               ),
+            if (season.isNotEmpty) _RerollRow(),
             if (match.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
                 t('quests.match'),
                 style: TextStyle(color: kit.textMuted, fontSize: 13),
               ),
+              // Said once, at the top of the track: a match quest pays itself at
+              // full time, so there is nothing here to tap and a row that looked
+              // claimable would be a lie.
+              Text(
+                t('quests.match_auto_paid'),
+                key: const ValueKey('quests-match-auto'),
+                style: TextStyle(color: kit.textMuted, fontSize: 11),
+              ),
               const SizedBox(height: 4),
-              for (final quest in match) _QuestTile(quest: quest),
+              for (final quest in match)
+                _QuestTile(quest: quest, track: 'match'),
             ],
           ],
         );
@@ -127,10 +147,57 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
   );
 }
 
+/// Swap the unfinished season quests for different ones.
+///
+/// Two free a season, then gems. It refuses when every quest is already done —
+/// there would be nothing to swap, and charging for that would be theft.
+class _RerollRow extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final reroll = ref.watch(questRerollProvider);
+    final game = ref.read(gameProvider);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OutlinedButton(
+            key: const ValueKey('quests-reroll'),
+            onPressed: reroll.can
+                ? () => game.update((s) => rerollQuests(s))
+                : null,
+            child: Text(
+              '${t('quests.reroll_all')} · '
+              '${reroll.cost == 0 ? t('quests.reroll_free') : t('quests.reroll_cost', {'n': reroll.cost})}',
+            ),
+          ),
+          if (reroll.free > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                t('quests.reroll_note_free', {'n': reroll.free}),
+                key: const ValueKey('quests-reroll-free'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: kit.textMuted, fontSize: 11),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _QuestTile extends StatelessWidget {
-  const _QuestTile({required this.quest, this.onClaim});
+  const _QuestTile({required this.quest, required this.track, this.onClaim});
 
   final QuestRow quest;
+
+  /// `season` or `match`. In the key, because the two tracks are drawn in the
+  /// same tree and a duplicate `ValueKey` is a widget-test trap waiting to be
+  /// stepped in.
+  final String track;
   final VoidCallback? onClaim;
 
   @override
@@ -141,7 +208,7 @@ class _QuestTile extends StatelessWidget {
         : (quest.progress / quest.target).clamp(0.0, 1.0);
 
     return Card(
-      key: ValueKey('quest-${quest.id}'),
+      key: ValueKey('quest-$track-${quest.id}'),
       color: kit.surface,
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Padding(
@@ -174,12 +241,12 @@ class _QuestTile extends StatelessWidget {
                 if (quest.claimed)
                   Text(
                     t('quests.done'),
-                    key: ValueKey('quest-done-${quest.id}'),
+                    key: ValueKey('quest-done-$track-${quest.id}'),
                     style: TextStyle(color: kit.textMuted, fontSize: 11),
                   )
                 else if (onClaim != null)
                   ElevatedButton(
-                    key: ValueKey('quest-claim-${quest.id}'),
+                    key: ValueKey('quest-claim-$track-${quest.id}'),
                     onPressed: onClaim,
                     child: Text(t('quests.claim')),
                   )

@@ -208,6 +208,81 @@ void main() {
     expect(find.text('commentary.halftime_level'), findsNothing);
   });
 
+  group('the match quests at full time', () {
+    /// The shape `settleMatch` writes onto the result once the track is judged.
+    List<Map<String, dynamic>> outcomes() => [
+      {
+        'id': 'match_clean_sheet',
+        'icon': '🧱',
+        'target': 1,
+        'passed': true,
+        'coins': 120,
+      },
+      {
+        'id': 'match_win_margin',
+        'icon': '💪',
+        'target': 2,
+        'passed': false,
+        'coins': 0,
+      },
+    ];
+
+    testWidgets('are not shown while the match is still running', (
+      tester,
+    ) async {
+      await pumpMatch(tester, {...matchResult(), 'questResults': outcomes()});
+      expect(find.byKey(const ValueKey('match-quests')), findsNothing);
+    });
+
+    testWidgets('list what was won AND what was missed', (tester) async {
+      // The misses are the point of showing all three: they are what makes the
+      // next set worth reading.
+      await pumpMatch(tester, {...matchResult(), 'questResults': outcomes()});
+      stateOf(tester).skipToEnd();
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('match-quest-match_clean_sheet')),
+        findsOneWidget,
+      );
+      expect(find.text(t('quests.missed')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('match-quests-total')),
+        findsOneWidget,
+        reason: 'one of them paid',
+      );
+    });
+
+    testWidgets('and a match with no track shows nothing at all', (
+      tester,
+    ) async {
+      await pumpMatch(tester, matchResult());
+      stateOf(tester).skipToEnd();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-quests')), findsNothing);
+    });
+
+    testWidgets('a track where nothing came off has no total', (tester) async {
+      await pumpMatch(tester, {
+        ...matchResult(),
+        'questResults': [
+          {
+            'id': 'match_clean_sheet',
+            'icon': '🧱',
+            'target': 1,
+            'passed': false,
+            'coins': 0,
+          },
+        ],
+      });
+      stateOf(tester).skipToEnd();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
+      expect(find.byKey(const ValueKey('match-quests-total')), findsNothing);
+    });
+  });
+
   testWidgets('half time is named rather than shown as a type', (tester) async {
     await pumpMatch(
       tester,

@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/quests.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
@@ -127,26 +128,68 @@ void main() {
       );
     });
 
-    test('the coins arrive only when the player closes the screen', () {
+    test('the match FEE arrives only when the player closes the screen', () {
       // Deferred on purpose: the doubling offer lives on the closing screen,
       // and crediting before it is answered would make the offer meaningless.
+      //
+      // Measured against the quest payouts rather than against zero. A match
+      // quest AUTO-PAYS at full time — the player has already tapped through a
+      // match, and a second tap to claim is friction with no upside — so "full
+      // time pays nothing" was only true while nothing resolved the track, and
+      // the assertion turned flaky the moment something did: it held or failed
+      // depending on whether a randomly drawn quest happened to come off.
       final s = readyState();
       final result = beginMatch(s)!;
-      final beforeCoins =
-          ((s['resources'] as Map<String, dynamic>)['fanCoins'] as num).toInt();
+      final beforeCoins = coinsOf(s);
 
       settleMatch(s, result);
+      final quests = (result['questResults'] as List)
+          .cast<Map<String, dynamic>>();
+      final questCoins = quests.fold<num>(
+        0,
+        (sum, q) => sum + ((q['coins'] as num?) ?? 0),
+      );
       expect(
-        ((s['resources'] as Map<String, dynamic>)['fanCoins'] as num).toInt(),
-        beforeCoins,
-        reason: 'full time pays nothing',
+        coinsOf(s),
+        beforeCoins + questCoins,
+        reason: 'the quests, and nothing else',
       );
 
       payMatch(s, result);
-      expect(
-        ((s['resources'] as Map<String, dynamic>)['fanCoins'] as num).toInt(),
-        greaterThanOrEqualTo(beforeCoins),
-      );
+      expect(coinsOf(s), greaterThanOrEqualTo(beforeCoins + questCoins));
+    });
+
+    test('and the match track is judged at full time, all three of it', () {
+      // `resolveMatchQuests` had no caller at all: every match quest the game
+      // drew went unjudged and unpaid.
+      final s = readyState();
+      final result = beginMatch(s)!;
+      settleMatch(s, result);
+
+      final quests = result['questResults'];
+      expect(quests, isA<List<dynamic>>());
+      expect((quests as List).length, matchQuestCount);
+      for (final entry in quests.cast<Map<String, dynamic>>()) {
+        expect(entry['id'], isA<String>());
+        expect(entry['passed'], isA<bool>());
+      }
+    });
+
+    test('a match played without opening the sheet still has a track', () {
+      final s = readyState();
+      (s['quests'] as Map<String, dynamic>)['match'] = <String, dynamic>{
+        'fixtureKey': null,
+        'active': <dynamic>[],
+      };
+      beginMatch(s);
+      final active =
+          ((s['quests'] as Map<String, dynamic>)['match']
+                  as Map<String, dynamic>)['active']
+              as List;
+      expect(active.length, matchQuestCount);
     });
   });
 }
+
+int coinsOf(Map<String, dynamic> s) =>
+    ((s['resources'] as Map<String, dynamic>)['fanCoins'] as num).toInt();

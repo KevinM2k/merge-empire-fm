@@ -15,6 +15,7 @@ library;
 
 import 'dart:async';
 
+import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/state/game_wiring.dart';
@@ -58,6 +59,21 @@ class GameRunner {
     // Anything unlocked by an older build gets its achievement row and its
     // badge now, rather than on the next thing that happens to fire a sweep.
     wiring.bootSweep();
+    // The season quest track, which nothing rolled outside the season boundary:
+    // a fresh save reached the Quests sheet with an empty season track and the
+    // "no quests" line, and stayed that way until its first season ended. Both
+    // rolls are guarded — on the season number and on the fixture key — so this
+    // is a no-op for a save that already has its tracks.
+    //
+    // Written straight onto the map rather than through `update`: boot runs
+    // inside the first build, and `update` notifies the providers, which Riverpod
+    // refuses mid-build. Nothing is listening yet either, so there is nothing to
+    // notify — and no save is scheduled either, deliberately: a boot that writes
+    // nothing should not arm a timer, and the first thing that touches a quest
+    // persists the track with it. A process killed before then simply rolls
+    // again, which is what the guards are for.
+    rollSeasonQuests(state);
+    ensureMatchQuests(state);
     return state;
   }
 

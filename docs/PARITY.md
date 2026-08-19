@@ -142,12 +142,29 @@ All seven shelves are present and in the JS's own order.
 
 - [x] Scoreboard, feed, skip, close
 - [x] The 2D cutaway on a persistent pitch
+- [x] **The match quest track, judged and paid at full time.** All three, with
+      what was missed as well as what was won. `resolveMatchQuests` had no caller
+      and `rollMatchQuests` had none either, so the track was empty for every
+      match ever played — see the method note.
 - [ ] In-match subs
 - [ ] In-match tactic changes
 - [ ] Stats tab
 - [ ] Tactics tab
 - [ ] The doubling offer on the closing screen (the rewards are already deferred
       for it — see `play_button.dart`)
+
+## Quests — the block in `LeagueScreen.js`
+
+- [x] The season track, claimable, with its progress
+- [x] **Rolled at boot**, not only at a season boundary — a fresh save reached
+      the sheet with an empty season track and the "no quests" line, and stayed
+      that way until its first season ended
+- [x] **The match track**, rolled for the next fixture when the sheet opens, and
+      pinned to it so reopening does not redraw what has just been read
+- [x] Reroll, free twice a season and then gems, refused when nothing is left to
+      swap
+- [ ] The quest block on the home card, which is where the JS shows the match
+      track before kick-off rather than behind the burger
 
 ## Settings — `screens/SettingsScreen.js`
 
@@ -198,3 +215,12 @@ are the reason that rule is here twice:
   writes did nothing whatsoever.
 - **`notifyCardRemoved` was not called on a merge**, so a club that had bid for
   either parent was left waiting on a player who no longer existed.
+- **`resolveMatchQuests` and `rollMatchQuests` both had no caller**, so the match
+  quest track — three quests a fixture, each with a payout — was never drawn,
+  never shown and never judged. `rollSeasonQuests` was called only at a season
+  boundary, so a new save's season track was empty until its first season ended.
+
+The pattern in all of them: the ENGINE was ported, tested and correct, and the
+line that calls it was in a JS screen that had not been ported yet. When a screen
+is ported, the engines it called are part of the port — grep the JS screen for
+what it imports, not just for what it renders.

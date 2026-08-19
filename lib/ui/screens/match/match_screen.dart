@@ -216,6 +216,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                 },
               ),
             ),
+            if (f.finished) _QuestOutcomes(result: widget.result),
             Padding(
               padding: const EdgeInsets.all(12),
               child: SizedBox(
@@ -243,6 +244,97 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (widget.result['won'] == true) return t('match.victory');
     if (widget.result['drawn'] == true) return t('match.draw');
     return t('match.defeat');
+  }
+}
+
+/// What the match's three quests came to.
+///
+/// All three, not just the winners: the player is being shown what they MISSED
+/// as much as what they won, which is what makes the next set worth reading. The
+/// coins have already been paid — a match quest auto-pays at full time — so this
+/// is a report, not a claim.
+class _QuestOutcomes extends StatelessWidget {
+  const _QuestOutcomes({required this.result});
+
+  final Map<String, dynamic> result;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final raw = result['questResults'];
+    if (raw is! List || raw.isEmpty) return const SizedBox.shrink();
+
+    final rows = [
+      for (final entry in raw)
+        if (entry is Map<String, dynamic>) entry,
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+    final total = rows.fold<num>(
+      0,
+      (sum, r) => sum + ((r['coins'] as num?) ?? 0),
+    );
+
+    return Padding(
+      key: const ValueKey('match-quests'),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      // Per-division text, interpolated off the target the quest
+                      // was set at rather than today's — a quest is judged on
+                      // what it asked for when it was drawn.
+                      t('quest.${row['id']}', {'n': row['target'] ?? 0}),
+                      style: TextStyle(
+                        color: row['passed'] == true
+                            ? kit.accentBright
+                            : kit.textMuted,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    row['passed'] == true
+                        ? t('quests.reward_coins', {'n': row['coins'] ?? 0})
+                        : t('quests.missed'),
+                    key: ValueKey('match-quest-${row['id']}'),
+                    style: TextStyle(
+                      color: row['passed'] == true
+                          ? kit.accentBright
+                          : kit.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (total > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '${t('quests.total_reward')}: '
+                '${t('quests.reward_coins', {'n': total.toInt()})}',
+                key: const ValueKey('match-quests-total'),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: kit.accentBright,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

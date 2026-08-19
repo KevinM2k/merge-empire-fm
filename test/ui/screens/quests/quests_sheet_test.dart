@@ -22,7 +22,10 @@ import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
-String get _questId => questBank.first.id;
+/// A real SEASON quest. The bank's first entry is a MATCH one, and putting that
+/// in the season track had the same id keyed twice once the match track started
+/// rolling — which is the shape of save no real game can produce.
+String get _questId => questBank.firstWhere((q) => q.scope == 'season').id;
 
 Map<String, dynamic> saveWithQuests({
   bool completed = false,
@@ -101,6 +104,9 @@ Future<void> openQuests(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('quick-nav-quests.title')));
   await tester.pumpAndSettle();
+  // Opening it rolls the track for the next match, which is a real write — so
+  // there is a debounced save to let land.
+  await settleSave(tester);
 }
 
 void main() {
@@ -122,7 +128,7 @@ void main() {
     await pumpShell(tester, saveWithQuests());
     await openQuests(tester);
     expect(find.byKey(const ValueKey('quests-sheet')), findsOneWidget);
-    expect(find.byKey(ValueKey('quest-$_questId')), findsOneWidget);
+    expect(find.byKey(ValueKey('quest-season-$_questId')), findsOneWidget);
   });
 
   testWidgets('an unfinished quest shows progress and cannot be claimed', (
@@ -131,7 +137,7 @@ void main() {
     await pumpShell(tester, saveWithQuests());
     await openQuests(tester);
     expect(find.text('3 / 10'), findsOneWidget);
-    expect(find.byKey(ValueKey('quest-claim-$_questId')), findsNothing);
+    expect(find.byKey(ValueKey('quest-claim-season-$_questId')), findsNothing);
   });
 
   testWidgets('a finished one can be claimed, and pays', (tester) async {
@@ -139,7 +145,7 @@ void main() {
     await openQuests(tester);
 
     final before = container.read(coinsProvider);
-    await tester.tap(find.byKey(ValueKey('quest-claim-$_questId')));
+    await tester.tap(find.byKey(ValueKey('quest-claim-season-$_questId')));
     await tester.pumpAndSettle();
     await settleSave(tester);
 
@@ -150,8 +156,8 @@ void main() {
   testWidgets('an already-claimed one offers nothing', (tester) async {
     await pumpShell(tester, saveWithQuests(completed: true, claimed: true));
     await openQuests(tester);
-    expect(find.byKey(ValueKey('quest-claim-$_questId')), findsNothing);
-    expect(find.byKey(ValueKey('quest-done-$_questId')), findsOneWidget);
+    expect(find.byKey(ValueKey('quest-claim-season-$_questId')), findsNothing);
+    expect(find.byKey(ValueKey('quest-done-season-$_questId')), findsOneWidget);
   });
 
   testWidgets('an empty season track says so', (tester) async {
@@ -178,6 +184,105 @@ void main() {
     testWidgets('and stays away when nothing is', (tester) async {
       await pumpShell(tester, saveWithQuests());
       expect(find.byKey(const ValueKey('quick-nav-badge')), findsNothing);
+    });
+  });
+
+  group('the match track', () {
+    testWidgets('is rolled when the sheet is opened', (tester) async {
+      // `rollMatchQuests` had no caller, so the match track was empty for every
+      // match ever played — three quests a fixture, none of them drawn.
+      final container = await pumpShell(tester, saveWithQuests());
+      final before =
+          ((container.read(gameProvider).state!['quests']
+                      as Map<String, dynamic>)['match']
+                  as Map<String, dynamic>)['active']
+              as List;
+      expect(before, isEmpty);
+
+      await openQuests(tester);
+      final after =
+          ((container.read(gameProvider).state!['quests']
+                      as Map<String, dynamic>)['match']
+                  as Map<String, dynamic>)['active']
+              as List;
+      expect(after.length, matchQuestCount);
+      expect(find.text(t('quests.match')), findsOneWidget);
+    });
+
+    testWidgets('and says it pays itself, so nothing looks claimable', (
+      tester,
+    ) async {
+      await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      expect(find.byKey(const ValueKey('quests-match-auto')), findsOneWidget);
+    });
+
+    testWidgets('opening it twice does not redraw the set just read', (
+      tester,
+    ) async {
+      final container = await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      List<String> ids() => [
+        for (final q
+            in (((container.read(gameProvider).state!['quests']
+                            as Map<String, dynamic>)['match']
+                        as Map<String, dynamic>)['active']
+                    as List)
+                .cast<Map<String, dynamic>>())
+          '${q['id']}',
+      ];
+      final first = ids();
+
+      // Tap the barrier above the sheet to dismiss it, then come back.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      await openQuests(tester);
+      expect(ids(), first);
+    });
+  });
+
+  group('the reroll', () {
+    testWidgets('offers the free swaps a season comes with', (tester) async {
+      await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      expect(find.byKey(const ValueKey('quests-reroll')), findsOneWidget);
+      expect(find.byKey(const ValueKey('quests-reroll-free')), findsOneWidget);
+      expect(find.textContaining(t('quests.reroll_free')), findsWidgets);
+    });
+
+    testWidgets('swaps the unfinished quest for a different one', (
+      tester,
+    ) async {
+      final container = await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      await tester.ensureVisible(find.byKey(const ValueKey('quests-reroll')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('quests-reroll')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      final ids = [
+        for (final q
+            in ((container.read(gameProvider).state!['quests']
+                        as Map<String, dynamic>)['season']
+                    as List)
+                .cast<Map<String, dynamic>>())
+          '${q['id']}',
+      ];
+      expect(ids, isNot(contains(_questId)));
+      expect(ids, hasLength(1), reason: 'swapped, not added to');
+    });
+
+    testWidgets('refuses when there is nothing left to swap', (tester) async {
+      // Charging for a reroll that could change nothing would be theft.
+      await pumpShell(tester, saveWithQuests(completed: true, claimed: true));
+      await openQuests(tester);
+      expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const ValueKey('quests-reroll')))
+            .onPressed,
+        isNull,
+      );
     });
   });
 }

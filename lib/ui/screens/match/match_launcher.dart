@@ -17,6 +17,8 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/engine/quest_engine.dart';
+import 'package:merge_empire_fc/engine/quest_match.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
@@ -59,6 +61,11 @@ bool canSpendEnergy(Map<String, dynamic>? state, int amount) {
 Map<String, dynamic>? beginMatch(Map<String, dynamic> state) {
   if (matchStartBlocked(state) != null) return null;
 
+  // A track to play FOR. The sheet rolls one when it is opened, but a player who
+  // never opens it still has three quests riding on this match, and a match with
+  // no track resolves to nothing at all.
+  ensureMatchQuests(state);
+
   if (_map(state['settings'])?['hardMode'] != true) {
     final spent = spendEnergy(state, Energy.matchCost);
     if (!spent.ok) return null;
@@ -69,8 +76,27 @@ Map<String, dynamic>? beginMatch(Map<String, dynamic> state) {
 }
 
 /// Commit the result. Called at full time, with the screen still up.
-void settleMatch(Map<String, dynamic> state, Map<String, dynamic> result) =>
-    finalizeMatchOutcome(state, result);
+///
+/// The match quest track resolves HERE, with the final scoreline: match quests
+/// auto-pay, because the player has already tapped through a match and a second
+/// tap to claim is friction with no upside. **`resolveMatchQuests` had no caller
+/// at all**, so every match quest the game drew went unjudged and unpaid.
+///
+/// The outcomes are written onto the result so the screen can list all three —
+/// what was missed as well as what was won.
+void settleMatch(Map<String, dynamic> state, Map<String, dynamic> result) {
+  finalizeMatchOutcome(state, result);
+  result['questResults'] = [
+    for (final outcome in resolveMatchQuests(state, result))
+      <String, dynamic>{
+        'id': outcome.id,
+        'icon': outcome.icon,
+        'target': outcome.target,
+        'passed': outcome.passed,
+        'coins': outcome.granted.coins,
+      },
+  ];
+}
 
 /// Pay the player. Called only once they have dismissed the screen.
 void payMatch(Map<String, dynamic> state, Map<String, dynamic> result) =>

@@ -12,6 +12,7 @@ import 'dart:io';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/quests.dart';
 import 'package:merge_empire_fc/engine/achievement_engine.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -203,6 +204,44 @@ void main() {
         booted.runner.stop();
         expect(booted.runner.running, isFalse);
       });
+    });
+
+    test('boot rolls the quest tracks a fresh save has never had', () {
+      // Neither roll had a caller outside the season boundary, so a new save
+      // reached the Quests sheet with an empty season track and stayed that way
+      // until its first season ended — and the match track was empty for every
+      // match ever played.
+      final booted = _booted();
+      final quests =
+          booted.runner.game.state!['quests'] as Map<String, dynamic>;
+      expect(quests['season'], isA<List<dynamic>>());
+      expect((quests['season'] as List), isNotEmpty);
+      expect(
+        ((quests['match'] as Map<String, dynamic>)['active'] as List),
+        hasLength(matchQuestCount),
+      );
+    });
+
+    test('and a save that already has them keeps the ones it has', () {
+      // The guard is the season number, so a boot only ever rolls once a
+      // campaign. Saved between the two boots on purpose: boot itself schedules
+      // nothing, so without the write the second boot reloads a save that never
+      // had a track and rolls its own.
+      final store = MemorySaveStore({saveKeyPrimary: _saveWith()});
+      final game = GameState(store: store);
+      final runner = GameRunner(game: game)..boot();
+      List<String> ids() => [
+        for (final q
+            in (game.state!['quests'] as Map<String, dynamic>)['season']
+                as List)
+          '${(q as Map<String, dynamic>)['id']}',
+      ];
+      final first = ids();
+      expect(first, isNotEmpty);
+
+      game.saveNow();
+      runner.boot();
+      expect(ids(), first);
     });
 
     test('a tick before boot is a mistake, not a crash later', () {
