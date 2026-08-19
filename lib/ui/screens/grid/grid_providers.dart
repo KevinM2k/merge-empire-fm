@@ -142,3 +142,23 @@ Set<int> mergeTargetsFor(Map<String, dynamic>? state, int from) {
   }
   return out;
 }
+
+
+/// Every cell whose twin is somewhere else on the grid.
+///
+/// The spatial merge hint: a card with a partner out there wears a pulsing gold
+/// ring, so a player spots the pair at a glance instead of reading nine names.
+/// Computed once for the whole grid rather than per card — a card asking "is
+/// anyone my twin" is the same sweep twenty-six times over.
+final mergeableCellsProvider = savePick<Set<int>>((s) {
+  final cells = gridCells(s);
+  final out = <int>{};
+  for (var i = 0; i < cells.length; i++) {
+    if (out.contains(i)) continue;
+    final targets = mergeTargetsFor(s, i);
+    if (targets.isEmpty) continue;
+    out.add(i);
+    out.addAll(targets);
+  }
+  return out;
+});

@@ -77,6 +77,13 @@ Future<ProviderContainer> pumpGrid(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
+          // A mergeable pair pulses forever, so `pumpAndSettle` would never
+          // settle. The ring honours reduce-motion; declaring it here is what a
+          // device with that setting on would do.
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
           home: const Scaffold(body: MergeGrid()),
         ),
       ),
@@ -738,6 +745,82 @@ void main() {
         mergeTargetsFor(container.read(gameProvider).state, 0),
         isEmpty,
       );
+    });
+  });
+
+  group('the drop target for an OCCUPIED cell', () {
+    testWidgets('exists, and is the card itself', (tester) async {
+      // The cards are their own layer over the slots, so a drop onto an occupied
+      // cell hit the card and never reached a DragTarget underneath it — merging
+      // stopped working entirely the moment the sort animation went in. The
+      // target has to be ON the card.
+      await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      for (final i in [0, 1]) {
+        final target = find.byKey(ValueKey('grid-drop-$i'));
+        expect(target, findsOneWidget, reason: 'cell $i has no drop target');
+        // And it is inside the CARD's subtree, not a sibling under it.
+        expect(
+          find.descendant(
+            of: target,
+            matching: find.byKey(ValueKey('grid-card-$i')),
+          ),
+          findsOneWidget,
+          reason: 'cell $i target is not on the card, so a drop misses it',
+        );
+      }
+    });
+
+    testWidgets('and exactly ONE target per cell', (tester) async {
+      // Two would both accept, and the one underneath could never be reached.
+      await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a', variant: _maleVariant)},
+      );
+      expect(find.byKey(const ValueKey('grid-drop-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('grid-drop-1')), findsOneWidget);
+    });
+
+    testWidgets('and an empty cell keeps its own on the slot layer', (
+      tester,
+    ) async {
+      await pumpGrid(tester);
+      expect(find.byKey(const ValueKey('grid-drop-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('grid-empty-0')), findsOneWidget);
+    });
+  });
+
+  group('the merge hint', () {
+    testWidgets('marks BOTH halves of a pair, and nothing else', (
+      tester,
+    ) async {
+      final other = players.firstWhere(
+        (p) => p.tier == 1 && p.id != _baseDefId,
+      ).id;
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+          2: _card(other, 'c', variant: _maleVariant),
+        },
+      );
+      expect(container.read(mergeableCellsProvider), {0, 1});
+    });
+
+    testWidgets('and marks nothing at all with no pair on the grid', (
+      tester,
+    ) async {
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a', variant: _maleVariant)},
+      );
+      expect(container.read(mergeableCellsProvider), isEmpty);
     });
   });
 }

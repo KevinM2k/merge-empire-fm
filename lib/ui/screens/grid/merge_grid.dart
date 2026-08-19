@@ -21,6 +21,9 @@
 /// wins the arena on its own.
 library;
 
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
@@ -73,6 +76,66 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   int? _dragging;
   Set<int> _targets = const {};
 
+  /// Driven by the drag, so a card can be carried off the visible rows.
+  final ScrollController _scroll = ScrollController();
+
+  /// Runs while the finger is held inside an edge band.
+  Timer? _edgeScroll;
+  double _edgeDelta = 0;
+
+  @override
+  void dispose() {
+    _edgeScroll?.cancel();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Scroll the grid while a card is held near the top or bottom edge.
+  ///
+  /// The grid is thirteen rows and the screen holds about four, so without this a
+  /// merge between a card on the first row and its twin on the ninth cannot be
+  /// made at all: the drag has nowhere to go. The band is a fixed 72px rather
+  /// than a fraction of the height — it has to be a thumb's width whatever the
+  /// phone.
+  void _autoScroll(Offset globalPosition) {
+    if (!_scroll.hasClients) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final local = box.globalToLocal(globalPosition);
+    const band = 72.0;
+    final height = box.size.height;
+
+    // Speed ramps with how far INTO the band the finger is, so the edge nudges
+    // and the very corner races.
+    var delta = 0.0;
+    if (local.dy < band) {
+      delta = -(band - local.dy) / band * 18;
+    } else if (local.dy > height - band) {
+      delta = (local.dy - (height - band)) / band * 18;
+    }
+    _edgeDelta = delta;
+
+    if (delta == 0) {
+      _stopAutoScroll();
+      return;
+    }
+    _edgeScroll ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_scroll.hasClients || _dragging == null) return;
+      _scroll.jumpTo(
+        (_scroll.offset + _edgeDelta).clamp(
+          0.0,
+          _scroll.position.maxScrollExtent,
+        ),
+      );
+    });
+  }
+
+  void _stopAutoScroll() {
+    _edgeScroll?.cancel();
+    _edgeScroll = null;
+    _edgeDelta = 0;
+  }
+
   Future<void> _drop(int from, int to) async {
     final game = ref.read(gameProvider);
     final maxTier = ref.read(maxMergeTierProvider);
@@ -112,6 +175,9 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   @override
   Widget build(BuildContext context) {
     final cells = ref.watch(gridCellsProvider);
+    // The gold ring goes on at REST only: mid-drag the dimming is the message,
+    // and a pulsing card under a lifted one is two cues fighting.
+    final mergeable = ref.watch(mergeableCellsProvider);
 
     return Stack(
       children: [
@@ -129,6 +195,7 @@ class MergeGridState extends ConsumerState<MergeGrid> {
             Expanded(
               child: SingleChildScrollView(
                 key: const ValueKey('merge-grid'),
+                controller: _scroll,
                 padding: const EdgeInsets.fromLTRB(_pad, _pad, _pad, 12),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -180,6 +247,11 @@ class MergeGridState extends ConsumerState<MergeGrid> {
                                     height: cellH,
                                     child: _CardSlot(
                                       cell: cell,
+                                      onDrop: _drop,
+                                      mergeable:
+                                          _dragging == null &&
+                                          mergeable.contains(cell.index),
+                                      onDragUpdate: _autoScroll,
                                       width: cellW,
                                       height: cellH,
                                       // Bright if it is the card in hand or a
@@ -412,58 +484,79 @@ class _SlotTarget extends StatelessWidget {
       );
     }
 
+    // A FILLED cell's drop target lives on the card itself — see `_CardSlot`.
+    // Two targets for one cell would both accept, and the one underneath could
+    // never be reached anyway.
+    if (cell.card != null) {
+      return _Slot(
+        slotKey: 'grid-slot-${cell.index}',
+        border: kit.border,
+        fill: kit.surface,
+      );
+    }
+
     return DragTarget<int>(
-      // Keyed on the SLOT, not on whatever is sitting in it: the cards are their
-      // own layer now, so a filled slot's drop target is a sibling of its card
-      // rather than an ancestor.
       key: ValueKey('grid-drop-${cell.index}'),
       onWillAcceptWithDetails: (d) => d.data != cell.index,
       onAcceptWithDetails: (d) => onDrop(d.data, cell.index),
       builder: (context, candidate, _) => _Slot(
-        slotKey: cell.card == null
-            ? 'grid-empty-${cell.index}'
-            : 'grid-slot-${cell.index}',
+        slotKey: 'grid-empty-${cell.index}',
         border: candidate.isNotEmpty ? kit.accent : kit.border,
         fill: kit.surface,
-        // A card sits on top of a filled slot, so the dashes only ever show
-        // where there is nothing — which is what makes an empty square read as
-        // a place a card could go.
-        dashed: cell.card == null,
+        // Dashes only where there is nothing, which is what makes an empty
+        // square read as a place a card could go.
+        dashed: true,
       ),
     );
   }
 }
 
 /// One card, draggable.
+/// One card, draggable — and the DROP TARGET for its own cell.
+///
+/// **The target is here, not on the slot layer.** The cards are their own layer
+/// over the slots so they can animate into a new index, which means a drop onto
+/// an occupied cell hits the CARD: a DragTarget underneath it is never reached,
+/// and merging stopped working entirely the moment that layer went in. An empty
+/// cell keeps its target on the slot layer, where nothing is in the way.
 class _CardSlot extends ConsumerWidget {
   const _CardSlot({
     required this.cell,
+    required this.onDrop,
     required this.width,
     required this.height,
     required this.dimmed,
+    required this.mergeable,
     required this.bursting,
     required this.burstTier,
     required this.onDragStart,
     required this.onDragEnd,
+    required this.onDragUpdate,
     required this.onBurstDone,
   });
 
   final GridCell cell;
+  final void Function(int from, int to) onDrop;
   final double width;
   final double height;
   final bool dimmed;
+
+  /// This card's twin is somewhere on the grid.
+  final bool mergeable;
   final bool bursting;
   final int burstTier;
   final VoidCallback onDragStart;
   final VoidCallback onDragEnd;
+  final void Function(Offset globalPosition) onDragUpdate;
   final VoidCallback onBurstDone;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final card = cell.card!;
+    final light = Theme.of(context).brightness == Brightness.light;
     final tile = PlayerCard(
       view: card,
-      light: Theme.of(context).brightness == Brightness.light,
+      light: light,
       // A tap opens the sell sheet; the DRAG is the merge. Two gestures, two
       // meanings, and the arena keeps them apart.
       onTap: () {
@@ -474,61 +567,179 @@ class _CardSlot extends ConsumerWidget {
       },
     );
 
-    return MergeBurst(
-      tier: burstTier,
-      playing: bursting,
-      onDone: onBurstDone,
-      child: AnimatedOpacity(
-        // A square that cannot take the card recedes AND loses its colour. The
-        // opacity alone was not enough: the cards are tier-coloured, so a bronze
-        // at 28% still reads as bronze and the eye keeps offering it.
-        opacity: dimmed ? 0.28 : 1,
-        duration: const Duration(milliseconds: 150),
-        child: ColorFiltered(
-          colorFilter: dimmed
-              ? const ColorFilter.matrix(_desaturated)
-              : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
-          child: LongPressDraggable<int>(
-            data: cell.index,
-            // A hold, not an instant grab: a flick across the grid is the tab
-            // swipe, and the arena hands it over only once the hold has won.
-            delay: const Duration(milliseconds: 200),
-            onDragStarted: onDragStart,
-            onDragEnd: (_) => onDragEnd(),
-            onDraggableCanceled: (_, _) => onDragEnd(),
-            onDragCompleted: onDragEnd,
-            // The card under the finger is the SAME SIZE as the card it left, and
-            // lifted rather than shrunk. It had been hard-coded to 84×108, so on
-            // any phone wider than the smallest one a card visibly shrank the
-            // moment it was picked up.
-            feedback: Transform.scale(
-              scale: 1.06,
-              child: SizedBox(
-                width: width,
-                height: height,
-                child: Material(
-                  color: Colors.transparent,
-                  elevation: 12,
-                  borderRadius: BorderRadius.circular(12),
-                  child: PlayerCard(
-                    view: card,
-                    light: Theme.of(context).brightness == Brightness.light,
+    return DragTarget<int>(
+      key: ValueKey('grid-drop-${cell.index}'),
+      onWillAcceptWithDetails: (d) => d.data != cell.index,
+      onAcceptWithDetails: (d) => onDrop(d.data, cell.index),
+      builder: (context, candidate, _) => MergeBurst(
+        tier: burstTier,
+        playing: bursting,
+        onDone: onBurstDone,
+        child: AnimatedOpacity(
+          // A square that cannot take the card recedes AND loses its colour. The
+          // opacity alone was not enough: the cards are tier-coloured, so a
+          // bronze at 28% still reads as bronze and the eye keeps offering it.
+          opacity: dimmed ? 0.28 : 1,
+          duration: const Duration(milliseconds: 150),
+          child: ColorFiltered(
+            colorFilter: dimmed
+                ? const ColorFilter.matrix(_desaturated)
+                : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+            child: LongPressDraggable<int>(
+              data: cell.index,
+              // A hold, not an instant grab: a flick across the grid is the tab
+              // swipe, and the arena hands it over only once the hold has won.
+              delay: const Duration(milliseconds: 200),
+              onDragStarted: onDragStart,
+              onDragEnd: (_) => onDragEnd(),
+              onDraggableCanceled: (_, _) => onDragEnd(),
+              onDragCompleted: onDragEnd,
+              // Carrying a card into the edge band scrolls the grid.
+              onDragUpdate: (d) => onDragUpdate(d.globalPosition),
+              // The card under the finger is the SAME SIZE as the card it left,
+              // and lifted rather than shrunk. It had been hard-coded to 84×108,
+              // so on any phone wider than the smallest one a card visibly shrank
+              // the moment it was picked up.
+              feedback: Transform.scale(
+                scale: 1.06,
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: Material(
+                    color: Colors.transparent,
+                    elevation: 12,
+                    borderRadius: BorderRadius.circular(12),
+                    child: PlayerCard(view: card, light: light),
                   ),
                 ),
               ),
-            ),
-            // The slot it came from shows through as empty, which is the JS's
-            // `.cell-floating`.
-            childWhenDragging: const SizedBox.shrink(),
-            child: SizedBox(
-              key: ValueKey('grid-card-${cell.index}'),
-              width: width,
-              height: height,
-              child: tile,
+              // The slot it came from shows through as empty, which is the JS's
+              // `.cell-floating`.
+              childWhenDragging: const SizedBox.shrink(),
+              child: SizedBox(
+                key: ValueKey('grid-card-${cell.index}'),
+                width: width,
+                height: height,
+                child: _MergeRing(
+                  // Gold says "there is a pair here"; white says "let go and it
+                  // happens".
+                  on: mergeable || candidate.isNotEmpty,
+                  hot: candidate.isNotEmpty,
+                  child: tile,
+                ),
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The spatial merge hint: a pulsing gold ring on any card whose twin is
+/// elsewhere on the grid, so a player spots the pair at a glance instead of
+/// reading nine names.
+///
+/// Two stacked rings crossfading rather than one animated shadow. The JS makes
+/// the same trade for the same reason: animating a box-shadow repaints an 18–28px
+/// blur on every mergeable card every frame, and on a grid with several pairs
+/// that alone eats the budget on a low-end phone. Crossfading fixed rings
+/// animates opacity, which composites.
+class _MergeRing extends StatefulWidget {
+  const _MergeRing({required this.on, required this.hot, required this.child});
+
+  final bool on;
+  final bool hot;
+  final Widget child;
+
+  @override
+  State<_MergeRing> createState() => _MergeRingState();
+}
+
+class _MergeRingState extends State<_MergeRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  void _sync() {
+    // Stopped when there is nothing to say, and when the platform has asked for
+    // no perpetual movement — which is also what lets a widget test settle.
+    final want = widget.on && !MediaQuery.of(context).disableAnimations;
+    if (want && !_pulse.isAnimating) {
+      _pulse.repeat();
+    } else if (!want && _pulse.isAnimating) {
+      _pulse
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_MergeRing old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.on) return widget.child;
+    final ink = widget.hot ? Colors.white : const Color(0xFFFFD700);
+
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, child) {
+        // 1.00 → 1.04 → 1.00 across the cycle, the bloom crossfading with it.
+        final t =
+            math.sin(_pulse.value * math.pi * 2 - math.pi / 2) * 0.5 + 0.5;
+        return Transform.scale(
+          scale: 1 + 0.04 * t,
+          child: Stack(
+            fit: StackFit.passthrough,
+            children: [
+              child!,
+              // Painted OVER the card, so the portrait and the stat chips can
+              // never obscure it.
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: ink.withValues(alpha: 0.95),
+                          spreadRadius: -3,
+                          blurStyle: BlurStyle.inner,
+                        ),
+                        BoxShadow(
+                          color: ink.withValues(alpha: 0.5 + 0.3 * t),
+                          blurRadius: 18 + 10 * t,
+                          spreadRadius: 2,
+                          blurStyle: BlurStyle.inner,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }
