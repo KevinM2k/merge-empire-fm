@@ -618,6 +618,16 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       going to use them: `product.energy` (no product carries it — every energy
       product uses `energyAdd`), and `WC_RATING_BY_NATION` in `achievements.js`,
       which is declared and never read. The latter is simply not ported.
+- [ ] **The transfer LIST is a dead end in the JS too.** `listPlayer`,
+      `unlistPlayer`, `isListed` and `listedCards` are a complete feature —
+      advertise a player, lose them from the XI, draw better bids
+      (`listedPremium`) — and nothing in `src/` calls the first two: only their
+      own tests do. The card art even has a `card.listed_ribbon` for it. So a
+      player can never list anybody, and `listedPremium` and Deadline Day's
+      `listedTarget` chip can only ever read a save that was hand-edited.
+      **Ported deliberately and NOT given a UI**, because giving it one would be
+      adding a feature to the game rather than porting it. If it is ever wanted,
+      the detail sheet's Sell row is where it goes.
 
 ### Fixed in the port rather than carried
 
