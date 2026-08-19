@@ -449,12 +449,51 @@ class CutawayGame extends FlameGame {
         speed: style.speed,
         // A header leaves the ground; everything else is struck along it.
         air: beat.style == 'header' ? 0.4 : 0.0,
-        bend: 0.05,
+        // A free kick has to bend, or it goes through the wall it was given
+        // for.
+        bend: _freeKickTaken ? 0.22 : 0.05,
       ),
       isShot: true,
       onArrive: _finish,
     );
   }
+
+  /// Scythed down. The passage becomes a free kick from wherever it happened.
+  ///
+  /// A free-kick script ENDS on the foul — there is no `Finish` beat after it —
+  /// so without this the four of them ran out of instructions and the clip hung
+  /// on a full-looking pitch until the match ended. A test walks every sequence
+  /// to the end for exactly that reason.
+  void _awardFreeKick() {
+    if (_freeKickTaken) return;
+    _freeKickTaken = true;
+
+    final spot = attackers[carrier].position.clone();
+    ball.position.setFrom(spot);
+    ball.loft = 0;
+
+    // The wall: four defenders between the ball and the goal, ten yards off it,
+    // and they stop thinking — a wall that kept tracking the ball would jog
+    // out of the way of the shot it exists to block.
+    final goalMouth = _at((p: 1.04, q: 0.5));
+    final toGoal = (goalMouth - spot)..normalize();
+    final across = Vector2(-toGoal.y, toGoal.x);
+    for (var i = 0; i < defenders.length - 1; i++) {
+      final offset = (i - (defenders.length - 2) / 2) * 3.4;
+      defenders[i]
+        ..position.setFrom(spot + toGoal * 18 + across * offset)
+        ..target = defenders[i].position.clone()
+        ..frozen = true;
+    }
+    // The last man stays alive as a runner in the box.
+    defenders.last.target = goalMouth - toGoal * 12;
+
+    // A beat of stillness before it is struck, so the wall is seen to form.
+    _freeKickDelay = 0.9;
+  }
+
+  bool _freeKickTaken = false;
+  double _freeKickDelay = 0;
 
   void _finish() {
     finished = true;
@@ -469,6 +508,15 @@ class CutawayGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
     if (finished) return;
+
+    if (_freeKickDelay > 0) {
+      _freeKickDelay -= dt;
+      if (_freeKickDelay <= 0) {
+        // Curled, and harder than open play — that is what a free kick is.
+        _shoot(const Finish('longshot'));
+      }
+      return;
+    }
 
     final flight = _flight;
     if (flight != null) {
@@ -491,8 +539,12 @@ class CutawayGame extends FlameGame {
       if (beat is Dribble &&
           me.position.distanceTo(_at(beat.to)) <
               MoverTuning.arriveRadius * 0.7) {
-        beatIndex++;
-        _beginBeat();
+        if (beat.fouled) {
+          _awardFreeKick();
+        } else {
+          beatIndex++;
+          _beginBeat();
+        }
       }
     }
 

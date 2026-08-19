@@ -76,9 +76,11 @@ void main() {
   testWidgets('opens goalless, on the clock', (tester) async {
     await pumpMatch(
       tester,
-      matchResult(events: [
-        {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
-      ]),
+      matchResult(
+        events: [
+          {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+        ],
+      ),
     );
     expect(find.text('0 – 0'), findsOneWidget);
     expect(stateOf(tester).frame.minute, 0);
@@ -105,10 +107,12 @@ void main() {
   testWidgets('the score only moves when its goal is shown', (tester) async {
     await pumpMatch(
       tester,
-      matchResult(events: [
-        {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
-        {'minute': 80, 'type': 'goal', 'team': 'away', 'scorer': 'Them'},
-      ]),
+      matchResult(
+        events: [
+          {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+          {'minute': 80, 'type': 'goal', 'team': 'away', 'scorer': 'Them'},
+        ],
+      ),
     );
     // Nine minutes in, nothing yet.
     await tester.pump(minuteDurationFor(9));
@@ -179,11 +183,7 @@ void main() {
       await pumpMatch(tester, result, instance: label);
       await tester.tap(find.byKey(const ValueKey('match-skip')));
       await tester.pumpAndSettle();
-      expect(
-        find.text(t('match.$label')),
-        findsOneWidget,
-        reason: label,
-      );
+      expect(find.text(t('match.$label')), findsOneWidget, reason: label);
     });
   }
 
@@ -191,14 +191,16 @@ void main() {
     // The engine emits KEYS, which is why the i18n layer had to land first.
     await pumpMatch(
       tester,
-      matchResult(events: [
-        {
-          'minute': 5,
-          'type': 'commentary',
-          'team': 'home',
-          'textKey': 'commentary.halftime_level',
-        },
-      ]),
+      matchResult(
+        events: [
+          {
+            'minute': 5,
+            'type': 'commentary',
+            'team': 'home',
+            'textKey': 'commentary.halftime_level',
+          },
+        ],
+      ),
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
@@ -209,9 +211,11 @@ void main() {
   testWidgets('half time is named rather than shown as a type', (tester) async {
     await pumpMatch(
       tester,
-      matchResult(events: [
-        {'minute': 45, 'type': 'halftime'},
-      ]),
+      matchResult(
+        events: [
+          {'minute': 45, 'type': 'halftime'},
+        ],
+      ),
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
