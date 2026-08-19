@@ -15,12 +15,17 @@
 /// would branch. Here it is one widget: Flutter composes the two layouts out of
 /// the same subtree, and a second implementation would be the thing that drifts.
 ///
-/// **The fly-to-slot is deliberately not ported.** The JS captures each cell's
-/// rect and flies the card home; the port's grid is a scrolling `GridView`
-/// whose rows are built on demand, so the slot a card is going to usually is
-/// not on screen — and animating toward a rect that does not exist is worse
-/// than not animating at all. The keepers shrink away as the backdrop clears,
-/// which says the same thing without lying about where they went.
+/// **The fly-to-slot IS ported**, and it is what joins the reveal to the grid:
+/// without it a signing arrived by cut — the backdrop cleared and the card was
+/// simply already in a square, with nothing saying which. The JS captures each
+/// cell's rect and flies the card home; this does the same, using the grid's
+/// own [ScoutLanding] to get there.
+///
+/// Two things that were once the reason not to. The slot rects are all real —
+/// the grid positions every cell inside a `SingleChildScrollView`, so a rect
+/// exists whether or not the row is on screen. And the scroll is done EARLY,
+/// during the hold, behind a backdrop that is already opaque: by the time the
+/// card leaves, the square it is going to is on screen and has not moved.
 library;
 
 import 'dart:async';
@@ -28,6 +33,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
@@ -52,10 +58,27 @@ typedef ScoutRevealCard = ({
   /// Bursts into coins instead of settling — a card the tier rules are about to
   /// cash in. Flying it to a slot it is giving up reads as a bug.
   bool vanish,
+
+  /// The grid cell the engine put him in, which is where he flies to. Null when
+  /// the caller has no grid to land in — the card settles away instead.
+  int? idx,
 });
 
 /// The whole reveal: the cards, and the one line underneath them.
 typedef ScoutReveal = ({List<ScoutRevealCard> cards, String caption});
+
+/// Where a batch is going: the screen rect of each of [idxs], in the same order,
+/// with the grid already scrolled so that every one of them is on it.
+///
+/// Asked ONCE for the whole batch, because the grid can only scroll to one
+/// place — four separate asks would each undo the last one's scroll.
+typedef ScoutLanding = Future<List<Rect?>> Function(List<int> idxs);
+
+/// Lent by the mounted grid, which is the only thing that knows where a cell is.
+///
+/// Null when there is no grid — the Player Index, a test pumping the overlay on
+/// its own — and a reveal with nowhere to land settles away as it always did.
+final scoutLandingProvider = StateProvider<ScoutLanding?>((_) => null);
 
 /// What to show for what a batch delivered, or null when it delivered nothing.
 ///
@@ -95,6 +118,7 @@ ScoutReveal? scoutRevealFor(Map<String, dynamic>? state, List<Signing> placed) {
       badge: single && signing.autoSell ? null : badgeFor(signing),
       isNewDiscovery: signing.isNewDiscovery,
       vanish: signing.autoSell,
+      idx: idx,
     ));
   }
   if (cards.isEmpty) return null;
@@ -140,10 +164,21 @@ Duration scoutRevealHold(int cards) =>
 
 /// The burst a cashed-in card comes apart with. The backdrop stays up through
 /// it — a card exploding over the live UI reads as a glitch rather than a sale.
-const Duration _vanish = mergeBurstDuration;
+///
+/// The JS's own `VANISH_MS`, and NOT the merge burst's length: the merge is a
+/// set-piece that pops and settles over a full second, and holding a black
+/// backdrop over the whole game for that long to watch a bronze card be sold is
+/// the celebration outstaying the event.
+const Duration _vanish = Duration(milliseconds: 520);
 
-/// The keepers settling back into the grid.
+/// The keepers settling back into the grid — what a card does when there is no
+/// square to fly to.
 const Duration _settle = Duration(milliseconds: 320);
+
+/// The journey home. Longer than the merge flight (300ms), because it is a
+/// longer way across and the card is shrinking to a fifth of its size on the
+/// way: at merge speed it read as being flicked off the screen.
+const Duration scoutRevealFlyHome = Duration(milliseconds: 460);
 
 /// The halo a first-ever sighting wears. Gold whatever the kit is: it means the
 /// same thing in every club's colours, and the tier palette already owns the
@@ -158,13 +193,18 @@ Duration get scoutRevealSkipAfter => _popDelay + _flipDelay + _flip;
 /// An overlay entry rather than a route: nothing here is navigated to, and a
 /// route would put a reveal in the back stack, where an Android back press
 /// would "return" from an animation.
-Future<void> showScoutReveal(BuildContext context, ScoutReveal reveal) {
+Future<void> showScoutReveal(
+  BuildContext context,
+  ScoutReveal reveal, {
+  ScoutLanding? landing,
+}) {
   final overlay = Overlay.of(context, rootOverlay: true);
   final done = Completer<void>();
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (context) => ScoutRevealOverlay(
       reveal: reveal,
+      landing: landing,
       onDone: () {
         if (entry.mounted) entry.remove();
         if (!done.isCompleted) done.complete();
@@ -180,10 +220,14 @@ class ScoutRevealOverlay extends StatefulWidget {
     super.key,
     required this.reveal,
     required this.onDone,
+    this.landing,
   });
 
   final ScoutReveal reveal;
   final VoidCallback onDone;
+
+  /// How to find the squares the cards are going to. Null flies nothing.
+  final ScoutLanding? landing;
 
   @override
   State<ScoutRevealOverlay> createState() => ScoutRevealOverlayState();
@@ -199,9 +243,34 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
     vsync: this,
     duration: _vanish + _settle,
   );
+  late final AnimationController _fly = AnimationController(
+    vsync: this,
+    duration: scoutRevealFlyHome,
+  );
 
   Timer? _hold;
   bool _leaving = false;
+
+  /// This overlay's own box, so a rect measured off the grid can be put in the
+  /// coordinates the flight is drawn in. The root overlay usually fills the
+  /// window and the two are the same — usually is not a thing to animate on.
+  final GlobalKey _root = GlobalKey();
+
+  /// One per card, to measure the rect it is leaving FROM.
+  late final List<GlobalKey> _cardKeys = [
+    for (final _ in widget.reveal.cards) GlobalKey(),
+  ];
+
+  /// Where each card is going, by its place in the reveal. Resolved during the
+  /// hold — see [_resolveLanding].
+  final Map<int, Rect> _landing = {};
+
+  /// The cards in flight, and the cards hidden in place because they are.
+  List<({ScoutRevealCard card, Rect from, Rect to})> _flights = const [];
+  final Set<int> _flew = {};
+
+  /// Test seam: how many cards flew home rather than settling.
+  int get flyingHome => _flights.length;
 
   /// Test seam: has the flip finished, so a tap would skip rather than cut the
   /// reveal off before the player has seen anything?
@@ -214,6 +283,7 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
     super.initState();
     _in.forward();
     _hold = Timer(scoutRevealHold(widget.reveal.cards.length), _dismiss);
+    _resolveLanding();
   }
 
   @override
@@ -221,7 +291,62 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
     _hold?.cancel();
     _in.dispose();
     _out.dispose();
+    _fly.dispose();
     super.dispose();
+  }
+
+  /// Ask the grid where the keepers are going, NOW rather than on the way out.
+  ///
+  /// The ask scrolls the grid, and doing that at dismiss time would either show
+  /// the player the grid moving under a clearing backdrop or hold the card still
+  /// while it did. Here it happens behind a backdrop that is already opaque, and
+  /// costs the reveal nothing: the hold is a second and a half.
+  ///
+  /// A card being cashed in is not asked for. Flying it to a square it is giving
+  /// up reads as a bug, which is the same reason it bursts instead of settling.
+  Future<void> _resolveLanding() async {
+    final landing = widget.landing;
+    if (landing == null) return;
+    final cards = widget.reveal.cards;
+    final at = <int>[];
+    final idxs = <int>[];
+    for (var i = 0; i < cards.length; i++) {
+      final idx = cards[i].idx;
+      if (idx == null || cards[i].vanish) continue;
+      at.add(i);
+      idxs.add(idx);
+    }
+    if (idxs.isEmpty) return;
+    final rects = await landing(idxs);
+    if (!mounted) return;
+    for (var i = 0; i < at.length && i < rects.length; i++) {
+      final rect = rects[i];
+      if (rect != null) _landing[at[i]] = rect;
+    }
+  }
+
+  /// The flights, measured at the moment of leaving: where each card is on
+  /// screen right now, and where it is going.
+  List<({ScoutRevealCard card, Rect from, Rect to})> _capture() {
+    if (_landing.isEmpty) return const [];
+    final root = _root.currentContext?.findRenderObject() as RenderBox?;
+    if (root == null || !root.hasSize) return const [];
+    final flights = <({ScoutRevealCard card, Rect from, Rect to})>[];
+    for (final entry in _landing.entries) {
+      final box =
+          _cardKeys[entry.key].currentContext?.findRenderObject() as RenderBox?;
+      if (box == null || !box.hasSize) continue;
+      flights.add((
+        card: widget.reveal.cards[entry.key],
+        from: root.globalToLocal(box.localToGlobal(Offset.zero)) & box.size,
+        to: Rect.fromPoints(
+          root.globalToLocal(entry.value.topLeft),
+          root.globalToLocal(entry.value.bottomRight),
+        ),
+      ));
+      _flew.add(entry.key);
+    }
+    return flights;
   }
 
   void _skip() {
@@ -232,18 +357,37 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
   void _dismiss() {
     if (_leaving) return;
     _hold?.cancel();
-    setState(() => _leaving = true);
-    // A reveal with nothing to break skips straight to the settle, so a plain
-    // signing is not held back by an effect it never uses.
-    _out
-        .forward(
-          from: _anyVanishing
-              ? 0
-              : _vanish.inMilliseconds / _out.duration!.inMilliseconds,
-        )
-        .then((_) {
-          if (mounted) widget.onDone();
-        });
+    // Reduce-motion keeps the reveal and drops the journey: a card crossing the
+    // screen is the decoration, and the square it lands in is on screen either
+    // way because the landing has already scrolled to it.
+    final flights = MediaQuery.of(context).disableAnimations
+        ? const <({ScoutRevealCard card, Rect from, Rect to})>[]
+        : _capture();
+    setState(() {
+      _leaving = true;
+      _flights = flights;
+    });
+    _leave();
+  }
+
+  /// The break, then the journey. A reveal with nothing to break skips straight
+  /// to the settle, so a plain signing is not held back by an effect it never
+  /// uses — and a batch with one card being cashed in still bursts that one
+  /// before the keepers set off.
+  Future<void> _leave() async {
+    final out = _out.forward(
+      from: _anyVanishing
+          ? 0
+          : _vanish.inMilliseconds / _out.duration!.inMilliseconds,
+    );
+    if (_flights.isEmpty) {
+      await out;
+    } else {
+      if (_anyVanishing) await Future<void>.delayed(_vanish);
+      if (!mounted) return;
+      await Future.wait<void>([out, _fly.forward()]);
+    }
+    if (mounted) widget.onDone();
   }
 
   @override
@@ -266,7 +410,7 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
     ].reduce((a, b) => a < b ? a : b).clamp(64.0, 260.0);
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_in, _out]),
+      animation: Listenable.merge([_in, _out, _fly]),
       builder: (context, _) {
         final leaving = _out.value;
         // The backdrop holds through the break and clears for the settle.
@@ -278,75 +422,109 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
                       .clamp(0.0, 1.0))
             : (_elapsed / _backdropIn.inMilliseconds).clamp(0.0, 1.0);
 
-        return Semantics(
-          label: widget.reveal.caption,
-          // A transparent Material, because this is an `OverlayEntry` inserted
-          // straight into the root overlay: nothing inside it had a Material
-          // ancestor, and every Text in the reveal was drawing Flutter's
-          // missing-Material double yellow underline over the caption.
-          child: Material(
-            type: MaterialType.transparency,
-            child: GestureDetector(
-              key: const ValueKey('scout-reveal'),
-              behavior: HitTestBehavior.opaque,
-              onTap: _skip,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      kit.surface.withValues(alpha: 0.72 * backdropAt),
-                      Colors.black.withValues(alpha: 0.92 * backdropAt),
+        return Stack(
+          key: _root,
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: _body(context, kit, cards, size, gap, aspect, backdropAt),
+            ),
+            // Over the backdrop AND over the grid it is clearing to reveal: the
+            // card is the only thing on screen that is still moving.
+            for (final flight in _flights)
+              _FlightHome(
+                flight: flight,
+                t: Curves.easeInOutCubic.transform(_fly.value),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The backdrop, the cards and the caption — everything that is not in flight.
+  Widget _body(
+    BuildContext context,
+    KitTheme kit,
+    List<ScoutRevealCard> cards,
+    double size,
+    double gap,
+    double aspect,
+    double backdropAt,
+  ) {
+    return Semantics(
+      label: widget.reveal.caption,
+      // A transparent Material, because this is an `OverlayEntry` inserted
+      // straight into the root overlay: nothing inside it had a Material
+      // ancestor, and every Text in the reveal was drawing Flutter's
+      // missing-Material double yellow underline over the caption.
+      child: Material(
+        type: MaterialType.transparency,
+        child: GestureDetector(
+          key: const ValueKey('scout-reveal'),
+          behavior: HitTestBehavior.opaque,
+          onTap: _skip,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: [
+                  kit.surface.withValues(alpha: 0.72 * backdropAt),
+                  Colors.black.withValues(alpha: 0.92 * backdropAt),
+                ],
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (var i = 0; i < cards.length; i++)
+                        _RevealCard(
+                          key: _cardKeys[i],
+                          card: cards[i],
+                          size: size,
+                          aspect: aspect,
+                          elapsedMs: _elapsed,
+                          leaving: _leaving ? _out : null,
+                          reduceMotion: MediaQuery.disableAnimationsOf(context),
+                          // Hidden rather than removed: it is the same card,
+                          // drawn by the flight instead, and taking its space
+                          // out of the Wrap would shuffle the ones beside it
+                          // sideways as it left.
+                          flownAway: _flew.contains(i),
+                        ),
                     ],
                   ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: gap,
-                        runSpacing: gap,
-                        children: [
-                          for (var i = 0; i < cards.length; i++)
-                            _RevealCard(
-                              card: cards[i],
-                              size: size,
-                              aspect: aspect,
-                              elapsedMs: _elapsed,
-                              leaving: _leaving ? _out : null,
-                              reduceMotion: media.disableAnimations,
-                            ),
-                        ],
-                      ),
-                      SizedBox(height: cards.length > 1 ? 16 : 18),
-                      Opacity(
-                        opacity: _leaving ? 0 : _captionOpacity,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: size * 1.25),
-                          child: Text(
-                            widget.reveal.caption,
-                            key: const ValueKey('scout-reveal-caption'),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: kit.accentBright,
-                              fontSize: 14,
-                              height: 1.3,
-                              letterSpacing: 1,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
+                  SizedBox(height: cards.length > 1 ? 16 : 18),
+                  Opacity(
+                    opacity: _leaving ? 0 : _captionOpacity,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: size * 1.25),
+                      child: Text(
+                        widget.reveal.caption,
+                        key: const ValueKey('scout-reveal-caption'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: kit.accentBright,
+                          fontSize: 14,
+                          height: 1.3,
+                          letterSpacing: 1,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -367,12 +545,14 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
 /// settles away or comes apart.
 class _RevealCard extends StatelessWidget {
   const _RevealCard({
+    super.key,
     required this.card,
     required this.size,
     required this.aspect,
     required this.elapsedMs,
     required this.leaving,
     required this.reduceMotion,
+    this.flownAway = false,
   });
 
   final ScoutRevealCard card;
@@ -381,9 +561,13 @@ class _RevealCard extends StatelessWidget {
   final double elapsedMs;
   final AnimationController? leaving;
   final bool reduceMotion;
+  final bool flownAway;
 
   @override
   Widget build(BuildContext context) {
+    // Its space, and nothing in it: the flight is drawing this card now.
+    if (flownAway) return SizedBox(width: size, height: size * aspect);
+
     final kit = Theme.of(context).extension<KitTheme>()!;
     final elapsed = elapsedMs;
 
@@ -486,6 +670,11 @@ class _RevealCard extends StatelessWidget {
       body = MergeBurst(
         tier: card.view.tier,
         playing: true,
+        duration: _vanish,
+        // Money, not the tier he happened to be — and no pop, because a card
+        // being cashed in is on its way out and popping it says the opposite.
+        coins: true,
+        pop: false,
         child: Opacity(opacity: (1 - (out * 2)).clamp(0.0, 1.0), child: body),
       );
     }
@@ -503,6 +692,54 @@ class _RevealCard extends StatelessWidget {
           ..setEntry(3, 2, 1 / 1100)
           ..rotateY(reduceMotion ? 0 : (1 - flip) * math.pi),
         child: Opacity(opacity: (1 - settle).clamp(0.0, 1.0), child: body),
+      ),
+    );
+  }
+}
+
+/// A card on its way home: from where it was turned over to the square the
+/// engine put him in.
+///
+/// The rect is LERPED rather than scaled, so it lands on the square exactly — a
+/// scale about the centre would leave it a few pixels out at every aspect ratio
+/// the grid has, and being a few pixels out is the whole thing this fixes. The
+/// real card is already in that square underneath, so the flight simply stops
+/// and there is no swap to see.
+class _FlightHome extends StatelessWidget {
+  const _FlightHome({required this.flight, required this.t});
+
+  final ({ScoutRevealCard card, Rect from, Rect to}) flight;
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    final rect = Rect.lerp(flight.from, flight.to, t)!;
+    return Positioned.fromRect(
+      rect: rect,
+      child: IgnorePointer(
+        child: Material(
+          type: MaterialType.transparency,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                // Fades out as it arrives, because the card it becomes has no
+                // glow: the hand-off is the last thing that would give it away.
+                BoxShadow(
+                  color: revealGlowFor(
+                    flight.card.view.tier,
+                  ).withValues(alpha: 0.6 * (1 - t)),
+                  blurRadius: rect.width * 0.2,
+                ),
+              ],
+            ),
+            child: PlayerCard(
+              key: const ValueKey('scout-reveal-flight'),
+              view: flight.card.view,
+              light: Theme.of(context).brightness == Brightness.light,
+            ),
+          ),
+        ),
       ),
     );
   }

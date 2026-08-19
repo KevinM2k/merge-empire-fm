@@ -406,20 +406,25 @@ Two are not code decisions and are marked so.
 
 ### Cards and the grid
 
-- [ ] **A revealed player should FLY into his cell**, not simply be there when
-      the reveal closes. The scout reveal and the grid are two separate
-      surfaces today and nothing joins them, so a signing arrives by cut. The
-      merge flight (`_FlyingCard` in `merge_grid.dart`) already does this
-      journey between two cells and is the thing to reuse — take the reveal
-      card's rect on the way out and fly it to the cell the engine placed it in.
-- [ ] **The merge itself should read as a set-piece.** The flight and the burst
-      are in and correct; what they lack is weight. The JS's own note on the
-      burst is the brief — a merge is the loop's payoff and it currently costs
-      a card sliding two inches.
-- [ ] **A drag-drop must NOT replay it.** Moving and swapping are the player
-      tidying up, and `_drop` already returns before the flight for both — keep
-      it that way when the reveal animation above lands, or every tidy-up
-      becomes a cutscene.
+- [x] **A revealed player FLIES into his cell.** The grid lends the reveal a
+      `ScoutLanding` — the screen rect of every cell in the batch, with the grid
+      already scrolled so they are on it — and the reveal flies each keeper from
+      where it was turned over to the square the engine put it in. The scroll
+      happens DURING the hold, behind a backdrop that is already opaque, so it
+      costs the reveal nothing and the square has stopped moving by the time the
+      card leaves. The old note here said the rects could not be had; that was
+      true of a `GridView` and has not been true since the cards became a
+      positioned layer inside a `SingleChildScrollView`.
+- [x] **The merge reads as a set-piece.** All four of the JS's layers, where the
+      port had one and a half: the GSAP squash → stretch → elastic settle
+      pivoted on the card's bottom edge, the `brightness(3) saturate(2)`
+      blow-out on the cell, one to three staggered shockwaves, and the tier's
+      own particle palette at the JS's counts (18 / 26 / 38, against a formula
+      that spent 24 on a Legend). Every piece comes off a stable per-burst hash
+      — a painter that rolls dice inside `paint` re-rolls them every frame.
+- [x] **A drag-drop does not replay it.** `_drop` still returns before anything
+      celebrates unless the action was a merge, and there is a test that says so
+      for both a move and a swap.
 
 ### Shop
 

@@ -127,7 +127,15 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
       // in the grid at this point, which is what lets an auto-sold one be shown
       // at full size before it is cashed in.
       final reveal = scoutRevealFor(game.state, result.placed);
-      if (reveal != null && mounted) await showScoutReveal(context, reveal);
+      if (reveal != null && mounted) {
+        // The grid lends the way home, and is null when there is no grid to fly
+        // into — the button is on the Players tab, but a test pumps it alone.
+        await showScoutReveal(
+          context,
+          reveal,
+          landing: ref.read(scoutLandingProvider),
+        );
+      }
 
       game.update((s) => settleAutoSales(s, result.placed));
     } finally {
@@ -163,10 +171,10 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
     // literal grey on the ×N alone left a grey stub hanging off a green button
     // and broke the group in two.
     final tier = voucher == null ? null : _tierAccent[voucher];
-    final fill = dead
-        ? kit.surface2
-        : tier?.$2 ?? kit.accent;
-    final ink = dead ? kit.textMuted : (tier != null ? Colors.white : kit.accentInk);
+    final fill = dead ? kit.surface2 : tier?.$2 ?? kit.accent;
+    final ink = dead
+        ? kit.textMuted
+        : (tier != null ? Colors.white : kit.accentInk);
     final edge = dead ? kit.border : fill;
 
     return Semantics(
@@ -463,7 +471,11 @@ class _Price extends StatelessWidget {
         const SizedBox(width: 2),
         Text(
           formatCoins(value),
-          style: TextStyle(color: ink, fontSize: 11, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: ink,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );

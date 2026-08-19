@@ -25,6 +25,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
@@ -87,15 +88,79 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   /// Driven by the drag, so a card can be carried off the visible rows.
   final ScrollController _scroll = ScrollController();
 
+  /// One key per cell, so anything outside the grid can be told where a square
+  /// IS. Hung off the slot layer rather than the card layer: the slots never
+  /// move, where a card's own widget is mid-animation exactly when it is asked.
+  final Map<int, GlobalKey> _slotKeys = {};
+
+  GlobalKey _slotKey(int index) => _slotKeys.putIfAbsent(index, GlobalKey.new);
+
   /// Runs while the finger is held inside an edge band.
   Timer? _edgeScroll;
   double _edgeDelta = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // The grid lends the scout reveal a way home. Nothing watches this, so
+    // setting it costs no rebuild; the frame's delay is so that it is never set
+    // while the frame that mounted the grid is still being built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(scoutLandingProvider.notifier).state = _landingRects;
+      }
+    });
+  }
+
+  /// Handed back when the grid leaves the tree — in `deactivate` rather than
+  /// `dispose`, because `ref` is already gone by then. A resolver left behind
+  /// would fly a card into a grid that is no longer on screen.
+  @override
+  void deactivate() {
+    if (ref.read(scoutLandingProvider) == _landingRects) {
+      ref.read(scoutLandingProvider.notifier).state = null;
+    }
+    super.deactivate();
+  }
 
   @override
   void dispose() {
     _edgeScroll?.cancel();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Where these cells are on screen, for a reveal to fly its cards into.
+  ///
+  /// **It scrolls first.** The engine fills the first free slots, which on a
+  /// grid with thirteen rows and four on screen is very often below the fold —
+  /// and a card flying to a square nobody can see is worse than one that does
+  /// not fly. The batch's own middle is centred, which covers the whole batch
+  /// because those free slots sit together.
+  Future<List<Rect?>> _landingRects(List<int> idxs) async {
+    if (!mounted || idxs.isEmpty) return const [];
+    final sorted = [...idxs]..sort();
+    final middle = _slotKeys[sorted[sorted.length ~/ 2]]?.currentContext;
+    if (middle != null && _scroll.hasClients) {
+      await Scrollable.ensureVisible(
+        middle,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    }
+    if (!mounted) return const [];
+    // A frame after the scroll, so what is measured is where the scroll left it.
+    await SchedulerBinding.instance.endOfFrame;
+    if (!mounted) return const [];
+    return [for (final idx in idxs) _slotRect(idx)];
+  }
+
+  Rect? _slotRect(int index) {
+    final box =
+        _slotKeys[index]?.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   /// Scroll the grid while a card is held near the top or bottom edge.
@@ -190,10 +255,23 @@ class MergeGridState extends ConsumerState<MergeGrid> {
       proMode: ref.read(proModeProvider),
     );
     if (view == null || !mounted) return;
-    await showScoutReveal(context, (
-      cards: [(view: view, badge: null, isNewDiscovery: true, vanish: false)],
-      caption: t('grid.new_player_found'),
-    ));
+    await showScoutReveal(
+      context,
+      (
+        cards: [
+          (
+            view: view,
+            badge: null,
+            isNewDiscovery: true,
+            vanish: false,
+            idx: to,
+          ),
+        ],
+        caption: t('grid.new_player_found'),
+      ),
+      // Back into the square it came out of, which is the cell that just merged.
+      landing: _landingRects,
+    );
   }
 
   @override
@@ -256,7 +334,13 @@ class MergeGridState extends ConsumerState<MergeGrid> {
                                   top: at(cell.index).dy,
                                   width: cellW,
                                   height: cellH,
-                                  child: _SlotTarget(cell: cell, onDrop: _drop),
+                                  child: KeyedSubtree(
+                                    key: _slotKey(cell.index),
+                                    child: _SlotTarget(
+                                      cell: cell,
+                                      onDrop: _drop,
+                                    ),
+                                  ),
                                 ),
                               for (final cell in cells)
                                 if (cell.card != null)

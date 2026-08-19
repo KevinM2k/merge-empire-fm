@@ -58,6 +58,7 @@ Future<void> pumpReveal(
   ScoutReveal reveal, {
   VoidCallback? onDone,
   bool reduceMotion = false,
+  ScoutLanding? landing,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: buildAppTheme(kitId: '#4caf50', light: false),
@@ -67,7 +68,11 @@ Future<void> pumpReveal(
         disableAnimations: reduceMotion,
       ),
       child: Scaffold(
-        body: ScoutRevealOverlay(reveal: reveal, onDone: onDone ?? () {}),
+        body: ScoutRevealOverlay(
+          reveal: reveal,
+          onDone: onDone ?? () {},
+          landing: landing,
+        ),
       ),
     ),
   ),
@@ -337,6 +342,7 @@ void main() {
             badge: null,
             isNewDiscovery: true,
             vanish: false,
+            idx: 0,
           ),
         ],
         caption: t('grid.new_player_found'),
@@ -366,6 +372,170 @@ void main() {
         reason: 'face up at once',
       );
       await tester.pumpAndSettle();
+    });
+  });
+
+  group('the way home', () {
+    /// The square a card is flying to, and a record of what was asked for.
+    ({ScoutLanding landing, List<List<int>> asked}) fakeLanding([
+      Rect rect = const Rect.fromLTWH(24, 560, 96, 128),
+    ]) {
+      final asked = <List<int>>[];
+      return (
+        landing: (idxs) async {
+          asked.add(idxs);
+          return [for (final _ in idxs) rect];
+        },
+        asked: asked,
+      );
+    }
+
+    testWidgets('the reveal says which cell each card landed in', (
+      tester,
+    ) async {
+      final save = _save();
+      final batch = signPlayers(save, 2);
+      final reveal = scoutRevealFor(save, batch.placed)!;
+      expect(
+        [for (final c in reveal.cards) c.idx],
+        [for (final s in batch.placed) s.idx],
+        reason: 'the flight has nowhere to go without it',
+      );
+    });
+
+    testWidgets(
+      'the squares are asked for DURING the hold, not on the way out',
+      (tester) async {
+        final fake = fakeLanding();
+        await pumpReveal(
+          tester,
+          _revealFor(_save(), 1).reveal!,
+          landing: fake.landing,
+        );
+        // One frame in — long before the hold is up — the grid has been asked.
+        await tester.pump();
+        expect(fake.asked, [
+          [0],
+        ]);
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets('and asked ONCE, for the whole batch', (tester) async {
+      final fake = fakeLanding();
+      final reveal = _revealFor(_save(), 3).reveal!;
+      await pumpReveal(tester, reveal, landing: fake.landing);
+      await tester.pump();
+      expect(fake.asked.length, 1, reason: 'one ask, one scroll');
+      expect(fake.asked.first.length, reveal.cards.length);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a card is not asked to fly to a square it is giving up', (
+      tester,
+    ) async {
+      final fake = fakeLanding();
+      final save = _save(autoSell: true);
+      signPlayers(save, 1);
+      final reveal = _revealFor(save, 1).reveal!;
+      expect(reveal.cards.single.vanish, isTrue);
+      await pumpReveal(tester, reveal, landing: fake.landing);
+      await tester.pump();
+      expect(fake.asked, isEmpty);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the card flies from the reveal into its square', (
+      tester,
+    ) async {
+      const target = Rect.fromLTWH(24, 560, 96, 128);
+      final fake = fakeLanding(target);
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        landing: fake.landing,
+      );
+      await tester.pump();
+      await tester.pump(scoutRevealHold(1));
+      await tester.pump();
+
+      final flight = find.byKey(const ValueKey('scout-reveal-flight'));
+      expect(flight, findsOneWidget, reason: 'it left');
+      final started = tester.getRect(flight);
+      expect(
+        started.width,
+        greaterThan(target.width),
+        reason: 'it starts at reveal size',
+      );
+
+      await tester.pump(scoutRevealFlyHome ~/ 2);
+      final halfway = tester.getRect(flight);
+      expect(
+        (halfway.center - target.center).distance,
+        lessThan((started.center - target.center).distance),
+      );
+
+      await tester.pump(scoutRevealFlyHome);
+      // Landed ON the square, not near it: the real card is already underneath.
+      final landed = tester.getRect(flight);
+      expect(landed.left, moreOrLessEquals(target.left, epsilon: 0.5));
+      expect(landed.top, moreOrLessEquals(target.top, epsilon: 0.5));
+      expect(landed.width, moreOrLessEquals(target.width, epsilon: 0.5));
+      expect(landed.height, moreOrLessEquals(target.height, epsilon: 0.5));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the reveal is not over until the card is home', (
+      tester,
+    ) async {
+      final fake = fakeLanding();
+      var done = false;
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        landing: fake.landing,
+        onDone: () => done = true,
+      );
+      await tester.pump();
+      await tester.pump(scoutRevealHold(1));
+      await tester.pump(scoutRevealFlyHome - const Duration(milliseconds: 40));
+      expect(done, isFalse, reason: 'still in the air');
+      await tester.pumpAndSettle();
+      expect(done, isTrue);
+    });
+
+    testWidgets('reduce-motion lands it without the journey', (tester) async {
+      final fake = fakeLanding();
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        landing: fake.landing,
+        reduceMotion: true,
+      );
+      await tester.pump();
+      await tester.pump(scoutRevealHold(1));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('scout-reveal-flight')),
+        findsNothing,
+        reason: 'the square is on screen either way',
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('with no grid to fly into, the card settles as it always did', (
+      tester,
+    ) async {
+      var done = false;
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        onDone: () => done = true,
+      );
+      await tester.pump(scoutRevealHold(1));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('scout-reveal-flight')), findsNothing);
+      expect(done, isTrue);
     });
   });
 

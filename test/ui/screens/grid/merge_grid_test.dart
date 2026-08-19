@@ -700,6 +700,31 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('and a tidy-up is never a cutscene', (tester) async {
+      // A move and a swap are the player tidying up. Now that a signing flies
+      // into its square, the thing to hold is that shuffling cards around does
+      // NOT — every tidy-up would otherwise open a reveal over the grid.
+      await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          2: _card(_baseDefId, 'b', variant: _femaleVariant),
+        },
+      );
+      dropOn(tester, 0, 1);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('scout-reveal')), findsNothing);
+      dropOn(tester, 1, 2);
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('scout-reveal')),
+        findsNothing,
+        reason: 'a swap is not a signing either',
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
     testWidgets('a rarer merge is a louder one', (tester) async {
       // The JS scales the particle count by tier, so a Legend lands harder
       // than a bronze.
@@ -707,6 +732,127 @@ void main() {
       // And an unknown tier is still drawable.
       expect(particlesForTier(99), greaterThan(0));
       expect(particlesForTier(0), greaterThan(0));
+    });
+
+    testWidgets('and every layer of it is the JS\'s own', (tester) async {
+      // The counts had been `6 + tier * 2`, which spends less on the rarest
+      // merge in the game than the JS spends on a bronze one.
+      expect(particlesForTier(1), 18);
+      expect(particlesForTier(5), 26);
+      expect(particlesForTier(7), 38);
+      // One shockwave, two from tier four, three from tier seven.
+      expect(ringsForTier(1), 1);
+      expect(ringsForTier(4), 2);
+      expect(ringsForTier(7), 3);
+      expect(peakForTier(7), greaterThan(peakForTier(5)));
+      expect(peakForTier(5), greaterThan(peakForTier(1)));
+    });
+
+    testWidgets('the burst wears the TIER colours, not the kit', (
+      tester,
+    ) async {
+      expect(mergeBurstColours(1), isNot(mergeBurstColours(7)));
+      expect(
+        mergeBurstColours(99),
+        mergeBurstColours(5),
+        reason: 'gold, where the JS table runs out',
+      );
+      expect(
+        mergeBurstColours(7, coins: true),
+        mergeBurstColours(1, coins: true),
+        reason: 'a card being cashed in reads as money, not as its tier',
+      );
+    });
+
+    testWidgets('a merge POPS the card, off its bottom edge', (tester) async {
+      await pumpGridAnimated(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      dropOn(tester, 0, 1);
+      await tester.pump();
+      // The two cards go together first; the burst starts when the flight lands.
+      await tester.pump(const Duration(milliseconds: 320));
+      final card = find.byType(PlayerCard);
+      final rest = tester.getRect(card);
+
+      // The squash, then the stretch — the JS's 90ms and 150ms.
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(
+        tester.getRect(card).height,
+        lessThan(rest.height),
+        reason: 'squashed first',
+      );
+      await tester.pump(const Duration(milliseconds: 160));
+      final popped = tester.getRect(card);
+      expect(popped.height, greaterThan(rest.height), reason: 'then stretched');
+      expect(
+        popped.bottom,
+        moreOrLessEquals(rest.bottom, epsilon: 1.5),
+        reason: 'pivoted on the bottom edge, so it grows out of its square',
+      );
+
+      // And settles back into the square it started in.
+      await tester.pump(mergeBurstDuration);
+      expect(
+        tester.getRect(card).height,
+        moreOrLessEquals(rest.height, epsilon: 1),
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('and the cell itself blows out, briefly', (tester) async {
+      await pumpGridAnimated(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      dropOn(tester, 0, 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 320));
+
+      int filters() => tester
+          .widgetList(
+            find.descendant(
+              of: find.byType(MergeBurst),
+              matching: find.byType(ColorFiltered),
+            ),
+          )
+          .length;
+      await tester.pump(const Duration(milliseconds: 100));
+      final flashing = filters();
+      // The flash is 350ms of the JS's `brightness(3) saturate(2)` decaying.
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(filters(), lessThan(flashing), reason: 'and then it is over');
+      await tester.pump(mergeBurstDuration);
+      await settleSave(tester);
+    });
+
+    testWidgets('reduce-motion merges without the celebration', (tester) async {
+      await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      dropOn(tester, 0, 1);
+      await tester.pump();
+      final card = find.byType(PlayerCard);
+      final rest = tester.getRect(card);
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(
+        tester.getRect(card),
+        rest,
+        reason: 'the merge happened; nothing moved to say so',
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
     });
   });
 
@@ -854,6 +1000,67 @@ void main() {
         cards: {0: _card(_baseDefId, 'a', variant: _maleVariant)},
       );
       expect(container.read(mergeableCellsProvider), isEmpty);
+    });
+  });
+
+  group('the way home', () {
+    testWidgets('the grid lends the reveal a way to find a square', (
+      tester,
+    ) async {
+      final container = await pumpGrid(tester);
+      await tester.pump();
+      expect(
+        container.read(scoutLandingProvider),
+        isNotNull,
+        reason: 'nothing else knows where a cell is',
+      );
+    });
+
+    testWidgets('and hands it back when the grid leaves the screen', (
+      tester,
+    ) async {
+      final container = await pumpGrid(tester);
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(
+        container.read(scoutLandingProvider),
+        isNull,
+        reason: 'a card must not fly into a grid that is gone',
+      );
+    });
+
+    testWidgets('a square below the fold is scrolled onto the screen first', (
+      tester,
+    ) async {
+      final container = await pumpGrid(tester);
+      await tester.pump();
+      final viewport = tester.getRect(find.byKey(const ValueKey('merge-grid')));
+      final far = Grid.totalCells - 1;
+      final before = tester.getRect(
+        find.byKey(ValueKey('grid-locked-$far'), skipOffstage: false),
+      );
+      expect(
+        before.top,
+        greaterThan(viewport.bottom),
+        reason: 'the last row is a long way down',
+      );
+
+      final pending = container.read(scoutLandingProvider)!([far]);
+      await tester.pumpAndSettle();
+      final rect = (await pending).single;
+      expect(rect, isNotNull);
+      expect(rect!.top, greaterThanOrEqualTo(viewport.top));
+      expect(rect.bottom, lessThanOrEqualTo(viewport.bottom));
+    });
+
+    testWidgets('and an unknown cell is no rect rather than a throw', (
+      tester,
+    ) async {
+      final container = await pumpGrid(tester);
+      await tester.pump();
+      final pending = container.read(scoutLandingProvider)!([9999]);
+      await tester.pumpAndSettle();
+      expect((await pending).single, isNull);
     });
   });
 

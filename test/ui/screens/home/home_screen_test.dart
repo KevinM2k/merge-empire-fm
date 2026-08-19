@@ -280,6 +280,18 @@ void main() {
       expect(find.byKey(const ValueKey('play-blocked')), findsNothing);
     });
 
+    /// Jump to full time — unless the clock beat us to it.
+    ///
+    /// `pumpAndSettle` on the way in advances the match clock while the route
+    /// animates, so on an unlucky run there is no skip left to press and the
+    /// test fails on the finder rather than on anything it is about. Which of
+    /// the two got there first is not the assertion.
+    Future<void> skipMatch(WidgetTester tester) async {
+      final skip = find.byKey(const ValueKey('match-skip'));
+      if (skip.evaluate().isNotEmpty) await tester.tap(skip);
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('a ready save can start one, and it takes over', (
       tester,
     ) async {
@@ -300,8 +312,7 @@ void main() {
 
       // Close it: the clock is a periodic timer, and a test that walks away
       // mid-match leaves it pending.
-      await tester.tap(find.byKey(const ValueKey('match-skip')));
-      await tester.pumpAndSettle();
+      await skipMatch(tester);
       await tester.tap(find.byKey(const ValueKey('match-close')));
       await tester.pumpAndSettle();
       await settleSave(tester);
@@ -323,8 +334,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('match-screen')), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('match-skip')));
-      await tester.pumpAndSettle();
+      await skipMatch(tester);
 
       // Full time: the tie is in the bracket and the prize is paid.
       final cupsBranch =
@@ -367,8 +377,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('play-match')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('match-skip')));
-      await tester.pumpAndSettle();
+      await skipMatch(tester);
 
       // Full time: the season has moved on, and the gates are still claimed.
       expect(
