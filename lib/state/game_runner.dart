@@ -15,6 +15,7 @@ library;
 
 import 'dart:async';
 
+import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
@@ -74,6 +75,14 @@ class GameRunner {
     // again, which is what the guards are for.
     rollSeasonQuests(state);
     ensureMatchQuests(state);
+    // A look for the manager, which the JS generates on the diorama's first
+    // render and saves. `randomAvatar` was ported with no caller, so every save
+    // drew the same hardcoded man: one hairstyle, no hat, the kit and nothing
+    // else — and the look packs the Shop sells had nothing to change.
+    final club = _map(state['club']);
+    if (club != null && _map(club['managerAvatar']) == null) {
+      club['managerAvatar'] = randomAvatar(state);
+    }
     return state;
   }
 

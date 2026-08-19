@@ -129,6 +129,10 @@ class _Scene extends ConsumerWidget {
                     kit: kit.accent,
                     skin: const Color(0xFFEEBB8C),
                     hair: const Color(0xFF3A2A1C),
+                    // His own look and his own mood — both were ported data with
+                    // nothing reading them.
+                    look: ref.watch(managerLookProvider),
+                    mood: ref.watch(managerMoodProvider),
                   ),
                 ),
               ),

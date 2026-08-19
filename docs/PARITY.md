@@ -99,6 +99,19 @@ gaps are in this list.
 - [x] **The walker.** Six keyframe tracks off one clock, linear on the limbs
       and eased on the bob. Honours reduce-motion. Rive was considered and
       dropped — it is paid.
+      **He wears the player's own look**: `randomAvatar` had no caller, so every
+      save drew one hardcoded man and the look packs the Shop sells had nothing
+      to change. A look is generated at boot and stored, as the JS does on the
+      diorama's first render, and the rig now draws the JS's OWN parts for
+      everything that does not move — hair either side of the skull, beard,
+      headwear, glasses, the coat or suit over the kit, a scarf — recoloured per
+      look by `data/manager_art.dart`.
+      **His MOOD is on his face.** `manager_mood.dart` was ported with no caller:
+      how the gaffer felt about the season was a number nobody could see. The
+      five mouths are generated from the JS's own `mouthPath`.
+      Three things the JS has not got, because the figure is the first thing the
+      game shows: a ground shadow that tightens as he rises, an ankle that keeps
+      the boot flatter than the shin, and a stride-long sway.
 - [x] **The Leaderboard tile**, with the signed-out and offline states the JS
       really shows. The ranked list needs `leaderboardService` (M4).
 - [ ] The parallax scene behind him, evolving with the division
@@ -216,6 +229,12 @@ Not yet diffed control by control.
 ## Mini-games
 
 - [x] Penalty Training (the goal is the target)
+- [x] **The keeper is the JS's own illustration**, generated the way the club and
+      manager art were, with the **eight kit tiers taken from the division** so
+      the opposition visibly improves. He was five flat rectangles with the arms
+      permanently out. Rigged as the JS rigs him — each arm and leg turns about
+      its documented joint — and posed with `AnimatedRotation`, so a low shot
+      lays him full-length and a high one only leans him.
 - [x] Boot Room
 - [ ] Training Drills, Keepy Uppys, Through Ball, Whack, Teamwork
 

@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,473 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,516 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 
@@ -954,11 +954,23 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 - [x] The walker — `lib/ui/screens/home/manager_walker.dart`.
       **Rive was considered and dropped: it is paid.** The rig is drawn from the
       generated parts instead.
-- [ ] The rest of the manager rig — dugout cam, gestures, moods
+- [x] **The look and the mood are on him** — `data/manager_art.dart` recolours
+      the generated parts per look, and the five mood mouths come out of the
+      JS's own `mouthPath`. Both were ported data with no reader.
+- [ ] The rest of the manager rig — dugout cam, gestures (the walker shows the
+      MOOD; `gestures` and `ballPlays` in `data/manager_mood.dart` still have no
+      caller)
 - [ ] The manager CUSTOMISER, which is what the generated parts are for
 - [ ] **The SVG art that is not player art**: `assets/gemArt` (146), which the
       gem icons read from. `playerArt`, `clubArt` and `svgCache`'s path half are
       done.
+      **Worth knowing:** `svg_canvas.dart` could not draw cubics, arcs or
+      gradients until this was looked at, and it failed SILENTLY — a `C` command
+      had its numbers eaten by the command before it, and a `url(#id)` fill left
+      the shape with no paint, so it was skipped. That was every manager part
+      (66 cubic paths), every crowd seat in the club art (arcs) and twenty
+      gradient fills. Check what a new piece of art actually uses before assuming
+      the painter covers it.
 
 ---
 

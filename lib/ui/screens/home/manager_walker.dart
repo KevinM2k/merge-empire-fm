@@ -5,29 +5,44 @@
 /// dresses him, and on the scene the ball comes TO him rather than being
 /// dribbled by him, so the figure reads as the gaffer the game casts you as.
 ///
+/// **He wears the player's own look now.** The rig is code, because limbs have to
+/// turn; everything that does not move — hair, beard, headwear, glasses, the coat
+/// or suit over the kit, a scarf — is the JS's OWN artwork out of
+/// `data/manager_art.g.dart`, recoloured per look. It was a hand-transcribed
+/// crop haircut and a flat kit before, which meant the whole look system (four
+/// builds, four outfits, twelve hairstyles, hats, faces, beards, hair colours and
+/// the look packs that sell them) rendered as one hardcoded man.
+///
 /// **Six tracks, one clock.** The JS drives the rig with six CSS keyframe
 /// animations sharing a duration: two thighs, two shins, two arms, plus a
 /// vertical bob. Every one of them is a rotation about a named joint, so the
-/// whole thing is a handful of `Transform.rotate`s hung off one
-/// `AnimationController`.
+/// whole thing is a handful of rotations hung off one `AnimationController`.
 ///
 /// **Linear on the limbs, eased on the bob**, and the CSS says why: `ease-in-out`
 /// zeroes velocity at each keyframe, which reads as the leg PAUSING at full
 /// extension. A vertical bounce should decelerate at the top; a stride should
 /// not.
 ///
-/// The far limbs are drawn first and in a darker shade so the near ones overlap
-/// them — that is the whole of the depth in the figure.
+/// Three things the JS does not have, added because the figure is the first thing
+/// the game shows and it looked like a paper doll: a ground shadow that tightens
+/// as he rises, an ankle that keeps the boot flatter than the shin it hangs off,
+/// and a stride-long sway of the whole body. All three are cheap and none of them
+/// touch the keyframes.
 library;
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/data/manager_art.dart';
+import 'package:merge_empire_fc/data/manager_art.g.dart';
+import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 
 /// The figure's own space, shared with `data/manager_art.g.dart` so a hat lands
 /// on the head with no positioning of its own.
-const double walkerWidth = 120;
-const double walkerHeight = 170;
+const double walkerWidth = managerArtWidth;
+const double walkerHeight = managerArtHeight;
 
 /// One full stride.
 const Duration walkCycle = Duration(milliseconds: 1800);
@@ -61,19 +76,38 @@ const _Track _armFar = [(0, -27), (0.5, 27), (1, -27)];
 /// How far the whole figure rises, twice a stride.
 const double _bob = 4;
 
+/// How far he sways, once a stride. A walk is not a figure on rails.
+const double _sway = 1.6;
+
+/// The look a walker draws when the save has none.
+///
+/// A real look is generated at boot and stored — see `game_runner.boot` — so this
+/// is the shape a widget test gets rather than the shape a player does.
+ManagerLook get defaultManagerLook => normalizeAvatar(null);
+
 class ManagerWalker extends StatefulWidget {
   const ManagerWalker({
     required this.kit,
     required this.skin,
     required this.hair,
+    this.look,
+    this.mood = Mood.neutral,
     this.walking = true,
     super.key,
   });
 
   /// The club's colour — he wears the same kit as the side.
   final Color kit;
+
+  /// Fallbacks for a look that does not name its own.
   final Color skin;
   final Color hair;
+
+  /// What he is wearing, from `club.managerAvatar`. Null takes the default.
+  final ManagerLook? look;
+
+  /// How the season is going, which is what his mouth says.
+  final Mood mood;
 
   /// Stopped is a real state: the scene freezes when it is not being watched.
   final bool walking;
@@ -113,8 +147,8 @@ class _ManagerWalkerState extends State<ManagerWalker>
   }
 
   @override
-  void didUpdateWidget(ManagerWalker old) {
-    super.didUpdateWidget(old);
+  void didUpdateWidget(ManagerWalker oldWidget) {
+    super.didUpdateWidget(oldWidget);
     _sync(context);
   }
 
@@ -125,21 +159,181 @@ class _ManagerWalkerState extends State<ManagerWalker>
   }
 
   @override
-  Widget build(BuildContext context) => AspectRatio(
-    aspectRatio: walkerWidth / walkerHeight,
-    child: AnimatedBuilder(
-      animation: _clock,
-      builder: (context, _) => CustomPaint(
-        key: const ValueKey('manager-walker'),
-        painter: _WalkerPainter(
-          t: _clock.value,
-          kit: widget.kit,
-          skin: widget.skin,
-          hair: widget.hair,
-        ),
+  Widget build(BuildContext context) {
+    final look = widget.look ?? defaultManagerLook;
+    final parts = managerPartsFor(
+      look,
+      kit: widget.kit,
+      skin: widget.skin,
+      hair: widget.hair,
+      mood: widget.mood,
+    );
+
+    return AspectRatio(
+      aspectRatio: walkerWidth / walkerHeight,
+      child: AnimatedBuilder(
+        animation: _clock,
+        builder: (context, _) {
+          final t = _clock.value;
+          // Twice a stride, and eased — a vertical bounce should decelerate at
+          // the top, unlike the limbs.
+          final rise =
+              _bob *
+              math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // The shadow does NOT bob: it is on the ground, and it tightens as
+              // he leaves it, which is the whole of the depth in the figure.
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: FractionallySizedBox(
+                  widthFactor: 0.34 - rise / walkerHeight,
+                  heightFactor: 0.035,
+                  child: const _GroundShadow(),
+                ),
+              ),
+              Transform.translate(
+                offset: Offset(math.sin(t * 2 * math.pi) * _sway, -rise),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // The rig: everything that turns.
+                    CustomPaint(
+                      key: const ValueKey('manager-walker'),
+                      painter: _WalkerPainter(
+                        t: t,
+                        kit: widget.kit,
+                        skin: parts.skin,
+                      ),
+                    ),
+                    // Then the look, in the JS's own layering: what goes over the
+                    // torso, then the head's own furniture. Hair is TWO layers
+                    // with the skull between them, which is what stops a mohawk's
+                    // fin coming out of the face.
+                    for (final svg in parts.overTorso) SvgArt(svg: svg),
+                    for (final svg in parts.behindHead) SvgArt(svg: svg),
+                    CustomPaint(painter: _HeadPainter(skin: parts.skin)),
+                    for (final svg in parts.overHead) SvgArt(svg: svg),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The parts one look draws, already recoloured and in layer order.
+typedef ManagerParts = ({
+  Color skin,
+  List<String> overTorso,
+  List<String> behindHead,
+  List<String> overHead,
+});
+
+/// Resolve a look into drawable, recoloured fragments.
+///
+/// Pure, and public, because the layering is the part worth pinning in a test:
+/// hair behind the skull, the skull, hair in front of it, then beard, glasses and
+/// hat over the lot.
+ManagerParts managerPartsFor(
+  ManagerLook look, {
+  required Color kit,
+  required Color skin,
+  required Color hair,
+  Mood mood = Mood.neutral,
+}) {
+  final hairColour = '${look['hair'] ?? ''}'.isEmpty
+      ? hexOf(hair.toARGB32())
+      : '${look['hair']}';
+  final skinColour = '${look['skin'] ?? ''}'.isEmpty
+      ? hexOf(skin.toARGB32())
+      : '${look['skin']}';
+  final shade = '${look['skinShade'] ?? ''}'.isEmpty
+      ? null
+      : '${look['skinShade']}';
+
+  String paint(String svg) => recolourManagerArt(
+    svg,
+    hair: hairColour,
+    skin: skinColour,
+    skinShade: shade,
+    kit: hexOf(kit.toARGB32()),
+    kitDark: hexOf(Color.lerp(kit, Colors.black, 0.32)!.toARGB32()),
+    kitLight: hexOf(Color.lerp(kit, Colors.white, 0.22)!.toARGB32()),
+  );
+
+  List<String> present(Iterable<String?> raw) => [
+    for (final svg in raw)
+      if (svg != null && svg.trim().isNotEmpty) paint(svg),
+  ];
+
+  final (hairBack, hairFront) =
+      managerHair['${look['style']}'] ?? managerHair['crop']!;
+
+  return (
+    skin: _colourOf(skinColour) ?? skin,
+    overTorso: present([
+      managerOutfits['${look['outfit']}'],
+      managerNeck['${look['neck']}'],
+    ]),
+    behindHead: present([hairBack]),
+    overHead: present([
+      hairFront,
+      managerBeards['${look['beard']}'],
+      managerFaces['${look['face']}'],
+      managerHats['${look['hat']}'],
+      // The mouth is the manager's MOOD, and `manager_mood.dart` was ported with
+      // nothing to draw it: how the gaffer feels about the season was a value
+      // nobody could see. Last, so a beard cannot cover it.
+      managerMouths[mood.name],
+    ]),
+  );
+}
+
+Color? _colourOf(String hex) {
+  final parsed = int.tryParse(hex.replaceFirst('#', ''), radix: 16);
+  return parsed == null ? null : Color(0xFF000000 | parsed);
+}
+
+/// The ground he walks on.
+class _GroundShadow extends StatelessWidget {
+  const _GroundShadow();
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      borderRadius: const BorderRadius.all(Radius.elliptical(60, 6)),
+      gradient: RadialGradient(
+        colors: [
+          Colors.black.withValues(alpha: 0.34),
+          Colors.black.withValues(alpha: 0),
+        ],
       ),
     ),
   );
+}
+
+/// The skull, which the two hair layers are drawn either side of.
+class _HeadPainter extends CustomPainter {
+  const _HeadPainter({required this.skin});
+
+  final Color skin;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
+    canvas.drawCircle(const Offset(62, 48.5), 12.5, Paint()..color = skin);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_HeadPainter old) => old.skin != skin;
 }
 
 class _WalkerPainter extends CustomPainter {
@@ -147,13 +341,11 @@ class _WalkerPainter extends CustomPainter {
     required this.t,
     required this.kit,
     required this.skin,
-    required this.hair,
   });
 
   final double t;
   final Color kit;
   final Color skin;
-  final Color hair;
 
   /// The far side of the body, darkened. This is the whole of the depth cue.
   Color _shade(Color c) => Color.lerp(c, Colors.black, 0.28)!;
@@ -163,18 +355,12 @@ class _WalkerPainter extends CustomPainter {
     canvas.save();
     canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
 
-    // Twice a stride, and eased — a vertical bounce should decelerate at the
-    // top, unlike the limbs.
-    final bobT = Curves.easeInOut.transform((t * 2) % 1);
-    canvas.translate(0, -_bob * math.sin(bobT * math.pi).abs());
-
     // FAR limbs first, so the near ones overlap them.
     _leg(canvas, near: false);
     _arm(canvas, near: false);
     _body(canvas);
     _leg(canvas, near: true);
     _arm(canvas, near: true);
-    _head(canvas);
 
     canvas.restore();
   }
@@ -212,13 +398,19 @@ class _WalkerPainter extends CustomPainter {
           ),
           Paint()..color = flesh,
         );
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            const Rect.fromLTWH(54.5, 147, 15, 5),
-            const Radius.circular(3),
-          ),
-          Paint()..color = boot,
-        );
+        // The ankle takes back most of the shin's swing, so the boot stays
+        // nearer the ground than the leg above it. Without it the foot pointed
+        // wherever the shin did, which is the one thing that made the figure
+        // read as a puppet.
+        _about(canvas, const Offset(58, 149), -shin * 0.72, () {
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              const Rect.fromLTWH(54.5, 147, 15, 5),
+              const Radius.circular(3),
+            ),
+            Paint()..color = boot,
+          );
+        });
       });
     });
   }
@@ -255,12 +447,14 @@ class _WalkerPainter extends CustomPainter {
   }
 
   void _body(Canvas canvas) {
+    // Shorts a shade darker than the shirt: one flat block from collar to knee
+    // read as a romper suit.
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         const Rect.fromLTWH(50.5, 88, 15, 15),
         const Radius.circular(4),
       ),
-      Paint()..color = kit,
+      Paint()..color = Color.lerp(kit, Colors.black, 0.22)!,
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -271,23 +465,7 @@ class _WalkerPainter extends CustomPainter {
     );
   }
 
-  void _head(Canvas canvas) {
-    canvas.drawCircle(const Offset(62, 48.5), 12.5, Paint()..color = skin);
-    // The hairline descends to the EAR — the head is a circle at (62, 48.5) and
-    // the ear sits at its centre, so hair that stopped level across the crown
-    // read as a cap perched on the skull rather than hair growing out of it.
-    final cap = Path()
-      ..moveTo(50.5, 56)
-      ..cubicTo(46.5, 46, 50, 33.5, 62, 32.5)
-      ..cubicTo(71, 32.5, 75.2, 39.5, 74.4, 45)
-      ..cubicTo(71.5, 41.2, 68.5, 40.5, 66, 41.5)
-      ..cubicTo(64, 44, 63, 48, 60.5, 51)
-      ..cubicTo(58, 53.5, 54.5, 55, 50.5, 56)
-      ..close();
-    canvas.drawPath(cap, Paint()..color = hair);
-  }
-
   @override
   bool shouldRepaint(_WalkerPainter old) =>
-      old.t != t || old.kit != kit || old.skin != skin || old.hair != hair;
+      old.t != t || old.kit != kit || old.skin != skin;
 }

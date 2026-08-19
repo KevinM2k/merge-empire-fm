@@ -11,6 +11,9 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
+import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/util/time.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -82,3 +85,18 @@ final nextMatchNumberProvider = savePick<int>((s) {
       : 0;
   return math.min(played + 1, matchesPerSeason);
 });
+
+/// The manager's stored look, or the default until boot has written one.
+final managerLookProvider = savePick<ManagerLook?>((s) {
+  final club = s['club'];
+  final look = club is Map ? club['managerAvatar'] : null;
+  // A COPY, because `savePick` compares with `==` and the save's own map is one
+  // mutable instance — a look edited in place would never look changed.
+  return look is Map<String, dynamic> ? <String, dynamic>{...look} : null;
+});
+
+/// How the season is going, which is what the walker's mouth says.
+///
+/// `manager_mood.dart` derives it from the last result, the table and the season,
+/// and had no caller at all: the gaffer's mood was a value nobody could see.
+final managerMoodProvider = savePick<Mood>((s) => deriveMood(s, now()).mood);
