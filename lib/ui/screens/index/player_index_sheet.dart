@@ -197,11 +197,17 @@ class _PlayerIndexViewState extends ConsumerState<PlayerIndexView> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: entries.length,
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 110,
+              // THREE per row, and a 4:5 card. `.pi-grid` climbs to four and
+              // five on a wide viewport, but the JS locks it back to three
+              // inside a sheet — the sheet's width is capped at ~520px and does
+              // not grow with the viewport, so a viewport-keyed breakpoint packs
+              // four cramped cards into a box that has room for three roomy
+              // ones. A `maxCrossAxisExtent` had the same effect.
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
-                childAspectRatio: 0.72,
+                childAspectRatio: 4 / 5,
               ),
               itemBuilder: (_, i) {
                 final entry = entries[i];
@@ -219,8 +225,15 @@ class _PlayerIndexViewState extends ConsumerState<PlayerIndexView> {
   }
 }
 
-/// The four dropdowns. The JS builds these from a shared `FilterDropdownBar`;
-/// `DropdownButton` is the same control and knows about overlays already.
+/// The four dropdowns, on ONE row that scrolls sideways.
+///
+/// The JS's `.pi-filter-row` is `display:flex; overflow-x:auto` with no wrap:
+/// four controls do not fit a phone's width, and wrapping them cost a second
+/// band of chrome above a grid that needs the height. A `Wrap` put two on each
+/// line, which is the layout that band was written to avoid.
+///
+/// The JS builds these from a shared `FilterDropdownBar`; `DropdownButton` is the
+/// same control and knows about overlays already.
 class _FilterBar extends StatelessWidget {
   const _FilterBar({required this.filters, required this.onChanged});
 
@@ -233,73 +246,79 @@ class _FilterBar extends StatelessWidget {
     // own `tierName` where it does not.
     final tiers = <int>{for (final p in players) p.tier}.toList()..sort();
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _Dropdown<String?>(
-          fieldKey: 'position',
-          label: t('pi.filter.position'),
-          value: filters.position,
-          options: [
-            (null, t('pi.filter.all')),
-            for (final p in _positionOrder.keys) (p, p),
-          ],
-          onChanged: (v) => onChanged((
-            position: v,
-            tier: filters.tier,
-            female: filters.female,
-            found: filters.found,
-          )),
-        ),
-        _Dropdown<int?>(
-          fieldKey: 'tier',
-          label: t('pi.filter.tier'),
-          value: filters.tier,
-          options: [
-            (null, t('pi.filter.all')),
-            for (final tier in tiers) (tier, _tierName(tier)),
-          ],
-          onChanged: (v) => onChanged((
-            position: filters.position,
-            tier: v,
-            female: filters.female,
-            found: filters.found,
-          )),
-        ),
-        _Dropdown<bool?>(
-          fieldKey: 'gender',
-          label: t('pi.filter.gender'),
-          value: filters.female,
-          options: [
-            (null, t('pi.filter.all')),
-            (false, '♂ ${t('pi.gender_male')}'),
-            (true, '♀ ${t('pi.gender_female')}'),
-          ],
-          onChanged: (v) => onChanged((
-            position: filters.position,
-            tier: filters.tier,
-            female: v,
-            found: filters.found,
-          )),
-        ),
-        _Dropdown<bool?>(
-          fieldKey: 'status',
-          label: t('pi.filter.status'),
-          value: filters.found,
-          options: [
-            (null, t('pi.filter.all')),
-            (true, t('pi.filter.found')),
-            (false, t('pi.filter.missing')),
-          ],
-          onChanged: (v) => onChanged((
-            position: filters.position,
-            tier: filters.tier,
-            female: filters.female,
-            found: v,
-          )),
-        ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      // No visible scrollbar: it is a row of four on a phone and five on a
+      // tablet, and a track under them reads as a component rather than as
+      // overflow.
+      physics: const ClampingScrollPhysics(),
+      child: Row(
+        spacing: 4,
+        children: [
+          _Dropdown<String?>(
+            fieldKey: 'position',
+            label: t('pi.filter.position'),
+            value: filters.position,
+            options: [
+              (null, t('pi.filter.all')),
+              for (final p in _positionOrder.keys) (p, p),
+            ],
+            onChanged: (v) => onChanged((
+              position: v,
+              tier: filters.tier,
+              female: filters.female,
+              found: filters.found,
+            )),
+          ),
+          _Dropdown<int?>(
+            fieldKey: 'tier',
+            label: t('pi.filter.tier'),
+            value: filters.tier,
+            options: [
+              (null, t('pi.filter.all')),
+              for (final tier in tiers) (tier, _tierName(tier)),
+            ],
+            onChanged: (v) => onChanged((
+              position: filters.position,
+              tier: v,
+              female: filters.female,
+              found: filters.found,
+            )),
+          ),
+          _Dropdown<bool?>(
+            fieldKey: 'gender',
+            label: t('pi.filter.gender'),
+            value: filters.female,
+            options: [
+              (null, t('pi.filter.all')),
+              (false, '♂ ${t('pi.gender_male')}'),
+              (true, '♀ ${t('pi.gender_female')}'),
+            ],
+            onChanged: (v) => onChanged((
+              position: filters.position,
+              tier: filters.tier,
+              female: v,
+              found: filters.found,
+            )),
+          ),
+          _Dropdown<bool?>(
+            fieldKey: 'status',
+            label: t('pi.filter.status'),
+            value: filters.found,
+            options: [
+              (null, t('pi.filter.all')),
+              (true, t('pi.filter.found')),
+              (false, t('pi.filter.missing')),
+            ],
+            onChanged: (v) => onChanged((
+              position: filters.position,
+              tier: filters.tier,
+              female: filters.female,
+              found: v,
+            )),
+          ),
+        ],
+      ),
     );
   }
 }

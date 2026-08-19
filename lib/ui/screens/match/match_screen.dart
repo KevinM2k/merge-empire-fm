@@ -14,12 +14,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
+    show pitchAspect;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
+import 'package:merge_empire_fc/util/stat_display.dart';
 
 class MatchScreen extends ConsumerStatefulWidget {
   const MatchScreen({
@@ -186,34 +192,68 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               rightGoals: f.awayGoals,
               minute: f.minute,
               finished: f.finished,
+              result: widget.result,
+              isHome: home,
             ),
             const Divider(height: 1),
+            // THE STAGE: one band, fixed for the whole match, holding the
+            // pitch's aspect. At rest it shows the stat board; a chance cuts in
+            // ON TOP of it at the same inset and radius. The port mounted the
+            // pitch only for a chance and took it away after, so the band itself
+            // appeared and vanished — which is what made the pitch look like it
+            // was flickering and jumping about.
             Padding(
-              padding: const EdgeInsets.all(8),
-              // Capped rather than left at its natural aspect height: the pitch
-              // is landscape and would otherwise take a third of a tall phone
-              // and all of a short one, pushing the feed off the bottom.
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: ConstrainedBox(
+                // Capped: the pitch is landscape and at its natural aspect would
+                // take a third of a tall phone and all of a short one.
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.sizeOf(context).height * 0.3,
                 ),
-                child: CutawayStage(
-                  clip: _clip,
-                  onDone: (_) {
-                    if (mounted) setState(() => _clip = null);
-                  },
+                child: AspectRatio(
+                  aspectRatio: pitchAspect,
+                  child: Stack(
+                    key: const ValueKey('match-stage'),
+                    fit: StackFit.expand,
+                    children: [
+                      MatchStatboard(
+                        stats: liveStatsFor(
+                          frame: f,
+                          result: widget.result,
+                          isHome: home,
+                          // The tactic the side went out in. The sim has already
+                          // run, so it cannot change mid-replay — which is why
+                          // it is read once off the result rather than watched.
+                          strategyId: '${widget.result['strategyId'] ?? 'balanced'}',
+                        ),
+                        isHome: home,
+                      ),
+                      // Only while a chance is running, and opaque, so it covers
+                      // the board whole rather than sitting beside it.
+                      if (_clip != null)
+                        CutawayStage(
+                          clip: _clip,
+                          onDone: (_) {
+                            if (mounted) setState(() => _clip = null);
+                          },
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
             Expanded(
               child: ListView.builder(
                 key: const ValueKey('match-feed'),
-                reverse: true,
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
+                // newest line arrived at the foot of the list and everything
+                // worth reading was off the bottom of a long match. A line should
+                // arrive from ABOVE and push the rest down, which is the
+                // direction the feed actually grows.
                 itemCount: f.shown.length,
-                itemBuilder: (context, i) {
-                  final e = f.shown[f.shown.length - 1 - i];
-                  return _FeedLine(event: e);
-                },
+                itemBuilder: (context, i) =>
+                    _FeedLine(event: f.shown[f.shown.length - 1 - i]),
               ),
             ),
             if (f.finished) _QuestOutcomes(result: widget.result),
@@ -346,6 +386,14 @@ const clearScreenGates = (
   colinOnScreen: false,
 );
 
+/// The competition, the clock, the names, the score, and the SAME mirrored
+/// ATK/DEF block the Play screen's next-match card draws.
+///
+/// Sharing that block is the point of it: the fixture you accepted and the
+/// fixture you are watching are visibly the same object, and two copies of the
+/// markup would drift apart the first time either surface was touched.
+///
+/// Home on the LEFT, as on the card and as football writes a scoreline.
 class _Scoreboard extends StatelessWidget {
   const _Scoreboard({
     super.key,
@@ -355,6 +403,8 @@ class _Scoreboard extends StatelessWidget {
     required this.rightGoals,
     required this.minute,
     required this.finished,
+    required this.result,
+    required this.isHome,
   });
 
   final String left;
@@ -363,48 +413,184 @@ class _Scoreboard extends StatelessWidget {
   final int rightGoals;
   final int minute;
   final bool finished;
+  final Map<String, dynamic> result;
+  final bool isHome;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = Theme.of(context).colorScheme.onSurface;
+
+    num asNum(Object? v) => v is num ? v : 0;
+    // Composed the way the next-match card composes it: OUR split carries the
+    // tactic's multipliers, theirs never does. The two screens print the same
+    // numbers because they do the same arithmetic on the same fields.
+    final strat =
+        strategies['${result['strategyId'] ?? defaultStrategy}'] ??
+        strategies[defaultStrategy]!;
+    final mult = tacticMultipliers(
+      strat,
+      (result['oppAttackRatio'] as num?)?.toDouble(),
+    );
+    final ourFifa = fifaSplitTactic(
+      asNum(result['ourAttackRating']),
+      asNum(result['ourDefenceRating']),
+      mult.atk,
+      mult.def,
+    );
+    final theirFifa = fifaSplit(
+      asNum(result['effOppAttackRating']),
+      asNum(result['effOppDefenceRating']),
+    );
+    final ourSplit = (atk: ourFifa.atk, def: ourFifa.def);
+    final theirSplit = (atk: theirFifa.atk, def: theirFifa.def);
+    final ourRating = asNum(result['effectiveSquadRating']).round();
+    final theirRating = asNum(result['effectiveOppRating']).round();
+    // A cup tie or an older save may carry no split at all, and four zeroes
+    // would be worse than nothing.
+    final hasSplit = result['ourAttackRating'] != null;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 11),
       child: Column(
         children: [
+          // What this is, and how far in.
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Text(
-                  left,
-                  textAlign: TextAlign.right,
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                '${result['divisionName'] ?? ''} · '
+                '${t(isHome ? 'play.home' : 'play.away')}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: kit.textMuted,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  '$leftGoals – $rightGoals',
-                  key: const ValueKey('match-score'),
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: kit.accentBright,
-                  ),
+              Text(
+                finished ? t('match.full_time') : "$minute'",
+                key: const ValueKey('match-clock'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: kit.accentBright,
                 ),
               ),
-              Expanded(child: Text(right, overflow: TextOverflow.ellipsis)),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            finished ? t('match.full_time') : "$minute'",
-            key: const ValueKey('match-clock'),
-            style: TextStyle(color: kit.textMuted, fontSize: 12),
+          const SizedBox(height: 2),
+          // The clock as a bar, so how far through the match is readable without
+          // doing arithmetic on the minute.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: SizedBox(
+              height: 3,
+              child: LinearProgressIndicator(
+                value: (minute / 90).clamp(0.0, 1.0),
+                backgroundColor: kit.border,
+                valueColor: AlwaysStoppedAnimation(kit.accentBright),
+              ),
+            ),
           ),
+          const SizedBox(height: 8),
+          _TeamRow(
+            left: Text(
+              left,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.12,
+                fontWeight: FontWeight.w900,
+                color: isHome ? kit.accentBright : ink,
+              ),
+            ),
+            gutter: const SizedBox.shrink(),
+            right: Text(
+              right,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.12,
+                fontWeight: FontWeight.w900,
+                color: isHome ? ink : kit.accentBright,
+              ),
+            ),
+          ),
+          _TeamRow(
+            left: Text(
+              '$leftGoals',
+              key: const ValueKey('match-score-left'),
+              style: TextStyle(
+                fontSize: 34,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: ink,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            gutter: Text(
+              t('common.vs').toUpperCase(),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: kit.textMuted,
+              ),
+            ),
+            right: Text(
+              '$rightGoals',
+              key: const ValueKey('match-score-right'),
+              style: TextStyle(
+                fontSize: 34,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: ink,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          // Only when the result carries the split. A cup tie or an older save
+          // may not, and four zeroes would be worse than nothing.
+          if (hasSplit)
+            MatchStatRows(
+              left: isHome ? ourSplit : theirSplit,
+              right: isHome ? theirSplit : ourSplit,
+              leftRating: isHome ? ourRating : theirRating,
+              rightRating: isHome ? theirRating : ourRating,
+            ),
         ],
       ),
     );
   }
+}
+
+/// The card's `[1fr | gutter | 1fr]` shape, so the score, the names and the
+/// ratings below them all line up on the same three tracks.
+class _TeamRow extends StatelessWidget {
+  const _TeamRow({
+    required this.left,
+    required this.gutter,
+    required this.right,
+  });
+
+  final Widget left;
+  final Widget gutter;
+  final Widget right;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(child: Center(child: left)),
+      const SizedBox(width: nmGap),
+      SizedBox(width: nmGutter, child: Center(child: gutter)),
+      const SizedBox(width: nmGap),
+      Expanded(child: Center(child: right)),
+    ],
+  );
 }
 
 class _FeedLine extends StatelessWidget {

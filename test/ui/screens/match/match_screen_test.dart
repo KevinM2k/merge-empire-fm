@@ -12,6 +12,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -70,6 +71,19 @@ Future<ProviderContainer> pumpMatch(
 MatchScreenState stateOf(WidgetTester tester) =>
     tester.state<MatchScreenState>(find.byType(MatchScreen));
 
+Duration minuteDurationFor(int n) => minuteDuration(fast: false) * n;
+
+/// The score, read off the two figures either side of the gutter.
+///
+/// It is two Texts rather than one "1 – 0" string because the scorecard shares
+/// the next-match card's three-track shape — home, gutter, away — so each
+/// figure sits over its own club's name.
+String scoreOn(WidgetTester tester) {
+  String at(String key) =>
+      tester.widget<Text>(find.byKey(ValueKey(key))).data ?? '';
+  return '${at('match-score-left')} – ${at('match-score-right')}';
+}
+
 void main() {
   tearDown(resetLocale);
 
@@ -82,7 +96,7 @@ void main() {
         ],
       ),
     );
-    expect(find.text('0 – 0'), findsOneWidget);
+    expect(scoreOn(tester), '0 – 0');
     expect(stateOf(tester).frame.minute, 0);
   });
 
@@ -116,10 +130,10 @@ void main() {
     );
     // Nine minutes in, nothing yet.
     await tester.pump(minuteDurationFor(9));
-    expect(find.text('0 – 0'), findsOneWidget);
+    expect(scoreOn(tester), '0 – 0');
 
     await tester.pump(minuteDurationFor(2));
-    expect(find.text('1 – 0'), findsOneWidget);
+    expect(scoreOn(tester), '1 – 0');
   });
 
   testWidgets('runs to full time and says so', (tester) async {
@@ -169,7 +183,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
 
-    expect(find.text('2 – 0'), findsOneWidget);
+    expect(scoreOn(tester), '2 – 0');
     expect(stateOf(tester).frame.finished, isTrue);
     expect(reported, isNotNull);
   });
@@ -305,7 +319,75 @@ void main() {
     expect(finished, 1);
     expect(find.byKey(const ValueKey('match-close')), findsOneWidget);
   });
-}
 
-/// [n] minutes of playback at the default pace.
-Duration minuteDurationFor(int n) => minuteDuration(fast: false) * n;
+  group('the stage', () {
+    /// A match with something in it, so the board has counts to show.
+    Map<String, dynamic> played() => matchResult(
+      events: [
+        {'minute': 10, 'type': 'chance', 'team': 'home', 'shotResult': 'on_target'},
+        {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+        {'minute': 40, 'type': 'corner', 'team': 'away'},
+        {'minute': 61, 'type': 'chance', 'team': 'away', 'shotResult': 'off'},
+      ],
+    );
+
+    testWidgets('is one band that never leaves', (tester) async {
+      // The flicker WAS this: the port mounted the pitch only for a chance and
+      // took it away after, so the band itself appeared and vanished and the
+      // page reflowed around it twice per chance.
+      await pumpMatch(tester, played());
+      expect(find.byKey(const ValueKey('match-stage')), findsOneWidget);
+      final atKickoff = tester.getRect(
+        find.byKey(const ValueKey('match-stage')),
+      );
+
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.byKey(const ValueKey('match-stage')), findsOneWidget);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('match-stage'))),
+        atKickoff,
+        reason: 'the band moved or resized mid-match',
+      );
+    });
+
+    testWidgets('shows the STATS at rest', (tester) async {
+      // What the band is for when nothing is happening — the numbers the
+      // commentary underneath is describing.
+      await pumpMatch(tester, played());
+      expect(find.byKey(const ValueKey('match-statboard')), findsOneWidget);
+    });
+
+    test('and the board counts off the same events as the feed', () {
+      // One reality read twice. A shot in the commentary is a shot on the board,
+      // because they are the same event.
+      final result = played();
+      final frame = frameAt(result, 90);
+      final stats = liveStatsFor(
+        frame: frame,
+        result: result,
+        isHome: true,
+        strategyId: 'balanced',
+      );
+      final shots = stats.rows.firstWhere(
+        (({int away, int home, String key, String labelKey}) r) =>
+            r.key == 'shots',
+      );
+      // Two chances and a goal, and a goal is also a shot.
+      expect(shots.home + shots.away, 3);
+      // The goal was ours and on target; the away chance was off.
+      final onTarget = stats.rows.firstWhere(
+        (({int away, int home, String key, String labelKey}) r) =>
+            r.key == 'sot',
+      );
+      expect(onTarget.home, 2);
+      expect(onTarget.away, 0);
+      final corners = stats.rows.firstWhere(
+        (({int away, int home, String key, String labelKey}) r) =>
+            r.key == 'corners',
+      );
+      expect(corners.away, 1);
+      // A share of one quantity, so the two halves are the whole of it.
+      expect(stats.possHome + stats.possAway, 100);
+    });
+  });
+}
