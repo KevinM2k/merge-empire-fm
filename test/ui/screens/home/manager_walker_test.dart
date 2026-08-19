@@ -178,10 +178,23 @@ void main() {
     testWidgets('a look with a hat draws more than one without', (
       tester,
     ) async {
-      await pumpWalker(tester, look: {...defaultManagerLook, 'hat': 'none'});
+      // A FIXED look, varying only the hat. `defaultManagerLook` is generated at
+      // random, so reading it twice compared two different men and the test
+      // passed or failed on whether the second one happened to be wearing more.
+      const base = <String, dynamic>{
+        'build': 'athletic',
+        'outfit': 'tracksuit',
+        'style': 'crop',
+        'hair': '#3a2a1c',
+        'skin': '#eebb8c',
+        'beard': 'stubble',
+        'face': 'none',
+        'neck': 'none',
+      };
+      await pumpWalker(tester, look: {...base, 'hat': 'none'});
       final bare = tester.widgetList<SvgArt>(find.byType(SvgArt)).length;
 
-      await pumpWalker(tester, look: {...defaultManagerLook, 'hat': 'crown'});
+      await pumpWalker(tester, look: {...base, 'hat': 'crown'});
       expect(
         tester.widgetList<SvgArt>(find.byType(SvgArt)).length,
         greaterThan(bare),

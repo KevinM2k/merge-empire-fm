@@ -11,6 +11,9 @@
 /// badge never moves is a button nobody presses twice.
 library;
 
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
@@ -19,7 +22,8 @@ import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num _num(Object? v) => v is num ? v : 0;
@@ -79,7 +83,10 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
       preview.effOppDefenceRating ?? preview.effDefence,
       oppAttackRatio: preview.oppAttackRatio,
     );
-    final current = '${_map(s['squad'])?['strategy'] ?? ''}';
+    // `strategyId`, not `strategy`. Read under the wrong key it never matched
+    // anything, so Colin suggested a tactic even when it was the one already
+    // set — advice that agreed with you and looked like it had not noticed.
+    final current = '${_map(s['squad'])?['strategyId'] ?? ''}';
     if (suggestion.id != current) {
       tips.add((
         id: 'tactic_${suggestion.id}',
@@ -109,6 +116,22 @@ final coachTipKeyProvider = savePick<String>((s) {
   return '$opponent|$rating|$matches';
 });
 
+/// What he would play, when it is not what is already set. Null when the
+/// manager has already picked the tactic he would have picked.
+final coachSuggestedTacticProvider = savePick<String?>((s) {
+  final preview = previewFixture(s);
+  if (preview == null) return null;
+  final suggestion = suggestTactic(
+    preview.effAttack,
+    preview.effDefence,
+    preview.effOppAttackRating ?? preview.effAttack,
+    preview.effOppDefenceRating ?? preview.effDefence,
+    oppAttackRatio: preview.oppAttackRatio,
+  );
+  final current = _map(s['squad'])?['strategyId'];
+  return suggestion.id == current ? null : suggestion.id;
+});
+
 /// The last pool the player actually opened. Not on the save: an unread badge
 /// is a property of this sitting, and a fresh boot showing his newest read is
 /// the right behaviour rather than a bug.
@@ -119,17 +142,32 @@ final coachHasUnreadProvider = Provider<bool>((ref) {
   return ref.watch(coachSeenKeyProvider) != current;
 });
 
+/// The coach dock's own box, so the bubble can sit beside it.
+///
+/// It is anchored to the BUTTON rather than to the corner of the screen: the tip
+/// has to read as coming out of Colin, and a panel floating above him reads as
+/// the app talking over him.
+final GlobalKey coachDockKey = GlobalKey();
+
 Future<void> showCoachBubble(BuildContext context, WidgetRef ref) {
   ref.read(coachSeenKeyProvider.notifier).state = ref.read(coachTipKeyProvider);
+  final box = coachDockKey.currentContext?.findRenderObject() as RenderBox?;
+  final anchor = box == null
+      ? null
+      : box.localToGlobal(Offset.zero) & box.size;
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black26,
-    builder: (_) => const _CoachBubble(),
+    builder: (_) => _CoachBubble(anchor: anchor),
   );
 }
 
 class _CoachBubble extends ConsumerStatefulWidget {
-  const _CoachBubble();
+  const _CoachBubble({required this.anchor});
+
+  /// The dock button's box in global coordinates, or null when it is not on
+  /// screen (a test, or the tab being switched under it).
+  final Rect? anchor;
 
   @override
   ConsumerState<_CoachBubble> createState() => _CoachBubbleState();
@@ -137,6 +175,36 @@ class _CoachBubble extends ConsumerStatefulWidget {
 
 class _CoachBubbleState extends ConsumerState<_CoachBubble> {
   int _index = 0;
+  Timer? _cycle;
+
+  /// He says the next thing every six seconds, and a tap moves it on. A timer
+  /// alone would change a line while it is being read; a tap alone leaves a
+  /// second tip nobody finds.
+  static const Duration _dwell = Duration(seconds: 6);
+
+  @override
+  void initState() {
+    super.initState();
+    _restart();
+  }
+
+  void _restart() {
+    _cycle?.cancel();
+    _cycle = Timer.periodic(_dwell, (_) {
+      if (mounted) setState(() => _index++);
+    });
+  }
+
+  void _next() {
+    setState(() => _index++);
+    _restart();
+  }
+
+  @override
+  void dispose() {
+    _cycle?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,78 +212,175 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
     final tips = ref.watch(coachTipsProvider);
     if (tips.isEmpty) return const SizedBox.shrink();
     final tip = tips[_index % tips.length];
+    final screen = MediaQuery.sizeOf(context);
+    final anchor = widget.anchor;
 
-    // Bottom-left, tail pointing down at the orb he came out of.
-    return Align(
-      alignment: Alignment.bottomLeft,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(15, 0, 15, 96),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            key: const ValueKey('coach-bubble'),
-            constraints: const BoxConstraints(maxWidth: 320),
-            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-            decoration: BoxDecoration(
-              color: kit.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kit.accent),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(
-                      width: 34,
-                      height: 34,
-                      child: ArtImage(
-                        path: 'assets/ui/manager_hint.png',
-                        fallback: Center(
-                          child: Text('🧢', style: TextStyle(fontSize: 20)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        tip.text,
-                        key: ValueKey('coach-tip-${tip.id}'),
-                        style: const TextStyle(fontSize: 12.5, height: 1.45),
-                      ),
-                    ),
-                    IconButton(
-                      key: const ValueKey('coach-bubble-close'),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      tooltip: t('common.close'),
-                      icon: const Icon(Icons.close, size: 16),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-                // More than one thing to say gets a way through them rather
-                // than a timer: a line that changes while you are reading it is
-                // a line you have to wait for again.
-                if (tips.length > 1)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      key: const ValueKey('coach-bubble-next'),
-                      onPressed: () => setState(() => _index++),
-                      child: Text(
-                        '${(_index % tips.length) + 1} / ${tips.length}',
-                        style: TextStyle(fontSize: 11, color: kit.textMuted),
+    // To the RIGHT of the button, bottom-aligned to it, tail pointing left at
+    // it. Clamped so it never runs off the right edge.
+    final left = anchor == null ? 15.0 : anchor.right + 2;
+    final bottom = anchor == null
+        ? 96.0
+        : math.max(8.0, screen.height - anchor.bottom);
+    final maxWidth = math.max(160.0, screen.width - left - 14);
+
+    final bubble = Material(
+      color: Colors.transparent,
+      child: Container(
+        key: const ValueKey('coach-bubble'),
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        padding: const EdgeInsets.fromLTRB(12, 10, 30, 10),
+        decoration: BoxDecoration(
+          color: kit.surface.withValues(alpha: 0.94),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: kit.accent),
+        ),
+        child: Stack(
+          children: [
+            // NO PORTRAIT. The dock button already IS his face and this springs
+            // out of it, so a second head in the bubble was the same man twice —
+            // which is exactly what it looked like.
+            InkWell(
+              onTap: tips.length > 1 ? _next : null,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _CoachLabel(),
+                  const SizedBox(height: 3),
+                  // The line itself fades between tips rather than snapping, so
+                  // a cycle mid-read is a change you can see coming.
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      tip.text,
+                      key: ValueKey('coach-tip-${tip.id}'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
-              ],
+                  // DOTS, not a "2 / 3" button: the count is the only thing a
+                  // fraction adds, and it reads as a control rather than as a
+                  // place in a short list.
+                  if (tips.length > 1) ...[
+                    const SizedBox(height: 5),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var i = 0; i < tips.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: i == _index % tips.length
+                                    ? kit.accentBright
+                                    : Colors.white.withValues(alpha: 0.2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
+            Positioned(
+              top: -4,
+              right: -22,
+              child: IconButton(
+                key: const ValueKey('coach-bubble-close'),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: t('common.close'),
+                icon: const Icon(Icons.close, size: 14),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
         ),
       ),
+    );
+
+    return Stack(
+      children: [
+        // Anywhere outside closes it.
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => Navigator.of(context).pop(),
+          ),
+        ),
+        Positioned(left: left, bottom: bottom, child: bubble),
+      ],
+    );
+  }
+}
+
+/// `COACH COLIN`, and what he would play — the suggested tactic inline on the
+/// same row, in ITS OWN colour, so it matches the row you will go and tap in the
+/// picker. No fill behind it: the bubble is glass, and a tinted chip on a
+/// translucent panel put the tactic's hue behind its own text.
+class _CoachLabel extends ConsumerWidget {
+  const _CoachLabel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final suggested = ref.watch(coachSuggestedTacticProvider);
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          t('coach.label').toUpperCase(),
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: kit.accentBright,
+          ),
+        ),
+        if (suggested != null) ...[
+          Text(
+            t('coach.suggestion_label'),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+              color: kit.textMuted,
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GameIcon(
+                tacticIconName(suggested),
+                size: 11,
+                color: tacticColor(context, suggested),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                t('strategy.$suggested.name'),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: tacticColor(context, suggested),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

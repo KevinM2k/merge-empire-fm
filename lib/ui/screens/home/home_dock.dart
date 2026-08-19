@@ -33,6 +33,7 @@ class DockButton extends StatelessWidget {
     required this.child,
     this.dot = false,
     this.dotKey,
+    this.anchorKey,
     super.key,
   });
 
@@ -46,6 +47,10 @@ class DockButton extends StatelessWidget {
   /// Names the dot, so a test can ask whether this particular orb is nagging.
   final Key? dotKey;
 
+  /// A handle on the orb's own box, for anything that has to sit beside it —
+  /// Colin's bubble measures this rather than guessing at a corner offset.
+  final GlobalKey? anchorKey;
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
@@ -55,6 +60,7 @@ class DockButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: SizedBox(
+          key: anchorKey,
           width: 54,
           child: Stack(
             clipBehavior: Clip.none,
@@ -126,6 +132,8 @@ class CoachDock extends ConsumerWidget {
     final unread = ref.watch(coachHasUnreadProvider);
     return DockButton(
       key: const ValueKey('dock-coach'),
+      // The bubble measures this box to sit beside him.
+      anchorKey: coachDockKey,
       dotKey: const ValueKey('coach-dot'),
       label: t('scene.dock.coach'),
       dot: unread,

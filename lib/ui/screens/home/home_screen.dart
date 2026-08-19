@@ -29,6 +29,7 @@ import 'package:merge_empire_fc/ui/screens/events/event_screen.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -42,6 +43,26 @@ class HomeScreen extends ConsumerWidget {
       key: ValueKey('home-screen'),
       children: [
         Positioned.fill(child: _Scene()),
+        // The card is the page's HEADLINE and sits at the top, over the scene.
+        // The port had it in the sticky footer directly above the Play button on
+        // the reasoning that what the button is about to do belongs next to the
+        // button — but the card is now five bands deep (standings, clubs, the
+        // mirrored stats, the tactic, the match quests) and a footer that tall
+        // leaves the diorama a strip. The button is the one thing that never
+        // needs introducing.
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              // Clears the HUD, which floats over every screen.
+              padding: EdgeInsets.fromLTRB(13, 56, 13, 0),
+              child: NextMatchCard(),
+            ),
+          ),
+        ),
         Positioned(
           left: 0,
           right: 0,
@@ -54,9 +75,6 @@ class HomeScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // What the Play button is about to do, directly above it.
-                  NextMatchCard(),
-                  SizedBox(height: 10),
                   // The dock rail: one row, both orbs, sharing the footer's top
                   // edge so they are level by construction.
                   Row(children: [CoachDock(), Spacer(), MenuDock()]),
@@ -73,72 +91,33 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// The diorama, and the next fixture over it.
+/// The diorama.
 ///
-/// The scene itself is still to come: 6,777 lines with a parallax backdrop and
-/// a ball simulation, and it is the one piece of this screen that wants a game
-/// loop rather than a widget tree. What is here now is the part that carries
-/// information — which competition, which match — so the screen reads correctly
-/// while the spectacle lands behind it.
+/// The division and the fixture number used to sit on it as two lines of text
+/// above the figure. They are on the next-match card now, which is where the
+/// fixture is described — a heading that names the same match a card directly
+/// under it also names was the scene carrying furniture rather than scene.
 class _Scene extends ConsumerWidget {
   const _Scene();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final division = ref.watch(divisionNameProvider);
-    final match = ref.watch(nextMatchNumberProvider);
+    final mood = ref.watch(managerMoodProvider);
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [kit.surface2, kit.bg],
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(13, 64, 13, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                division,
-                key: const ValueKey('home-division'),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: kit.accentBright,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                t('play.matchLabel', {'n': match}),
-                key: const ValueKey('home-match-label'),
-                style: TextStyle(fontSize: 12, color: kit.textMuted),
-              ),
-              // He stands between the header and the footer. `TickerMode` stops
-              // him when the tab is offscreen, which is the whole reason the
-              // shell puts every tab in one — no freeze of his own needed.
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ManagerWalker(
-                    kit: kit.accent,
-                    skin: const Color(0xFFEEBB8C),
-                    hair: const Color(0xFF3A2A1C),
-                    // His own look and his own mood — both were ported data with
-                    // nothing reading them.
-                    look: ref.watch(managerLookProvider),
-                    mood: ref.watch(managerMoodProvider),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+    return PitchScene(
+      mood: mood,
+      // `TickerMode` stops every animation here when the tab is offscreen, which
+      // is the whole reason the shell puts each tab in one — no freeze of the
+      // scene's own needed.
+      walker: ManagerWalker(
+        kit: kit.accent,
+        skin: const Color(0xFFEEBB8C),
+        hair: const Color(0xFF3A2A1C),
+        // His own look and his own mood — both were ported data with nothing
+        // reading them.
+        look: ref.watch(managerLookProvider),
+        mood: mood,
       ),
     );
   }

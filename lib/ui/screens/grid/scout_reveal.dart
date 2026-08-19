@@ -280,60 +280,67 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
 
         return Semantics(
           label: widget.reveal.caption,
-          child: GestureDetector(
-            key: const ValueKey('scout-reveal'),
-            behavior: HitTestBehavior.opaque,
-            onTap: _skip,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    kit.surface.withValues(alpha: 0.72 * backdropAt),
-                    Colors.black.withValues(alpha: 0.92 * backdropAt),
-                  ],
+          // A transparent Material, because this is an `OverlayEntry` inserted
+          // straight into the root overlay: nothing inside it had a Material
+          // ancestor, and every Text in the reveal was drawing Flutter's
+          // missing-Material double yellow underline over the caption.
+          child: Material(
+            type: MaterialType.transparency,
+            child: GestureDetector(
+              key: const ValueKey('scout-reveal'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _skip,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      kit.surface.withValues(alpha: 0.72 * backdropAt),
+                      Colors.black.withValues(alpha: 0.92 * backdropAt),
+                    ],
+                  ),
                 ),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: gap,
-                      runSpacing: gap,
-                      children: [
-                        for (var i = 0; i < cards.length; i++)
-                          _RevealCard(
-                            card: cards[i],
-                            size: size,
-                            aspect: aspect,
-                            elapsedMs: _elapsed,
-                            leaving: _leaving ? _out : null,
-                            reduceMotion: media.disableAnimations,
-                          ),
-                      ],
-                    ),
-                    SizedBox(height: cards.length > 1 ? 16 : 18),
-                    Opacity(
-                      opacity: _leaving ? 0 : _captionOpacity,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: size * 1.25),
-                        child: Text(
-                          widget.reveal.caption,
-                          key: const ValueKey('scout-reveal-caption'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: kit.accentBright,
-                            fontSize: 14,
-                            height: 1.3,
-                            letterSpacing: 1,
-                            fontWeight: FontWeight.w900,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          for (var i = 0; i < cards.length; i++)
+                            _RevealCard(
+                              card: cards[i],
+                              size: size,
+                              aspect: aspect,
+                              elapsedMs: _elapsed,
+                              leaving: _leaving ? _out : null,
+                              reduceMotion: media.disableAnimations,
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: cards.length > 1 ? 16 : 18),
+                      Opacity(
+                        opacity: _leaving ? 0 : _captionOpacity,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: size * 1.25),
+                          child: Text(
+                            widget.reveal.caption,
+                            key: const ValueKey('scout-reveal-caption'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: kit.accentBright,
+                              fontSize: 14,
+                              height: 1.3,
+                              letterSpacing: 1,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

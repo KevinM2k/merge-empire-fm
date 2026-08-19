@@ -125,9 +125,38 @@ double _offset(String? raw, int index) {
   return index == 0 ? 0.0 : 1.0;
 }
 
+/// The presentation attributes SVG inherits down the tree.
+///
+/// The icon set puts `fill="none" stroke="currentColor" stroke-width="1.8"` on
+/// the `<svg>` ROOT and lets every path inherit it — which is ordinary SVG and
+/// was drawing NOTHING here, because the painter read attributes per node and a
+/// path with neither fill nor stroke of its own is skipped. Fifty-nine glyphs
+/// rendered as empty boxes on that alone.
+const _inherited = {
+  'fill',
+  'stroke',
+  'stroke-width',
+  'stroke-linecap',
+  'stroke-linejoin',
+  'stroke-dasharray',
+  'fill-opacity',
+  'stroke-opacity',
+  'opacity',
+};
+
 /// Parse [svg] into the nodes this painter understands, in document order.
+///
+/// Attributes on the enclosing `<svg>` (and on any `<g>`) are folded into each
+/// child, so inheritance is resolved once here rather than threaded through
+/// every draw call.
 List<SvgNode> parseSvg(String svg) {
   final nodes = <SvgNode>[];
+  // The root's own presentation attributes, as defaults for everything under it.
+  final rootMatch = RegExp(r'<svg([^>]*)>').firstMatch(svg);
+  final inheritedAttrs = <String, String>{
+    for (final e in _attrsOf(rootMatch?.group(1) ?? '').entries)
+      if (_inherited.contains(e.key)) e.key: e.value,
+  };
   // Text carries its content between the tags, so it is lifted out first and
   // its opening tag then skipped by the generic pass.
   final texts = <int, SvgNode>{};
@@ -139,9 +168,21 @@ List<SvgNode> parseSvg(String svg) {
     );
   }
 
+  // `<g>` attributes apply to everything after it. Not scoped to the closing
+  // tag: the artwork never nests groups, and tracking depth to be exact would
+  // cost more than it buys.
+  var groupAttrs = <String, String>{};
+
   for (final m in _tag.allMatches(svg)) {
     final type = m.group(1)!;
-    if (type == 'svg' || type == 'defs' || type == 'g') continue;
+    if (type == 'g') {
+      groupAttrs = {
+        for (final e in _attrsOf(m.group(2) ?? '').entries)
+          if (_inherited.contains(e.key)) e.key: e.value,
+      };
+      continue;
+    }
+    if (type == 'svg' || type == 'defs') continue;
     // Gradients are lifted by [parseGradients]; their stops are not drawables.
     if (type == 'linearGradient' ||
         type == 'radialGradient' ||
@@ -150,10 +191,25 @@ List<SvgNode> parseSvg(String svg) {
     }
     if (type == 'text') {
       final lifted = texts[m.start];
-      if (lifted != null) nodes.add(lifted);
+      if (lifted != null) {
+        nodes.add((
+          type: 'text',
+          attrs: {...inheritedAttrs, ...groupAttrs, ...lifted.attrs},
+          text: lifted.text,
+        ));
+      }
       continue;
     }
-    nodes.add((type: type, attrs: _attrsOf(m.group(2) ?? ''), text: ''));
+    // The node's OWN attributes win; the inherited ones only fill the gaps.
+    nodes.add((
+      type: type,
+      attrs: {
+        ...inheritedAttrs,
+        ...groupAttrs,
+        ..._attrsOf(m.group(2) ?? ''),
+      },
+      text: '',
+    ));
   }
   return nodes;
 }

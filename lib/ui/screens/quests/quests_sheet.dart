@@ -4,9 +4,11 @@
 /// was no Quests anywhere in the app: shipped copy pointing at nothing, and a
 /// completed quest that could never be claimed.
 ///
-/// A bottom sheet, one of the three shapes. Match quests are read-only — they
-/// pay themselves as the match runs — and only the season track has anything to
-/// claim.
+/// A bottom sheet, one of the three shapes. **Only the SEASON track is here.**
+/// Match quests live on the next-match card, where the fixture they belong to
+/// is: they pay themselves as the match runs, so there was never anything to
+/// claim on them, and reading them after choosing to open a menu is reading them
+/// too late.
 library;
 
 import 'package:flutter/material.dart';
@@ -86,7 +88,6 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
       builder: (sheetContext, sheetRef, _) {
         final kit = Theme.of(sheetContext).extension<KitTheme>()!;
         final season = sheetRef.watch(seasonQuestsProvider);
-        final match = sheetRef.watch(matchQuestsProvider);
         final game = sheetRef.read(gameProvider);
 
         return ListView(
@@ -122,24 +123,12 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
                     : null,
               ),
             if (season.isNotEmpty) _RerollRow(),
-            if (match.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                t('quests.match'),
-                style: TextStyle(color: kit.textMuted, fontSize: 13),
-              ),
-              // Said once, at the top of the track: a match quest pays itself at
-              // full time, so there is nothing here to tap and a row that looked
-              // claimable would be a lie.
-              Text(
-                t('quests.match_auto_paid'),
-                key: const ValueKey('quests-match-auto'),
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
-              ),
-              const SizedBox(height: 4),
-              for (final quest in match)
-                _QuestTile(quest: quest, track: 'match'),
-            ],
+            // The MATCH track is not here. It belongs on the next-match card —
+            // a match quest is an instruction for the game you are about to
+            // press Play on, and behind the burger with the season track it was
+            // filed in the one place it is no use. See `MatchQuestsBlock`.
+            // The line that used to head it stays worth saying, so the card
+            // carries the fact that these pay themselves instead.
           ],
         );
       },

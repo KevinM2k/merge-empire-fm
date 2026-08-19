@@ -84,6 +84,11 @@ double getOpponentAttackRatio(
 /// no opponent rating to read, and reporting zero would say "they're terrible".
 class FixturePreview {
   const FixturePreview({
+    this.ourHomeAdv = 0,
+    this.theirHomeAdv = 0,
+    this.playerInRelegationZone = false,
+    this.oppInRelegationZone = false,
+    this.bootApplied = false,
     required this.oppIdx,
     required this.opponentName,
     required this.isHome,
@@ -126,6 +131,21 @@ class FixturePreview {
   final double? oppAttackRatio;
 
   final num grudgeBoost;
+
+  /// The modifiers, separately, because the card NAMES them.
+  ///
+  /// Every one is a delta already inside the rating beside it, so the card hangs
+  /// a glyph and a signed number under the figure it moved — the arithmetic
+  /// behind the number rather than a second number to reconcile with it. Without
+  /// these the card could print the total and not say where it came from.
+  final int ourHomeAdv;
+  final int theirHomeAdv;
+  final bool playerInRelegationZone;
+  final bool oppInRelegationZone;
+
+  /// The Lucky Boot actually weakened this opponent — the card marks it with a
+  /// 🍀 rather than silently quoting a lower number.
+  final bool bootApplied;
 }
 
 /// The next league fixture, or null when the save has no progression at all.
@@ -222,13 +242,20 @@ FixturePreview? previewFixture(
       effAttack: effAttack.toDouble(),
       effDefence: effDefence.toDouble(),
       effectiveSquadRating: effectiveSquadRating,
+      ourHomeAdv: ourHomeAdv,
+      theirHomeAdv: theirHomeAdv,
+      playerInRelegationZone: playerInRelegationZone,
+      oppInRelegationZone: oppInRelegationZone,
     );
   }
 
   var opponentRating = math.min(100, stored);
   // Read-only: the boot is applied without clearing the flag, unlike the sim.
+  var bootApplied = false;
   if (_map(state['shop'])?['luckyBootReady'] == true) {
-    opponentRating = applyLuckyBoot(opponentRating);
+    final weakened = applyLuckyBoot(opponentRating);
+    bootApplied = weakened < opponentRating;
+    opponentRating = weakened;
   }
 
   // Read the grudge rather than consuming it — the sim decrements it.
@@ -273,6 +300,11 @@ FixturePreview? previewFixture(
     effOppDefenceRating: effOppDefence,
     oppAttackRatio: oppAttackRatio,
     grudgeBoost: grudgeBoost,
+    ourHomeAdv: ourHomeAdv,
+    theirHomeAdv: theirHomeAdv,
+    playerInRelegationZone: playerInRelegationZone,
+    oppInRelegationZone: oppInRelegationZone,
+    bootApplied: bootApplied,
   );
 }
 

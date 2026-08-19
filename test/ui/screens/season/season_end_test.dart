@@ -76,6 +76,13 @@ Future<ProviderContainer> pumpPlayArea(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
+          // The Play button carries a shimmer that loops forever, so
+          // `pumpAndSettle` would never settle. It honours reduce-motion;
+          // declaring it here is what a device with that setting on would do.
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
           home: const Scaffold(body: Center(child: PlayMatchButton())),
         ),
       ),

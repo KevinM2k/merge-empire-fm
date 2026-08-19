@@ -89,11 +89,12 @@ class SquadScreen extends ConsumerWidget {
             Expanded(
               child: Stack(
                 children: [
-                  Padding(
-                    // Room at the top for the two corner pills that sit over it.
-                    padding: const EdgeInsets.fromLTRB(12, 52, 12, 12),
-                    child: _Pitch(onAssign: _assign),
-                  ),
+                  // The pitch takes the WHOLE space. Clear and Auto float over
+                  // its top corners rather than reserving a band above it: they
+                  // are two pills that cover a corner of empty grass, and the
+                  // 52px of clearance they were given came off the one band the
+                  // eleven have to stand in.
+                  Positioned.fill(child: _Pitch(onAssign: _assign)),
                   const Positioned(
                     left: 12,
                     right: 12,

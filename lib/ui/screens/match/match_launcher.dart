@@ -96,6 +96,11 @@ void settleMatch(Map<String, dynamic> state, Map<String, dynamic> result) {
         'coins': outcome.granted.coins,
       },
   ];
+  // The fixture has moved on, so the NEXT one's track is drawn here — inside the
+  // update that advanced it. The next-match card only reads the track; making it
+  // roll on mount meant every screen that mounts the shell queued a save just by
+  // being looked at.
+  ensureMatchQuests(state);
 }
 
 /// Pay the player. Called only once they have dismissed the screen.

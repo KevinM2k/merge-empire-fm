@@ -37,6 +37,7 @@ import 'package:merge_empire_fc/data/manager_art.dart';
 import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 
 /// The figure's own space, shared with `data/manager_art.g.dart` so a hat lands
@@ -44,7 +45,9 @@ import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 const double walkerWidth = managerArtWidth;
 const double walkerHeight = managerArtHeight;
 
-/// One full stride.
+/// One full stride, at the NEUTRAL mood. Every other mood has its own tempo —
+/// see `walkDurationFor` — and the ground is timed off whichever one is running,
+/// so a cheerful stride and the grass under it speed up together.
 const Duration walkCycle = Duration(milliseconds: 1800);
 
 double _deg(double d) => d * math.pi / 180;
@@ -83,7 +86,13 @@ const double _sway = 1.6;
 ///
 /// A real look is generated at boot and stored — see `game_runner.boot` — so this
 /// is the shape a widget test gets rather than the shape a player does.
-ManagerLook get defaultManagerLook => normalizeAvatar(null);
+///
+/// **Rolled ONCE.** `normalizeAvatar(null)` generates a RANDOM look, and this was
+/// a getter that re-rolled on every read: a walker with no stored look changed
+/// hair, beard and outfit on every rebuild, which on the home screen is every
+/// tick of the clock. It also made anything comparing two reads of it compare two
+/// different men.
+final ManagerLook defaultManagerLook = normalizeAvatar(null);
 
 class ManagerWalker extends StatefulWidget {
   const ManagerWalker({
@@ -120,7 +129,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     with SingleTickerProviderStateMixin {
   late final AnimationController _clock = AnimationController(
     vsync: this,
-    duration: walkCycle,
+    duration: walkDurationFor(widget.mood),
   );
 
   /// Whether he should be moving at all.
@@ -133,6 +142,21 @@ class _ManagerWalkerState extends State<ManagerWalker>
       widget.walking && !MediaQuery.of(context).disableAnimations;
 
   void _sync(BuildContext context) {
+    // His TEMPO is his mood. A retime carries the phase across so a result
+    // landing mid-stride does not snap his legs back to the start of the cycle —
+    // and the grass, which is timed off the same figure, retimes with him.
+    // His TEMPO is his mood, and the grass is timed off the same figure — so a
+    // result that cheers him up speeds both up together. The stride restarts from
+    // the top rather than carrying its phase across: `repeat` cannot resume
+    // mid-cycle, and a mood only changes at full time, where the scene is not
+    // what anybody is looking at.
+    final want = walkDurationFor(widget.mood);
+    if (_clock.duration != want) {
+      final running = _clock.isAnimating;
+      _clock.stop();
+      _clock.duration = want;
+      if (running) _clock.repeat();
+    }
     if (_shouldWalk(context)) {
       if (!_clock.isAnimating) _clock.repeat();
     } else if (_clock.isAnimating) {

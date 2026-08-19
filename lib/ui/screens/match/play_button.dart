@@ -5,8 +5,11 @@
 /// match drops one of these in and nothing else.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/engine/sponsor_engine.dart';
@@ -21,6 +24,9 @@ import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_sponsor_offer.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/sponsor_offer_card.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
+import 'package:merge_empire_fc/ui/popups/energy_sheet.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 /// Why the button is dead, in copy that already ships.
@@ -168,40 +174,332 @@ class PlayMatchButton extends ConsumerWidget {
     if (ref.watch(seasonCompleteProvider)) return const EndSeasonButton();
 
     final blocked = ref.watch(matchBlockedProvider);
-    final reason = blocked == null
-        ? null
-        : matchBlockedCopy(blocked, ref.read(gameProvider).state);
+    final pro = ref.watch(hardModeProvider);
 
     // A due cup tie renames the button, because it is a different match: the
     // round is the headline, and a player who taps Play expecting a league game
     // and gets a semi-final has been ambushed by their own fixture list.
     final cupRound = ref.watch(cupRoundProvider);
 
-    return Column(
+    // **Out of energy does not DISABLE it.** A dead button is a dead end, and the
+    // footer's refill row is gone — so at zero pips it stays tappable and becomes
+    // the route to the energy sheet. Casual only: in Pro the blocker is a tired
+    // squad, which no sheet can fix, so that one really is dead and says so.
+    final energyDetour = !pro && blocked == 'no_energy';
+    // The cooldown must not disable it while that detour is on either. Both
+    // clocks run after a match, and at zero energy the cooldown used to fall
+    // through and grey the button out with no explanation — leaving a player
+    // blocked on two timers and told about neither. Energy is the one they can
+    // do something about, so it wins and the cooldown says nothing.
+    final inCooldown = blocked == 'cooldown' && !energyDetour;
+    final dead = blocked != null && !energyDetour && !inCooldown;
+
+    return _PlayButtonFace(
+      cupRound: cupRound,
+      dead: dead,
+      inCooldown: inCooldown,
+      energyDetour: energyDetour,
+      pro: pro,
+      onTap: dead
+          ? null
+          : energyDetour
+          ? () => showEnergySheet(context, ref)
+          : () => _play(context, ref),
+    );
+  }
+}
+
+/// The button's face: the gradient, the sweep, the glyph and the cost.
+///
+/// Stateful because the cooldown is a CLOCK — the label counts down and the mask
+/// sweeps with it, which needs a ticker rather than a rebuild on save changes.
+class _PlayButtonFace extends ConsumerStatefulWidget {
+  const _PlayButtonFace({
+    required this.cupRound,
+    required this.dead,
+    required this.inCooldown,
+    required this.energyDetour,
+    required this.pro,
+    required this.onTap,
+  });
+
+  final String? cupRound;
+  final bool dead;
+  final bool inCooldown;
+  final bool energyDetour;
+  final bool pro;
+  final VoidCallback? onTap;
+
+  @override
+  ConsumerState<_PlayButtonFace> createState() => _PlayButtonFaceState();
+}
+
+class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+    // The sweep across the face. 2.8s in the JS, and it is the only thing on the
+    // home screen that moves while nothing is happening.
+    _shimmer = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A glint on an idle button is the first thing reduce-motion should lose, and
+    // a looping animation is also what stops a widget test settling.
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_shimmer.isAnimating) _shimmer.stop();
+    } else if (!_shimmer.isAnimating) {
+      _shimmer.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final isCup = widget.cupRound != null;
+
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: widget.dead
+                    ? null
+                    : isCup
+                    // A cup keeps the old prestige CTA's purple→amber, so the
+                    // action holds its colour wherever it turns up.
+                    ? const LinearGradient(
+                        begin: Alignment(-0.6, -1),
+                        end: Alignment(0.6, 1),
+                        colors: [
+                          Color(0xFF9A46E0),
+                          Color(0xFF7B2FBE),
+                          Color(0xFFFFB300),
+                        ],
+                        stops: [0, 0.46, 1],
+                      )
+                    : LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [kit.accentBright, kit.accent],
+                      ),
+                color: widget.dead ? kit.surface2 : null,
+              ),
+              child: const SizedBox(width: double.infinity, height: 48),
+            ),
+            // The cooldown fill, sweeping right to left as the timer runs down.
+            if (widget.inCooldown)
+              Positioned.fill(child: _CooldownMask()),
+            if (!widget.dead && _shimmer.isAnimating)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _shimmer,
+                    builder: (context, _) => _Shimmer(t: _shimmer.value),
+                  ),
+                ),
+              ),
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  key: const ValueKey('play-match'),
+                  onTap: widget.onTap,
+                  child: Center(child: _Label(widget: widget)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Label extends ConsumerWidget {
+  const _Label({required this.widget});
+
+  final _PlayButtonFace widget;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = widget.dead ? kit.textMuted : Colors.white;
+    final blocked = ref.watch(matchBlockedProvider);
+
+    // The glyph says which of three states this is: play, paused on a clock, or
+    // a squad with nothing left in it.
+    final glyph = widget.inCooldown
+        ? 'pause'
+        : (widget.pro && blocked == 'no_energy')
+        ? 'bolt'
+        : 'play';
+
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            key: const ValueKey('play-match'),
-            onPressed: blocked != null ? null : () => _play(context, ref),
-            child: Text(
-              cupRound == null
-                  ? t('nav.play')
-                  : '🏆 ${t('cup.play_round_btn', {'round': cupRound})}',
+        GameIcon(glyph, size: 20, color: ink),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            _labelFor(context, ref),
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: ink,
+              // The shadow lifts the label off a gradient that runs bright at
+              // the top and dark at the bottom. A blocked face is lower
+              // contrast with more words in the same width, where a blur under
+              // every letter is what makes them hard to read rather than what
+              // saves them — so it comes off there.
+              shadows: widget.dead
+                  ? null
+                  : const [
+                      Shadow(
+                        color: Color(0x66000000),
+                        offset: Offset(0, 1),
+                        blurRadius: 3,
+                      ),
+                    ],
             ),
           ),
         ),
-        if (reason != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              reason,
-              key: const ValueKey('play-blocked'),
-              style: const TextStyle(fontSize: 11),
+        // What it costs, on the button. Casual only: Pro spends per-player
+        // fatigue instead, and a pip figure there would be a price nothing
+        // charges. Hidden during a cooldown, where the clock is the message.
+        if (!widget.pro && !widget.inCooldown) ...[
+          const SizedBox(width: 6),
+          Opacity(
+            opacity: 0.8,
+            child: Row(
+              key: const ValueKey('play-energy-cost'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${Energy.matchCost}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: ink,
+                  ),
+                ),
+                Text('⚡', style: TextStyle(fontSize: 13, color: ink)),
+              ],
             ),
           ),
+        ],
       ],
+    );
+  }
+
+  String _labelFor(BuildContext context, WidgetRef ref) {
+    if (widget.inCooldown) {
+      final state = ref.read(gameProvider).state;
+      final remaining = state == null ? 0 : matchCooldownRemaining(state);
+      final secs = (remaining / 1000).ceil();
+      final time =
+          '${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}';
+      return t('play.cooldown', {'time': time});
+    }
+    if (widget.cupRound != null) {
+      return '🏆 ${t('cup.play_round_btn', {'round': widget.cupRound})}';
+    }
+    // Pro's blocker is a tired squad and the button really is dead, so it says
+    // so. Casual keeps saying Play Match at zero energy: the intent has not
+    // changed, only the road there — relabelling it turned the one fixed button
+    // on the screen into a shop door.
+    final blocked = ref.watch(matchBlockedProvider);
+    if (widget.pro && blocked == 'no_energy') return t('play.squad_tired');
+    if (blocked == 'squad_too_small') return t('squad.no_players');
+    return t('play.playMatch');
+  }
+}
+
+/// The cooldown fill. Ticks at 100ms and moves by a sub-percent each time, so
+/// the sweep reads as continuous — rounding to whole percent made it jump once
+/// every couple of seconds on a thirty-minute clock.
+class _CooldownMask extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_CooldownMask> createState() => _CooldownMaskState();
+}
+
+class _CooldownMaskState extends ConsumerState<_CooldownMask> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) => mounted ? setState(() {}) : null,
+    );
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.read(gameProvider).state;
+    if (state == null) return const SizedBox.shrink();
+    final total = effectiveCooldownMs(state);
+    final fraction = total <= 0
+        ? 0.0
+        : (matchCooldownRemaining(state) / total).clamp(0.0, 1.0);
+    return Align(
+      alignment: Alignment.centerRight,
+      child: FractionallySizedBox(
+        widthFactor: fraction,
+        child: ColoredBox(color: Colors.black.withValues(alpha: 0.68)),
+      ),
+    );
+  }
+}
+
+/// A diagonal band of light crossing the face.
+class _Shimmer extends StatelessWidget {
+  const _Shimmer({required this.t});
+
+  final double t;
+
+  @override
+  Widget build(BuildContext context) {
+    // -1 → 2 across the cycle, held still for the first part of it so the sweep
+    // reads as an occasional glint rather than a constant crawl.
+    final x = -1 + (t.clamp(0.43, 1.0) - 0.43) / 0.57 * 3;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment(x - 0.4, -1),
+          end: Alignment(x + 0.4, 1),
+          colors: const [
+            Colors.transparent,
+            Color(0x1FFFFFFF),
+            Colors.transparent,
+          ],
+          stops: const [0.4, 0.5, 0.6],
+        ),
+      ),
     );
   }
 }

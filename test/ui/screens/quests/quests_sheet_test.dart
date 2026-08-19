@@ -206,15 +206,20 @@ void main() {
                   as Map<String, dynamic>)['active']
               as List;
       expect(after.length, matchQuestCount);
-      expect(find.text(t('quests.match')), findsOneWidget);
+      // The TRACK is rolled here; the sheet no longer SHOWS it. Match quests
+      // read on the next-match card, where the fixture they belong to is — see
+      // `MatchQuestsBlock`.
+      expect(find.text(t('quests.match')), findsNothing);
     });
 
-    testWidgets('and says it pays itself, so nothing looks claimable', (
-      tester,
-    ) async {
+    testWidgets('and the sheet carries the SEASON track only', (tester) async {
+      // A match quest pays itself at full time, so there was never anything to
+      // claim on one — and reading it after choosing to open a menu is reading
+      // it too late. It lives on the next-match card now.
       await pumpShell(tester, saveWithQuests());
       await openQuests(tester);
-      expect(find.byKey(const ValueKey('quests-match-auto')), findsOneWidget);
+      expect(find.byKey(const ValueKey('quests-match-auto')), findsNothing);
+      expect(find.text(t('quests.season')), findsOneWidget);
     });
 
     testWidgets('opening it twice does not redraw the set just read', (

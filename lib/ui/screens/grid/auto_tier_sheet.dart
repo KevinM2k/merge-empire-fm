@@ -47,9 +47,17 @@ final autoTierActiveProvider = savePick<bool>(
 /// finished — every Sunday League draw is bronze, so a live bronze rule would
 /// soft-lock the "scout until you have three" step — so the pill that opens this
 /// stays hidden until then rather than offering a switch that does nothing.
+/// `done !== false`, which is the JS's own test — NOT `done == true`.
+///
+/// A save with no `tutorial.done` at all, or a null one, is a save that is not
+/// mid-tutorial: it is every save made before the flag existed, and most of the
+/// saves in the wild. Requiring an explicit `true` read all of them as
+/// mid-tutorial, which hid the ×N batch control and the auto-sell pill from
+/// players who had finished the tutorial long ago.
 final tutorialDoneProvider = savePick<bool>((s) {
   final tutorial = s['tutorial'];
-  return tutorial is! Map || tutorial['done'] == true;
+  if (tutorial is! Map) return true;
+  return tutorial['done'] != false;
 });
 
 /// What one card of [tier] fetches.

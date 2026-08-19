@@ -694,6 +694,26 @@ String nextFixtureKey(Map<String, dynamic>? state) {
   return 's${season}_m$played';
 }
 
+/// Whether [ensureMatchQuests] would actually change anything.
+///
+/// **A guard, not a nicety.** `ensureMatchQuests` is idempotent but every call
+/// still goes through `update`, and `update` queues a save — so a screen that
+/// asks on every build debounce-saves the whole game for no change at all. The
+/// JS carries the same guard, in the same words: "Only go through updateState
+/// when a roll is actually needed."
+///
+/// `< matchQuestCount`, not `== 0`: a quest retired from the bank is pruned out
+/// of the active track by [ensureQuests], and a track of two would otherwise sit
+/// short for the whole fixture because this never asked for a top-up.
+bool matchQuestsNeedRoll(Map<String, dynamic>? state) {
+  if (state == null) return false;
+  final match = _map(ensureQuests(state)['match']);
+  final active = match?['active'];
+  final count = active is List ? active.length : 0;
+  return match?['fixtureKey'] != nextFixtureKey(state) ||
+      count < matchQuestCount;
+}
+
 /// Make sure a track exists for the next match, rolling one only if needed.
 ///
 /// **The port had no caller for [rollMatchQuests] at all**, so the match track

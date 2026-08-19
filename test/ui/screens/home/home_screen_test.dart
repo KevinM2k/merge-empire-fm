@@ -231,17 +231,18 @@ void main() {
       expect(find.byKey(const ValueKey('play-match')), findsOneWidget);
     });
 
-    testWidgets('a squad too small is refused, and told why', (tester) async {
-      // canPlayMatch folds three refusals together; the button names which.
+    testWidgets('a squad too small is refused ON the button', (tester) async {
+      // canPlayMatch folds three refusals together; the button names which — and
+      // it says so on its own LABEL rather than in a caption underneath. A
+      // caption reflows the footer every time the reason appears, and the footer
+      // is what the walker's height is measured from.
       await pumpHome(tester, mutate: playedSeason);
 
       expect(
-        tester
-            .widget<ElevatedButton>(find.byKey(const ValueKey('play-match')))
-            .onPressed,
+        tester.widget<InkWell>(find.byKey(const ValueKey('play-match'))).onTap,
         isNull,
       );
-      expect(find.byKey(const ValueKey('play-blocked')), findsOneWidget);
+      expect(find.byKey(const ValueKey('play-blocked')), findsNothing);
     });
 
     testWidgets('a ready save can start one, and it takes over', (
@@ -251,9 +252,7 @@ void main() {
 
       final energyBefore = container.read(energyProvider);
       expect(
-        tester
-            .widget<ElevatedButton>(find.byKey(const ValueKey('play-match')))
-            .onPressed,
+        tester.widget<InkWell>(find.byKey(const ValueKey('play-match'))).onTap,
         isNotNull,
       );
 
@@ -310,9 +309,15 @@ void main() {
       await settleSave(tester);
     });
 
-    testWidgets('a league fixture still says Play', (tester) async {
+    testWidgets('a league fixture says Play Match, and quotes the pip', (
+      tester,
+    ) async {
+      // `play.playMatch`, not the tab bar's `nav.play` — the button on the
+      // screen and the tab that reaches it are different words in the JS. The
+      // energy cost rides on it too, casual only.
       await pumpHome(tester, mutate: readyToPlay);
-      expect(find.text(t('nav.play')), findsOneWidget);
+      expect(find.text(t('play.playMatch')), findsOneWidget);
+      expect(find.byKey(const ValueKey('play-energy-cost')), findsOneWidget);
     });
 
     testWidgets('full time commits, and closing pays', (tester) async {

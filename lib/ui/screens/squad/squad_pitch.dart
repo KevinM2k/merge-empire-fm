@@ -15,12 +15,22 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// The turf, its mown bands and the shading down the top.
 const List<Color> _turf = [
   Color(0xFF173F22),
   Color(0xFF1B4A28),
   Color(0xFF153A20),
+];
+
+/// The LIGHT theme's grass. The dark gradient above read as a dark slab in the
+/// middle of a white page, so the JS ships a second one — a proper daylit pitch
+/// rather than the same green lifted a shade.
+const List<Color> _turfLight = [
+  Color(0xFF4A9E57),
+  Color(0xFF58AC65),
+  Color(0xFF479A54),
 ];
 
 class SquadPitch extends StatelessWidget {
@@ -30,40 +40,78 @@ class SquadPitch extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: AspectRatio(
-      aspectRatio: 7 / 10,
-      child: DecoratedBox(
-        key: const ValueKey('squad-pitch-surface'),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: _turf,
-            stops: [0, 0.45, 1],
-          ),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const CustomPaint(painter: _PitchPainter()),
-            child,
-          ],
+  Widget build(BuildContext context) {
+    final light = Theme.of(context).brightness == Brightness.light;
+    final kit = Theme.of(context).extension<KitTheme>()!;
+
+    // The pitch is a CENTRED CARD at 7:10, so on most phones there is bare page
+    // either side of it. Filling that with a wash of the pitch's own colour is
+    // what stops the surrounding gaps reading as holes in the screen — the JS
+    // does the same thing ("fill the surrounding gaps with the pitch's...",
+    // screens.css:25) and the port had left the page background showing through.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: light
+              ? [
+                  Color.lerp(_turfLight.first, kit.bg, 0.55)!,
+                  Color.lerp(_turfLight.last, kit.bg, 0.7)!,
+                ]
+              : [
+                  Color.lerp(_turf.first, kit.bg, 0.5)!,
+                  Color.lerp(_turf.last, kit.bg, 0.72)!,
+                ],
         ),
       ),
-    ),
-  );
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: 7 / 10,
+          child: DecoratedBox(
+            key: const ValueKey('squad-pitch-surface'),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: light ? _turfLight : _turf,
+                stops: const [0, 0.45, 1],
+              ),
+            ),
+            // NOT clipped. The JS has `overflow:hidden` here, but its tokens are
+            // centred on their percentage and the outermost ones overhang the
+            // touchline by a few pixels — clipping shaves a slice off the wide
+            // players rather than off nothing.
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CustomPaint(painter: _PitchPainter(light: light)),
+                child,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PitchPainter extends CustomPainter {
-  const _PitchPainter();
+  const _PitchPainter({required this.light});
+
+  /// A daylit pitch takes DARKER markings and a gentler mow: white lines on
+  /// bright green wash out, and the same 2.8%-white bands that read as mown
+  /// stripes on near-black are invisible on it.
+  final bool light;
 
   @override
   void paint(Canvas canvas, Size size) {
     // Mown bands, eight across the length. Painted before the markings so the
     // lines sit on top of them.
-    final band = Paint()..color = Colors.white.withValues(alpha: 0.028);
-    final shade = Paint()..color = Colors.black.withValues(alpha: 0.05);
+    final band = Paint()
+      ..color = Colors.white.withValues(alpha: light ? 0.10 : 0.028);
+    final shade = Paint()
+      ..color = Colors.black.withValues(alpha: light ? 0.035 : 0.05);
     for (var i = 0; i < 8; i++) {
       final top = size.height * i / 8;
       canvas.drawRect(
@@ -83,8 +131,8 @@ class _PitchPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.black.withValues(alpha: 0.30),
-            Colors.black.withValues(alpha: 0.10),
+            Colors.black.withValues(alpha: light ? 0.05 : 0.30),
+            Colors.black.withValues(alpha: light ? 0.02 : 0.10),
             Colors.transparent,
           ],
           stops: const [0, 0.49, 1],
@@ -94,15 +142,16 @@ class _PitchPainter extends CustomPainter {
     // Markings, in the JS's own 100×140 space, stretched to the box.
     canvas.save();
     canvas.scale(size.width / 100, size.height / 140);
+    final ink = light ? Colors.white.withValues(alpha: 0.85) : Colors.white;
     final line = Paint()
-      ..color = Colors.white
+      ..color = ink
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.3;
     final thin = Paint()
-      ..color = Colors.white
+      ..color = ink
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.26;
-    final dot = Paint()..color = Colors.white;
+    final dot = Paint()..color = ink;
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -142,5 +191,5 @@ class _PitchPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_PitchPainter oldDelegate) => false;
+  bool shouldRepaint(_PitchPainter oldDelegate) => oldDelegate.light != light;
 }

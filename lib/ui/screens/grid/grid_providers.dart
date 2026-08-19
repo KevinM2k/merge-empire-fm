@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
@@ -111,3 +112,33 @@ final gridNeedsSortProvider = savePick<bool>(
 /// Whether this save is in Pro mode. Watched by anything whose LABEL changes
 /// with it, not just its behaviour.
 final proModeProvider = savePick<bool>(isProMode);
+
+/// The cells the card at [from] could actually MERGE with.
+///
+/// Ported from `_markDragTargets` in `components/Grid.js`, and the rule is
+/// exact: the same definition, not caught in a loan either way, a tier that has
+/// somewhere to go, and the same gender. Anything else dims while the card is in
+/// the air.
+///
+/// A LOAN-BLOCKED card in hand has no targets at all, which greys the whole grid
+/// out — deliberately. Dropping it still swaps; the point is that the grid stops
+/// offering a merge before the player lets go of it.
+Set<int> mergeTargetsFor(Map<String, dynamic>? state, int from) {
+  final cells = gridCells(state);
+  if (from < 0 || from >= cells.length) return const {};
+  final source = CardInstance.from(cells[from]);
+  if (source == null || loanBlock(source) != null) return const {};
+  final sourceFemale = isVariantFemale(source.variant);
+
+  final out = <int>{};
+  for (var i = 0; i < cells.length; i++) {
+    if (i == from) continue;
+    final c = CardInstance.from(cells[i]);
+    if (c == null || loanBlock(c) != null) continue;
+    if (c.definitionId != source.definitionId) continue;
+    if (getPlayerDef(c.definitionId)?.mergesInto == null) continue;
+    if (isVariantFemale(c.variant) != sourceFemale) continue;
+    out.add(i);
+  }
+  return out;
+}

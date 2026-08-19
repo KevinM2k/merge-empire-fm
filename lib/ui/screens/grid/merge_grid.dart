@@ -66,10 +66,14 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   int? _burstAt;
   int _burstTier = 1;
 
-  /// The card under the finger. Every other card dims behind it, which is the
-  /// JS's `.grid-container.is-dragging` rule — it makes the legal targets the
-  /// only bright thing on the screen.
+  /// The card under the finger, and the cells it could actually MERGE with.
+  ///
+  /// Everything that is not a target dims, which is the JS's
+  /// `.grid-container.is-dragging` rule — and "not a target" is the exact merge
+  /// rule, not "not the card in my hand". Dimming every other card said nothing:
+  /// what a player needs to see mid-drag is which squares will take it.
   int? _dragging;
+  Set<int> _targets = const {};
 
   Future<void> _drop(int from, int to) async {
     final game = ref.read(gameProvider);
@@ -158,10 +162,7 @@ class MergeGridState extends ConsumerState<MergeGrid> {
                                   top: at(cell.index).dy,
                                   width: cellW,
                                   height: cellH,
-                                  child: _SlotTarget(
-                                    cell: cell,
-                                    onDrop: _drop,
-                                  ),
+                                  child: _SlotTarget(cell: cell, onDrop: _drop),
                                 ),
                               for (final cell in cells)
                                 if (cell.card != null)
@@ -173,9 +174,7 @@ class MergeGridState extends ConsumerState<MergeGrid> {
                                     key: ValueKey(
                                       'grid-card-${cell.instanceId}',
                                     ),
-                                    duration: const Duration(
-                                      milliseconds: 350,
-                                    ),
+                                    duration: const Duration(milliseconds: 350),
                                     curve: Curves.easeInOutCubic,
                                     left: at(cell.index).dx,
                                     top: at(cell.index).dy,
@@ -185,18 +184,27 @@ class MergeGridState extends ConsumerState<MergeGrid> {
                                       cell: cell,
                                       width: cellW,
                                       height: cellH,
+                                      // Bright if it is the card in hand or a
+                                      // square that can take it; dimmed if not.
                                       dimmed:
                                           _dragging != null &&
-                                          _dragging != cell.index,
+                                          _dragging != cell.index &&
+                                          !_targets.contains(cell.index),
                                       bursting: _burstAt == cell.index,
                                       burstTier: _burstTier,
-                                      onDragStart: () =>
-                                          setState(() => _dragging = cell.index),
-                                      onDragEnd: () =>
-                                          setState(() => _dragging = null),
+                                      onDragStart: () => setState(() {
+                                        _dragging = cell.index;
+                                        _targets = mergeTargetsFor(
+                                          ref.read(gameProvider).state,
+                                          cell.index,
+                                        );
+                                      }),
+                                      onDragEnd: () => setState(() {
+                                        _dragging = null;
+                                        _targets = const {};
+                                      }),
                                       onBurstDone: () {
-                                        if (mounted &&
-                                            _burstAt == cell.index) {
+                                        if (mounted && _burstAt == cell.index) {
                                           setState(() => _burstAt = null);
                                         }
                                       },
@@ -473,53 +481,84 @@ class _CardSlot extends ConsumerWidget {
       playing: bursting,
       onDone: onBurstDone,
       child: AnimatedOpacity(
-        // Every other card recedes while one is in the air. The JS also
-        // desaturates; opacity alone reads the same and costs no filter.
+        // A square that cannot take the card recedes AND loses its colour. The
+        // opacity alone was not enough: the cards are tier-coloured, so a bronze
+        // at 28% still reads as bronze and the eye keeps offering it.
         opacity: dimmed ? 0.28 : 1,
         duration: const Duration(milliseconds: 150),
-        child: LongPressDraggable<int>(
-          data: cell.index,
-          // A hold, not an instant grab: a flick across the grid is the tab
-          // swipe, and the arena hands it over only once the hold has won.
-          delay: const Duration(milliseconds: 200),
-          onDragStarted: onDragStart,
-          onDragEnd: (_) => onDragEnd(),
-          onDraggableCanceled: (_, _) => onDragEnd(),
-          onDragCompleted: onDragEnd,
-          // The card under the finger is the SAME SIZE as the card it left, and
-          // lifted rather than shrunk. It had been hard-coded to 84×108, so on
-          // any phone wider than the smallest one a card visibly shrank the
-          // moment it was picked up.
-          feedback: Transform.scale(
-            scale: 1.06,
-            child: SizedBox(
-              width: width,
-              height: height,
-              child: Material(
-                color: Colors.transparent,
-                elevation: 12,
-                borderRadius: BorderRadius.circular(12),
-                child: PlayerCard(
-                  view: card,
-                  light: Theme.of(context).brightness == Brightness.light,
+        child: ColorFiltered(
+          colorFilter: dimmed
+              ? const ColorFilter.matrix(_desaturated)
+              : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+          child: LongPressDraggable<int>(
+            data: cell.index,
+            // A hold, not an instant grab: a flick across the grid is the tab
+            // swipe, and the arena hands it over only once the hold has won.
+            delay: const Duration(milliseconds: 200),
+            onDragStarted: onDragStart,
+            onDragEnd: (_) => onDragEnd(),
+            onDraggableCanceled: (_, _) => onDragEnd(),
+            onDragCompleted: onDragEnd,
+            // The card under the finger is the SAME SIZE as the card it left, and
+            // lifted rather than shrunk. It had been hard-coded to 84×108, so on
+            // any phone wider than the smallest one a card visibly shrank the
+            // moment it was picked up.
+            feedback: Transform.scale(
+              scale: 1.06,
+              child: SizedBox(
+                width: width,
+                height: height,
+                child: Material(
+                  color: Colors.transparent,
+                  elevation: 12,
+                  borderRadius: BorderRadius.circular(12),
+                  child: PlayerCard(
+                    view: card,
+                    light: Theme.of(context).brightness == Brightness.light,
+                  ),
                 ),
               ),
             ),
-          ),
-          // The slot it came from shows through as empty, which is the JS's
-          // `.cell-floating`.
-          childWhenDragging: const SizedBox.shrink(),
-          child: SizedBox(
-            key: ValueKey('grid-card-${cell.index}'),
-            width: width,
-            height: height,
-            child: tile,
+            // The slot it came from shows through as empty, which is the JS's
+            // `.cell-floating`.
+            childWhenDragging: const SizedBox.shrink(),
+            child: SizedBox(
+              key: ValueKey('grid-card-${cell.index}'),
+              width: width,
+              height: height,
+              child: tile,
+            ),
           ),
         ),
       ),
     );
   }
 }
+
+/// `saturate(0.15) brightness(0.7)`, as one matrix. The JS applies the two CSS
+/// filters together; multiplying them out is one pass instead of two.
+const List<double> _desaturated = <double>[
+  0.2338,
+  0.4571,
+  0.0291,
+  0,
+  0,
+  0.1488,
+  0.5421,
+  0.0291,
+  0,
+  0,
+  0.1488,
+  0.4571,
+  0.1141,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+];
 
 /// A slot with nothing in it: `1.5px dashed`, which Flutter's `Border` cannot
 /// draw, so it is painted.
