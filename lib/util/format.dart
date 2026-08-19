@@ -126,3 +126,17 @@ String formatDate(int? ms) {
     return '';
   }
 }
+
+/// A wall-clock time as the player's locale writes it — `6:00 pm`.
+///
+/// The JS asks for `{hour:'numeric', minute:'2-digit'}`, which is `jm`. Used
+/// where the answer to "when" is a TIME rather than a duration: nobody plans
+/// around "in 21 hours", but "tomorrow at 6:00 pm" is a thing you can arrange
+/// your evening by.
+String formatTimeOfDay(DateTime at) {
+  try {
+    return DateFormat.jm(_locale).format(at);
+  } catch (_) {
+    return '';
+  }
+}

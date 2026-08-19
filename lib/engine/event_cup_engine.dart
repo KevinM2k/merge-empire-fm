@@ -265,6 +265,18 @@ String? lastPickedNation(Map<String, dynamic>? state, String eventId) =>
         )?['lastPickedNation']
         as String?;
 
+/// Forget the remembered nation, so the picker offers a clean slate.
+///
+/// The JS reaches into `state.events.progress[id]` from inside its screen. It
+/// belongs here with the rest of the run's state: the shape of that branch is
+/// this engine's business, and a second place that knows the key is a second
+/// place to get it wrong.
+void forgetLastPickedNation(Map<String, dynamic> state, String eventId) {
+  final progress = _map(_map(_map(state['events'])?['progress'])?[eventId]);
+  if (progress == null) return;
+  progress['lastPickedNation'] = null;
+}
+
 /// A simulated but uncommitted event-cup tie.
 typedef PreparedEventCupRound = ({
   String eventId,
