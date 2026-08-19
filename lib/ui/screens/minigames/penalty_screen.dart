@@ -4,8 +4,20 @@
 /// while it is up: a modal over a mini-game would never be dismissed, which is
 /// the reason that gate exists.
 ///
-/// The engine decides every shot. This picks a corner and shows what happened.
+/// **The goal is the target.** You tap the goalmouth and the ball goes where you
+/// put it — the interaction the shipped instruction line has always described
+/// ("Tap anywhere — aim for corners or risk hitting the woodwork!") and the one
+/// a grid of four corner buttons could not produce: with buttons there is no
+/// way to miss, so `penalty.wide_left`, `penalty.post` and `penalty.crossbar`
+/// were shipped copy that nothing could reach.
+///
+/// The engine still decides every ON-TARGET shot. Where the tap lands only
+/// chooses which corner it is asked about; whether the keeper gets there is
+/// `takePenalty`'s call, and the woodwork and the wayward shots never reach it
+/// because the keeper had nothing to do with them.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +27,7 @@ import 'package:merge_empire_fc/engine/penalty_game_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/penalty_scene.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -28,13 +41,27 @@ class PenaltyScreen extends ConsumerStatefulWidget {
 class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
   late final StateController<TickGates> _gates;
 
-  final List<PenaltyShot> _taken = [];
+  final List<ShotResult> _taken = [];
   int _coins = 0;
 
+  /// True while a strike is playing out, so a second tap cannot fire through
+  /// the animation and spend two of the five attempts on one decision.
+  bool _shooting = false;
+  Timer? _resetTimer;
+
+  /// Where the ball and the keeper are, in scene percent.
+  ({double x, double y}) _ball = _spot;
+  ({double x, double y}) _keeper = _line;
+  bool _ballVisible = true;
+
+  static const ({double x, double y}) _spot = (x: 50, y: 78);
+  static const ({double x, double y}) _line = (x: 50, y: 34);
+
   /// Test seams.
-  int get scored => _taken.where((s) => s.scored).length;
+  int get scored => _taken.where((r) => r.scored).length;
   bool get finished => _taken.length >= Penalty.attempts;
   int get coinsWon => _coins;
+  ShotResult? get lastResult => _taken.isEmpty ? null : _taken.last;
 
   @override
   void initState() {
@@ -50,10 +77,16 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
       );
       // The cooldown starts when the player STARTS, not when they finish, so
       // walking away mid-round cannot farm the reward timer.
-      ref.read(gameProvider).update(
-        (s) => startMiniGame(s, MiniGameKind.penalty),
-      );
+      ref
+          .read(gameProvider)
+          .update((s) => startMiniGame(s, MiniGameKind.penalty));
     });
+  }
+
+  @override
+  void dispose() {
+    _resetTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -69,11 +102,32 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
     super.deactivate();
   }
 
-  void _shoot(PenaltyCorner corner) {
-    if (finished) return;
+  /// A tap on the goalmouth, in scene percentages.
+  void shootAt(double x, double y) {
+    if (finished || _shooting) return;
     final game = ref.read(gameProvider);
-    final shot = takePenalty(game.state, corner);
-    setState(() => _taken.add(shot));
+    final aim = resolveAim(x, y);
+
+    final ShotResult result;
+    var keeperTo = _line;
+    if (aim.corner == null) {
+      // Off target, or off the frame. The keeper stays where he was — he never
+      // had to move, and diving at a shot going wide would read as a save.
+      result = aim.miss!;
+    } else {
+      final shot = takePenalty(game.state, aim.corner!);
+      keeperTo = keeperLanding(shot.keeper);
+      result = shot.scored ? ShotResult.goal : ShotResult.saved;
+    }
+
+    setState(() {
+      _shooting = true;
+      _taken.add(result);
+      // The ball goes where it was AIMED, whatever happened to it, so a save
+      // and a goal look like the same strike until the keeper gets there.
+      _ball = (x: aim.x, y: aim.y);
+      _keeper = keeperTo;
+    });
 
     if (_taken.length >= Penalty.attempts) {
       // Banked once, at the end, from the engine's own count.
@@ -82,12 +136,24 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
       );
       setState(() => _coins = coins);
     }
+
+    // Back to the spot once the strike has been seen.
+    _resetTimer?.cancel();
+    _resetTimer = Timer(const Duration(milliseconds: 900), () {
+      if (!mounted) return;
+      setState(() {
+        _shooting = false;
+        _ballVisible = !finished;
+        _ball = _spot;
+        _keeper = _line;
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final last = _taken.isEmpty ? null : _taken.last;
+    final last = lastResult;
 
     return Scaffold(
       key: const ValueKey('penalty-screen'),
@@ -116,7 +182,7 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
               const SizedBox(height: 12),
               if (last != null)
                 Text(
-                  last.scored ? t('mg.goal') : t('mg.saved'),
+                  t(last.copyKey),
                   key: const ValueKey('penalty-feedback'),
                   style: TextStyle(
                     fontSize: 18,
@@ -132,19 +198,17 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
                   style: TextStyle(color: kit.textMuted, fontSize: 12),
                 ),
                 const SizedBox(height: 12),
+                // Flexible, not fixed: the scene keeps the artwork's aspect and
+                // gives up height on a short screen rather than pushing the
+                // score line off the top.
                 Expanded(
-                  child: GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    children: [
-                      for (final corner in PenaltyCorner.values)
-                        ElevatedButton(
-                          key: ValueKey('penalty-${corner.name}'),
-                          onPressed: () => _shoot(corner),
-                          child: const Icon(Icons.sports_soccer),
-                        ),
-                    ],
+                  child: Center(
+                    child: PenaltyScene(
+                      onShoot: shootAt,
+                      ball: _ball,
+                      keeper: _keeper,
+                      ballVisible: _ballVisible,
+                    ),
                   ),
                 ),
               ] else ...[

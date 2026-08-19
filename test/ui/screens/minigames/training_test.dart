@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/penalty_scene.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -137,6 +138,25 @@ void main() {
     });
   });
 
+  /// Tap the goalmouth at a point in scene percentages — the goal IS the
+  /// target, so a test aims the way a player does rather than pressing a button
+  /// named after a corner.
+  Future<void> shootAt(WidgetTester tester, double x, double y) async {
+    final scene = find.byKey(const ValueKey('penalty-goal'));
+    final rect = tester.getRect(scene);
+    await tester.tapAt(
+      Offset(
+        rect.left + rect.width * x / 100,
+        rect.top + rect.height * y / 100,
+      ),
+    );
+    await tester.pumpAndSettle();
+    // The strike plays out on a timer, and the next shot is refused until it
+    // has. `pumpAndSettle` only chases frames, so the wait has to be explicit.
+    await tester.pump(const Duration(milliseconds: 950));
+    await tester.pumpAndSettle();
+  }
+
   group('Penalty Training', () {
     testWidgets('opens from the list and claims the mini-game gate', (
       tester,
@@ -158,8 +178,7 @@ void main() {
 
       final coinsBefore = container.read(coinsProvider);
       for (var i = 0; i < Penalty.attempts; i++) {
-        await tester.tap(find.byKey(const ValueKey('penalty-topLeft')));
-        await tester.pumpAndSettle();
+        await shootAt(tester, 25, 15);
       }
       await settleSave(tester);
 
@@ -171,6 +190,71 @@ void main() {
       // Scoring nothing is possible, so the payout is >= rather than >.
       expect(container.read(coinsProvider), greaterThanOrEqualTo(coinsBefore));
       expect(state.scored, inInclusiveRange(0, Penalty.attempts));
+    });
+
+    testWidgets('a shot outside the frame goes wide and never asks the keeper', (
+      tester,
+    ) async {
+      // The whole reason the goal is the target rather than four buttons: with
+      // buttons there is no way to miss, so `penalty.wide_left` was shipped
+      // copy nothing could ever reach.
+      await pumpTraining(tester, saveWith());
+      await tester.tap(find.byKey(const ValueKey('training-penalty')));
+      await tester.pumpAndSettle();
+
+      await shootAt(tester, 2, 25);
+      final state = tester.state<PenaltyScreenState>(
+        find.byType(PenaltyScreen),
+      );
+      expect(state.lastResult, ShotResult.wideLeft);
+      expect(state.scored, 0);
+      expect(find.text(t('penalty.wide_left')), findsOneWidget);
+      await settleSave(tester);
+    });
+
+    testWidgets('clipping a post is its own outcome, not a save', (
+      tester,
+    ) async {
+      await pumpTraining(tester, saveWith());
+      await tester.tap(find.byKey(const ValueKey('training-penalty')));
+      await tester.pumpAndSettle();
+
+      // Just inside the left post, within the woodwork margin.
+      await shootAt(tester, goalFrame.left + 1, 25);
+      final state = tester.state<PenaltyScreenState>(
+        find.byType(PenaltyScreen),
+      );
+      expect(state.lastResult, ShotResult.post);
+      expect(state.scored, 0);
+      await settleSave(tester);
+    });
+
+    testWidgets('a second tap during the strike does not spend an attempt', (
+      tester,
+    ) async {
+      // Five attempts is the whole game; a double tap must not cost two.
+      await pumpTraining(tester, saveWith());
+      await tester.tap(find.byKey(const ValueKey('training-penalty')));
+      await tester.pumpAndSettle();
+
+      final scene = find.byKey(const ValueKey('penalty-goal'));
+      final rect = tester.getRect(scene);
+      final at = Offset(
+        rect.left + rect.width * 0.25,
+        rect.top + rect.height * 0.15,
+      );
+      await tester.tapAt(at);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(at);
+      await tester.pumpAndSettle();
+
+      final state = tester.state<PenaltyScreenState>(
+        find.byType(PenaltyScreen),
+      );
+      expect(state.finished, isFalse);
+      expect(state.scored, inInclusiveRange(0, 1));
+      await tester.pump(const Duration(milliseconds: 950));
+      await settleSave(tester);
     });
 
     testWidgets('the cooldown starts on entry, not on finishing', (
