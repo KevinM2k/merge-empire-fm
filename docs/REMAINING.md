@@ -30,9 +30,12 @@ too late:
 
 ## Where we are
 
-**3,567 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,571 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
+**"Open from playtesting" below is the short queue**: what a session of actually
+playing the thing turned up, which is a different list from what reading the
+source turns up and is worth clearing first.
 
 **Read that before porting another screen.** The port was being built screen by
 screen with the gaps surfacing as bug reports from playing, which is the slowest
@@ -391,6 +394,78 @@ JS number or object did.
   where the JS writes `75`. Equal as numbers, different as JSON, and coins are
   the most-written field there is. Anything going into the save that JS holds as
   a whole number must arrive as a Dart `int`.
+
+---
+
+## Open from playtesting — 19 Aug
+
+Found by playing, not by reading the source, and all of it is in `src/ui/` where
+it can be checked. Ordered roughly by how much of the screen it costs.
+
+Two are not code decisions and are marked so.
+
+### Cards and the grid
+
+- [ ] **A revealed player should FLY into his cell**, not simply be there when
+      the reveal closes. The scout reveal and the grid are two separate
+      surfaces today and nothing joins them, so a signing arrives by cut. The
+      merge flight (`_FlyingCard` in `merge_grid.dart`) already does this
+      journey between two cells and is the thing to reuse — take the reveal
+      card's rect on the way out and fly it to the cell the engine placed it in.
+- [ ] **The merge itself should read as a set-piece.** The flight and the burst
+      are in and correct; what they lack is weight. The JS's own note on the
+      burst is the brief — a merge is the loop's payoff and it currently costs
+      a card sliding two inches.
+- [ ] **A drag-drop must NOT replay it.** Moving and swapping are the player
+      tidying up, and `_drop` already returns before the flight for both — keep
+      it that way when the reveal animation above lands, or every tidy-up
+      becomes a cutscene.
+
+### Shop
+
+- [ ] **The coin sheet opens with the first tile under the notch.** Deep-linking
+      from the HUD's coin chip scrolls to `ShopSectionId.coins` without clearing
+      the safe area, so the section heading is off the top of the glass. Either
+      offset the deep-link scroll by `hudClearanceOf`, or give the coin packs
+      their own sheet — the second is what was asked for and reads better,
+      since a player who tapped the coin counter wants to buy coins rather than
+      to arrive somewhere.
+- [ ] **Shop tiles want their own artwork**, one per product rather than one
+      glyph for a shelf: a bag, a chest, a vault and a mountain of coins are
+      four different sizes of the same idea and the tile is where that reads.
+      Nothing is bundled for this yet.
+- [ ] **The Style Vault and the six packs are ONE offer and read as seven.** The
+      Vault contains every pack; the packs are also 5 gems each on their own.
+      Group them so the relationship is visible, and put the per-pack price on
+      the pack — `../merge-empire-fc` has the shape.
+
+### Screens
+
+- [ ] **The idle-earnings popup ("banked while you were away") is wrong in
+      layout AND in copy.** The JS has a different set of lines and a different
+      shape; port both. Do not rewrite the copy — it is already written, in the
+      catalogue.
+- [ ] **An achievement unlock should lead with its TROPHY ART and sit at the
+      top of the screen**, as it does in `../merge-empire-fc`. It is a reward,
+      and a reward that arrives as a toast in the same place as an error is not
+      one.
+- [ ] **The squad pitch is cramped.** The back four sit too far from the keeper,
+      which squeezes the midfield into the same band as the attack. Move the
+      defence back toward the goal and let every line have room around it —
+      the slots are laid out in `squad_screen.dart` against the formation.
+- [ ] **The Club screen's "Build" column needs a pass.** Full-screen is right
+      and worth keeping; what is on it looks unfinished.
+
+### Not code decisions
+
+- [ ] **The IAP tiles are `onPressed: null` with "coming soon"** because there
+      is no billing plugin in the project — `starter_pack`, `vip_pass`, the gem
+      packs and the coin packs all sit behind `paidDisabledReason()`. They can
+      be wired to grant their contents for testing, but that is giving away paid
+      content and is a product call, not a porting one.
+- [ ] **The rewarded-video buttons are the same.** `ad_gate_engine` is live and
+      the gate, the cap and the countdown are all correct — there is no AdMob
+      behind the button. Same two options, same call to make.
 
 ---
 
