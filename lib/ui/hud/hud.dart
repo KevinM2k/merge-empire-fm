@@ -5,6 +5,8 @@
 /// provider, so a coin landing rebuilds the coin label and nothing else.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
@@ -94,7 +96,14 @@ class Hud extends ConsumerWidget {
     // Everywhere else it keeps the app's own theme, because everywhere else the
     // page underneath is the app's own surface — see `HudChip.onScene`.
     final onScene = ref.watch(shellControllerProvider).tab == ShellTab.home;
-    if (!onScene) return _bar(context, ref, onScene: false);
+    if (!onScene) {
+      // A REAL BLUR ACROSS THE WHOLE STRIP, not four blurred chips with gaps
+      // between them. Content scrolls under this bar on every tab but Play, and
+      // through the gaps it went past in full focus — so the HUD read as four
+      // dark boxes with a shop tile sliding between them. One backdrop filter
+      // over the band, and anything behind it is genuinely out of focus.
+      return _FrostedBar(child: _bar(context, ref, onScene: false));
+    }
     return Theme(
       data: ref.watch(glassThemeProvider),
       child: Builder(builder: (context) => _bar(context, ref, onScene: true)),
@@ -215,6 +224,38 @@ class Hud extends ConsumerWidget {
             child: const SizedBox.shrink(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The band the HUD sits in, off the Play tab.
+///
+/// A blur has to be CLIPPED to be a band: a `BackdropFilter` with nothing
+/// bounding it samples the whole layer, so the fade at the bottom edge is what
+/// makes it a bar rather than a smear over the screen.
+class _FrostedBar extends StatelessWidget {
+  const _FrostedBar({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            // Enough tint that white text on it survives whatever it is over —
+            // the blur softens the background, it does not darken it.
+            color: kit.bg.withValues(alpha: 0.62),
+            border: Border(
+              bottom: BorderSide(color: kit.border.withValues(alpha: 0.5)),
+            ),
+          ),
+          child: child,
+        ),
       ),
     );
   }

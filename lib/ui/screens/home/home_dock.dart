@@ -16,6 +16,8 @@
 /// to nag from the scene goes quiet just because it moved one tap deeper.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -23,7 +25,6 @@ import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
 import 'package:merge_empire_fc/ui/shell/shell_quick_nav.dart';
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 
 /// A dock orb: a 54px disc with its label riding up over the bottom edge.
@@ -54,7 +55,6 @@ class DockButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     return Semantics(
       button: true,
       label: label,
@@ -74,60 +74,60 @@ class DockButton extends StatelessWidget {
                     height: 54,
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
-                      color: kit.surface.withValues(alpha: 0.85),
+                      // A LIGHT rim, not the theme's border. These orbs sit on
+                      // the diorama, and in dark mode `border` is a near-black
+                      // ring — which round Colin's portrait, whose art is a
+                      // face on white, read as a black frame stuck to him.
+                      color: Colors.black.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: kit.border),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.32),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Center(child: child),
                   ),
-                  // Rides UP over the disc's bottom edge, on a DARK CAPSULE of
-                  // its own. It was
+                  // UNDER the disc, clear of it. It used to ride up over the
+                  // bottom edge, which put the word across the picture it is
+                  // labelling — and on a 54px orb that is most of the picture.
+                  // On a DARK CAPSULE of its own. It was
                   // muted ink with a 2px shadow, which is a caption on a
                   // surface — and this one is not on a surface, it is over a
                   // lit green pitch that scrolls underneath it. Nothing that
                   // sits on moving ground can be read off contrast with the
                   // ground; it needs its own.
-                  Transform.translate(
-                    offset: const Offset(0, -6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.3,
-                          color: Colors.white,
-                        ),
+                  const SizedBox(height: 3),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ],
               ),
               if (dot)
-                Positioned(
-                  right: 2,
-                  top: 2,
-                  child: Container(
-                    key: dotKey,
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: kit.accent,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: kit.bg, width: 2),
-                    ),
-                  ),
-                ),
+                Positioned(right: -3, top: -4, child: _Nag(dotKey: dotKey)),
             ],
           ),
         ),
@@ -231,6 +231,93 @@ class CustomiseDock extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Something in here wants attention.
+///
+/// A RED EXCLAMATION, and it bounces. It was a flat accent-coloured dot, which
+/// on a green kit is a green pip on a green pitch — the one mark on this screen
+/// whose entire job is to be noticed, in the one colour that cannot be. Red is
+/// not the club's to choose, and a mark that moves is seen without being looked
+/// for.
+class _Nag extends StatefulWidget {
+  const _Nag({this.dotKey});
+
+  final Key? dotKey;
+
+  @override
+  State<_Nag> createState() => _NagState();
+}
+
+class _NagState extends State<_Nag> with SingleTickerProviderStateMixin {
+  late final AnimationController _bounce = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  void _sync() {
+    // A badge that never stops moving is exactly what reduce-motion is asking
+    // us not to run. It stays — red on its own still reads — it just holds
+    // still.
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_bounce.isAnimating) _bounce.stop();
+      return;
+    }
+    if (!_bounce.isAnimating) _bounce.repeat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _bounce,
+      builder: (context, child) {
+        // Two hops and a rest, rather than a sine that never settles: a badge
+        // bobbing continuously reads as a loading spinner.
+        final phase = (_bounce.value * 2).clamp(0.0, 1.0);
+        final hop = math.sin(phase * math.pi * 2).clamp(0.0, 1.0) * 4;
+        return Transform.translate(offset: Offset(0, -hop), child: child);
+      },
+      child: Container(
+        key: widget.dotKey,
+        width: 18,
+        height: 18,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD32F2F),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 1.6),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Text(
+          '!',
+          style: TextStyle(
+            fontSize: 12,
+            height: 1,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
           ),
         ),
       ),

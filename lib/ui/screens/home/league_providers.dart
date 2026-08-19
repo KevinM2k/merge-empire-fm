@@ -102,7 +102,6 @@ final managerLookProvider = savePick<ManagerLook?>((s) {
 /// and had no caller at all: the gaffer's mood was a value nobody could see.
 final managerMoodProvider = savePick<Mood>((s) => deriveMood(s, now()).mood);
 
-
 /// Last-five league form per club, oldest to newest.
 ///
 /// Walks the pre-simulated fixtures so the AI clubs and the player share ONE
@@ -119,7 +118,8 @@ final leagueFormProvider = savePick<Map<String, List<String>>>((s) {
   final season = _int(prog?['seasonCount'], 1);
   final currentRound = _int(prog?['seasonAwardedPlayed']);
   final results = _map(prog?['fixtureResults']) ?? const {};
-  final playerName = s['clubName'] is String && (s['clubName'] as String).isNotEmpty
+  final playerName =
+      s['clubName'] is String && (s['clubName'] as String).isNotEmpty
       ? s['clubName'] as String
       : t('common.your_club');
 
@@ -154,8 +154,20 @@ final leagueFormProvider = savePick<Map<String, List<String>>>((s) {
 
     final home = fix['homeTeam'] as String? ?? playerName;
     final away = fix['awayTeam'] as String? ?? playerName;
-    (seq[home] ??= []).add(hg > ag ? 'W' : hg == ag ? 'D' : 'L');
-    (seq[away] ??= []).add(ag > hg ? 'W' : ag == hg ? 'D' : 'L');
+    (seq[home] ??= []).add(
+      hg > ag
+          ? 'W'
+          : hg == ag
+          ? 'D'
+          : 'L',
+    );
+    (seq[away] ??= []).add(
+      ag > hg
+          ? 'W'
+          : ag == hg
+          ? 'D'
+          : 'L',
+    );
   }
 
   return {

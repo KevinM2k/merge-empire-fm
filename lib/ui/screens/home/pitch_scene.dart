@@ -206,9 +206,14 @@ class PitchScene extends StatelessWidget {
         // it a horizon rather than a number — and it can never crowd him out,
         // because it is derived from where he is.
         final feet = h - walkerBottom;
-        final horizon = (feet - walkerHeight * walkerScale).clamp(
+        // A walker's height above his boots was a horizon so high the stand
+        // ended up a strip along the top of the frame with a page of empty sky
+        // over it — the stadium was on screen and nobody could see it. At 0.72
+        // of him the ground line comes down, the terrace comes down with it,
+        // and there is a stadium behind him rather than a rumour of one.
+        final horizon = (feet - walkerHeight * walkerScale * 0.72).clamp(
           h * 0.16,
-          h * 0.62,
+          h * 0.68,
         );
 
         return ClipRect(

@@ -152,9 +152,7 @@ final GlobalKey coachDockKey = GlobalKey();
 Future<void> showCoachBubble(BuildContext context, WidgetRef ref) {
   ref.read(coachSeenKeyProvider.notifier).state = ref.read(coachTipKeyProvider);
   final box = coachDockKey.currentContext?.findRenderObject() as RenderBox?;
-  final anchor = box == null
-      ? null
-      : box.localToGlobal(Offset.zero) & box.size;
+  final anchor = box == null ? null : box.localToGlobal(Offset.zero) & box.size;
   return showDialog<void>(
     context: context,
     barrierColor: Colors.black26,
@@ -215,12 +213,19 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
     final screen = MediaQuery.sizeOf(context);
     final anchor = widget.anchor;
 
-    // To the RIGHT of the button, bottom-aligned to it, tail pointing left at
-    // it. Clamped so it never runs off the right edge.
-    final left = anchor == null ? 15.0 : anchor.right + 2;
+    // OUT OF HIM, not above him.
+    //
+    // It was bottom-aligned to the whole dock button — disc, caption and all —
+    // so the bubble's foot sat under the CAPTION and the body of it floated
+    // clear above his head with nothing joining the two. There was no tail
+    // either, only a comment describing one. It hangs off his face now: the
+    // bubble's foot sits level with the middle of the disc and a tail drops out
+    // of its bottom-left corner onto him.
+    const discSize = 54.0;
+    final left = anchor == null ? 15.0 : anchor.right - 10;
     final bottom = anchor == null
         ? 96.0
-        : math.max(8.0, screen.height - anchor.bottom);
+        : math.max(8.0, screen.height - anchor.top - discSize * 0.55);
     final maxWidth = math.max(160.0, screen.width - left - 14);
 
     final bubble = Material(
@@ -317,7 +322,29 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
             onTap: () => Navigator.of(context).pop(),
           ),
         ),
-        Positioned(left: left, bottom: bottom, child: bubble),
+        Positioned(
+          left: left,
+          bottom: bottom,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              bubble,
+              // The tail, pointing down and back at him. Same fill and same
+              // stroke as the bubble, so the two are one shape.
+              Positioned(
+                left: 12,
+                bottom: -10,
+                child: CustomPaint(
+                  size: const Size(18, 11),
+                  painter: _BubbleTail(
+                    fill: kit.surface.withValues(alpha: 0.94),
+                    edge: kit.accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -383,4 +410,42 @@ class _CoachLabel extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// The bubble's tail: a wedge dropping out of its bottom-left corner toward
+/// Colin's face, drawn with the bubble's own fill and stroke so the two read as
+/// one shape rather than a box and a triangle.
+class _BubbleTail extends CustomPainter {
+  const _BubbleTail({required this.fill, required this.edge});
+
+  final Color fill;
+  final Color edge;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      // Down and to the LEFT: the orb is below and behind the bubble's corner,
+      // so a tail dropping straight down would point at the grass beside him.
+      ..lineTo(1.5, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = fill);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = edge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    // The bubble's own bottom stroke runs across the top of this wedge; cover
+    // the span the tail opens into it so the join is not a seam.
+    canvas.drawRect(
+      Rect.fromLTWH(0.5, -1, size.width - 1, 2),
+      Paint()..color = fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BubbleTail old) => old.fill != fill || old.edge != edge;
 }

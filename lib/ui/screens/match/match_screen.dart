@@ -11,7 +11,6 @@
 library;
 
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,7 +22,6 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
     show skyGradient;
-import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
@@ -80,14 +78,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   @override
   void initState() {
     super.initState();
-    // Decoded before the first whistle, not on the first chance: the sprites
-    // are thirty-one files and `onLoad` is async, so paying for them mid-match
-    // is a green rectangle where the pitch should be.
-    // Ignoring the result on purpose: this is a WARM-UP. If the bundle cannot
-    // hand the sprites over here it will fail again inside the game, where
-    // there is something to show for it — a match must not refuse to start
-    // because a cache could not be filled early.
-    unawaited(preloadCutawaySprites().catchError((_) => <ui.Image>[]));
     _gates = ref.read(tickGatesProvider.notifier);
     // Claim the screen before the first tick can land anything on top of it.
     WidgetsBinding.instance.addPostFrameCallback((_) {

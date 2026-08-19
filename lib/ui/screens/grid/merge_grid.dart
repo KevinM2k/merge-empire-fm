@@ -765,16 +765,20 @@ class _MergeRingState extends State<_MergeRing>
                       // The CSS this came from says `inset 0 0 0 3px`; the 3px is
                       // the spread of a stroke, not of a shadow.
                       border: Border.all(
-                        color: ink.withValues(alpha: 0.95),
-                        width: 3,
+                        // Thinner and quieter than the CSS's 3px at 95%. On a
+                        // grid with several pairs on it that ring was the
+                        // loudest thing on the screen and the cards underneath
+                        // were reading as yellow rather than as their own tier.
+                        color: ink.withValues(alpha: 0.8),
+                        width: 2,
                       ),
                       // The bloom, which IS a shadow — and has a blur radius, so
                       // `inner` gives the glow inside the stroke that the second
                       // CSS shadow does.
                       boxShadow: [
                         BoxShadow(
-                          color: ink.withValues(alpha: 0.32 + 0.28 * t),
-                          blurRadius: 16 + 10 * t,
+                          color: ink.withValues(alpha: 0.16 + 0.16 * t),
+                          blurRadius: 14 + 8 * t,
                           spreadRadius: -2,
                           blurStyle: BlurStyle.inner,
                         ),

@@ -588,12 +588,18 @@ class _SubsButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(benchProvider).length;
-    return FloatingActionButton.extended(
-      key: const ValueKey('squad-subs'),
-      heroTag: 'squad-subs',
-      onPressed: () => showBenchSheet(context, ref),
-      icon: const Icon(Icons.groups, size: 18),
-      label: Text(t('squad.bench.count', {'n': count})),
+    // The SAME PILL as Clear and Auto. It was an extended FAB, which is a
+    // different height, a different radius, a different weight of type and an
+    // elevation none of the other three controls on this pitch have — so the
+    // one thing on the screen that opens a whole squad looked like it belonged
+    // to a different app.
+    return _CornerPill(
+      pillKey: 'squad-subs',
+      onTap: () => showBenchSheet(context, ref),
+      icon: 'squad',
+      label: t('squad.bench.count', {'n': count}),
+      ink: Colors.white,
+      edge: const Color(0x47FFFFFF),
     );
   }
 }

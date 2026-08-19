@@ -65,8 +65,13 @@ List<String> cutawaySpritePaths() => [
 /// match. That is what the flash was.
 final Images cutawayImages = Images(prefix: 'assets/pitch/');
 
-/// Warm it before the first whistle, so the first chance does not pay for it
-/// either. Safe to call twice: [Images.loadAll] returns what is already there.
+/// Filled by the first chance and shared by every one after it.
+///
+/// It is deliberately NOT warmed at kickoff any more: an unawaited load fired
+/// from `initState` outlives whatever started it, which is a stray future in
+/// production and a flaky teardown in a test. The first chance pays for it
+/// once, and the stage paints the markings underneath meanwhile — so what that
+/// frame costs is the players arriving a beat late, not a green flash.
 Future<void> preloadCutawaySprites() =>
     cutawayImages.loadAll(cutawaySpritePaths());
 
