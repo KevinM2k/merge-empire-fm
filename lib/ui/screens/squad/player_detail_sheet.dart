@@ -51,7 +51,23 @@ Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num _num(Object? v) => v is num ? v : 0;
 
 /// What the sheet offers to do with this player, once it closes.
-enum PlayerDetailAction { bench, swap }
+enum PlayerDetailAction {
+  /// Out of the eleven. Only offered for a man who is in it.
+  bench,
+
+  /// Replace him — reopens the picker for his slot.
+  swap,
+
+  /// Into the eleven, from the bench.
+  ///
+  /// `squad.detail.send_on` is translated in all ten catalogues and had nothing
+  /// able to reach it, in the JS or the port — the tell that a control went
+  /// missing rather than was never wanted. Without it the bench is a dead end:
+  /// it is a SHEET, so there is nothing to drag a card onto, and the only way
+  /// into the side was to find an empty slot on the pitch and come at it from
+  /// the other direction.
+  sendOn,
+}
 
 /// Find a card by instance id, or null once it has left.
 CardInstance? cardById(Map<String, dynamic>? state, String instanceId) {
@@ -66,9 +82,10 @@ CardInstance? cardById(Map<String, dynamic>? state, String instanceId) {
 
 /// Open the sheet.
 ///
-/// Returns what the player asked for next — bench them, or swap the slot — or
-/// null when they simply closed it. The caller owns those two because they are
-/// changes to the LINEUP, and the lineup is the screen's business.
+/// Returns what the player asked for next — bench them, send them on, or swap
+/// the slot — or null when they simply closed it. The caller owns all three
+/// because they are changes to the LINEUP, and the lineup is the screen's
+/// business.
 Future<PlayerDetailAction?> showPlayerDetail(
   BuildContext context,
   WidgetRef ref, {
@@ -133,30 +150,44 @@ class _PlayerDetail extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
 
-        // The XI row only when they are IN the eleven — bench and swap are both
-        // about a slot, and there is no slot to talk about on the bench.
-        if (slotId != null && !outOnLoan) ...[
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  key: const ValueKey('detail-swap'),
-                  onPressed: () =>
-                      Navigator.of(context).pop(PlayerDetailAction.swap),
-                  child: Text('⇄  ${t('squad.detail.replace')}'),
+        // Replace and Bench are both about a SLOT, so they only appear for a
+        // man who is in the eleven. From the bench the one thing wanted is the
+        // opposite, and it is a single button.
+        if (!outOnLoan) ...[
+          if (slotId != null)
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    key: const ValueKey('detail-swap'),
+                    onPressed: () =>
+                        Navigator.of(context).pop(PlayerDetailAction.swap),
+                    child: Text('⇄  ${t('squad.detail.replace')}'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  key: const ValueKey('detail-bench'),
-                  onPressed: () =>
-                      Navigator.of(context).pop(PlayerDetailAction.bench),
-                  child: Text('↩  ${t('squad.detail.to_bench')}'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('detail-bench'),
+                    onPressed: () =>
+                        Navigator.of(context).pop(PlayerDetailAction.bench),
+                    child: Text('↩  ${t('squad.detail.to_bench')}'),
+                  ),
                 ),
+              ],
+            )
+          // Nobody unavailable can be sent on: the match engine rates a loaned
+          // or listed player zero, so putting one in the side fields a hole.
+          else if (card.isSelectable)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                key: const ValueKey('detail-send-on'),
+                onPressed: () =>
+                    Navigator.of(context).pop(PlayerDetailAction.sendOn),
+                child: Text('⇡  ${t('squad.detail.send_on')}'),
               ),
-            ],
-          ),
+            ),
           const SizedBox(height: 12),
         ],
 

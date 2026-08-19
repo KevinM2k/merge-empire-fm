@@ -10,14 +10,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
+import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
 /// What a drag carries: a bench card, or the slot it came from.
@@ -85,9 +87,20 @@ class SquadScreen extends ConsumerWidget {
             // hundred and thirty pixels to a bench strip that was showing three
             // cards at a time.
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                child: _Pitch(onAssign: _assign),
+              child: Stack(
+                children: [
+                  Padding(
+                    // Room at the top for the two corner pills that sit over it.
+                    padding: const EdgeInsets.fromLTRB(12, 52, 12, 12),
+                    child: _Pitch(onAssign: _assign),
+                  ),
+                  const Positioned(
+                    left: 12,
+                    right: 12,
+                    top: 10,
+                    child: PitchCornerActions(),
+                  ),
+                ],
               ),
             ),
           ],
@@ -100,9 +113,16 @@ class SquadScreen extends ConsumerWidget {
   }
 }
 
-/// The headline numbers. The bar is a bar rather than five star pips because
-/// pips banded 0-100 into five buckets, so 61 and 79 drew the same row and the
-/// number beside them did all the work.
+/// The headline numbers, and the two chips that change them.
+///
+/// **Clear and Auto are NOT part of this.** They live over the pitch's top
+/// corners as translucent pills — see [PitchCornerActions]. As a third row of
+/// buttons here they took forty more pixels off a pitch that has to hold eleven
+/// men, which is most of why the eleven had nowhere to stand.
+///
+/// The bar is a bar rather than five star pips because pips banded a 0-100
+/// figure into five buckets, so 61 and 79 drew the same row and the number
+/// beside them did all the work.
 class SquadHeader extends ConsumerWidget {
   const SquadHeader({super.key});
 
@@ -110,118 +130,289 @@ class SquadHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final ratings = ref.watch(squadRatingsProvider);
-    final formation = getFormation(ref.watch(formationIdProvider));
-    final tactic =
-        strategies[ref.watch(strategyIdProvider)] ??
-        strategies[defaultStrategy]!;
+    final formationId = ref.watch(formationIdProvider);
+    final tacticId = ref.watch(strategyIdProvider);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 64, 12, 8),
+    // THREE bands, not two. Below the division's range is "this is why you keep
+    // losing"; above it is "you are ready to go up"; inside it is neither, and
+    // painting that green told a mid-table side it was fine.
+    final band = ratings.belowPar
+        ? const Color(0xFFF44336)
+        : ratings.aboveRange
+        ? kit.accentBright
+        : const Color(0xFFFF9800);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: kit.bg,
+        border: Border(bottom: BorderSide(color: kit.border)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 64, 14, 11),
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    key: const ValueKey('squad-rating-bar'),
-                    value: ratings.overall.clamp(0, 100) / 100,
-                    minHeight: 8,
-                    backgroundColor: kit.surface2,
-                    valueColor: AlwaysStoppedAnimation(
-                      ratings.belowPar ? Colors.redAccent : kit.accentBright,
+          // One glass panel, matching the next-match card's.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(color: kit.border),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      key: const ValueKey('squad-rating-bar'),
+                      value: ratings.overall.clamp(3, 100) / 100,
+                      minHeight: 8,
+                      backgroundColor: kit.surface2,
+                      valueColor: AlwaysStoppedAnimation(band),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${ratings.overall}',
-                key: const ValueKey('squad-rating'),
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: ratings.belowPar ? Colors.redAccent : kit.accentBright,
+                const SizedBox(width: 10),
+                Text(
+                  '${ratings.overall}',
+                  key: const ValueKey('squad-rating'),
+                  style: TextStyle(
+                    fontSize: 23,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: band,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'ATK ${ratings.attack}',
-                key: const ValueKey('squad-atk'),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFE87A3A),
+                const SizedBox(width: 10),
+                // ATK and DEF carry the TACTIC — see `squadTacticMultipliers`.
+                // Their hues are fixed rather than kit-derived: the same two
+                // colours mean attack and defence on every screen in the game.
+                Text(
+                  'ATK ${ratings.attack}',
+                  key: const ValueKey('squad-atk'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFE87A3A),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'DEF ${ratings.defence}',
-                key: const ValueKey('squad-def'),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF4A9EDD),
+                const SizedBox(width: 8),
+                Text(
+                  'DEF ${ratings.defence}',
+                  key: const ValueKey('squad-def'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF4A9EDD),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  key: const ValueKey('squad-formation'),
-                  onPressed: () => showFormationPicker(context, ref),
-                  child: Text(formation.label),
+                child: _Chip(
+                  chipKey: 'squad-formation',
+                  onTap: () => showFormationPicker(context, ref),
+                  fill: Colors.white.withValues(alpha: 0.04),
+                  edge: kit.border,
+                  label: t('squad.formation.label'),
+                  value: formationId,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton(
-                  key: const ValueKey('squad-tactic'),
-                  onPressed: () => showTacticPicker(context, ref),
-                  child: Text(
-                    '${tactic.icon}  ${tactic.shortName}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const ValueKey('squad-auto'),
-                  onPressed: () => autoFillLineup(ref),
-                  icon: const Icon(Icons.autorenew, size: 16),
-                  // The LABEL changes with the mode, because the two do
-                  // genuinely different things: casual repicks the shape,
-                  // Pro only rotates the legs.
-                  label: Text(
-                    t(
-                      ref.watch(proModeProvider)
-                          ? 'squad.formation.autoRotate'
-                          : 'squad.formation.auto',
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const ValueKey('squad-clear'),
-                  onPressed: () => clearLineup(ref),
-                  icon: const Icon(Icons.close, size: 16),
-                  label: Text(t('squad.formation.clear')),
+                // The chip wears the CURRENT tactic's colour — icon, hairline
+                // and wash — so the header says which tactic is set without
+                // being read.
+                child: _Chip(
+                  chipKey: 'squad-tactic',
+                  onTap: () => showTacticPicker(context, ref),
+                  fill: tacticTint(context, tacticId, 10),
+                  edge: tacticTint(context, tacticId, 55),
+                  icon: tacticIconName(tacticId),
+                  iconColor: tacticColor(context, tacticId),
+                  value: t('strategy.$tacticId.name'),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One header chip: an optional label, the value in bold, and a caret.
+class _Chip extends StatelessWidget {
+  const _Chip({
+    required this.chipKey,
+    required this.onTap,
+    required this.fill,
+    required this.edge,
+    required this.value,
+    this.label,
+    this.icon,
+    this.iconColor,
+  });
+
+  final String chipKey;
+  final VoidCallback onTap;
+  final Color fill;
+  final Color edge;
+  final String value;
+  final String? label;
+  final String? icon;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = Theme.of(context).colorScheme.onSurface;
+    return Material(
+      color: fill,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: edge),
+      ),
+      child: InkWell(
+        key: ValueKey(chipKey),
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                GameIcon(icon!, size: 16, color: iconColor),
+                const SizedBox(width: 6),
+              ],
+              if (label != null) ...[
+                Text(
+                  '$label:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: kit.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  value,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Opacity(
+                opacity: 0.7,
+                child: Icon(Icons.expand_more, size: 13, color: ink),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Clear and Auto, over the pitch's top corners.
+///
+/// Translucent dark pills rather than buttons in the header: they belong to the
+/// pitch they act on, and the header has no room for a third row without taking
+/// it from the eleven.
+class PitchCornerActions extends ConsumerWidget {
+  const PitchCornerActions({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _CornerPill(
+          pillKey: 'squad-clear',
+          onTap: () => clearLineup(ref),
+          icon: 'cross',
+          label: t('squad.formation.clear'),
+          ink: const Color(0xFFF87171),
+          edge: const Color(0x80F87171),
+        ),
+        _CornerPill(
+          pillKey: 'squad-auto',
+          onTap: () => autoFillLineup(ref),
+          icon: 'refresh',
+          // The LABEL changes with the mode, because the two do genuinely
+          // different things: casual repicks the shape, Pro only rotates legs.
+          label: t(
+            ref.watch(proModeProvider)
+                ? 'squad.formation.autoRotate'
+                : 'squad.formation.auto',
+          ),
+          ink: Colors.white,
+          edge: const Color(0x47FFFFFF),
+        ),
+      ],
+    );
+  }
+}
+
+class _CornerPill extends StatelessWidget {
+  const _CornerPill({
+    required this.pillKey,
+    required this.onTap,
+    required this.icon,
+    required this.label,
+    required this.ink,
+    required this.edge,
+  });
+
+  final String pillKey;
+  final VoidCallback onTap;
+  final String icon;
+  final String label;
+  final Color ink;
+  final Color edge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.55),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: edge),
+      ),
+      child: InkWell(
+        key: ValueKey(pillKey),
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GameIcon(icon, size: 14, color: ink),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -244,10 +435,16 @@ Future<void> _openDetail(
     instanceId: instanceId,
     slotId: slotId,
   );
-  if (action == null || slotId == null) return;
+  if (action == null) return;
+  // A beat for the sheet's own dismiss to start before the next one opens, or
+  // the two animations fight and the second sheet arrives half-built. The JS
+  // waits the same 60ms for the same reason.
+  await Future<void>.delayed(const Duration(milliseconds: 60));
+  if (!context.mounted) return;
 
   switch (action) {
     case PlayerDetailAction.bench:
+      if (slotId == null) return;
       // Vacating a slot is enough — `cleanAndFillLineup` refills it from the
       // bench on the way out, which is what stops an empty slot surviving.
       ref.read(gameProvider).update((s) {
@@ -262,7 +459,12 @@ Future<void> _openDetail(
         }
       });
     case PlayerDetailAction.swap:
-      if (context.mounted) await showSlotPicker(context, ref, slotId: slotId);
+      if (slotId == null) return;
+      await showSlotPicker(context, ref, slotId: slotId);
+    case PlayerDetailAction.sendOn:
+      // From the bench, where there is no slot to name — the engine picks the
+      // one that suits him.
+      sendOnFromBench(ref, instanceId: instanceId);
   }
 }
 
@@ -278,18 +480,25 @@ class _Pitch extends ConsumerWidget {
     return SquadPitch(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          const cardW = 62.0;
-          const cardH = 80.0;
           return Stack(
             key: const ValueKey('squad-pitch'),
+            clipBehavior: Clip.none,
             children: [
               for (final slot in slots)
                 Positioned(
-                  left: (slot.x / 100) * (constraints.maxWidth - cardW),
-                  top: (slot.y / 100) * (constraints.maxHeight - cardH),
-                  width: cardW,
-                  height: cardH,
-                  child: _SlotTarget(slot: slot, onAssign: onAssign),
+                  // CENTRED on the formation's own percentage, which is what
+                  // `left:x%; top:y%; transform:translate(-50%,-50%)` means. It
+                  // had been mapping 0-100% onto `0..(width - cardWidth)`, which
+                  // pulls every slot toward the top-left and squeezes the gaps
+                  // between them until eleven tokens sit on top of each other.
+                  left: (slot.x / 100) * constraints.maxWidth,
+                  top: (slot.y / 100) * constraints.maxHeight,
+                  // The token sizes itself, so the half-shift has to come off its
+                  // own measured box rather than a hard-coded height.
+                  child: FractionalTranslation(
+                    translation: const Offset(-0.5, -0.5),
+                    child: _SlotTarget(slot: slot, onAssign: onAssign),
+                  ),
                 ),
             ],
           );
@@ -307,40 +516,40 @@ class _SlotTarget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
+    final pro = ref.watch(proModeProvider);
 
     return DragTarget<SquadDrag>(
+      key: ValueKey('squad-drop-${slot.slotId}'),
       onWillAcceptWithDetails: (d) => d.data.fromSlotId != slot.slotId,
       onAcceptWithDetails: (d) => onAssign(ref, d.data, slot.slotId),
       builder: (context, candidate, _) {
         final card = slot.card;
         if (card == null) {
-          return Container(
+          // An empty slot is TAPPABLE: it opens the pick-for-this-slot sheet,
+          // which is the JS's `data-occ="0"` handler and the only way to fill a
+          // side without dragging.
+          return GestureDetector(
             key: ValueKey('squad-slot-${slot.slotId}'),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: candidate.isEmpty ? kit.border : kit.accent,
-              ),
-              borderRadius: const BorderRadius.all(Radius.circular(8)),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              slot.slotPosition,
-              style: TextStyle(color: kit.textMuted, fontSize: 11),
-            ),
+            onTap: () => showSlotPicker(context, ref, slotId: slot.slotId),
+            child: PitchEmptySlot(position: slot.slotPosition),
           );
         }
-        final tile = PlayerCard(
+        final token = PitchToken(
           key: ValueKey('squad-slot-${slot.slotId}'),
-          view: card,
-          light: Theme.of(context).brightness == Brightness.light,
-          selected: candidate.isNotEmpty || slot.outOfPosition,
+          slot: slot,
+          proMode: pro,
+          highlighted: candidate.isNotEmpty,
         );
         return LongPressDraggable<SquadDrag>(
           data: (instanceId: slot.cardInstanceId, fromSlotId: slot.slotId),
           delay: const Duration(milliseconds: 200),
-          feedback: const SizedBox(width: 62, height: 80),
-          childWhenDragging: const SizedBox.shrink(),
+          // The token itself, lifted. It had been an EMPTY box, so dragging a
+          // man off the pitch showed nothing under the finger at all.
+          feedback: Transform.scale(
+            scale: 1.1,
+            child: PitchToken(slot: slot, proMode: pro),
+          ),
+          childWhenDragging: PitchEmptySlot(position: slot.slotPosition),
           child: GestureDetector(
             // A tap opens the player. Long-press still drags — the two do not
             // fight, because the drag has a 200ms hold before it starts.
@@ -353,8 +562,8 @@ class _SlotTarget extends ConsumerWidget {
             // Named, not punished, here: the rating penalty is the engine's,
             // and the screen's job is to say why a number looks low.
             child: slot.outOfPosition
-                ? Tooltip(message: t('squad.out_of_position'), child: tile)
-                : tile,
+                ? Tooltip(message: t('squad.out_of_position'), child: token)
+                : token,
           ),
         );
       },

@@ -21,7 +21,9 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
+import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
 int get _maleVariant => List.generate(
   playerVariants,
@@ -674,6 +676,168 @@ void main() {
                   as Map<String, dynamic>)['lineup']
               as List;
       expect(stored.every((s) => (s as Map)['cardInstanceId'] == null), isTrue);
+    });
+  });
+
+  group('what the tactic actually does', () {
+    testWidgets('picking one moves the ATK and DEF on the header', (
+      tester,
+    ) async {
+      // The one number that says what a tactic BUYS. It had been showing the
+      // untouched base, so writing a tactic to the save changed nothing on the
+      // screen and every tactic looked inert.
+      final container = await pumpSquad(tester);
+      final before = container.read(squadRatingsProvider);
+
+      await tester.tap(find.byKey(const ValueKey('squad-tactic')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tactic-allOutAttack')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      final after = container.read(squadRatingsProvider);
+      expect(after.attack, greaterThan(before.attack));
+      expect(after.defence, lessThan(before.defence));
+    });
+
+    testWidgets('and the sheet stays open so a second can be compared', (
+      tester,
+    ) async {
+      // The manager is comparing tactics; yanking the list away after one tap
+      // makes trying another cost a whole extra journey.
+      final container = await pumpSquad(tester);
+      await tester.tap(find.byKey(const ValueKey('squad-tactic')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tactic-parkTheBus')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('tactic-picker')), findsOneWidget);
+      expect(container.read(strategyIdProvider), 'parkTheBus');
+      await settleSave(tester);
+    });
+
+    testWidgets('every tactic is priced, not just named', (tester) async {
+      await pumpSquad(tester);
+      await tester.tap(find.byKey(const ValueKey('squad-tactic')));
+      await tester.pumpAndSettle();
+      // Five rows, and All Out Attack quotes its own trade.
+      for (final id in strategies.keys) {
+        expect(find.byKey(ValueKey('tactic-$id')), findsOneWidget);
+      }
+      final atk = strategies['allOutAttack']!;
+      expect(
+        find.text('ATK +${((atk.atkMult - 1) * 100).round()}%'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('the bench is a way INTO the side', () {
+    testWidgets('Send On is offered for a benched player', (tester) async {
+      // The bench is a sheet, so there is nothing to drag a card onto. Without
+      // this it was a dead end.
+      await pumpSquad(tester, cards: 14);
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(PlayerCard).first);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('detail-send-on')), findsOneWidget);
+      // And not the two that are about a slot he is not in.
+      expect(find.byKey(const ValueKey('detail-bench')), findsNothing);
+      expect(find.byKey(const ValueKey('detail-swap')), findsNothing);
+    });
+
+    testWidgets('and taking it puts him in the eleven', (tester) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final benched = container.read(benchProvider).first.instanceId;
+
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-bench-$benched')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('detail-send-on')));
+      // The sheet takes a beat to dismiss before the lineup is written.
+      await tester.pumpAndSettle(const Duration(milliseconds: 200));
+      await settleSave(tester);
+
+      final picked = container
+          .read(pitchSlotsProvider)
+          .map((s) => s.cardInstanceId)
+          .toSet();
+      expect(picked, contains(benched));
+      await settleSave(tester);
+    });
+
+    testWidgets('an empty slot on the pitch opens the picker', (tester) async {
+      // The other direction into the side, and the port had drawn the empty
+      // slot as an inert box with no gesture on it at all.
+      final container = await pumpSquad(tester);
+      await tester.tap(find.byKey(const ValueKey('squad-clear')));
+      await tester.pumpAndSettle();
+      // Clear refills on the way out, so empty one slot directly.
+      final slotId = container.read(pitchSlotsProvider).first.slotId;
+      container.read(gameProvider).update((s) {
+        for (final row in ((s['squad'] as Map)['lineup'] as List)) {
+          if ((row as Map)['slotId'] == slotId) row['cardInstanceId'] = null;
+        }
+      });
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(ValueKey('squad-slot-$slotId')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('slot-picker')), findsOneWidget);
+      await settleSave(tester);
+    });
+
+    testWidgets('and the picker rates everyone FOR THAT SLOT', (tester) async {
+      // Ordered by what a man is worth there, not by his card rating: a 78
+      // striker does not improve left back.
+      final container = await pumpSquad(tester);
+      final gkSlot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotPosition == 'GK');
+      final ranked = container.read(slotCandidatesProvider(gkSlot.slotPosition));
+      for (var i = 1; i < ranked.length; i++) {
+        expect(
+          ranked[i - 1].effRating,
+          greaterThanOrEqualTo(ranked[i].effRating),
+        );
+      }
+      // Nobody unavailable is offered — the engine rates them zero, so fielding
+      // one is fielding a hole.
+      expect(ranked.every((c) => c.effRating > 0), isTrue);
+    });
+  });
+
+  group('the pitch has room for eleven', () {
+    testWidgets('a slot is a token, not a full player card', (tester) async {
+      // Eleven merge cards do not fit; eleven tokens do.
+      await pumpSquad(tester);
+      expect(find.byType(PitchToken), findsNWidgets(11));
+    });
+
+    testWidgets('and the tokens do not overlap each other', (tester) async {
+      await pumpSquad(tester);
+      final boxes = [
+        for (final el in find.byType(PitchToken).evaluate())
+          tester.getRect(find.byWidget(el.widget)),
+      ];
+      for (var i = 0; i < boxes.length; i++) {
+        for (var j = i + 1; j < boxes.length; j++) {
+          final overlap = boxes[i].intersect(boxes[j]);
+          // Touching is fine; covering each other is what put eleven men in a
+          // pile when the slots were positioned by the wrong convention.
+          final area = overlap.width > 0 && overlap.height > 0
+              ? overlap.width * overlap.height
+              : 0.0;
+          expect(
+            area,
+            lessThan(boxes[i].width * boxes[i].height * 0.5),
+            reason: 'tokens $i and $j sit on top of each other',
+          );
+        }
+      }
     });
   });
 }
