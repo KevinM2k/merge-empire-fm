@@ -13,9 +13,15 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/data/quests.dart';
+import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/scout_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
+import 'package:merge_empire_fc/engine/season_end.dart' show trackEvent;
+import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
@@ -65,10 +71,62 @@ String? signBlocked(Map<String, dynamic>? state) {
   return null;
 }
 
-typedef Signing = ({bool ok, String? reason, int? idx, int cost, bool wasFree});
+/// One signing, and everything the reveal needs to caption it.
+///
+/// The reveal facts are decided HERE and applied nowhere: a card the tier rules
+/// have marked is still drawn, still placed and still turned over, and only
+/// cashed in once the player has seen it ([settleAutoSales]). Selling it out
+/// from under the reveal made Add Player look like it had done nothing at all.
+typedef Signing = ({
+  bool ok,
+  String? reason,
+  int? idx,
+  int cost,
+  bool wasFree,
 
-Signing _fail(String reason) =>
-    (ok: false, reason: reason, idx: null, cost: 0, wasFree: false);
+  /// First time this player has ever been seen, gender included.
+  bool isNewDiscovery,
+
+  /// The tier rules will cash this one in once the reveal is over.
+  bool autoSell,
+
+  /// What it will fetch. Priced now so the badge quotes the figure the sale
+  /// pays — [autoSellPrice] has no market roll, so it is stable.
+  num sellCoins,
+
+  /// The Guaranteed Scout's tier floor, when one paid for this card.
+  int? voucherFloor,
+
+  /// A plain free scout paid for it instead.
+  bool voucherRandom,
+});
+
+Signing _fail(String reason) => (
+  ok: false,
+  reason: reason,
+  idx: null,
+  cost: 0,
+  wasFree: false,
+  isNewDiscovery: false,
+  autoSell: false,
+  sellCoins: 0,
+  voucherFloor: null,
+  voucherRandom: false,
+);
+
+/// Has this card never been seen before?
+///
+/// `card:placed` fires synchronously inside [placeCard] and the save's discovery
+/// listener answers it, so by the time this is asked the count is already one
+/// for a first-ever sighting. That coupling is the JS's own and is why the
+/// question is asked here rather than before the draw — under plain `dart test`,
+/// with no listener attached, nothing has counted and the answer is false.
+bool _isFirstSighting(Map<String, dynamic> state, Object? raw) {
+  final card = CardInstance.from(raw);
+  if (card == null) return false;
+  final counts = _map(_map(state['progression'])?['playerFoundCounts']);
+  return (_num(counts?[card.discoveryKey]) ?? 0) == 1;
+}
 
 /// Sign one player into the first empty slot.
 ///
@@ -107,8 +165,36 @@ Signing signPlayer(Map<String, dynamic> state) {
   if (stats != null) {
     stats['totalScouts'] = ((_num(stats['totalScouts']) ?? 0) + 1).toInt();
   }
+  // The action funnel, which the season quest track and any live event's reward
+  // track both read. `season_scout` could not advance without it.
+  trackEvent(state, QuestAction.scoutCount);
 
-  return (ok: true, reason: null, idx: placed.idx, cost: cost, wasFree: free);
+  final idx = placed.idx!;
+  final cells = _cells(state);
+  final raw = idx < cells.length ? cells[idx] : null;
+  final autoSell = willAutoSell(state, cells, idx);
+
+  return (
+    ok: true,
+    reason: null,
+    idx: idx,
+    cost: cost,
+    wasFree: free,
+    isNewDiscovery: _isFirstSighting(state, raw),
+    autoSell: autoSell,
+    sellCoins: autoSell
+        ? autoSellPrice(
+            state,
+            getPlayerDef(CardInstance.from(raw)?.definitionId ?? ''),
+            CardInstance.from(raw),
+          )
+        : 0,
+    // In a batch only the FIRST card is on a voucher — it is spent above, and
+    // the next pass reads nothing. Without the caption there was no telling
+    // which of four cards was the one the promise had been bought for.
+    voucherFloor: floor,
+    voucherRandom: floor == null && free,
+  );
 }
 
 // ── Scouting in batches ─────────────────────────────────────────────────────
@@ -165,7 +251,8 @@ int effectiveScoutBatch(Map<String, dynamic>? state) {
 
 /// What a batch actually delivered.
 typedef ScoutBatch = ({
-  List<int> placed,
+  /// One entry per card that landed, in the order they landed.
+  List<Signing> placed,
   int spent,
 
   /// Why it fell short of what was asked for, or null when it did not.
@@ -182,19 +269,67 @@ typedef ScoutBatch = ({
 /// charged only for what it delivered; and the voucher is consumed by the first
 /// card alone.
 ScoutBatch signPlayers(Map<String, dynamic> state, int count) {
-  final placed = <int>[];
+  final want = math.max(1, math.min(maxScoutBatch, count));
+  final placed = <Signing>[];
   var spent = 0;
   String? stoppedBy;
 
-  for (var i = 0; i < math.max(1, count); i++) {
+  for (var i = 0; i < want; i++) {
     final result = signPlayer(state);
     if (!result.ok) {
       stoppedBy = result.reason;
       break;
     }
-    if (result.idx != null) placed.add(result.idx!);
+    placed.add(result);
     spent += result.cost;
   }
 
+  if (placed.isNotEmpty) {
+    emit('coins:updated', _coins(state));
+    // Fell short of what was asked for — say so, rather than quietly delivering
+    // fewer cards than the player was paying attention to.
+    if (placed.length < want) {
+      emit('scout:short', {'got': placed.length, 'want': want});
+    }
+  }
+
   return (placed: placed, spent: spent, stoppedBy: stoppedBy);
+}
+
+/// What the tier rules cashed in once the reveal was over.
+typedef AutoSales = ({int sold, num coins, PlayerDef? topSoldDef});
+
+/// Cash in the cards the tier rules marked, now that the reveal has finished.
+///
+/// Deliberately after the reveal rather than during the draw: the player sees
+/// every card they paid for, then watches the marked ones turn into coins. The
+/// guards are re-checked inside [applyTierAction] against live state, so a rule
+/// switched off mid-reveal — or a squad down to its last player — still wins.
+AutoSales settleAutoSales(Map<String, dynamic> state, List<Signing> placed) {
+  var sold = 0;
+  num coins = 0;
+  PlayerDef? topSoldDef;
+
+  for (final signing in placed) {
+    final idx = signing.idx;
+    if (!signing.autoSell || idx == null) continue;
+    final ruled = applyTierAction(state, _cells(state), idx);
+    if (ruled.action != TierAction.sell) continue;
+    sold++;
+    coins += ruled.coins;
+    if ((ruled.def?.tier ?? 0) > (topSoldDef?.tier ?? 0)) topSoldDef = ruled.def;
+  }
+
+  if (sold > 0) {
+    emit('coins:updated', _coins(state));
+    emit('scout:auto_sold', {'sold': sold, 'coins': coins});
+    // The sell SFX and the achievement sweep both fire once for the batch, keyed
+    // on the best card that went — an auto-sold Gold is still a big-money move.
+    emit('player:sold', {
+      'def': topSoldDef,
+      'definitionId': topSoldDef?.id,
+    });
+  }
+
+  return (sold: sold, coins: coins, topSoldDef: topSoldDef);
 }
