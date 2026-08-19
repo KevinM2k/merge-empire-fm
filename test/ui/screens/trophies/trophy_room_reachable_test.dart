@@ -68,7 +68,7 @@ void main() {
 
   testWidgets('the quick-nav menu opens it', (tester) async {
     await _pumpShell(tester);
-    await tester.tap(find.byKey(const ValueKey('quick-nav-open')));
+    await tester.tap(find.byKey(const ValueKey('dock-menu')));
     await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey('quick-nav-scene.dock.trophies')),
@@ -90,7 +90,7 @@ void main() {
 
   testWidgets('the menu names it in the player\'s language', (tester) async {
     await _pumpShell(tester);
-    await tester.tap(find.byKey(const ValueKey('quick-nav-open')));
+    await tester.tap(find.byKey(const ValueKey('dock-menu')));
     await tester.pumpAndSettle();
     expect(find.text(t('scene.dock.trophies')), findsOneWidget);
   });

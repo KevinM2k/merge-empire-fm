@@ -135,7 +135,10 @@ void main() {
     testWidgets('rises with its content and closes on back', (tester) async {
       await pumpHost(tester);
       unawaitedShow(
-        showBottomSheetPopup<void>(hostContext, child: const Text('sheet body')),
+        showBottomSheetPopup<void>(
+          hostContext,
+          child: const Text('sheet body'),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('sheet body'), findsOneWidget);
@@ -169,7 +172,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(t('quicknav.title')), findsOneWidget);
-      expect(find.text(t('quicknav.group.league')), findsOneWidget);
+      expect(
+        find.text(t('quicknav.group.league').toUpperCase()),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const ValueKey('quick-nav-nav.squad')));
       await tester.pumpAndSettle();

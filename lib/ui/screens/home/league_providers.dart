@@ -5,13 +5,16 @@
 /// result.
 library;
 
+import 'dart:math' as math;
+
+import 'package:merge_empire_fc/engine/match_tactics.dart';
+
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
-int _int(Object? v, [int fallback = 0]) =>
-    v is num ? v.toInt() : fallback;
+int _int(Object? v, [int fallback = 0]) => v is num ? v.toInt() : fallback;
 
 /// One line of the schedule.
 typedef FixtureRow = ({
@@ -64,4 +67,18 @@ final fixturesProvider = savePick<List<FixtureRow>>((s) {
           );
         }(),
   ]..sort((a, b) => a.round.compareTo(b.round));
+});
+
+/// Which match of the season is next, clamped to the last one.
+///
+/// The home screen reads "Sunday League · Match 7". The clamp matters at the
+/// season boundary: every match is played, `matchesPlayed` reaches the total,
+/// and without it the header advertises a fifteenth match in a fourteen-match
+/// season.
+final nextMatchNumberProvider = savePick<int>((s) {
+  final prog = s['progression'];
+  final played = prog is Map<String, dynamic> && prog['matchesPlayed'] is num
+      ? (prog['matchesPlayed'] as num).toInt()
+      : 0;
+  return math.min(played + 1, matchesPerSeason);
 });

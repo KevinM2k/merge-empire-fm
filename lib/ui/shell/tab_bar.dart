@@ -11,7 +11,7 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 const Map<ShellTab, IconData> tabIcons = {
   ShellTab.grid: Icons.dashboard,
   ShellTab.squad: Icons.groups,
-  ShellTab.league: Icons.home,
+  ShellTab.home: Icons.home,
   ShellTab.club: Icons.checkroom,
   ShellTab.shop: Icons.storefront,
 };
@@ -69,7 +69,7 @@ class _TabButton extends StatelessWidget {
     // Play is the only tab with any weight in the bar, and the word under it was
     // the one label telling you nothing its icon didn't. Icon only there; the
     // name still exists for a screen reader.
-    if (tab == ShellTab.league) {
+    if (tab == ShellTab.home) {
       return Semantics(
         label: label,
         button: true,
@@ -81,7 +81,10 @@ class _TabButton extends StatelessWidget {
             width: 60,
             height: 60,
             margin: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(color: kit.accent, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: kit.accent,
+              shape: BoxShape.circle,
+            ),
             child: Icon(tabIcons[tab], size: 28, color: kit.accentInk),
           ),
         ),

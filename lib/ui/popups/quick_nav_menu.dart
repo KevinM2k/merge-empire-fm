@@ -1,12 +1,19 @@
 /// The quick-nav menu — the third and last popup shape.
 ///
-/// A grouped list of shortcuts to the screens that are not tabs. Grouped
-/// headings come straight from the catalogue's `quicknav.group.*` keys.
+/// **A centred grid, deliberately NOT a bottom sheet.** The JS says why in as
+/// many words: a 3×3 grid wants the middle of the screen, and the sheet's
+/// chrome — a grab handle, a pinned close — promises scrollable content about
+/// something that has none. The port had it as a sheet, which put the last
+/// group below the fold on a short screen: the exact failure the shape was
+/// chosen to avoid.
+///
+/// Groups come straight from the catalogue's `quicknav.group.*` keys, and the
+/// grouping is the point — "where you stand / what there is to do / what you've
+/// won" makes eight destinations findable in a way one flat list does not.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class QuickNavItem {
@@ -32,43 +39,121 @@ Future<void> showQuickNavMenu(
   BuildContext context, {
   required List<QuickNavGroup> groups,
 }) {
-  final kit = Theme.of(context).extension<KitTheme>()!;
-  return showBottomSheetPopup<void>(
-    context,
-    heightFraction: 0.6,
-    child: ListView(
-      key: const ValueKey('quick-nav'),
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          t('quicknav.title'),
-          style: TextStyle(
-            color: kit.accentBright,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.55),
+    builder: (dialogContext) => _QuickNavMenu(groups: groups),
+  );
+}
+
+class _QuickNavMenu extends StatelessWidget {
+  const _QuickNavMenu({required this.groups});
+
+  final List<QuickNavGroup> groups;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Dialog(
+      backgroundColor: kit.surface,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: kit.border),
+      ),
+      child: SingleChildScrollView(
+        key: const ValueKey('quick-nav'),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              t('quicknav.title'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: kit.accentBright,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            for (final group in groups) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                child: Text(
+                  t(group.titleKey).toUpperCase(),
+                  style: TextStyle(
+                    color: kit.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              // Wrap rather than a fixed grid: a group of two centres rather
+              // than left-packing beside an empty third cell.
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final item in group.items) _QuickNavTile(item: item),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickNavTile extends StatelessWidget {
+  const _QuickNavTile({required this.item});
+
+  final QuickNavItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return SizedBox(
+      width: 92,
+      child: InkWell(
+        key: ValueKey('quick-nav-${item.labelKey}'),
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          // Closed BEFORE the destination opens, so the menu is not left
+          // stacked underneath whatever rises over it.
+          Navigator.of(context).pop();
+          item.onTap();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+          decoration: BoxDecoration(
+            color: kit.surface2,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: kit.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(item.icon, color: kit.accent, size: 26),
+              const SizedBox(height: 6),
+              Text(
+                t(item.labelKey),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        for (final group in groups) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
-            child: Text(
-              t(group.titleKey),
-              style: TextStyle(color: kit.textMuted, fontSize: 12),
-            ),
-          ),
-          for (final item in group.items)
-            ListTile(
-              key: ValueKey('quick-nav-${item.labelKey}'),
-              leading: Icon(item.icon, color: kit.accent),
-              title: Text(t(item.labelKey)),
-              onTap: () {
-                Navigator.of(context).pop();
-                item.onTap();
-              },
-            ),
-        ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }

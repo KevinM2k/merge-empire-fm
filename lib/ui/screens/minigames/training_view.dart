@@ -1,4 +1,4 @@
-/// The Play tab's Training sub-tab.
+/// The list of drills, shown in the Training sheet.
 ///
 /// It was a stub saying "coming soon" while the Club's Training Ground was
 /// busy unlocking games it pointed at — two dangling references at once.

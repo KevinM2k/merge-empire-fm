@@ -18,7 +18,6 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
-import 'package:merge_empire_fc/ui/screens/league/league_screen.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
@@ -82,7 +81,7 @@ void main() {
     expect(tabOrder, [
       ShellTab.grid,
       ShellTab.squad,
-      ShellTab.league,
+      ShellTab.home,
       ShellTab.club,
       ShellTab.shop,
     ]);
@@ -90,7 +89,7 @@ void main() {
 
   testWidgets('opens on the Play tab', (tester) async {
     await pumpShell(tester);
-    expect(activeTabOf(tester), ShellTab.league);
+    expect(activeTabOf(tester), ShellTab.home);
   });
 
   testWidgets('tapping a tab switches to it', (tester) async {
@@ -109,13 +108,15 @@ void main() {
     }
   });
 
-  testWidgets('the raised Play tab is icon-only but still named', (tester) async {
+  testWidgets('the raised Play tab is icon-only but still named', (
+    tester,
+  ) async {
     await pumpShell(tester);
     // The JS drops this one label deliberately: it was the only label in the bar
     // telling you nothing its icon didn't. The accessible name stays.
     expect(
       find.descendant(
-        of: find.byKey(const ValueKey('tab-league')),
+        of: find.byKey(const ValueKey('tab-home')),
         matching: find.byType(Text),
       ),
       findsNothing,
@@ -129,7 +130,7 @@ void main() {
       reason: 'the other four keep their labels',
     );
     expect(
-      tester.getSemantics(find.byKey(const ValueKey('tab-league'))).label,
+      tester.getSemantics(find.byKey(const ValueKey('tab-home'))).label,
       contains(t('nav.play')),
     );
   });
@@ -159,7 +160,7 @@ void main() {
       reason: 'grid starts offscreen',
     );
     expect(
-      screenState(tester, ShellTab.league).isTicking,
+      screenState(tester, ShellTab.home).isTicking,
       isTrue,
       reason: 'league is the opening tab',
     );
@@ -168,15 +169,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 32));
 
     expect(screenState(tester, ShellTab.grid).isTicking, isTrue);
-    expect(screenState(tester, ShellTab.league).isTicking, isFalse);
+    expect(screenState(tester, ShellTab.home).isTicking, isFalse);
 
     // And the flag is not just cosmetic: the muted screen is handed no frames.
-    final leagueTicks = screenState(tester, ShellTab.league).ticks;
+    final leagueTicks = screenState(tester, ShellTab.home).ticks;
     final gridTicks = screenState(tester, ShellTab.grid).ticks;
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
-    expect(screenState(tester, ShellTab.league).ticks, leagueTicks);
+    expect(screenState(tester, ShellTab.home).ticks, leagueTicks);
     expect(screenState(tester, ShellTab.grid).ticks, greaterThan(gridTicks));
   });
 
@@ -219,13 +220,17 @@ void main() {
     shell.goTab(ShellTab.shop);
     await tester.pump();
     // Mid-slide: the incoming screen is still off to one side.
-    final mid = tester.widget<SlideTransition>(find.byKey(const ValueKey('tab-slide')));
+    final mid = tester.widget<SlideTransition>(
+      find.byKey(const ValueKey('tab-slide')),
+    );
     expect(mid.position.value, isNot(Offset.zero));
 
     await tester.pump(const Duration(milliseconds: 300));
     shell.goTab(ShellTab.grid, noSlide: true);
     await tester.pump();
-    final deep = tester.widget<SlideTransition>(find.byKey(const ValueKey('tab-slide')));
+    final deep = tester.widget<SlideTransition>(
+      find.byKey(const ValueKey('tab-slide')),
+    );
     expect(
       deep.position.value,
       Offset.zero,
@@ -243,7 +248,9 @@ void main() {
     expect(t('nav.shop'), isNot('Shop'), reason: 'fr should differ from en');
   });
 
-  testWidgets('a sheet opens over the shell and closes on back', (tester) async {
+  testWidgets('a sheet opens over the shell and closes on back', (
+    tester,
+  ) async {
     await pumpShell(tester);
     final context = tester.element(find.byType(IndexedStack));
     unawaited(
@@ -259,7 +266,7 @@ void main() {
     await settle(tester);
     await settle(tester);
     expect(find.text('sheet body'), findsNothing);
-    expect(activeTabOf(tester), ShellTab.league);
+    expect(activeTabOf(tester), ShellTab.home);
   });
 
   testWidgets('the event route forces dark only for a themed event', (
@@ -310,9 +317,11 @@ void main() {
     );
   });
 
-  testWidgets('tapping Play always lands on Overview', (tester) async {
-    // The JS rule, and the one the shell module had to defer because there were
-    // no sub-tabs to reset to. Tapping Play is "take me home".
+  testWidgets('the home tab has no sub-tabs left to reset', (tester) async {
+    // The JS rule was "tapping Play is take me home", which needed a reset
+    // because Home had a sub-tab strip. It has none: the table and the fixtures
+    // are quick-nav sheets that close over the screen rather than replacing it,
+    // so the rule holds by construction and there is nothing to call.
     final container = ProviderContainer(
       overrides: [
         saveStoreProvider.overrideWithValue(
@@ -336,24 +345,13 @@ void main() {
     );
     await settle(tester);
 
-    final league = tester.state<LeagueScreenState>(find.byType(LeagueScreen));
-    league.setSubTab(LeagueSubTab.table);
-    await settle(tester);
-    expect(league.subTab, LeagueSubTab.table);
+    expect(find.byKey(const ValueKey('home-screen')), findsOneWidget);
 
-    // Away and back.
+    // Away and back leaves the same screen, not a remembered sub-tab.
     await tester.tap(find.byKey(const ValueKey('tab-shop')));
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('tab-league')));
+    await tester.tap(find.byKey(const ValueKey('tab-home')));
     await settle(tester);
-    expect(league.subTab, LeagueSubTab.overview);
-
-    // And again while Play is ALREADY the tab, which is the case the rule is
-    // really about.
-    league.setSubTab(LeagueSubTab.fixtures);
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('tab-league')));
-    await settle(tester);
-    expect(league.subTab, LeagueSubTab.overview);
+    expect(find.byKey(const ValueKey('home-screen')), findsOneWidget);
   });
 }

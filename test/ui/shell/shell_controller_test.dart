@@ -20,7 +20,7 @@ void main() {
   }
 
   test('opens on the Play tab', () {
-    expect(container().read(shellControllerProvider).tab, ShellTab.league);
+    expect(container().read(shellControllerProvider).tab, ShellTab.home);
   });
 
   test('goTab moves the tab and asks for a slide', () {
@@ -39,13 +39,20 @@ void main() {
     expect(s.pendingShopSection, ShopSection.gems);
   });
 
-  test('the pending section is consumed once, so a rebuild does not re-scroll', () {
-    final c = container();
-    c.read(shellControllerProvider.notifier).deepLinkShop(ShopSection.coins);
-    c.read(shellControllerProvider.notifier).consumePendingShopSection();
-    expect(c.read(shellControllerProvider).pendingShopSection, isNull);
-    expect(c.read(shellControllerProvider).tab, ShellTab.shop, reason: 'still there');
-  });
+  test(
+    'the pending section is consumed once, so a rebuild does not re-scroll',
+    () {
+      final c = container();
+      c.read(shellControllerProvider.notifier).deepLinkShop(ShopSection.coins);
+      c.read(shellControllerProvider.notifier).consumePendingShopSection();
+      expect(c.read(shellControllerProvider).pendingShopSection, isNull);
+      expect(
+        c.read(shellControllerProvider).tab,
+        ShellTab.shop,
+        reason: 'still there',
+      );
+    },
+  );
 
   test('an ordinary tab move clears a stale pending section', () {
     final c = container();
@@ -83,7 +90,10 @@ void main() {
       final c = container();
       attachShellBusListeners(c.read(shellControllerProvider.notifier));
       emit('nav:shop-coins');
-      expect(c.read(shellControllerProvider).pendingShopSection, ShopSection.coins);
+      expect(
+        c.read(shellControllerProvider).pendingShopSection,
+        ShopSection.coins,
+      );
     });
 
     test('attaching twice does not double-handle', () {
@@ -99,7 +109,7 @@ void main() {
       attachShellBusListeners(c.read(shellControllerProvider.notifier));
       detachShellBusListeners();
       emit('nav:tab-squad');
-      expect(c.read(shellControllerProvider).tab, ShellTab.league);
+      expect(c.read(shellControllerProvider).tab, ShellTab.home);
       expect(busListenerCount('nav:tab-squad'), 0);
     });
   });

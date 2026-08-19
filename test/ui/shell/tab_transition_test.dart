@@ -9,7 +9,7 @@ void main() {
       EnterMode.fromRight,
     );
     expect(
-      enterModeFor(from: ShellTab.league, to: ShellTab.club, noSlide: false),
+      enterModeFor(from: ShellTab.home, to: ShellTab.club, noSlide: false),
       EnterMode.fromRight,
     );
   });
@@ -20,7 +20,7 @@ void main() {
       EnterMode.fromLeft,
     );
     expect(
-      enterModeFor(from: ShellTab.league, to: ShellTab.squad, noSlide: false),
+      enterModeFor(from: ShellTab.home, to: ShellTab.squad, noSlide: false),
       EnterMode.fromLeft,
     );
   });

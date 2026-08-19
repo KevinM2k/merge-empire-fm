@@ -21,7 +21,7 @@ import 'package:merge_empire_fc/ui/popups/energy_sheet.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
-import 'package:merge_empire_fc/ui/screens/league/league_screen.dart';
+import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
 import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
@@ -55,9 +55,6 @@ class AppShellState extends ConsumerState<AppShell>
   ShellTab _active = defaultTab;
   EnterMode _enter = EnterMode.none;
 
-  /// Lets a tap on the Play tab reach the League screen's sub-tabs.
-  final GlobalKey<LeagueScreenState> _leagueKey = GlobalKey();
-
   /// The card-reveal overlay dims the whole screen and sits UNDER the HUD, so
   /// an unhidden HUD punches through its dim. The JS flags the body element for
   /// the same reason.
@@ -87,11 +84,11 @@ class AppShellState extends ConsumerState<AppShell>
       ref.read(shellControllerProvider.notifier).goTab(tab, noSlide: noSlide);
 
   void _applyTab(ShellTab tab, {required bool noSlide}) {
-    // Tapping Play always lands on Overview, even when the player was last on
-    // the table. Tapping Play is "take me home", and last week's table is not
-    // home. Done even when Play is ALREADY the tab, which is the case the JS
-    // rule is really about.
-    if (tab == ShellTab.league) _leagueKey.currentState?.resetToOverview();
+    // The home screen used to have sub-tabs, so tapping Home had to reset it to
+    // Overview — "take me home", and last week's table is not home. It has no
+    // sub-tabs now: the table and the fixtures are quick-nav sheets and close
+    // over the screen rather than replacing it, so there is nothing left to
+    // reset and the rule holds by construction.
     if (tab == _active) return;
     final mode = enterModeFor(from: _active, to: tab, noSlide: noSlide);
     setState(() {
@@ -153,11 +150,8 @@ class AppShellState extends ConsumerState<AppShell>
                 onHorizontalDragEnd: _onDragEnd,
                 child: SlideTransition(
                   key: const ValueKey('tab-slide'),
-                  position:
-                      Tween<Offset>(
-                        begin: _beginOffset,
-                        end: Offset.zero,
-                      ).animate(
+                  position: Tween<Offset>(begin: _beginOffset, end: Offset.zero)
+                      .animate(
                         CurvedAnimation(
                           parent: _slide,
                           curve: Curves.easeOutCubic,
@@ -171,7 +165,8 @@ class AppShellState extends ConsumerState<AppShell>
                           enabled: tab == _active,
                           // Exhaustive over ShellTab: every tab has a real
                           // screen now, so there is no fallback left to write.
-                          child: widget.screenFor?.call(tab) ??
+                          child:
+                              widget.screenFor?.call(tab) ??
                               switch (tab) {
                                 ShellTab.grid => const GridScreen(
                                   key: ValueKey('screen-grid'),
@@ -179,8 +174,8 @@ class AppShellState extends ConsumerState<AppShell>
                                 ShellTab.squad => const SquadScreen(
                                   key: ValueKey('screen-squad'),
                                 ),
-                                ShellTab.league => LeagueScreen(
-                                  key: _leagueKey,
+                                ShellTab.home => const HomeScreen(
+                                  key: ValueKey('screen-home'),
                                 ),
                                 ShellTab.club => const ClubScreen(
                                   key: ValueKey('screen-club'),

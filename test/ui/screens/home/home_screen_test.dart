@@ -1,4 +1,4 @@
-/// The Play tab.
+/// The home screen.
 library;
 
 import 'dart:convert';
@@ -13,14 +13,14 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
-import 'package:merge_empire_fc/ui/screens/league/league_providers.dart';
-import 'package:merge_empire_fc/ui/screens/league/league_screen.dart';
+import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Future<void> settleSave(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
-Future<ProviderContainer> pumpLeague(
+Future<ProviderContainer> pumpHome(
   WidgetTester tester, {
   void Function(Map<String, dynamic> state)? mutate,
 }) async {
@@ -43,7 +43,7 @@ Future<ProviderContainer> pumpLeague(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
-          home: const Scaffold(body: LeagueScreen()),
+          home: const Scaffold(body: HomeScreen()),
         ),
       ),
     ),
@@ -52,8 +52,14 @@ Future<ProviderContainer> pumpLeague(
   return container;
 }
 
-LeagueScreenState stateOf(WidgetTester tester) =>
-    tester.state<LeagueScreenState>(find.byType(LeagueScreen));
+/// Table, fixtures and training are quick-nav destinations now rather than
+/// sub-tabs, so a test reaches them the way a player does: through the burger.
+Future<void> openFromMenu(WidgetTester tester, String labelKey) async {
+  await tester.tap(find.byKey(const ValueKey('dock-menu')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('quick-nav-$labelKey')));
+  await tester.pumpAndSettle();
+}
 
 /// A finished season, so the table and the schedule both have something in them.
 void playedSeason(Map<String, dynamic> s) {
@@ -81,48 +87,45 @@ void playedSeason(Map<String, dynamic> s) {
 void main() {
   tearDown(resetLocale);
 
-  group('the sub-tabs', () {
-    testWidgets('open on Overview', (tester) async {
-      await pumpLeague(tester);
-      expect(stateOf(tester).subTab, LeagueSubTab.overview);
-    });
-
-    testWidgets('every one is reachable', (tester) async {
-      await pumpLeague(tester);
-      for (final tab in LeagueSubTab.values) {
-        await tester.tap(find.byKey(ValueKey('league-subtab-${tab.name}')));
-        await tester.pumpAndSettle();
-        expect(stateOf(tester).subTab, tab);
+  group('the layout', () {
+    testWidgets('has no sub-tabs — the burger holds them', (tester) async {
+      // The strip across the top was the arrangement the JS moved away from.
+      await pumpHome(tester);
+      expect(find.byKey(const ValueKey('home-screen')), findsOneWidget);
+      for (final name in ['overview', 'table', 'fixtures', 'training']) {
+        expect(
+          find.byKey(ValueKey('league-subtab-$name')),
+          findsNothing,
+          reason: name,
+        );
       }
     });
 
-    testWidgets('resetToOverview brings it home from anywhere', (tester) async {
-      // What the bar's Play tab calls. Tapping Play is "take me home", and last
-      // week's table is not home.
-      await pumpLeague(tester);
-      stateOf(tester).setSubTab(LeagueSubTab.table);
-      await tester.pumpAndSettle();
-      expect(stateOf(tester).subTab, LeagueSubTab.table);
+    testWidgets('Colin is bottom left and the burger bottom right', (
+      tester,
+    ) async {
+      await pumpHome(tester);
+      final coach = tester.getCenter(find.byKey(const ValueKey('dock-coach')));
+      final menu = tester.getCenter(find.byKey(const ValueKey('dock-menu')));
+      final size = tester.getSize(find.byKey(const ValueKey('home-screen')));
 
-      stateOf(tester).resetToOverview();
-      await tester.pumpAndSettle();
-      expect(stateOf(tester).subTab, LeagueSubTab.overview);
+      expect(coach.dx, lessThan(size.width / 2));
+      expect(menu.dx, greaterThan(size.width / 2));
+      // Both sit in the bottom third, level with each other.
+      expect(coach.dy, greaterThan(size.height * 0.66));
+      expect(coach.dy, closeTo(menu.dy, 1));
     });
 
-    testWidgets('the diorama is named rather than half-built', (tester) async {
-      // Its technique is gated on profile timings from a physical device, so
-      // it stays named until those exist.
-      await pumpLeague(tester);
-      expect(
-        find.byKey(const ValueKey('league-overview-pending')),
-        findsOneWidget,
-      );
+    testWidgets('Colin has something to say', (tester) async {
+      await pumpHome(tester);
+      await tester.tap(find.byKey(const ValueKey('dock-coach')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('coach-bubble')), findsOneWidget);
     });
 
-    testWidgets('training is a real list of drills now', (tester) async {
-      await pumpLeague(tester);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-training')));
-      await tester.pumpAndSettle();
+    testWidgets('training is reachable from the burger', (tester) async {
+      await pumpHome(tester);
+      await openFromMenu(tester, 'subnav.training');
       expect(find.byKey(const ValueKey('training-view')), findsOneWidget);
       expect(find.byKey(const ValueKey('training-penalty')), findsOneWidget);
     });
@@ -130,24 +133,30 @@ void main() {
 
   group('the table', () {
     testWidgets('lists the division and its rows', (tester) async {
-      final container = await pumpLeague(tester, mutate: playedSeason);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-table')));
-      await tester.pumpAndSettle();
+      final container = await pumpHome(tester, mutate: playedSeason);
+      await openFromMenu(tester, 'subnav.table');
 
       expect(find.byKey(const ValueKey('league-table')), findsOneWidget);
-      expect(find.text(container.read(divisionNameProvider)), findsOneWidget);
+      // Scoped to the sheet: the home screen behind it names the division too.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('league-table')),
+          matching: find.text(container.read(divisionNameProvider)),
+        ),
+        findsOneWidget,
+      );
       expect(container.read(leagueTableProvider), isNotEmpty);
     });
 
     testWidgets('marks the player s own club', (tester) async {
       // It is the row they came to look at; everything else is context for it.
-      final container = await pumpLeague(tester, mutate: playedSeason);
+      final container = await pumpHome(tester, mutate: playedSeason);
       final rows = container.read(leagueTableProvider);
       expect(rows.where((r) => r.isPlayer).length, 1);
     });
 
     testWidgets('is sorted by position', (tester) async {
-      final container = await pumpLeague(tester, mutate: playedSeason);
+      final container = await pumpHome(tester, mutate: playedSeason);
       final rows = container.read(leagueTableProvider);
       for (var i = 1; i < rows.length; i++) {
         expect(
@@ -161,9 +170,8 @@ void main() {
 
   group('the fixtures', () {
     testWidgets('list the schedule in round order', (tester) async {
-      final container = await pumpLeague(tester, mutate: playedSeason);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
-      await tester.pumpAndSettle();
+      final container = await pumpHome(tester, mutate: playedSeason);
+      await openFromMenu(tester, 'subnav.fixtures');
 
       final rows = container.read(fixturesProvider);
       expect(rows.length, 3);
@@ -171,19 +179,20 @@ void main() {
       expect(find.byKey(const ValueKey('league-fixtures')), findsOneWidget);
     });
 
-    testWidgets('a played fixture carries its score, an unplayed one does not', (
-      tester,
-    ) async {
-      final container = await pumpLeague(tester, mutate: playedSeason);
-      final rows = container.read(fixturesProvider);
-      expect(rows.first.played, isTrue);
-      expect(rows.first.homeGoals, 2);
-      expect(rows.last.played, isFalse);
-      expect(rows.last.homeGoals, isNull);
-    });
+    testWidgets(
+      'a played fixture carries its score, an unplayed one does not',
+      (tester) async {
+        final container = await pumpHome(tester, mutate: playedSeason);
+        final rows = container.read(fixturesProvider);
+        expect(rows.first.played, isTrue);
+        expect(rows.first.homeGoals, 2);
+        expect(rows.last.played, isFalse);
+        expect(rows.last.homeGoals, isNull);
+      },
+    );
 
     testWidgets('the player s own games are marked', (tester) async {
-      final container = await pumpLeague(tester, mutate: playedSeason);
+      final container = await pumpHome(tester, mutate: playedSeason);
       final rows = container.read(fixturesProvider);
       expect(rows.where((r) => r.involvesPlayer).length, 2);
       expect(rows[1].involvesPlayer, isFalse);
@@ -192,9 +201,8 @@ void main() {
     testWidgets('an unstarted season says so rather than showing nothing', (
       tester,
     ) async {
-      await pumpLeague(tester);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
-      await tester.pumpAndSettle();
+      await pumpHome(tester);
+      await openFromMenu(tester, 'subnav.fixtures');
       expect(
         find.byKey(const ValueKey('league-fixtures-empty')),
         findsOneWidget,
@@ -203,18 +211,18 @@ void main() {
   });
 
   group('playing a match', () {
-    testWidgets('the fixtures tab offers a Play button', (tester) async {
-      await pumpLeague(tester, mutate: playedSeason);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
-      await tester.pumpAndSettle();
+    testWidgets('the home screen offers the Play button directly', (
+      tester,
+    ) async {
+      // It used to sit under the fixture list, which put the one control the
+      // whole screen exists for two taps deep.
+      await pumpHome(tester, mutate: playedSeason);
       expect(find.byKey(const ValueKey('play-match')), findsOneWidget);
     });
 
     testWidgets('a squad too small is refused, and told why', (tester) async {
       // canPlayMatch folds three refusals together; the button names which.
-      await pumpLeague(tester, mutate: playedSeason);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
-      await tester.pumpAndSettle();
+      await pumpHome(tester, mutate: playedSeason);
 
       expect(
         tester
@@ -225,10 +233,10 @@ void main() {
       expect(find.byKey(const ValueKey('play-blocked')), findsOneWidget);
     });
 
-    testWidgets('a ready save can start one, and it takes over', (tester) async {
-      final container = await pumpLeague(tester, mutate: readyToPlay);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
-      await tester.pumpAndSettle();
+    testWidgets('a ready save can start one, and it takes over', (
+      tester,
+    ) async {
+      final container = await pumpHome(tester, mutate: readyToPlay);
 
       final energyBefore = container.read(energyProvider);
       expect(
@@ -257,13 +265,12 @@ void main() {
     testWidgets('full time commits, and closing pays', (tester) async {
       // The coins land on dismissal, not at full time: the doubling offer lives
       // on the closing screen.
-      final container = await pumpLeague(tester, mutate: readyToPlay);
-      await tester.tap(find.byKey(const ValueKey('league-subtab-fixtures')));
-      await tester.pumpAndSettle();
+      final container = await pumpHome(tester, mutate: readyToPlay);
 
       final playedBefore =
           (container.read(gameProvider).state!['progression']
-              as Map<String, dynamic>)['matchesPlayed'] as num;
+                  as Map<String, dynamic>)['matchesPlayed']
+              as num;
 
       await tester.tap(find.byKey(const ValueKey('play-match')));
       await tester.pumpAndSettle();
@@ -282,7 +289,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('match-screen')), findsNothing);
-      expect(container.read(coinsProvider), greaterThanOrEqualTo(coinsAtFullTime));
+      expect(
+        container.read(coinsProvider),
+        greaterThanOrEqualTo(coinsAtFullTime),
+      );
       expect(
         container.read(tickGatesProvider).matchOpen,
         isFalse,

@@ -255,7 +255,7 @@ void main() {
   group('reachability', () {
     testWidgets('the quick-nav menu opens it', (tester) async {
       await _pump(tester, _save(), viaShell: true);
-      await tester.tap(find.byKey(const ValueKey('quick-nav-open')));
+      await tester.tap(find.byKey(const ValueKey('dock-menu')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('quick-nav-scene.dock.index')));
       await tester.pumpAndSettle();

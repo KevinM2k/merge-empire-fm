@@ -15,7 +15,6 @@ import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
-import 'package:merge_empire_fc/ui/shell/shell_quick_nav.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -50,7 +49,6 @@ class Hud extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const QuickNavButton(),
           IconButton(
             key: const ValueKey('hud-badge'),
             tooltip: t('trophy.title'),

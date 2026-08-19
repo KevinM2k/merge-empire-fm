@@ -5,8 +5,9 @@ enum ShellTab {
   grid('nav.players'),
   squad('nav.squad'),
   // The house, not a play triangle: this is the home screen — the diorama, the
-  // club, the next fixture — not a "start" control.
-  league('nav.play'),
+  // next fixture, and the two orbs that reach everything else — not a "start"
+  // control.
+  home('nav.play'),
   club('nav.club'),
   shop('nav.shop');
 
@@ -18,4 +19,4 @@ enum ShellTab {
 const List<ShellTab> tabOrder = ShellTab.values;
 
 /// Where the app opens.
-const ShellTab defaultTab = ShellTab.league;
+const ShellTab defaultTab = ShellTab.home;

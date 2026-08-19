@@ -89,7 +89,7 @@ Future<void> settleSave(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
 Future<void> openQuests(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey('quick-nav-open')));
+  await tester.tap(find.byKey(const ValueKey('dock-menu')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('quick-nav-quests.title')));
   await tester.pumpAndSettle();
@@ -104,7 +104,7 @@ void main() {
   testWidgets('the quick-nav menu now leads somewhere', (tester) async {
     // It was built with the other two shapes and nothing ever showed it.
     await pumpShell(tester, saveWithQuests());
-    await tester.tap(find.byKey(const ValueKey('quick-nav-open')));
+    await tester.tap(find.byKey(const ValueKey('dock-menu')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('quick-nav')), findsOneWidget);
     expect(find.text(t('quests.title')), findsWidgets);
@@ -153,7 +153,12 @@ void main() {
   });
 
   group('the badge', () {
-    testWidgets('counts what is waiting to be claimed', (tester) async {
+    // A dot on the burger rather than a count, which is what the JS shows: it
+    // is the OR of every tile behind it, so a number would have to mean the sum
+    // of several unrelated things.
+    testWidgets('lights when something is waiting to be claimed', (
+      tester,
+    ) async {
       final container = await pumpShell(
         tester,
         saveWithQuests(completed: true),
