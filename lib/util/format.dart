@@ -21,9 +21,7 @@ void resetFormatLocale() => _locale = 'en';
 /// Mirrors JS `toLocaleString(locale, {min/maxFractionDigits: digits})` —
 /// locale-aware grouping with a fixed number of decimals.
 String _fmt(num v, [int digits = 0]) {
-  final pattern = digits == 0
-      ? '#,##0'
-      : '#,##0.${'0' * digits}';
+  final pattern = digits == 0 ? '#,##0' : '#,##0.${'0' * digits}';
   return NumberFormat(pattern, _locale).format(v);
 }
 
@@ -109,4 +107,22 @@ int roundCoins(num? n) {
     5 * math.pow(10, (math.log(abs) / math.ln10).floor() - 2).toInt(),
   );
   return _jsRound(n / factor) * factor;
+}
+
+/// A timestamp as a short, locale-aware date — `18 Aug 2026`.
+///
+/// The JS asks for `{year:'numeric', month:'short', day:'numeric'}`, which is
+/// exactly `yMMMd`. Unlike [dateString] in `util/time.dart` this one IS a
+/// display string, so it follows the player's locale rather than being pinned.
+/// A timestamp from a save written on an older schema can be junk, so an
+/// unparseable one returns empty rather than throwing across a trophy card.
+String formatDate(int? ms) {
+  if (ms == null || ms <= 0) return '';
+  try {
+    return DateFormat.yMMMd(
+      _locale,
+    ).format(DateTime.fromMillisecondsSinceEpoch(ms));
+  } catch (_) {
+    return '';
+  }
 }

@@ -40,13 +40,14 @@ String clubAssetImagePath(String category, int tier) =>
 String stadiumBackgroundPath(int tier) =>
     'assets/bg/stadium_bg_t${tier.clamp(1, maxClubArtTier)}.jpeg';
 
-/// Trophy-room art. Three shapes, because three things are won: a division
-/// title, a cup, and an event.
+/// Trophy-room art. Two shapes, for the two things the room draws.
+///
+/// There is a third file on disk — `event_wc2026.png` — and nothing resolves
+/// it. An event win became an achievement rather than a trophy card, so the art
+/// is a leftover of the older arrangement; see the Trophy Room's header.
 String divisionTrophyPath(String division) => 'assets/trophies/$division.png';
 
 String cupTrophyPath(String cupId) => 'assets/trophies/cup_$cupId.png';
-
-String eventTrophyPath(String eventId) => 'assets/trophies/event_$eventId.png';
 
 String achievementArtPath(String achievementId) =>
     'assets/trophies/achievement_$achievementId.png';

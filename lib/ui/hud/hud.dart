@@ -7,19 +7,28 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
+import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_quick_nav.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// The pip cap, which the Energy Director upgrade raises from 10 to 15. Reading
 /// it rather than hardcoding 10 is what stops an upgraded player seeing "15/10".
 final energyMaxProvider = savePick<int>(getEnergyMax);
+
+/// The badge the player is wearing. The JS hangs it off the manager avatar in
+/// the top-left; that avatar is not drawn yet, so the badge stands on its own
+/// until it is. It has to be SOMEWHERE: the Trophy Room's "Set as Badge" is
+/// otherwise a button with no visible effect anywhere in the game.
+final equippedBadgeProvider = savePick<String>(getEquippedBadgeId);
 
 class Hud extends ConsumerWidget {
   const Hud({super.key, this.onSettings});
@@ -42,6 +51,18 @@ class Hud extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const QuickNavButton(),
+          IconButton(
+            key: const ValueKey('hud-badge'),
+            tooltip: t('trophy.title'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: BadgeIcon(
+              badgeId: ref.watch(equippedBadgeProvider),
+              size: 26,
+            ),
+            onPressed: () => showTrophyRoomSheet(context),
+          ),
+          const SizedBox(width: 6),
           HudChip(
             key: const ValueKey('hud-coins'),
             icon: Icons.monetization_on,
@@ -51,7 +72,10 @@ class Hud extends ConsumerWidget {
               label: t('nav.shop'),
               onTap: () => shell.deepLinkShop(ShopSection.coins),
             ),
-            child: CoinCounter(value: ref.watch(coinsProvider), style: valueStyle),
+            child: CoinCounter(
+              value: ref.watch(coinsProvider),
+              style: valueStyle,
+            ),
           ),
           const SizedBox(width: 6),
           HudChip(

@@ -11,13 +11,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// What the menu offers today.
 ///
-/// Trophies, the Player Index and the Leaderboard belong here too and are not
-/// listed yet, because none of those three screens exists — a menu row leading
-/// nowhere is the bug this file was written to fix, not one to add.
+/// The JS groups its eight tiles as "where you stand / what there is to do /
+/// what you've won". The Player Index and the Leaderboard belong in the first
+/// and third and are not listed yet, because neither screen exists — a menu row
+/// leading nowhere is the bug this file was written to fix, not one to add.
 List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
   QuickNavGroup(
     titleKey: 'quicknav.group.activity',
@@ -26,6 +28,16 @@ List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
         labelKey: 'quests.title',
         icon: Icons.checklist,
         onTap: () => showQuestsSheet(context, ref),
+      ),
+    ],
+  ),
+  QuickNavGroup(
+    titleKey: 'quicknav.group.rewards',
+    items: [
+      QuickNavItem(
+        labelKey: 'scene.dock.trophies',
+        icon: Icons.emoji_events,
+        onTap: () => showTrophyRoomSheet(context),
       ),
     ],
   ),

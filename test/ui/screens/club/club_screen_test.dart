@@ -28,7 +28,8 @@ Future<ProviderContainer> pumpClub(
 }) async {
   final state = createDefaultState();
   (state['resources'] as Map<String, dynamic>)['fanCoins'] = coins;
-  final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+  final cells =
+      (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
   for (var i = 0; i < players; i++) {
     cells[i] = <String, dynamic>{'definitionId': 'p', 'instanceId': 'c$i'};
   }
@@ -109,7 +110,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
     await tester.pumpAndSettle();
     await settleSave(tester);
-    expect(container.read(assetTilesProvider).firstWhere((t) => t.key == _key).progress, 0);
+    expect(
+      container
+          .read(assetTilesProvider)
+          .firstWhere((t) => t.key == _key)
+          .progress,
+      0,
+    );
 
     final before = container.read(coinsProvider);
     await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
@@ -118,7 +125,10 @@ void main() {
 
     expect(container.read(coinsProvider), lessThan(before));
     expect(
-      container.read(assetTilesProvider).firstWhere((t) => t.key == _key).progress,
+      container
+          .read(assetTilesProvider)
+          .firstWhere((t) => t.key == _key)
+          .progress,
       greaterThan(0),
     );
   });

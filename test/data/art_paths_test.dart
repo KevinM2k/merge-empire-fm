@@ -83,10 +83,7 @@ void main() {
         clubAssetImagePath(AssetCategory.stadium, 99),
         clubAssetImagePath(AssetCategory.stadium, maxClubArtTier),
       );
-      expect(
-        stadiumBackgroundPath(99),
-        stadiumBackgroundPath(maxClubArtTier),
-      );
+      expect(stadiumBackgroundPath(99), stadiumBackgroundPath(maxClubArtTier));
       // And a tier of zero — an unowned facility asked for at its real tier —
       // reads as tier one rather than falling off the bottom.
       expect(

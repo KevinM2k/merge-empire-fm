@@ -26,8 +26,10 @@ import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 /// The lowest-tier player, so a merge of two makes a predictable third.
 String get _baseDefId => players.firstWhere((p) => p.tier == 1).id;
 
-int get _maleVariant =>
-    List.generate(playerVariants, (i) => i).firstWhere((i) => !isVariantFemale(i));
+int get _maleVariant => List.generate(
+  playerVariants,
+  (i) => i,
+).firstWhere((i) => !isVariantFemale(i));
 int get _femaleVariant =>
     List.generate(playerVariants, (i) => i).firstWhere(isVariantFemale);
 
@@ -48,7 +50,8 @@ Future<ProviderContainer> pumpGrid(
   Map<int, Map<String, dynamic>> cards = const {},
 }) async {
   final state = createDefaultState();
-  final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+  final cells =
+      (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
   cards.forEach((i, card) => cells[i] = card);
 
   final container = ProviderContainer(
@@ -75,7 +78,6 @@ Future<ProviderContainer> pumpGrid(
   await tester.pumpAndSettle();
   return container;
 }
-
 
 /// Drop the card at [from] onto [to] by driving the DragTarget directly.
 ///
@@ -109,7 +111,9 @@ void main() {
       expect(delegate.crossAxisCount, Grid.cols);
     });
 
-    testWidgets('offers a slot for every cell the schema holds', (tester) async {
+    testWidgets('offers a slot for every cell the schema holds', (
+      tester,
+    ) async {
       final container = await pumpGrid(tester);
       expect(container.read(gridCellsProvider).length, Grid.totalCells);
     });
@@ -250,7 +254,6 @@ void main() {
 
       expect(filledCells(container), 2, reason: 'both still there');
     });
-
   });
 
   test('the card view is resolved through the engines, not guessed', () {
@@ -283,9 +286,11 @@ void main() {
       );
       expect(container.read(gridCellsProvider)[0].card!.fitness, isNull);
 
-      container.read(gameProvider).update(
-        (s) => (s['settings'] as Map<String, dynamic>)['hardMode'] = true,
-      );
+      container
+          .read(gameProvider)
+          .update(
+            (s) => (s['settings'] as Map<String, dynamic>)['hardMode'] = true,
+          );
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -330,9 +335,11 @@ void main() {
 
     testWidgets('a skint club is refused and told why', (tester) async {
       final container = await pumpGrid(tester);
-      container.read(gameProvider).update(
-        (s) => (s['resources'] as Map<String, dynamic>)['fanCoins'] = 0,
-      );
+      container
+          .read(gameProvider)
+          .update(
+            (s) => (s['resources'] as Map<String, dynamic>)['fanCoins'] = 0,
+          );
       await tester.pumpAndSettle();
       await settleSave(tester);
 
