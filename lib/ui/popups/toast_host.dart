@@ -38,9 +38,6 @@ Toast? toastFor(String event, Object? args) {
       final text = args is String ? args : '${data?['text'] ?? ''}';
       return text.isEmpty ? null : (text: text, good: false);
 
-    case 'achievement:unlocked':
-      return (text: t('ach.unlocked'), good: true);
-
     case 'cup:won':
       final gems = data?['gems'];
       final cup = '${data?['cupName'] ?? ''}';
@@ -147,7 +144,6 @@ Toast? toastFor(String event, Object? args) {
 /// Every event the layer listens to.
 const List<String> toastEvents = [
   'toast:info',
-  'achievement:unlocked',
   'cup:won',
   'quest:completed',
   'quests:swept',
@@ -162,6 +158,12 @@ const List<String> toastEvents = [
 /// `loan:departed` is deliberately absent: its payload is a Dart RECORD rather
 /// than a map, so nothing here can read a name out of it, and its copy needs
 /// one. It wants a typed handler, not a guess.
+///
+/// `achievement:unlocked` USED to be here, saying "Achievement Unlocked!" and
+/// nothing else — no name, no art, no coins, at the bottom of the screen in the
+/// same slot as a refused merge. It has its own banner now
+/// (`achievement_unlock.dart`): a reward that arrives where errors arrive is not
+/// a reward.
 
 class ToastHost extends ConsumerStatefulWidget {
   const ToastHost({super.key, required this.child});

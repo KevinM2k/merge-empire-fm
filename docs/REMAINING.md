@@ -462,14 +462,22 @@ Two are not code decisions and are marked so.
 
 ### Screens
 
-- [ ] **The idle-earnings popup ("banked while you were away") is wrong in
-      layout AND in copy.** The JS has a different set of lines and a different
-      shape; port both. Do not rewrite the copy — it is already written, in the
-      catalogue.
-- [ ] **An achievement unlock should lead with its TROPHY ART and sit at the
-      top of the screen**, as it does in `../merge-empire-fc`. It is a reward,
-      and a reward that arrives as a toast in the same place as an error is not
-      one.
+- [x] **The idle-earnings card is the JS's** — `welcome_back_card.dart`. It had
+      been a generic coach card with `welcome.earned_label` as BOTH its title and
+      its body, so the one popup seen on every launch said "Banked while you were
+      away" twice and never said the NUMBER. Two thirds of the copy written for it
+      was unreachable: `welcome.line`, Colin's own five-line pool and the only
+      place the duration is mentioned, and `welcome.note_capped` — which matters,
+      because `processOfflineEarnings` clamps the window, so three days away
+      arrived as eight hours with nothing saying the books had stopped counting.
+      All of it is the catalogue's; none of it was rewritten.
+- [x] **An achievement leads with its art, at the top of the screen** —
+      `achievement_unlock.dart`, ported from `AchievementUnlock.js`. It had been
+      a toast saying "Achievement Unlocked!" and nothing else: no name, no art,
+      no coins, at the bottom of the screen in the slot a refused merge uses.
+      Its own host rather than a fourth popup shape — it answers nothing, like a
+      toast, but it is a celebration and they QUEUE, because one match can unlock
+      several.
 - [ ] **The squad pitch is cramped.** The back four sit too far from the keeper,
       which squeezes the midfield into the same band as the attack. Move the
       defence back toward the goal and let every line have room around it —

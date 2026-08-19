@@ -14,11 +14,9 @@ import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
-import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/daily_reward_sheet.dart';
-import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/popups/welcome_back_card.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
-import 'package:merge_empire_fc/util/time.dart';
 
 /// Queue whatever this boot owes the player.
 ///
@@ -39,7 +37,7 @@ void queueBootPopups({
       PopupEntry(
         id: 'welcome-back',
         priority: PopupPriority.welcomeBack,
-        show: (done) => _showWelcomeBack(
+        show: (done) => showWelcomeBack(
           context(),
           game: game,
           offline: offline,
@@ -61,38 +59,6 @@ void queueBootPopups({
   );
 }
 
-Future<void> _showWelcomeBack(
-  BuildContext context, {
-  required GameState game,
-  required OfflineEarnings offline,
-}) {
-  final earned = offline.earned;
-  return showCoachCard<void>(
-    context,
-    titleKey: 'welcome.earned_label',
-    bodyKey: 'welcome.earned_label',
-    actions: [
-      CoachAction(
-        labelKey: 'common.collect',
-        // Applied on COLLECT, not at boot, so the HUD's counter animates at the
-        // moment the player asks for it.
-        onTap: () => game.update((s) {
-          final resources = s['resources'];
-          if (resources is Map<String, dynamic>) {
-            final coins = resources['fanCoins'];
-            resources['fanCoins'] = ((coins is num ? coins : 0) + earned)
-                .round();
-          }
-        }),
-      ),
-    ],
-    bodyParams: {
-      'amount': formatCoins(earned),
-      'duration': formatDuration(offline.offlineMs),
-    },
-  );
-}
-
 /// The daily reward. A SHEET rather than a coach card, because the cycle is the
 /// thing worth showing — see `daily_reward_sheet.dart`.
 Future<void> _showDailyReward(
@@ -106,4 +72,4 @@ bool bootHasWork(Map<String, dynamic>? state, OfflineEarnings offline) =>
 
 /// Kept so the caller does not have to know the label key.
 String welcomeLine(OfflineEarnings offline) =>
-    t('welcome.earned_label', {'duration': formatDuration(offline.offlineMs)});
+    t('welcome.earned_label', {'duration': proseDuration(offline.offlineMs)});

@@ -25,8 +25,11 @@ void main() {
   });
 
   group('what it says', () {
-    test('an achievement is worth saying', () {
-      expect(toastFor('achievement:unlocked', null)?.text, t('ach.unlocked'));
+    test('an achievement is NOT said here', () {
+      // It has its own banner — `achievement_unlock.dart`. A reward that
+      // arrives in the same slot as a refused merge is not a reward.
+      expect(toastFor('achievement:unlocked', {'id': 'first_merge'}), isNull);
+      expect(toastEvents, isNot(contains('achievement:unlocked')));
     });
 
     test('a cup names its gems', () {
@@ -126,10 +129,10 @@ void main() {
       await pumpToasts(tester);
       expect(find.byKey(const ValueKey('toast')), findsNothing);
 
-      emit('achievement:unlocked', {'id': 'a'});
+      emit('cup:won', {'cupName': 'The Cup', 'gems': 5});
       await tester.pump();
       expect(find.byKey(const ValueKey('toast')), findsOneWidget);
-      expect(find.text(t('ach.unlocked')), findsOneWidget);
+      expect(find.textContaining('The Cup'), findsOneWidget);
 
       // And it clears itself.
       await tester.pump(const Duration(seconds: 3));
@@ -138,7 +141,7 @@ void main() {
 
     testWidgets('a second line replaces the first', (tester) async {
       await pumpToasts(tester);
-      emit('achievement:unlocked', null);
+      emit('quests:swept', {'count': 2, 'coins': 100});
       await tester.pump();
       emit('cup:won', {'cupName': 'The Cup', 'gems': 2});
       await tester.pump();
@@ -157,7 +160,7 @@ void main() {
     testWidgets('it never swallows a tap', (tester) async {
       // A toast interrupts nothing: it is not the thing a player is answering.
       await pumpToasts(tester);
-      emit('achievement:unlocked', null);
+      emit('cup:won', {'cupName': 'The Cup', 'gems': 2});
       await tester.pump();
       expect(
         find.ancestor(
@@ -171,9 +174,9 @@ void main() {
 
     testWidgets('it stops listening when it goes', (tester) async {
       await pumpToasts(tester);
-      expect(busListenerCount('achievement:unlocked'), 1);
+      expect(busListenerCount('cup:won'), 1);
       await tester.pumpWidget(const SizedBox());
-      expect(busListenerCount('achievement:unlocked'), 0);
+      expect(busListenerCount('cup:won'), 0);
     });
   });
 }

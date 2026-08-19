@@ -1,0 +1,214 @@
+/// "Banked while you were away." Ported from
+/// `ui/components/WelcomeBackPopup.js`.
+///
+/// **It was the same line twice.** The port opened a generic coach card with
+/// `welcome.earned_label` as BOTH its title and its body, so the one popup a
+/// player sees on every single launch read "Banked while you were away / Banked
+/// while you were away" and never said the number. Two thirds of the copy
+/// written for it was unreachable: `welcome.line` — Colin's own five-line pool,
+/// which is where the duration is actually mentioned — and
+/// `welcome.note_capped`.
+///
+/// **The cap matters.** `processOfflineEarnings` clamps the window to
+/// `Idle.maxOfflineMs`, so a three-day absence arrives as eight hours with
+/// nothing saying the books had stopped counting long before. The JS flags it;
+/// that is what the note is for.
+///
+/// The shape is the JS's: Colin's face, his line, then the label over a hero
+/// figure, then the note, then Collect. Nothing is boxed inside anything — the
+/// card is already Colin talking, and a panel around his line is one bordered
+/// box inside another.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/util/time.dart';
+
+/// Colin, as the JS's `COLIN_IMG`.
+const String colinPortrait = 'assets/ui/manager_hint.png';
+
+/// The ceiling, in whole hours, for the note that mentions it.
+int get offlineCapHours => (Idle.maxOfflineMs / 3600000).round();
+
+/// `formatDuration` for PROSE.
+///
+/// It always emits both units — "8h 0m" — which is right in a stat row and
+/// clumsy inside a sentence, and the offline cap makes "8h 0m" the single most
+/// common thing this card ever says. The trailing zero part goes; everything
+/// else is left exactly as formatted.
+String proseDuration(int ms) =>
+    formatDuration(ms).replaceFirst(RegExp(r' 0[ms]$'), '');
+
+/// Whether this window hit the ceiling, so the note is owed.
+bool offlineWasCapped(int offlineMs) => offlineMs >= Idle.maxOfflineMs;
+
+/// Show it, and complete once it is gone. The coins are paid on COLLECT, not at
+/// boot, so the HUD's counter moves when the player asks it to.
+Future<void> showWelcomeBack(
+  BuildContext context, {
+  required GameState game,
+  required OfflineEarnings offline,
+}) {
+  final earned = offline.earned.floor();
+  void collect() => game.update((s) {
+    final resources = s['resources'];
+    if (resources is Map<String, dynamic>) {
+      final coins = resources['fanCoins'];
+      resources['fanCoins'] = (coins is num ? coins : 0) + earned;
+    }
+  });
+
+  return showDialog<void>(
+    context: context,
+    // Tapping the blank backdrop collects, as the JS's does: the money is
+    // already earned, so there is nothing here to throw away by accident.
+    barrierDismissible: true,
+    builder: (_) => WelcomeBackCard(offline: offline),
+  ).then((_) {
+    // Whichever way it closed — the button, the backdrop, a back press — the
+    // coins are paid. They exist nowhere else: boot has already stamped
+    // `lastSeen`, so a card that closes without paying has burned them.
+    collect();
+  });
+}
+
+class WelcomeBackCard extends StatefulWidget {
+  const WelcomeBackCard({super.key, required this.offline});
+
+  final OfflineEarnings offline;
+
+  @override
+  State<WelcomeBackCard> createState() => WelcomeBackCardState();
+}
+
+class WelcomeBackCardState extends State<WelcomeBackCard> {
+  /// Picked ONCE and kept. Re-rolling Colin's words underneath the player while
+  /// they are reading them is worse than repeating one.
+  late final String line = tPool('welcome.line', {
+    'duration': proseDuration(widget.offline.offlineMs),
+  });
+
+  /// Test seam.
+  bool get capped => offlineWasCapped(widget.offline.offlineMs);
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final earned = widget.offline.earned.floor();
+
+    return AlertDialog(
+      key: const ValueKey('welcome-back'),
+      backgroundColor: kit.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: kit.border),
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Colin's own face, not a glyph in a circle: this is the card the
+          // player opens the app on.
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: kit.surface2,
+              border: Border.all(color: kit.accent.withValues(alpha: 0.6)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: ArtImage(
+              path: colinPortrait,
+              fallback: Icon(Icons.sports, size: 30, color: kit.accent),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            t('coachtip.name'),
+            style: TextStyle(
+              color: kit.accentBright,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            t('app.offline_title'),
+            key: const ValueKey('welcome-back-title'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            line,
+            key: const ValueKey('welcome-back-line'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: kit.textMuted, fontSize: 13, height: 1.35),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            t('welcome.earned_label'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: kit.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 2),
+          // The number is the point of the card, and the old one never said it.
+          Text(
+            '+${formatCoins(earned)} 💰',
+            key: const ValueKey('welcome-back-amount'),
+            style: TextStyle(
+              color: kit.accentBright,
+              fontSize: 26,
+              height: 1.1,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          if (capped) ...[
+            const SizedBox(height: 12),
+            Row(
+              key: const ValueKey('welcome-back-capped'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.timer_outlined, size: 14, color: kit.textMuted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    t('welcome.note_capped', {'hours': offlineCapHours}),
+                    style: TextStyle(
+                      color: kit.textMuted,
+                      fontSize: 11,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            key: const ValueKey('welcome-back-collect'),
+            onPressed: () => Navigator.of(context).maybePop(),
+            child: Text(t('app.offline_collect')),
+          ),
+        ),
+      ],
+    );
+  }
+}

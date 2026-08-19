@@ -10,7 +10,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -19,7 +21,9 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
+import 'package:merge_empire_fc/ui/popups/welcome_back_card.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -163,10 +167,10 @@ void main() {
       tester,
       saveWith(claimedToday: true, withPlayers: true, lastSeen: 1),
     );
-    expect(find.byKey(const ValueKey('coach-card')), findsOneWidget);
+    expect(find.byKey(const ValueKey('welcome-back')), findsOneWidget);
 
     final before = container.read(coinsProvider);
-    await tester.tap(find.text(t('common.collect')));
+    await tester.tap(find.byKey(const ValueKey('welcome-back-collect')));
     await tester.pumpAndSettle();
     await settleSave(tester);
     expect(
@@ -181,7 +185,7 @@ void main() {
     await boot(tester, saveWith(withPlayers: true, lastSeen: 1));
     expect(activePopupId(), 'welcome-back');
 
-    await tester.tap(find.text(t('common.collect')));
+    await tester.tap(find.byKey(const ValueKey('welcome-back-collect')));
     await settleSave(tester);
     await tester.pumpAndSettle();
     expect(activePopupId(), 'daily-reward');
@@ -192,7 +196,71 @@ void main() {
   ) async {
     // Nothing was earning while they were away.
     await boot(tester, saveWith(claimedToday: true, lastSeen: 1));
-    expect(find.byKey(const ValueKey('coach-card')), findsNothing);
+    expect(find.byKey(const ValueKey('welcome-back')), findsNothing);
+  });
+
+  group('what the welcome-back card says', () {
+    Future<void> pumpCard(WidgetTester tester, OfflineEarnings offline) =>
+        tester.pumpWidget(
+          MaterialApp(
+            theme: buildAppTheme(kitId: '#4caf50', light: false),
+            home: Scaffold(body: WelcomeBackCard(offline: offline)),
+          ),
+        );
+
+    testWidgets('the number, which the old card never mentioned', (
+      tester,
+    ) async {
+      await pumpCard(tester, (earned: 12500, offlineMs: 3600000));
+      expect(find.textContaining(formatCoins(12500)), findsOneWidget);
+      expect(find.text(t('welcome.earned_label')), findsOneWidget);
+    });
+
+    testWidgets('and Colin\'s own line, from the pool', (tester) async {
+      // `welcome.line` is five lines separated by pipes and was unreachable —
+      // the card used `welcome.earned_label` for its title AND its body.
+      await pumpCard(tester, (earned: 100, offlineMs: 3600000));
+      final line = tester
+          .widget<Text>(find.byKey(const ValueKey('welcome-back-line')))
+          .data!;
+      expect(line, isNot(contains('|')), reason: 'one line, not all five');
+      final pool = t('welcome.line', {'duration': proseDuration(3600000)});
+      expect(
+        pool.split('|').map((l) => l.trim()),
+        contains(line),
+        reason: 'and the duration is filled in',
+      );
+      expect(find.text(t('app.offline_title')), findsOneWidget);
+    });
+
+    testWidgets('the duration reads as prose, not as a stat row', (
+      tester,
+    ) async {
+      // `formatDuration` always emits both units, and the 8-hour cap makes
+      // "8h 0m" the most common thing this card ever says.
+      expect(proseDuration(8 * 3600000), '8h');
+      expect(proseDuration(90 * 60000), formatDuration(90 * 60000));
+    });
+
+    testWidgets('and the CEILING is flagged when the absence hit it', (
+      tester,
+    ) async {
+      // `processOfflineEarnings` clamps the window, so three days away arrives
+      // as eight hours with nothing saying the books had stopped counting.
+      await pumpCard(tester, (earned: 100, offlineMs: Idle.maxOfflineMs));
+      expect(find.byKey(const ValueKey('welcome-back-capped')), findsOneWidget);
+      expect(
+        find.textContaining(
+          t('welcome.note_capped', {'hours': offlineCapHours}),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a short absence is not', (tester) async {
+      await pumpCard(tester, (earned: 100, offlineMs: 60000));
+      expect(find.byKey(const ValueKey('welcome-back-capped')), findsNothing);
+    });
   });
 
   testWidgets('a boot with no save loaded offers nothing at all', (
@@ -200,7 +268,7 @@ void main() {
   ) async {
     // Treating an absent save as "unclaimed" would offer the reward twice.
     await boot(tester, saveWith(), load: false);
-    expect(find.byKey(const ValueKey('coach-card')), findsNothing);
+    expect(find.byKey(const ValueKey('welcome-back')), findsNothing);
     expect(hasPopupWork(), isFalse);
   });
 }

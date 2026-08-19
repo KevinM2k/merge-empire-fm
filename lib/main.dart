@@ -7,6 +7,7 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_host.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
+import 'package:merge_empire_fc/ui/popups/achievement_unlock.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/popups/toast_host.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
@@ -54,8 +55,12 @@ class MergeEmpireApp extends ConsumerWidget {
         // blocker, so anything queued during boot has waited rather than been
         // dropped for want of somewhere to open.
         // ToastHost inside PopupHost: a toast never blocks and never waits, so
-        // it sits under whatever the queue has put up rather than over it.
-        child: PopupHost(child: ToastHost(child: AppShell())),
+        // it sits under whatever the queue has put up rather than over it. The
+        // achievement banner is inside both for the same reason, and it is the
+        // innermost of the three: it is the one that is purely a celebration.
+        child: PopupHost(
+          child: ToastHost(child: AchievementUnlockHost(child: AppShell())),
+        ),
       ),
     );
   }
