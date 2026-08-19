@@ -43,39 +43,61 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final GlobalKey _footerKey = GlobalKey();
+  final GlobalKey _sceneKey = GlobalKey();
+  final GlobalKey _customiseKey = GlobalKey();
 
-  /// MEASURED, not assumed. The footer's height moves with the cup button, the
-  /// event strip and Pro mode, and the walker's feet plus the turf's horizon are
-  /// both derived from it — the JS measures it for the same reason
-  /// (`_observeFooterHeight`) rather than trusting a constant that goes stale the
-  /// first time a band appears.
-  double _footerHeight = 150;
+  /// His contact line, above the bottom of the scene.
+  ///
+  /// MEASURED, not assumed, and measured off the CUSTOMISE PILL rather than off
+  /// the footer. The JS stacks the same number by hand — footer 10px up, badge
+  /// 12px above that, badge 23px tall, him 12px clear of it — and notes that the
+  /// day the Deadline Day strip joined the footer, the two anchors that were
+  /// supposed to agree stopped agreeing. There is one anchor here: whatever the
+  /// footer grows or loses, the pill moves, and he moves with it.
+  ///
+  /// The port had him derived from the footer's FULL height, which included the
+  /// dock row itself — so he stood a whole orb higher than he should have, in
+  /// the middle of the pitch rather than just over the controls.
+  double _walkerBottom = 150 + walkerBottomClearance;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measureFooter());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
   }
 
-  void _measureFooter() {
-    final box = _footerKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
-    final h = box.size.height;
-    if ((h - _footerHeight).abs() < 1) return;
-    if (mounted) setState(() => _footerHeight = h);
+  /// 12px, which is the gap the JS puts between the badge and his boots.
+  static const double _walkerClearsPill = 12;
+
+  void _measure() {
+    final scene = _sceneKey.currentContext?.findRenderObject() as RenderBox?;
+    final pill = _customiseKey.currentContext?.findRenderObject() as RenderBox?;
+    if (scene == null || pill == null || !scene.hasSize || !pill.hasSize) {
+      return;
+    }
+    // The pill's top edge, in the scene's own coordinates.
+    final top = pill.localToGlobal(Offset.zero, ancestor: scene).dy;
+    final bottom = scene.size.height - top + _walkerClearsPill;
+    if ((bottom - _walkerBottom).abs() < 1) return;
+    if (mounted) setState(() => _walkerBottom = bottom);
   }
 
   @override
   Widget build(BuildContext context) {
     // The footer changes height between builds — an event strip arrives, a cup
-    // button appears — so it is re-read after every one.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measureFooter());
+    // button appears — so the pill is re-read after every one.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
 
     return Stack(
       key: const ValueKey('home-screen'),
       children: [
-        Positioned.fill(child: _Scene(footerHeight: _footerHeight)),
+        // The scene fills the screen, so it is also the box the pill's position
+        // is converted into — measuring against it is measuring against the
+        // page.
+        Positioned.fill(
+          key: _sceneKey,
+          child: _Scene(walkerBottom: _walkerBottom),
+        ),
         // The card is the page's HEADLINE and sits at the top, over the scene.
         // The port had it in the sticky footer directly above the Play button on
         // the reasoning that what the button is about to do belongs next to the
@@ -95,24 +117,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
         Positioned(
-          key: _footerKey,
           left: 0,
           right: 0,
           bottom: 0,
-          child: const SafeArea(
+          child: SafeArea(
             top: false,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(13, 0, 13, 10),
+              padding: const EdgeInsets.fromLTRB(13, 0, 13, 10),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // The dock rail: one row, both orbs, sharing the footer's top
-                  // edge so they are level by construction.
-                  Row(children: [CoachDock(), Spacer(), MenuDock()]),
-                  SizedBox(height: 10),
-                  _EventStrip(),
-                  PlayMatchButton(),
+                  // The dock rail: one row, both orbs and the pill between them,
+                  // sharing the footer's top edge so all three are level by
+                  // construction rather than by two offsets agreeing on paper.
+                  // Bottom-aligned, because the orbs are a disc plus a caption
+                  // and the pill is neither — it is their FEET that have to line
+                  // up.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const CoachDock(),
+                      const Spacer(),
+                      Padding(
+                        // Clear of the orbs' own captions, and lifted so the
+                        // pill's bottom sits on the discs' bottom rather than
+                        // under the labels that ride over them.
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: CustomiseDock(anchorKey: _customiseKey),
+                      ),
+                      const Spacer(),
+                      const MenuDock(),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const _EventStrip(),
+                  const PlayMatchButton(),
                 ],
               ),
             ),
@@ -130,9 +170,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 /// fixture is described — a heading that names the same match a card directly
 /// under it also names was the scene carrying furniture rather than scene.
 class _Scene extends ConsumerWidget {
-  const _Scene({required this.footerHeight});
+  const _Scene({required this.walkerBottom});
 
-  final double footerHeight;
+  final double walkerBottom;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -141,7 +181,10 @@ class _Scene extends ConsumerWidget {
 
     return PitchScene(
       mood: mood,
-      footerHeight: footerHeight,
+      walkerBottom: walkerBottom,
+      // Some of the stand wears the club's colours. Support that grows with you
+      // is the one thing a crowd can say about the season.
+      kitColor: kit.accent,
       // `TickerMode` stops every animation here when the tab is offscreen, which
       // is the whole reason the shell puts each tab in one — no freeze of the
       // scene's own needed.

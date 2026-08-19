@@ -22,7 +22,7 @@ void main() {
             child: Scaffold(
               body: PitchScene(
                 mood: mood,
-                footerHeight: 150,
+                walkerBottom: 150 + walkerBottomClearance,
                 walker: const SizedBox(width: 120, height: 170),
               ),
             ),
@@ -37,7 +37,10 @@ void main() {
       expect(turf, findsOneWidget, reason: 'no turf at all');
       final box = tester.getRect(turf);
       // Better than half the scene is ground — the horizon sits at 46%.
-      expect(box.height, greaterThan(tester.getRect(find.byType(PitchScene)).height * 0.5));
+      expect(
+        box.height,
+        greaterThan(tester.getRect(find.byType(PitchScene)).height * 0.5),
+      );
       expect(box.width, tester.getRect(find.byType(PitchScene)).width);
     });
 
@@ -76,11 +79,49 @@ void main() {
       expect(lane.width, closeTo(84, 0.5));
     });
 
+    testWidgets('and the thing that actually PAINTS has height too', (
+      tester,
+    ) async {
+      // The segment box measuring right is not the same claim as the pitch
+      // being on screen, and the difference is exactly how this shipped broken:
+      // the lane was a full-height `SizedBox` around a `Row` of two `Expanded`
+      // `ColoredBox`es, and the Row's default centre alignment handed both of
+      // them LOOSE heights. They came out 42×0. Every box above them measured
+      // correctly and the player saw sky.
+      await pumpScene(tester);
+      final lane = find.byKey(const ValueKey('pitch-lane')).first;
+      final painters = find.descendant(
+        of: lane,
+        matching: find.byType(CustomPaint),
+      );
+      expect(painters, findsWidgets, reason: 'nothing paints the lane');
+      for (final element in painters.evaluate()) {
+        final size = (element.renderObject! as RenderBox).size;
+        expect(
+          size.height,
+          greaterThan(8),
+          reason: 'the painted surface collapsed to ${size.height}px',
+        );
+      }
+    });
+
     testWidgets('and the stand is behind it, not over it', (tester) async {
       await pumpScene(tester);
       final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
       final turf = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
       expect(stand.bottom, lessThanOrEqualTo(turf.top + 1));
+    });
+
+    testWidgets('and the crowd is a terrace, not a quarter of the page', (
+      tester,
+    ) async {
+      // At `h * 0.24` the stand was a 200px bank with a hundred 1px dots in it,
+      // which is the shape of a crowd without being one. It is the TERRACE's own
+      // height now — six rows of seats and a fascia.
+      await pumpScene(tester);
+      final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
+      expect(stand.height, closeTo(standHeight, 0.5));
+      expect(stand.height, lessThan(120));
     });
   });
 
@@ -98,10 +139,7 @@ void main() {
         );
       }
       // A cheerful manager walks faster AND the ground moves faster with him.
-      expect(
-        grassDuration(Mood.elated) < grassDuration(Mood.crushed),
-        isTrue,
-      );
+      expect(grassDuration(Mood.elated) < grassDuration(Mood.crushed), isTrue);
     });
 
     test('and band 0 runs at exactly the turf it stands in', () {

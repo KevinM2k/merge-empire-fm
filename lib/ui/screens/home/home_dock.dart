@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
 import 'package:merge_empire_fc/ui/shell/shell_quick_nav.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -79,22 +80,34 @@ class DockButton extends StatelessWidget {
                     ),
                     child: Center(child: child),
                   ),
-                  // Rides UP over the disc's bottom edge, which is why the dock
-                  // spaces its buttons more generously than a caption would
-                  // need.
+                  // Rides UP over the disc's bottom edge, on a DARK CAPSULE of
+                  // its own. It was
+                  // muted ink with a 2px shadow, which is a caption on a
+                  // surface — and this one is not on a surface, it is over a
+                  // lit green pitch that scrolls underneath it. Nothing that
+                  // sits on moving ground can be read off contrast with the
+                  // ground; it needs its own.
                   Transform.translate(
                     offset: const Offset(0, -6),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: kit.textMuted,
-                        shadows: const [
-                          Shadow(blurRadius: 2, color: Colors.black87),
-                        ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -160,6 +173,67 @@ class MenuDock extends ConsumerWidget {
       onTap: () =>
           showQuickNavMenu(context, groups: quickNavGroups(context, ref)),
       child: const Icon(Icons.menu, size: 24),
+    );
+  }
+}
+
+/// The CUSTOMISE pill, between the two orbs.
+///
+/// It is the manager's own control, so it sits under him rather than in the
+/// burger — and it shares the dock's rail so the three read as ONE ROW of
+/// controls. The JS makes a point of that: the docks and the badge both hang
+/// off the footer's top edge at the same 12px lift, having once been anchored
+/// two different ways and drifted apart the day the Deadline Day strip arrived.
+///
+/// [anchorKey] is how the walker finds it. He stands 12px above this pill, and
+/// the home screen MEASURES that rather than restating the footer's arithmetic
+/// a second time.
+class CustomiseDock extends ConsumerWidget {
+  const CustomiseDock({this.anchorKey, super.key});
+
+  final GlobalKey? anchorKey;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Semantics(
+      button: true,
+      label: t('league.customise_avatar'),
+      child: GestureDetector(
+        key: const ValueKey('dock-customise'),
+        onTap: () => showManagerCustomiser(context),
+        child: Container(
+          key: anchorKey,
+          padding: const EdgeInsets.fromLTRB(9, 5, 11, 5),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // A shirt, then the word. The mark this replaced in the JS was a
+              // pair of scissors, which read as "cut" rather than "dress him".
+              Icon(
+                Icons.checkroom,
+                size: 12,
+                color: Colors.white.withValues(alpha: 0.72),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                t('league.customise_label'),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  height: 1,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

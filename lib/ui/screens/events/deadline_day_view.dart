@@ -104,8 +104,17 @@ class _DeadlineDayViewState extends ConsumerState<DeadlineDayView> {
   @override
   void initState() {
     super.initState();
-    _openWindowIfInvited();
-    _resumeStrandedHolds();
+    // AFTER the frame, not during it. Both of these write to the save, the save
+    // bumps `saveRevisionProvider`, and Riverpod refuses a provider write while
+    // the tree is building — which is what `initState` is. In release the
+    // assertion is compiled out and it works; in debug the screen threw on the
+    // way in, so the floor never painted and the player arrived at the intro.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openWindowIfInvited();
+      _resumeStrandedHolds();
+      setState(() => _feedRevision++);
+    });
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
   }
 

@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -110,6 +111,36 @@ void main() {
           reason: name,
         );
       }
+    });
+
+    testWidgets('CUSTOMISE stands between the two orbs, level with them', (
+      tester,
+    ) async {
+      // He is the player's avatar and the pill is his own control, so it shares
+      // the dock's rail rather than hiding in the burger. Level BY
+      // CONSTRUCTION: the JS had the docks and the badge anchored two different
+      // ways, and the day the Deadline Day strip joined the footer they stopped
+      // agreeing.
+      await pumpHome(tester);
+      final pill = find.byKey(const ValueKey('dock-customise'));
+      expect(pill, findsOneWidget, reason: 'no way to dress him');
+      final coach = tester.getRect(find.byKey(const ValueKey('dock-coach')));
+      final menu = tester.getRect(find.byKey(const ValueKey('dock-menu')));
+      final box = tester.getRect(pill);
+      expect(box.center.dx, greaterThan(coach.right));
+      expect(box.center.dx, lessThan(menu.left));
+      expect(box.bottom, closeTo(coach.bottom, 8));
+    });
+
+    testWidgets('and he stands just over it, not up the pitch', (tester) async {
+      // 12px above the pill. He used to be derived from the footer's FULL
+      // height, dock row included, which stood him a whole orb too high.
+      await pumpHome(tester);
+      final pill = tester.getRect(find.byKey(const ValueKey('dock-customise')));
+      // He is scaled about his FEET, so the rendered box's bottom edge IS the
+      // contact line whatever size he is drawn at.
+      final feet = tester.getRect(find.byType(ManagerWalker)).bottom;
+      expect(feet, closeTo(pill.top - 12, 1));
     });
 
     testWidgets('Colin is bottom left and the burger bottom right', (
