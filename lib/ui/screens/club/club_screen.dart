@@ -93,7 +93,7 @@ class ClubScreen extends ConsumerWidget {
     // to anything that wants to reach one.
     return SingleChildScrollView(
       key: const ValueKey('club-screen'),
-      padding: const EdgeInsets.fromLTRB(12, hudClearance, 12, 12),
+      padding: EdgeInsets.fromLTRB(12, hudClearanceOf(context), 12, 12),
       child: Column(
         children: [
           _StadiumHero(tier: ref.watch(stadiumTierProvider)),

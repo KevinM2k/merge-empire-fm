@@ -95,9 +95,21 @@ class PitchScene extends StatelessWidget {
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
-        // Where the grass meets the stand. Everything above is backdrop and
+        // Where the grass meets the stand: everything above is backdrop,
         // everything below is ground.
-        final horizon = h * 0.46;
+        //
+        // Placed above HIS FEET rather than at a flat 46% of the page. The
+        // fraction was fine until the next-match card grew to five bands and the
+        // footer to three: between them the visible strip of grass closed up, and
+        // 46% of the page could land BELOW the man standing on it. The horizon
+        // now sits a walker's height above his contact line, which is what makes
+        // it a horizon rather than a number — and it can never crowd him out,
+        // because it is derived from where he is.
+        final feet = h - (footerHeight + walkerBottomClearance);
+        final horizon = (feet - walkerHeight * walkerScale).clamp(
+          h * 0.16,
+          h * 0.62,
+        );
 
         return ClipRect(
           child: Stack(
@@ -111,6 +123,7 @@ class PitchScene extends StatelessWidget {
                 top: horizon - h * 0.24,
                 height: h * 0.24,
                 child: _Scroller(
+                  key: const ValueKey('pitch-stand'),
                   duration: const Duration(milliseconds: 16500),
                   segmentWidth: w,
                   child: _Stand(width: w, height: h * 0.24),
@@ -133,6 +146,7 @@ class PitchScene extends StatelessWidget {
                 ),
               ),
               Positioned(
+                key: const ValueKey('pitch-turf'),
                 left: 0,
                 right: 0,
                 top: horizon,
@@ -273,6 +287,7 @@ class _Turf extends StatelessWidget {
         // Mown lanes travelling with the surface. One segment is two lanes, so
         // one segment per loop wraps seamlessly.
         _Scroller(
+          key: const ValueKey('pitch-mown'),
           duration: grass,
           segmentWidth: 84,
           child: const _MownSegment(),
@@ -387,6 +402,7 @@ class _TuftPainter extends CustomPainter {
 /// loop, so the wrap is seamless.
 class _Scroller extends StatefulWidget {
   const _Scroller({
+    super.key,
     required this.duration,
     required this.segmentWidth,
     required this.child,

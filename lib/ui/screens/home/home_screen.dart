@@ -35,15 +35,47 @@ import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return const Stack(
-      key: ValueKey('home-screen'),
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final GlobalKey _footerKey = GlobalKey();
+
+  /// MEASURED, not assumed. The footer's height moves with the cup button, the
+  /// event strip and Pro mode, and the walker's feet plus the turf's horizon are
+  /// both derived from it — the JS measures it for the same reason
+  /// (`_observeFooterHeight`) rather than trusting a constant that goes stale the
+  /// first time a band appears.
+  double _footerHeight = 150;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureFooter());
+  }
+
+  void _measureFooter() {
+    final box = _footerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final h = box.size.height;
+    if ((h - _footerHeight).abs() < 1) return;
+    if (mounted) setState(() => _footerHeight = h);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // The footer changes height between builds — an event strip arrives, a cup
+    // button appears — so it is re-read after every one.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureFooter());
+
+    return Stack(
+      key: const ValueKey('home-screen'),
       children: [
-        Positioned.fill(child: _Scene()),
+        Positioned.fill(child: _Scene(footerHeight: _footerHeight)),
         // The card is the page's HEADLINE and sits at the top, over the scene.
         // The port had it in the sticky footer directly above the Play button on
         // the reasoning that what the button is about to do belongs next to the
@@ -55,20 +87,19 @@ class HomeScreen extends ConsumerWidget {
           left: 0,
           right: 0,
           top: 0,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              // Clears the HUD, which floats over every screen.
-              padding: EdgeInsets.fromLTRB(13, hudClearance, 13, 0),
-              child: NextMatchCard(),
-            ),
+          child: Padding(
+            // Clears the HUD and the notch. The SCENE behind it does not: it
+            // runs to the top of the glass, which is the whole point of it.
+            padding: EdgeInsets.fromLTRB(13, hudClearanceOf(context), 13, 0),
+            child: const NextMatchCard(),
           ),
         ),
         Positioned(
+          key: _footerKey,
           left: 0,
           right: 0,
           bottom: 0,
-          child: SafeArea(
+          child: const SafeArea(
             top: false,
             child: Padding(
               padding: EdgeInsets.fromLTRB(13, 0, 13, 10),
@@ -99,7 +130,9 @@ class HomeScreen extends ConsumerWidget {
 /// fixture is described — a heading that names the same match a card directly
 /// under it also names was the scene carrying furniture rather than scene.
 class _Scene extends ConsumerWidget {
-  const _Scene();
+  const _Scene({required this.footerHeight});
+
+  final double footerHeight;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -108,6 +141,7 @@ class _Scene extends ConsumerWidget {
 
     return PitchScene(
       mood: mood,
+      footerHeight: footerHeight,
       // `TickerMode` stops every animation here when the tab is offscreen, which
       // is the whole reason the shell puts each tab in one — no freeze of the
       // scene's own needed.

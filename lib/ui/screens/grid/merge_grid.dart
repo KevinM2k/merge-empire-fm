@@ -188,9 +188,14 @@ class MergeGridState extends ConsumerState<MergeGrid> {
             // inverted: the pills are a readout and belong beside the last row
             // they describe, and the two controls a player came here to press
             // belong where the thumb lands first.
-            const Padding(
-              padding: EdgeInsets.fromLTRB(_pad, hudClearance, _pad, 0),
-              child: ScoutActionBar(),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                _pad,
+                hudClearanceOf(context),
+                _pad,
+                0,
+              ),
+              child: const ScoutActionBar(),
             ),
             Expanded(
               child: SingleChildScrollView(

@@ -75,7 +75,7 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
       // The Shop had NO padding at all: its first tile ran under the floating
       // HUD and its last under the tab bar. `hudClearance` is the shared figure
       // every screen uses; the bottom inset is the tab bar's own.
-      padding: const EdgeInsets.fromLTRB(12, hudClearance, 12, 12),
+      padding: EdgeInsets.fromLTRB(12, hudClearanceOf(context), 12, 12),
       child: Column(
         children: [
           _section(ShopSectionId.offers, const OffersSection()),

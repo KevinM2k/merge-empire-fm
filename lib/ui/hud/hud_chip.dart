@@ -11,6 +11,7 @@ class HudChip extends StatelessWidget {
   const HudChip({
     super.key,
     required this.icon,
+    this.iconColor,
     required this.child,
     this.onTap,
     this.trailing,
@@ -18,6 +19,15 @@ class HudChip extends StatelessWidget {
   });
 
   final IconData icon;
+
+  /// The icon's own colour, overriding the kit accent.
+  ///
+  /// The three resources are colour-CODED and their hues are fixed on every kit:
+  /// the coin gold, the bolt blue, the gem cyan. The bar behind them swings from
+  /// deep green to bright yellow depending on kit and theme, and taking the
+  /// accent meant all three came out the same colour as each other — which is
+  /// the coding gone.
+  final Color? iconColor;
   final Widget child;
   final VoidCallback? onTap;
   final Widget? trailing;
@@ -36,7 +46,7 @@ class HudChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: kit.accent),
+          Icon(icon, size: 16, color: iconColor ?? kit.accent),
           const SizedBox(width: 4),
           child,
           if (trailing != null) ...[const SizedBox(width: 4), trailing!],

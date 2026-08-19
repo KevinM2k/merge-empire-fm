@@ -142,10 +142,14 @@ class AppShellState extends ConsumerState<AppShell>
     return Scaffold(
       body: Stack(
         children: [
+          // FULL BLEED. The ground and anything a screen paints over it run to
+          // the top of the glass; the notch is cleared by the CONTENT (see
+          // `hudClearanceOf`) rather than by a SafeArea around the lot. Wrapped,
+          // the home screen's diorama stopped at the notch and left a bar of
+          // page colour above it.
           Container(
             decoration: kit.background,
-            child: SafeArea(
-              bottom: false,
+            child: SizedBox.expand(
               child: GestureDetector(
                 onHorizontalDragEnd: _onDragEnd,
                 child: SlideTransition(

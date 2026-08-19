@@ -149,7 +149,7 @@ class SquadHeader extends ConsumerWidget {
         color: kit.bg,
         border: Border(bottom: BorderSide(color: kit.border)),
       ),
-      padding: const EdgeInsets.fromLTRB(14, hudClearance, 14, 11),
+      padding: EdgeInsets.fromLTRB(14, hudClearanceOf(context), 14, 11),
       child: Column(
         children: [
           // One glass panel, matching the next-match card's.
