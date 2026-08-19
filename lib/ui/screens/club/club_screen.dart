@@ -10,6 +10,8 @@
 /// legitimately have none yet, in which case a drawing beats a hole.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
@@ -55,6 +57,15 @@ final ownedAssetCountProvider = savePick<int>(
   (s) => AssetCategory.all.where((k) => isAssetOwned(s, k)).length,
 );
 
+/// Which stadium photo hangs over the screen.
+///
+/// An unbuilt Stadium still shows tier one rather than nothing — the ground is
+/// where the club plays whether or not it has been invested in, and an empty
+/// band at the top of the screen says the screen is broken.
+final stadiumTierProvider = savePick<int>(
+  (s) => math.max(1, assetTier(s, AssetCategory.stadium)),
+);
+
 /// Why a button is dead, in copy that already ships.
 String? assetBlockedCopy(String? reason) => switch (reason) {
   null => null,
@@ -81,6 +92,8 @@ class ClubScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 64, 12, 12),
       child: Column(
         children: [
+          _StadiumHero(tier: ref.watch(stadiumTierProvider)),
+          const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -95,6 +108,54 @@ class ClubScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           for (final tile in tiles) _AssetPanel(tile: tile),
         ],
+      ),
+    );
+  }
+}
+
+/// The photo across the top of the Club screen, one per Stadium tier.
+///
+/// `docs/REMAINING.md` had this blocked on teaching `svg_canvas` about
+/// `linearGradient`, `radialGradient` and `<defs>`, because the JS's fallback
+/// draws the six grounds as gradient-filled SVG. It is only the FALLBACK: the
+/// hero a player actually sees is a photograph, and all eight are bundled. The
+/// gradient work was never on the path to this screen.
+///
+/// What stands in when a photo is missing is a plain two-stop gradient rather
+/// than a port of that SVG. Flutter draws gradients natively, nothing else in
+/// the game wants the SVG machinery, and every tier's photo exists — a test in
+/// `test/data/art_paths_test.dart` keeps it that way.
+class _StadiumHero extends StatelessWidget {
+  const _StadiumHero({required this.tier});
+
+  final int tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        // `clamp(140px, 35vw, 200px)`.
+        height: (MediaQuery.sizeOf(context).width * 0.35).clamp(140.0, 200.0),
+        width: double.infinity,
+        child: Semantics(
+          label: t('club.stadium_alt'),
+          image: true,
+          child: ArtImage(
+            key: ValueKey('club-stadium-hero-$tier'),
+            path: stadiumBackgroundPath(tier),
+            fallback: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [kit.surface2, kit.surface],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

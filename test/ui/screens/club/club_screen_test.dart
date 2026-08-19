@@ -235,6 +235,18 @@ void main() {
       expect(art().dimmed, isFalse);
     });
 
+    testWidgets('the stadium hero hangs over the screen', (tester) async {
+      // An unbuilt Stadium still shows tier one: the club plays somewhere
+      // whether or not it has invested, and an empty band reads as a bug.
+      await pumpClub(tester, coins: 100000);
+      expect(
+        tester
+            .widget<ArtImage>(find.byKey(const ValueKey('club-stadium-hero-1')))
+            .path,
+        stadiumBackgroundPath(1),
+      );
+    });
+
     testWidgets('a tile asks for the generated art, not the drawing', (
       tester,
     ) async {
