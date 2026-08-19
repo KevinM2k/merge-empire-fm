@@ -102,6 +102,18 @@ Toast? toastFor(String event, Object? args) {
       }
       return null;
 
+    case 'cup:sponsor-signed':
+      final player = data?['player'];
+      final sponsor = data?['sponsor'];
+      if (player is! String || sponsor is! String) return null;
+      return (
+        text: t('cup.win_reward.signed_toast', {
+          'player': player,
+          'sponsor': sponsor,
+        }),
+        good: true,
+      );
+
     case 'transfer:grudge':
       // A bid died with the card it was for. Pooled copy, so the club's reaction
       // is not the same sentence every time.
@@ -134,6 +146,7 @@ const List<String> toastEvents = [
   'scout:short',
   'scout:auto_sold',
   'merge:refused',
+  'cup:sponsor-signed',
   'transfer:grudge',
   'loan:expired',
 ];

@@ -23,12 +23,20 @@ class CoachAction {
   final bool destructive;
 }
 
+/// One more line under the body, in its own right.
+///
+/// A reward card is the case that needs it: the offer is one sentence and the
+/// TERMS are another, and burying "lasts until the end of the season" inside the
+/// offer is how a player agrees to something they did not read.
+typedef CoachLine = ({String key, Map<String, Object?> params, bool strong});
+
 Future<T?> showCoachCard<T>(
   BuildContext context, {
   required String titleKey,
   required String bodyKey,
   List<CoachAction> actions = const [],
   Map<String, Object?> bodyParams = const {},
+  List<CoachLine> extraLines = const [],
 }) {
   final kit = Theme.of(context).extension<KitTheme>()!;
   return showDialog<T>(
@@ -51,7 +59,26 @@ Future<T?> showCoachCard<T>(
           Expanded(child: Text(t(titleKey))),
         ],
       ),
-      content: Text(t(bodyKey, bodyParams), style: TextStyle(color: kit.textMuted)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t(bodyKey, bodyParams), style: TextStyle(color: kit.textMuted)),
+          for (final line in extraLines)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                t(line.key, line.params),
+                key: ValueKey('coach-line-${line.key}'),
+                style: TextStyle(
+                  color: line.strong ? kit.accentBright : kit.textMuted,
+                  fontSize: line.strong ? 15 : 12,
+                  fontWeight: line.strong ? FontWeight.w900 : FontWeight.w400,
+                ),
+              ),
+            ),
+        ],
+      ),
       actions: [
         for (final action in actions)
           TextButton(

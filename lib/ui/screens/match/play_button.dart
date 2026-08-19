@@ -7,15 +7,18 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/cup_engine.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_button.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_sponsor_offer.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/sponsor_offer_card.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -36,6 +39,11 @@ String matchBlockedCopy(String reason, Map<String, dynamic>? state) =>
 
 final matchBlockedProvider = savePick<String?>(matchStartBlocked);
 
+/// The round a due cup tie belongs to, or null when the next match is a league
+/// one. A String rather than the record, because `savePick` compares with `==`
+/// and the cup object is not what the button needs.
+final cupRoundProvider = savePick<String?>((s) => nextCupRound(s)?.roundName);
+
 class PlayMatchButton extends ConsumerWidget {
   const PlayMatchButton({super.key, this.fast = false});
 
@@ -43,6 +51,13 @@ class PlayMatchButton extends ConsumerWidget {
 
   Future<void> _play(BuildContext context, WidgetRef ref) async {
     final game = ref.read(gameProvider);
+    // A cup tie takes precedence when one is due. Cups sit BETWEEN league games,
+    // so this does not cost the league a fixture — it inserts a match.
+    if (ref.read(cupRoundProvider) != null) {
+      await _playCup(context, ref);
+      return;
+    }
+
     final result = game.update(beginMatch);
     if (result == null || !context.mounted) return;
 
@@ -66,6 +81,37 @@ class PlayMatchButton extends ConsumerWidget {
 
     if (!context.mounted) return;
     await _afterMatch(context, ref, result);
+  }
+
+  /// The same round trip for a cup tie.
+  ///
+  /// Two differences, both the engine's: the prize is paid by `commitCupRound` at
+  /// full time rather than deferred — a cup has no doubling offer — and a win can
+  /// drop a sponsor, which is offered once the screen is gone.
+  Future<void> _playCup(BuildContext context, WidgetRef ref) async {
+    final game = ref.read(gameProvider);
+    final tie = game.update(beginCupRound);
+    if (tie == null || !context.mounted) return;
+
+    CupSponsorDrop? drop;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => MatchScreen(
+          result: tie.result,
+          fast: fast,
+          onFinished: (_) => drop = game.update((s) => settleCupRound(s, tie)),
+        ),
+      ),
+    );
+
+    // The cooldown starts once the player is back on the Play screen rather than
+    // at the final whistle — `commitCupRound` stamps it too, but only as a floor.
+    game.update(startMatchCooldown);
+    if (!context.mounted) return;
+
+    final sponsor = drop;
+    if (sponsor != null) await showCupSponsorOffer(context, ref, sponsor);
   }
 
   /// What arrives once the result screen is gone.
@@ -126,6 +172,11 @@ class PlayMatchButton extends ConsumerWidget {
         ? null
         : matchBlockedCopy(blocked, ref.read(gameProvider).state);
 
+    // A due cup tie renames the button, because it is a different match: the
+    // round is the headline, and a player who taps Play expecting a league game
+    // and gets a semi-final has been ambushed by their own fixture list.
+    final cupRound = ref.watch(cupRoundProvider);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -134,7 +185,11 @@ class PlayMatchButton extends ConsumerWidget {
           child: ElevatedButton(
             key: const ValueKey('play-match'),
             onPressed: blocked != null ? null : () => _play(context, ref),
-            child: Text(t('nav.play')),
+            child: Text(
+              cupRound == null
+                  ? t('nav.play')
+                  : '🏆 ${t('cup.play_round_btn', {'round': cupRound})}',
+            ),
           ),
         ),
         if (reason != null)

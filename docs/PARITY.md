@@ -153,6 +153,27 @@ All seven shelves are present and in the JS's own order.
 - [ ] The doubling offer on the closing screen (the rewards are already deferred
       for it — see `play_button.dart`)
 
+## The domestic cup — `_playCupMatch` in `LeagueScreen.js`
+
+- [x] **A cup tie is playable.** `prepareCupRound` and `commitCupRound` had no
+      caller, so a club auto-entered into its division's cup at the season
+      boundary could never play a round of it. The Play button offers the round
+      by name when one is due — a tie sits BETWEEN league games, so it inserts a
+      match rather than costing the league a fixture.
+- [x] The feed plays the ninety minutes and not the shootout, whose winning goal
+      the engine folds into the scoreline
+- [x] The prize, the bracket, the fitness charge and the match quests, all at
+      full time
+- [x] The sponsor a win can drop, offered rather than applied — `acceptCupSponsorDrop`
+- [ ] The shootout REVEAL (`components/penaltyReveal.js`), kick by kick
+- [ ] The cup-win celebration, the round-win card and the knocked-out card
+- [ ] The tie in the fixture list (`cupInsertAt`), and the round badge on the
+      next-match card
+- [ ] In-match tactic changes rewrite a cup scoreline in the JS, which is what
+      its commit carries the popup's final goals for. `PreparedCupRound` is a
+      record and cannot be mutated, so a screen that can change a result will
+      have to hand the goals in — see the note on `settleCupRound`.
+
 ## Quests — the block in `LeagueScreen.js`
 
 - [x] The season track, claimable, with its progress
@@ -215,6 +236,9 @@ are the reason that rule is here twice:
   writes did nothing whatsoever.
 - **`notifyCardRemoved` was not called on a merge**, so a club that had bid for
   either parent was left waiting on a player who no longer existed.
+- **`prepareCupRound` and `commitCupRound` had no caller**, so the whole domestic
+  cup was unplayable — and `endSeason` enters the player into one every season,
+  so a bracket sat there for the length of a campaign with no way into it.
 - **`resolveMatchQuests` and `rollMatchQuests` both had no caller**, so the match
   quest track — three quests a fixture, each with a payout — was never drawn,
   never shown and never judged. `rollSeasonQuests` was called only at a season

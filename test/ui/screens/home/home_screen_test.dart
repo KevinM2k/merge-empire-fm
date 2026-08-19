@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/cups.dart';
+import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -14,6 +16,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -270,6 +273,48 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('a due cup tie renames the button and is what gets played', (
+      tester,
+    ) async {
+      // The cup engine was reachable by nothing: a club could be entered into a
+      // cup and never play a round of it.
+      final container = await pumpHome(tester, mutate: cupTieDue);
+      expect(
+        find.textContaining(cups.first.rounds.first),
+        findsOneWidget,
+        reason: 'the round is the headline, not "Play"',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('play-match')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('match-screen')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('match-skip')));
+      await tester.pumpAndSettle();
+
+      // Full time: the tie is in the bracket and the prize is paid.
+      final cupsBranch =
+          (container.read(gameProvider).state!['progression']
+                  as Map<String, dynamic>)['cups']
+              as Map<String, dynamic>;
+      final active = cupsBranch['active'] as Map<String, dynamic>?;
+      final history = cupsBranch['history'] as List;
+      expect(
+        active != null ? (active['results'] as List) : history,
+        isNotEmpty,
+        reason: 'won and moved on, or knocked out and filed',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('match-close')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('a league fixture still says Play', (tester) async {
+      await pumpHome(tester, mutate: readyToPlay);
+      expect(find.text(t('nav.play')), findsOneWidget);
+    });
+
     testWidgets('full time commits, and closing pays', (tester) async {
       // The coins land on dismissal, not at full time: the doubling offer lives
       // on the closing screen.
@@ -312,6 +357,39 @@ void main() {
 }
 
 /// A save that can actually take the field.
+/// Ready to play, and a cup tie due instead of the league game.
+///
+/// The division matters: below the Regional League there is no cup to be entered
+/// into at all.
+void cupTieDue(Map<String, dynamic> s) {
+  readyToPlay(s);
+  final prog = s['progression'] as Map<String, dynamic>;
+  prog['currentDivision'] = divisions[cups.first.unlocksAtDivisionIdx].id;
+  prog['seasonMatchesPlayed'] = cupDueAfterMatches.first;
+  final cup = cups.first;
+  prog['cups'] = <String, dynamic>{
+    'availableThisSeason': false,
+    'active': <String, dynamic>{
+      'cupId': cup.id,
+      'round': 0,
+      'opponents': [for (final r in cup.rounds) 'Rival $r'],
+      'opponentMeta': [
+        for (final _ in cup.rounds)
+          <String, dynamic>{
+            'divId': prog['currentDivision'],
+            'rating': 50,
+            'attackRatio': 0.5,
+          },
+      ],
+      'contexts': <dynamic>[],
+      'results': <dynamic>[],
+      'startedAt': 0,
+      'startedSeason': 1,
+    },
+    'history': <dynamic>[],
+  };
+}
+
 void readyToPlay(Map<String, dynamic> s) {
   playedSeason(s);
   (s['energy'] as Map<String, dynamic>)['current'] = 10;

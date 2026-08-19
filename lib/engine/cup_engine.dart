@@ -51,8 +51,9 @@ List<dynamic> _rawCells(Map<String, dynamic>? state) {
   return cells is List ? cells : const [];
 }
 
-List<CardInstance?> _cells(Map<String, dynamic>? state) =>
-    [for (final c in _rawCells(state)) CardInstance.from(c)];
+List<CardInstance?> _cells(Map<String, dynamic>? state) => [
+  for (final c in _rawCells(state)) CardInstance.from(c),
+];
 
 List<Map<String, dynamic>> _lineup(Map<String, dynamic>? state) {
   final raw = _map(state?['squad'])?['lineup'];
@@ -94,8 +95,10 @@ int cupRun(Map<String, dynamic>? state) =>
     _num(_map(state?['prestige'])?['level'])?.toInt() ?? 0;
 
 /// Is this history entry from the run currently being played?
-bool isCupEntryThisRun(Map<String, dynamic>? state, Map<String, dynamic>? entry) =>
-    (_num(entry?['run'])?.toInt() ?? 0) == cupRun(state);
+bool isCupEntryThisRun(
+  Map<String, dynamic>? state,
+  Map<String, dynamic>? entry,
+) => (_num(entry?['run'])?.toInt() ?? 0) == cupRun(state);
 
 Map<String, dynamic> _ensureCupState(Map<String, dynamic> state) {
   final prog = _branch(state, 'progression');
@@ -234,8 +237,9 @@ List<CupOpponent>? _pickOpponentsFromPyramid(
         // Rank-based: first in the pool gets the full boost, last gets one.
         final rankMult = ratingBoost > 1
             ? ratingBoost -
-                (seen * (ratingBoost - 1) /
-                    math.max((poolSize ?? entry.value.length) - 1, 1))
+                  (seen *
+                      (ratingBoost - 1) /
+                      math.max((poolSize ?? entry.value.length) - 1, 1))
             : 1.0;
         weighted.add((c: c, w: w * rankMult));
         seen++;
@@ -291,7 +295,9 @@ List<String> _pickContexts(
         final m = (meta != null && i < meta.length) ? meta[i] : null;
         if (m == null || pyramid == null) {
           final pool = seeded.shuffle([...cupOpponentContext]);
-          return (pool.isEmpty ? cupOpponentContext.first : pool[i % pool.length])
+          return (pool.isEmpty
+                  ? cupOpponentContext.first
+                  : pool[i % pool.length])
               .replaceAll('{team}', name);
         }
 
@@ -318,10 +324,10 @@ List<String> _pickContexts(
         if (divDiff == 0 && cached != null) {
           pos = cached.toInt();
         } else {
-          final sorted = [
-            for (final t in teamList) ?_map(t),
-          ]..sort(
-              (a, b) => (_num(b['rating']) ?? 0).compareTo(_num(a['rating']) ?? 0),
+          final sorted = [for (final t in teamList) ?_map(t)]
+            ..sort(
+              (a, b) =>
+                  (_num(b['rating']) ?? 0).compareTo(_num(a['rating']) ?? 0),
             );
           final idx = sorted.indexWhere((t) => t['name'] == name);
           pos = idx >= 0 ? idx + 1 : teamList.length;
@@ -332,18 +338,18 @@ List<String> _pickContexts(
         if (divDiff >= 2) {
           return isTopHalf
               ? "$name sit $posStr in the $divName — a much stronger division "
-                  "than ours. We'll need to be at our absolute best just to "
-                  'keep up.'
+                    "than ours. We'll need to be at our absolute best just to "
+                    'keep up.'
               : '$name come from the $divName, a stronger league than ours. '
-                  'Even a mid-table side from up there carries serious quality '
-                  "— can't afford a slow start.";
+                    'Even a mid-table side from up there carries serious quality '
+                    "— can't afford a slow start.";
         }
         if (divDiff == 1) {
           return isTopHalf
               ? "$name are $posStr in the $divName — a step up from what we're "
-                  'used to. Tight, disciplined, no mistakes.'
+                    'used to. Tight, disciplined, no mistakes.'
               : "$name play in a stronger division than us. They won't be an "
-                  "easy ride even if they're not flying in their own league.";
+                    "easy ride even if they're not flying in their own league.";
         }
         if (divDiff == 0) {
           if (pos == 1) {
@@ -352,25 +358,25 @@ List<String> _pickContexts(
           }
           return isTopHalf
               ? '$name sit $posStr in the $divName — similar level to us. '
-                  'Expect a tough contest.'
+                    'Expect a tough contest.'
               : '$name are from the $divName, similar level to us. Should be '
-                  'an even contest — whoever wants it more on the day wins.';
+                    'an even contest — whoever wants it more on the day wins.';
         }
         if (divDiff == -1) {
           return pos == 1
               ? '$name are leading the $divName — a division below, but cup '
-                  'football is a leveller. Expect them to come out fighting.'
+                    'football is a leveller. Expect them to come out fighting.'
               : "$name come from a lower division. We're favourites, but "
-                  "they'll be desperate to cause an upset — stay focused from "
-                  'the first whistle.';
+                    "they'll be desperate to cause an upset — stay focused from "
+                    'the first whistle.';
         }
         return pos == 1
             ? "$name are top of the $divName, but that's a lower division than "
-                'ours. We have the quality edge — use it, but don\'t get '
-                'careless.'
+                  'ours. We have the quality edge — use it, but don\'t get '
+                  'careless.'
             : '$name are from a much lower division. On paper this should be '
-                'comfortable, but cup runs have ended for less. Take it '
-                'seriously.';
+                  'comfortable, but cup runs have ended for less. Take it '
+                  'seriously.';
       }(),
   ];
 }
@@ -411,6 +417,33 @@ CupSponsorDrop? _dropPlayerSponsor(Map<String, dynamic> state) {
     sponsorData: sponsor,
     playerName: getCardName(_map(cells[idx]), 'a player'),
   );
+}
+
+/// Take up a sponsor a cup win offered.
+///
+/// Deliberately separate from the roll: [commitCupRound] hands back a descriptor
+/// and applies nothing, because the player is being ASKED. A drop nobody answers
+/// changes no card.
+///
+/// Refuses a card that has gone since the tie — sold, merged or auto-sold — and a
+/// card that already carries a sponsor, so a second cup win cannot overwrite a
+/// deal the player is still living with.
+bool acceptCupSponsorDrop(Map<String, dynamic> state, CupSponsorDrop drop) {
+  final cells = _rawCells(state);
+  if (drop.cellIdx < 0 || drop.cellIdx >= cells.length) return false;
+  final card = _map(cells[drop.cellIdx]);
+  if (card == null || card['sponsor'] != null) return false;
+  card['sponsor'] = <String, dynamic>{
+    'name': drop.sponsorData.name,
+    'multiplier': drop.sponsorData.multiplier,
+    'signedSeason':
+        _num(_map(state['progression'])?['seasonCount'])?.toInt() ?? 1,
+  };
+  emit('cup:sponsor-signed', {
+    'player': drop.playerName,
+    'sponsor': drop.sponsorData.name,
+  });
+  return true;
 }
 
 /// The save-shaped form of a drop. The history is persisted, so it cannot hold
@@ -567,7 +600,10 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
 
   var opponentRating = realRating != null
       ? math.min(100, math.max(20, realRating))
-      : math.min(100, math.max(20, squadRating + bump + seeded.randomInt(-4, 4)));
+      : math.min(
+          100,
+          math.max(20, squadRating + bump + seeded.randomInt(-4, 4)),
+        );
 
   // The Lucky Boot weakens them before the split into ATK and DEF.
   final shop = _map(state['shop']);
@@ -582,7 +618,8 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     definitionRatios: ratios,
     fatigue: fatigue,
   );
-  final strat = strategies[_map(state['squad'])?['strategyId'] as String?] ??
+  final strat =
+      strategies[_map(state['squad'])?['strategyId'] as String?] ??
       strategies[defaultStrategy]!;
 
   // Their ATK and DEF are computed BEFORE our tactic is applied, because
@@ -592,10 +629,14 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
       _num(meta?['attackRatio'])?.toDouble() ?? oppBaseAtkShare;
   final oppSplit = opponentAtkDefFromShare(opponentRating, oppAttackRatio);
 
-  final adjAttack =
-      math.max(1.0, applyTacticAtk(baseRatings.attack, strat, oppAttackRatio));
-  final adjDefence =
-      math.max(1.0, applyTacticDef(baseRatings.defence, strat, oppAttackRatio));
+  final adjAttack = math.max(
+    1.0,
+    applyTacticAtk(baseRatings.attack, strat, oppAttackRatio),
+  );
+  final adjDefence = math.max(
+    1.0,
+    applyTacticDef(baseRatings.defence, strat, oppAttackRatio),
+  );
 
   final injuries = _rollCupInjuries(state, cells);
 
@@ -701,8 +742,9 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
 /// something even when it ends.
 num _roundPrize(Map<String, dynamic> state, Cup cup, int round, bool won) {
   final div = getDivision('${_map(state['progression'])?['currentDivision']}');
-  final prizeMult =
-      round < cup.roundPrizeMult.length ? cup.roundPrizeMult[round] : 1.0;
+  final prizeMult = round < cup.roundPrizeMult.length
+      ? cup.roundPrizeMult[round]
+      : 1.0;
   return roundCoins(div.matchRevenueBase * prizeMult * (won ? 1.0 : 0.4));
 }
 
@@ -727,8 +769,10 @@ List<CupInjury> _rollCupInjuries(
   ];
   if (pool.isEmpty) return injuries;
 
-  final squadInjRed =
-      computeSquadTraitTotals(cells, _lineup(state)).teamInjuryReduction;
+  final squadInjRed = computeSquadTraitTotals(
+    cells,
+    _lineup(state),
+  ).teamInjuryReduction;
 
   bool injuryRoll(CardInstance candidate, double mult) {
     var chance = getInjuryChance(candidate.seasonsPlayed, _divisionIdx(state));
@@ -746,16 +790,16 @@ List<CupInjury> _rollCupInjuries(
 
   final m1 = seeded.randomInt(20, 85);
   injuries.add(CupInjury(card: c1, minute: m1));
-  pool = [for (final c in pool) if (!identical(c, c1)) c];
+  pool = [
+    for (final c in pool)
+      if (!identical(c, c1)) c,
+  ];
   if (pool.isEmpty) return injuries;
 
   final c2 = pool[seeded.randomInt(0, pool.length - 1)];
   if (injuryRoll(c2, 0.5)) {
     injuries.add(
-      CupInjury(
-        card: c2,
-        minute: seeded.randomInt(math.min(m1 + 5, 87), 88),
-      ),
+      CupInjury(card: c2, minute: seeded.randomInt(math.min(m1 + 5, 87), 88)),
     );
   }
   return injuries;
@@ -800,8 +844,9 @@ CupSponsorDrop? commitCupRound(
 
   _chargeCupFitness(state, prepared);
 
-  final sponsorDrop =
-      won ? _rollCupSponsorDrop(state, prepared.round, cup.rounds.length) : null;
+  final sponsorDrop = won
+      ? _rollCupSponsorDrop(state, prepared.round, cup.rounds.length)
+      : null;
 
   final result = <String, dynamic>{
     'round': prepared.round,
@@ -824,8 +869,7 @@ CupSponsorDrop? commitCupRound(
   emit('cup:round-complete', {'cupId': cup.id, 'result': result});
   if (sponsorDrop != null) emit('cup:sponsor-drop', sponsorDrop);
 
-  final season =
-      _num(_map(state['progression'])?['seasonCount'])?.toInt() ?? 1;
+  final season = _num(_map(state['progression'])?['seasonCount'])?.toInt() ?? 1;
 
   if (!won) {
     _list(cups, 'history').add(<String, dynamic>{

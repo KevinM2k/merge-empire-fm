@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,429 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,449 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 
@@ -877,6 +877,14 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       Still to add: in-match subs and tactic changes,
       the stats and tactics tabs, the transfer-offer expiry on kickoff, and the
       tutorial's forced first win
+- [x] **The domestic cup is playable** — `lib/ui/screens/match/cup_launcher.dart`.
+      `cup_engine` was ported, tested and reachable by nothing: `endSeason`
+      auto-enters the club into its division's cup and nothing could play a round
+      of it. The Play button offers the round by name when one is due; the tie
+      goes through the same match screen, and the prize, the bracket and the
+      sponsor drop settle at full time.
+      Still to add: the shootout reveal, the three celebration cards, and the tie
+      in the fixture list.
 - [x] Season-end takeover — `lib/ui/screens/season/`. Not polish: without it
       the game STOPPED at the fourteenth match, because `simulateMatch` sets
       `progression.seasonComplete`, every gate then refuses, and nothing offered
