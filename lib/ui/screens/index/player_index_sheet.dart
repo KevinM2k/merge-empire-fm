@@ -1,0 +1,813 @@
+/// The Player Index. Ported from `ui/screens/PlayerIndexScreen.js`.
+///
+/// A collection screen: every definition in the game, twice — once male, once
+/// female — shown found or still hidden. Filters narrow it, and tapping a card
+/// opens what it is worth and where it can be scouted.
+///
+/// **One definition is two entries.** The same striker has male and female art
+/// and a name pool each, so the index counts 66 and not 33. The key written to
+/// the save is `{definitionId}:{m|f}` — `CardInstance.discoveryKey` owns that
+/// format, and `game_wiring` is what writes it.
+///
+/// The JS mounts its cards lazily behind an `IntersectionObserver` so 66 do not
+/// build at once. `GridView.builder` is that, and it is one argument rather than
+/// an observer, a shell class, a build callback and a disconnect on every
+/// re-fill.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
+import 'package:merge_empire_fc/data/card_theme.dart';
+import 'package:merge_empire_fc/data/player_art.dart';
+import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
+
+/// Reading order down the pitch, which is how a squad is listed everywhere else.
+const Map<String, int> _positionOrder = {'FWD': 0, 'MID': 1, 'DEF': 2, 'GK': 3};
+
+/// One row of the index: a definition, seen as one gender.
+typedef IndexEntry = ({PlayerDef def, bool female});
+
+String _key(IndexEntry e) => '${e.def.id}:${e.female ? 'f' : 'm'}';
+
+/// The variant index whose art each gender resolves to. The index shows ONE
+/// portrait per gender rather than one per variant, so it picks the first of
+/// each rather than carrying the variant through.
+final int _femaleVariant = variants.indexWhere((v) => v.female);
+final int _maleVariant = variants.indexWhere((v) => !v.female);
+
+int _variantFor(bool female) {
+  final idx = female ? _femaleVariant : _maleVariant;
+  return idx < 0 ? 0 : idx;
+}
+
+/// Every entry, tier → position → gender. Built once: the catalogue is const.
+final List<IndexEntry> allIndexEntries = () {
+  final out = <IndexEntry>[
+    for (final def in players) ...[
+      (def: def, female: false),
+      (def: def, female: true),
+    ],
+  ];
+  out.sort((a, b) {
+    if (a.def.tier != b.def.tier) return a.def.tier - b.def.tier;
+    final byPosition =
+        (_positionOrder[a.def.position] ?? 9) -
+        (_positionOrder[b.def.position] ?? 9);
+    if (byPosition != 0) return byPosition;
+    if (a.female == b.female) return 0;
+    return a.female ? 1 : -1;
+  });
+  return List<IndexEntry>.unmodifiable(out);
+}();
+
+/// Which divisions can scout a given tier, derived from the odds table so a
+/// weighting change moves this on its own.
+final Map<int, List<String>> tierScoutDivisions = () {
+  final out = <int, List<String>>{};
+  for (final entry in divisionScoutOdds.entries) {
+    for (final (tier, _) in entry.value) {
+      (out[tier] ??= <String>[]).add(entry.key);
+    }
+  }
+  return Map<int, List<String>>.unmodifiable(out);
+}();
+
+/// The name a card of this definition and gender would be given.
+String indexCardName(IndexEntry entry) => pickDisplayName(
+  entry.def.position,
+  entry.def.tier - 1,
+  female: entry.female,
+);
+
+/// What the index knows about the player's collection.
+typedef IndexProgress = ({Set<String> discovered, Map<String, int> counts});
+
+final playerIndexProgressProvider = savePick<IndexProgress>((s) {
+  final prog = s['progression'];
+  final rawDiscovered = prog is Map<String, dynamic>
+      ? prog['discoveredPlayers']
+      : null;
+  final rawCounts = prog is Map<String, dynamic>
+      ? prog['playerFoundCounts']
+      : null;
+  return (
+    discovered: {
+      for (final k in rawDiscovered is List ? rawDiscovered : const [])
+        if (k is String) k,
+    },
+    counts: {
+      for (final e
+          in (rawCounts is Map<String, dynamic>
+                  ? rawCounts
+                  : const <String, dynamic>{})
+              .entries)
+        if (e.value is num) e.key: (e.value as num).toInt(),
+    },
+  );
+});
+
+/// The four dropdowns across the top. `null` is "All".
+typedef IndexFilters = ({
+  String? position,
+  int? tier,
+  bool? female,
+  bool? found,
+});
+
+const IndexFilters _noFilters = (
+  position: null,
+  tier: null,
+  female: null,
+  found: null,
+);
+
+bool _matches(IndexEntry entry, IndexFilters f, Set<String> discovered) {
+  if (f.position != null && entry.def.position != f.position) return false;
+  if (f.tier != null && entry.def.tier != f.tier) return false;
+  if (f.female != null && entry.female != f.female) return false;
+  if (f.found != null && discovered.contains(_key(entry)) != f.found) {
+    return false;
+  }
+  return true;
+}
+
+Future<void> showPlayerIndexSheet(BuildContext context) =>
+    openShellSheet(context, ShellSheet.playerIndex, const PlayerIndexView());
+
+class PlayerIndexView extends ConsumerStatefulWidget {
+  const PlayerIndexView({super.key});
+
+  @override
+  ConsumerState<PlayerIndexView> createState() => _PlayerIndexViewState();
+}
+
+class _PlayerIndexViewState extends ConsumerState<PlayerIndexView> {
+  IndexFilters _filters = _noFilters;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final progress = ref.watch(playerIndexProgressProvider);
+    final entries = [
+      for (final e in allIndexEntries)
+        if (_matches(e, _filters, progress.discovered)) e,
+    ];
+
+    return Padding(
+      key: const ValueKey('player-index'),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t('pi.title').toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+              color: kit.accentBright,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _FilterBar(
+            filters: _filters,
+            onChanged: (f) => setState(() => _filters = f),
+          ),
+          const SizedBox(height: 10),
+          if (entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                t('pi.no_cards_match'),
+                key: const ValueKey('player-index-empty'),
+                style: TextStyle(color: kit.textMuted, fontSize: 12),
+              ),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: entries.length,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 110,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 0.72,
+              ),
+              itemBuilder: (_, i) {
+                final entry = entries[i];
+                final key = _key(entry);
+                return _IndexCard(
+                  entry: entry,
+                  discovered: progress.discovered.contains(key),
+                  count: progress.counts[key] ?? 0,
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The four dropdowns. The JS builds these from a shared `FilterDropdownBar`;
+/// `DropdownButton` is the same control and knows about overlays already.
+class _FilterBar extends StatelessWidget {
+  const _FilterBar({required this.filters, required this.onChanged});
+
+  final IndexFilters filters;
+  final ValueChanged<IndexFilters> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    // Tier labels come from the catalogue where it has one and the definition's
+    // own `tierName` where it does not.
+    final tiers = <int>{for (final p in players) p.tier}.toList()..sort();
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _Dropdown<String?>(
+          fieldKey: 'position',
+          label: t('pi.filter.position'),
+          value: filters.position,
+          options: [
+            (null, t('pi.filter.all')),
+            for (final p in _positionOrder.keys) (p, p),
+          ],
+          onChanged: (v) => onChanged((
+            position: v,
+            tier: filters.tier,
+            female: filters.female,
+            found: filters.found,
+          )),
+        ),
+        _Dropdown<int?>(
+          fieldKey: 'tier',
+          label: t('pi.filter.tier'),
+          value: filters.tier,
+          options: [
+            (null, t('pi.filter.all')),
+            for (final tier in tiers) (tier, _tierName(tier)),
+          ],
+          onChanged: (v) => onChanged((
+            position: filters.position,
+            tier: v,
+            female: filters.female,
+            found: filters.found,
+          )),
+        ),
+        _Dropdown<bool?>(
+          fieldKey: 'gender',
+          label: t('pi.filter.gender'),
+          value: filters.female,
+          options: [
+            (null, t('pi.filter.all')),
+            (false, '♂ ${t('pi.gender_male')}'),
+            (true, '♀ ${t('pi.gender_female')}'),
+          ],
+          onChanged: (v) => onChanged((
+            position: filters.position,
+            tier: filters.tier,
+            female: v,
+            found: filters.found,
+          )),
+        ),
+        _Dropdown<bool?>(
+          fieldKey: 'status',
+          label: t('pi.filter.status'),
+          value: filters.found,
+          options: [
+            (null, t('pi.filter.all')),
+            (true, t('pi.filter.found')),
+            (false, t('pi.filter.missing')),
+          ],
+          onChanged: (v) => onChanged((
+            position: filters.position,
+            tier: filters.tier,
+            female: filters.female,
+            found: v,
+          )),
+        ),
+      ],
+    );
+  }
+}
+
+String _tierName(int tier) {
+  final key = 'player.tier.$tier';
+  final hit = t(key);
+  if (hit != key) return hit;
+  return players.firstWhere((p) => p.tier == tier).tierName;
+}
+
+class _Dropdown<T> extends StatelessWidget {
+  const _Dropdown({
+    required this.fieldKey,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String fieldKey;
+  final String label;
+  final T value;
+  final List<(T, String)> options;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    // An active filter is marked, so a player who has narrowed the list and
+    // scrolled away can see why it is short.
+    final active = value != null;
+
+    return Container(
+      key: ValueKey('pi-filter-$fieldKey'),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: kit.surface2,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: active ? kit.accent : kit.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isDense: true,
+          dropdownColor: kit.surface,
+          hint: Text(
+            label,
+            style: TextStyle(fontSize: 11, color: kit.textMuted),
+          ),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: active ? kit.accentBright : kit.textMuted,
+          ),
+          items: [
+            for (final (optionValue, optionLabel) in options)
+              DropdownMenuItem<T>(
+                value: optionValue,
+                child: Text(
+                  optionValue == null ? label : optionLabel,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              ),
+          ],
+          onChanged: (v) => onChanged(v as T),
+        ),
+      ),
+    );
+  }
+}
+
+class _IndexCard extends StatelessWidget {
+  const _IndexCard({
+    required this.entry,
+    required this.discovered,
+    required this.count,
+  });
+
+  final IndexEntry entry;
+  final bool discovered;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final theme = tierThemes[entry.def.tier] ?? tierThemes[1]!;
+    final accent = cssColor(theme.accent);
+    final accentLight = cssColor(theme.accentLight);
+    final name = indexCardName(entry);
+
+    return GestureDetector(
+      key: ValueKey('pi-card-${_key(entry)}'),
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => _RecipeDialog(entry: entry, discovered: discovered),
+      ),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          gradient: discovered ? tierBodyGradient(theme.bg) : null,
+          color: discovered ? null : kit.surface2,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: discovered ? accent : kit.border),
+          // Tier 7+ glows, but only once found — the glow is the reward.
+          boxShadow: entry.def.tier >= 7 && discovered
+              ? [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.47),
+                    blurRadius: 10,
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 3,
+              decoration: BoxDecoration(
+                gradient: discovered
+                    ? LinearGradient(colors: [accent, accentLight, accent])
+                    : null,
+                color: discovered ? null : kit.border,
+              ),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    // An undiscovered card is a SILHOUETTE, not a dimmed
+                    // portrait: the whole point of the index is that you cannot
+                    // see who it is until you find them.
+                    child: Opacity(
+                      opacity: discovered ? 1 : 0.22,
+                      child: ColorFiltered(
+                        colorFilter: discovered
+                            ? const ColorFilter.mode(
+                                Colors.transparent,
+                                BlendMode.dst,
+                              )
+                            : const ColorFilter.mode(
+                                Colors.black,
+                                BlendMode.srcIn,
+                              ),
+                        child: ArtImage(
+                          path: playerImagePath(
+                            entry.def.position,
+                            entry.def.tier,
+                            _variantFor(entry.female),
+                          ),
+                          fit: BoxFit.contain,
+                          fallback: PlayerPortrait(
+                            variantIndex: _variantFor(entry.female),
+                            kitColor: accent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 3,
+                    left: 3,
+                    child: _Badge(
+                      text: entry.female ? '♀' : '♂',
+                      color: entry.female
+                          ? const Color(0xFFFF80AB)
+                          : const Color(0xFF80D8FF),
+                    ),
+                  ),
+                  Positioned(
+                    top: 3,
+                    right: 3,
+                    child: _Badge(
+                      text: '${entry.def.position} T${entry.def.tier}',
+                      color: discovered ? accentLight : kit.textMuted,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 3,
+                    right: 3,
+                    child: _Badge(
+                      text: '×$count',
+                      color: count > 0 ? accentLight : kit.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(5, 4, 5, 5),
+              color: Colors.black.withValues(alpha: 0.7),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    (discovered ? name : '???').toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: discovered ? Colors.white : kit.textMuted,
+                    ),
+                  ),
+                  Text(
+                    discovered
+                        ? '${entry.def.position} · T${entry.def.tier}'
+                        : 'T${entry.def.tier}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: discovered ? accentLight : kit.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.text, required this.color});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.78),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w900,
+        height: 1.4,
+        color: color,
+      ),
+    ),
+  );
+}
+
+/// What a card is worth and where it can be found.
+///
+/// The stats half is shown only once discovered — knowing a card's rating
+/// before you have ever seen one is the spoiler the whole screen avoids — but
+/// the scouting half shows either way, because that is how you go and get it.
+class _RecipeDialog extends StatelessWidget {
+  const _RecipeDialog({required this.entry, required this.discovered});
+
+  final IndexEntry entry;
+  final bool discovered;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final def = entry.def;
+    final theme = tierThemes[def.tier] ?? tierThemes[1]!;
+    final accentLight = cssColor(theme.accentLight);
+    final divisions = tierScoutDivisions[def.tier] ?? const <String>[];
+
+    // The flavour lines are ordered position-major, gender-minor.
+    final flavourIndex =
+        (_positionOrder[def.position] ?? 0) * 2 + (entry.female ? 1 : 0);
+    final flavour = def.flavourTexts.isEmpty
+        ? null
+        : def.flavourTexts.length > flavourIndex
+        ? def.flavourTexts[flavourIndex]
+        : def.flavourTexts.first;
+
+    return AlertDialog(
+      key: ValueKey('pi-recipe-${_key(entry)}'),
+      backgroundColor: kit.surface,
+      content: SizedBox(
+        width: 360,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 80,
+                    height: 110,
+                    child: discovered
+                        ? ArtImage(
+                            path: playerImagePath(
+                              def.position,
+                              def.tier,
+                              _variantFor(entry.female),
+                            ),
+                            fit: BoxFit.contain,
+                            fallback: PlayerPortrait(
+                              variantIndex: _variantFor(entry.female),
+                              kitColor: cssColor(theme.accent),
+                            ),
+                          )
+                        : const Center(
+                            child: Text('❓', style: TextStyle(fontSize: 28)),
+                          ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          discovered ? indexCardName(entry) : '???',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            height: 1.2,
+                            color: discovered ? accentLight : null,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${def.position} · ${tierLabel[def.tier] ?? ''}',
+                          style: TextStyle(fontSize: 12, color: kit.textMuted),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          entry.female
+                              ? '♀ ${t('pi.gender_female')}'
+                              : '♂ ${t('pi.gender_male')}',
+                          style: TextStyle(fontSize: 11, color: kit.textMuted),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          discovered
+                              ? '✓ ${t('pi.discovered')}'
+                              : '✗ ${t('pi.not_found')}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: discovered
+                                ? kit.accentBright
+                                : const Color(0xFFF87171),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (discovered) ...[
+                const SizedBox(height: 16),
+                _SectionTitle(t('pi.stats_title')),
+                Row(
+                  children: [
+                    _StatCard(
+                      value: '${def.rating}',
+                      label: t('pi.stat.rating'),
+                      colour: accentLight,
+                    ),
+                    const SizedBox(width: 10),
+                    _StatCard(
+                      value: '+${def.idleIncomePerSec}/s',
+                      label: t('pi.stat.income'),
+                      colour: accentLight,
+                    ),
+                  ],
+                ),
+                if (flavour != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    '"$flavour"',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      fontStyle: FontStyle.italic,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                ],
+              ],
+              if (divisions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _SectionTitle(t('pi.scout_availability')),
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: [
+                    for (final id in divisions)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: kit.surface2,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: kit.border),
+                        ),
+                        child: Text(
+                          tName('division', id),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                // The Icon cannot be merged into, so where it drops is the ONLY
+                // way to get one — worth saying rather than leaving to be
+                // inferred from an empty merge chain.
+                if (def.tier == 9) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    t('pi.tier9_note'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.5,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        ElevatedButton(
+          key: const ValueKey('pi-recipe-close'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(t('common.close')),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+          color: kit.textMuted,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.value,
+    required this.label,
+    required this.colour,
+  });
+
+  final String value;
+  final String label;
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: kit.surface2,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: kit.border),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: colour,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(fontSize: 9, color: kit.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -11,7 +11,6 @@ library;
 import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/divisions.dart';
-import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/team_names.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -119,7 +118,10 @@ void _repairSeasonCounters(Map<String, dynamic> prog) {
   }
 }
 
-void _seedDiscoveredPlayers(Map<String, dynamic> data, Map<String, dynamic> prog) {
+void _seedDiscoveredPlayers(
+  Map<String, dynamic> data,
+  Map<String, dynamic> prog,
+) {
   final grid = _map(data['grid']);
   final cells = grid?['cells'];
   final gridCards = <CardInstance>[
@@ -129,15 +131,10 @@ void _seedDiscoveredPlayers(Map<String, dynamic> data, Map<String, dynamic> prog
           if (card.definitionId.isNotEmpty) card,
   ];
 
-  String keyFor(CardInstance c) {
-    final variant = (_num(c.raw['variant']) ?? 0).toInt();
-    return '${c.definitionId}:${isVariantFemale(variant) ? 'f' : 'm'}';
-  }
-
   if (prog['discoveredPlayers'] is! List) {
     final discovered = <dynamic>[];
     for (final card in gridCards) {
-      final key = keyFor(card);
+      final key = card.discoveryKey;
       if (!discovered.contains(key)) discovered.add(key);
     }
     prog['discoveredPlayers'] = discovered;
@@ -149,7 +146,7 @@ void _seedDiscoveredPlayers(Map<String, dynamic> data, Map<String, dynamic> prog
     // duplicates are not lost. Discovered-but-not-held cards get 1.
     final gridCounts = <String, int>{};
     for (final card in gridCards) {
-      final key = keyFor(card);
+      final key = card.discoveryKey;
       gridCounts[key] = (gridCounts[key] ?? 0) + 1;
     }
     prog['playerFoundCounts'] = <String, dynamic>{
@@ -180,7 +177,8 @@ void _migrateCups(Map<String, dynamic> prog) {
   // skipped because the round counter was already advanced.
   final active = _map(cups['active']);
   final currentSeason = _num(prog['seasonCount'])?.toInt() ?? 1;
-  if (active != null && _num(active['startedSeason'])?.toInt() != currentSeason) {
+  if (active != null &&
+      _num(active['startedSeason'])?.toInt() != currentSeason) {
     cups['active'] = null;
     cups['availableThisSeason'] = true;
     // Prune history entries tagged for this season — likely phantoms pushed by
@@ -357,8 +355,8 @@ void scrubTeamNames(Map<String, dynamic> data) {
         team['attackBias'] = r < 0.35
             ? 0.55 + migrationRandom.nextDouble() * 0.35
             : r < 0.65
-                ? migrationRandom.nextDouble() * 0.30 - 0.15
-                : -(0.55 + migrationRandom.nextDouble() * 0.35);
+            ? migrationRandom.nextDouble() * 0.30 - 0.15
+            : -(0.55 + migrationRandom.nextDouble() * 0.35);
       }
     }
   }
@@ -403,9 +401,14 @@ void backfillCareerCounters(Map<String, dynamic> data) {
       }
     }
 
-    prog['careerWins'] ??= math.max(_num(prog['matchesWon'])?.toInt() ?? 0, recW);
-    prog['careerDraws'] ??=
-        math.max(_num(prog['matchesDrawn'])?.toInt() ?? 0, recD);
+    prog['careerWins'] ??= math.max(
+      _num(prog['matchesWon'])?.toInt() ?? 0,
+      recW,
+    );
+    prog['careerDraws'] ??= math.max(
+      _num(prog['matchesDrawn'])?.toInt() ?? 0,
+      recD,
+    );
     prog['careerGoalsFor'] ??= recG;
 
     // One-off recovery for the prestige-wipe bug: if the surviving fixtures
@@ -415,11 +418,18 @@ void backfillCareerCounters(Map<String, dynamic> data) {
       prog['careerBackfillDone'] = true;
       if (recW > (_num(prog['matchesWon'])?.toInt() ?? 0) ||
           recD > (_num(prog['matchesDrawn'])?.toInt() ?? 0)) {
-        prog['careerWins'] = math.max(_num(prog['careerWins'])?.toInt() ?? 0, recW);
-        prog['careerDraws'] =
-            math.max(_num(prog['careerDraws'])?.toInt() ?? 0, recD);
-        prog['careerGoalsFor'] =
-            math.max(_num(prog['careerGoalsFor']) ?? 0, recG);
+        prog['careerWins'] = math.max(
+          _num(prog['careerWins'])?.toInt() ?? 0,
+          recW,
+        );
+        prog['careerDraws'] = math.max(
+          _num(prog['careerDraws'])?.toInt() ?? 0,
+          recD,
+        );
+        prog['careerGoalsFor'] = math.max(
+          _num(prog['careerGoalsFor']) ?? 0,
+          recG,
+        );
         final lb = _map(data['leaderboard']);
         if (lb != null) lb['careerSeeded'] = false;
       }
@@ -436,7 +446,8 @@ void backfillCareerCounters(Map<String, dynamic> data) {
   // roughly zero.
   if (prog['careerResetRecoveryDone'] != true) {
     prog['careerResetRecoveryDone'] = true;
-    final surviving = _num(_map(data['careerStats'])?['matchesWon'])?.toInt() ?? 0;
+    final surviving =
+        _num(_map(data['careerStats'])?['matchesWon'])?.toInt() ?? 0;
     if (surviving > (_num(prog['careerWins'])?.toInt() ?? 0)) {
       prog['careerWins'] = surviving;
       final lb = _map(data['leaderboard']);
@@ -479,7 +490,13 @@ void migrateDeadlineDay(Map<String, dynamic> data) {
   final s = _map(dd['session'])!;
 
   if (s['listings'] is! List) s['listings'] = <dynamic>[];
-  for (final k in ['windowStart', 'startedAt', 'endsAt', 'spawned', 'marquees']) {
+  for (final k in [
+    'windowStart',
+    'startedAt',
+    'endsAt',
+    'spawned',
+    'marquees',
+  ]) {
     if (s[k] is! num) s[k] = 0;
   }
   if (s['done'] is! bool) s['done'] = false;
@@ -554,9 +571,13 @@ void migrateGemLedger(Map<String, dynamic> data) {
     };
   } else {
     if (grants['tutorialGranted'] is! bool) grants['tutorialGranted'] = false;
-    if (grants['divisionFirsts'] is! List) grants['divisionFirsts'] = <dynamic>[];
+    if (grants['divisionFirsts'] is! List) {
+      grants['divisionFirsts'] = <dynamic>[];
+    }
     if (grants['cupFirsts'] is! List) grants['cupFirsts'] = <dynamic>[];
-    if (grants['firstPrestigeDone'] is! bool) grants['firstPrestigeDone'] = false;
+    if (grants['firstPrestigeDone'] is! bool) {
+      grants['firstPrestigeDone'] = false;
+    }
     if (grants['chlTitleThisRun'] is! bool) grants['chlTitleThisRun'] = false;
   }
 
@@ -743,7 +764,10 @@ void migrateQuests(Map<String, dynamic> data) {
 
   final match = _map(quests['match']);
   if (match == null) {
-    quests['match'] = <String, dynamic>{'fixtureKey': null, 'active': <dynamic>[]};
+    quests['match'] = <String, dynamic>{
+      'fixtureKey': null,
+      'active': <dynamic>[],
+    };
   } else if (match['active'] is! List) {
     match['active'] = <dynamic>[];
   }

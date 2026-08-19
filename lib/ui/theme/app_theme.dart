@@ -3,12 +3,27 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/data/kit_palette.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/stripe_painter.dart';
 import 'package:merge_empire_fc/util/kit_theme.dart';
 
 export 'package:merge_empire_fc/ui/theme/stripe_painter.dart';
+
+/// A tier's card body, as a Flutter gradient.
+///
+/// CSS measures its angle clockwise from "to top" and Flutter takes two points.
+/// 160deg and 135deg are the only two the catalogue uses and both read as a
+/// top-left to bottom-right sweep, so one alignment pair covers it. Shared
+/// because the merge grid's card and the Player Index's draw the same body and
+/// a second copy is a second thing to get wrong.
+LinearGradient tierBodyGradient(TierGradient g) => LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [for (final stop in g.stops) cssColor(stop.$1)],
+  stops: [for (final stop in g.stops) stop.$2 / 100],
+);
 
 final RegExp _hsl = RegExp(r'^hsl\(\s*(-?\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*\)$');
 
@@ -30,7 +45,11 @@ Color cssColor(String value) {
   final m = _hsl.firstMatch(v);
   if (m != null) {
     return cssColor(
-      hslToHex(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!)),
+      hslToHex(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+      ),
     );
   }
   return const Color(0xFF000000);

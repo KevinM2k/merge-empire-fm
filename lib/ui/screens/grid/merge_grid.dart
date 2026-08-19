@@ -25,7 +25,6 @@ import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
-import 'package:merge_empire_fc/util/event_bus.dart';
 
 class MergeGrid extends ConsumerStatefulWidget {
   const MergeGrid({super.key});
@@ -48,7 +47,6 @@ class MergeGridState extends ConsumerState<MergeGrid> {
     // The engine says WHAT happened; the rest of the app decides what to make
     // of it. A refused drag is worth nothing at all.
     if (!result.ok) return;
-    emit('card:placed', result.result?.instanceId);
     // Only a MERGE is celebrated. A move and a swap are the player tidying up,
     // and applauding those would make the burst mean nothing.
     if (result.action == MergeAction.merge) {

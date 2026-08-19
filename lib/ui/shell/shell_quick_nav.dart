@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
+import 'package:merge_empire_fc/ui/screens/index/player_index_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -17,10 +18,21 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 /// What the menu offers today.
 ///
 /// The JS groups its eight tiles as "where you stand / what there is to do /
-/// what you've won". The Player Index and the Leaderboard belong in the first
-/// and third and are not listed yet, because neither screen exists — a menu row
-/// leading nowhere is the bug this file was written to fix, not one to add.
+/// what you've won". The Leaderboard belongs in the third and is not listed
+/// yet, because it needs `leaderboardService` before the screen is worth
+/// writing — a menu row leading nowhere is the bug this file was written to
+/// fix, not one to add.
 List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
+  QuickNavGroup(
+    titleKey: 'quicknav.group.league',
+    items: [
+      QuickNavItem(
+        labelKey: 'scene.dock.index',
+        icon: Icons.menu_book,
+        onTap: () => showPlayerIndexSheet(context),
+      ),
+    ],
+  ),
   QuickNavGroup(
     titleKey: 'quicknav.group.activity',
     items: [

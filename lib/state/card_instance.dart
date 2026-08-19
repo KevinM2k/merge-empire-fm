@@ -10,6 +10,7 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 
 class CardInstance {
@@ -28,6 +29,18 @@ class CardInstance {
 
   String get definitionId => _get<String>('definitionId') ?? '';
   String get instanceId => _get<String>('instanceId') ?? '';
+
+  /// Which portrait this card wears. Absent on a card written before variants
+  /// existed, which reads as 0 — the same default the migration backfills with.
+  int get variant => (_get<num>('variant') ?? 0).toInt();
+
+  /// How the Player Index names this card: `{definitionId}:{m|f}`.
+  ///
+  /// One definition is TWO index entries, because the same striker has male and
+  /// female art and a name pool each. The key is written into the save, so it
+  /// has one home rather than a copy per caller.
+  String get discoveryKey =>
+      '$definitionId:${isVariantFemale(variant) ? 'f' : 'm'}';
 
   int get seasonsPlayed => (_get<num>('seasonsPlayed') ?? 0).toInt();
 

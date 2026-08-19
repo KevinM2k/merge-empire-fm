@@ -16,11 +16,46 @@ library;
 
 import 'package:merge_empire_fc/engine/achievement_engine.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
+
+/// The card on a bus payload, however it was put there.
+///
+/// The engines emit a `CardInstance`; a test — and any future emitter reading
+/// straight off the save — has the raw map. Both are the same card, and a
+/// listener that accepted only one would silently ignore half the traffic,
+/// which is invisible until the Index stays empty.
+CardInstance? _cardIn(Object? value) =>
+    value is CardInstance ? value : CardInstance.from(value);
+
+/// Record that the player has now SEEN this card.
+///
+/// The count goes up every time; the discovery list is a set, so only the first
+/// one announces. Both live under `progression` and both are written to the
+/// save, so the whole thing runs inside one `update`.
+void _recordDiscovery(Map<String, dynamic> state, CardInstance card) {
+  final prog = _map(state['progression']);
+  if (prog == null) return;
+  if (prog['discoveredPlayers'] is! List) {
+    prog['discoveredPlayers'] = <dynamic>[];
+  }
+  if (prog['playerFoundCounts'] is! Map<String, dynamic>) {
+    prog['playerFoundCounts'] = <String, dynamic>{};
+  }
+  final discovered = prog['discoveredPlayers'] as List<dynamic>;
+  final counts = prog['playerFoundCounts'] as Map<String, dynamic>;
+  final key = card.discoveryKey;
+
+  counts[key] = (_num(counts[key]) ?? 0).toInt() + 1;
+  if (!discovered.contains(key)) {
+    discovered.add(key);
+    emit('playerindex:discovered', key);
+  }
+}
 
 /// Subscriptions that can be undone, so a test — or a reset — can start again.
 class GameWiring {
@@ -67,6 +102,23 @@ class GameWiring {
         stats['maxCoinsReached'] = coins;
       }
     });
+
+    // The Player Index's only writer.
+    //
+    // `main.js` records a discovery on the two events that put a card in front
+    // of the player — scouting one and merging one — and the port had neither.
+    // Without it `discoveredPlayers` never grows: the Index would read 0 of 66
+    // forever, and the season quest that counts discoveries could never
+    // advance. Both engines already announce; this is the half that writes.
+    for (final event in const ['card:placed', 'merge:complete']) {
+      _listen(event, (args) {
+        final payload = _map(args);
+        // `card:placed` carries `card`, `merge:complete` carries `newCard`.
+        final card = _cardIn(payload?['card'] ?? payload?['newCard']);
+        if (card == null || card.definitionId.isEmpty) return;
+        _game.update((s) => _recordDiscovery(s, card));
+      });
+    }
 
     // The achievement sweep, after every announcement that could unlock
     // something. It is a sweep rather than a subscription precisely so this

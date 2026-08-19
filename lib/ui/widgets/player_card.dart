@@ -68,18 +68,6 @@ class PlayerCard extends StatelessWidget {
 
   TierTheme get _theme => tierThemes[view.tier] ?? tierThemes[1]!;
 
-  LinearGradient _gradient(TierGradient g) {
-    // CSS measures its angle clockwise from "to top"; Flutter takes two points.
-    // 160deg and 135deg are the only two the catalogue uses, and both read as a
-    // top-left to bottom-right sweep.
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [for (final stop in g.stops) cssColor(stop.$1)],
-      stops: [for (final stop in g.stops) stop.$2 / 100],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = _theme;
@@ -93,7 +81,7 @@ class PlayerCard extends StatelessWidget {
         child: Container(
           key: ValueKey('card-${view.tier}-${view.name}'),
           decoration: BoxDecoration(
-            gradient: _gradient(body),
+            gradient: tierBodyGradient(body),
             borderRadius: const BorderRadius.all(Radius.circular(10)),
             border: Border.all(
               color: selected ? accentLight : accent,
