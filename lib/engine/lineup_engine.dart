@@ -226,20 +226,30 @@ List<LineupSlot> cleanAndFillLineup(
   List<LineupSlot> lineup,
   String? formationId,
   List<CardInstance?> gridCells,
+) => fillLineupGaps(cleanLineup(lineup, gridCells), formationId, gridCells);
+
+/// Drop anyone who is no longer available, and leave the hole.
+///
+/// The CLEAN half on its own, and the difference matters. Filling belongs to
+/// the moments when the squad changed — a signing, a sale, a merge — which is
+/// where `syncLineupWithGrid` does it. Filling on every READ instead makes an
+/// empty slot impossible to have on purpose: benching a player put them
+/// straight back, because the best available body for the hole they just left
+/// is the one who just left it. Bench and Clear were both no-ops.
+List<LineupSlot> cleanLineup(
+  List<LineupSlot> lineup,
+  List<CardInstance?> gridCells,
 ) {
   final validIds = {
     for (final c in gridCells)
       if (c != null && !c.isUnavailable) c.instanceId,
   };
-
-  final cleaned = [
+  return [
     for (final slot in lineup)
       slot.cardInstanceId != null && validIds.contains(slot.cardInstanceId)
           ? slot
           : slot.copyWith(clearCard: true),
   ];
-
-  return fillLineupGaps(cleaned, formationId, gridCells);
 }
 
 /// Keep the SAVED lineup in step with the grid.

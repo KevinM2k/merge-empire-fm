@@ -452,6 +452,39 @@ loanOutPlayer(
 /// borrowing club planned around that player and carries a grudge into the next
 /// match, the same one a snubbed transfer bid applies. A recall costs exactly
 /// what breaking any other promise costs.
+/// Send a borrowed player back to the club that lent them, before the spell is
+/// up.
+///
+/// The mirror of [recallLoan] and the same question from the other end. The JS
+/// does this inline in its Squad screen — pull the card out of the grid and
+/// clear whatever slot it was in — which is a state change with a rule in it
+/// (the lineup must not keep a hole), and that belongs here with the rest of
+/// the loan bookkeeping.
+///
+/// The lineup is left to `syncLineupWithGrid`, which the `player:sold`
+/// announcement below already drives.
+({bool ok, String? reason, String? toTeam}) sendLoaneeBack(
+  Map<String, dynamic> state,
+  String instanceId,
+) {
+  final cells = _map(state['grid'])?['cells'];
+  if (cells is! List) return (ok: false, reason: 'no_grid', toTeam: null);
+
+  for (var i = 0; i < cells.length; i++) {
+    final card = CardInstance.from(cells[i]);
+    if (card == null || card.instanceId != instanceId) continue;
+    if (!isLoan(card)) return (ok: false, reason: 'not_a_loanee', toTeam: null);
+
+    final from = card.raw['loanFrom'] as String?;
+    cells[i] = null;
+    // The same announcement a sale makes: a player has left the grid, and
+    // everything that keeps up with the grid needs to hear it.
+    emit('player:sold', {'instanceId': instanceId, 'loanReturn': true});
+    return (ok: true, reason: null, toTeam: from);
+  }
+  return (ok: false, reason: 'not_found', toTeam: null);
+}
+
 ({bool ok, String? reason, bool early, String? toTeam, num? matchesLeft})
 recallLoan(Map<String, dynamic> state, String instanceId) {
   CardInstance? card;

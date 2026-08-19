@@ -39,26 +39,25 @@ String _formationId(Map<String, dynamic> s) =>
 
 final formationIdProvider = savePick<String>(_formationId);
 
-/// The saved eleven, cleaned of anyone sold, listed or loaned out, and topped
-/// up from the bench — which is what stops an empty slot surviving a transfer.
+/// The saved eleven, cleaned of anyone sold, listed or loaned out.
+///
+/// CLEANED, not refilled. Topping the gaps up here would make a deliberately
+/// empty slot impossible — see `cleanLineup`. The refill happens on the events
+/// that change the squad, in `syncLineupWithGrid`.
 List<LineupSlot> lineupFor(Map<String, dynamic> s) {
   final saved = _map(s['squad'])?['lineup'];
   final formationId = _formationId(s);
   final cards = _cards(s);
   if (saved is! List) return buildDefaultLineup(formationId, cards);
-  return cleanAndFillLineup(
-    [
-      for (final row in saved)
-        if (row is Map<String, dynamic>)
-          LineupSlot(
-            slotId: row['slotId'] as String? ?? '',
-            slotPosition: row['slotPosition'] as String? ?? 'MID',
-            cardInstanceId: row['cardInstanceId'] as String?,
-          ),
-    ],
-    formationId,
-    cards,
-  );
+  return cleanLineup([
+    for (final row in saved)
+      if (row is Map<String, dynamic>)
+        LineupSlot(
+          slotId: row['slotId'] as String? ?? '',
+          slotPosition: row['slotPosition'] as String? ?? 'MID',
+          cardInstanceId: row['cardInstanceId'] as String?,
+        ),
+  ], cards);
 }
 
 final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
@@ -68,14 +67,18 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
       if (raw is Map<String, dynamic> && raw['instanceId'] is String)
         raw['instanceId'] as String: raw,
   };
-  final shape = {for (final slot in getFormation(_formationId(s)).slots) slot.slotId: slot};
+  final shape = {
+    for (final slot in getFormation(_formationId(s)).slots) slot.slotId: slot,
+  };
   final pro = isProMode(s);
 
   return [
     for (final slot in lineup)
       () {
         final geometry = shape[slot.slotId];
-        final raw = slot.cardInstanceId == null ? null : byId[slot.cardInstanceId];
+        final raw = slot.cardInstanceId == null
+            ? null
+            : byId[slot.cardInstanceId];
         final view = cardViewFor(raw, proMode: pro);
         return (
           slotId: slot.slotId,

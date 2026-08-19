@@ -103,3 +103,7 @@ final mergeablePairsProvider = savePick<int>((s) {
 final gridNeedsSortProvider = savePick<bool>(
   (s) => gridNeedsSort(gridCells(s)),
 );
+
+/// Whether this save is in Pro mode. Watched by anything whose LABEL changes
+/// with it, not just its behaviour.
+final proModeProvider = savePick<bool>(isProMode);

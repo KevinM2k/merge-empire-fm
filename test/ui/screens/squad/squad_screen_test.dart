@@ -34,8 +34,12 @@ List<Map<String, dynamic>> _squad(int n) {
       pos: players.firstWhere((p) => p.position == pos && p.tier == 1).id,
   };
   // One keeper, then a spread — buildDefaultLineup wants a GK it can place.
-  final order = ['GK', ...List.filled(5, 'DEF'), ...List.filled(5, 'MID'),
-    ...List.filled(5, 'FWD')];
+  final order = [
+    'GK',
+    ...List.filled(5, 'DEF'),
+    ...List.filled(5, 'MID'),
+    ...List.filled(5, 'FWD'),
+  ];
   return [
     for (var i = 0; i < n; i++)
       {
@@ -51,7 +55,8 @@ Future<ProviderContainer> pumpSquad(
   int cards = 14,
 }) async {
   final state = createDefaultState();
-  final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+  final cells =
+      (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
   final squad = _squad(cards);
   for (var i = 0; i < squad.length; i++) {
     cells[i] = squad[i];
@@ -174,7 +179,11 @@ void main() {
         container.read(benchProvider).map((b) => b.instanceId),
         contains(displaced),
       );
-      expect(container.read(benchProvider).length, 3, reason: 'a swap, not a bump');
+      expect(
+        container.read(benchProvider).length,
+        3,
+        reason: 'a swap, not a bump',
+      );
     });
 
     testWidgets('dragging between two slots swaps them', (tester) async {
@@ -185,11 +194,10 @@ void main() {
       final a = slots[0];
       final b = slots[5];
 
-      drop(
-        tester,
-        (instanceId: a.cardInstanceId, fromSlotId: a.slotId),
-        b.slotId,
-      );
+      drop(tester, (
+        instanceId: a.cardInstanceId,
+        fromSlotId: a.slotId,
+      ), b.slotId);
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -202,7 +210,11 @@ void main() {
         after.firstWhere((s) => s.slotId == a.slotId).cardInstanceId,
         b.cardInstanceId,
       );
-      expect(container.read(benchProvider).length, 3, reason: 'nobody dropped out');
+      expect(
+        container.read(benchProvider).length,
+        3,
+        reason: 'nobody dropped out',
+      );
     });
 
     testWidgets('a slot refuses a drop from itself', (tester) async {
@@ -227,15 +239,14 @@ void main() {
   });
 
   group('the header', () {
-    testWidgets('shows the rating, the split and the formation', (tester) async {
+    testWidgets('shows the rating, the split and the formation', (
+      tester,
+    ) async {
       await pumpSquad(tester);
       expect(find.byKey(const ValueKey('squad-rating')), findsOneWidget);
       expect(find.byKey(const ValueKey('squad-atk')), findsOneWidget);
       expect(find.byKey(const ValueKey('squad-def')), findsOneWidget);
-      expect(
-        find.text(getFormation(defaultFormation).label),
-        findsOneWidget,
-      );
+      expect(find.text(getFormation(defaultFormation).label), findsOneWidget);
     });
 
     testWidgets('the numbers come from the engine, not the widget', (
@@ -267,15 +278,20 @@ void main() {
       final ratings = container.read(squadRatingsProvider);
       final floor = getDivision(
         (container.read(gameProvider).state!['progression']
-            as Map<String, dynamic>)['currentDivision'] as String,
+                as Map<String, dynamic>)['currentDivision']
+            as String,
       ).opponentRatingRange.$1;
       expect(ratings.belowPar, ratings.overall < floor);
     });
 
-    testWidgets('an emptied slot is refilled from the bench', (tester) async {
-      // cleanAndFillLineup tops the eleven up, which is what stops an empty
-      // slot surviving a sale or a transfer. Clearing one by hand is the same
-      // case, so the side stays eleven strong.
+    testWidgets('a slot emptied ON PURPOSE stays empty', (tester) async {
+      // The JS reads the stored eleven raw — `_lineup()` does no cleaning and
+      // no filling — so a hole the manager made is a hole. Topping it up on
+      // every read is what made Bench and Clear no-ops: the best available body
+      // for the slot somebody just left is the one who just left it.
+      //
+      // Filling still happens, on the events that change the SQUAD — see
+      // `syncLineupWithGrid`. A sale cannot leave a hole; a decision can.
       final container = await pumpSquad(tester, cards: 14);
       final slot = container.read(pitchSlotsProvider).first;
 
@@ -286,13 +302,7 @@ void main() {
       final after = container
           .read(pitchSlotsProvider)
           .firstWhere((s) => s.slotId == slot.slotId);
-      // It may well be the same player back: the refill picks the best
-      // available for the slot, and he was the best available.
-      expect(after.cardInstanceId, isNotNull, reason: 'refilled, not left empty');
-      expect(
-        container.read(pitchSlotsProvider).where((s) => s.card != null).length,
-        11,
-      );
+      expect(after.cardInstanceId, isNull);
     });
   });
 
@@ -378,11 +388,154 @@ void main() {
 
     testWidgets('an unshipped tactic on the save falls back', (tester) async {
       final container = await pumpSquad(tester);
-      container.read(gameProvider).update(
-        (s) => (s['squad'] as Map<String, dynamic>)['strategyId'] = 'no-such',
-      );
+      container
+          .read(gameProvider)
+          .update(
+            (s) =>
+                (s['squad'] as Map<String, dynamic>)['strategyId'] = 'no-such',
+          );
       await settleSave(tester);
       expect(container.read(strategyIdProvider), defaultStrategy);
+    });
+  });
+
+  group('the player detail sheet', () {
+    // The screen was drag-only, so everything on this sheet — sell, rename,
+    // recall, send back, career stats, the XI swap — was unreachable.
+    testWidgets('a tap on the pitch opens the player', (tester) async {
+      final container = await pumpSquad(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+
+      await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(ValueKey('player-detail-${slot.cardInstanceId}')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a tap on the bench opens the player too', (tester) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final benched = container.read(benchProvider).first;
+
+      await tester.tap(
+        find.byKey(ValueKey('squad-bench-${benched.instanceId}')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(ValueKey('player-detail-${benched.instanceId}')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('an XI player is offered the swap and the bench', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('detail-swap')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-bench')), findsOneWidget);
+    });
+
+    testWidgets('a BENCHED player is not — there is no slot to talk about', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final benched = container.read(benchProvider).first;
+      await tester.tap(
+        find.byKey(ValueKey('squad-bench-${benched.instanceId}')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('detail-swap')), findsNothing);
+      expect(find.byKey(const ValueKey('detail-bench')), findsNothing);
+    });
+
+    testWidgets('benching a player empties their slot', (tester) async {
+      final container = await pumpSquad(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      final wasThere = slot.cardInstanceId;
+
+      await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('detail-bench')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      // The slot is EMPTY, and stays empty. Refilling it here would put the
+      // benched player straight back — he is the best available body for the
+      // hole he just left — which is exactly what made this button do nothing.
+      final after = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotId == slot.slotId);
+      expect(after.cardInstanceId, isNull);
+      expect(wasThere, isNotNull);
+    });
+
+    testWidgets('selling asks first', (tester) async {
+      // It is irreversible and the button sits under the thumb at the bottom
+      // of a scrolling sheet.
+      final container = await pumpSquad(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const ValueKey('detail-sell')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('detail-sell')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('detail-sell-confirm')), findsOneWidget);
+      // Cancelling leaves the squad alone.
+      await tester.tap(find.byKey(const ValueKey('detail-sell-cancel')));
+      await tester.pumpAndSettle();
+      expect(container.read(benchProvider).length + 11, greaterThan(11));
+    });
+  });
+
+  group('filling the eleven', () {
+    testWidgets('Auto picks a side', (tester) async {
+      final container = await pumpSquad(tester);
+      await tester.tap(find.byKey(const ValueKey('squad-clear')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('squad-auto')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      final filled = container
+          .read(pitchSlotsProvider)
+          .where((s) => s.cardInstanceId != null)
+          .length;
+      expect(filled, 11);
+    });
+
+    testWidgets('Clear empties the STORED eleven', (tester) async {
+      // What the player sees refills straight away — cleanAndFillLineup runs on
+      // the way out — so the observable effect is on the save, which is what
+      // the match reads.
+      final container = await pumpSquad(tester);
+      await tester.tap(find.byKey(const ValueKey('squad-clear')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      final stored =
+          (container.read(gameProvider).state!['squad']
+                  as Map<String, dynamic>)['lineup']
+              as List;
+      expect(stored.every((s) => (s as Map)['cardInstanceId'] == null), isTrue);
     });
   });
 }
