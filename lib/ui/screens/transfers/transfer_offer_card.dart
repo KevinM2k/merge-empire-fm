@@ -1,0 +1,300 @@
+/// A rival's bid for one of your players. Ported from
+/// `ui/components/TransferOfferModal.js`.
+///
+/// One card for one yes/no question. The JS notes that it used to be three
+/// stacked surfaces — a sheet with the numbers, a hand-positioned speech bubble
+/// above it, and a first-time explainer over both — and that all three were
+/// Colin: the advice, the explainer and the head on the bubble. So it is Colin's
+/// card, the second of the three popup shapes, and everything he has to say is
+/// in one speech.
+///
+/// **Declining is not free**, which is why this must never be dismissed
+/// silently: it hands the buying club a grudge that makes them harder to beat
+/// for the rest of the season. That is also the bug this screen fixes — an
+/// offer nothing showed still timed out after five minutes and the timeout is
+/// scored as a decline, so a player was collecting grudges from bids they were
+/// never shown.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
+import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/goal_model.dart';
+import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
+import 'package:merge_empire_fc/engine/transfer_engine.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
+import 'package:merge_empire_fc/util/format.dart';
+
+Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
+num _num(Object? v) => v is num ? v : 0;
+
+/// The pending bid, or null.
+final pendingOfferProvider = savePick<Map<String, dynamic>?>((s) {
+  final market = _map(s['transferMarket']);
+  final offer = _map(market?['pendingOffer']);
+  // Copied, not handed out: the save's own map is mutable and a widget holding
+  // it would see the offer vanish under it the moment the answer lands.
+  return offer == null ? null : <String, dynamic>{...offer};
+});
+
+/// The player's decision.
+enum TransferAnswer { accepted, declined }
+
+/// Colin's read on the bid.
+///
+/// Ordered most specific first, and every branch is about WHY rather than about
+/// the price alone — the premium is already on the card as a number, so a line
+/// that only said "good deal" would be the same fact twice.
+String transferAdvice(
+  Map<String, dynamic> state,
+  Map<String, dynamic> offer,
+  CardInstance? card,
+) {
+  final def = getPlayerDef(offer['definitionId'] as String?);
+  final sellValue = _num(
+    offer['marketBasePrice'] ?? offer['sellValue'] ?? def?.sellValue,
+  );
+  final premiumPct =
+      ((_num(offer['price']) / (sellValue < 1 ? 1 : sellValue) - 1) * 100)
+          .round();
+
+  final seasons = card?.seasonsPlayed ?? 0;
+  final injured = card?.injured ?? false;
+  final form = _num(card?.raw['form']).toInt();
+  final sponsored = card?.sponsor != null;
+  final tier = _num(offer['tier'] ?? def?.tier ?? 1).toInt();
+  final penalty = agingPenalty(seasons);
+  final seasonsLeft = seasons >= 15 ? 0 : 15 - seasons;
+  final injuryChance = getInjuryChance(seasons);
+
+  // Could they replace the player after banking the fee? The one piece of
+  // advice that is about the CLUB rather than the player.
+  final coinsAfter =
+      _num(_map(state['resources'])?['fanCoins']) + _num(offer['price']);
+  final canReplace = coinsAfter >= scoutCost(state);
+
+  if (premiumPct >= 200) return t('manager.transfer.incredible');
+  if (seasons >= 14) {
+    return t('manager.transfer.final_season', {
+      'penalty': penalty,
+      'seasonsLeft': seasonsLeft,
+    });
+  }
+  if (seasons >= 10 && injured) {
+    return t('manager.transfer.declining_injured', {
+      'penalty': penalty,
+      'seasonsLeft': seasonsLeft,
+    });
+  }
+  if (seasons >= 10) {
+    return t('manager.transfer.long_decline', {
+      'seasons': seasons,
+      'penalty': penalty,
+      'seasonsLeft': seasonsLeft,
+    });
+  }
+  if (injured) return t('manager.transfer.injured');
+  if (!canReplace) {
+    return t('manager.transfer.cant_replace', {
+      'cost': formatCoins(scoutCost(state)),
+    });
+  }
+  if (form >= 2) return t('manager.transfer.hot_form');
+  if (injuryChance >= 0.35 && premiumPct >= 20) {
+    return t('manager.transfer.injury_prone', {'seasons': seasons});
+  }
+  if (seasons >= 7) return t('manager.transfer.veteran', {'seasons': seasons});
+  if (premiumPct >= 60) return t('manager.transfer.good_deal');
+  if (sponsored) return t('manager.transfer.sponsored');
+  if (tier >= 5 && !canReplace) return t('manager.transfer.high_tier');
+  if (premiumPct <= 10 && tier <= 2) return t('manager.transfer.replaceable');
+  return t('manager.transfer.fair');
+}
+
+/// Show the bid and settle it.
+///
+/// Returns what the player chose, or null when they parked it. Parking is safe
+/// and deliberate — nothing is discarded, the offer is still pending, and the
+/// squad can be looked over before answering. It is the one dismissal that does
+/// NOT count as a decline.
+Future<TransferAnswer?> showTransferOffer(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final offer = ref.read(pendingOfferProvider);
+  if (offer == null) return null;
+
+  final answer = await showDialog<TransferAnswer>(
+    context: context,
+    // Tapping outside parks it rather than answering, which is only safe
+    // because nothing is lost by doing so.
+    barrierDismissible: true,
+    builder: (_) => _TransferOfferCard(offer: offer),
+  );
+  if (answer == null) return null;
+
+  final game = ref.read(gameProvider);
+  if (answer == TransferAnswer.accepted) {
+    game.update((s) => acceptOffer(s));
+  } else {
+    game.update((s) => declineOffer(s));
+  }
+  return answer;
+}
+
+class _TransferOfferCard extends ConsumerWidget {
+  const _TransferOfferCard({required this.offer});
+
+  final Map<String, dynamic> offer;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final state = ref.read(gameProvider).state ?? const <String, dynamic>{};
+    final def = getPlayerDef(offer['definitionId'] as String?);
+    final card = findCardById(state, offer['cardInstanceId']);
+
+    // The offer snapshots the name when the bid was made; the live card wins, so
+    // a rename between the bid landing and the card opening still shows through.
+    final name =
+        card?.name('${offer['playerName'] ?? ''}') ??
+        '${offer['playerName'] ?? ''}';
+
+    final price = _num(offer['price']);
+    final sellValue = _num(
+      offer['marketBasePrice'] ?? offer['sellValue'] ?? def?.sellValue,
+    );
+    final premiumPct = ((price / (sellValue < 1 ? 1 : sellValue) - 1) * 100)
+        .round();
+
+    // What the sale costs per second, sponsor multiplier included — the figure
+    // the income bar visibly slows by.
+    var incomePerSec = def?.idleIncomePerSec ?? 0;
+    final multiplier = _num(_map(card?.sponsor)?['multiplier']);
+    if (multiplier > 0) incomePerSec *= multiplier;
+
+    // One paragraph carrying every fact the old panel spread over six rows,
+    // assembled from fragments every locale ALREADY has — so this needs no new
+    // translation and cannot drift between languages.
+    final pitch = [
+      t('transfer.they_want', {'player': name}),
+      '${t('transfer.their_offer')}: ${formatCoins(price)} — '
+          '${premiumPct > 0 ? t('transfer.over_fair_market', {'pct': formatPct(premiumPct), 'value': formatCoins(sellValue)}) : t('transfer.at_fair_market', {'value': formatCoins(sellValue)})}.',
+      '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.',
+    ].join(' ');
+
+    return AlertDialog(
+      key: const ValueKey('transfer-offer'),
+      backgroundColor: kit.surface,
+      title: Column(
+        children: [
+          const Text('💸', style: TextStyle(fontSize: 30)),
+          const SizedBox(height: 6),
+          Text(
+            t('coachtip.name'),
+            style: TextStyle(fontSize: 12, color: kit.textMuted),
+          ),
+          Text(
+            t('transfer.card_title', {'club': offer['fromTeam'] ?? ''}),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 340,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (def != null)
+                SizedBox(
+                  height: 110,
+                  child: ArtImage(
+                    path: playerImagePath(
+                      def.position,
+                      def.tier,
+                      _num(offer['variant']).toInt(),
+                    ),
+                    fit: BoxFit.contain,
+                    fallback: PlayerPortrait(
+                      variantIndex: _num(offer['variant']).toInt(),
+                      kitColor: kit.accent,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Text(
+                pitch,
+                key: const ValueKey('transfer-pitch'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, height: 1.5),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                transferAdvice(state, offer, card),
+                key: const ValueKey('transfer-advice'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.5,
+                  color: kit.textMuted,
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Stated plainly, because it is the half of the decision the
+              // numbers do not carry.
+              Text(
+                t('transfer.decline_warning', {
+                  'club': offer['fromTeam'] ?? '',
+                }),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFFFB74D),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('transfer-park'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(t('transfer.minimize')),
+        ),
+        OutlinedButton(
+          key: const ValueKey('transfer-decline'),
+          onPressed: () => Navigator.of(context).pop(TransferAnswer.declined),
+          child: Text(t('common.decline')),
+        ),
+        ElevatedButton(
+          key: const ValueKey('transfer-accept'),
+          onPressed: () => Navigator.of(context).pop(TransferAnswer.accepted),
+          child: Text(
+            t('transfer.accept_amount', {'amount': formatCoins(price)}),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The card a bid names, or null when it has already left.
+CardInstance? findCardById(Map<String, dynamic> state, Object? instanceId) {
+  final cells = _map(state['grid'])?['cells'];
+  if (cells is! List) return null;
+  for (final raw in cells) {
+    final card = CardInstance.from(raw);
+    if (card != null && card.instanceId == instanceId) return card;
+  }
+  return null;
+}

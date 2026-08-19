@@ -19,9 +19,6 @@ import 'package:merge_empire_fc/util/time.dart';
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
 
-int _agingPenalty(int seasonsPlayed) =>
-    seasonsPlayed <= 10 ? 0 : (seasonsPlayed - 10) * 10;
-
 Map<String, dynamic> ensureMarket(Map<String, dynamic> state) {
   var market = _map(state['transferMarket']);
   if (market == null) {
@@ -151,7 +148,8 @@ Map<String, dynamic>? buildOffer(
       (
         card: e.card,
         def: e.def,
-        weight: math.pow(e.def.tier, 2).toDouble() +
+        weight:
+            math.pow(e.def.tier, 2).toDouble() +
             (e.card.sponsor != null ? 10 : 0),
       ),
   ];
@@ -173,12 +171,15 @@ Map<String, dynamic>? buildOffer(
   // current economy, using the same power-scaled multiplier as the manual sell
   // screen so late-game offers do not reach absurd values.
   final tierMult = transferTierMultiplier[def.tier] ?? 4;
-  final div = getDivision(_map(state['progression'])?['currentDivision'] as String? ?? '');
+  final div = getDivision(
+    _map(state['progression'])?['currentDivision'] as String? ?? '',
+  );
   final scaledDivMult = math.pow(div.matchRevenueBase / 100, 0.35).toDouble();
 
   // What a fair market sale would fetch.
-  final marketBasePrice =
-      roundCoins(def.sellValue * tierMult * scaledDivMult * 0.5);
+  final marketBasePrice = roundCoins(
+    def.sellValue * tierMult * scaledDivMult * 0.5,
+  );
 
   // A rival pays twice the self-sell base — always better than an average roll.
   var price = def.sellValue * tierMult * scaledDivMult * 2;
@@ -188,7 +189,7 @@ Map<String, dynamic>? buildOffer(
   }
 
   // Ageing players fetch less: their remaining seasons reduce value.
-  final aging = _agingPenalty(card.seasonsPlayed);
+  final aging = agingPenalty(card.seasonsPlayed);
   if (aging > 0 && def.rating > 0) {
     price *= math.max(0.2, (def.rating - aging) / def.rating);
   }
@@ -251,7 +252,8 @@ Map<String, dynamic>? maybeGenerateOffer(
   if (market['pendingOffer'] != null) return null;
 
   final hasSponsored = _cells(state).any((c) => c?.sponsor != null);
-  final chance = transferMatchTriggerChance +
+  final chance =
+      transferMatchTriggerChance +
       (hasSponsored ? transferSponsorTriggerBonus : 0);
   if (seeded.random() >= chance) return null;
 
@@ -373,12 +375,24 @@ acceptOffer(Map<String, dynamic> state) {
   final market = ensureMarket(state);
   final offer = _map(market['pendingOffer']);
   if (offer == null) {
-    return (ok: false, reason: 'no_offer', price: null, playerName: null, fromTeam: null);
+    return (
+      ok: false,
+      reason: 'no_offer',
+      price: null,
+      playerName: null,
+      fromTeam: null,
+    );
   }
 
   final cells = _map(state['grid'])?['cells'];
   if (cells is! List) {
-    return (ok: false, reason: 'card_gone', price: null, playerName: null, fromTeam: null);
+    return (
+      ok: false,
+      reason: 'card_gone',
+      price: null,
+      playerName: null,
+      fromTeam: null,
+    );
   }
 
   final idx = cells.indexWhere(
@@ -387,10 +401,17 @@ acceptOffer(Map<String, dynamic> state) {
   if (idx == -1) {
     // Sold or merged away before the offer resolved — scrap it.
     market['pendingOffer'] = null;
-    return (ok: false, reason: 'card_gone', price: null, playerName: null, fromTeam: null);
+    return (
+      ok: false,
+      reason: 'card_gone',
+      price: null,
+      playerName: null,
+      fromTeam: null,
+    );
   }
 
-  final playerRating = getPlayerDef(offer['definitionId'] as String?)?.rating ?? 50;
+  final playerRating =
+      getPlayerDef(offer['definitionId'] as String?)?.rating ?? 50;
   cells[idx] = null;
 
   final squad = _map(state['squad']);
@@ -451,12 +472,12 @@ acceptOffer(Map<String, dynamic> state) {
     return (ok: false, reason: 'no_offer', fromTeam: null, boost: null);
   }
 
-  (_map(market['grudges']) ?? {})[offer['fromTeam'] as String] =
-      <String, dynamic>{
-        'matchesLeft': grudgeMatchDuration,
-        'boost': grudgeRatingBoost,
-        'reason': 'Snubbed ${offer['playerName']} transfer',
-      };
+  (_map(market['grudges']) ?? {})[offer['fromTeam']
+      as String] = <String, dynamic>{
+    'matchesLeft': grudgeMatchDuration,
+    'boost': grudgeRatingBoost,
+    'reason': 'Snubbed ${offer['playerName']} transfer',
+  };
   market['pendingOffer'] = null;
 
   final stats = _map(state['stats']);

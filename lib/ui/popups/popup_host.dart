@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/boot_popups.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 
 class PopupHost extends ConsumerStatefulWidget {
@@ -45,10 +47,46 @@ class PopupHostState extends ConsumerState<PopupHost> {
       );
       unblockPopups(noHostBlocker);
     });
+    on('transfer:offered', _onIdleOffer);
+  }
+
+  /// An idle bid, brought to the player.
+  ///
+  /// `maybeGenerateIdleOffer` runs on the tick and announces here; nothing was
+  /// listening, so an offer sat pending until it timed out five minutes later —
+  /// and the timeout is scored as a DECLINE, grudge and all. A bid that costs
+  /// you something has to be shown.
+  ///
+  /// The gate is claimed while the card is up so the next tick does not roll a
+  /// second one behind it.
+  Future<void> _onIdleOffer(Object? _) async {
+    if (!mounted) return;
+    final gates = ref.read(tickGatesProvider.notifier);
+    final before = ref.read(tickGatesProvider);
+    gates.state = (
+      matchOpen: before.matchOpen,
+      miniGameOpen: before.miniGameOpen,
+      transferOpen: true,
+      colinOnScreen: before.colinOnScreen,
+    );
+    try {
+      if (mounted) await showTransferOffer(context, ref);
+    } finally {
+      if (mounted) {
+        final now = ref.read(tickGatesProvider);
+        gates.state = (
+          matchOpen: now.matchOpen,
+          miniGameOpen: now.miniGameOpen,
+          transferOpen: false,
+          colinOnScreen: now.colinOnScreen,
+        );
+      }
+    }
   }
 
   @override
   void dispose() {
+    off('transfer:offered', _onIdleOffer);
     blockPopups(noHostBlocker);
     super.dispose();
   }

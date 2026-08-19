@@ -10,6 +10,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart' show winProbExponent;
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -56,13 +57,10 @@ int getInjuryDuration([int seasonsPlayed = 0]) {
 
 /// Deprecated in the JS, kept so any future caller does not silently break.
 double retirementMultiplier(int seasonsPlayed) {
-  final penalty = _agingPenalty(seasonsPlayed);
+  final penalty = agingPenalty(seasonsPlayed);
   if (penalty == 0) return 1.0;
   return math.max(0.5, 1.0 - penalty / 100);
 }
-
-int _agingPenalty(int seasonsPlayed) =>
-    seasonsPlayed <= 10 ? 0 : (seasonsPlayed - 10) * 10;
 
 /// A side can field a match while it has this many healthy players.
 bool hasEnoughPlayers(List<CardInstance?> gridCells) =>
@@ -131,13 +129,15 @@ double goalRateLambda(num attackerRating, num defenderRating) {
   final b = math.pow(math.max(1, defenderRating), winProbExponent);
   final attackProb = a / (a + b);
 
-  final raw = evenMatchLambda *
+  final raw =
+      evenMatchLambda *
       math.pow(attackProb / evenAttackProb, lambdaCurveExp).toDouble();
 
   if (raw <= evenMatchLambda) return math.max(lambdaFloor, raw);
 
   const span = lambdaSoftCap - evenMatchLambda;
-  return evenMatchLambda + span * (1 - math.exp(-(raw - evenMatchLambda) / span));
+  return evenMatchLambda +
+      span * (1 - math.exp(-(raw - evenMatchLambda) / span));
 }
 
 /// Samples a goal count from a Poisson distribution with mean [lambda], using

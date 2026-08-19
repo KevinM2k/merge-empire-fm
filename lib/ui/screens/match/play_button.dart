@@ -8,12 +8,16 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
+import 'package:merge_empire_fc/engine/sponsor_engine.dart';
+import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_button.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/sponsor_offer_card.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 /// Why the button is dead, in copy that already ships.
@@ -59,6 +63,55 @@ class PlayMatchButton extends ConsumerWidget {
     // doubling offer lives on the closing screen and paying before it is
     // answered would make the offer meaningless.
     game.update((s) => payMatch(s, result));
+
+    if (!context.mounted) return;
+    await _afterMatch(context, ref, result);
+  }
+
+  /// What arrives once the result screen is gone.
+  ///
+  /// The order is the JS's and it matters: a transfer bid takes the slot if
+  /// there is one, and only a match with no bid rolls for a sponsor. Two cards
+  /// stacked on one dismissal is how the JS ended up with three surfaces for
+  /// one question.
+  ///
+  /// **`maybeGenerateOffer` had no caller at all.** Post-match bids never fired,
+  /// which left the idle roll as the only source — and nothing showed that
+  /// either, so it timed out after five minutes and the timeout is scored as a
+  /// decline. Players were collecting grudges from bids they were never shown.
+  Future<void> _afterMatch(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> result,
+  ) async {
+    final game = ref.read(gameProvider);
+
+    // This match's fresh roll. Null when one was already pending, in which case
+    // the pending one is what gets answered.
+    game.update(
+      (s) => maybeGenerateOffer(
+        s,
+        opponentRating: (result['opponentRating'] as num?) ?? 55,
+      ),
+    );
+
+    if (ref.read(pendingOfferProvider) != null) {
+      if (!context.mounted) return;
+      await showTransferOffer(context, ref);
+      // A bid answered is enough for one match.
+      return;
+    }
+
+    final sponsor = game.state == null
+        ? null
+        : maybeGenerateSponsorshipOffer(game.state!);
+    if (sponsor == null || !context.mounted) return;
+    await showSponsorOffer(
+      context,
+      ref,
+      player: sponsor.player,
+      company: sponsor.company,
+    );
   }
 
   @override
