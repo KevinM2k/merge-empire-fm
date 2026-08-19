@@ -11,6 +11,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +21,9 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
+import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
+    show skyGradient;
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
@@ -76,6 +80,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   @override
   void initState() {
     super.initState();
+    // Decoded before the first whistle, not on the first chance: the sprites
+    // are thirty-one files and `onLoad` is async, so paying for them mid-match
+    // is a green rectangle where the pitch should be.
+    // Ignoring the result on purpose: this is a WARM-UP. If the bundle cannot
+    // hand the sprites over here it will fail again inside the game, where
+    // there is something to show for it — a match must not refuse to start
+    // because a cache could not be filled early.
+    unawaited(preloadCutawaySprites().catchError((_) => <ui.Image>[]));
     _gates = ref.read(tickGatesProvider.notifier);
     // Claim the screen before the first tick can land anything on top of it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -172,7 +184,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final f = frame;
     final home = widget.result['isHome'] == true;
     final us = '${widget.result['clubName'] ?? ''}';
@@ -180,101 +191,113 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
     return Scaffold(
       key: const ValueKey('match-screen'),
-      backgroundColor: kit.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _Scoreboard(
-              key: const ValueKey('match-scoreboard'),
-              left: home ? us : them,
-              right: home ? them : us,
-              leftGoals: f.homeGoals,
-              rightGoals: f.awayGoals,
-              minute: f.minute,
-              finished: f.finished,
-              result: widget.result,
-              isHome: home,
-            ),
-            const Divider(height: 1),
-            // THE STAGE: one band, fixed for the whole match, holding the
-            // pitch's aspect. At rest it shows the stat board; a chance cuts in
-            // ON TOP of it at the same inset and radius. The port mounted the
-            // pitch only for a chance and took it away after, so the band itself
-            // appeared and vanished — which is what made the pitch look like it
-            // was flickering and jumping about.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: ConstrainedBox(
-                // Capped: the pitch is landscape and at its natural aspect would
-                // take a third of a tall phone and all of a short one.
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.3,
+      // ON THE SKY, not on the app's page colour. This page is a takeover — it
+      // is nearly all panel, with no diorama behind it — so a background that
+      // followed the theme put pale panels on a pale page in light mode and the
+      // whole match went flat. The same sky the Play screen stands under, so
+      // kicking off is not arriving somewhere else.
+      backgroundColor: Colors.transparent,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: skyGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _Scoreboard(
+                key: const ValueKey('match-scoreboard'),
+                left: home ? us : them,
+                right: home ? them : us,
+                leftGoals: f.homeGoals,
+                rightGoals: f.awayGoals,
+                minute: f.minute,
+                finished: f.finished,
+                result: widget.result,
+                isHome: home,
+              ),
+              const Divider(height: 1),
+              // THE STAGE: one band, fixed for the whole match, holding the
+              // pitch's aspect. At rest it shows the stat board; a chance cuts in
+              // ON TOP of it at the same inset and radius. The port mounted the
+              // pitch only for a chance and took it away after, so the band itself
+              // appeared and vanished — which is what made the pitch look like it
+              // was flickering and jumping about.
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-                child: AspectRatio(
-                  aspectRatio: pitchAspect,
-                  child: Stack(
-                    key: const ValueKey('match-stage'),
-                    fit: StackFit.expand,
-                    children: [
-                      MatchStatboard(
-                        stats: liveStatsFor(
-                          frame: f,
-                          result: widget.result,
+                child: ConstrainedBox(
+                  // Capped: the pitch is landscape and at its natural aspect would
+                  // take a third of a tall phone and all of a short one.
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.3,
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: pitchAspect,
+                    child: Stack(
+                      key: const ValueKey('match-stage'),
+                      fit: StackFit.expand,
+                      children: [
+                        MatchStatboard(
+                          stats: liveStatsFor(
+                            frame: f,
+                            result: widget.result,
+                            isHome: home,
+                            // The tactic the side went out in. The sim has already
+                            // run, so it cannot change mid-replay — which is why
+                            // it is read once off the result rather than watched.
+                            strategyId:
+                                '${widget.result['strategyId'] ?? 'balanced'}',
+                          ),
                           isHome: home,
-                          // The tactic the side went out in. The sim has already
-                          // run, so it cannot change mid-replay — which is why
-                          // it is read once off the result rather than watched.
-                          strategyId: '${widget.result['strategyId'] ?? 'balanced'}',
                         ),
-                        isHome: home,
-                      ),
-                      // Only while a chance is running, and opaque, so it covers
-                      // the board whole rather than sitting beside it.
-                      if (_clip != null)
-                        CutawayStage(
-                          clip: _clip,
-                          onDone: (_) {
-                            if (mounted) setState(() => _clip = null);
-                          },
-                        ),
-                    ],
+                        // Only while a chance is running, and opaque, so it covers
+                        // the board whole rather than sitting beside it.
+                        if (_clip != null)
+                          CutawayStage(
+                            clip: _clip,
+                            onDone: (_) {
+                              if (mounted) setState(() => _clip = null);
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                key: const ValueKey('match-feed'),
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
-                // newest line arrived at the foot of the list and everything
-                // worth reading was off the bottom of a long match. A line should
-                // arrive from ABOVE and push the rest down, which is the
-                // direction the feed actually grows.
-                itemCount: f.shown.length,
-                itemBuilder: (context, i) =>
-                    _FeedLine(event: f.shown[f.shown.length - 1 - i]),
+              Expanded(
+                child: ListView.builder(
+                  key: const ValueKey('match-feed'),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
+                  // newest line arrived at the foot of the list and everything
+                  // worth reading was off the bottom of a long match. A line should
+                  // arrive from ABOVE and push the rest down, which is the
+                  // direction the feed actually grows.
+                  itemCount: f.shown.length,
+                  itemBuilder: (context, i) =>
+                      _FeedLine(event: f.shown[f.shown.length - 1 - i]),
+                ),
               ),
-            ),
-            if (f.finished) _QuestOutcomes(result: widget.result),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: SizedBox(
-                width: double.infinity,
-                child: f.finished
-                    ? ElevatedButton(
-                        key: const ValueKey('match-close'),
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        child: Text(_verdictLabel()),
-                      )
-                    : OutlinedButton(
-                        key: const ValueKey('match-skip'),
-                        onPressed: skipToEnd,
-                        child: Text(t('common.skip')),
-                      ),
+              if (f.finished) _QuestOutcomes(result: widget.result),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: f.finished
+                      ? ElevatedButton(
+                          key: const ValueKey('match-close'),
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          child: Text(_verdictLabel()),
+                        )
+                      : OutlinedButton(
+                          key: const ValueKey('match-skip'),
+                          onPressed: skipToEnd,
+                          child: Text(t('common.skip')),
+                        ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -586,7 +609,10 @@ class _TeamRow extends StatelessWidget {
     children: [
       Expanded(child: Center(child: left)),
       const SizedBox(width: nmGap),
-      SizedBox(width: nmGutter, child: Center(child: gutter)),
+      SizedBox(
+        width: nmGutter,
+        child: Center(child: gutter),
+      ),
       const SizedBox(width: nmGap),
       Expanded(child: Center(child: right)),
     ],

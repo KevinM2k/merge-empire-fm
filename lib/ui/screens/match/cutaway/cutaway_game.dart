@@ -26,6 +26,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
@@ -55,6 +56,19 @@ List<String> cutawaySpritePaths() => [
     for (var i = 1; i <= 10; i++) '${_kitName(kit)}_$i.png',
   'ball.png',
 ];
+
+/// ONE cache, for the whole match rather than for each chance.
+///
+/// A `FlameGame` owns its own `Images` by default, so every clip decoded all
+/// thirty-one sprites again from scratch — and because `onLoad` is async, the
+/// widget showed a bare green rectangle until it finished. Several times a
+/// match. That is what the flash was.
+final Images cutawayImages = Images(prefix: 'assets/pitch/');
+
+/// Warm it before the first whistle, so the first chance does not pay for it
+/// either. Safe to call twice: [Images.loadAll] returns what is already there.
+Future<void> preloadCutawaySprites() =>
+    cutawayImages.loadAll(cutawaySpritePaths());
 
 double _easeOut(double t) => 1 - math.pow(1 - t, 3).toDouble();
 double _linear(double t) => t;
@@ -286,16 +300,21 @@ class CutawayGame extends FlameGame {
     return Vector2(p.x, p.y);
   }
 
+  /// TRANSPARENT, so the markings the stage paints underneath show through.
+  ///
+  /// Opaque turf here covered them for the frames `onLoad` takes, which is a
+  /// flat green flash at the start of every chance — the one thing the stage
+  /// exists to avoid, since it is drawing the identical pitch already.
   @override
-  Color backgroundColor() => PitchBackdrop.turf;
+  Color backgroundColor() => const Color(0x00000000);
+
+  /// The shared cache, so a second chance is not a second decode.
+  @override
+  Images get images => cutawayImages;
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    // Flame looks under `assets/images/` unless told otherwise, and the sprites
-    // live with the rest of the artwork rather than in a directory named after
-    // the framework that happens to read them.
-    images.prefix = 'assets/pitch/';
     // The whole pitch, always — both goals have to be on screen or a script
     // that finishes at x = 0 finishes off camera.
     camera.viewfinder
@@ -305,10 +324,14 @@ class CutawayGame extends FlameGame {
 
     world.add(PitchBackdrop());
 
-    final sprites = <String, Sprite>{};
-    for (final path in cutawaySpritePaths()) {
-      sprites[path] = await loadSprite(path);
-    }
+    // Awaited once, on the first chance of the first match ever watched; from
+    // then on every path is already in [cutawayImages] and this returns without
+    // touching the disk.
+    await preloadCutawaySprites();
+    final sprites = <String, Sprite>{
+      for (final path in cutawaySpritePaths())
+        path: Sprite(cutawayImages.fromCache(path)),
+    };
 
     // Attackers: the carrier plus everyone a beat names a run for. Built from
     // the script so there are exactly as many bodies as the passage uses.

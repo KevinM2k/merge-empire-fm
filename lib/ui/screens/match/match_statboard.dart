@@ -63,7 +63,11 @@ LiveStats liveStatsFor({
   var swing = 0.0;
 
   for (final e in frame.shown) {
-    final ours = e.team == 'home' ? isHome : e.team == 'away' ? !isHome : null;
+    final ours = e.team == 'home'
+        ? isHome
+        : e.team == 'away'
+        ? !isHome
+        : null;
     switch (e.type) {
       case 'goal':
         if (ours ?? true) {
@@ -112,8 +116,7 @@ LiveStats liveStatsFor({
   final stratBias = (strat.possession - 50).toDouble();
   final stratBiasHome = (isHome ? 1 : -1) * stratBias;
 
-  final homePct =
-      50 + ratingDiffHome * 0.3 + stratBiasHome * 0.5 + swing * 22;
+  final homePct = 50 + ratingDiffHome * 0.3 + stratBiasHome * 0.5 + swing * 22;
   // Clamped hard: a 72/28 split is already a rout, and the numbers stop reading
   // as football past it.
   final possHome = homePct.clamp(28.0, 72.0).round();
@@ -125,13 +128,21 @@ LiveStats liveStatsFor({
     possAway: 100 - possHome,
     rows: [
       for (final row in <(String, String, (int, int))>[
-        ('shots', 'match.stat.shots', pick(shotsUs + goalsUs, shotsThem + goalsThem)),
+        (
+          'shots',
+          'match.stat.shots',
+          pick(shotsUs + goalsUs, shotsThem + goalsThem),
+        ),
         (
           'sot',
           'match.stat.on_target',
           pick(onTargetUs + goalsUs, onTargetThem + goalsThem),
         ),
-        ('big', 'match.stat.big_chances', pick(bigUs + goalsUs, bigThem + goalsThem)),
+        (
+          'big',
+          'match.stat.big_chances',
+          pick(bigUs + goalsUs, bigThem + goalsThem),
+        ),
         ('bigmiss', 'match.stat.big_missed', pick(bigMissedUs, bigMissedThem)),
         ('corners', 'match.stat.corners', pick(cornersUs, cornersThem)),
       ])
@@ -141,11 +152,7 @@ LiveStats liveStatsFor({
 }
 
 class MatchStatboard extends StatelessWidget {
-  const MatchStatboard({
-    super.key,
-    required this.stats,
-    required this.isHome,
-  });
+  const MatchStatboard({super.key, required this.stats, required this.isHome});
 
   final LiveStats stats;
 
@@ -267,11 +274,7 @@ class _TeamLabel extends StatelessWidget {
 /// One row: a figure each side of a centred label. A figure that has gone UP
 /// since the last paint bumps, which is the whole of the movement on this board.
 class _StatRow extends StatelessWidget {
-  const _StatRow({
-    required this.label,
-    required this.home,
-    required this.away,
-  });
+  const _StatRow({required this.label, required this.home, required this.away});
 
   final String label;
   final String home;

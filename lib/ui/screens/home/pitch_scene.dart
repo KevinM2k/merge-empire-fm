@@ -40,7 +40,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
-    show walkerFootOffset, walkerHeight, walkerWidth;
+    show walkerFootOffset, walkerHeight, walkerStrideArtUnits, walkerWidth;
 
 /// One stride, by mood. The JS's `--walk-dur` per `data-mood`.
 Duration walkDurationFor(Mood mood) => switch (mood) {
@@ -103,16 +103,37 @@ const double _mowApex = -0.95;
 /// the loop jumps.
 final double _mowPeriod = 5.2 * math.pi / 180;
 
-/// **THE MASTER DIAL FOR THE WHOLE GRASS SURFACE**, as a ratio of the stride.
+/// **THE GROUND'S SPEED, DERIVED FROM HIS LEGS.**
 ///
-/// A ray's horizontal travel for a given rotation is proportional to its
-/// distance BELOW the apex, so the fan sweeps faster the lower down the box you
-/// look — that IS the perspective working, and it is also why the tufts need
-/// three bands to keep up with it. Where it is pinned: the row under his boots,
-/// ~60% up the pitch box, which is 1.35 box-heights below an apex at -95%. That
-/// lands within a few percent of the 84px/s the walk cycle is cut for, which is
-/// the one end of the pitch the eye actually checks.
-const double _mowRatio = 0.3313;
+/// Not a tuned constant and not a ratio of one: his planted foot travels
+/// [walkerStrideArtUnits] in half a stride, scaled up by [walkerScale] to reach
+/// the screen, so the world has to move exactly that far under him in that time
+/// or he skates. The JS carries 84px/s as a hand-checked contract and notes that
+/// it goes out of true whenever the pitch's height changes with the viewport;
+/// here it falls out of the rig, so it cannot.
+double groundSpeedPxPerSec(Mood mood) =>
+    walkerStrideArtUnits *
+    walkerScale /
+    (walkDurationFor(mood).inMicroseconds / 2e6);
+
+/// How long one lane pair takes to sweep past, so that the grass AT HIS FEET
+/// moves at [groundSpeedPxPerSec].
+///
+/// A ray's horizontal travel per radian is its distance below the apex, so one
+/// period moves `stretch x period x depth` screen pixels at a row that deep.
+/// Solve that for time and the fan is pinned to the one row the eye actually
+/// checks — the row his boots are on — at every viewport, instead of being
+/// right on the screen it was tuned against and slow everywhere else.
+Duration mowDuration({
+  required double turfHeight,
+  required double contactBelowHorizon,
+  required Mood mood,
+}) {
+  final depth = _mowApex.abs() * turfHeight + contactBelowHorizon;
+  final travel = _mowStretch * _mowPeriod * depth;
+  final seconds = travel / groundSpeedPxPerSec(mood);
+  return Duration(microseconds: (seconds * 1e6).round());
+}
 
 /// Where the tufts live, as a fraction of the way up the pitch box. Not pixels:
 /// they used to be `[0, 30, 62]px` off the bottom edge, which crammed all three
@@ -236,7 +257,7 @@ class PitchScene extends StatelessWidget {
                 right: 0,
                 top: horizon,
                 bottom: 0,
-                child: _Turf(mood: mood),
+                child: _Turf(mood: mood, contactBelowHorizon: feet - horizon),
               ),
               // He stands LEFT of centre, on the grass under the horizon, and the
               // scale is about his FEET so he stays planted however big he gets.
@@ -271,20 +292,27 @@ class PitchScene extends StatelessWidget {
   }
 }
 
+/// The sky the whole game happens under.
+///
+/// Exported because the MATCH PAGE stands on it too. That page is a takeover —
+/// nearly all panel, no diorama behind it — and the JS puts it on this same sky
+/// rather than on the app's background for the reason its own note gives: a
+/// panel that followed the theme would be light-on-light at Sunday League in
+/// light mode. One sky, so arriving at a match is not arriving in a different
+/// world.
+const LinearGradient skyGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFF1B3A57), Color(0xFF2E5A74), Color(0xFF6E8FA0)],
+  stops: [0, 0.55, 1],
+);
+
 class _Sky extends StatelessWidget {
   const _Sky();
 
   @override
-  Widget build(BuildContext context) => const DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFF1B3A57), Color(0xFF2E5A74), Color(0xFF6E8FA0)],
-        stops: [0, 0.55, 1],
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      const DecoratedBox(decoration: BoxDecoration(gradient: skyGradient));
 }
 
 // ── The stand ───────────────────────────────────────────────────────────────
@@ -567,71 +595,88 @@ class _HoardingPainter extends CustomPainter {
 /// The ground: the turf, the mowing fan over it, the tuft bands, and the haze
 /// that puts the far end of it in the distance.
 class _Turf extends StatelessWidget {
-  const _Turf({required this.mood});
+  const _Turf({required this.mood, required this.contactBelowHorizon});
 
   final Mood mood;
 
+  /// How far below the horizon his boots are, which is the depth the fan is
+  /// pinned at.
+  final double contactBelowHorizon;
+
   @override
   Widget build(BuildContext context) {
-    final grass = grassDuration(mood);
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // The turf. Brighter at his boots and darker toward the horizon, which
-        // is the first half of reading as ground rather than as a green wall.
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF2A7231), Color(0xFF3A9441), Color(0xFF48AD50)],
-              stops: [0, 0.45, 1],
-            ),
-          ),
-        ),
-        _MowFan(
-          key: const ValueKey('pitch-mown'),
-          duration: Duration(
-            microseconds: (grass.inMicroseconds * _mowRatio).round(),
-          ),
-        ),
-        // Each band is a FULL-HEIGHT strip whose tufts sit at their own depth
-        // inside it, and travels at the mowing fan's speed there. Band 0 is his
-        // own grass and runs at exactly his stride.
-        for (var band = 0; band < tuftBandRatios.length; band++)
-          Positioned.fill(
-            child: _Scroller(
-              duration: Duration(
-                microseconds: (grass.inMicroseconds * tuftBandRatios[band])
-                    .round(),
+    // Every speed on this surface comes off this one number, so nothing on the
+    // grass can slide against the grass.
+    final speed = groundSpeedPxPerSec(mood);
+    return LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        fit: StackFit.expand,
+        children: [
+          // The turf. Brighter at his boots and darker toward the horizon, which
+          // is the first half of reading as ground rather than as a green wall.
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF2A7231),
+                  Color(0xFF3A9441),
+                  Color(0xFF48AD50),
+                ],
+                stops: [0, 0.45, 1],
               ),
-              segmentWidth: groundSegmentWidth,
-              child: _TuftSegment(band: band),
             ),
           ),
-        // Distance shade, OVER the fan and everything growing out of the turf.
-        // It stops before it reaches him: the shading has to fall off short of
-        // his boots or he ends up standing in a vignette.
-        const Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x57061A0C),
-                    Color(0x29061A0C),
-                    Color(0x0A061A0C),
-                    Color(0x00061A0C),
-                  ],
-                  stops: [0, 0.3, 0.52, 0.68],
+          _MowFan(
+            key: const ValueKey('pitch-mown'),
+            duration: mowDuration(
+              turfHeight: constraints.maxHeight,
+              contactBelowHorizon: contactBelowHorizon,
+              mood: mood,
+            ),
+          ),
+          // Each band is a FULL-HEIGHT strip whose tufts sit at their own depth
+          // inside it, and travels at the mowing fan's speed there. Band 0 is his
+          // own grass and runs at exactly his stride.
+          for (var band = 0; band < tuftBandRatios.length; band++)
+            Positioned.fill(
+              child: _Scroller(
+                // One segment per loop at band 0's own speed; the far bands are
+                // slower by the fan's proportions at their depth.
+                duration: Duration(
+                  microseconds:
+                      (groundSegmentWidth * tuftBandRatios[band] / speed * 1e6)
+                          .round(),
+                ),
+                segmentWidth: groundSegmentWidth,
+                child: _TuftSegment(band: band),
+              ),
+            ),
+          // Distance shade, OVER the fan and everything growing out of the turf.
+          // It stops before it reaches him: the shading has to fall off short of
+          // his boots or he ends up standing in a vignette.
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x57061A0C),
+                      Color(0x29061A0C),
+                      Color(0x0A061A0C),
+                      Color(0x00061A0C),
+                    ],
+                    stops: [0, 0.3, 0.52, 0.68],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

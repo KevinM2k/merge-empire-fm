@@ -63,6 +63,28 @@ const Duration walkCycle = Duration(milliseconds: 1800);
 /// measures is the line his boots are actually on.
 const double walkerFootline = 152.5;
 
+/// The leg, in art units. Shared with the scene, which has to know how far his
+/// planted foot travels to run the ground under it at the same speed.
+const double walkerThigh = 30;
+const double walkerShin = 27;
+
+/// How far his planted foot travels in half a stride, in art units.
+///
+/// **This is the number the ground has to match.** It is measured off the rig
+/// rather than picked: the foot's offset from the hip is
+/// `thigh·sin(θ) + shin·sin(θ + φ)`, and the distance between its front and back
+/// extremes is how far the world must move under him in half a cycle. Get it
+/// wrong and he moonwalks — forwards if the ground is slow, backwards if it is
+/// fast — and no amount of looking at the walk cycle will show you which,
+/// because the walk cycle is not what is wrong.
+final double walkerStrideArtUnits = _footX(0.5) - _footX(0);
+
+double _footX(double t) {
+  final thigh = _deg(_sample(_thighNear, t));
+  final shin = _deg(_sample(_shinNear, t));
+  return walkerThigh * math.sin(thigh) + walkerShin * math.sin(thigh + shin);
+}
+
 /// How far his soles sit above the bottom of his box, in art units.
 const double walkerFootOffset = walkerHeight - walkerFootline;
 

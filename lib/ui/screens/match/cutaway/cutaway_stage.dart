@@ -61,7 +61,15 @@ CutawayClip? clipFor(
 }
 
 /// The pitch, with or without a chance running on it.
-class CutawayStage extends StatelessWidget {
+///
+/// **The game is built ONCE per chance and held.** It was constructed inline in
+/// `build` — `GameWidget(game: CutawayGame(...))` — and the match screen calls
+/// `setState` on every simulated minute, so every tick handed `GameWidget` a
+/// brand-new game object, which it dutifully detached the running one for and
+/// attached in its place. The passage restarted from its first beat about once
+/// a second and reloaded its sprites doing it. That is the judder, and it is
+/// also most of the flashing.
+class CutawayStage extends StatefulWidget {
   const CutawayStage({required this.clip, this.onDone, super.key});
 
   /// Null shows the idle pitch — which is most of a match.
@@ -70,31 +78,84 @@ class CutawayStage extends StatelessWidget {
   final void Function(CutawayOutcome outcome)? onDone;
 
   @override
+  State<CutawayStage> createState() => _CutawayStageState();
+}
+
+class _CutawayStageState extends State<CutawayStage> {
+  CutawayGame? _game;
+  int? _seed;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncGame();
+  }
+
+  @override
+  void didUpdateWidget(CutawayStage old) {
+    super.didUpdateWidget(old);
+    _syncGame();
+  }
+
+  /// A NEW passage means a new game; the same passage means the same one.
+  ///
+  /// Keyed on the clip's seed, which is what identifies a chance — the minute it
+  /// happened in. Everything else about the clip is derived from it.
+  void _syncGame() {
+    final clip = widget.clip;
+    if (clip == null) {
+      _game = null;
+      _seed = null;
+      return;
+    }
+    if (_seed == clip.seed && _game != null) return;
+    _seed = clip.seed;
+    _game = CutawayGame(
+      sequence: clip.sequence,
+      attackingRight: clip.attackingRight,
+      outcome: clip.outcome,
+      seed: clip.seed,
+      onDone: widget.onDone,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final current = clip;
+    final game = _game;
     return AspectRatio(
       aspectRatio: pitchAspect,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: ColoredBox(
           color: PitchBackdrop.turf,
-          child: current == null
+          child: game == null
               ? const CustomPaint(
                   key: ValueKey('cutaway-idle'),
                   painter: _IdlePitchPainter(),
                   size: Size.infinite,
                 )
-              : GameWidget(
-                  // Keyed on the clip so a new chance builds a new game rather
-                  // than resuming the last one mid-passage.
-                  key: ValueKey('cutaway-${current.seed}'),
-                  game: CutawayGame(
-                    sequence: current.sequence,
-                    attackingRight: current.attackingRight,
-                    outcome: current.outcome,
-                    seed: current.seed,
-                    onDone: onDone,
-                  ),
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // The markings, painted UNDER the game.
+                    //
+                    // `onLoad` is async however warm the cache is, so there is
+                    // always at least one frame where the world is empty. On a
+                    // bare background that frame is a flat green flash; on the
+                    // same pitch the clip is about to draw it is invisible,
+                    // because it is already the picture.
+                    const CustomPaint(
+                      painter: _IdlePitchPainter(),
+                      size: Size.infinite,
+                    ),
+                    GameWidget(
+                      key: ValueKey('cutaway-${game.seed}'),
+                      game: game,
+                      // Transparent, so the markings underneath show through
+                      // until the world has something in it.
+                      backgroundBuilder: (_) => const SizedBox.shrink(),
+                    ),
+                  ],
                 ),
         ),
       ),
