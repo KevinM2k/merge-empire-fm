@@ -17,6 +17,7 @@ import 'dart:async';
 
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
+import 'package:merge_empire_fc/engine/season_fixtures.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/state/game_wiring.dart';
@@ -75,6 +76,12 @@ class GameRunner {
     // again, which is what the guards are for.
     rollSeasonQuests(state);
     ensureMatchQuests(state);
+    // The season's OPPONENTS and its 56-fixture schedule, which nothing rolled
+    // outside the season boundary either — so a save that had not yet finished a
+    // season, and every save made before the schedule landed, reached the
+    // Fixtures sheet with nothing in it and sat on "loading" for good. Guarded
+    // the same way: it skips a save that already carries its schedule.
+    initSeasonOpponents(state);
     // A look for the manager, which the JS generates on the diorama's first
     // render and saves. `randomAvatar` was ported with no caller, so every save
     // drew the same hardcoded man: one hairstyle, no hat, the kit and nothing

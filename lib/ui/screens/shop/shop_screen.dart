@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_looks.dart';
@@ -71,6 +72,10 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     // about twenty tiles is well within what one pass can afford.
     return SingleChildScrollView(
       key: const ValueKey('shop-scroll'),
+      // The Shop had NO padding at all: its first tile ran under the floating
+      // HUD and its last under the tab bar. `hudClearance` is the shared figure
+      // every screen uses; the bottom inset is the tab bar's own.
+      padding: const EdgeInsets.fromLTRB(12, hudClearance, 12, 12),
       child: Column(
         children: [
           _section(ShopSectionId.offers, const OffersSection()),

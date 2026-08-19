@@ -30,6 +30,12 @@ typedef GoalFrame = ({double left, double right, double top, double bottom});
 
 const GoalFrame goalFrame = (left: 11, right: 89, top: 6, bottom: 47);
 
+/// The keeper's box: 13% of the scene's WIDTH, at 2:3. Off the width and not the
+/// height, so he keeps his proportions whatever shape the scene is given — the
+/// JS sizes him the same way (`width:13%; aspect-ratio:2/3`).
+double _keeperWidth(double sceneWidth) => sceneWidth * 0.13;
+double _keeperHeight(double sceneWidth) => _keeperWidth(sceneWidth) * 3 / 2;
+
 /// How close to a post or the bar still counts as hitting it.
 const double woodworkMargin = 2;
 
@@ -171,14 +177,20 @@ class PenaltyScene extends StatelessWidget {
                   // `keeper_figure.dart` is the JS's own illustration, rigged and
                   // posed with Flutter's animated transforms. What was here was
                   // five rectangles with the arms permanently out.
+                  // Anchored by his FEET, and 13% of the scene wide at 2:3 —
+                  // the JS's own `.pen-keeper` box and its
+                  // `transform-origin: 50% 100%`. Centring the box on his mark
+                  // instead hung half of him below the goal line and left him
+                  // hovering above the six-yard box, which is exactly what he
+                  // looked like: a keeper floating.
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 260),
                     curve: Curves.easeOut,
-                    left: at(keeper).dx - w * 0.075,
-                    top: at(keeper).dy - h * 0.13,
+                    left: at(keeper).dx - _keeperWidth(w) / 2,
+                    top: at(keeper).dy - _keeperHeight(w),
                     child: SizedBox(
-                      width: w * 0.15,
-                      height: h * 0.26,
+                      width: _keeperWidth(w),
+                      height: _keeperHeight(w),
                       child: KeeperFigure(tier: keeperTier, pose: keeperPose),
                     ),
                   ),

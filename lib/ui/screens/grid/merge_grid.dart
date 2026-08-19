@@ -27,6 +27,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
@@ -42,9 +43,6 @@ import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 const double _cellAspect = 4 / 3;
 const double _gap = 6;
 const double _pad = 8;
-
-/// The HUD floats over every screen, so the first thing on a tab has to clear it.
-const double _hudClearance = 56;
 
 /// `.grid-container`'s column ladder, by viewport width.
 int gridColumnsFor(double width) {
@@ -125,7 +123,7 @@ class MergeGridState extends ConsumerState<MergeGrid> {
             // they describe, and the two controls a player came here to press
             // belong where the thumb lands first.
             const Padding(
-              padding: EdgeInsets.fromLTRB(_pad, _hudClearance, _pad, 0),
+              padding: EdgeInsets.fromLTRB(_pad, hudClearance, _pad, 0),
               child: ScoutActionBar(),
             ),
             Expanded(

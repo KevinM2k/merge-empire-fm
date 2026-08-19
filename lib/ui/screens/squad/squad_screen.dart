@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
@@ -148,7 +149,7 @@ class SquadHeader extends ConsumerWidget {
         color: kit.bg,
         border: Border(bottom: BorderSide(color: kit.border)),
       ),
-      padding: const EdgeInsets.fromLTRB(14, 64, 14, 11),
+      padding: const EdgeInsets.fromLTRB(14, hudClearance, 14, 11),
       child: Column(
         children: [
           // One glass panel, matching the next-match card's.

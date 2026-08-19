@@ -239,13 +239,15 @@ List<String> getSeasonOpponents(
   if (stored is List && stored.isNotEmpty) {
     return _opponentNames(stored).take(opponentsPerSeason).toList();
   }
-  final tier = divTier(divisionId);
-  final used = <String>{};
-  final names = <String>[];
-  while (names.length < opponentsPerSeason) {
-    final name = generateTeamName(tier, used);
-    used.add(name);
-    names.add(name);
-  }
-  return names;
+  // FALLBACK, for a save made before the schedule was stored. Deterministic and
+  // RNG-free on purpose: this runs from the league table, the table is rebuilt on
+  // every save revision, and `generateTeamName` both returns something different
+  // each call and advances the shared gameplay stream. Between them that showed
+  // as a division whose clubs kept changing, and quietly moved the sequence the
+  // save's determinism rests on.
+  return stableTeamNames(
+    divTier(divisionId),
+    Object.hash(divisionId, seasonCount),
+    opponentsPerSeason,
+  );
 }

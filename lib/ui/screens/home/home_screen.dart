@@ -22,6 +22,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
@@ -58,7 +59,7 @@ class HomeScreen extends ConsumerWidget {
             bottom: false,
             child: Padding(
               // Clears the HUD, which floats over every screen.
-              padding: EdgeInsets.fromLTRB(13, 56, 13, 0),
+              padding: EdgeInsets.fromLTRB(13, hudClearance, 13, 0),
               child: NextMatchCard(),
             ),
           ),

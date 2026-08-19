@@ -11,6 +11,7 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -100,3 +101,67 @@ final managerLookProvider = savePick<ManagerLook?>((s) {
 /// `manager_mood.dart` derives it from the last result, the table and the season,
 /// and had no caller at all: the gaffer's mood was a value nobody could see.
 final managerMoodProvider = savePick<Mood>((s) => deriveMood(s, now()).mood);
+
+
+/// Last-five league form per club, oldest to newest.
+///
+/// Walks the pre-simulated fixtures so the AI clubs and the player share ONE
+/// source of truth — a form line derived separately for each would disagree with
+/// the table it sits in. Cup rounds are excluded: the dots track LEAGUE form, and
+/// the standings they annotate are league standings.
+///
+/// Empty for a save that predates the schedule; callers just draw no dots.
+final leagueFormProvider = savePick<Map<String, List<String>>>((s) {
+  final prog = _map(s['progression']);
+  final fixtures = prog?['seasonFixtures'];
+  if (fixtures is! List || fixtures.isEmpty) return const {};
+
+  final season = _int(prog?['seasonCount'], 1);
+  final currentRound = _int(prog?['seasonAwardedPlayed']);
+  final results = _map(prog?['fixtureResults']) ?? const {};
+  final playerName = s['clubName'] is String && (s['clubName'] as String).isNotEmpty
+      ? s['clubName'] as String
+      : t('common.your_club');
+
+  final seq = <String, List<String>>{};
+  final played = [
+    for (final f in fixtures)
+      if (f is Map<String, dynamic> && _int(f['round']) <= currentRound) f,
+  ]..sort((a, b) => _int(a['round']).compareTo(_int(b['round'])));
+
+  for (final fix in played) {
+    int? hg;
+    int? ag;
+    final playerMatch = fix['playerMatchNum'];
+    if (playerMatch != null) {
+      final r = _map(results['s${season}_m$playerMatch']);
+      if (r == null) continue;
+      // `homeGoals` in a stored result is the PLAYER'S goals whichever ground it
+      // was on, so it has to be oriented to physical home/away before it can be
+      // read as a fixture.
+      if (fix['homeTeam'] == null) {
+        hg = _int(r['homeGoals']);
+        ag = _int(r['awayGoals']);
+      } else {
+        hg = _int(r['awayGoals']);
+        ag = _int(r['homeGoals']);
+      }
+    } else {
+      if (fix['homeGoals'] == null) continue;
+      hg = _int(fix['homeGoals']);
+      ag = _int(fix['awayGoals']);
+    }
+
+    final home = fix['homeTeam'] as String? ?? playerName;
+    final away = fix['awayTeam'] as String? ?? playerName;
+    (seq[home] ??= []).add(hg > ag ? 'W' : hg == ag ? 'D' : 'L');
+    (seq[away] ??= []).add(ag > hg ? 'W' : ag == hg ? 'D' : 'L');
+  }
+
+  return {
+    for (final e in seq.entries)
+      e.key: e.value.length <= 5
+          ? e.value
+          : e.value.sublist(e.value.length - 5),
+  };
+});

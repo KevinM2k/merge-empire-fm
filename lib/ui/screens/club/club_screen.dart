@@ -13,6 +13,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_art.g.dart';
@@ -20,6 +21,8 @@ import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
+import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -90,7 +93,7 @@ class ClubScreen extends ConsumerWidget {
     // to anything that wants to reach one.
     return SingleChildScrollView(
       key: const ValueKey('club-screen'),
-      padding: const EdgeInsets.fromLTRB(12, 64, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, hudClearance, 12, 12),
       child: Column(
         children: [
           _StadiumHero(tier: ref.watch(stadiumTierProvider)),
@@ -178,6 +181,59 @@ class _AssetPanel extends ConsumerWidget {
   const _AssetPanel({required this.tile});
 
   final AssetTile tile;
+
+  /// Build it or invest in it, and then SAY SO.
+  ///
+  /// The port took the coins, ticked the bar up and said nothing — so the one
+  /// moment on this screen a player is paying for looked exactly like a number
+  /// changing. `showFeatureUnlock` is the JS's payoff beat, and a tier-up gets it
+  /// as well as a first build: the two are the same kind of event.
+  Future<void> _buy(
+    BuildContext context,
+    WidgetRef ref,
+    GameState game,
+  ) async {
+    final wasOwned = tile.owned;
+    game.update(
+      (s) => wasOwned ? investInAsset(s, tile.key) : buildAsset(s, tile.key),
+    );
+    if (!context.mounted) return;
+
+    // Read the tier AFTER the purchase — the splash names what the club has now,
+    // not what it had a moment ago.
+    final tier = assetTier(game.state, tile.key);
+    await showFeatureUnlock(
+      context,
+      title: t('asset.${tile.key}.name'),
+      subtitle: t('asset.${tile.key}.hint'),
+      isTierUp: wasOwned,
+      // Bronze, silver then gold, the same ladder the JS tints its card by, so
+      // the card gets brighter as the facility does.
+      accent: tier >= 5
+          ? const Color(0xFFFFD700)
+          : tier >= 3
+          ? const Color(0xFFAAAAAA)
+          : const Color(0xFFCD7F32),
+      starCount: tier.clamp(1, 3),
+      // The Stadium is the one facility that unlocks something ELSE — a tier of
+      // it opens new kit colours — and it rides on the same card rather than
+      // arriving as a second popup behind this one.
+      bonus: tile.key == AssetCategory.stadium &&
+              stadiumColourUnlocks.containsKey(tier)
+          ? t('club.kit_design')
+          : null,
+      icon: SizedBox(
+        width: 54,
+        height: 54,
+        child: ArtImage(
+          path: clubAssetImagePath(tile.key, tier < 1 ? 1 : tier),
+          fallback: const Center(
+            child: Text('🏟', style: TextStyle(fontSize: 30)),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -279,11 +335,7 @@ class _AssetPanel extends ConsumerWidget {
                   key: ValueKey('club-action-${tile.key}'),
                   onPressed: !buildable
                       ? null
-                      : () => game.update(
-                          (s) => tile.owned
-                              ? investInAsset(s, tile.key)
-                              : buildAsset(s, tile.key),
-                        ),
+                      : () => _buy(context, ref, game),
                   child: Text(
                     tile.maxed
                         ? t('shop.owned')

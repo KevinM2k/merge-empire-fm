@@ -84,3 +84,48 @@ String generateTeamName(String tier, Set<String> used) {
   }
   return 'Valley United $n';
 }
+
+
+/// A stable set of [count] names for a tier, derived from [seed] alone.
+///
+/// **This must not touch the seeded RNG.** [generateTeamName] draws from the
+/// shared gameplay stream and ADVANCES it, which is correct when a season is
+/// being rolled and catastrophic from a display path: the league table is built
+/// on every save revision, so calling it there both handed back different teams
+/// every rebuild — the table visibly reshuffling its clubs — and pulled the
+/// sequence out from under the save's own determinism.
+///
+/// Deterministic and pure, so the same division and season always produce the
+/// same league. Only ever a FALLBACK: a save with `seasonOpponents` stored uses
+/// those, and every save made since the schedule landed has them.
+List<String> stableTeamNames(String tier, int seed, int count) {
+  // A small LCG rather than `Random(seed)`, so the sequence is fixed by this
+  // code and cannot move under a Dart upgrade.
+  var x = (seed & 0x7fffffff) | 1;
+  int next() {
+    x = (x * 1103515245 + 12345) & 0x7fffffff;
+    return x;
+  }
+
+  final used = <String>{};
+  final out = <String>[];
+  // Bounded: the banks are large enough that this fills long before the cap, and
+  // an unbounded loop on a pathological seed would hang the table.
+  for (var i = 0; out.length < count && i < count * 200; i++) {
+    final String name;
+    if (tier == 'pro') {
+      name =
+          '${_proPrefix[next() % _proPrefix.length]} '
+          '${_proNoun[next() % _proNoun.length]}';
+    } else {
+      final bank = tier == 'semipro' ? _semiproFirst : _grassrootsFirst;
+      name = '${bank[next() % bank.length]} ${_suffix[next() % _suffix.length]}';
+    }
+    if (used.add(name)) out.add(name);
+  }
+  // Only reachable if the bank is smaller than `count`.
+  while (out.length < count) {
+    out.add('Valley United ${out.length + 1}');
+  }
+  return out;
+}

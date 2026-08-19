@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -260,6 +261,63 @@ void main() {
       // And the drawing is still there behind it, for a facility whose art has
       // not been generated yet.
       expect(art.fallback, isA<SvgArt>());
+    });
+  });
+
+  group('building says so', () {
+    testWidgets('a first build raises the UNLOCKED splash', (tester) async {
+      // The port took the coins, ticked the bar and said nothing — the one moment
+      // on this screen a player pays for looked like a number changing.
+      await pumpClub(tester, coins: 100000);
+      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.byKey(const ValueKey('feature-unlock')), findsOneWidget);
+      expect(find.text(t('feature.unlocked')), findsNothing);
+      // The eyebrow carries a glyph with it, so the word is matched loosely.
+      expect(find.textContaining(t('feature.unlocked')), findsOneWidget);
+      expect(find.text(t('asset.$_key.name')), findsWidgets);
+
+      // It takes itself away.
+      await tester.pump(featureUnlockHold);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('feature-unlock')), findsNothing);
+      await settleSave(tester);
+    });
+
+    testWidgets('and an upgrade says TIER UP instead', (tester) async {
+      // The same card with a different eyebrow, deliberately: they are the same
+      // kind of event, and a different shape would make the smaller one read as
+      // a lesser thing rather than the next step of the same thing.
+      await pumpClub(tester, coins: 10000000);
+      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      await tester.pump();
+      await tester.pump(featureUnlockHold);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.textContaining(t('feature.tier_up')), findsOneWidget);
+
+      await tester.pump(featureUnlockHold);
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('and a tap dismisses it early', (tester) async {
+      await pumpClub(tester, coins: 100000);
+      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byKey(const ValueKey('feature-unlock')), findsOneWidget);
+
+      // Nothing on the card is a decision, so anywhere will do.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('feature-unlock')), findsNothing);
+      await settleSave(tester);
     });
   });
 }

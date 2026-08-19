@@ -29,6 +29,17 @@ final energyMaxProvider = savePick<int>(getEnergyMax);
 /// otherwise a button with no visible effect anywhere in the game.
 final equippedBadgeProvider = savePick<String>(getEquippedBadgeId);
 
+/// How much room the HUD needs above a screen's own content.
+///
+/// The JS has no equivalent: there, `.app-body` starts BELOW the bar
+/// (`margin-top: --hud-height`) so no screen pays it any attention. Here the HUD
+/// floats over the content, so every screen clears it — and three of them had
+/// picked their own number while the Shop had picked none at all, which is why
+/// the Shop's first tile sat under the coin counter.
+///
+/// One constant, so a change to the bar's height moves every screen with it.
+const double hudClearance = 56;
+
 class Hud extends ConsumerWidget {
   const Hud({super.key, this.onSettings});
 
