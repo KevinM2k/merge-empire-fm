@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
+import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
@@ -82,10 +83,11 @@ class MergeGridState extends ConsumerState<MergeGrid> {
 
     return Column(
       children: [
+        const _GridStatusStrip(),
         Expanded(
           child: GridView.builder(
             key: const ValueKey('merge-grid'),
-            padding: const EdgeInsets.fromLTRB(8, 64, 8, 8),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: Grid.cols,
               childAspectRatio: 0.78,
@@ -112,6 +114,103 @@ class MergeGridState extends ConsumerState<MergeGrid> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// How full the grid is, and what is being sold off it without asking.
+///
+/// The count is the JS's own pill, and it turns red at the roster limit — a
+/// player who cannot sign has to be able to see why. The auto-sell pill sits
+/// beside it because the rules FIRE here: a scouted card of a switched-on tier
+/// never reaches this grid, and surfacing the rule next to the count is what
+/// makes "that bronze card never arrived" explainable without going looking.
+class _GridStatusStrip extends ConsumerWidget {
+  const _GridStatusStrip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final counted = ref.watch(gridCountProvider);
+    final full = counted.filled >= counted.max;
+    final tutorialDone = ref.watch(tutorialDoneProvider);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 56, 8, 6),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          _Pill(
+            pillKey: 'grid-count',
+            label: t('grid.player_count', {
+              'count': counted.filled,
+              'max': counted.max,
+            }),
+            ink: full ? Colors.redAccent : kit.accentBright,
+            border: full ? Colors.redAccent : kit.border,
+          ),
+          // Hidden until the tutorial is done, where the rules are dormant
+          // anyway — a switch that cannot do anything yet is worse than none.
+          if (tutorialDone)
+            _Pill(
+              pillKey: 'grid-autosell',
+              label:
+                  '${t('settings.autoTier')}: '
+                  '${ref.watch(autoTierSummaryProvider)} ›',
+              ink: ref.watch(autoTierActiveProvider)
+                  ? kit.accentBright
+                  : kit.textMuted,
+              border: ref.watch(autoTierActiveProvider)
+                  ? kit.accent
+                  : kit.border,
+              onTap: () => showAutoTierSheet(context),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.pillKey,
+    required this.label,
+    required this.ink,
+    required this.border,
+    this.onTap,
+  });
+
+  final String pillKey;
+  final String label;
+  final Color ink;
+  final Color border;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return InkWell(
+      key: ValueKey(pillKey),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: kit.surface2,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: ink,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 }

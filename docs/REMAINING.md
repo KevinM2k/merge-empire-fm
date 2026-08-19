@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,401 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,415 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 
@@ -785,8 +785,9 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       **The grid's bookkeeping is in with it**, which was the bigger find —
       `merge_flow_engine.dart`. See the parity file's method note: the action
       funnel had no caller at all, so three season quests could never advance;
-      the auto-sell rules had no caller either; and a merge never told the
-      transfer market that both parents had gone.
+      the auto-sell rules had no caller either — nothing could switch them ON,
+      so `auto_tier_sheet.dart` is the half that was missing; and a merge never
+      told the transfer market that both parents had gone.
       Still to add: the merged-into float (`grid.merged_into`, which names the
       tier a merge produced), and lazy mounting if a profile run asks for it.
       **Worth knowing before writing a grid test:** a card loaded WITHOUT a

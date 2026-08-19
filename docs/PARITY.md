@@ -42,6 +42,12 @@ gaps are in this list.
 - [x] **What a merge COUNTS.** The move was ported and none of the bookkeeping
       was: career totals, `stats.highestTier`, the two merge quests, and a
       rival's pending bid dying with a parent card. See the method note.
+- [x] **The auto-sell rules can be SET.** `setTierAction` had no caller at all,
+      so a fully tested engine could never fire. The sheet is on the Settings row
+      that owns it and on a pill beside the grid's count — the JS's own two
+      entry points, and the second matters because the rules fire on the Players
+      tab: a scouted card of a switched-on tier never reaches the grid.
+- [x] The player-count pill, red at the roster limit
 - [ ] The merged-into float — `grid.merged_into` ('✨ {name}!'), which names the
       tier a merge produced at the cell it landed in. The burst says something
       happened; this says what.

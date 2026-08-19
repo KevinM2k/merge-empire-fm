@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -91,6 +92,10 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
       settingKey: 'notificationsEnabled',
       label: t('settings.notifications'),
     ),
+    const Divider(),
+    // The row that has always owned the auto-sell rules. The Players tab has a
+    // pill onto the same sheet, because that is where they fire.
+    const AutoTierRow(),
     const Divider(),
     _LanguagePicker(),
   ];
@@ -237,8 +242,7 @@ class _LanguagePicker extends ConsumerWidget {
             trailing: lang.id == current
                 ? Icon(Icons.check, color: kit.accent)
                 : null,
-            onTap: () =>
-                ref.read(localeProvider.notifier).set(lang.id),
+            onTap: () => ref.read(localeProvider.notifier).set(lang.id),
           ),
       ],
     );

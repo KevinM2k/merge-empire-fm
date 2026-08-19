@@ -10,7 +10,10 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -50,11 +53,13 @@ Map<String, dynamic> _card(String id, String instanceId, {int variant = 0}) => {
 Future<ProviderContainer> pumpGrid(
   WidgetTester tester, {
   Map<int, Map<String, dynamic>> cards = const {},
+  bool tutorialDone = false,
 }) async {
   final state = createDefaultState();
   final cells =
       (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
   cards.forEach((i, card) => cells[i] = card);
+  (state['tutorial'] as Map<String, dynamic>)['done'] = tutorialDone;
 
   final container = ProviderContainer(
     overrides: [
@@ -363,6 +368,55 @@ void main() {
       );
       expect(find.byKey(const ValueKey('add-player-blocked')), findsOneWidget);
       expect(filledCells(container), 0);
+    });
+  });
+
+  group('the status strip', () {
+    testWidgets('counts what is on the grid against what it holds', (
+      tester,
+    ) async {
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a')},
+      );
+      expect(
+        find.text(
+          t('grid.player_count', {
+            'count': 1,
+            'max': getMaxPlayers(container.read(gameProvider).state),
+          }),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('carries the auto-sell rule, because it fires HERE', (
+      tester,
+    ) async {
+      // A scouted card of a switched-on tier never reaches this grid, so the
+      // rule has to be visible from it.
+      await pumpGrid(tester, tutorialDone: true);
+      expect(find.byKey(const ValueKey('grid-autosell')), findsOneWidget);
+      expect(find.textContaining(t('settings.autoTier.off')), findsOneWidget);
+    });
+
+    testWidgets('and opens the sheet that sets it', (tester) async {
+      final container = await pumpGrid(tester, tutorialDone: true);
+      await tester.tap(find.byKey(const ValueKey('grid-autosell')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('auto-tier-sheet')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('auto-tier-1')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(activeAutoTiers(container.read(gameProvider).state), contains(1));
+    });
+
+    testWidgets('mid-tutorial the pill is not offered at all', (tester) async {
+      // The rules are dormant then, so a switch onto them would do nothing.
+      await pumpGrid(tester);
+      expect(find.byKey(const ValueKey('grid-autosell')), findsNothing);
+      expect(find.byKey(const ValueKey('grid-count')), findsOneWidget);
     });
   });
 

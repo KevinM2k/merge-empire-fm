@@ -76,6 +76,17 @@ final gridCellsProvider = savePick<List<GridCell>>((s) {
   ];
 });
 
+/// How many cards are on the grid, and how many it may hold.
+///
+/// One provider rather than two, because the pill compares them: a `filled` that
+/// rebuilt without its `max` could paint itself full against a stale limit.
+final gridCountProvider = savePick<({int filled, int max})>(
+  (s) => (
+    filled: gridCells(s).where((c) => c != null).length,
+    max: getMaxPlayers(s),
+  ),
+);
+
 /// The highest tier this division may hold.
 final maxMergeTierProvider = savePick<int>((s) {
   final id = _map(s['progression'])?['currentDivision'] as String?;
