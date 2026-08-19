@@ -42,11 +42,12 @@ Future<void> showSellSheet(
   // Rolled here, once. The sheet quotes it and the sale takes it.
   final card = CardInstance.from(
     (state?['grid'] as Map<String, dynamic>?)?['cells'] is List
-        ? ((state!['grid'] as Map<String, dynamic>)['cells'] as List).firstWhere(
-            (c) =>
-                c is Map<String, dynamic> && c['instanceId'] == instanceId,
-            orElse: () => null,
-          )
+        ? ((state!['grid'] as Map<String, dynamic>)['cells'] as List)
+              .firstWhere(
+                (c) =>
+                    c is Map<String, dynamic> && c['instanceId'] == instanceId,
+                orElse: () => null,
+              )
         : null,
   );
   final mult = rollMarketMult(card);

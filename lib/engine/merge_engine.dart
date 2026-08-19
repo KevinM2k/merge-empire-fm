@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/util/sorting.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 int _instanceCounter = 0;
@@ -72,7 +73,8 @@ CardInstance createInstance(String definitionId, {bool? preferredFemale}) {
   // Per-instance ATK/DEF split: each card rolls its own ratio within its
   // position's range, so two copies of one definition genuinely differ.
   final (lo, hi) = ratioRange[def?.position] ?? (0.35, 0.65);
-  final attackRatio = _jsRound((lo + _rng.nextDouble() * (hi - lo)) * 100) / 100;
+  final attackRatio =
+      _jsRound((lo + _rng.nextDouble() * (hi - lo)) * 100) / 100;
 
   return CardInstance(<String, dynamic>{
     'definitionId': definitionId,
@@ -300,7 +302,13 @@ int mergeAll(List<dynamic> cells, {Map<String, dynamic>? stats, int? maxTier}) {
         final bv = (b.raw['variant'] as num?)?.toInt() ?? 0;
         if (isVariantFemale(av) != isVariantFemale(bv)) continue;
 
-        final result = attemptMerge(i, j, cells, stats: stats, maxTier: maxTier);
+        final result = attemptMerge(
+          i,
+          j,
+          cells,
+          stats: stats,
+          maxTier: maxTier,
+        );
         if (result.ok && result.action == MergeAction.merge) {
           totalMerges++;
           keepGoing = true;
@@ -311,4 +319,51 @@ int mergeAll(List<dynamic> cells, {Map<String, dynamic>? stats, int? maxTier}) {
     }
   }
   return totalMerges;
+}
+
+/// Pack the grid tier-first, best-rated first, with the gaps closed up.
+///
+/// Lifted out of `ui/components/Grid.js`, which does the sort inline in the
+/// screen the way `mergeAll`'s neighbours were before they moved here. Nulls do
+/// not sort — they are absence, not a value — so the filled cards are ordered
+/// and written back from the top, which closes every gap as a side effect.
+///
+/// Returns true when anything moved, so a caller can skip an animation that has
+/// nothing to show.
+bool sortGridByTier(List<dynamic> cells) {
+  final filled = [
+    for (final c in cells)
+      if (c != null) c,
+  ];
+  final before = [for (final c in cells) CardInstance.from(c)?.instanceId];
+
+  // Stable, so two cards of the same tier and rating keep the order the player
+  // last left them in rather than being shuffled by a tie.
+  final sorted = stableSorted(filled, (Object? a, Object? b) {
+    final cardA = CardInstance.from(a);
+    final cardB = CardInstance.from(b);
+    final defA = getPlayerDef(cardA?.definitionId);
+    final defB = getPlayerDef(cardB?.definitionId);
+    final byTier = (defB?.tier ?? 0) - (defA?.tier ?? 0);
+    if (byTier != 0) return byTier;
+    final ratingA = getCardRating(defA, ratingBonus: cardA?.ratingBonus ?? 0);
+    final ratingB = getCardRating(defB, ratingBonus: cardB?.ratingBonus ?? 0);
+    return ratingB - ratingA;
+  });
+
+  for (var i = 0; i < cells.length; i++) {
+    cells[i] = i < sorted.length ? sorted[i] : null;
+  }
+
+  for (var i = 0; i < cells.length; i++) {
+    if (CardInstance.from(cells[i])?.instanceId != before[i]) return true;
+  }
+  return false;
+}
+
+/// Whether a sort would change anything — so the button can take itself away
+/// when the grid is already in order, rather than sitting there doing nothing.
+bool gridNeedsSort(List<dynamic> cells) {
+  final probe = [...cells];
+  return sortGridByTier(probe);
 }

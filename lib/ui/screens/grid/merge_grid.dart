@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
 class MergeGrid extends ConsumerStatefulWidget {
@@ -87,8 +88,59 @@ class MergeGridState extends ConsumerState<MergeGrid> {
         ),
         const Padding(
           padding: EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: AddPlayerButton(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [_GridTools(), SizedBox(height: 8), AddPlayerButton()],
+          ),
         ),
+      ],
+    );
+  }
+}
+
+/// Merge All and Sort.
+///
+/// Both take themselves away when they would do nothing — a "Merge All (0)"
+/// and a Sort on an already-sorted grid are buttons that answer a tap with
+/// silence, which teaches the player to stop pressing them.
+class _GridTools extends ConsumerWidget {
+  const _GridTools();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pairs = ref.watch(mergeablePairsProvider);
+    final needsSort = ref.watch(gridNeedsSortProvider);
+    final maxTier = ref.watch(maxMergeTierProvider);
+    final game = ref.read(gameProvider);
+    if (pairs == 0 && !needsSort) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        if (pairs > 0)
+          Expanded(
+            child: OutlinedButton.icon(
+              key: const ValueKey('merge-all'),
+              onPressed: () {
+                game.update((s) => mergeAll(gridCells(s), maxTier: maxTier));
+                // One announcement for the batch, not one per pair: the
+                // achievement sweep and the quest counters both listen, and a
+                // twelve-pair sweep is one action the player took.
+                emit('merge:happened');
+              },
+              icon: const Icon(Icons.merge, size: 16),
+              label: Text('${t('players.mergeAll')} ($pairs)'),
+            ),
+          ),
+        if (pairs > 0 && needsSort) const SizedBox(width: 8),
+        if (needsSort)
+          Expanded(
+            child: OutlinedButton.icon(
+              key: const ValueKey('grid-sort'),
+              onPressed: () => game.update((s) => sortGridByTier(gridCells(s))),
+              icon: const Icon(Icons.sort, size: 16),
+              label: Text(t('players.sort')),
+            ),
+          ),
       ],
     );
   }

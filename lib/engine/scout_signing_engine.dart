@@ -110,3 +110,91 @@ Signing signPlayer(Map<String, dynamic> state) {
 
   return (ok: true, reason: null, idx: placed.idx, cost: cost, wasFree: free);
 }
+
+// ── Scouting in batches ─────────────────────────────────────────────────────
+
+/// The batch sizes the Scout button offers.
+const List<int> scoutBatchSizes = [1, 2, 4];
+
+int get maxScoutBatch => scoutBatchSizes.last;
+
+/// The player's stored preference, clamped to a size that exists.
+int scoutBatch(Map<String, dynamic>? state) {
+  final n = _num(_map(state?['settings'])?['scoutBatch'])?.toInt() ?? 1;
+  return scoutBatchSizes.contains(n) ? n : 1;
+}
+
+void setScoutBatch(Map<String, dynamic> state, int n) {
+  if (!scoutBatchSizes.contains(n)) return;
+  final settings = state.putIfAbsent('settings', () => <String, dynamic>{});
+  if (settings is Map<String, dynamic>) settings['scoutBatch'] = n;
+}
+
+/// Which batch sizes this save can actually pay for and house.
+///
+/// **The button never offers a batch it cannot deliver.** Showing a ×4 that
+/// runs out of coins on the third card is the trap this avoids — the player has
+/// already tapped by the time they find out.
+///
+/// A voucher or a free scout covers the FIRST card only, so the rest are priced
+/// at the normal rate.
+List<int> availableScoutBatchSizes(Map<String, dynamic>? state) {
+  final free = _freeScoutReady(state) || heldVoucherTier(state) != null;
+  final unit = scoutCost(state, ignoreVoucher: true);
+  final byCoins = (free ? 1 : 0) + (unit <= 0 ? 0 : _coins(state) ~/ unit);
+  final bySlots = _cells(state).where((c) => c == null).length;
+  final max = math.min(byCoins, bySlots);
+  final sizes = [
+    for (final n in scoutBatchSizes)
+      if (n <= max) n,
+  ];
+  return sizes.isEmpty ? const [1] : sizes;
+}
+
+/// What a Scout tap will actually buy: the stored choice, clamped down to what
+/// is available.
+int effectiveScoutBatch(Map<String, dynamic>? state) {
+  final sizes = availableScoutBatchSizes(state);
+  final want = scoutBatch(state);
+  final affordable = [
+    for (final n in sizes)
+      if (n <= want) n,
+  ];
+  return affordable.isEmpty ? sizes.first : affordable.last;
+}
+
+/// What a batch actually delivered.
+typedef ScoutBatch = ({
+  List<int> placed,
+  int spent,
+
+  /// Why it fell short of what was asked for, or null when it did not.
+  /// One of `insufficient_coins`, `grid_full`, `no_candidate`.
+  String? stoppedBy,
+});
+
+/// Sign up to [count] players in one go.
+///
+/// Each card is drawn, priced and placed INDEPENDENTLY, which is what makes a
+/// short batch honest: the position bias and the tier-nine uniqueness filter
+/// both re-read the grid, so they see the cards this batch has already placed;
+/// coins come off per card as it lands, so a run that hits the buffers has
+/// charged only for what it delivered; and the voucher is consumed by the first
+/// card alone.
+ScoutBatch signPlayers(Map<String, dynamic> state, int count) {
+  final placed = <int>[];
+  var spent = 0;
+  String? stoppedBy;
+
+  for (var i = 0; i < math.max(1, count); i++) {
+    final result = signPlayer(state);
+    if (!result.ok) {
+      stoppedBy = result.reason;
+      break;
+    }
+    if (result.idx != null) placed.add(result.idx!);
+    spent += result.cost;
+  }
+
+  return (placed: placed, spent: spent, stoppedBy: stoppedBy);
+}

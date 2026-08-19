@@ -5,6 +5,8 @@
 /// to `attemptMerge`, which owns every rule about what a drag may do.
 library;
 
+import 'package:merge_empire_fc/engine/merge_engine.dart';
+
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -78,3 +80,26 @@ final maxMergeTierProvider = savePick<int>((s) {
   final id = _map(s['progression'])?['currentDivision'] as String?;
   return getDivision(id ?? divisions.first.id).maxPlayerTier;
 });
+
+/// How many pairs a Merge All would actually eliminate.
+///
+/// Counted rather than assumed, because the button carries the number and a
+/// "Merge All (0)" is a button that does nothing. `mergeAll` is run against a
+/// COPY — asking the question must not answer it.
+final mergeablePairsProvider = savePick<int>((s) {
+  final probe = [
+    for (final c in gridCells(s))
+      if (c is Map<String, dynamic>) <String, dynamic>{...c} else c,
+  ];
+  final id = _map(s['progression'])?['currentDivision'] as String?;
+  return mergeAll(
+    probe,
+    maxTier: getDivision(id ?? divisions.first.id).maxPlayerTier,
+  );
+});
+
+/// Whether sorting would move anything. The button takes itself away when the
+/// grid is already in order rather than sitting there doing nothing.
+final gridNeedsSortProvider = savePick<bool>(
+  (s) => gridNeedsSort(gridCells(s)),
+);
