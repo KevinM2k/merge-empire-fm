@@ -55,6 +55,18 @@ void main() {
       expect(toast!.text, contains('1,200'));
     });
 
+    test('a short scout batch says what it managed', () {
+      final toast = toastFor('scout:short', {'got': 2, 'want': 4});
+      expect(toast!.text, t('grid.scouted_partial', {'got': 2, 'want': 4}));
+      expect(toast.good, isFalse, reason: 'fewer than asked for');
+    });
+
+    test('an auto-sale reports the coins it made', () {
+      final toast = toastFor('scout:auto_sold', {'sold': 2, 'coins': 1200});
+      expect(toast!.text, contains('1,200'));
+      expect(toast.good, isTrue);
+    });
+
     test('an expired loan names the player, or stays quiet', () {
       // The copy carries a {name}, and an unfilled placeholder renders as
       // literal "{name}" on screen.

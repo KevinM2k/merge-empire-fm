@@ -317,7 +317,9 @@ AutoSales settleAutoSales(Map<String, dynamic> state, List<Signing> placed) {
     if (ruled.action != TierAction.sell) continue;
     sold++;
     coins += ruled.coins;
-    if ((ruled.def?.tier ?? 0) > (topSoldDef?.tier ?? 0)) topSoldDef = ruled.def;
+    if ((ruled.def?.tier ?? 0) > (topSoldDef?.tier ?? 0)) {
+      topSoldDef = ruled.def;
+    }
   }
 
   if (sold > 0) {
@@ -325,10 +327,7 @@ AutoSales settleAutoSales(Map<String, dynamic> state, List<Signing> placed) {
     emit('scout:auto_sold', {'sold': sold, 'coins': coins});
     // The sell SFX and the achievement sweep both fire once for the batch, keyed
     // on the best card that went — an auto-sold Gold is still a big-money move.
-    emit('player:sold', {
-      'def': topSoldDef,
-      'definitionId': topSoldDef?.id,
-    });
+    emit('player:sold', {'def': topSoldDef, 'definitionId': topSoldDef?.id});
   }
 
   return (sold: sold, coins: coins, topSoldDef: topSoldDef);

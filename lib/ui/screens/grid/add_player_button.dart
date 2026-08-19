@@ -7,6 +7,11 @@
 /// this save can pay for and house. Showing a ×4 that runs out of coins on the
 /// third card is the trap that avoids — by the time the player finds out, they
 /// have already tapped.
+///
+/// **The signing is not over when the coins leave.** A batch is drawn, revealed
+/// and only then settled: the tier rules cash their cards in after the player
+/// has seen them, and the button stays dead for the whole sequence — a second
+/// tap mid-reveal would draw over the batch being turned over.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,6 +19,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
+import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -36,11 +43,44 @@ String signBlockedCopy(String reason) => switch (reason) {
   _ => t('settings.comingSoon'),
 };
 
-class AddPlayerButton extends ConsumerWidget {
+class AddPlayerButton extends ConsumerStatefulWidget {
   const AddPlayerButton({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AddPlayerButton> createState() => AddPlayerButtonState();
+}
+
+class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
+  /// Dead while a batch is being turned over. The JS calls this `_revealing` and
+  /// sets it before the draw for the same reason: the draw announces new coins,
+  /// and anything that re-reads the state would otherwise re-enable the button
+  /// under a reveal that is still running.
+  bool _revealing = false;
+
+  /// Test seam.
+  bool get isRevealing => _revealing;
+
+  Future<void> _scout(GameState game, int batch) async {
+    if (_revealing) return;
+    setState(() => _revealing = true);
+    try {
+      final result = game.update((s) => signPlayers(s, batch));
+      if (result.placed.isEmpty) return;
+
+      // Read the cards AFTER the draw and BEFORE the settle: they are all really
+      // in the grid at this point, which is what lets an auto-sold one be shown
+      // at full size before it is cashed in.
+      final reveal = scoutRevealFor(game.state, result.placed);
+      if (reveal != null && mounted) await showScoutReveal(context, reveal);
+
+      game.update((s) => settleAutoSales(s, result.placed));
+    } finally {
+      if (mounted) setState(() => _revealing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final blocked = ref.watch(signBlockedProvider);
     final cost = ref.watch(signCostProvider);
@@ -61,9 +101,9 @@ class AddPlayerButton extends ConsumerWidget {
             Expanded(
               child: ElevatedButton.icon(
                 key: const ValueKey('add-player'),
-                onPressed: blocked != null
+                onPressed: blocked != null || _revealing
                     ? null
-                    : () => game.update((s) => signPlayers(s, batch)),
+                    : () => _scout(game, batch),
                 icon: const Icon(Icons.person_add, size: 18),
                 label: Text(
                   // The price rides on the button rather than sitting in a
@@ -91,8 +131,9 @@ class AddPlayerButton extends ConsumerWidget {
                     minHeight: 36,
                   ),
                   borderRadius: BorderRadius.circular(8),
-                  onPressed: (i) =>
-                      game.update((s) => setScoutBatch(s, sizes[i])),
+                  onPressed: _revealing
+                      ? null
+                      : (i) => game.update((s) => setScoutBatch(s, sizes[i])),
                   children: [
                     for (final n in sizes)
                       Text(

@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
+import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -97,6 +98,22 @@ void dropOn(WidgetTester tester, int from, Key to) {
 
 Future<void> settleSave(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+
+/// Tap Add Player and let the reveal run its course.
+///
+/// The button turns its cards over before it hands the grid back, and stays dead
+/// for the duration — so a test that only pumps until the frames stop finds the
+/// reveal still up and the next tap ignored.
+Future<void> tapAddPlayer(WidgetTester tester, {int cards = 1}) async {
+  await tester.tap(find.byKey(const ValueKey('add-player')));
+  // One frame to MOUNT the reveal — its hold only starts counting once it is on
+  // screen, so a single long pump would insert it at the end of the very window
+  // it was supposed to run inside, and leave it up with a timer pending.
+  await tester.pump();
+  await tester.pump(scoutRevealHold(cards) + const Duration(milliseconds: 100));
+  await tester.pumpAndSettle();
+  await settleSave(tester);
+}
 
 int filledCells(ProviderContainer c) =>
     gridCells(c.read(gameProvider).state).where((x) => x != null).length;
@@ -306,9 +323,7 @@ void main() {
       expect(filledCells(container), 0);
       expect(find.byKey(const ValueKey('add-player')), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('add-player')));
-      await tester.pumpAndSettle();
-      await settleSave(tester);
+      await tapAddPlayer(tester);
 
       expect(filledCells(container), 1);
       expect(find.byType(PlayerCard), findsWidgets);
@@ -317,9 +332,7 @@ void main() {
     testWidgets('and again, and again', (tester) async {
       final container = await pumpGrid(tester);
       for (var i = 1; i <= 3; i++) {
-        await tester.tap(find.byKey(const ValueKey('add-player')));
-        await tester.pumpAndSettle();
-        await settleSave(tester);
+        await tapAddPlayer(tester);
         expect(filledCells(container), i);
       }
     });
@@ -327,9 +340,7 @@ void main() {
     testWidgets('signing charges the coins', (tester) async {
       final container = await pumpGrid(tester);
       final before = container.read(coinsProvider);
-      await tester.tap(find.byKey(const ValueKey('add-player')));
-      await tester.pumpAndSettle();
-      await settleSave(tester);
+      await tapAddPlayer(tester);
       expect(container.read(coinsProvider), lessThan(before));
     });
 
@@ -360,9 +371,7 @@ void main() {
       // its fallback. The variant table has carried skin, hair and gender
       // since M1, and it now picks which of the two files to ask for.
       await pumpGrid(tester);
-      await tester.tap(find.byKey(const ValueKey('add-player')));
-      await tester.pumpAndSettle();
-      await settleSave(tester);
+      await tapAddPlayer(tester);
 
       final art = tester.widgetList<ArtImage>(find.byType(ArtImage));
       expect(art, isNotEmpty);

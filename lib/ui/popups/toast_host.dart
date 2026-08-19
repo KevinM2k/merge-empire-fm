@@ -60,6 +60,28 @@ Toast? toastFor(String event, Object? args) {
         good: true,
       );
 
+    case 'scout:short':
+      // Fell short of the batch that was asked for. Said rather than swallowed:
+      // four cards were tapped for and fewer arrived, and the player is watching
+      // the reveal that is about to show them.
+      return (
+        text: t('grid.scouted_partial', {
+          'got': data?['got'] ?? 0,
+          'want': data?['want'] ?? 0,
+        }),
+        good: false,
+      );
+
+    case 'scout:auto_sold':
+      final coins = data?['coins'];
+      return (
+        text: t('grid.auto_sold', {
+          'sold': data?['sold'] ?? 0,
+          'coins': formatCoins(coins is num ? coins : 0),
+        }),
+        good: true,
+      );
+
     case 'loan:expired':
       // Named, because the copy has a {name} and an unfilled placeholder
       // renders as literal "{name}" on screen.
@@ -79,6 +101,8 @@ const List<String> toastEvents = [
   'cup:won',
   'quest:completed',
   'quests:swept',
+  'scout:short',
+  'scout:auto_sold',
   'loan:expired',
 ];
 

@@ -27,16 +27,17 @@ int filled(Map<String, dynamic> s) =>
         .where((c) => c != null)
         .length;
 
-
 /// A save the tier rules are live on: the tutorial is behind us and tier one is
 /// marked for auto-sale. Sunday League only draws tier ones, so every card a
 /// scout lands here is a candidate.
 Map<String, dynamic> autoSellingState({int coins = 100000}) {
   final s = stateWith(coins: coins);
   (s['tutorial'] as Map<String, dynamic>)['done'] = true;
-  (s['settings'] as Map<String, dynamic>)['autoTierActions'] = <String, dynamic>{
-    '1': TierAction.sell,
-  };
+  // BOTH tiers Sunday League draws from. Tier two is a 15% slice of that pool,
+  // so a rule covering tier one alone leaves the test flaky in exactly the way
+  // a fixture that omits `variant` is.
+  (s['settings'] as Map<String, dynamic>)['autoTierActions'] =
+      <String, dynamic>{'1': TierAction.sell, '2': TierAction.sell};
   return s;
 }
 
@@ -65,7 +66,10 @@ void main() {
   group('the price', () {
     test('is the division base with no academy', () {
       final s = stateWith();
-      expect(scoutCost(s), Scout.baseCostByDiv['sunday_league'] ?? Scout.baseCost);
+      expect(
+        scoutCost(s),
+        Scout.baseCostByDiv['sunday_league'] ?? Scout.baseCost,
+      );
     });
 
     test('a free scout makes it nothing', () {
@@ -150,7 +154,8 @@ void main() {
 
     test('a full grid is refused, and takes nothing', () {
       final s = stateWith();
-      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+      final cells =
+          (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
       for (var i = 0; i < cells.length; i++) {
         cells[i] = <String, dynamic>{'definitionId': 'x', 'instanceId': 'c$i'};
       }
@@ -219,11 +224,14 @@ void main() {
       expect(signPlayer(s).isNewDiscovery, isFalse);
     });
 
-    test('without the listener nothing is a discovery, and that is the deal', () {
-      // Stated rather than left implicit: the count is the app's to keep, and
-      // an engine run with no wiring has nobody keeping it.
-      expect(signPlayer(stateWith()).isNewDiscovery, isFalse);
-    });
+    test(
+      'without the listener nothing is a discovery, and that is the deal',
+      () {
+        // Stated rather than left implicit: the count is the app's to keep, and
+        // an engine run with no wiring has nobody keeping it.
+        expect(signPlayer(stateWith()).isNewDiscovery, isFalse);
+      },
+    );
 
     test('a marked card is priced but NOT sold', () {
       final s = autoSellingState();
@@ -271,7 +279,11 @@ void main() {
       final batch = signPlayers(s, 3);
       expect(batch.placed.first.voucherRandom, isTrue);
       expect(batch.placed.skip(1).every((p) => p.voucherRandom), isFalse);
-      expect(batch.spent, greaterThan(0), reason: 'the other two were paid for');
+      expect(
+        batch.spent,
+        greaterThan(0),
+        reason: 'the other two were paid for',
+      );
     });
 
     test('says so when it falls short of what was asked for', () {
@@ -336,6 +348,7 @@ void main() {
       expect(batch.placed.any((p) => p.autoSell), isTrue);
 
       setTierAction(s, 1, TierAction.keep);
+      setTierAction(s, 2, TierAction.keep);
       final settled = settleAutoSales(s, batch.placed);
 
       expect(settled.sold, 0);
