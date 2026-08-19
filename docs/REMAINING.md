@@ -165,7 +165,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,328 passing, 2 skipped
+flutter test             # 3,473 passing, 2 skipped
 TZ=UTC flutter test      # one parity group needs UTC — see below
 ```
 
@@ -187,6 +187,16 @@ Two things to know before writing any code:
 2. **Generate a node fixture for anything with non-obvious arithmetic or an RNG
    draw.** Scripts live in `tool/dump_*_reference.mjs`, fixtures in
    `test/fixtures/`. Every one of them has caught something.
+3. **Sweep for engines nothing calls, and check the JS before building one.**
+   The highest-yield thing done in a whole session was a script that listed every
+   public function in `lib/engine/` referenced nowhere else in `lib/`. It found
+   the action funnel, the auto-sell rules, the whole domestic cup, both quest
+   rolls and the trait roll — five features that were ported, tested and
+   unreachable. Two cautions, both learned the same afternoon: most names on such
+   a list are internal helpers or belong to a screen not yet ported, so read
+   before believing; and grep the JS for a caller too, because `listPlayer` and
+   `unlistPlayer` turn out to be a dead end THERE — building a UI for them would
+   be adding a feature to the game rather than porting it.
 
 ### The name
 
