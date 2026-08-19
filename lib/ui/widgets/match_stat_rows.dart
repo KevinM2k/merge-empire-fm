@@ -92,47 +92,54 @@ class MatchStatRows extends StatelessWidget {
         final ratingBox = w / 2 - nmGutter / 2 - nmGap;
         // As wide as the rows can be without running into a rating centred under
         // its club name. DERIVED from the gutter, not guessed.
-        final rowsWidth = (w / 2 +
-                nmGutter / 2 +
-                nmGap -
-                2 * _ratingHalf -
-                2 * _statClear)
-            .clamp(80.0, w);
+        final rowsWidth =
+            (w / 2 + nmGutter / 2 + nmGap - 2 * _ratingHalf - 2 * _statClear)
+                .clamp(80.0, w);
 
         return Padding(
           padding: const EdgeInsets.only(top: 10, bottom: 9),
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              SizedBox(
-                width: rowsWidth,
-                child: _StatWell(left: left, right: right),
-              ),
-              Positioned(
-                left: 0,
-                width: ratingBox,
-                child: _Rating(
-                  key: const ValueKey('nm-rating-left'),
-                  value: leftRating,
-                  mods: leftMods,
-                  boot: leftBoot,
-                  // Always OUTWARD, away from the stat bars.
-                  bootOnLeft: true,
+          // The Stack is forced to the FULL width. Left to itself it sizes to its
+          // largest NON-POSITIONED child — the stat rows, which are barely half
+          // the card — so `left: 0` on a rating meant the left edge of that narrow
+          // box, not of the card. Both ratings ended up a quarter of the way in,
+          // printing straight through the middle of the comparison they annotate.
+          child: SizedBox(
+            width: w,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                SizedBox(
+                  width: rowsWidth,
+                  child: _StatWell(left: left, right: right),
                 ),
-              ),
-              Positioned(
-                right: 0,
-                width: ratingBox,
-                child: _Rating(
-                  key: const ValueKey('nm-rating-right'),
-                  value: rightRating,
-                  mods: rightMods,
-                  boot: rightBoot,
-                  bootOnLeft: false,
+                Positioned(
+                  left: 0,
+                  width: ratingBox,
+                  child: _Rating(
+                    key: const ValueKey('nm-rating-left'),
+                    figureKey: const ValueKey('nm-figure-left'),
+                    value: leftRating,
+                    mods: leftMods,
+                    boot: leftBoot,
+                    // Always OUTWARD, away from the stat bars.
+                    bootOnLeft: true,
+                  ),
                 ),
-              ),
-            ],
+                Positioned(
+                  right: 0,
+                  width: ratingBox,
+                  child: _Rating(
+                    key: const ValueKey('nm-rating-right'),
+                    figureKey: const ValueKey('nm-figure-right'),
+                    value: rightRating,
+                    mods: rightMods,
+                    boot: rightBoot,
+                    bootOnLeft: false,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -227,7 +234,11 @@ class _StatRow extends StatelessWidget {
               letterSpacing: 0.8,
               color: kit.textMuted,
               shadows: const [
-                Shadow(color: Color(0x8C000000), offset: Offset(0, 1), blurRadius: 2),
+                Shadow(
+                  color: Color(0x8C000000),
+                  offset: Offset(0, 1),
+                  blurRadius: 2,
+                ),
               ],
             ),
           ),
@@ -274,7 +285,11 @@ class _Side extends StatelessWidget {
           fontWeight: FontWeight.w900,
           color: colour,
           shadows: const [
-            Shadow(color: Color(0x8C000000), offset: Offset(0, 1), blurRadius: 2),
+            Shadow(
+              color: Color(0x8C000000),
+              offset: Offset(0, 1),
+              blurRadius: 2,
+            ),
           ],
         ),
       ),
@@ -292,7 +307,8 @@ class _Side extends StatelessWidget {
     );
 
     return Row(
-      children: mirrored ? [figure, const SizedBox(width: 4), bar]
+      children: mirrored
+          ? [figure, const SizedBox(width: 4), bar]
           : [bar, const SizedBox(width: 4), figure],
     );
   }
@@ -346,7 +362,13 @@ class _Rating extends StatelessWidget {
     required this.mods,
     required this.boot,
     required this.bootOnLeft,
+    required this.figureKey,
   });
+
+  /// Names the FIGURE, not its box. The box deliberately spans the whole team
+  /// column so the number can centre under the club name; anything checking the
+  /// number's position has to look at the number.
+  final Key figureKey;
 
   final int? value;
   final List<StatMod> mods;
@@ -368,6 +390,7 @@ class _Rating extends StatelessWidget {
       children: [
         Text(
           '${value ?? '?'}',
+          key: figureKey,
           style: TextStyle(
             fontSize: 26,
             height: 1,
@@ -433,7 +456,11 @@ class _Mod extends StatelessWidget {
               color: mod.colour,
               fontFeatures: const [FontFeature.tabularFigures()],
               shadows: const [
-                Shadow(color: Color(0x99000000), offset: Offset(0, 1), blurRadius: 2),
+                Shadow(
+                  color: Color(0x99000000),
+                  offset: Offset(0, 1),
+                  blurRadius: 2,
+                ),
               ],
             ),
           ),

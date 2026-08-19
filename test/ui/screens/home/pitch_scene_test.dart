@@ -52,6 +52,30 @@ void main() {
       );
     });
 
+    testWidgets('and every scrolling segment has height to be seen in', (
+      tester,
+    ) async {
+      // The scroller's Row must STRETCH its children. Centred, a segment that
+      // does not name its own height gets loose constraints and collapses to
+      // zero — which is how the whole pitch went missing while the stand, which
+      // does name one, kept rendering.
+      await pumpScene(tester);
+      // The SEGMENT, not the band it sits in — the band is positioned and always
+      // reports the right height whether or not anything inside it drew.
+      final lanes = find.byKey(const ValueKey('pitch-lane'));
+      expect(lanes, findsWidgets, reason: 'no lanes at all');
+      final lane = tester.getRect(lanes.first);
+      expect(
+        lane.height,
+        greaterThan(8),
+        reason: 'a lane collapsed to ${lane.height}px — the pitch is not there',
+      );
+      // And it fills the band rather than sitting as a sliver in it.
+      final turf = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
+      expect(lane.height, closeTo(turf.height, 1));
+      expect(lane.width, closeTo(84, 0.5));
+    });
+
     testWidgets('and the stand is behind it, not over it', (tester) async {
       await pumpScene(tester);
       final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));

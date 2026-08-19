@@ -335,6 +335,7 @@ class _MownSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SizedBox(
+    key: ValueKey('pitch-lane'),
     width: 84,
     child: Row(
       children: [
@@ -482,6 +483,14 @@ class _ScrollerState extends State<_Scroller>
                 maxWidth: count * widget.segmentWidth,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  // STRETCH, not the default centre. A centred child gets LOOSE
+                  // height constraints, so a segment that does not name its own
+                  // height collapses to nothing — which is exactly what happened
+                  // to the turf: the mown lanes and the tufts are a width and a
+                  // fill, so they came out 84×0 and the pitch was simply not
+                  // there. The stand survived only because it happens to carry an
+                  // explicit height.
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (var i = 0; i < count; i++) widget.child,
                   ],

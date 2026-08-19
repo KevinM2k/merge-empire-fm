@@ -50,6 +50,46 @@ Map<String, dynamic> _card(String id, String instanceId, {int variant = 0}) => {
   'variant': variant,
 };
 
+/// The same grid with animations LEFT ON, for the handful of tests that are about
+/// an animation rather than about what it animates.
+Future<ProviderContainer> pumpGridAnimated(
+  WidgetTester tester, {
+  Map<int, Map<String, dynamic>> cards = const {},
+  bool tutorialDone = false,
+}) async {
+  final state = createDefaultState();
+  final cells =
+      (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+  cards.forEach((i, card) => cells[i] = card);
+  (state['tutorial'] as Map<String, dynamic>)['done'] = tutorialDone;
+
+  final container = ProviderContainer(
+    overrides: [
+      saveStoreProvider.overrideWithValue(
+        MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(gameProvider).load();
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: Consumer(
+        builder: (context, ref, _) => MaterialApp(
+          theme: ref.watch(appThemeProvider),
+          home: const Scaffold(body: MergeGrid()),
+        ),
+      ),
+    ),
+  );
+  // One frame, not `pumpAndSettle`: the mergeable ring loops for ever with
+  // animations on, so settling is the one thing this harness cannot do.
+  await tester.pump();
+  return container;
+}
+
 Future<ProviderContainer> pumpGrid(
   WidgetTester tester, {
   Map<int, Map<String, dynamic>> cards = const {},
@@ -821,6 +861,59 @@ void main() {
         cards: {0: _card(_baseDefId, 'a', variant: _maleVariant)},
       );
       expect(container.read(mergeableCellsProvider), isEmpty);
+    });
+  });
+
+  group('the two cards go together', () {
+    testWidgets('a merge flies the card into the one it merges with', (
+      tester,
+    ) async {
+      // The port applied the merge and burst on the spot, so a pair vanished and
+      // a new card appeared with nothing joining the two events — the move read
+      // as a glitch. It has to travel.
+      //
+      // Pumped WITHOUT reduce-motion, because the flight is the thing under test
+      // and reduce-motion skips it by design.
+      final container = await pumpGridAnimated(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      dropOn(tester, 0, 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(
+        find.byKey(const ValueKey('grid-flying-card')),
+        findsOneWidget,
+        reason: 'nothing travelled between the two cells',
+      );
+
+      // And it is gone once it lands, so the burst fires on a clear cell.
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const ValueKey('grid-flying-card')), findsNothing);
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(filledCells(container), 1);
+    });
+
+    testWidgets('and reduce-motion merges without the flight', (tester) async {
+      // The RESULT is not decoration, so it still happens — only the travel goes.
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      dropOn(tester, 0, 1);
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(find.byKey(const ValueKey('grid-flying-card')), findsNothing);
+      expect(filledCells(container), 1);
     });
   });
 }

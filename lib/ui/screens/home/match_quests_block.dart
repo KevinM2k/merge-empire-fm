@@ -123,24 +123,36 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
               children: [
                 GameIcon('target', size: 11, color: kit.accentBright),
                 const SizedBox(width: 5),
-                Text(
-                  t('quests.match').toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                    color: kit.textMuted,
+                // The heading FLEXES and the figure does not. On a 320px phone
+                // "MATCH QUESTS" plus "TOTAL REWARD" plus the coins overflowed
+                // the row by 34px — and the half worth keeping when there is no
+                // room is the money, which is the reason to open the block at all.
+                Flexible(
+                  child: Text(
+                    t('quests.match').toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                      color: kit.textMuted,
+                    ),
                   ),
                 ),
                 const Spacer(),
                 if (total > 0) ...[
-                  Text(
-                    t('quests.total_reward'),
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                      color: kit.textMuted,
+                  Flexible(
+                    child: Text(
+                      t('quests.total_reward'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: kit.textMuted,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),

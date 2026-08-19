@@ -42,6 +42,9 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
+/// How long the merging card takes to reach the one it is merging with.
+const Duration _flightTime = Duration(milliseconds: 300);
+
 /// `aspect-ratio: 3 / 4` on `.cell`.
 const double _cellAspect = 4 / 3;
 const double _gap = 6;
@@ -75,6 +78,11 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   /// what a player needs to see mid-drag is which squares will take it.
   int? _dragging;
   Set<int> _targets = const {};
+
+  /// The card in flight, mid-merge: what it looks like, and the two cells it is
+  /// travelling between. The grid has already been updated by the time this is
+  /// set, so the view is a CAPTURE — the card it draws no longer exists.
+  ({CardView view, int from, int to})? _flying;
 
   /// Driven by the drag, so a card can be carried off the visible rows.
   final ScrollController _scroll = ScrollController();
@@ -139,6 +147,9 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   Future<void> _drop(int from, int to) async {
     final game = ref.read(gameProvider);
     final maxTier = ref.read(maxMergeTierProvider);
+    // Captured BEFORE the update: a merge consumes this card, so after it there
+    // is nothing left to draw the flight with.
+    final flyingView = ref.read(gridCellsProvider)[from].card;
     // `performMerge`, not `attemptMerge`: the move is one line of what a merge
     // IS to the game — the career count, the quest track and a rival's dead bid
     // are the rest of it, and they lived in the JS screen.
@@ -152,6 +163,19 @@ class MergeGridState extends ConsumerState<MergeGrid> {
     // Only a MERGE is celebrated. A move and a swap are the player tidying up,
     // and applauding those would make the burst mean nothing.
     if (result.action != MergeAction.merge) return;
+
+    // THE TWO CARDS GO TOGETHER FIRST. The port applied the merge and burst on
+    // the spot, so a pair vanished and a new card appeared with nothing joining
+    // the two events — the move read as a glitch rather than as a merge. The
+    // card flies into the one it is merging with, and only then does the target
+    // celebrate.
+    if (flyingView != null && !MediaQuery.of(context).disableAnimations) {
+      setState(() => _flying = (view: flyingView, from: from, to: to));
+      await Future<void>.delayed(_flightTime);
+      if (!mounted) return;
+      setState(() => _flying = null);
+    }
+    if (!mounted) return;
     setState(() {
       _burstAt = to;
       _burstTier = result.tier;
@@ -285,6 +309,16 @@ class MergeGridState extends ConsumerState<MergeGrid> {
                                       },
                                     ),
                                   ),
+                              // Topmost, so it passes OVER the cards it travels
+                              // between rather than under them.
+                              if (_flying case final flight?)
+                                _FlyingCard(
+                                  view: flight.view,
+                                  from: at(flight.from),
+                                  to: at(flight.to),
+                                  width: cellW,
+                                  height: cellH,
+                                ),
                             ],
                           ),
                         ),
@@ -745,6 +779,84 @@ class _MergeRingState extends State<_MergeRing>
         );
       },
       child: widget.child,
+    );
+  }
+}
+
+/// The card in flight, on its way into the one it merges with.
+///
+/// **The two cards go TOGETHER first.** The port applied the merge and burst on
+/// the spot, so a pair vanished and a new card appeared with nothing joining the
+/// two events — the move read as a glitch rather than as a merge. It travels
+/// across, shrinking and fading as it arrives, and the target celebrates after.
+class _FlyingCard extends StatefulWidget {
+  const _FlyingCard({
+    required this.view,
+    required this.from,
+    required this.to,
+    required this.width,
+    required this.height,
+  });
+
+  final CardView view;
+  final Offset from;
+  final Offset to;
+  final double width;
+  final double height;
+
+  @override
+  State<_FlyingCard> createState() => _FlyingCardState();
+}
+
+class _FlyingCardState extends State<_FlyingCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: _flightTime,
+  )..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        // `ease-in`: it leaves slowly and arrives fast, which reads as being
+        // PULLED into the other card rather than tossed at it.
+        final t = Curves.easeIn.transform(_c.value);
+        final at = Offset.lerp(widget.from, widget.to, t)!;
+        return Positioned(
+          left: at.dx,
+          top: at.dy,
+          width: widget.width,
+          height: widget.height,
+          child: IgnorePointer(
+            child: Opacity(
+              // Gone by the time it lands, so the card it merged into is the only
+              // one there when the burst fires.
+              opacity: 1 - t,
+              child: Transform.scale(
+                scale: 1 - 0.7 * t,
+                child: Material(
+                  color: Colors.transparent,
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(11),
+                  child: PlayerCard(
+                    key: const ValueKey('grid-flying-card'),
+                    view: widget.view,
+                    light: Theme.of(context).brightness == Brightness.light,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

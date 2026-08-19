@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,517 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,567 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 
@@ -296,6 +296,65 @@ sway still wants a controller.
   annual event window resolves LOCAL wall-clock time, so the reference is only
   comparable in the zone it was generated in.
 
+### The screen-by-screen pass, and what it turned up
+
+A play-through of every tab against `../merge-empire-fc/src` — the whole source is
+here, so nothing below needed finding by accident. Two shapes recur, and both are
+worth reading before touching another screen.
+
+**A Flutter default that is not the CSS default.** Most of the visual gaps were
+one of these, and each looked like art that had never been ported:
+
+- **`stroke` on the `<svg>` ROOT was never inherited.** `icons.js` puts
+  `fill="none" stroke="currentColor" stroke-width="1.8"` on the root element and
+  lets its paths inherit; the painter read attributes per node, so a path with no
+  paint of its own is SKIPPED. All fifty-nine glyphs drew nothing, everywhere. The
+  parser folds root and `<g>` attributes into each child now, and
+  `test/ui/widgets/game_icon_test.dart` asserts every node in every glyph carries a
+  paint it can draw with.
+- **`-?[\d.]+` is not an SVG number.** Path data packs numbers without
+  separators, so `1.5.35` is `1.5` then `.35` — the greedy form swallowed both and
+  threw. Every compact path in the artwork hit it.
+- **A centred `Row` gives its children LOOSE cross-axis constraints**, so a
+  segment that does not name its own height collapses to ZERO. The diorama's mown
+  lanes and grass tufts are a width and a fill, so they came out 84×0 and the
+  pitch was simply absent — while the stand, which happens to carry an explicit
+  height, rendered fine and made it look like a paint problem rather than a layout
+  one. `CrossAxisAlignment.stretch`, and a test that measures a SEGMENT rather
+  than the band it sits in. (Measuring the band is the trap: it is positioned, so
+  it reports the right height whether or not anything inside it drew.)
+- **`Stack(alignment: center)` sizes to its largest NON-POSITIONED child.** On the
+  next-match card that is the stat rows, barely half the card wide — so `left: 0`
+  on a rating meant the left edge of that narrow box and both big figures printed
+  through the middle of the comparison they annotate.
+- **An `OverlayEntry` has no `Material` ancestor**, so every `Text` in the scout
+  reveal drew Flutter's missing-Material double yellow underline over the caption.
+- **A card layer over a slot layer occludes the slot's `DragTarget`.** Moving the
+  grid to positioned cards (so a sort could animate) put the cards above the drop
+  targets, and merging stopped working outright: a drop onto an occupied cell hit
+  the card and never reached a target. The target belongs ON the card, and a test
+  asserts it is inside the card's own subtree.
+
+**A value read under the wrong key, or a draw taken on a display path.**
+
+- **`tutorial.done` was read as `== true` where the JS reads `!== false`.** Every
+  save without the flag — which is most of them — read as mid-tutorial, hiding the
+  ×N scout control and the auto-sell pill from players who finished the tutorial
+  long ago.
+- **`squad.strategy` for `squad.strategyId`**, so Colin suggested a tactic even
+  when it was the one already set.
+- **`getSeasonOpponents` called `generateTeamName` from the league table.** That
+  draws from the shared seeded stream AND ADVANCES it, and the table is rebuilt on
+  every save revision — so the division reshuffled its clubs on every rebuild and
+  pulled the sequence out from under the save's determinism. Deterministic and
+  RNG-free now, with a test that pins both.
+- **`initSeasonOpponents` ran only at a season boundary**, so a save that had not
+  finished one had no `seasonFixtures` at all and the Fixtures sheet sat on its
+  loading line for good.
+- **`defaultManagerLook` was a getter over `normalizeAvatar(null)`**, which is
+  random — so a walker with no stored look changed hair, beard and outfit on every
+  rebuild, and anything comparing two reads compared two different men.
+
 ### Bugs the parity fixtures have caught so far
 
 Worth reading before writing the next port. Two shapes, over and over: a draw
@@ -532,6 +591,33 @@ was: the decision here, the platform read in M3 or M4.
 ### What is actually left
 
 One place, so nobody has to reconstruct it from seven milestone headings.
+
+**Reported and still open**, from the screen-by-screen pass. Each is a real gap
+against the source, not a polish wish:
+
+- **The match page's live controls.** The JS band order is competition + clock,
+  scorecard, pitch stage, TACTICS, tabs, footer — and the port has no tactic strip,
+  no subs button, no speed control and no commentary/quests tabs. The reason it is
+  not a straight port: the Flutter match REPLAYS a result the sim has already
+  produced, so a live tactic change or a sub has nothing to change. Either the sim
+  becomes interactive (`resumeMatchFrom` exists in `match_orchestration`) or the
+  strip is honest about being a readout. Decide before building it.
+- **The event strip's clock and news ticker.** `deadlineHeadlines` in
+  `deadline_news_engine.dart` is ported, tested and has NO CALLER — the strip
+  should carry a ticking countdown and a right-to-left marquee of the rumour mill,
+  and currently shows a dot and a name. This is most of why Deadline Day "looks
+  nothing like it should".
+- **The rewarded-ad buttons.** Every `watch an ad for X` control, with its own
+  colour and its AD chip. M4 work, but the buttons and their dead states are UI.
+- **The manager's rig reads stiff.** Six tracks are ported and correct, but the
+  JS's arms pivot at the shoulder AND elbow inside their `<g>` groups
+  (`k-arm-l` / `k-arm-r`) and the port turns the whole arm as one piece.
+- **The keeper's illustration.** Anchored correctly now, but the figure itself is
+  still the port's own and not `buildKeeperSvg`'s eight-pose sprite sheet.
+- **The crowd.** Seeded speckle standing in for the JS's sprites — it reads as
+  texture rather than as people.
+- **The Club screen's layout.** The kit picker and the unlock splash are in; the
+  panel stack itself has not been diffed against `ClubScreen.js` band for band.
 
 **`docs/PARITY.md` is the working queue.** It is a control-by-control and
 layout-by-layout diff of `../merge-empire-fc/src/ui/` against `lib/ui/`, taken
