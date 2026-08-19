@@ -69,13 +69,18 @@ gaps are in this list.
 - [x] Play button in the sticky footer
 - [x] Event strip
 - [x] Table / fixtures / index / quests / training / trophies behind the burger
-- [ ] **The next-match card.** Who, home or away, their rating against ours,
-      the competition and the match number. It is the one thing on the screen
-      that says what the Play button is going to do.
-- [ ] **The walker.** The manager walk-cycles in place while the world scrolls
-      behind him. The parts are now data (`data/manager_art.g.dart`); the rig
-      and the cycle are not. Rive was considered and dropped — it is paid.
+- [x] **The next-match card.** Who, home or away, and the two ratings either
+      side of the VS. Numbers only: it has been five stars (which banded a
+      0–100 figure into five buckets, so 61 and 79 drew the same row) and then a
+      bar beside the figure, which is the same comparison drawn twice.
+- [x] **The walker.** Six keyframe tracks off one clock, linear on the limbs
+      and eased on the bob. Honours reduce-motion. Rive was considered and
+      dropped — it is paid.
+- [x] **The Leaderboard tile**, with the signed-out and offline states the JS
+      really shows. The ranked list needs `leaderboardService` (M4).
 - [ ] The parallax scene behind him, evolving with the division
+- [ ] The customiser his parts are now generated for
+      (`data/manager_art.g.dart`) — hair, beard, hat, outfit, neck
 - [ ] **CUSTOMISE badge** → the manager customiser
 - [ ] Prestige orb, when a prestige is available
 - [ ] Daily-reward orb with its streak count
