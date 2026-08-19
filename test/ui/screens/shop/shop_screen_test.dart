@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
@@ -82,6 +83,31 @@ void main() {
       container.read(shellControllerProvider).pendingShopSection,
       isNull,
       reason: 'consumed, so a rebuild does not scroll again',
+    );
+  });
+
+  testWidgets('a deep link leaves the heading CLEAR of the HUD', (
+    tester,
+  ) async {
+    // `ensureVisible` puts the section at the top of the viewport, which is
+    // where the floating HUD is — so the heading the link was aimed at was the
+    // one thing behind the glass.
+    final container = await pumpShop(tester, (_) {});
+    container
+        .read(shellControllerProvider.notifier)
+        .deepLinkShop(ShopSection.coins);
+    await tester.pumpAndSettle();
+
+    final heading = tester.getRect(
+      find.byKey(const ValueKey('shop-section-coins')),
+    );
+    final clearance = hudClearanceOf(
+      tester.element(find.byKey(const ValueKey('shop-scroll'))),
+    );
+    expect(
+      heading.top,
+      greaterThanOrEqualTo(clearance - 1),
+      reason: 'under the glass, not behind it',
     );
   });
 

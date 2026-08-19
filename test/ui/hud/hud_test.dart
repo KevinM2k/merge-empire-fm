@@ -83,24 +83,46 @@ void main() {
     expect(find.text('15/15'), findsOneWidget);
   });
 
-  testWidgets('the coin + deep-links to the shop coin section', (tester) async {
+  testWidgets('the coin + opens the coin packs, where they are', (
+    tester,
+  ) async {
+    // NOT a tab switch. It used to deep-link the Shop, which scrolled the coin
+    // heading to the top of the viewport — under the HUD that had just been
+    // tapped. A player who taps the coin counter wants to buy coins.
     final container = await pumpHud(tester, (_) {});
     await tester.tap(find.byKey(const ValueKey('hud-coins-plus')));
-    await tester.pump();
-    final shell = container.read(shellControllerProvider);
-    expect(shell.tab, ShellTab.shop);
-    expect(shell.pendingShopSection, ShopSection.coins);
-    expect(shell.noSlide, isTrue);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('currency-sheet-coins')), findsOneWidget);
+    expect(
+      container.read(shellControllerProvider).tab,
+      isNot(ShellTab.shop),
+      reason: 'nothing was navigated to',
+    );
   });
 
-  testWidgets('the whole gem chip deep-links to the gem section', (tester) async {
-    final container = await pumpHud(tester, (_) {});
+  testWidgets('and the whole gem chip opens the gem packs', (tester) async {
+    await pumpHud(tester, (_) {});
     await tester.tap(find.byKey(const ValueKey('hud-gems')));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('currency-sheet-gems')), findsOneWidget);
+  });
+
+  testWidgets('and the rest of the shop is one tap from the sheet', (
+    tester,
+  ) async {
+    final container = await pumpHud(tester, (_) {});
+    await tester.tap(find.byKey(const ValueKey('hud-coins-plus')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('currency-sheet-shop')));
+    await tester.pumpAndSettle();
+    final shell = container.read(shellControllerProvider);
+    expect(shell.tab, ShellTab.shop);
     expect(
-      container.read(shellControllerProvider).pendingShopSection,
-      ShopSection.gems,
+      shell.pendingShopSection,
+      ShopSection.coins,
+      reason: 'and it lands on the shelf the sheet was showing',
     );
+    expect(shell.noSlide, isTrue);
   });
 
   testWidgets('the energy + asks for the energy popup', (tester) async {
@@ -197,9 +219,8 @@ Future<void> pumpShellWithHud(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 32));
 }
 
-bool hudVisible(WidgetTester tester) => tester
-    .widget<Visibility>(find.byKey(const ValueKey('hud-layer')))
-    .visible;
+bool hudVisible(WidgetTester tester) =>
+    tester.widget<Visibility>(find.byKey(const ValueKey('hud-layer'))).visible;
 
 /// Any kit will do; the HUD only reads colours off the extension.
 ThemeData buildTestTheme() => buildAppTheme(kitId: '#4caf50', light: false);

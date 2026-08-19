@@ -31,6 +31,14 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     for (final id in shopSectionOrder) id: GlobalKey(),
   };
 
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +58,18 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     final context = _anchors[id]?.currentContext;
     if (context != null) {
       Scrollable.ensureVisible(context, duration: Duration.zero);
+      // `ensureVisible` puts the heading at the top of the VIEWPORT, and the top
+      // of the viewport is under the floating HUD — so the one thing a deep link
+      // was aimed at was the one thing behind the glass. Back off by the same
+      // clearance the screen's own padding uses, plus the JS's own 8px.
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(
+          (_scroll.offset - hudClearanceOf(this.context) - 8).clamp(
+            0.0,
+            _scroll.position.maxScrollExtent,
+          ),
+        );
+      }
     }
     // Consumed immediately, so a later rebuild does not scroll again.
     ref.read(shellControllerProvider.notifier).consumePendingShopSection();
@@ -72,6 +92,7 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     // about twenty tiles is well within what one pass can afford.
     return SingleChildScrollView(
       key: const ValueKey('shop-scroll'),
+      controller: _scroll,
       // The Shop had NO padding at all: its first tile ran under the floating
       // HUD and its last under the tab bar. `hudClearance` is the shared figure
       // every screen uses; the bottom inset is the tab bar's own.

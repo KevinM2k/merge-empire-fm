@@ -30,11 +30,14 @@ ProviderContainer shopContainer(
   return container;
 }
 
+/// [scroll] off for anything that fills the height it is GIVEN — a sheet — which
+/// a scroll view cannot provide.
 Future<ProviderContainer> pumpShopWidget(
   WidgetTester tester,
   void Function(Map<String, dynamic> state) mutate,
-  Widget Function() build,
-) async {
+  Widget Function() build, {
+  bool scroll = true,
+}) async {
   final container = shopContainer(mutate);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -42,7 +45,9 @@ Future<ProviderContainer> pumpShopWidget(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
-          home: Scaffold(body: SingleChildScrollView(child: build())),
+          home: Scaffold(
+            body: scroll ? SingleChildScrollView(child: build()) : build(),
+          ),
         ),
       ),
     ),

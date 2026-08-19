@@ -428,21 +428,37 @@ Two are not code decisions and are marked so.
 
 ### Shop
 
-- [ ] **The coin sheet opens with the first tile under the notch.** Deep-linking
-      from the HUD's coin chip scrolls to `ShopSectionId.coins` without clearing
-      the safe area, so the section heading is off the top of the glass. Either
-      offset the deep-link scroll by `hudClearanceOf`, or give the coin packs
-      their own sheet — the second is what was asked for and reads better,
-      since a player who tapped the coin counter wants to buy coins rather than
-      to arrive somewhere.
-- [ ] **Shop tiles want their own artwork**, one per product rather than one
-      glyph for a shelf: a bag, a chest, a vault and a mountain of coins are
-      four different sizes of the same idea and the tile is where that reads.
-      Nothing is bundled for this yet.
-- [ ] **The Style Vault and the six packs are ONE offer and read as seven.** The
-      Vault contains every pack; the packs are also 5 gems each on their own.
-      Group them so the relationship is visible, and put the per-pack price on
-      the pack — `../merge-empire-fc` has the shape.
+- [x] **The coin packs have their own sheet.** The HUD's coin chip and the gem
+      chip open `currency_sheet.dart` over whatever screen asked, rather than
+      switching tabs and scrolling — which landed the heading at the top of the
+      viewport, which is where the floating HUD is. Both were done: the tab's
+      deep link (still live, for the `nav:shop-coins` bus events) now backs off
+      by `hudClearanceOf` plus the JS's own 8px, and there is a test that says
+      the heading ends up under the glass rather than behind it.
+- [x] **The coin tiles have their own artwork, and it is DRAWN.** Nothing needed
+      bundling: `coinCluster` in `ui/icons.js` draws one, two, three and five
+      filled coins, which is how the JS tells a bag from a mountain when all four
+      bundles share the same 💰. Ported as a painter, along with the rest of the
+      tile the port had flattened into a generic one — the bronze-to-diamond
+      wash, the crown, and a badge that is either the COMPUTED coins-per-pound
+      improvement or the popular tag.
+      **Two real bugs fell out of it.** The shop was rendering
+      `IapProduct.name`/`.desc`, which are the English literals on the record —
+      so every product had the wrong name even in English (`coins_small` is
+      "Pocket Change" in the catalogue, "Bag of Coins" on the record) and the
+      whole shelf was untranslatable. And `desc` for every coin and gem bundle is
+      literally `'{coins} coins'` / `'{gems} gems'`, so the tiles were printing
+      the braces. `shop_copy.dart` is the JS's own `pName`/`pDesc`/`pBonus`, and
+      `{coins}` resolves through `getProductGrantCoins` — what THIS division
+      would pay, not the base on the product.
+- [x] **The Style Vault and the packs are one case with a lid.** The tiles sit
+      inside the Vault's border under a label that counts them
+      (`shop.looks.case_label`), each in its own pack tint, each carrying its own
+      five-gem price — the JS's shape, and its own note says why: a caption
+      floating between two unrelated-looking blocks is a claim, and the tiles
+      having separate prices made the shelf read as seven things for sale.
+      What spends those gems is the offer sheet the manager customiser opens,
+      which is a screen the port still does not have.
 
 ### Screens
 

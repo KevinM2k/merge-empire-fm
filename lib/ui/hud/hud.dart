@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
+import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
@@ -112,7 +113,6 @@ class Hud extends ConsumerWidget {
 
   Widget _bar(BuildContext context, WidgetRef ref, {required bool onScene}) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final shell = ref.read(shellControllerProvider.notifier);
     final valueStyle = TextStyle(
       color: kit.accentBright,
       fontWeight: FontWeight.w600,
@@ -152,7 +152,10 @@ class Hud extends ConsumerWidget {
             trailing: HudPlus(
               key: const ValueKey('hud-coins-plus'),
               label: t('nav.shop'),
-              onTap: () => shell.deepLinkShop(ShopSection.coins),
+              // The SHEET, not the tab: a player who tapped the coin counter
+              // wants to buy coins, not to be taken somewhere and shown where
+              // they are. See `currency_sheet.dart`.
+              onTap: () => showCurrencySheet(context, ShopSection.coins),
             ),
             child: CoinCounter(
               value: ref.watch(coinsProvider),
@@ -209,9 +212,9 @@ class Hud extends ConsumerWidget {
             icon: Icons.diamond,
             iconColor: hudGemInk,
             semanticLabel: t('shop.section.gems'),
-            // No + of its own: the whole chip deep-links, which keeps a third
-            // resource from widening the row by another mini-badge.
-            onTap: () => shell.deepLinkShop(ShopSection.gems),
+            // No + of its own: the whole chip opens the packs, which keeps a
+            // third resource from widening the row by another mini-badge.
+            onTap: () => showCurrencySheet(context, ShopSection.gems),
             child: Text('${ref.watch(gemsProvider)}', style: valueStyle),
           ),
           const Spacer(),

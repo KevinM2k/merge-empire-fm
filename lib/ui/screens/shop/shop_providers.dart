@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/engine/look_pack_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 
 /// The coin-priced consumables: the sponge and the two season boosts.
 typedef ConsumableTile = ({
@@ -62,6 +63,40 @@ final shopProductsProvider = Provider<List<IapProduct>>(
   (ref) => getShopProducts(),
 );
 
+/// A real-money product with its copy already resolved: the catalogue's name and
+/// description rather than the definition's English literals, and the figures
+/// filled in from THIS save.
+///
+/// Resolved here rather than in the tile because it needs the save — a bundle's
+/// `{coins}` is what the current division would actually pay, not the base on
+/// the record.
+typedef PaidTile = ({
+  IapProduct product,
+  String name,
+  String desc,
+  String? bonus,
+});
+
+final paidTilesProvider = savePick<List<PaidTile>>((s) {
+  final hard = _map(s['settings'])['hardMode'] == true;
+  return [
+    for (final product in getShopProducts())
+      (
+        product: product,
+        name: productName(product),
+        desc: productDesc(product, state: s, hardMode: hard),
+        bonus: productBonus(product),
+      ),
+  ];
+});
+
+/// What a coin bundle is multiplied by at this division. The tile shows what it
+/// would pay HERE, which past Sunday League is not the figure on the product.
+final coinMultProvider = savePick<int>(getDivisionCoinMult);
+
+Map<String, dynamic> _map(Object? v) =>
+    v is Map<String, dynamic> ? v : const <String, dynamic>{};
+
 final gemItemTilesProvider = savePick<List<GemItemTile>>(
   (s) => [
     for (final item in gemItems)
@@ -83,6 +118,10 @@ final voucherTilesProvider = savePick<List<VoucherTile>>((s) {
       ),
   ];
 });
+
+/// Whether the Style Vault has been bought, so its case can read as open rather
+/// than as an offer.
+final styleVaultOwnedProvider = savePick<bool>(hasStyleVault);
 
 final lookTilesProvider = savePick<List<LookPackTile>>((s) {
   final out = <LookPackTile>[];

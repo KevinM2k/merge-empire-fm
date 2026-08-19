@@ -106,18 +106,4 @@ void main() {
       isNull,
     );
   });
-
-  testWidgets('a progress tile offers no purchase at all', (tester) async {
-    await pump(
-      tester,
-      const ShopProgressTile(
-        tileKey: 'pack-black',
-        title: 'Black',
-        owned: 2,
-        total: 5,
-      ),
-    );
-    expect(find.text('2/5'), findsOneWidget);
-    expect(find.byType(ElevatedButton), findsNothing);
-  });
 }

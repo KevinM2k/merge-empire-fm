@@ -9,15 +9,37 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
+import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
+import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/format.dart';
 
 /// Said on every real-money control, so a player is told the feature is coming
 /// rather than left with a button that does nothing.
 String paidDisabledReason() => t('settings.comingSoon');
+
+/// The tiles for one paid category, without a shelf around them — the currency
+/// sheet draws its own frame around the same tiles the tab shows.
+List<Widget> paidTilesFor(WidgetRef ref, Set<String> categories) => [
+  for (final tile
+      in ref
+          .watch(paidTilesProvider)
+          .where((t) => categories.contains(t.product.category)))
+    ShopTile(
+      tileKey: tile.product.id,
+      title: tile.name,
+      subtitle: tile.desc,
+      price: tile.product.price,
+      badge: tile.product.popular ? t('shop.most_popular') : null,
+      disabledReason: paidDisabledReason(),
+    ),
+];
 
 class _PaidShelf extends ConsumerWidget {
   const _PaidShelf({required this.id, required this.categories});
@@ -26,29 +48,18 @@ class _PaidShelf extends ConsumerWidget {
   final Set<String> categories;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final products = ref
-        .watch(shopProductsProvider)
-        .where((p) => categories.contains(p.category))
-        .toList();
-    return ShopSectionFrame(
-      id: id,
-      child: ShopGrid(
-        children: [
-          for (final product in products)
-            ShopTile(
-              tileKey: product.id,
-              title: product.name,
-              subtitle: product.desc,
-              price: product.price,
-              badge: product.popular ? t('shop.most_popular') : null,
-              disabledReason: paidDisabledReason(),
-            ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => ShopSectionFrame(
+    id: id,
+    child: ShopGrid(children: paidTilesFor(ref, categories)),
+  );
 }
+
+/// Which shelf each currency lives on, so the sheet and the tab agree.
+const Map<ShopSection, ({ShopSectionId id, Set<String> categories})>
+currencyShelves = {
+  ShopSection.coins: (id: ShopSectionId.coins, categories: {'coins'}),
+  ShopSection.gems: (id: ShopSectionId.gems, categories: {'gems'}),
+};
 
 /// One-time and time-limited real-money items — the highest-converting slot,
 /// which is why it is first.
@@ -70,14 +81,235 @@ class GemPacksSection extends StatelessWidget {
       const _PaidShelf(id: ShopSectionId.gems, categories: {'gems'});
 }
 
-/// Soft currency. The HUD's "+" deep-links here, so its position in the list
-/// does not govern how players reach it.
-class CoinPacksSection extends StatelessWidget {
+/// Soft currency, and the one shelf with its own tile.
+///
+/// The HUD's coin chip opens these as a sheet (`currency_sheet.dart`), so this
+/// shelf's position in the list does not govern how players reach it.
+class CoinPacksSection extends ConsumerWidget {
   const CoinPacksSection({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const _PaidShelf(id: ShopSectionId.coins, categories: {'coins'});
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bundles = [
+      for (final t in ref.watch(paidTilesProvider))
+        if (t.product.category == 'coins') t.product,
+    ];
+    final mult = ref.watch(coinMultProvider);
+    return ShopSectionFrame(
+      id: ShopSectionId.coins,
+      child: ShopGrid(
+        children: [
+          for (var i = 0; i < bundles.length; i++)
+            CoinPackTile(product: bundles[i], rank: i, coinMult: mult),
+        ],
+      ),
+    );
+  }
+}
+
+/// The four tiers of coin tile, bronze up to diamond — a `box-shadow: inset`
+/// wash off the top edge in the JS, which Flutter cannot draw inward, so it is a
+/// gradient over the tile's own.
+const List<Color> _coinTierInk = [
+  Color(0xFFCF8F4E),
+  Color(0xFFCBD5DD),
+  Color(0xFFFFD54A),
+  Color(0xFF86D8FF),
+];
+
+/// One coin bundle: the pile, what it pays at THIS division, and its price.
+///
+/// Not a [ShopTile]. Four things a generic tile has no room for are exactly what
+/// tells the bundles apart — the drawn pile, the tier wash, the crown on the
+/// popular one, and a badge that is either the computed coins-per-pound
+/// improvement or the "most popular" tag.
+class CoinPackTile extends StatelessWidget {
+  const CoinPackTile({
+    super.key,
+    required this.product,
+    required this.rank,
+    required this.coinMult,
+  });
+
+  final IapProduct product;
+
+  /// Cheapest first — it picks the pile and the tier.
+  final int rank;
+  final int coinMult;
+
+  /// The ribbon over the tile, and whether it is the popular tag or a value
+  /// claim. The JS's rules exactly, and the value figure is COMPUTED: the
+  /// hand-typed ones were wrong by two to three times.
+  ({String text, bool popular})? get _badge {
+    if (product.id == 'coins_large') return null;
+    if (product.id == 'coins_medium') {
+      return (text: t('shop.most_popular'), popular: true);
+    }
+    final bonus = productBonus(product);
+    if (bonus != null) return (text: bonus, popular: false);
+    final pct = getCoinBundleValuePct(product);
+    return pct > 0
+        ? (text: t('shop.coin_value_badge', {'pct': pct}), popular: false)
+        : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = _coinTierInk[rank.clamp(0, _coinTierInk.length - 1)];
+    final badge = _badge;
+    final coins = (product.coins ?? 0) * coinMult;
+
+    return Stack(
+      // The badge sits ON the tile's top edge, half outside it.
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Container(
+          key: ValueKey('shop-tile-${product.id}'),
+          padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: product.popular ? kit.accentBright : kit.border,
+            ),
+            gradient: LinearGradient(
+              begin: const Alignment(-0.6, -1),
+              end: const Alignment(0.6, 1),
+              colors: [kit.surface2, kit.surface],
+            ),
+            boxShadow: [
+              const BoxShadow(
+                color: Color(0x38000000),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+              if (product.popular)
+                BoxShadow(
+                  color: kit.accent.withValues(alpha: 0.45),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The tier's wash, over the tile's own surface but under the pile.
+              Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            ink.withValues(alpha: 0.28),
+                            ink.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 52,
+                    child: Center(
+                      child: CoinCluster(count: coinsDrawnFor(rank)),
+                    ),
+                  ),
+                  if (product.popular)
+                    const Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Text('👑', style: TextStyle(fontSize: 15)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                productName(product),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                // What THIS save would be paid, which past Sunday League is not
+                // the figure on the product at all.
+                t('shop.coins_count', {'n': formatCoins(coins)}) +
+                    (coinMult > 1
+                        ? t('shop.division_mult', {'mult': coinMult})
+                        : ''),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: coinGold,
+                  height: 1.3,
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                key: ValueKey('shop-buy-${product.id}'),
+                onPressed: null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: Text(
+                  product.price,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  paidDisabledReason(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: kit.textMuted, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: -9,
+          child: badge == null
+              ? const SizedBox.shrink()
+              : Container(
+                  key: ValueKey('shop-badge-${product.id}'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: badge.popular
+                        ? kit.accentBright
+                        : const Color(0xFFFF9800),
+                  ),
+                  child: Text(
+                    badge.text,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: badge.popular
+                          ? kit.accentBrightInk
+                          : const Color(0xFF171717),
+                    ),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Required by App Store guidelines, and correctly the LAST thing on the screen
