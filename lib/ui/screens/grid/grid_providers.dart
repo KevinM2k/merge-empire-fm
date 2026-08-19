@@ -36,20 +36,44 @@ List<dynamic> gridCells(Map<String, dynamic>? state) {
 
 /// The view for one stored card, resolved through the same engines the rest of
 /// the game uses — the widget is handed values, never asked to compute them.
-CardView? cardViewFor(Object? raw, {bool proMode = false}) {
+/// [state] and [maxTier] are what the MERGE GRID adds and nothing else needs.
+///
+/// The income line and its bar are a grid concern — the JS's pickers pass
+/// `hideIncome` and then none of the rate maths runs at all. A bench sheet is
+/// asking "who goes on", not "who earns what", and a looping bar on every card
+/// in a modal is a screenful of animation nobody is reading.
+CardView? cardViewFor(
+  Object? raw, {
+  bool proMode = false,
+  Map<String, dynamic>? state,
+  int? maxTier,
+}) {
   final card = CardInstance.from(raw);
   if (card == null) return null;
   final def = getPlayerDef(card.definitionId);
   if (def == null) return null;
+  // A borrowed player earns nothing for us, so his card carries no rate — the
+  // JS hides the line on one for the same reason.
+  final borrowed = card.raw['loanMatchesLeft'] != null;
   return (
     name: getCardName(_map(raw), def.name),
     tier: def.tier,
     rating: getCardRating(def),
     position: def.position,
     injured: card.injured,
-    onLoan: card.raw['loanMatchesLeft'] != null || card.loanedOut != null,
+    onLoan: borrowed || card.loanedOut != null,
     variant: (card.raw['variant'] as num?)?.toInt() ?? 0,
     fitness: proMode ? energyPct(card) : null,
+    // What he actually pays, per second, with every club multiplier in it — so
+    // the numbers on the grid sum to the rate the HUD shows.
+    incomePerSec: borrowed || state == null
+        ? null
+        : cardIncomePerSec(state, card),
+    // Two different ends of the ladder, and they mean different things: MAXED
+    // is the top of the game and CAPPED is the top of THIS DIVISION, which
+    // moves when you go up.
+    maxed: def.mergesInto == null,
+    atCap: maxTier != null && def.tier >= maxTier && def.mergesInto != null,
   );
 }
 
@@ -71,7 +95,17 @@ final gridCellsProvider = savePick<List<GridCell>>((s) {
         instanceId: i < cells.length && cells[i] is Map<String, dynamic>
             ? (cells[i] as Map<String, dynamic>)['instanceId'] as String?
             : null,
-        card: i < cells.length ? cardViewFor(cells[i], proMode: pro) : null,
+        card: i < cells.length
+            ? cardViewFor(
+                cells[i],
+                proMode: pro,
+                state: s,
+                maxTier: getDivision(
+                  _map(s['progression'])?['currentDivision'] as String? ??
+                      divisions.first.id,
+                ).maxPlayerTier,
+              )
+            : null,
         locked: i >= owned,
       ),
   ];
@@ -142,7 +176,6 @@ Set<int> mergeTargetsFor(Map<String, dynamic>? state, int from) {
   }
   return out;
 }
-
 
 /// Every cell whose twin is somewhere else on the grid.
 ///

@@ -33,6 +33,9 @@ void main() {
                 // Pro mode: the bar is the extra paint the budget has to hold.
                 variant: 0,
                 fitness: (i % 100) / 100,
+                incomePerSec: null,
+                maxed: false,
+                atCap: false,
               ),
             ),
           ),

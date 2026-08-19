@@ -38,6 +38,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/match_quests_block.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -201,66 +202,68 @@ class NextMatchCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final match = ref.watch(nextMatchProvider);
     // No fixture is a real state — a finished season, or a save that has not
     // drawn one yet — and an empty card would be worse than none.
     if (match == null) return const SizedBox.shrink();
 
-    return Container(
+    // DARK GLASS in both themes, and DEEP because the card is tall enough to
+    // cross the sky's own gradient. It was `surface` at 74%, which is a pale
+    // panel on a pale sky in light mode — the card washed out against the bright
+    // end of the day cycle and never read as glass at either end of it. Going
+    // dark means the ink has to flip with it, which is what [GlassPanel] hands
+    // its subtree; the `Builder` is what puts this card's own text under that.
+    return GlassPanel(
       key: const ValueKey('next-match-card'),
+      deep: true,
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
-      decoration: BoxDecoration(
-        // Translucent, so the diorama reads through it. Readability comes from
-        // the TINT alone and not a blur — `backdrop-filter` does not render on
-        // the target phone WebViews, and the JS dropped it everywhere so web and
-        // phone stay identical.
-        color: kit.surface.withValues(alpha: 0.74),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kit.border.withValues(alpha: 0.6)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Standings first, on their own row. Tried inline as "Crystal Palace
-          // (3rd)" to save the band: it wrapped to a second line on the longer
-          // half of most fixtures, and a position hanging under one club and
-          // beside the other looked worse than the row it replaced.
-          _Row(
-            left: _PosChip(side: match.left),
-            right: _PosChip(side: match.right),
-            gutter: const SizedBox.shrink(),
-            bottomSpacing: 6,
-          ),
-          _Row(
-            left: _Name(side: match.left, note: match.bonusNote),
-            right: _Name(side: match.right, note: match.bonusNote),
-            // VS is on the NAMES row, which is why the standings moved out to a
-            // row of their own. In a gutter spanning both, it centred between the
-            // chip and the name — beside neither.
-            gutter: Text(
-              t('common.vs').toUpperCase(),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: kit.textMuted,
-              ),
+      child: Builder(builder: (context) => _body(context, ref, match)),
+    );
+  }
+
+  Widget _body(BuildContext context, WidgetRef ref, NextMatch match) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Standings first, on their own row. Tried inline as "Crystal Palace
+        // (3rd)" to save the band: it wrapped to a second line on the longer
+        // half of most fixtures, and a position hanging under one club and
+        // beside the other looked worse than the row it replaced.
+        _Row(
+          left: _PosChip(side: match.left),
+          right: _PosChip(side: match.right),
+          gutter: const SizedBox.shrink(),
+          bottomSpacing: 6,
+        ),
+        _Row(
+          left: _Name(side: match.left, note: match.bonusNote),
+          right: _Name(side: match.right, note: match.bonusNote),
+          // VS is on the NAMES row, which is why the standings moved out to a
+          // row of their own. In a gutter spanning both, it centred between the
+          // chip and the name — beside neither.
+          gutter: Text(
+            t('common.vs').toUpperCase(),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: kit.textMuted,
             ),
           ),
-          MatchStatRows(
-            left: match.left.split,
-            right: match.right.split,
-            leftRating: match.left.rating,
-            rightRating: match.right.rating,
-            leftMods: match.left.mods,
-            rightMods: match.right.mods,
-            leftBoot: match.left.boot,
-            rightBoot: match.right.boot,
-          ),
-          const _TacticChip(),
-          const MatchQuestsBlock(),
-        ],
-      ),
+        ),
+        MatchStatRows(
+          left: match.left.split,
+          right: match.right.split,
+          leftRating: match.left.rating,
+          rightRating: match.right.rating,
+          leftMods: match.left.mods,
+          rightMods: match.right.mods,
+          leftBoot: match.left.boot,
+          rightBoot: match.right.boot,
+        ),
+        const _TacticChip(),
+        const MatchQuestsBlock(),
+      ],
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -82,6 +83,18 @@ class Hud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The whole HUD is written for DARK GLASS, so the whole HUD is built under
+    // the dark build of the kit — the figures, the captions and the icons as
+    // well as the chips they sit in. Resolving the ink out here in the app's own
+    // theme is what put pale-green numbers on a near-white pill the moment light
+    // mode was on; the `Builder` is what puts the rest of this method under it.
+    return Theme(
+      data: ref.watch(glassThemeProvider),
+      child: Builder(builder: (context) => _bar(context, ref)),
+    );
+  }
+
+  Widget _bar(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final shell = ref.read(shellControllerProvider.notifier);
     final valueStyle = TextStyle(

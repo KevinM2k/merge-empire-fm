@@ -40,7 +40,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
-    show walkerHeight, walkerWidth;
+    show walkerFootOffset, walkerHeight, walkerWidth;
 
 /// One stride, by mood. The JS's `--walk-dur` per `data-mood`.
 Duration walkDurationFor(Mood mood) => switch (mood) {
@@ -242,7 +242,11 @@ class PitchScene extends StatelessWidget {
               // scale is about his FEET so he stays planted however big he gets.
               Positioned(
                 left: w * 0.45 - 57,
-                bottom: walkerBottom,
+                // His BOOTS on the contact line, not the bottom of his box.
+                // There are 17.5 art units of empty picture under his soles, and
+                // scaled up that is two dozen pixels of him floating above the
+                // line everything else on this screen is measured from.
+                bottom: walkerBottom - walkerFootOffset * walkerScale,
                 // His OWN box, at his own size — not whatever is left of the
                 // screen. He is 120×170 and scaled 1.35 about his feet, which is
                 // ~162×230 on screen; handed the column's remaining height he

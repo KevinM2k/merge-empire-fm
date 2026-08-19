@@ -887,7 +887,10 @@ void main() {
       // And it is gone once it lands, so the burst fires on a clear cell.
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byKey(const ValueKey('grid-flying-card')), findsNothing);
-      await tester.pumpAndSettle();
+      // Driven, not settled: this harness runs WITH animations, and the grid
+      // now carries a looping income bar on every card — a loop never settles,
+      // which is the whole reason every other harness declares reduce-motion.
+      await tester.pump(const Duration(milliseconds: 600));
       await settleSave(tester);
       expect(filledCells(container), 1);
     });

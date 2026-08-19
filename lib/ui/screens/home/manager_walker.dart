@@ -31,6 +31,7 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/manager_art.dart';
@@ -50,22 +51,89 @@ const double walkerHeight = managerArtHeight;
 /// so a cheerful stride and the grass under it speed up together.
 const Duration walkCycle = Duration(milliseconds: 1800);
 
+/// Where his boots meet the ground, in the art's own space.
+///
+/// NOT the bottom of the box. The figure is 170 tall and his soles are at 152.5,
+/// so there are 17.5 units of empty art under him — and the shadow was pinned to
+/// the box's bottom edge, which put it that far below his feet. It went
+/// unnoticed only because the shadow was collapsing to a dot; the moment it
+/// became an ellipse he was visibly hovering over it.
+///
+/// [PitchScene] stands him on it too, so the contact line the home screen
+/// measures is the line his boots are actually on.
+const double walkerFootline = 152.5;
+
+/// How far his soles sit above the bottom of his box, in art units.
+const double walkerFootOffset = walkerHeight - walkerFootline;
+
 double _deg(double d) => d * math.pi / 180;
 
 /// A keyframed track: stops at 0..1 through the cycle, in degrees.
 typedef _Track = List<(double at, double deg)>;
 
-/// Read a track at [t], interpolating linearly between its stops.
+/// Read a track at [t], on a CATMULL-ROM spline through its stops.
+///
+/// Not straight lines between them, and not an ease either — both are wrong for
+/// a walk, in opposite directions.
+///
+/// Straight lines is what this did, and it is what CSS `linear` does between
+/// keyframes: the value is continuous but its VELOCITY is not, so the shin
+/// snaps direction at each of its four stops and the leg reads as hinged rather
+/// than swung. Easing each segment instead zeroes the velocity at every stop,
+/// which the JS's own note warns against — that reads as the leg pausing at full
+/// extension, and a stride should not dwell.
+///
+/// Catmull-Rom is the one that is neither: it passes through every keyframe
+/// exactly, so the JS's numbers are still the JS's numbers, and it arrives at
+/// each with the velocity implied by its neighbours — no corners and no
+/// dwelling. The track is CYCLIC, so the tangents wrap: the last stop's
+/// neighbour is the first, which is what stops the loop jolting as it comes
+/// round.
 double _sample(_Track track, double t) {
+  // Every track repeats its first stop at 1 to close the loop; the knots are
+  // the ones before that.
+  final n = track.length - 1;
+  if (n < 1) return track.first.$2;
+  if (n < 3) {
+    // Two knots is a straight there-and-back; a spline through it is the same
+    // line, and the wrap-around indexing below needs three to be meaningful.
+    for (var i = 0; i < track.length - 1; i++) {
+      final (a, from) = track[i];
+      final (b, to) = track[i + 1];
+      if (t >= a && t <= b) {
+        final span = b - a;
+        if (span <= 0) return from;
+        final u = (t - a) / span;
+        // Cosine, not linear: with one stop each way there is no neighbour to
+        // take a tangent from, and a sine swing is what a limb on a pendulum
+        // does anyway.
+        return from + (to - from) * (0.5 - 0.5 * math.cos(u * math.pi));
+      }
+    }
+    return track.last.$2;
+  }
+
+  var seg = 0;
   for (var i = 0; i < track.length - 1; i++) {
-    final (a, from) = track[i];
-    final (b, to) = track[i + 1];
-    if (t >= a && t <= b) {
-      final span = b - a;
-      return span <= 0 ? from : from + (to - from) * ((t - a) / span);
+    if (t >= track[i].$1 && t <= track[i + 1].$1) {
+      seg = i;
+      break;
     }
   }
-  return track.last.$2;
+  final span = track[seg + 1].$1 - track[seg].$1;
+  final u = span <= 0 ? 0.0 : (t - track[seg].$1) / span;
+
+  double knot(int i) => track[((i % n) + n) % n].$2;
+  final v0 = knot(seg - 1);
+  final v1 = knot(seg);
+  final v2 = knot(seg + 1);
+  final v3 = knot(seg + 2);
+
+  return 0.5 *
+      ((2 * v1) +
+          (-v0 + v2) * u +
+          (2 * v0 - 5 * v1 + 4 * v2 - v3) * u * u +
+          (-v0 + 3 * v1 - 3 * v2 + v3) * u * u * u);
 }
 
 // The JS's own keyframes, verbatim.
@@ -110,6 +178,19 @@ const _Track _elbowFar = [
   (0.75, -52),
   (1, -68),
 ];
+
+/// How tall the shadow's own box is, as a fraction of his.
+const double _shadowBand = 0.045;
+
+/// Where that box has to sit for its centre to land on [walkerFootline].
+///
+/// Derived rather than typed, so it cannot go stale if either fraction moves:
+/// `Align` puts a child of height fH inside a box of height H with its centre at
+/// H/2 + a(H - fH)/2, and we want that centre on the footline.
+const Alignment _shadowAlignment = Alignment(
+  0,
+  (2 * walkerFootline / walkerHeight - 1) / (1 - _shadowBand),
+);
 
 /// How far the whole figure rises, twice a stride.
 const double _bob = 4;
@@ -246,10 +327,15 @@ class _ManagerWalkerState extends State<ManagerWalker>
               // The shadow does NOT bob: it is on the ground, and it tightens as
               // he leaves it, which is the whole of the depth in the figure.
               Align(
-                alignment: Alignment.bottomCenter,
+                // At his FEET, not at the bottom of his box. Derived from the
+                // two fractions rather than typed, so it cannot go stale if
+                // either moves: for a child of height fH inside a box of height
+                // H, `Align` puts its centre at H/2 + a(H - fH)/2, and we want
+                // that centre on the footline.
+                alignment: _shadowAlignment,
                 child: FractionallySizedBox(
                   widthFactor: 0.34 - rise / walkerHeight,
-                  heightFactor: 0.035,
+                  heightFactor: _shadowBand,
                   child: const _GroundShadow(),
                 ),
               ),
@@ -549,6 +635,35 @@ class _WalkerPainter extends CustomPainter {
   /// The far side of the body, darkened. This is the whole of the depth cue.
   Color _shade(Color c) => Color.lerp(c, Colors.black, 0.28)!;
 
+  Color _lift(Color c, double amount) => Color.lerp(c, Colors.white, amount)!;
+
+  /// A limb, lit down one edge and falling into shade on the other.
+  ///
+  /// Flat fills read clean and plasticky — every segment the same value as every
+  /// other, so the figure has no volume and nothing tells you which side the sky
+  /// is on. One gradient ACROSS each limb costs nothing and is most of the
+  /// difference between a rig and a drawing.
+  Paint _limbPaint(Color base, Offset from, Offset to, double width) {
+    // Across the limb, not along it: a sausage lit end-to-end looks like a
+    // gradient, one lit edge-to-edge looks round.
+    final dx = to.dx - from.dx;
+    final dy = to.dy - from.dy;
+    final len = math.sqrt(dx * dx + dy * dy);
+    final nx = len == 0 ? 1.0 : -dy / len;
+    final ny = len == 0 ? 0.0 : dx / len;
+    final mid = Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2);
+    final r = width / 2;
+    return Paint()
+      ..strokeWidth = width
+      ..strokeCap = StrokeCap.round
+      ..shader = ui.Gradient.linear(
+        Offset(mid.dx - nx * r, mid.dy - ny * r),
+        Offset(mid.dx + nx * r, mid.dy + ny * r),
+        [_lift(base, 0.16), base, Color.lerp(base, Colors.black, 0.22)!],
+        [0, 0.45, 1],
+      );
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
@@ -602,23 +717,9 @@ class _WalkerPainter extends CustomPainter {
     // a round-capped stroke is a circle at the pivot however far it turns, so
     // the joint cannot come apart.
     _about(canvas, hip, thigh, () {
-      canvas.drawLine(
-        hip,
-        knee,
-        Paint()
-          ..color = legs
-          ..strokeWidth = 10
-          ..strokeCap = StrokeCap.round,
-      );
+      canvas.drawLine(hip, knee, _limbPaint(legs, hip, knee, 10));
       _about(canvas, knee, shin, () {
-        canvas.drawLine(
-          knee,
-          foot,
-          Paint()
-            ..color = flesh
-            ..strokeWidth = 8
-            ..strokeCap = StrokeCap.round,
-        );
+        canvas.drawLine(knee, foot, _limbPaint(flesh, knee, foot, 8));
         _about(canvas, foot, ankle, () {
           // The boot runs FORWARD from the ankle, so the heel sits under the leg
           // and the toe leads — a boot centred on the ankle pivots about its own
@@ -655,17 +756,22 @@ class _WalkerPainter extends CustomPainter {
           const Offset(56, 80),
           _sample(near ? _elbowNear : _elbowFar, t),
           () {
-            canvas.drawRRect(
-              RRect.fromRectAndRadius(
-                const Rect.fromLTWH(53, 80, 6, 17),
-                const Radius.circular(3),
+            canvas.drawLine(
+              const Offset(56, 81),
+              const Offset(56, 94),
+              _limbPaint(
+                flesh,
+                const Offset(56, 81),
+                const Offset(56, 94),
+                6.5,
               ),
-              Paint()..color = flesh,
             );
+            // The hand, a touch lighter than the forearm — which is what stops
+            // the two reading as one tapering stick.
             canvas.drawCircle(
-              const Offset(56, 96),
-              3.8,
-              Paint()..color = flesh,
+              const Offset(56, 95.5),
+              3.9,
+              Paint()..color = _lift(flesh, 0.06),
             );
           },
         );
@@ -676,22 +782,58 @@ class _WalkerPainter extends CustomPainter {
   void _body(Canvas canvas) {
     // Shorts a shade darker than the shirt: one flat block from collar to knee
     // read as a romper suit.
+    const shorts = Rect.fromLTWH(50, 88, 16.5, 17);
+    final shortsColour = Color.lerp(kit, Colors.black, 0.22)!;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        // Down to 105 and out to 66: both hip sockets are at y 95, and the
-        // shorts have to still be over them when a thigh has swung 31 degrees.
-        // At 88..103 the far one came out from under the hem at the extremes.
-        const Rect.fromLTWH(50, 88, 16.5, 17),
-        const Radius.circular(4),
-      ),
-      Paint()..color = Color.lerp(kit, Colors.black, 0.22)!,
+      RRect.fromRectAndRadius(shorts, const Radius.circular(4)),
+      Paint()
+        ..shader = ui.Gradient.linear(shorts.topLeft, shorts.bottomRight, [
+          _lift(shortsColour, 0.1),
+          Color.lerp(shortsColour, Colors.black, 0.2)!,
+        ]),
     );
+
+    const shirt = Rect.fromLTWH(50.5, 58, 15, 32);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(50.5, 58, 15, 32),
-        const Radius.circular(5),
-      ),
-      Paint()..color = kit,
+      RRect.fromRectAndRadius(shirt, const Radius.circular(5)),
+      Paint()
+        // Lit from the top-left, the same corner every other surface on this
+        // screen is lit from — the turf, the crowd, the glass panels. Flat fills
+        // read clean and plasticky; one gradient is most of the difference
+        // between a rig and a drawing, and it costs a shader.
+        ..shader = ui.Gradient.linear(
+          shirt.topLeft,
+          shirt.bottomRight,
+          [_lift(kit, 0.2), kit, Color.lerp(kit, Colors.black, 0.2)!],
+          [0, 0.5, 1],
+        ),
+    );
+
+    // Where the shirt meets the shorts. A garment that ends without a shadow
+    // under it reads as printed on rather than worn.
+    canvas.drawRect(
+      const Rect.fromLTWH(50.5, 86, 15, 3),
+      Paint()..color = Colors.black.withValues(alpha: 0.16),
+    );
+
+    // A collar and a seam down the shirt. Two marks, and they are what make it a
+    // top rather than a rounded rectangle.
+    canvas.drawPath(
+      Path()
+        ..moveTo(54, 59)
+        ..quadraticBezierTo(58, 64, 62, 59.5),
+      Paint()
+        ..color = Color.lerp(kit, Colors.black, 0.3)!
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      const Offset(58, 63),
+      const Offset(58, 86),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.08)
+        ..strokeWidth = 1.2,
     );
   }
 

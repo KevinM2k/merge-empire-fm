@@ -16,6 +16,9 @@ const CardView _view = (
   onLoan: false,
   variant: 0,
   fitness: null,
+  incomePerSec: null,
+  maxed: false,
+  atCap: false,
 );
 
 Future<void> pumpCard(
@@ -114,6 +117,9 @@ void main() {
         onLoan: false,
         variant: 0,
         fitness: null,
+        incomePerSec: null,
+        maxed: false,
+        atCap: false,
       ));
       final border = decorationOf(tester).border! as Border;
       expect(
@@ -124,7 +130,9 @@ void main() {
     }
   });
 
-  testWidgets('an unknown tier falls back rather than throwing', (tester) async {
+  testWidgets('an unknown tier falls back rather than throwing', (
+    tester,
+  ) async {
     // The tier comes off the save, so a card from a future build must not
     // white-screen the grid.
     await pumpCard(tester, (
@@ -134,8 +142,11 @@ void main() {
       position: 'MID',
       injured: false,
       onLoan: false,
-        variant: 0,
-        fitness: null,
+      variant: 0,
+      fitness: null,
+      incomePerSec: null,
+      maxed: false,
+      atCap: false,
     ));
     expect(find.text('X'), findsOneWidget);
   });
@@ -157,8 +168,11 @@ void main() {
       position: 'DEF',
       injured: true,
       onLoan: true,
-        variant: 0,
-        fitness: null,
+      variant: 0,
+      fitness: null,
+      incomePerSec: null,
+      maxed: false,
+      atCap: false,
     ));
     expect(find.byIcon(Icons.healing), findsOneWidget);
     expect(find.byIcon(Icons.swap_horiz), findsOneWidget);
@@ -188,8 +202,11 @@ void main() {
       position: 'GK',
       injured: false,
       onLoan: false,
-        variant: 0,
-        fitness: null,
+      variant: 0,
+      fitness: null,
+      incomePerSec: null,
+      maxed: false,
+      atCap: false,
     ));
     expect(tester.takeException(), isNull);
     final text = tester.widget<Text>(find.textContaining('Wojciech'));
@@ -216,6 +233,9 @@ void main() {
         onLoan: false,
         variant: 0,
         fitness: 0.5,
+        incomePerSec: null,
+        maxed: false,
+        atCap: false,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -233,6 +253,9 @@ void main() {
         onLoan: false,
         variant: 0,
         fitness: 0.1,
+        incomePerSec: null,
+        maxed: false,
+        atCap: false,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -253,6 +276,9 @@ void main() {
           onLoan: false,
           variant: 0,
           fitness: value,
+          incomePerSec: null,
+          maxed: false,
+          atCap: false,
         ));
         expect(tester.takeException(), isNull, reason: '$value');
       }

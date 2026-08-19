@@ -17,6 +17,8 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
+    show walkerScale;
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -137,9 +139,11 @@ void main() {
       // height, dock row included, which stood him a whole orb too high.
       await pumpHome(tester);
       final pill = tester.getRect(find.byKey(const ValueKey('dock-customise')));
-      // He is scaled about his FEET, so the rendered box's bottom edge IS the
-      // contact line whatever size he is drawn at.
-      final feet = tester.getRect(find.byType(ManagerWalker)).bottom;
+      // His BOOTS, not his box: there are 17.5 art units of empty picture under
+      // his soles, and measuring the box put his feet two dozen pixels above the
+      // line — which is what had him hovering over his own shadow.
+      final box = tester.getRect(find.byType(ManagerWalker));
+      final feet = box.bottom - walkerFootOffset * walkerScale;
       expect(feet, closeTo(pill.top - 12, 1));
     });
 
