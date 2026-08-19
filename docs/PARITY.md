@@ -25,14 +25,26 @@ gaps are in this list.
 
 - [x] Add Player (scout), priced on the button
 - [x] Scout batch ×1 / ×2 / ×4, offering only what the save can pay for and house
-- [x] Merge All, carrying the pair count
+- [x] Merge All, carrying the pair count **and its price** — half a scout, which
+      the port had been giving away free
 - [x] Sort by tier, hidden when already sorted
 - [x] Drag to merge, drag to move
 - [x] Tap a card for the sell sheet
-- [ ] **The scout REVEAL.** A signing drops into the grid with no reveal at all.
-      The JS holds the batch back and turns the cards over together, with a
-      new-discovery badge and an auto-sell marker. `_revealing` gates the Scout
-      button for the duration, which is also what stops a double-tap.
+- [x] **The scout REVEAL.** The batch is held back and turned over together,
+      each card captioned — voucher pill, auto-sold verdict, gold halo for a
+      first-ever sighting — and the marked ones are cashed in only once they
+      have been seen. The Scout button is dead for the duration, which is what
+      stops a double-tap drawing over a reveal.
+      **The fly-to-slot is deliberately not ported**: the port's grid is a
+      scrolling `GridView` whose rows are built on demand, so the slot a card is
+      going to usually is not mounted, and flying toward a rect that does not
+      exist is worse than not flying at all.
+- [x] **What a merge COUNTS.** The move was ported and none of the bookkeeping
+      was: career totals, `stats.highestTier`, the two merge quests, and a
+      rival's pending bid dying with a parent card. See the method note.
+- [ ] The merged-into float — `grid.merged_into` ('✨ {name}!'), which names the
+      tier a merge produced at the cell it landed in. The burst says something
+      happened; this says what.
 - [ ] Lazy card mounting — only if a profile run asks for it
 
 ## Squad — `screens/SquadScreen.js`
@@ -166,3 +178,17 @@ Three engines were found with no caller at all — `recordDiscovery`,
 does not catch those, because the control is not missing; nothing calls the
 engine behind it. **Grep for who calls an engine, not just for who reaches a
 screen.**
+
+Three more turned up the same way while the grid was being finished, and they
+are the reason that rule is here twice:
+
+- **`trackEvent` — the action funnel — had no caller anywhere.** Both consumers
+  sit behind it (the season quest track and any live event's reward track), so
+  `season_scout`, `season_merge` and `season_merge_hard` could never advance, and
+  no scout or merge ever reached an event's rewards. Every quest LOOKED right:
+  the definitions, the track, the sweep and the payout were all ported and
+  tested. Nothing counted.
+- **`applyTierAction` had no caller**, so the auto-sell rules the Settings screen
+  writes did nothing whatsoever.
+- **`notifyCardRemoved` was not called on a merge**, so a club that had bid for
+  either parent was left waiting on a player who no longer existed.

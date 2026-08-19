@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,328 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,401 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 
@@ -216,6 +216,15 @@ Widget tests construct the state they need. They prove a part works; they say
 nothing about whether a new player can get to it. **Before calling a module
 done, grep for who CALLS it** — and where the answer is "only its own test",
 that is the module's real status.
+
+**That rule catches engines, not just screens, and the worst case so far was an
+engine.** `trackEvent` — the funnel both the season quest track and the event
+reward track sit behind — had no caller anywhere in `lib/`. Every quest looked
+finished: definitions, track, sweep, payout, all ported and tested. Three of
+them could not advance, because nothing ever counted a scout or a merge. The
+auto-sell rules were in the same position. Neither shows up in a control audit:
+the control is there, and nothing behind it is wired. See the method note in
+`docs/PARITY.md`.
 
 Nothing built is currently unreachable. Every screen in `lib/ui/screens/` is
 reached from a tab, the burger, a dock orb, the end of a match or the strip in
@@ -766,8 +775,20 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
       **A merge now lands with a burst** — `merge_burst.dart`. The JS's
       ghost-fly is deliberately not ported: the drag already carried the card
       there under the player's own finger.
-      Still to add: the scout REVEAL (batch sizes, new-discovery and auto-sell
-      badges), and lazy mounting if a profile run asks for it.
+      **The reveal is in** — `scout_reveal.dart`. A batch is held back and
+      turned over together, each card wearing what is true of it (a voucher
+      pill, an auto-sold verdict, a gold halo for a first-ever sighting), and
+      the cards the tier rules marked are cashed in only once they have been
+      SEEN. Not a fourth popup shape: a reveal asks nothing and holds nothing,
+      so it is an animation layer like the burst and the toast host. A merge
+      that produces a player nobody has ever seen reuses it.
+      **The grid's bookkeeping is in with it**, which was the bigger find —
+      `merge_flow_engine.dart`. See the parity file's method note: the action
+      funnel had no caller at all, so three season quests could never advance;
+      the auto-sell rules had no caller either; and a merge never told the
+      transfer market that both parents had gone.
+      Still to add: the merged-into float (`grid.merged_into`, which names the
+      tier a merge produced), and lazy mounting if a profile run asks for it.
       **Worth knowing before writing a grid test:** a card loaded WITHOUT a
       `variant` is backfilled with a random one, and the engine refuses to merge
       two players of different genders — so a fixture that omits `variant` makes
