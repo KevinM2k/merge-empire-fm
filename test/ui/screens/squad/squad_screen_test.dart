@@ -540,9 +540,13 @@ void main() {
       expect(container.read(benchProvider).length + 11, greaterThan(11));
     });
 
-    testWidgets('the trait wheel is on it, priced', (tester) async {
+    testWidgets('the trait wheel is on it, priced, with two reels', (
+      tester,
+    ) async {
       // `rollTrait`, `applyTrait` and `traitRollCost` were all ported with
-      // nothing able to spend a coin on them.
+      // nothing able to spend a coin on them. The reels are Flutter's own
+      // `ListWheelScrollView` — which is the widget the JS builds out of DOM
+      // strips repeated seven times.
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
 
@@ -550,6 +554,24 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('detail-trait-roll')), findsOneWidget);
       expect(find.byKey(const ValueKey('detail-trait-label')), findsOneWidget);
+      expect(find.byKey(const ValueKey('trait-reel-name')), findsOneWidget);
+      expect(find.byKey(const ValueKey('trait-reel-level')), findsOneWidget);
+    });
+
+    testWidgets('and the reels cannot be spun by hand', (tester) async {
+      // The roll is bought, not flicked.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await tester.ensureVisible(find.byKey(const ValueKey('trait-reel-name')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<ListWheelScrollView>(
+              find.byKey(const ValueKey('trait-reel-name')),
+            )
+            .physics,
+        isA<NeverScrollableScrollPhysics>(),
+      );
     });
 
     testWidgets('rolling charges, spins, and lands a trait', (tester) async {

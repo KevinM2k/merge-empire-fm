@@ -80,9 +80,11 @@ gaps are in this list.
         `traitRollCost` were all ported with nothing able to spend a coin on
         them. Refused for a loanee and for anyone out on loan, each with its own
         line: one's trait would go back with them, the other cannot take the
-        field. The JS's two DOM reels are not ported — what they are FOR is the
-        beat between paying and finding out, so the pool shuffles past the label
-        and lands on what was rolled.
+        field.
+        **Both reels are `ListWheelScrollView`** — Flutter has the widget the JS
+        builds out of DOM strips repeated seven times, and a looping delegate
+        plus `animateToItem` gives three revolutions and a landing with no clock
+        of our own.
   - [ ] Rename (`.detail-rename-btn`)
   - [ ] The market-value BAR — the price is there, the coloured gauge is not
 

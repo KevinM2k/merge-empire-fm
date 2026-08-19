@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,516 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,517 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 
@@ -250,6 +250,26 @@ Two are reachable but INCOMPLETE, and say so on screen rather than pretending:
 - The event **cup bracket** is built and nothing reaches it: `wc2026`'s window
   closed in July so it permanently reports `ended`. It exists because that
   engine and its tests are the specification for whatever reuses the slot.
+
+### Reach for the widget before porting the CSS
+
+The JS builds what the DOM does not give it, and a straight port of that build is
+usually worse than the Flutter widget it was standing in for. Three that were
+found the hard way, all in one pass:
+
+- The trait roulette's two reels are repeated DOM strips with a hand-driven
+  scroll; `ListWheelScrollView` with a looping delegate and `animateToItem` is
+  the same thing in a dozen lines, and it spins properly.
+- The keeper's dive is four CSS transitions about four `transform-origin`s;
+  `AnimatedRotation` takes an `Alignment`, which is any point you like, so the
+  pose is four widgets and no clock at all.
+- The stadium hero's gradients and the manager's cubic paths were being DROPPED
+  by `svg_canvas.dart` rather than approximated — see the note under M3's art
+  item. Check what a piece of art uses before assuming it draws.
+
+The exceptions are the things a widget cannot express: a rig whose limbs turn
+about their own joints inside one figure still wants a painter, and a looping
+sway still wants a controller.
 
 ### Standing rules
 

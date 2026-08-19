@@ -967,15 +967,18 @@ class _RecallBlock extends StatelessWidget {
   }
 }
 
-/// The trait wheel, as much of it as belongs in a sheet. Ported from
-/// `mountTraitRoulette` in `ui/components/TraitRoulette.js`.
+/// The trait wheel. Ported from `mountTraitRoulette` in
+/// `ui/components/TraitRoulette.js`.
 ///
-/// The JS spins two DOM reels behind a pull lever. What the reels are FOR is the
-/// beat between paying and finding out, so that is what is ported: the pool
-/// shuffles past for a moment and lands on what was rolled. Two reels drawn as
-/// strips of repeated tiles is 285 lines of DOM that a single animated label
-/// says just as well — and the outcome was decided before the first frame either
-/// way.
+/// The JS builds two reels out of DOM strips — a column of names and a column of
+/// levels — repeated seven times so a spin can run past them, with a pull lever
+/// at the side. **Flutter has that widget**: `ListWheelScrollView` with a looping
+/// delegate IS a reel, and a `FixedExtentScrollController` can be told to land on
+/// an item over a duration and a curve. So the spin here is three revolutions and
+/// a stop, with no clock and no repeated strips.
+///
+/// The outcome is decided and PAID before the reel moves — a spin that decided at
+/// the end would have to be unwound when the debit turned out to be refused.
 ///
 /// **The cost is on the control**, because a roll is a gamble with the player's
 /// coins and "how much was that?" must not be a question they ask afterwards.
@@ -990,44 +993,59 @@ class TraitBlock extends ConsumerStatefulWidget {
 }
 
 class TraitBlockState extends ConsumerState<TraitBlock> {
-  /// How long the pool shuffles past before it lands.
-  static const Duration spin = Duration(milliseconds: 720);
+  /// How long the reels run. The JS spins for about this long before it settles.
+  static const Duration spin = Duration(milliseconds: 900);
 
-  Timer? _ticker;
-  int _frame = 0;
+  /// How many times round before it lands. Enough to read as a spin rather than
+  /// a jump, and the looping delegate is what makes it free.
+  static const int _revolutions = 3;
+
+  /// Row height, and the reel shows three rows: the one either side is what
+  /// makes it a wheel rather than a label.
+  static const double _rowHeight = 26;
+
+  final FixedExtentScrollController _names = FixedExtentScrollController();
+  final FixedExtentScrollController _levels = FixedExtentScrollController();
+
+  bool _spinning = false;
 
   /// Test seam.
-  bool get spinning => _ticker != null;
+  bool get spinning => _spinning;
 
   @override
   void dispose() {
-    _ticker?.cancel();
+    _names.dispose();
+    _levels.dispose();
     super.dispose();
   }
 
-  void _roll() {
-    if (_ticker != null) return;
-    // Rolled and PAID up front, then revealed: a spin that decided afterwards
-    // would have to be unwound when the debit turned out to be refused. The
-    // engine's own gate is the backstop — the button is already dead when the
-    // coins are not there — so a refusal here simply does not spin.
+  Future<void> _roll(List<Trait> pool) async {
+    if (_spinning) return;
     final result = ref
         .read(gameProvider)
         .update((s) => rollTraitForCard(s, widget.instanceId));
-    if (!result.ok) return;
+    final roll = result.roll;
+    if (!result.ok || roll == null) return;
 
-    var frames = 0;
-    setState(() => _frame = 0);
-    _ticker = Timer.periodic(const Duration(milliseconds: 60), (timer) {
-      if (!mounted) return;
-      frames++;
-      setState(() => _frame++);
-      if (frames * 60 < spin.inMilliseconds) return;
-      timer.cancel();
-      // The label reads the save from here on, which is where the new trait
-      // already is: the spin was only ever hiding it.
-      setState(() => _ticker = null);
-    });
+    final landing = pool.indexWhere((t) => t.id == roll.id);
+    if (landing < 0) return;
+    setState(() => _spinning = true);
+
+    // Both reels animate at once; the level lands a beat later, which is the
+    // order the player reads them in.
+    await Future.wait([
+      _names.animateToItem(
+        pool.length * _revolutions + landing,
+        duration: spin,
+        curve: Curves.easeOutCubic,
+      ),
+      _levels.animateToItem(
+        3 * _revolutions + (roll.level - 1).clamp(0, 2),
+        duration: spin + const Duration(milliseconds: 120),
+        curve: Curves.easeOutCubic,
+      ),
+    ]);
+    if (mounted) setState(() => _spinning = false);
   }
 
   @override
@@ -1040,10 +1058,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       widget.def.position,
       hardMode: ref.watch(proModeProvider),
     );
-    // Mid-spin the label is whatever went past; otherwise it is what they have.
-    final current = spinning
-        ? '${pool[_frame % pool.length].icon} ${pool[_frame % pool.length].name}'
-        : traitLabel(_map(card?.raw['trait']));
+    final trait = _map(card?.raw['trait']);
 
     return Container(
       key: const ValueKey('detail-trait'),
@@ -1066,19 +1081,62 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
             ),
           ),
           const SizedBox(height: 6),
+          // What he has, in words, above the reels — the reels are the SPIN and
+          // this is the answer, and a player who has not rolled anything yet
+          // needs to be told which of the two they are looking at.
           Text(
-            current.isEmpty ? t('trait.name.none') : current,
+            trait == null ? t('trait.name.none') : traitLabel(trait),
             key: const ValueKey('detail-trait-label'),
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w900,
-              color: spinning ? kit.textMuted : kit.accentBright,
+              color: trait == null ? kit.textMuted : kit.accentBright,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: _rowHeight * 3,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _Reel(
+                    reelKey: 'trait-reel-name',
+                    controller: _names,
+                    rowHeight: _rowHeight,
+                    children: [
+                      for (final trait in pool)
+                        Text(
+                          '${trait.icon} ${trait.name}',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _Reel(
+                    reelKey: 'trait-reel-level',
+                    controller: _levels,
+                    rowHeight: _rowHeight,
+                    children: const [
+                      Text('I', textAlign: TextAlign.center),
+                      Text('II', textAlign: TextAlign.center),
+                      Text('III', textAlign: TextAlign.center),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 10),
           ElevatedButton(
             key: const ValueKey('detail-trait-roll'),
-            onPressed: spinning || coins < cost ? null : _roll,
+            onPressed: _spinning || coins < cost ? null : () => _roll(pool),
             child: Text(t('game.trait.cost', {'cost': formatCoins(cost)})),
           ),
           if (coins < cost)
@@ -1090,11 +1148,58 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                 style: TextStyle(fontSize: 11, color: kit.textMuted),
               ),
             ),
-          // What a roll REPLACED is deliberately not spelled out: the JS flashes
-          // the reel green or red and says nothing, and there is no catalogue key
-          // for it in any of the ten. The label going from one trait to another
-          // in front of the player is the message.
         ],
+      ),
+    );
+  }
+}
+
+/// One reel.
+///
+/// Looping, so a spin can run several times round a pool of fifteen without the
+/// JS's trick of repeating the strip seven times in the markup. The middle row is
+/// the one that counts, which is what the highlight marks.
+class _Reel extends StatelessWidget {
+  const _Reel({
+    required this.reelKey,
+    required this.controller,
+    required this.rowHeight,
+    required this.children,
+  });
+
+  final String reelKey;
+  final FixedExtentScrollController controller;
+  final double rowHeight;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: kit.surface2,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: kit.border),
+      ),
+      child: ListWheelScrollView.useDelegate(
+        key: ValueKey(reelKey),
+        controller: controller,
+        itemExtent: rowHeight,
+        // A reel the player cannot flick: the roll is bought, not spun by hand.
+        physics: const NeverScrollableScrollPhysics(),
+        perspective: 0.004,
+        diameterRatio: 1.6,
+        childDelegate: ListWheelChildLoopingListDelegate(
+          children: [
+            for (final child in children)
+              Center(
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: kit.accentBright),
+                  child: child,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
