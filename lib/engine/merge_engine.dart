@@ -342,6 +342,54 @@ int mergeAll(List<dynamic> cells, {Map<String, dynamic>? stats, int? maxTier}) {
   return totalMerges;
 }
 
+/// Close the gaps, keeping the order the cards are already in.
+///
+/// **A merge leaves a hole.** Two cards go in and one comes out, in the target's
+/// cell — so the source's cell empties, and after a few merges the grid is a
+/// scatter of cards with holes between them. The player's next card lands in the
+/// first of those holes rather than after the ones they can see, which makes
+/// "the next slot" a thing you have to hunt for.
+///
+/// Not a sort: nothing is reordered, so a grid the player arranged deliberately
+/// stays in that order — it just slides up. [sortGridByTier] closes the gaps too,
+/// as a side effect of ordering, and that one DOES reorder.
+///
+/// **[keepAt] is the card that should not move.** After a merge that is the
+/// merged card, and it matters because the merge is a set-piece: the burst, the
+/// pop and the new face all happen at the cell the player dropped on, and if
+/// closing the gaps slides the new card out of that cell then the celebration
+/// plays over a hole while a NEIGHBOUR bounces into the spot the player was
+/// watching. So the kept card stays where it is — unless staying would leave a
+/// gap in front of it, in which case it goes to the end of the run, because a
+/// grid with no gaps is the whole point of this function.
+///
+/// **Only ever called after a MERGE.** A move onto an empty square is the player
+/// putting a card exactly where they want it; closing the gaps after that would
+/// slide it straight back and the grid could not be arranged at all.
+///
+/// Packs to the FRONT, which is also what keeps it away from the locked tail:
+/// nothing can be moved into a slot the club has not bought yet.
+///
+/// Returns where the kept card ended up, or -1 when there was none.
+int closeGridGaps(List<dynamic> cells, {int keepAt = -1}) {
+  final kept = keepAt >= 0 && keepAt < cells.length ? cells[keepAt] : null;
+  final rest = <dynamic>[
+    for (var i = 0; i < cells.length; i++)
+      if (cells[i] != null && i != keepAt) cells[i],
+  ];
+  // Its own cell if that is still the front of the run, otherwise the end of it.
+  final keptTo = kept == null ? -1 : math.min(keepAt, rest.length);
+  var next = 0;
+  for (var i = 0; i < cells.length; i++) {
+    if (i == keptTo) {
+      cells[i] = kept;
+      continue;
+    }
+    cells[i] = next < rest.length ? rest[next++] : null;
+  }
+  return keptTo;
+}
+
 /// Pack the grid tier-first, best-rated first, with the gaps closed up.
 ///
 /// Lifted out of `ui/components/Grid.js`, which does the sort inline in the

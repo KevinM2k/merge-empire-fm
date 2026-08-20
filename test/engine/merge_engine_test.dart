@@ -417,4 +417,103 @@ void main() {
       expect(stats['highestTier'], 3);
     });
   });
+
+  group('closing the gaps', () {
+    test('slides the cards after a hole up into it', () {
+      final cells = <dynamic>[
+        _card('a', instanceId: '1'),
+        null,
+        _card('a', instanceId: '2'),
+        _card('a', instanceId: '3'),
+      ];
+      expect(closeGridGaps(cells), -1, reason: 'nothing was kept');
+      expect(
+        [for (final c in cells) CardInstance.from(c)?.instanceId],
+        ['1', '2', '3', null],
+      );
+    });
+
+    test('and keeps the order it was handed — it is NOT a sort', () {
+      // The difference from `sortGridByTier`: a grid the player arranged stays
+      // arranged, it just slides up.
+      final cells = <dynamic>[
+        _card('c', instanceId: '3'),
+        null,
+        _card('a', instanceId: '1'),
+        _card('b', instanceId: '2'),
+      ];
+      closeGridGaps(cells);
+      expect(
+        [for (final c in cells) CardInstance.from(c)?.instanceId],
+        ['3', '1', '2', null],
+      );
+    });
+
+    test('a grid with no holes is left alone', () {
+      final cells = <dynamic>[_card('a'), _card('b'), null, null];
+      final before = [...cells];
+      closeGridGaps(cells);
+      expect(cells, before);
+    });
+
+    test('an empty grid and a full one both survive it', () {
+      final empty = <dynamic>[null, null];
+      closeGridGaps(empty);
+      expect(empty, [null, null]);
+      final full = <dynamic>[_card('a'), _card('b')];
+      closeGridGaps(full);
+      expect(full.whereType<Map<String, dynamic>>(), hasLength(2));
+    });
+
+    group('the card that stays put', () {
+      test('holds its cell, and the card behind fills the hole', () {
+        // Three cards, the first merged onto the second: the merge happened in
+        // cell 1 and that is where the player is looking, so the new card stays
+        // there and the third card drops back into the hole at the front.
+        final cells = <dynamic>[
+          null, // the source cell the merge emptied
+          _card('m', instanceId: 'merged'),
+          _card('c', instanceId: 'third'),
+          null,
+        ];
+        expect(closeGridGaps(cells, keepAt: 1), 1);
+        expect(
+          [for (final c in cells) CardInstance.from(c)?.instanceId],
+          ['third', 'merged', null, null],
+        );
+      });
+
+      test('unless staying would leave a gap in front of it', () {
+        // Nothing else on the grid, so cell 4 cannot be kept — a lone card
+        // sitting in the middle of an empty grid is the gap this function
+        // exists to close.
+        final cells = <dynamic>[
+          null,
+          null,
+          null,
+          null,
+          _card('m', instanceId: 'merged'),
+        ];
+        expect(closeGridGaps(cells, keepAt: 4), 0);
+        expect(CardInstance.from(cells[0])?.instanceId, 'merged');
+      });
+
+      test('and lands at the end of the run when it cannot hold its cell', () {
+        // Dragged the first card onto the last: three cards left over close up
+        // in front of it, so it ends at index 3 rather than the 4 it was in.
+        final cells = <dynamic>[
+          null,
+          _card('b', instanceId: 'b'),
+          _card('c', instanceId: 'c'),
+          _card('d', instanceId: 'd'),
+          _card('m', instanceId: 'merged'),
+        ];
+        expect(closeGridGaps(cells, keepAt: 4), 3);
+        expect(
+          [for (final c in cells) CardInstance.from(c)?.instanceId],
+          ['b', 'c', 'd', 'merged', null],
+        );
+      });
+    });
+  });
 }

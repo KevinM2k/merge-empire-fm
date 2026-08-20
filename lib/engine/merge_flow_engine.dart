@@ -96,6 +96,12 @@ typedef MergeFlow = ({
 
   /// The club whose pending bid died with one of the parents, if any.
   String? grudgeTeam,
+
+  /// Where the merged card ENDED UP, which is not always where it was dropped:
+  /// closing the gaps behind a merge slides it down past every hole ahead of it.
+  /// The celebration is played at this cell — a burst at the drop index would
+  /// fire on whatever card slid into it.
+  int? landedAt,
 });
 
 MergeFlow _flow(
@@ -103,6 +109,7 @@ MergeFlow _flow(
   int tier = 1,
   bool isNewDiscovery = false,
   String? grudgeTeam,
+  int? landedAt,
 }) => (
   ok: result.ok,
   action: result.action,
@@ -113,6 +120,7 @@ MergeFlow _flow(
   tier: tier,
   isNewDiscovery: isNewDiscovery,
   grudgeTeam: grudgeTeam,
+  landedAt: landedAt,
 );
 
 /// Drag [from] onto [to]: merge, move or swap, and count whatever happened.
@@ -167,6 +175,19 @@ MergeFlow performMerge(
   // same coupling the scout flow relies on.
   final firstSighting = isFirstSighting(state, cells[to]);
 
+  // The hole the source cell just became, closed up — see [closeGridGaps]. Here
+  // rather than in `attemptMerge` because only a MERGE leaves a hole worth
+  // closing: a move onto an empty square is the player placing a card, and
+  // closing up after that would undo the placement.
+  //
+  // The merged card is KEPT where it was dropped, so the burst, the pop and the
+  // new face all happen in the cell the player is looking at rather than a
+  // neighbour bouncing into it.
+  //
+  // **After the read above, not before it.** `cells[to]` is only the new card
+  // until this runs.
+  final landedAt = closeGridGaps(cells, keepAt: to);
+
   emit('merge:happened');
 
   return _flow(
@@ -174,6 +195,7 @@ MergeFlow performMerge(
     tier: newDef?.tier ?? 1,
     isNewDiscovery: firstSighting,
     grudgeTeam: grudge,
+    landedAt: landedAt,
   );
 }
 

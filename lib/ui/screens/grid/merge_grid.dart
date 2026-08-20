@@ -305,7 +305,10 @@ class MergeGridState extends ConsumerState<MergeGrid>
     // set-piece — see `merge_burst.dart`. It fires on the frame the merge lands.
     if (!mounted) return;
     setState(() {
-      _burstAt = to;
+      // Where the card LANDED, not where it was dropped: closing the gaps
+      // behind a merge slides it down past any hole ahead of it, and a burst at
+      // the drop index would go off over whatever card slid up into it.
+      _burstAt = result.landedAt ?? to;
       _burstTier = result.tier;
     });
 
@@ -708,6 +711,22 @@ class _SlotTarget extends StatelessWidget {
         // Dashes only where there is nothing, which is what makes an empty
         // square read as a place a card could go.
         dashed: true,
+        // WHICH square it is, 1-based. An empty grid is a field of identical
+        // dashed boxes with nothing to say how far along it you are looking, and
+        // now that a merge closes the gaps behind it (see `closeGridGaps`) the
+        // first numbered box is always the next card's home — so the number is
+        // also how many players you have, plus one.
+        //
+        // Faint on purpose: it is a label on the background, and the moment it
+        // competes with the cards next to it the grid reads as a numbered form.
+        child: Text(
+          '${cell.index + 1}',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: kit.textMuted.withValues(alpha: 0.22),
+          ),
+        ),
       ),
     );
   }

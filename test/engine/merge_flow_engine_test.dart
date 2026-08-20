@@ -309,4 +309,56 @@ void main() {
       expect(performMerge(s, 0, 1).isNewDiscovery, isTrue);
     });
   });
+
+  group('the hole a merge leaves', () {
+    test('is closed up, and the flow says where the card ended up', () {
+      // The player merges into slot 4 and the card appears in slot 2, because
+      // the two slots ahead of it were empty.
+      final state = _state(
+        cells: [
+          null,
+          null,
+          null,
+          _card(_baseDefId, 'a'),
+          _card(_baseDefId, 'b'),
+        ],
+      );
+      final flow = performMerge(state, 3, 4);
+      expect(flow.action, MergeAction.merge);
+      expect(flow.landedAt, 0, reason: 'it slid up past both holes');
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      expect(cells[0], isNotNull);
+      expect(cells.skip(1).every((c) => c == null), isTrue);
+    });
+
+    test('but the merged card KEEPS the cell it was dropped on', () {
+      // Three in a row, the first dragged onto the second. The celebration is
+      // at cell 1 and it has to stay there; the third card fills the hole.
+      final state = _state(
+        cells: [
+          _card(_baseDefId, 'a'),
+          _card(_baseDefId, 'b'),
+          _card(_baseDefId, 'c'),
+          null,
+        ],
+      );
+      final flow = performMerge(state, 0, 1);
+      expect(flow.landedAt, 1);
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      expect(cells[0]['instanceId'], 'c', reason: 'it dropped into the hole');
+      expect(cells[1]['definitionId'], isNot(_baseDefId));
+      expect(cells[2], isNull);
+    });
+
+    test('but a MOVE leaves the card where the player put it', () {
+      // The grid has to stay arrangeable: closing up after a move would slide
+      // every card straight back to the front.
+      final state = _state(cells: [_card(_baseDefId, 'a'), null, null, null]);
+      final flow = performMerge(state, 0, 3);
+      expect(flow.action, MergeAction.move);
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      expect(cells[0], isNull);
+      expect(cells[3], isNotNull, reason: 'it was dragged there on purpose');
+    });
+  });
 }

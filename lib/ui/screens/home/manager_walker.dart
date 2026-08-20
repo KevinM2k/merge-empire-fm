@@ -63,47 +63,192 @@ const Duration walkCycle = Duration(milliseconds: 1800);
 /// measures is the line his boots are actually on.
 const double walkerFootline = 152.5;
 
-/// The leg, in art units. Shared with the scene, which has to know how far his
-/// planted foot travels to run the ground under it at the same speed.
+/// The leg, in art units. **These are the lengths the rig is DRAWN at**, and
+/// the IK below solves against them, so the two cannot disagree.
+///
+/// They used to: the constants said 30 and 27 while `_leg` drew the knee at
+/// hip+30 and the ankle at hip+54 — a 24-unit shin. The stride was computed off
+/// 27 and walked off 24, which is a 5% moonwalk before anything else went wrong.
 const double walkerThigh = 30;
-const double walkerShin = 27;
+const double walkerShin = 30;
+
+/// How much reach is held BACK from straight, in art units.
+///
+/// **A knee that reaches full extension locks**, and a locked knee is the thing
+/// you notice: the leg goes rigid for an instant at foot-down and the figure
+/// reads as a pair of scissors. Keeping a couple of units in hand means the joint
+/// always has a bend in it, which is also true of a real leg — nobody walks with
+/// a straight knee.
+const double _kneeLock = 1.6;
+
+/// The furthest the ankle can get from the hip.
+const double _legReach = walkerThigh + walkerShin - _kneeLock;
+
+/// Where each leg hangs from, and where the ground is, in the art's own space.
+///
+/// [_groundY] is the ANKLE's height on the grass — the boot hangs below it — and
+/// it is what the stride is solved against, so moving it changes the step length
+/// rather than lifting him off the turf.
+const double _hipY = 95;
+const double _groundY = 149;
+
+/// How far the hips rise, twice a stride.
+///
+/// **The bob is not decoration here, it is what buys the step.** A leg of a fixed
+/// length standing on flat ground can only reach so far forward and back, and the
+/// hip has to come DOWN at both extremes for the foot to get there — which is
+/// exactly what a real pelvis does. Take the bob out and the stride has to
+/// shorten with it.
+const double _bob = 4;
 
 /// How far his planted foot travels in half a stride, in art units.
 ///
-/// **This is the number the ground has to match.** It is measured off the rig
-/// rather than picked: the foot's offset from the hip is
-/// `thigh·sin(θ) + shin·sin(θ + φ)`, and the distance between its front and back
-/// extremes is how far the world must move under him in half a cycle. Get it
-/// wrong and he moonwalks — forwards if the ground is slow, backwards if it is
-/// fast — and no amount of looking at the walk cycle will show you which,
-/// because the walk cycle is not what is wrong.
-final double walkerStrideArtUnits = _measureStride();
+/// **This is the number the ground has to match**, and it is SOLVED rather than
+/// picked: at the extremes of the step the hip is at its lowest and the leg is at
+/// full reach, so half the step is the base of a right triangle with the leg as
+/// its hypotenuse. Get it wrong and he moonwalks — forwards if the ground is
+/// slow, backwards if it is fast — and no amount of looking at the walk cycle
+/// will show you which, because the walk cycle is not what is wrong.
+final double walkerStrideArtUnits = 2 * _halfStride;
 
-/// The foot's full travel, measured across the WHOLE cycle.
+final double _halfStride = math.sqrt(
+  _legReach * _legReach - (_groundY - _hipY) * (_groundY - _hipY),
+);
+
+/// How high the swinging foot lifts off the grass at the top of its arc.
+const double _footLift = 11;
+
+/// Where the ankle should BE, at phase [t], in the art's own space.
 ///
-/// It had been `_footX(0.5) - _footX(0)`, which assumes the foot is at its front
-/// and back extremes exactly at those two instants. It is not: the knee's own
-/// curve moves the turning points off the halves, so the figure was short — and a
-/// stride the ground is matched against being short is a moonwalk, by exactly the
-/// amount it is out. Sampled instead, so the number is what the rig actually
-/// does rather than where its extremes were assumed to be.
-double _measureStride() {
-  var lo = double.infinity;
-  var hi = double.negativeInfinity;
-  const steps = 360;
-  for (var i = 0; i < steps; i++) {
-    final x = _footX(i / steps);
-    if (x < lo) lo = x;
-    if (x > hi) hi = x;
+/// **The foot's path is the input now, and the joints are solved from it.** The
+/// rig used to work the other way round — the JS's keyframed thigh and shin
+/// angles were played and the foot went wherever they put it, which was not
+/// anywhere a foot goes. Two things came out of that and both are visible: over
+/// the first 6% of the step the planted foot moved BACKWARDS, against a ground
+/// travelling forwards, which is the judder as he puts his foot down; and the
+/// travel through the rest of the stance was 8% slower then 8% faster than the
+/// grass, which is the residual skate. Neither can be tuned out by retiming,
+/// because the poses themselves are wrong.
+///
+/// Stated as a path it is simply what a walk is. On the ground: a straight line
+/// at a constant rate — that IS what "planted" means, and it is the one property
+/// that makes the ground and the boot agree. In the air: back to the front,
+/// eased, over an arc.
+({double x, double y}) walkerAnkle(double t) {
+  final u = t % 1;
+  // **THE ANKLE RIDES UP OVER THE BOOT.** It was pinned at ground height through
+  // the whole stance while the boot rotated about it, which drives the toe
+  // straight into the turf at push-off — thirty degrees of it — and leaves the
+  // heel planted when it should be the first thing off the grass. The boot's own
+  // corners say where the ankle has to be: rotate them and the deepest one is
+  // the bit standing on the ground.
+  final lift = _bootSoleDrop(0) - _bootSoleDrop(_sample(_bootWorld, u));
+  final y = _groundY + walkerHipRise(u) + lift;
+  if (u < 0.5) {
+    // Stance. Linear, and the only linear thing in the rig.
+    return (x: _halfStride - walkerStrideArtUnits * (u / 0.5), y: y);
   }
-  return hi - lo;
+  // Swing. Eased, because the foot accelerates off the ground and decelerates
+  // into the next contact rather than sliding through at one speed.
+  final v = (u - 0.5) / 0.5;
+  return (
+    x: -_halfStride + walkerStrideArtUnits * Curves.easeInOut.transform(v),
+    y: y - _footLift * math.sin(v * math.pi),
+  );
 }
 
-double _footX(double t) {
-  final thigh = _deg(_sample(_thighNear, t));
-  final shin = _deg(_sample(_shinNear, t));
-  return walkerThigh * math.sin(thigh) + walkerShin * math.sin(thigh + shin);
+/// How far the boot's lowest corner hangs below the ankle, at boot angle [deg].
+///
+/// The boot runs from 3.5 behind the ankle to 11.5 in front of it with its sole
+/// 3.5 below — see `_WalkerPainter._leg` — so rotating it swings the toe down and
+/// the heel up, or the other way about. Whichever corner ends up lowest is the
+/// one in contact.
+double _bootSoleDrop(double deg) {
+  final a = _deg(deg);
+  final toe = _bootToe * math.sin(a) + _bootSole * math.cos(a);
+  final heel = -_bootHeel * math.sin(a) + _bootSole * math.cos(a);
+  return math.max(toe, heel);
 }
+
+/// Where the boot's SOLE is, at phase [t] — the part actually touching grass.
+///
+/// Public because "his foot is on the ground" is a statement about the boot and
+/// not about the ankle: the ankle rides up and down over it as the foot rolls,
+/// which is the whole point of [_bootSoleDrop].
+double walkerBootSoleY(double t) =>
+    walkerAnkle(t).y + _bootSoleDrop(_sample(_bootWorld, t % 1));
+
+/// The boot, measured from the ankle, in art units.
+const double _bootToe = 11.5;
+const double _bootHeel = 3.5;
+const double _bootSole = 3.5;
+
+/// How far the hips are up at phase [t].
+///
+/// Twice a stride, highest at mid-stance and lowest as the legs pass their
+/// extremes — see [_bob]. Eased, and the CSS says why: a vertical bounce should
+/// decelerate at the top.
+double walkerHipRise(double t) =>
+    _bob *
+    math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
+
+/// Where the near foot is, at rig phase [t], in art units — forward is POSITIVE.
+///
+/// Public because the one thing worth pinning about the gait is that the planted
+/// foot and the ground agree, and that is a statement about this function rather
+/// than about anything a widget renders.
+double walkerFootX(double t) => walkerAnkle(t).x;
+
+/// Solve a two-bone leg for an ankle at ([dx], [dy]) from the hip.
+///
+/// Returns the thigh's rotation and the shin's rotation RELATIVE TO IT, in
+/// degrees, in the rig's own sense: a positive rotation swings the limb
+/// backwards, because the canvas rotates clockwise and the leg hangs down.
+///
+/// Ordinary two-bone IK: the hip, knee and ankle make a triangle whose sides are
+/// the two bone lengths and the distance to the target, so the law of cosines
+/// gives the knee's interior angle, and the angle to the target less the
+/// triangle's angle at the hip gives the thigh's. The knee bends BACKWARD, which
+/// is the sign the JS's own keyframes carry — its shin track is positive
+/// throughout.
+({double thigh, double shin}) _solveLeg(double dx, double dy) {
+  final reach = math.sqrt(dx * dx + dy * dy).clamp(
+    (walkerThigh - walkerShin).abs() + 2,
+    _legReach,
+  );
+  final cosKnee =
+      (walkerThigh * walkerThigh + walkerShin * walkerShin - reach * reach) /
+      (2 * walkerThigh * walkerShin);
+  final knee = math.acos(cosKnee.clamp(-1.0, 1.0));
+  final atHip = math.asin(
+    (walkerShin * math.sin(knee) / reach).clamp(-1.0, 1.0),
+  );
+  // The target's own bearing from straight down, in the same sense as the joints.
+  final bearing = math.atan2(-dx, dy);
+  return (
+    thigh: (bearing - atHip) * 180 / math.pi,
+    shin: (math.pi - knee) * 180 / math.pi,
+  );
+}
+
+/// The boot's angle to the GROUND, in degrees, positive toes-down.
+///
+/// Solved for rather than hung off the shin, and stated in world terms because
+/// that is the only frame in which "flat on the grass" means anything: a foot
+/// whose angle is a fraction of the shin's is flat at exactly one instant of the
+/// stride and wrong either side of it.
+///
+/// Heel first, flat almost at once, then up onto the toe to push off; the toe
+/// stays down as the foot leaves and comes back up for the next contact.
+const _Track _bootWorld = [
+  (0, -13), // heel strike
+  (0.08, 0), // flat
+  (0.4, 2),
+  (0.5, 30), // toe-off
+  (0.62, 22),
+  (0.8, 2),
+  (1, -13),
+];
 
 /// How far his soles sit above the bottom of his box, in art units.
 const double walkerFootOffset = walkerHeight - walkerFootline;
@@ -179,46 +324,33 @@ double _sample(_Track track, double t) {
 }
 
 // The JS's own keyframes, verbatim.
-const _Track _thighNear = [(0, -31), (0.5, 25), (1, -31)];
-const _Track _thighFar = [(0, 25), (0.5, -31), (1, 25)];
-const _Track _shinNear = [(0, 6), (0.25, 4), (0.5, 13), (0.75, 60), (1, 6)];
-const _Track _shinFar = [(0, 13), (0.25, 60), (0.5, 6), (0.75, 4), (1, 13)];
+/// The arms, still the JS's own keyframes: they swing free and there is nothing
+/// for them to be solved against.
 const _Track _armNear = [(0, 27), (0.5, -27), (1, 27)];
 const _Track _armFar = [(0, -27), (0.5, 27), (1, -27)];
-
-/// THE ANKLE IS A JOINT, not a fraction of the shin.
-///
-/// It was `-shin * 0.72` — one number taking back most of whatever the shin was
-/// doing — and that cannot be right at both ends of a stride, because the foot
-/// is doing opposite things at them. At toe-off the rear shin is up at 60 and
-/// the foot should be pointing DOWN off it at about 40 to the ground; the
-/// proportional take-back put it at 14, which is a flat foot dragged along
-/// behind him. At heel strike the front foot should be toe-UP and it was toed
-/// down instead. The back foot never bent because nothing told it to.
-///
-/// These are absolute degrees relative to the shin, and they are tuned against
-/// the sum: the boot's angle to the ground is thigh + shin + ankle, and it is
-/// that sum which has to read.
-const _Track _ankleNear = [(0, 13), (0.25, -1), (0.5, 0), (0.75, -32), (1, 13)];
-const _Track _ankleFar = [(0, 0), (0.25, -32), (0.5, 13), (0.75, -1), (1, 0)];
 
 /// And so is the elbow. The JS hangs the forearm at a static -52, which is a
 /// hinge that never hinges — the arm swings from the shoulder as one plank. It
 /// closes as the arm comes forward and opens as it goes back, which is what an
 /// arm does.
+/// **A WALKING ARM'S ELBOW BARELY BENDS.** These were -38 to -68, which on top
+/// of a shoulder swinging to -27 put the forearm at -95 from vertical — pointing
+/// horizontally forwards, so the gaffer strolled the touchline holding an arm
+/// out like a man checking for rain. Ten to thirty degrees is what an elbow does
+/// at a walk; anything more is a jog.
 const _Track _elbowNear = [
-  (0, -38),
-  (0.25, -52),
-  (0.5, -68),
-  (0.75, -52),
-  (1, -38),
+  (0, -9),
+  (0.25, -20),
+  (0.5, -31),
+  (0.75, -20),
+  (1, -9),
 ];
 const _Track _elbowFar = [
-  (0, -68),
-  (0.25, -52),
-  (0.5, -38),
-  (0.75, -52),
-  (1, -68),
+  (0, -31),
+  (0.25, -20),
+  (0.5, -9),
+  (0.75, -20),
+  (1, -31),
 ];
 
 /// How tall the shadow's own box is, as a fraction of his.
@@ -256,10 +388,10 @@ const Alignment _shadowAlignment = Alignment(
 /// Where both feet are at [t], as a centre and a width in art units.
 ///
 /// The far leg runs half a cycle behind the near one — that is the whole of what
-/// makes it a walk — so the pair of them is `_footX(t)` and `_footX(t + 0.5)`.
+/// makes it a walk — so the pair of them is `walkerFootX(t)` and `walkerFootX(t + 0.5)`.
 ({double centre, double width}) _footSpan(double t) {
-  final near = _footX(t);
-  final far = _footX((t + 0.5) % 1);
+  final near = walkerFootX(t);
+  final far = walkerFootX((t + 0.5) % 1);
   return (centre: (near + far) / 2, width: (near - far).abs());
 }
 
@@ -273,8 +405,19 @@ const Alignment _shadowAlignment = Alignment(
 /// it: the ground line through the middle of the shadow, not along its top edge.
 final double _sink = _shadowBand * walkerHeight / 3;
 
-/// How far the whole figure rises, twice a stride.
-const double _bob = 4;
+/// How far the head sits BACK from where the art drew it, in art units.
+///
+/// The skull was centred at x 62 and the torso runs 50.5 to 65.5 — centre 58 —
+/// so the head sat four units forward of the body it is on. On a figure in
+/// three-quarter profile a little of that reads as the neck craning to look
+/// where he is going; four units of it reads as a head stuck on at the front.
+///
+/// **The whole head moves, not the skull.** Hair, beard, glasses and hat are all
+/// drawn in the art's own space against a skull at 62, so shifting the painted
+/// head alone would slide the face out from under its own hat. Applied to the
+/// group, which is why it is a `FractionalTranslation` around all of them rather
+/// than a number in [_HeadPainter].
+const double _headSetBack = 3;
 
 /// How far he sways, once a stride. A walk is not a figure on rails.
 const double _sway = 1.6;
@@ -396,11 +539,11 @@ class _ManagerWalkerState extends State<ManagerWalker>
         animation: _clock,
         builder: (context, _) {
           final t = _clock.value;
-          // Twice a stride, and eased — a vertical bounce should decelerate at
-          // the top, unlike the limbs.
-          final rise =
-              _bob *
-              math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
+          // The hips, and the same number the leg solver uses — see
+          // [walkerHipRise]. It is not decoration: the bob is what lets the foot
+          // reach the ends of the step, so the figure's rise and its stride are
+          // one calculation and cannot drift apart.
+          final rise = walkerHipRise(t);
 
           return Stack(
             fit: StackFit.expand,
@@ -459,9 +602,18 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // with the skull between them, which is what stops a mohawk's
                     // fin coming out of the face.
                     for (final svg in parts.overTorso) SvgArt(svg: svg),
-                    for (final svg in parts.behindHead) SvgArt(svg: svg),
-                    CustomPaint(painter: _HeadPainter(skin: parts.skin)),
-                    for (final svg in parts.overHead) SvgArt(svg: svg),
+                    // The head and everything it wears, as ONE group — see
+                    // [_headSetBack]. `FractionalTranslation` shifts by a
+                    // fraction of the CHILD's size, and each child fills the
+                    // walker's box, so an art-unit offset is that offset over
+                    // [walkerWidth] at any scale.
+                    for (final svg in parts.behindHead)
+                      _SetBack(child: SvgArt(svg: svg)),
+                    _SetBack(
+                      child: CustomPaint(painter: _HeadPainter(skin: parts.skin)),
+                    ),
+                    for (final svg in parts.overHead)
+                      _SetBack(child: SvgArt(svg: svg)),
                   ],
                 ),
               ),
@@ -471,6 +623,19 @@ class _ManagerWalkerState extends State<ManagerWalker>
       ),
     );
   }
+}
+
+/// One layer of the head, moved back over the body. See [_headSetBack].
+class _SetBack extends StatelessWidget {
+  const _SetBack({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => FractionalTranslation(
+    translation: const Offset(-_headSetBack / walkerWidth, 0),
+    child: child,
+  );
 }
 
 /// The parts one look draws, already recoloured and in layer order.
@@ -796,30 +961,105 @@ class _WalkerPainter extends CustomPainter {
   /// the figure had one leg-shaped stack with a second one hidden exactly
   /// behind it — which is why the far leg never looked attached to anything.
   /// They are 4 apart now, both well inside the shorts.
-  static const double _hipY = 95;
-  double _hipX(bool near) => near ? 60 : 56;
+  /// The shorts, in the art's own space.
+  ///
+  /// **Only the SEAT is drawn here.** The thighs below it are drawn in the
+  /// shorts' own colour, so the two capsules ARE the legs of the garment and
+  /// there is nothing for a separate hem to line up with. It was a full block
+  /// down to the knee, which is why it read as a brick with a radius on it: the
+  /// far leg swinging through left the seat's square bottom corner hanging in
+  /// the air behind him.
+  static const double _shortsLeft = 49.6;
+  static const double _shortsRight = 67;
+  static const double _shortsTop = 86;
+  static const double _shortsHem = 100;
+
+  /// The middle of the shorts, which is also where the hips are.
+  static const double _hipCentre = (_shortsLeft + _shortsRight) / 2;
+
+  /// Both hips, straddling that middle. They used to be 60 and 56 against a
+  /// garment centred on 58.25, so the pair of them sat forward of the body they
+  /// hang off.
+  double _hipX(bool near) => near ? _hipCentre + 2 : _hipCentre - 2;
+
+  /// A waistband, a seat that curves under, and no corners anywhere.
+  Path _shortsPath() => Path()
+    ..moveTo(_shortsLeft + 1.6, _shortsTop)
+    // The waistband, with a little rise over the seat.
+    ..quadraticBezierTo(
+      _hipCentre,
+      _shortsTop - 2.4,
+      _shortsRight - 1.6,
+      _shortsTop,
+    )
+    // Down the front and round under him — one curve each side, so the bottom
+    // of the garment is a belly rather than an edge.
+    ..quadraticBezierTo(
+      _shortsRight + 1.2,
+      _shortsTop + 7,
+      _shortsRight - 3.5,
+      _shortsHem,
+    )
+    ..quadraticBezierTo(
+      _hipCentre,
+      _shortsHem + 3.2,
+      _shortsLeft + 3.5,
+      _shortsHem,
+    )
+    ..quadraticBezierTo(
+      _shortsLeft - 1.2,
+      _shortsTop + 7,
+      _shortsLeft + 1.6,
+      _shortsTop,
+    )
+    ..close();
+
+  /// How far down the thigh the shorts reach, in art units.
+  static const double _shortsLeg = 13;
+
+  /// The shorts, and the legs of them over the thigh — a good deal darker
+  /// than the shirt. At 22% the shirt, the seat and both thighs were one red
+  /// mass from the collar to the knee, which is a romper suit and not a kit.
+  Color get _shortsColour => Color.lerp(kit, Colors.black, 0.36)!;
 
   void _leg(Canvas canvas, {required bool near}) {
-    final legs = near ? kit : _shade(kit);
+    final legs = near ? _shortsColour : _shade(_shortsColour);
     final flesh = near ? skin : _shade(skin);
     final boot = near ? const Color(0xFF141414) : const Color(0xFF0B0B0B);
-    final thigh = _sample(near ? _thighNear : _thighFar, t);
-    final shin = _sample(near ? _shinNear : _shinFar, t);
-    final ankle = _sample(near ? _ankleNear : _ankleFar, t);
 
+    // **SOLVED, not keyframed.** The ankle's path is the input and the joints
+    // come out of it — see [walkerAnkle] and [_solveLeg]. The far leg is the near
+    // one half a cycle on, which is the whole of what makes it a walk.
+    final phase = near ? t : (t + 0.5) % 1;
+    final target = walkerAnkle(phase);
+    // Both legs hang off the SAME hips, so the far leg's target is measured from
+    // its own socket while the body's rise is shared.
     final x = _hipX(near);
+    final solved = _solveLeg(target.x, target.y - _hipY);
+    // The boot's angle to the GROUND, less whatever the leg above it is doing —
+    // which is what leaves a foot flat on the grass rather than at a fraction of
+    // the shin's angle. See [_bootWorld].
+    final ankle = _sample(_bootWorld, phase) - solved.thigh - solved.shin;
+
     final hip = Offset(x, _hipY);
-    final knee = Offset(x, _hipY + 30);
-    final foot = Offset(x, _hipY + 54);
+    final knee = Offset(x, _hipY + walkerThigh);
+    final foot = Offset(x, _hipY + walkerThigh + walkerShin);
 
     // CAPSULES from the joint, not rectangles whose top edge happens to pass
     // through it. A rotated rectangle swings its own corners out of the socket,
     // which is what opened a wedge of background at the hip on every stride;
     // a round-capped stroke is a circle at the pivot however far it turns, so
     // the joint cannot come apart.
-    _about(canvas, hip, thigh, () {
-      canvas.drawLine(hip, knee, _limbPaint(legs, hip, knee, 10));
-      _about(canvas, knee, shin, () {
+    _about(canvas, hip, solved.thigh, () {
+      // A BARE thigh with a short leg of the shorts over it. The whole thigh
+      // used to be the garment's colour, which put a run of dark red from the
+      // waistband to the knee — long trousers cut off, not a kit. Shorts stop
+      // less than half way down the thigh, and it is that break which says
+      // "kit" rather than "outfit".
+      canvas.drawLine(hip, knee, _limbPaint(flesh, hip, knee, 9));
+      final hem = Offset(hip.dx, hip.dy + _shortsLeg);
+      canvas.drawLine(hip, hem, _limbPaint(legs, hip, hem, 11.5));
+      _about(canvas, knee, solved.shin, () {
         canvas.drawLine(knee, foot, _limbPaint(flesh, knee, foot, 8));
         _about(canvas, foot, ankle, () {
           // The boot runs FORWARD from the ankle, so the heel sits under the leg
@@ -881,17 +1121,26 @@ class _WalkerPainter extends CustomPainter {
   }
 
   void _body(Canvas canvas) {
-    // Shorts a shade darker than the shirt: one flat block from collar to knee
-    // read as a romper suit.
-    const shorts = Rect.fromLTWH(50, 88, 16.5, 17);
-    final shortsColour = Color.lerp(kit, Colors.black, 0.22)!;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(shorts, const Radius.circular(4)),
+    // **SHORTS, not a rounded block.** A rectangle with a 4px radius is what was
+    // there, and it read as exactly that — a brick between the shirt and the
+    // legs, with the legs coming out of its side. Shorts have a waist, a hem
+    // that flares, and a notch between the legs; three curves and it is a
+    // garment. The hem also has to be BELOW the hip pivot (see [_hipX]), or the
+    // thigh appears to grow out of the middle of the block.
+    final shortsColour = _shortsColour;
+    canvas.drawPath(
+      _shortsPath(),
       Paint()
-        ..shader = ui.Gradient.linear(shorts.topLeft, shorts.bottomRight, [
-          _lift(shortsColour, 0.1),
-          Color.lerp(shortsColour, Colors.black, 0.2)!,
-        ]),
+        ..shader = ui.Gradient.linear(
+          const Offset(_shortsLeft, _shortsTop),
+          const Offset(_shortsRight, _shortsHem),
+          [
+            _lift(shortsColour, 0.12),
+            shortsColour,
+            Color.lerp(shortsColour, Colors.black, 0.22)!,
+          ],
+          [0, 0.5, 1],
+        ),
     );
 
     const shirt = Rect.fromLTWH(50.5, 58, 15, 32);

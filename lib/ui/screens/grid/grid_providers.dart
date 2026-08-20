@@ -201,12 +201,22 @@ final proModeProvider = savePick<bool>(isProMode);
 /// A LOAN-BLOCKED card in hand has no targets at all, which greys the whole grid
 /// out — deliberately. Dropping it still swaps; the point is that the grid stops
 /// offering a merge before the player lets go of it.
+///
+/// **The DIVISION's ceiling counts too.** `mergesInto` only says the card has a
+/// next tier at all; whether this division allows it is `maxPlayerTier`, which
+/// `attemptMerge` checks and refuses with `division_locked`. Without it here, a
+/// pair the league will not let you make wore the gold ring and lit up as a drop
+/// target — the grid promised a merge and then turned it down.
 Set<int> mergeTargetsFor(Map<String, dynamic>? state, int from) {
   final cells = gridCells(state);
   if (from < 0 || from >= cells.length) return const {};
   final source = CardInstance.from(cells[from]);
   if (source == null || loanBlock(source) != null) return const {};
   final sourceFemale = isVariantFemale(source.variant);
+  final divisionId = _map(state?['progression'])?['currentDivision'] as String?;
+  final maxTier = getDivision(
+    divisionId ?? divisions.first.id,
+  ).maxPlayerTier;
 
   final out = <int>{};
   for (var i = 0; i < cells.length; i++) {
@@ -214,7 +224,9 @@ Set<int> mergeTargetsFor(Map<String, dynamic>? state, int from) {
     final c = CardInstance.from(cells[i]);
     if (c == null || loanBlock(c) != null) continue;
     if (c.definitionId != source.definitionId) continue;
-    if (getPlayerDef(c.definitionId)?.mergesInto == null) continue;
+    final into = getPlayerDef(c.definitionId)?.mergesInto;
+    if (into == null) continue;
+    if ((getPlayerDef(into)?.tier ?? 0) > maxTier) continue;
     if (isVariantFemale(c.variant) != sourceFemale) continue;
     out.add(i);
   }

@@ -17,7 +17,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
-import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -73,28 +72,11 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
       }
     }
 
-    // What he would actually play. The engine scores every strategy on expected
-    // points MINUS what its injury exposure is worth to this squad, which is
-    // the whole reason he is worth listening to over a rating comparison.
-    final suggestion = suggestTactic(
-      preview.effAttack,
-      preview.effDefence,
-      preview.effOppAttackRating ?? preview.effAttack,
-      preview.effOppDefenceRating ?? preview.effDefence,
-      oppAttackRatio: preview.oppAttackRatio,
-    );
-    // `strategyId`, not `strategy`. Read under the wrong key it never matched
-    // anything, so Colin suggested a tactic even when it was the one already
-    // set — advice that agreed with you and looked like it had not noticed.
-    final current = '${_map(s['squad'])?['strategyId'] ?? ''}';
-    if (suggestion.id != current) {
-      tips.add((
-        id: 'tactic_${suggestion.id}',
-        text: t('coach.tactic_suggest', {
-          'tactic': strategies[suggestion.id]?.name ?? suggestion.id,
-        }),
-      ));
-    }
+    // **WHAT HE WOULD PLAY IS NOT A TIP.** The bubble's own header already
+    // reads `COACH COLIN SUGGESTS <TACTIC>` — see [_CoachLabel], which asks
+    // [coachSuggestedTacticProvider] the same question — so a tip carrying that
+    // sentence put the identical advice in one window twice. The pool is for
+    // the things the header cannot say.
   }
 
   if (tips.isEmpty) {
@@ -378,7 +360,10 @@ class _CoachLabel extends ConsumerWidget {
         ),
         if (suggested != null) ...[
           Text(
-            t('coach.suggestion_label'),
+            // CAPS, like the two words either side of it. One line reading
+            // `COACH COLIN Suggestion: Counter Attack` is three different
+            // treatments of one sentence.
+            t('coach.suggestion_label').toUpperCase(),
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w700,
@@ -396,7 +381,7 @@ class _CoachLabel extends ConsumerWidget {
               ),
               const SizedBox(width: 3),
               Text(
-                t('strategy.$suggested.name'),
+                t('strategy.$suggested.name').toUpperCase(),
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,

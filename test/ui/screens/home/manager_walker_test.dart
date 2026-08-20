@@ -6,6 +6,7 @@
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -216,6 +217,84 @@ void main() {
       expect(find.byKey(const ValueKey('manager-walker')), findsOneWidget);
       // Leave him mid-stride: the clock is a repeating controller and the test
       // binding tears it down with the tree.
+    });
+  });
+
+  group('the walk does not skate', () {
+    // The ground moves at one speed (see `groundSpeedPxPerSec`), so the planted
+    // foot has to. It did not: the keyframed rig moved the foot BACKWARDS over
+    // the first 6% of the step and then 8% slow, 8% fast through the rest of it.
+    // The foot's path is the input now and the joints are solved from it.
+
+    test('the planted foot travels at a CONSTANT rate through its stance', () {
+      final steps = [
+        for (var i = 1; i <= 20; i++)
+          walkerFootX(0.5 * i / 20) - walkerFootX(0.5 * (i - 1) / 20),
+      ];
+      final lo = steps.reduce(math.min);
+      final hi = steps.reduce(math.max);
+      expect((hi - lo).abs(), lessThan(1e-9));
+      // And backwards, against a ground travelling forwards.
+      expect(hi, lessThan(0));
+    });
+
+    test('and it covers exactly the stride the ground is timed off', () {
+      expect(
+        (walkerFootX(0.5) - walkerFootX(0)).abs(),
+        closeTo(walkerStrideArtUnits, 1e-9),
+      );
+    });
+
+    test('the planted BOOT stays on the ground, at one height', () {
+      // The whole figure rises and falls, and the foot ROLLS — heel first, flat,
+      // then up onto the toe — so it is the sole that has to hold its height,
+      // not the ankle. Pinning the ankle instead drove thirty degrees of toe
+      // into the turf at push-off and left the heel planted through it.
+      final heights = [
+        for (var i = 0; i <= 20; i++)
+          walkerBootSoleY(0.5 * i / 20) - walkerHipRise(0.5 * i / 20),
+      ];
+      expect(
+        heights.reduce(math.max) - heights.reduce(math.min),
+        lessThan(0.01),
+      );
+    });
+
+    test('and the ankle lifts as he rolls onto his toe', () {
+      // The heel coming off the grass is most of what reads as a push rather
+      // than a slide.
+      expect(walkerAnkle(0.5).y, lessThan(walkerAnkle(0.2).y - 3));
+    });
+
+    test('and it LIFTS while it swings — it does not drag through', () {
+      final ground = walkerAnkle(0).y - walkerHipRise(0);
+      final mid = walkerAnkle(0.75).y - walkerHipRise(0.75);
+      expect(mid, lessThan(ground - 6), reason: 'clear of the grass');
+    });
+
+    test('the path closes, so the loop cannot jolt', () {
+      expect(walkerAnkle(0).x, closeTo(walkerAnkle(0.999999).x, 1e-3));
+      expect(walkerAnkle(0).y, closeTo(walkerAnkle(0.999999).y, 1e-3));
+      // The far leg is exactly half a cycle behind the near one.
+      expect(walkerFootX(0.25 + 0.5), closeTo(walkerFootX(0.75), 1e-9));
+    });
+
+    test('the knee NEVER locks straight', () {
+      // A leg at full extension reads as rigid for an instant at foot-down, and
+      // that instant is the thing you notice. Held back by `_kneeLock`.
+      for (var i = 0; i <= 200; i++) {
+        final t = i / 200;
+        final target = walkerAnkle(t);
+        final reach = math.sqrt(
+          target.x * target.x +
+              (target.y - 95) * (target.y - 95),
+        );
+        expect(
+          reach,
+          lessThan(walkerThigh + walkerShin - 1),
+          reason: 'straight-legged at t=$t',
+        );
+      }
     });
   });
 }

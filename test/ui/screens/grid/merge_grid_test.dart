@@ -909,6 +909,26 @@ void main() {
       expect(mergeTargetsFor(container.read(gameProvider).state, 0), isEmpty);
     });
 
+    testWidgets('and a pair the DIVISION will not allow is not a target', (
+      tester,
+    ) async {
+      // Sunday League caps players at tier 2, so two tier-2s have nowhere to go
+      // in it: `attemptMerge` refuses them with `division_locked`. They wore the
+      // gold ring and lit up as a drop target anyway — the grid offered a merge
+      // and the engine then turned it down.
+      final tierTwo = players.firstWhere((p) => p.tier == 2).id;
+      final container = await pumpGrid(
+        tester,
+        cards: {
+          0: _card(tierTwo, 'a', variant: _maleVariant),
+          1: _card(tierTwo, 'b', variant: _maleVariant),
+        },
+      );
+      expect(mergeTargetsFor(container.read(gameProvider).state, 0), isEmpty);
+      // And the ring is off with it.
+      expect(container.read(mergeableCellsProvider), isEmpty);
+    });
+
     testWidgets('and a loaned card is never a target either', (tester) async {
       final container = await pumpGrid(
         tester,
