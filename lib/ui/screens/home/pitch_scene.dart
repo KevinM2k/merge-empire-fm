@@ -75,6 +75,10 @@ const double farSegmentWidth = 480;
 /// The ad boards on the horizon.
 const double hoardingHeight = 13;
 
+/// One hoarding loop. Its own width, because the panels are drawn to a rhythm
+/// that has nothing to do with the turf's segment.
+const double hoardingSegmentWidth = 240;
+
 /// The mowing fan — the mown stripes, in PERSPECTIVE.
 ///
 /// The port had them as flat parallel lanes on a scrolling strip, and both
@@ -240,8 +244,17 @@ class PitchScene extends StatelessWidget {
                   child: _StandSegment(kitColor: kitColor),
                 ),
               ),
-              // The hoardings run at ~40px/s, which is the turf just short of the
-              // horizon — they sit on it, so they have to travel with it.
+              // **At the speed of the ground they STAND on.** They were pinned
+              // to 2.1× the grass period against a 240px segment, which works
+              // out at nearly four times slower than the turf at his feet and
+              // two and a half times slower than the farthest tuft band — the
+              // ground the boards are actually planted in. So the pitch swept
+              // past and the advertising crawled, which is the one thing on a
+              // parallax scene the eye cannot forgive.
+              //
+              // Derived the same way the tufts are — segment over speed, scaled
+              // by the depth band — so the boards and the grass at their feet
+              // can only ever agree.
               Positioned(
                 left: 0,
                 right: 0,
@@ -249,10 +262,14 @@ class PitchScene extends StatelessWidget {
                 height: hoardingHeight,
                 child: _Scroller(
                   duration: Duration(
-                    microseconds: (grassDuration(mood).inMicroseconds * 2.1)
-                        .round(),
+                    microseconds:
+                        (hoardingSegmentWidth *
+                                tuftBandRatios.last /
+                                groundSpeedPxPerSec(mood) *
+                                1e6)
+                            .round(),
                   ),
-                  segmentWidth: 240,
+                  segmentWidth: hoardingSegmentWidth,
                   child: _HoardingSegment(kitColor: kitColor),
                 ),
               ),

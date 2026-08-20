@@ -77,7 +77,27 @@ const double walkerShin = 27;
 /// wrong and he moonwalks — forwards if the ground is slow, backwards if it is
 /// fast — and no amount of looking at the walk cycle will show you which,
 /// because the walk cycle is not what is wrong.
-final double walkerStrideArtUnits = _footX(0.5) - _footX(0);
+final double walkerStrideArtUnits = _measureStride();
+
+/// The foot's full travel, measured across the WHOLE cycle.
+///
+/// It had been `_footX(0.5) - _footX(0)`, which assumes the foot is at its front
+/// and back extremes exactly at those two instants. It is not: the knee's own
+/// curve moves the turning points off the halves, so the figure was short — and a
+/// stride the ground is matched against being short is a moonwalk, by exactly the
+/// amount it is out. Sampled instead, so the number is what the rig actually
+/// does rather than where its extremes were assumed to be.
+double _measureStride() {
+  var lo = double.infinity;
+  var hi = double.negativeInfinity;
+  const steps = 360;
+  for (var i = 0; i < steps; i++) {
+    final x = _footX(i / steps);
+    if (x < lo) lo = x;
+    if (x > hi) hi = x;
+  }
+  return hi - lo;
+}
 
 double _footX(double t) {
   final thigh = _deg(_sample(_thighNear, t));

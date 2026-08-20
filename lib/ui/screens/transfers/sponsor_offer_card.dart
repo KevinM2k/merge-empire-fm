@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
@@ -38,12 +39,17 @@ Future<bool> showSponsorOffer(
   required CardInstance player,
   required Company company,
 }) async {
-  final accepted = await showDialog<bool>(
+  bool? accepted;
+  await showDialog<void>(
     context: context,
     // No parking, and no accidental dismissal: both answers have consequences
     // and neither of them is "nothing happened".
     barrierDismissible: false,
-    builder: (_) => _SponsorOfferCard(player: player, company: company),
+    builder: (_) => _SponsorOfferCard(
+      player: player,
+      company: company,
+      onAnswer: (yes) => accepted = yes,
+    ),
   );
 
   final game = ref.read(gameProvider);
@@ -64,10 +70,18 @@ Future<bool> showSponsorOffer(
 }
 
 class _SponsorOfferCard extends StatelessWidget {
-  const _SponsorOfferCard({required this.player, required this.company});
+  const _SponsorOfferCard({
+    required this.player,
+    required this.company,
+    required this.onAnswer,
+  });
 
   final CardInstance player;
   final Company company;
+
+  /// `CoachAction` closes the card itself, so the answer comes back this way
+  /// rather than as the dialog's result.
+  final void Function(bool accepted) onAnswer;
 
   @override
   Widget build(BuildContext context) {
@@ -76,94 +90,89 @@ class _SponsorOfferCard extends StatelessWidget {
     final drawback = company.drawback;
     final boostPct = ((company.mult - 1) * 100).round();
 
-    return AlertDialog(
+    return CoachCardFrame(
       key: const ValueKey('sponsor-offer'),
-      backgroundColor: kit.surface,
-      title: Column(
+      title: t('sponsor.title', {'company': company.name}),
+      // Colin putting the offer to us, not a modal announcing it. His head is on
+      // the frame; the company's logo goes with its own terms, where it belongs.
+      body: t('sponsor.want_to_sponsor', {
+        'player': player.name(def?.name ?? ''),
+      }),
+      // Red for no, green for yes — in a line and the same width, because they
+      // are two answers to one question.
+      actions: [
+        CoachAction(
+          labelKey: 'common.decline',
+          tone: CoachTone.decline,
+          onTap: () => onAnswer(false),
+        ),
+        CoachAction(
+          labelKey: 'common.accept',
+          tone: CoachTone.confirm,
+          onTap: () => onAnswer(true),
+        ),
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(company.icon, style: const TextStyle(fontSize: 30)),
-          const SizedBox(height: 6),
+          if (def != null)
+            SizedBox(
+              height: 96,
+              child: ArtImage(
+                path: playerImagePath(def.position, def.tier, player.variant),
+                fit: BoxFit.contain,
+                fallback: PlayerPortrait(
+                  variantIndex: player.variant,
+                  kitColor: kit.accent,
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(company.icon, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 6),
+              Text(
+                company.name,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _Term(label: t('sponsor.income_boost', {'n': boostPct}), good: true),
+          if (drawback.isClean)
+            _Term(label: t('sponsor.no_catch'), good: true)
+          else ...[
+            if (drawback.ratingPenalty > 0)
+              _Term(
+                label: t('sponsor.cost_rating', {'n': drawback.ratingPenalty}),
+                good: false,
+              ),
+            if (drawback.injuryPenalty > 0)
+              _Term(
+                label: t('sponsor.cost_injury', {
+                  'n': (drawback.injuryPenalty * 100).round(),
+                }),
+                good: false,
+              ),
+            if (drawback.formPenalty > 0)
+              _Term(
+                label: t('sponsor.cost_form', {'n': drawback.formPenalty}),
+                good: false,
+              ),
+          ],
+          const SizedBox(height: 8),
           Text(
-            t('sponsor.title', {'company': company.name}),
+            drawback.msg,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 12, height: 1.5, color: kit.textMuted),
           ),
         ],
       ),
-      content: SizedBox(
-        width: 320,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (def != null)
-              SizedBox(
-                height: 100,
-                child: ArtImage(
-                  path: playerImagePath(def.position, def.tier, player.variant),
-                  fit: BoxFit.contain,
-                  fallback: PlayerPortrait(
-                    variantIndex: player.variant,
-                    kitColor: kit.accent,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 10),
-            Text(
-              t('sponsor.want_to_sponsor', {
-                'player': player.name(def?.name ?? ''),
-              }),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            _Term(
-              label: t('sponsor.income_boost', {'n': boostPct}),
-              good: true,
-            ),
-            if (drawback.isClean)
-              _Term(label: t('sponsor.no_catch'), good: true)
-            else ...[
-              if (drawback.ratingPenalty > 0)
-                _Term(
-                  label: t('sponsor.cost_rating', {
-                    'n': drawback.ratingPenalty,
-                  }),
-                  good: false,
-                ),
-              if (drawback.injuryPenalty > 0)
-                _Term(
-                  label: t('sponsor.cost_injury', {
-                    'n': (drawback.injuryPenalty * 100).round(),
-                  }),
-                  good: false,
-                ),
-              if (drawback.formPenalty > 0)
-                _Term(
-                  label: t('sponsor.cost_form', {'n': drawback.formPenalty}),
-                  good: false,
-                ),
-            ],
-            const SizedBox(height: 10),
-            Text(
-              drawback.msg,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, height: 1.5, color: kit.textMuted),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        OutlinedButton(
-          key: const ValueKey('sponsor-decline'),
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(t('common.decline')),
-        ),
-        ElevatedButton(
-          key: const ValueKey('sponsor-accept'),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(t('common.accept')),
-        ),
-      ],
     );
   }
 }

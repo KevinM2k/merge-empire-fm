@@ -774,8 +774,6 @@ void main() {
       );
       dropOn(tester, 0, 1);
       await tester.pump();
-      // The two cards go together first; the burst starts when the flight lands.
-      await tester.pump(const Duration(milliseconds: 320));
       final card = find.byType(PlayerCard);
       final rest = tester.getRect(card);
 
@@ -814,7 +812,6 @@ void main() {
       );
       dropOn(tester, 0, 1);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 320));
 
       int filters() => tester
           .widgetList(
@@ -1143,16 +1140,13 @@ void main() {
     });
   });
 
-  group('the two cards go together', () {
-    testWidgets('a merge flies the card into the one it merges with', (
+  group('a merge is the payoff, not a journey', () {
+    testWidgets('the card the player dragged does NOT fly again', (
       tester,
     ) async {
-      // The port applied the merge and burst on the spot, so a pair vanished and
-      // a new card appeared with nothing joining the two events — the move read
-      // as a glitch. It has to travel.
-      //
-      // Pumped WITHOUT reduce-motion, because the flight is the thing under test
-      // and reduce-motion skips it by design.
+      // A ghost travelling into the target was put in to join the two events. It
+      // does — but only if you did not watch it happen, and the only way to reach
+      // a merge is to drag one card onto the other. What joins them is the burst.
       final container = await pumpGridAnimated(
         tester,
         cards: {
@@ -1162,40 +1156,58 @@ void main() {
       );
       dropOn(tester, 0, 1);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 120));
-
-      expect(
-        find.byKey(const ValueKey('grid-flying-card')),
-        findsOneWidget,
-        reason: 'nothing travelled between the two cells',
-      );
-
-      // And it is gone once it lands, so the burst fires on a clear cell.
-      await tester.pump(const Duration(milliseconds: 400));
       expect(find.byKey(const ValueKey('grid-flying-card')), findsNothing);
-      // Driven, not settled: this harness runs WITH animations, and the grid
-      // now carries a looping income bar on every card — a loop never settles,
-      // which is the whole reason every other harness declares reduce-motion.
-      await tester.pump(const Duration(milliseconds: 600));
+      // And the celebration is already running on the frame the merge landed.
+      expect(
+        tester
+            .stateList<MergeBurstState>(find.byType(MergeBurst))
+            .where((b) => b.isPlaying),
+        isNotEmpty,
+        reason: 'no waiting for a flight to finish first',
+      );
+      await tester.pump(mergeBurstDuration);
       await settleSave(tester);
       expect(filledCells(container), 1);
     });
 
-    testWidgets('and reduce-motion merges without the flight', (tester) async {
-      // The RESULT is not decoration, so it still happens — only the travel goes.
-      final container = await pumpGrid(
+    testWidgets('a SWAP moves the displaced card, not the dragged one', (
+      tester,
+    ) async {
+      // The one the player carried is where they put it. The other was displaced
+      // by a move it had no part in, so it has to be seen going.
+      await pumpGridAnimated(
         tester,
         cards: {
           0: _card(_baseDefId, 'a', variant: _maleVariant),
-          1: _card(_baseDefId, 'b', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _femaleVariant),
         },
       );
+      final draggedAt = tester.getRect(
+        find.byKey(const ValueKey('grid-card-a')),
+      );
+      final displacedAt = tester.getRect(
+        find.byKey(const ValueKey('grid-card-b')),
+      );
       dropOn(tester, 0, 1);
-      await tester.pumpAndSettle();
-      await settleSave(tester);
+      await tester.pump();
 
-      expect(find.byKey(const ValueKey('grid-flying-card')), findsNothing);
-      expect(filledCells(container), 1);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('grid-card-a'))),
+        displacedAt,
+        reason: 'the dragged card is simply there',
+      );
+      expect(
+        tester.getRect(find.byKey(const ValueKey('grid-card-b'))),
+        displacedAt,
+        reason: 'and the displaced one has not jumped — it is still setting off',
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        tester.getRect(find.byKey(const ValueKey('grid-card-b'))),
+        draggedAt,
+        reason: 'and arrives where the dragged card came from',
+      );
+      await settleSave(tester);
     });
   });
 }

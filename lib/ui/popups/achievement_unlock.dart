@@ -365,7 +365,7 @@ class _Words extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       Text(
-        '🏆 ${t('ach.unlocked')}',
+        '🏆 ${t('ach.unlocked').toUpperCase()}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(

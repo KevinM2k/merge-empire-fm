@@ -685,6 +685,17 @@ because most of these are two or three to a file.
 
 ### The manager, and the customiser
 
+- [x] **The moonwalk was a mis-MEASURED stride.** `walkerStrideArtUnits` was
+      `_footX(0.5) - _footX(0)`, which assumes the foot is at its front and back
+      extremes exactly on the halves of the cycle. The knee's own curve moves
+      those turning points off the halves, so the figure was short — and the
+      ground is matched against it, so he skated by exactly the amount it was
+      out. Sampled across the whole cycle now.
+- [x] **The advertising hoardings ran nearly four times too slow.** They were
+      pinned to 2.1× the grass period against a 240px segment, where the ground
+      they are planted in runs at the farthest tuft band's ratio — so the pitch
+      swept past and the boards crawled. Derived the same way the tufts are, so
+      the boards and the grass at their feet can only ever agree.
 - [ ] **The walking rig floats above its shadow again.**
 - [ ] **Body shape does nothing**, and the tracksuit renders as something like a
       necklace. `../merge-empire-fc` is nearly right; this should be better.
@@ -725,8 +736,14 @@ because most of these are two or three to a file.
       day pays and then tick it off.
 - [ ] **The scout voucher shelf is wrong** — see how `../merge-empire-fc` does
       it.
-- [ ] **The sponsor window is poor**: it wants Coach Colin's picture at the top
-      and its buttons in a line.
+- [x] **Every decision comes through Coach Colin now.** His card is the shape:
+      his portrait floating ON the top border rather than an avatar in a title
+      row, `COACH COLIN` under it, what he says shown immediately — these are
+      decisions, often on a clock — and the answers COLOURED, green for yes and
+      red for no, in a line and the same width. `CoachCardFrame` is the chrome on
+      its own, so a card with real content (a sponsor's terms, a player's
+      portrait) uses his frame rather than inventing one. The sponsor offer had a
+      company logo where his head goes and two uncoloured buttons at the bottom.
 
 ---
 

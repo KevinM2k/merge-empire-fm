@@ -164,7 +164,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           CoachAction(labelKey: 'common.cancel', onTap: () {}),
           CoachAction(
             labelKey: 'reset.confirm',
-            destructive: true,
+            tone: CoachTone.decline,
             onTap: () {},
           ),
         ],
@@ -182,7 +182,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           CoachAction(labelKey: 'common.cancel', onTap: () {}),
           CoachAction(
             labelKey: 'fullReset.confirm',
-            destructive: true,
+            tone: CoachTone.decline,
             onTap: () {},
           ),
         ],

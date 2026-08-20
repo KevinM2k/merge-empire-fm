@@ -35,9 +35,14 @@ Future<bool> showCupSponsorOffer(
       (key: 'cup.win_reward.duration', params: const {}, strong: false),
     ],
     actions: [
-      CoachAction(labelKey: 'common.decline', onTap: () {}),
+      CoachAction(
+        labelKey: 'common.decline',
+        tone: CoachTone.decline,
+        onTap: () {},
+      ),
       CoachAction(
         labelKey: 'common.accept',
+        tone: CoachTone.confirm,
         onTap: () {
           accepted = ref
               .read(gameProvider)
