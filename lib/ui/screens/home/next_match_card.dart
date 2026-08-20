@@ -120,14 +120,14 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
       (
         icon: 'home',
         amount: preview.ourHomeAdv,
-        colour: const Color(0xFF4ADE80),
+        tone: StatTone.good,
         tip: t('play.mod.home_ours'),
       ),
     if (preview.playerInRelegationZone)
       (
         icon: 'bolt',
         amount: _relegationBoost,
-        colour: const Color(0xFFFF9800),
+        tone: StatTone.warn,
         tip: t('play.mod.battle_ours'),
       ),
   ];
@@ -136,21 +136,21 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
       (
         icon: 'home',
         amount: preview.theirHomeAdv,
-        colour: const Color(0xFF4ADE80),
+        tone: StatTone.bad,
         tip: t('play.mod.home_theirs'),
       ),
     if (preview.grudgeBoost > 0)
       (
         icon: 'flame',
         amount: preview.grudgeBoost.round(),
-        colour: vsRed,
+        tone: StatTone.bad,
         tip: t('play.mod.grudge'),
       ),
     if (preview.oppInRelegationZone)
       (
         icon: 'bolt',
         amount: _relegationBoost,
-        colour: const Color(0xFFF44336),
+        tone: StatTone.bad,
         tip: t('play.mod.battle_theirs'),
       ),
   ];
@@ -233,7 +233,6 @@ class NextMatchCard extends ConsumerWidget {
   }
 
   Widget _body(BuildContext context, WidgetRef ref, NextMatch match) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -258,7 +257,7 @@ class NextMatchCard extends ConsumerWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w900,
-              color: kit.textMuted,
+              color: glassMuted(context),
             ),
           ),
         ),
@@ -405,7 +404,7 @@ class _PosChip extends StatelessWidget {
               child: GameIcon(
                 'chevrons',
                 size: 11,
-                color: delta > 0 ? const Color(0xFF4ADE80) : vsRed,
+                color: delta > 0 ? vsGreenOn(context) : vsRedOn(context),
               ),
             ),
           ],
@@ -450,7 +449,7 @@ class _Name extends StatelessWidget {
             note!,
             key: const ValueKey('nm-bonus-note'),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 9, color: kit.textMuted),
+            style: TextStyle(fontSize: 9, color: glassMuted(context)),
           ),
       ],
     );
@@ -475,7 +474,6 @@ class _TacticChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final id = ref.watch(strategyIdProvider);
     final hue = tacticColor(context, id);
     const style = TextStyle(
@@ -499,7 +497,7 @@ class _TacticChip extends ConsumerWidget {
             // vertical room, is the easiest row on it to give back.
             Text(
               t('play.tactic_label').toUpperCase(),
-              style: style.copyWith(color: kit.textMuted),
+              style: style.copyWith(color: glassMuted(context)),
             ),
             const SizedBox(width: 6),
             Text(
@@ -507,7 +505,7 @@ class _TacticChip extends ConsumerWidget {
               style: style.copyWith(color: hue, fontWeight: FontWeight.w900),
             ),
             const SizedBox(width: 3),
-            Icon(Icons.chevron_right, size: 14, color: kit.textMuted),
+            Icon(Icons.chevron_right, size: 14, color: glassMuted(context)),
           ],
         ),
       ),

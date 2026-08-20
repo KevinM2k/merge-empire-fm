@@ -181,17 +181,45 @@ void main() {
       }
     });
 
-    testWidgets('and no DefaultTextStyle is forced over the child', (
+    testWidgets('and the pane publishes that ink to its subtree', (
       tester,
     ) async {
+      // A pane is a SURFACE, and a surface owes its subtree an ink — nothing
+      // inside one should have to know it is on one. What went wrong before was
+      // pushing a whole flipped THEME in, which is a different thing: a theme
+      // carries a palette, a page colour and a hundred component defaults, none
+      // of which a pane has any business changing.
+      for (final brightness in Brightness.values) {
+        late TextStyle inside;
+        await pumpPanel(
+          tester,
+          brightness: brightness,
+          child: Builder(
+            builder: (context) {
+              inside = DefaultTextStyle.of(context).style;
+              return const SizedBox(width: 80, height: 40);
+            },
+          ),
+        );
+        expect(inside.color, glassText(tester.element(find.byType(GlassPanel))));
+      }
+    });
+
+    testWidgets('and the ink is NOT the app\'s own near-black', (tester) async {
+      // `onSurface` is a black with a green cast, chosen for a white page. On a
+      // pane floating over a blue sky it reads hard and slightly bilious.
       await pumpPanel(tester, brightness: Brightness.light);
+      final context = tester.element(find.byType(GlassPanel));
       expect(
-        find.descendant(
-          of: find.byType(GlassPanel),
-          matching: find.byType(DefaultTextStyle),
-        ),
-        findsNothing,
+        glassText(context),
+        isNot(Theme.of(context).colorScheme.onSurface),
       );
+      // And it gives up nothing: still darker than the muted ink beside it, and
+      // still very dark.
+      final ink = glassText(context);
+      final muted = glassMuted(context);
+      expect(ink.a, greaterThan(muted.a));
+      expect(0.2126 * ink.r + 0.7152 * ink.g + 0.0722 * ink.b, lessThan(0.2));
     });
   });
 }

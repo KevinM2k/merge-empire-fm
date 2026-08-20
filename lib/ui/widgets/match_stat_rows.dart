@@ -30,7 +30,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// The card's geometry. Every row keys off the same gutter, which is what makes
@@ -43,23 +42,71 @@ const double _statClear = 8;
 
 /// Deeper and more saturated than a plain red: this is 10px type on mid-tone
 /// glass, where `#f87171` went milky. Shared with the grudge chip beside it.
-const Color vsRed = Color(0xFFFF6B70);
-const Color _vsGreen = Color(0xFF4ADE80);
-const Color _vsLevel = Color(0xFF60A5FA);
+/// The three verdict hues, per pane.
+///
+/// **THEY HAVE TO INVERT WITH THE SURFACE.** These were one fixed set, picked for
+/// dark glass: `#4ADE80` mint, `#FF6B70` coral, `#60A5FA` sky — all three
+/// deliberately LIGHT, which is what makes them read on a near-black pane and
+/// what makes them vanish on a bright one. A `+1` in mint on a daylit pane is
+/// invisible, and it was.
+///
+/// Same hue, opposite lightness. The signal is the hue and it survives the flip;
+/// the lightness is about the surface and nothing else.
+const Color _vsRedDark = Color(0xFFFF6B70);
+const Color _vsGreenDark = Color(0xFF4ADE80);
+const Color _vsLevelDark = Color(0xFF60A5FA);
+
+const Color _vsRedLight = Color(0xFFC62828);
+const Color _vsGreenLight = Color(0xFF15803D);
+const Color _vsLevelLight = Color(0xFF1D4ED8);
+
+bool _dark(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark;
+
+Color vsRedOn(BuildContext context) =>
+    _dark(context) ? _vsRedDark : _vsRedLight;
+Color vsGreenOn(BuildContext context) =>
+    _dark(context) ? _vsGreenDark : _vsGreenLight;
+Color vsAmberOn(BuildContext context) =>
+    _dark(context) ? const Color(0xFFFF9800) : const Color(0xFFB45309);
 
 /// Green when this figure beats the one it faces, red when it loses, blue level.
-Color vsColor(int mine, int opp) => mine > opp
-    ? _vsGreen
-    : mine < opp
-    ? vsRed
-    : _vsLevel;
+Color vsColor(BuildContext context, int mine, int opp) {
+  final dark = _dark(context);
+  if (mine > opp) return dark ? _vsGreenDark : _vsGreenLight;
+  if (mine < opp) return dark ? _vsRedDark : _vsRedLight;
+  return dark ? _vsLevelDark : _vsLevelLight;
+}
 
 /// One side's ATK and DEF, already through `fifaSplit`.
 typedef StatSide = ({int atk, int def});
 
-/// One modifier hanging off a rating: a glyph, a signed number and the sentence
-/// that explains it.
-typedef StatMod = ({String icon, int amount, Color colour, String tip});
+/// What a modifier MEANS, rather than what colour it is.
+///
+/// A `Color` here was the bug: the modifiers are built in a provider, which has
+/// no `BuildContext` and so no idea which pane they are about to be drawn on — so
+/// every one of them was a fixed light hue for dark glass and disappeared in
+/// daylight. The tone travels; the colour is resolved where it is painted.
+enum StatTone {
+  /// In our favour.
+  good,
+
+  /// Against us.
+  bad,
+
+  /// Neither, but worth noticing — a relegation scrap.
+  warn,
+}
+
+Color statToneColor(BuildContext context, StatTone tone) => switch (tone) {
+  StatTone.good => vsGreenOn(context),
+  StatTone.bad => vsRedOn(context),
+  StatTone.warn => vsAmberOn(context),
+};
+
+/// One modifier hanging off a rating: a glyph, a signed number, what it means,
+/// and the sentence that explains it.
+typedef StatMod = ({String icon, int amount, StatTone tone, String tip});
 
 class MatchStatRows extends StatelessWidget {
   const MatchStatRows({
@@ -181,16 +228,16 @@ class _StatWell extends StatelessWidget {
             leftValue: left.atk,
             rightValue: right.atk,
             // Cross-stat: attack is judged against the defence it faces.
-            leftColour: vsColor(left.atk, right.def),
-            rightColour: vsColor(right.atk, left.def),
+            leftColour: vsColor(context, left.atk, right.def),
+            rightColour: vsColor(context, right.atk, left.def),
           ),
           const SizedBox(height: 5),
           _StatRow(
             label: 'DEF',
             leftValue: left.def,
             rightValue: right.def,
-            leftColour: vsColor(left.def, right.atk),
-            rightColour: vsColor(right.def, left.atk),
+            leftColour: vsColor(context, left.def, right.atk),
+            rightColour: vsColor(context, right.def, left.atk),
           ),
         ],
       ),
@@ -215,7 +262,6 @@ class _StatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     return Row(
       children: [
         Expanded(
@@ -240,14 +286,7 @@ class _StatRow extends StatelessWidget {
               fontSize: 9.5,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.8,
-              color: kit.textMuted,
-              shadows: const [
-                Shadow(
-                  color: Color(0x8C000000),
-                  offset: Offset(0, 1),
-                  blurRadius: 2,
-                ),
-              ],
+              color: glassMuted(context),
             ),
           ),
         ),
@@ -292,13 +331,6 @@ class _Side extends StatelessWidget {
           height: 1,
           fontWeight: FontWeight.w900,
           color: colour,
-          shadows: const [
-            Shadow(
-              color: Color(0x8C000000),
-              offset: Offset(0, 1),
-              blurRadius: 2,
-            ),
-          ],
         ),
       ),
     );
@@ -452,22 +484,15 @@ class _Mod extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          GameIcon(mod.icon, size: 9, color: mod.colour),
+          GameIcon(mod.icon, size: 9, color: statToneColor(context, mod.tone)),
           Text(
             '+${mod.amount}',
             style: TextStyle(
               fontSize: 9.5,
               height: 1,
               fontWeight: FontWeight.w900,
-              color: mod.colour,
+              color: statToneColor(context, mod.tone),
               fontFeatures: const [FontFeature.tabularFigures()],
-              shadows: const [
-                Shadow(
-                  color: Color(0x99000000),
-                  offset: Offset(0, 1),
-                  blurRadius: 2,
-                ),
-              ],
             ),
           ),
         ],

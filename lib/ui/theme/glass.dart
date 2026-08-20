@@ -175,6 +175,26 @@ const double _sigma = 20;
 Color glassInk(BuildContext context) =>
     nightSceneOf(context) ? Colors.white : const Color(0xFF0F2A44);
 
+/// The ink TEXT takes on a pane.
+///
+/// **NOT THE APP'S OWN NEAR-BLACK.** `onSurface` is `#191d17`, a black with a
+/// green cast in it, chosen for a white page. On a pane floating over a blue sky
+/// it reads as hard and slightly bilious — the pane has a hue and the ink was
+/// fighting it. A dark blue-slate sits in the same family as everything behind
+/// it and is a point softer without giving up any contrast: `#16222E` is
+/// relative luminance 0.017 against the app's 0.012, which on a 0.75 pane is
+/// 8.4:1 either way.
+Color glassText(BuildContext context) =>
+    nightSceneOf(context) ? const Color(0xFFE9EFF5) : const Color(0xFF16222E);
+
+/// The quieter ink on a pane — a label, a caption, a progress fraction.
+///
+/// Alpha on the pane's OWN ink rather than the kit's `textMuted`. The kit's is a
+/// flat mid-grey picked for a solid surface; on glass it is the one colour on the
+/// pane that belongs to neither the ink nor the backdrop, and it read as fog.
+Color glassMuted(BuildContext context) =>
+    glassText(context).withValues(alpha: 0.66);
+
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
@@ -221,7 +241,22 @@ class GlassPanel extends StatelessWidget {
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(gradient: night ? _darkSheen : _lightSheen),
-        child: Padding(padding: padding, child: child),
+        child: Padding(
+          padding: padding,
+          // **THE PANE PUBLISHES ITS OWN INK, and this is back on purpose.** An
+          // earlier version merged a whole flipped THEME in here, which was the
+          // wrong tool — the pane is a surface, not a theme. But a surface does
+          // owe its subtree an ink: `DefaultTextStyle` is what most `Text` reads,
+          // it is published once by the `Material` the pane sits under, and
+          // nothing inside a pane should have to know it is on one.
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: glassText(context)),
+            child: IconTheme.merge(
+              data: IconThemeData(color: glassText(context)),
+              child: child,
+            ),
+          ),
+        ),
       ),
     );
 

@@ -142,7 +142,7 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                       fontSize: 9.5,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.8,
-                      color: kit.textMuted,
+                      color: glassMuted(context),
                     ),
                   ),
                 ),
@@ -159,7 +159,7 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.4,
-                      color: kit.textMuted,
+                      color: glassMuted(context),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -170,7 +170,11 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w900,
-                      color: kit.accentBright,
+                      // GOLD, not the kit accent. A coin figure in green asks
+                      // the player to work out which currency it is, and the
+                      // glyph beside it is already gold — so the number was the
+                      // one part of the pair that did not say "coins".
+                      color: goldFor(context),
                     ),
                   ),
                 ],
@@ -181,7 +185,11 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                 AnimatedRotation(
                   turns: _collapsed ? 0 : 0.25,
                   duration: const Duration(milliseconds: 160),
-                  child: GameIcon('chevron', size: 12, color: kit.textMuted),
+                  child: GameIcon(
+                    'chevron',
+                    size: 12,
+                    color: glassMuted(context),
+                  ),
                 ),
               ],
             ),
@@ -228,7 +236,7 @@ class _QuestTile extends StatelessWidget {
           GameIcon(
             done ? 'check' : row.icon,
             size: 15,
-            color: done ? kit.accentBright : kit.textMuted,
+            color: done ? kit.accentBright : glassMuted(context),
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -256,7 +264,7 @@ class _QuestTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w900,
-                color: kit.textMuted,
+                color: glassMuted(context),
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),

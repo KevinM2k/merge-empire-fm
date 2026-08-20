@@ -214,17 +214,18 @@ void main() {
       // crest with the empty half of the bar on the right.
       await pumpHud(tester, (_) {});
       final badge = tester.getRect(find.byKey(const ValueKey('hud-badge')));
-      final coins = tester.getRect(find.byKey(const ValueKey('hud-coins')));
-      final cog = tester.getRect(find.byKey(const ValueKey('hud-cog')));
+      final cluster = tester.getRect(
+        find.byKey(const ValueKey('hud-cluster')),
+      );
       final bar = tester.getRect(find.byType(Hud));
 
       expect(badge.left - bar.left, lessThan(28), reason: 'crest on the left');
       expect(
-        coins.left - badge.right,
+        cluster.left - badge.right,
         greaterThan(24),
         reason: 'and the gap is BEFORE the resources, not after them',
       );
-      expect(bar.right - cog.right, lessThan(28));
+      expect(bar.right - cluster.right, lessThan(28));
     });
 
     testWidgets('and its glass covers the notch, not just the bar', (

@@ -124,12 +124,18 @@ class Hud extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      // TOGETHER, not spread. `spaceBetween` pushes the badge to one edge and
-      // the cog to the other and opens whatever is left between the three
-      // resource chips — so on a wide phone they drift apart into four
-      // unrelated things instead of reading as one strip of status.
+      // TWO things, at the two ends. `spaceBetween` was wrong when this row held
+      // four separate chips — it opened gaps between them and they drifted apart
+      // into four unrelated readings — and it is right now they are one cluster:
+      // crest at the left edge, cluster at the right, nothing to spread.
+      //
+      // A `Spacer` cannot do it any more either. It is an `Expanded` at flex 1
+      // and the cluster is a `Flexible` at flex 1, so the two SPLIT the free
+      // space — and a loose Flexible that does not use all of its share leaves
+      // the remainder stranded on the right of the row, which put 46px of
+      // nothing between the cog and the edge.
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
             key: const ValueKey('hud-badge'),
@@ -149,7 +155,6 @@ class Hud extends ConsumerWidget {
           // RIGHT and the crest is on the left, which is the JS's own layout. The
           // port had them all packed against the badge with the empty half of the
           // bar on the right.
-          const Spacer(),
           // ONE BOX round all four. See `HudCluster`.
           //
           // **It SCALES rather than overflowing.** Four readings in one pill is
