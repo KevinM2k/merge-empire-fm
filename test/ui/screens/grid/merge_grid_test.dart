@@ -1140,6 +1140,80 @@ void main() {
     });
   });
 
+  group('the pulse is ONE pulse', () {
+    testWidgets('every merge-ready card beats together', (tester) async {
+      // Each ring used to own its own controller and start it the moment its
+      // card became mergeable, so a grid with several pairs on it pulsed in
+      // several different phases — which reads as a fault rather than a hint.
+      await pumpGridAnimated(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+          2: _card(_baseDefId, 'c', variant: _maleVariant),
+          3: _card(_baseDefId, 'd', variant: _maleVariant),
+        },
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // `getRect`, not `RenderBox.size`: the ring scales its card with a
+      // `Transform`, which does not change the child's LAYOUT size — so the
+      // rendered rect is the only thing that carries the phase, and measuring
+      // `size` here would have asserted nothing at all.
+      final cards = find.byType(PlayerCard);
+      final drawn = [
+        for (var i = 0; i < 4; i++) tester.getRect(cards.at(i)).height,
+      ];
+      final laidOut = tester.renderObject<RenderBox>(cards.first).size.height;
+      expect(
+        drawn.first,
+        isNot(moreOrLessEquals(laidOut, epsilon: 0.05)),
+        reason: 'mid-pulse, so the scale is on — otherwise this proves nothing',
+      );
+      expect(
+        drawn.map((h) => h.toStringAsFixed(3)).toSet(),
+        hasLength(1),
+        reason: 'four cards, one phase — got $drawn',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('and a card that joins late joins the beat in progress', (
+      tester,
+    ) async {
+      // The case the old code could not do: a controller starting from zero
+      // half way through everyone else's cycle.
+      final container = await pumpGridAnimated(
+        tester,
+        cards: {
+          0: _card(_baseDefId, 'a', variant: _maleVariant),
+          1: _card(_baseDefId, 'b', variant: _maleVariant),
+        },
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+
+      // Two more, arriving mid-cycle.
+      container.read(gameProvider).update((s) {
+        final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+        cells[2] = _card(_baseDefId, 'c', variant: _maleVariant);
+        cells[3] = _card(_baseDefId, 'd', variant: _maleVariant);
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+
+      final cards = find.byType(PlayerCard);
+      final drawn = [
+        for (var i = 0; i < 4; i++) tester.getRect(cards.at(i)).height,
+      ];
+      expect(
+        drawn.map((h) => h.toStringAsFixed(3)).toSet(),
+        hasLength(1),
+        reason: 'still one phase — got $drawn',
+      );
+      await settleSave(tester);
+    });
+  });
+
   group('a merge is the payoff, not a journey', () {
     testWidgets('the card the player dragged does NOT fly again', (
       tester,
@@ -1199,7 +1273,8 @@ void main() {
       expect(
         tester.getRect(find.byKey(const ValueKey('grid-card-b'))),
         displacedAt,
-        reason: 'and the displaced one has not jumped — it is still setting off',
+        reason:
+            'and the displaced one has not jumped — it is still setting off',
       );
       await tester.pump(const Duration(milliseconds: 400));
       expect(

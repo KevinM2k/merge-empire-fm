@@ -582,6 +582,16 @@ section. Nothing on the list below is blocked for want of art any more.
 
 ### The grid
 
+- [x] **The merge-ready pulse is ONE pulse.** Every ring owned its own
+      `AnimationController` and called `repeat()` the moment its card became
+      mergeable, so a card that qualified later started its cycle from zero — and
+      a grid with three pairs on it beat in three different phases. Identical
+      animations out of step read as a fault in the game rather than as a hint
+      about the cards. One inherited clock (`GridPulse`) now drives all of them,
+      so a ring appearing mid-cycle joins the beat already in progress.
+      The card's INCOME bar is deliberately left alone: its cycle length is
+      derived from the player's own earning rate, so two bars running at different
+      speeds is the information, not a bug. Do not "fix" it by syncing it.
 - [x] **A signing arrives when it LANDS.** The engine has to place a card to
       allocate its square, so the card was already sitting in the cell the flight
       was about to deliver it to — the flight landed on top of itself.

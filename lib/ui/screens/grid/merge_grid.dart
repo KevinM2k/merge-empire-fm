@@ -63,7 +63,37 @@ class MergeGrid extends ConsumerStatefulWidget {
   ConsumerState<MergeGrid> createState() => MergeGridState();
 }
 
-class MergeGridState extends ConsumerState<MergeGrid> {
+/// The one clock every merge-ready ring beats to.
+///
+/// **They were each their own.** `_MergeRing` owned an `AnimationController` and
+/// called `repeat()` the moment its card became mergeable — so a card that
+/// qualified later started its cycle from zero, and a grid with three pairs on it
+/// pulsed in three different phases. Identical animations out of step read as a
+/// fault in the game rather than as a hint about the cards.
+///
+/// One controller, inherited, so they cannot drift: a ring that appears
+/// mid-cycle joins the beat already in progress.
+class GridPulse extends InheritedWidget {
+  const GridPulse({super.key, required this.clock, required super.child});
+
+  final Animation<double> clock;
+
+  /// Null when there is no grid above — a widget test pumping a card alone.
+  static Animation<double>? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GridPulse>()?.clock;
+
+  @override
+  bool updateShouldNotify(GridPulse old) => old.clock != clock;
+}
+
+class MergeGridState extends ConsumerState<MergeGrid>
+    with TickerProviderStateMixin {
+  /// The shared beat. One cycle is the JS's 1.2s.
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
   /// The cell a merge just landed in, so exactly one card celebrates.
   int? _burstAt;
   int _burstTier = 1;
@@ -139,9 +169,27 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Stopped under reduce-motion, which is also what lets a widget test settle.
+    // The rings still DRAW — a merge-ready card has something to say either way
+    // — they simply hold at the start of the cycle.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      if (_pulse.isAnimating) {
+        _pulse
+          ..stop()
+          ..value = 0;
+      }
+    } else if (!_pulse.isAnimating) {
+      _pulse.repeat();
+    }
+  }
+
+  @override
   void dispose() {
     _edgeScroll?.cancel();
     _scroll.dispose();
+    _pulse.dispose();
     super.dispose();
   }
 
@@ -309,136 +357,140 @@ class MergeGridState extends ConsumerState<MergeGrid> {
     // and a pulsing card under a lifted one is two cues fighting.
     final mergeable = ref.watch(mergeableCellsProvider);
 
-    return Stack(
-      children: [
-        Column(
-          children: [
-            // The bar is the FIRST thing on the tab, above the grid. The port had
-            // it under the cards with the pills on top, which is the JS's order
-            // inverted: the pills are a readout and belong beside the last row
-            // they describe, and the two controls a player came here to press
-            // belong where the thumb lands first.
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                _pad,
-                hudClearanceOf(context),
-                _pad,
-                0,
+    return GridPulse(
+      clock: _pulse,
+      child: Stack(
+        children: [
+          Column(
+            children: [
+              // The bar is the FIRST thing on the tab, above the grid. The port had
+              // it under the cards with the pills on top, which is the JS's order
+              // inverted: the pills are a readout and belong beside the last row
+              // they describe, and the two controls a player came here to press
+              // belong where the thumb lands first.
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  _pad,
+                  hudClearanceOf(context),
+                  _pad,
+                  0,
+                ),
+                child: const ScoutActionBar(),
               ),
-              child: const ScoutActionBar(),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                key: const ValueKey('merge-grid'),
-                controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(_pad, _pad, _pad, 12),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cols = gridColumnsFor(
-                      MediaQuery.sizeOf(context).width,
-                    );
-                    final cellW =
-                        (constraints.maxWidth - _gap * (cols - 1)) / cols;
-                    final cellH = cellW * _cellAspect;
-                    final rows = (Grid.totalCells / cols).ceil();
+              Expanded(
+                child: SingleChildScrollView(
+                  key: const ValueKey('merge-grid'),
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(_pad, _pad, _pad, 12),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cols = gridColumnsFor(
+                        MediaQuery.sizeOf(context).width,
+                      );
+                      final cellW =
+                          (constraints.maxWidth - _gap * (cols - 1)) / cols;
+                      final cellH = cellW * _cellAspect;
+                      final rows = (Grid.totalCells / cols).ceil();
 
-                    Offset at(int i) => Offset(
-                      (i % cols) * (cellW + _gap),
-                      (i ~/ cols) * (cellH + _gap),
-                    );
+                      Offset at(int i) => Offset(
+                        (i % cols) * (cellW + _gap),
+                        (i ~/ cols) * (cellH + _gap),
+                      );
 
-                    return Column(
-                      children: [
-                        SizedBox(
-                          height: rows * cellH + (rows - 1) * _gap,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              // The slots never move, so they are one static
-                              // layer under every card. Only the cards animate.
-                              for (final cell in cells)
-                                Positioned(
-                                  left: at(cell.index).dx,
-                                  top: at(cell.index).dy,
-                                  width: cellW,
-                                  height: cellH,
-                                  child: KeyedSubtree(
-                                    key: _slotKey(cell.index),
-                                    child: _SlotTarget(
-                                      cell: cell,
-                                      onDrop: _drop,
-                                    ),
-                                  ),
-                                ),
-                              for (final cell in cells)
-                                if (cell.card != null)
-                                  AnimatedPositioned(
-                                    // Keyed by the CARD, not the slot — that is
-                                    // what lets the widget follow its card into
-                                    // a new index rather than being rebuilt in
-                                    // place.
-                                    key: ValueKey(
-                                      'grid-card-${cell.instanceId}',
-                                    ),
-                                    duration: cell.instanceId == _placedByHand
-                                        ? Duration.zero
-                                        : _slide,
-                                    curve: Curves.easeInOutCubic,
+                      return Column(
+                        children: [
+                          SizedBox(
+                            height: rows * cellH + (rows - 1) * _gap,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                // The slots never move, so they are one static
+                                // layer under every card. Only the cards animate.
+                                for (final cell in cells)
+                                  Positioned(
                                     left: at(cell.index).dx,
                                     top: at(cell.index).dy,
                                     width: cellW,
                                     height: cellH,
-                                    child: _CardSlot(
-                                      cell: cell,
-                                      onDrop: _drop,
-                                      mergeable:
-                                          _dragging == null &&
-                                          mergeable.contains(cell.index),
-                                      onDragUpdate: _autoScroll,
-                                      width: cellW,
-                                      height: cellH,
-                                      // Bright if it is the card in hand or a
-                                      // square that can take it; dimmed if not.
-                                      dimmed:
-                                          _dragging != null &&
-                                          _dragging != cell.index &&
-                                          !_targets.contains(cell.index),
-                                      bursting: _burstAt == cell.index,
-                                      burstTier: _burstTier,
-                                      onDragStart: () => setState(() {
-                                        _dragging = cell.index;
-                                        _targets = mergeTargetsFor(
-                                          ref.read(gameProvider).state,
-                                          cell.index,
-                                        );
-                                      }),
-                                      onDragEnd: () => setState(() {
-                                        _dragging = null;
-                                        _targets = const {};
-                                      }),
-                                      onBurstDone: () {
-                                        if (mounted && _burstAt == cell.index) {
-                                          setState(() => _burstAt = null);
-                                        }
-                                      },
+                                    child: KeyedSubtree(
+                                      key: _slotKey(cell.index),
+                                      child: _SlotTarget(
+                                        cell: cell,
+                                        onDrop: _drop,
+                                      ),
                                     ),
                                   ),
-                            ],
+                                for (final cell in cells)
+                                  if (cell.card != null)
+                                    AnimatedPositioned(
+                                      // Keyed by the CARD, not the slot — that is
+                                      // what lets the widget follow its card into
+                                      // a new index rather than being rebuilt in
+                                      // place.
+                                      key: ValueKey(
+                                        'grid-card-${cell.instanceId}',
+                                      ),
+                                      duration: cell.instanceId == _placedByHand
+                                          ? Duration.zero
+                                          : _slide,
+                                      curve: Curves.easeInOutCubic,
+                                      left: at(cell.index).dx,
+                                      top: at(cell.index).dy,
+                                      width: cellW,
+                                      height: cellH,
+                                      child: _CardSlot(
+                                        cell: cell,
+                                        onDrop: _drop,
+                                        mergeable:
+                                            _dragging == null &&
+                                            mergeable.contains(cell.index),
+                                        onDragUpdate: _autoScroll,
+                                        width: cellW,
+                                        height: cellH,
+                                        // Bright if it is the card in hand or a
+                                        // square that can take it; dimmed if not.
+                                        dimmed:
+                                            _dragging != null &&
+                                            _dragging != cell.index &&
+                                            !_targets.contains(cell.index),
+                                        bursting: _burstAt == cell.index,
+                                        burstTier: _burstTier,
+                                        onDragStart: () => setState(() {
+                                          _dragging = cell.index;
+                                          _targets = mergeTargetsFor(
+                                            ref.read(gameProvider).state,
+                                            cell.index,
+                                          );
+                                        }),
+                                        onDragEnd: () => setState(() {
+                                          _dragging = null;
+                                          _targets = const {};
+                                        }),
+                                        onBurstDone: () {
+                                          if (mounted &&
+                                              _burstAt == cell.index) {
+                                            setState(() => _burstAt = null);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                              ],
+                            ),
                           ),
-                        ),
-                        // Under the last row of cards, which is where the JS puts
-                        // them and what they describe.
-                        const _GridStatusStrip(),
-                      ],
-                    );
-                  },
+                          // Under the last row of cards, which is where the JS puts
+                          // them and what they describe.
+                          const _GridStatusStrip(),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        const _SortFab(),
-      ],
+            ],
+          ),
+          const _SortFab(),
+        ],
+      ),
     );
   }
 }
@@ -795,7 +847,7 @@ class _CardSlot extends ConsumerWidget {
 /// blur on every mergeable card every frame, and on a grid with several pairs
 /// that alone eats the budget on a low-end phone. Crossfading fixed rings
 /// animates opacity, which composites.
-class _MergeRing extends StatefulWidget {
+class _MergeRing extends StatelessWidget {
   const _MergeRing({required this.on, required this.hot, required this.child});
 
   final bool on;
@@ -803,106 +855,66 @@ class _MergeRing extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_MergeRing> createState() => _MergeRingState();
-}
-
-class _MergeRingState extends State<_MergeRing>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  );
-
-  void _sync() {
-    // Stopped when there is nothing to say, and when the platform has asked for
-    // no perpetual movement — which is also what lets a widget test settle.
-    final want = widget.on && !MediaQuery.of(context).disableAnimations;
-    if (want && !_pulse.isAnimating) {
-      _pulse.repeat();
-    } else if (!want && _pulse.isAnimating) {
-      _pulse
-        ..stop()
-        ..value = 0;
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(_MergeRing old) {
-    super.didUpdateWidget(old);
-    _sync();
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (!widget.on) return widget.child;
-    final ink = widget.hot ? Colors.white : const Color(0xFFFFD700);
-
+    if (!on) return child;
+    final clock = GridPulse.maybeOf(context);
+    if (clock == null) return _ring(context, 0);
     return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, child) {
-        // 1.00 → 1.04 → 1.00 across the cycle, the bloom crossfading with it.
-        final t =
-            math.sin(_pulse.value * math.pi * 2 - math.pi / 2) * 0.5 + 0.5;
-        return Transform.scale(
-          scale: 1 + 0.04 * t,
-          child: Stack(
-            fit: StackFit.passthrough,
-            children: [
-              child!,
-              // Painted OVER the card, so the portrait and the stat chips can
-              // never obscure it.
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      // The ring is a BORDER. It was a `BoxShadow` with
-                      // `BlurStyle.inner` and no blur radius, which is not an
-                      // inset outline — with nothing to blur it fills the whole
-                      // rounded rect, so every card with a pair on the grid came
-                      // out a flat gold tile with the player buried under it.
-                      // The CSS this came from says `inset 0 0 0 3px`; the 3px is
-                      // the spread of a stroke, not of a shadow.
-                      border: Border.all(
-                        // Thinner and quieter than the CSS's 3px at 95%. On a
-                        // grid with several pairs on it that ring was the
-                        // loudest thing on the screen and the cards underneath
-                        // were reading as yellow rather than as their own tier.
-                        color: ink.withValues(alpha: 0.8),
-                        width: 2,
-                      ),
-                      // The bloom, which IS a shadow — and has a blur radius, so
-                      // `inner` gives the glow inside the stroke that the second
-                      // CSS shadow does.
-                      boxShadow: [
-                        BoxShadow(
-                          color: ink.withValues(alpha: 0.16 + 0.16 * t),
-                          blurRadius: 14 + 8 * t,
-                          spreadRadius: -2,
-                          blurStyle: BlurStyle.inner,
-                        ),
-                      ],
-                    ),
+      animation: clock,
+      builder: (context, _) => _ring(context, clock.value),
+    );
+  }
+
+  Widget _ring(BuildContext context, double phase) {
+    final ink = hot ? Colors.white : const Color(0xFFFFD700);
+    // 1.00 → 1.04 → 1.00 across the cycle, the bloom crossfading with it.
+    final t = math.sin(phase * math.pi * 2 - math.pi / 2) * 0.5 + 0.5;
+
+    return Transform.scale(
+      scale: 1 + 0.04 * t,
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          child,
+          // Painted OVER the card, so the portrait and the stat chips can
+          // never obscure it.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  // The ring is a BORDER. It was a `BoxShadow` with
+                  // `BlurStyle.inner` and no blur radius, which is not an
+                  // inset outline — with nothing to blur it fills the whole
+                  // rounded rect, so every card with a pair on the grid came
+                  // out a flat gold tile with the player buried under it.
+                  // The CSS this came from says `inset 0 0 0 3px`; the 3px is
+                  // the spread of a stroke, not of a shadow.
+                  border: Border.all(
+                    // Thinner and quieter than the CSS's 3px at 95%. On a
+                    // grid with several pairs on it that ring was the
+                    // loudest thing on the screen and the cards underneath
+                    // were reading as yellow rather than as their own tier.
+                    color: ink.withValues(alpha: 0.8),
+                    width: 2,
                   ),
+                  // The bloom, which IS a shadow — and has a blur radius, so
+                  // `inner` gives the glow inside the stroke that the second
+                  // CSS shadow does.
+                  boxShadow: [
+                    BoxShadow(
+                      color: ink.withValues(alpha: 0.16 + 0.16 * t),
+                      blurRadius: 14 + 8 * t,
+                      spreadRadius: -2,
+                      blurStyle: BlurStyle.inner,
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        );
-      },
-      child: widget.child,
+        ],
+      ),
     );
   }
 }
