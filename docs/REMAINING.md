@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,571 tests, `flutter analyze` clean.** Everything below that is not ticked
+**3,628 tests, `flutter analyze` clean.** Everything below that is not ticked
 is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
 layout-by-layout diff of the JS against the port, taken from the source.
 **"Open from playtesting" below is the short queue**: what a session of actually
@@ -55,7 +55,7 @@ things fell out of it: the stadium hero was never blocked on gradients in
 `svg_canvas` (that SVG is the fallback; the hero is a photograph), and the
 Club tiles and cards had been drawing the wrong thing since they landed.
 
-**2. Three engines had no caller at all.** `recordDiscovery` was never ported,
+**2. FOUR engines had no caller at all.** `recordDiscovery` was never ported,
 so `discoveredPlayers` never grew — the Player Index would have read 0 of 66
 forever. `maybeGenerateOffer` had no caller, so post-match transfer bids never
 fired. And `transfer:offered` was emitted by the tick with NOTHING listening,
@@ -64,6 +64,13 @@ is scored as a decline, so players were collecting grudges from offers they were
 never shown. A reachability audit does not catch these — the control is not
 missing, the engine behind it is simply never called. **Grep for who calls an
 engine, not just for who reaches a screen.**
+
+The fourth turned up in the playtest queue below: `club_asset_tiers.dart`, which
+computes what every club facility gives at every tier and what one step up the
+ladder changes. It exists to fix two things a player could SEE — a "next tier"
+line that repeated the current one, and unlocks nothing advertised — and it had
+been ported, tested against a fixture, and never once asked. The Club screen's
+cards showed a name, a hint and a price. **A green fixture test is not a caller.**
 
 **3. Where the shipped copy and the port disagree, the copy is usually right.**
 `game.penalty.instructions` has always read "Tap anywhere — aim for corners or
@@ -397,12 +404,26 @@ JS number or object did.
 
 ---
 
-## Open from playtesting — 19 Aug
+## From playtesting — 19 Aug
 
-Found by playing, not by reading the source, and all of it is in `src/ui/` where
-it can be checked. Ordered roughly by how much of the screen it costs.
+Found by playing, not by reading the source, and all of it was in `src/ui/` where
+it could be checked. Ordered roughly by how much of the screen it cost.
 
-Two are not code decisions and are marked so.
+**Every code item here is done.** The two left open are not code decisions and
+are marked so: both are product calls about giving away paid content, and neither
+is blocked on anything but a decision.
+
+Three things the queue turned up that reading the source had not, all of them
+things a player could see:
+
+- **`club_asset_tiers.dart` had no caller** — the fourth such engine. See point
+  two at the top of this file.
+- **The Shop was showing the wrong product names**, in every language including
+  English, and printing `{coins}` verbatim on the coin and gem tiles. It had been
+  rendering `IapProduct.name`/`.desc`, which are the English literals on the
+  record rather than the catalogue's copy.
+- **The welcome-back card said one line twice** and never said the number, with
+  two thirds of the copy written for it unreachable.
 
 ### Cards and the grid
 
