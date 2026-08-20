@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,745 tests, `flutter analyze` clean.**
+**3,751 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 21 Aug", and it is 9 items** — on top of
 20 August's 28. That is
@@ -1095,30 +1095,32 @@ starts them.
 
 ### Where this queue stands
 
-**9 open.** Two are real gaps behind a control that looks broken, two are
-services M4 has not delivered, two are screens, three are designs, and one is
-the rest of a consistency sweep.
+**9 open.** Five mini-game screens count as one line, three controls are waiting
+on M4, one is the pyramid editor, one is the daily reward, three are designs, one
+is a copy fix that has to go through the JS first, and one is the rest of a
+consistency sweep.
 
 ### The five mini-games that have no screen
 
-- [ ] **"Training sessions are not unlocking" is not an unlock bug — it is FIVE
-      MISSING SCREENS.** The ladder works: `getUnlockedMinigames` adds one kind
-      per Training Ground tier and the provider recomputes on every save change.
-      What happens is that the row then says "coming soon", because
-      `playableMiniGames` holds only `penalty` and `bootRoom` — so tiering up
-      unlocks a drill that cannot be played, which reads exactly like an unlock
-      that did not fire. `training`, `keepy_uppys`, `through_ball`, `whack` and
-      `pairs` are all unported.
-      **Two things to do, and the small one first:** the locked row should name
-      the TIER that unlocks it rather than saying "coming soon" for two different
-      reasons, and then the five screens.
-- [ ] **The rewarded-ad skip has an engine and NO CALLER.**
-      `resetMiniGameCooldown`, `skipAdsLeftToday`, `recordSkipAd` and
-      `Minigame.skipCapPerDay` have all been in `mini_games_engine.dart` since
-      M1 and nothing in the UI has ever called them, which is why there is no
-      advert button on a cooling-down drill. The row wants a `StoreTone.ad`
-      button with the day's remaining skips on it — disabled with a reason until
-      AdMob lands, the way the Shop's own two ad tiles ship.
+- [x] **The locked row NAMES the tier now, and the ladder is data.**
+      `getUnlockedMinigames` was a stack of ifs, and the row asked
+      `club.minigame_unlocked` with no parameters — so it rendered the literal
+      `{name} unlocked`, and "the Training Ground has not reached it" and "there
+      is no screen for it" both said nothing useful. `minigameUnlockTier` is the
+      one ladder both read, and a test walks every tier against it.
+- [x] **A resting drill offers the SKIP.** `resetMiniGameCooldown`,
+      `skipAdsLeftToday`, `recordSkipAd` and `Minigame.skipCapPerDay` had all been
+      in the engine since M1 with **no UI caller at all**, which is the whole
+      reason there was no advert button. It shows only on a drill that is
+      unlocked, built and waiting on the clock — there is nothing to skip on a
+      locked one and nothing to skip on one with no screen. Dead until AdMob
+      lands, shown rather than hidden, same as the Shop's own two ad tiles.
+- [ ] **And the five screens themselves.** "Training sessions are not unlocking"
+      was never an unlock bug: the ladder works and the provider recomputes on
+      every save change, but `playableMiniGames` holds only `penalty` and
+      `bootRoom`, so tiering up unlocks a drill that cannot be played.
+      `training`, `keepy_uppys`, `through_ball`, `whack` and `pairs` are all
+      unported, and that is what the row was reporting.
 
 ### Four controls that look broken because they are waiting on M4
 
@@ -1185,6 +1187,36 @@ has a trap in it that is worth stating before the first line is written.
       addition rather than a replacement — sprites for the things that have no
       effect at all today, and the procedural burst stays where a tier colour has
       to drive it.
+
+### Odds and ends closed on the way
+
+- [x] **The top HUD has a 10px margin under it.** `hudClearance` is the bar plus
+      `hudBottomMargin`, so the first thing on every page starts clear of the
+      cluster rather than reading as one block with it.
+- [x] **The tactic line's padding came off.** It is a line rather than a badge
+      now, and 5px top and bottom made it read as the chip it stopped being — on
+      the one card with no vertical room to give.
+- [x] **The manager's hair is not a block any more.** The JS draws each style as
+      one filled silhouette, which at this size is a helmet. Three passes over the
+      SAME path fix it with no new geometry: a soft white rim along the outline
+      (which the notches at the temple and the parting already pick out), a darker
+      line just inside it in the hair's own slot colour, and two crown strands on
+      the styles with a solid cap. Generic on purpose — there are twelve styles
+      and the painter supports neither clip paths nor scale transforms, so anything
+      hand-drawn would have to be drawn and checked twelve times. In the
+      GENERATOR, not the `.g.dart`.
+- [ ] **Counter Attack's description is WRONG, and it is wrong in the JS too.**
+      "ATK and DEF swap as play flows" — they do not swap. Its base is DEFENSIVE
+      (`atkMult 0.92`, `defMult 1.08`); what moves is the attack multiplier,
+      lifted by `commitmentGain 0.18 × commitmentRead(...)` against a side that
+      commits forward and cut against a deep block, with `swing 0.5` widening the
+      result either way. The true line is "sits deep and reads the opponent —
+      deadly against a side that commits, toothless against a block, and the
+      widest spread of results". The string lives in the GENERATED catalogue, so
+      fixing it means changing the JS's own i18n first. High Press's "Strongest
+      boost" is accurate — `1.22` is the biggest attack shift — but omits that it
+      is also the most exposed at the back at `0.78`, below All Out Attack's
+      `0.82`.
 
 ### Consistency, and how far it got
 

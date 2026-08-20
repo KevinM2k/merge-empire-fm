@@ -276,7 +276,7 @@ class NextMatchCard extends ConsumerWidget {
         // and the line is what says so. It also let the chip drop its glyph,
         // which is a row of vertical space back on a card that has none to give.
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
           child: Container(
             height: 1,
             color: glassInk(context).withValues(alpha: 0.12),
@@ -488,7 +488,11 @@ class _TacticChip extends ConsumerWidget {
       borderRadius: BorderRadius.circular(8),
       onTap: () => showTacticPicker(context, ref),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        // Barely any vertical. It is a LINE now rather than a badge, and a line
+        // needs a tap target rather than a box — 5 top and bottom made it read
+        // as the chip it stopped being, on the one card that has no vertical
+        // room to give.
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

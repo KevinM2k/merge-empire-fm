@@ -199,16 +199,29 @@ int _tierOf(Map<String, dynamic>? clubAssets, String category) {
 /// from the start so a save with no Training Ground still has somewhere to tap,
 /// which is what teaches the panel exists. The ORDER is the ladder: the
 /// mini-games panel renders in it.
+/// Which Training Ground tier each drill arrives at.
+///
+/// The LADDER as data rather than as a stack of ifs, because two callers need it
+/// now: the list of what is unlocked, and the locked row that has to say WHICH
+/// tier unlocks it. A player who tiers up and finds a drill still greyed out has
+/// no way of telling a missing screen from an unlock that did not fire, and the
+/// tier number is the difference.
+const Map<String, int> minigameUnlockTier = {
+  'penalty': 0,
+  'training': 1,
+  'keepy_uppys': 2,
+  'through_ball': 3,
+  'whack': 4,
+  'pairs': 5,
+  'boot_room': 6,
+};
+
 List<String> getUnlockedMinigames(Map<String, dynamic>? clubAssets) {
   final tier = _tierOf(clubAssets, AssetCategory.training);
-  final list = <String>['penalty'];
-  if (tier >= 1) list.add('training');
-  if (tier >= 2) list.add('keepy_uppys');
-  if (tier >= 3) list.add('through_ball');
-  if (tier >= 4) list.add('whack');
-  if (tier >= 5) list.add('pairs');
-  if (tier >= 6) list.add('boot_room');
-  return list;
+  return [
+    for (final entry in minigameUnlockTier.entries)
+      if (tier >= entry.value) entry.key,
+  ];
 }
 
 /// Kit colours unlocked by Stadium tier. Stacks — every tier up to the current

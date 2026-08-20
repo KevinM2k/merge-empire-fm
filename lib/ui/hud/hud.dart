@@ -66,7 +66,15 @@ final equippedBadgeProvider = savePick<String>(getEquippedBadgeId);
 /// the Shop's first tile sat under the coin counter.
 ///
 /// One constant, so a change to the bar's height moves every screen with it.
-const double hudClearance = 56;
+///
+/// 56 is the bar itself; the extra 10 is a MARGIN under it. Without the gap the
+/// first thing on every page sat directly against the cluster's bottom edge —
+/// legible, but reading as one block with the HUD rather than as the start of the
+/// page.
+const double hudClearance = 56 + hudBottomMargin;
+
+/// The gap between the bar and whatever the page starts with.
+const double hudBottomMargin = 10;
 
 /// The same clearance, plus whatever the notch takes.
 ///

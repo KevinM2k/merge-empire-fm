@@ -18,6 +18,10 @@ typedef MiniGameRow = ({
   bool ready,
   int waitMs,
   bool playable,
+
+  /// The Training Ground tier that unlocks it, so a locked row can name the
+  /// rung rather than saying "coming soon" for two different reasons.
+  int unlocksAtTier,
 });
 
 /// The catalogue's own order, which is also the order the Training Ground
@@ -56,6 +60,7 @@ final miniGamesProvider = savePick<List<MiniGameRow>>((s) {
         ready: miniGameReady(s, entry.key),
         waitMs: msUntilMiniGame(s, entry.key),
         playable: playableMiniGames.contains(entry.key),
+        unlocksAtTier: minigameUnlockTier[entry.key] ?? 0,
       ),
   ];
 });
@@ -87,3 +92,10 @@ final divisionIndexProvider = savePick<int>((s) {
   final idx = divisionIndex(id);
   return idx < 0 ? 0 : idx;
 });
+
+/// How many free cooldown skips the day has left.
+///
+/// The ledger, the cap and the wind-back have all been in
+/// `mini_games_engine.dart` since M1 with **no UI caller** — which is why a
+/// resting drill offered no way out of the wait. See `TrainingView`.
+final skipsLeftTodayProvider = savePick<int>(skipAdsLeftToday);
