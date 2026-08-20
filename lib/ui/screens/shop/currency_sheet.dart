@@ -26,12 +26,17 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// Open the packs for [which] directly, over whatever screen asked.
-Future<void> showCurrencySheet(BuildContext context, ShopSection which) =>
-    showBottomSheetPopup<void>(
-      context,
-      heightFraction: 0.66,
-      child: CurrencySheet(which: which),
-    );
+Future<void> showCurrencySheet(
+  BuildContext context,
+  ShopSection which,
+) => showBottomSheetPopup<void>(
+  context,
+  // A CEILING. Four coin packs is four coin packs tall; taking two thirds of
+  // the screen to show them read as a screen that had failed to load.
+  heightFraction: 0.8,
+  fitContent: true,
+  child: CurrencySheet(which: which),
+);
 
 class CurrencySheet extends ConsumerWidget {
   const CurrencySheet({super.key, required this.which});
@@ -45,9 +50,12 @@ class CurrencySheet extends ConsumerWidget {
 
     return Column(
       key: ValueKey('currency-sheet-${which.name}'),
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
+        // Flexible, not Expanded: it takes the room it needs and scrolls only if
+        // the ceiling is reached.
+        Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 4),
             child: ShopSectionFrame(

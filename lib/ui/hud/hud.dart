@@ -107,7 +107,15 @@ class Hud extends ConsumerWidget {
     }
     return Theme(
       data: ref.watch(glassThemeProvider),
-      child: Builder(builder: (context) => _bar(context, ref, onScene: true)),
+      child: Builder(
+        builder: (context) => Padding(
+          // The Play tab has no bar to frost — the scene shows through — so the
+          // notch is cleared here instead. See `_FrostedBar` for why neither is
+          // a `SafeArea` around the whole HUD any more.
+          padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+          child: _bar(context, ref, onScene: true),
+        ),
+      ),
     );
   }
 
@@ -142,7 +150,11 @@ class Hud extends ConsumerWidget {
             ),
             onPressed: () => showTrophyRoomSheet(context),
           ),
-          const SizedBox(width: 4),
+          // `.hud-chips { margin-left: auto }` — the resources are a group on the
+          // RIGHT and the crest is on the left, which is the JS's own layout. The
+          // port had them all packed against the badge with the empty half of the
+          // bar on the right.
+          const Spacer(),
           HudChip(
             onScene: onScene,
             key: const ValueKey('hud-coins'),
@@ -217,7 +229,7 @@ class Hud extends ConsumerWidget {
             onTap: () => showCurrencySheet(context, ShopSection.gems),
             child: Text('${ref.watch(gemsProvider)}', style: valueStyle),
           ),
-          const Spacer(),
+          const SizedBox(width: 4),
           HudChip(
             onScene: onScene,
             key: const ValueKey('hud-cog'),
@@ -246,6 +258,7 @@ class _FrostedBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return ClipRect(
+      key: const ValueKey('hud-glass'),
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: DecoratedBox(
@@ -257,7 +270,17 @@ class _FrostedBar extends StatelessWidget {
               bottom: BorderSide(color: kit.border.withValues(alpha: 0.5)),
             ),
           ),
-          child: child,
+          // **THE SAFE AREA IS INSIDE THE GLASS.** The shell used to wrap the
+          // whole HUD in a `SafeArea`, which pushed the frosted band below the
+          // notch and left the strip above it showing the raw page — a white bar
+          // across the top of the Shop and the Squad tab in light mode, with the
+          // blurred bar starting underneath it. Padding the band rather than
+          // insetting it means the blur and the tint run to the top of the
+          // screen and the chips still sit clear of the notch.
+          child: Padding(
+            padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+            child: child,
+          ),
         ),
       ),
     );

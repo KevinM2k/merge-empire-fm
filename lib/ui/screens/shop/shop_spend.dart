@@ -17,26 +17,58 @@ import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
-/// Why a row is dead, said in copy that already exists.
+/// Whether a refusal is just about MONEY.
+///
+/// The money ones never reach the tile: a row the balance will not cover stays
+/// live and ends at the coin or gem packs instead — see `purchase_flow.dart`. A
+/// player who wants the thing needs a way to afford it, not a sentence telling
+/// them they cannot.
+bool isAffordabilityBlock(String? reason) =>
+    reason == 'insufficient_gems' ||
+    reason == 'insufficientGems' ||
+    reason == 'insufficient_coins';
+
+/// Why a row is dead, said in copy that already exists — or null when the only
+/// thing in the way is the balance.
 ///
 /// Deliberately mapped onto shipped keys rather than adding ten new ones to ten
 /// catalogues: every reason here has an existing sentence that says the same
 /// thing, and a translated string beats a freshly invented one.
-String blockedCopy(String reason) => switch (reason) {
-  'insufficient_gems' || 'insufficientGems' => t('shop.toast.not_enough_gems'),
+String? blockedCopy(String? reason) => switch (reason) {
+  null => null,
+  _ when isAffordabilityBlock(reason) => null,
   'already_owned' => t('shop.owned'),
   'already_held' ||
   'alreadyHeld' ||
   'already_active' => t('shop.already_active'),
-  'insufficient_coins' => t('toast.not_enough_coins'),
   'no_injured' => t('shop.toast.no_injured'),
   _ => t('settings.comingSoon'),
 };
+
+/// The app's own line art for each coin-priced consumable, and for the gem
+/// items — the JS's emoji, in the icon set the rest of the app is drawn in.
+const Map<String, String> consumableIcons = {
+  'magic_sponge': 'bandage',
+  'kit_sponsor': 'handshake',
+  'match_rev': 'tv',
+};
+
+const Map<String, String> gemItemIcons = {
+  'scout_voucher_gem': 'ticket',
+  'energy_refill': 'bolt',
+  'trophy_polish_gem': 'trophy',
+};
+
+Widget _icon(String name, Color colour) =>
+    GameIcon(name, size: 32, color: colour);
 
 class BoostsSection extends ConsumerWidget {
   const BoostsSection({super.key});
@@ -56,26 +88,43 @@ class BoostsSection extends ConsumerWidget {
               tileKey: 'coin-${row.id}',
               title: t(row.nameKey),
               subtitle: t(row.descKey),
+              glyph: _icon(consumableIcons[row.id] ?? 'coin', hudCoinInk),
               price: formatCoins(row.cost),
-              disabledReason: row.blocked == null
+              disabledReason: blockedCopy(row.blocked),
+              onBuy: blockedCopy(row.blocked) != null
                   ? null
-                  : blockedCopy(row.blocked!),
-              onBuy: row.blocked != null
-                  ? null
-                  : () => game.update((s) => buyConsumable(s, row.id)),
+                  : () => offerToBuy(context, ref, (
+                      key: 'coin-${row.id}',
+                      title: t(row.nameKey),
+                      subtitle: t(row.descKey),
+                      glyph: consumableIcons[row.id] ?? 'coin',
+                      currency: SpendCurrency.coins,
+                      cost: row.cost,
+                      buy: () =>
+                          game.update((s) => buyConsumable(s, row.id)).reason,
+                    )),
             ),
           for (final tile in gems)
             ShopTile(
               tileKey: 'gem-${tile.item.id}',
               title: t('gem.${tile.item.id}.name'),
               subtitle: t('gem.${tile.item.id}.desc'),
+              glyph: _icon(gemItemIcons[tile.item.id] ?? 'gem', hudGemInk),
               price: formatCoins(tile.item.cost),
-              disabledReason: tile.blocked == null
+              disabledReason: blockedCopy(tile.blocked),
+              onBuy: blockedCopy(tile.blocked) != null
                   ? null
-                  : blockedCopy(tile.blocked!),
-              onBuy: tile.blocked != null
-                  ? null
-                  : () => game.update((s) => buyGemItem(s, tile.item.id)),
+                  : () => offerToBuy(context, ref, (
+                      key: 'gem-${tile.item.id}',
+                      title: t('gem.${tile.item.id}.name'),
+                      subtitle: t('gem.${tile.item.id}.desc'),
+                      glyph: gemItemIcons[tile.item.id] ?? 'gem',
+                      currency: SpendCurrency.gems,
+                      cost: tile.item.cost,
+                      buy: () => game
+                          .update((s) => buyGemItem(s, tile.item.id))
+                          .reason,
+                    )),
             ),
         ],
       ),
@@ -105,13 +154,23 @@ class VouchersSection extends ConsumerWidget {
             ShopTile(
               tileKey: 'voucher-${tile.floor}',
               title: '${t('shop.section.vouchers')} ${tile.floor}',
+              glyph: _icon('ticket', hudGemInk),
               price: '${tile.cost ?? 0}',
-              disabledReason: tile.blocked == null
+              disabledReason: blockedCopy(tile.blocked?.name),
+              onBuy: blockedCopy(tile.blocked?.name) != null
                   ? null
-                  : blockedCopy(tile.blocked!.name),
-              onBuy: tile.blocked != null
-                  ? null
-                  : () => game.update((s) => buyScoutVoucher(s, tile.floor)),
+                  : () => offerToBuy(context, ref, (
+                      key: 'voucher-${tile.floor}',
+                      title: '${t('shop.section.vouchers')} ${tile.floor}',
+                      subtitle: t('shop.voucher.one_at_a_time'),
+                      glyph: 'ticket',
+                      currency: SpendCurrency.gems,
+                      cost: tile.cost ?? 0,
+                      buy: () => game
+                          .update((s) => buyScoutVoucher(s, tile.floor))
+                          .reason
+                          ?.name,
+                    )),
             ),
         ],
       ),

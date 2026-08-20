@@ -25,6 +25,13 @@ Future<ProviderContainer> pumpHud(
   WidgetTester tester,
   void Function(Map<String, dynamic> state) mutate, {
   VoidCallback? onSettings,
+
+  /// What the notch takes, for the tests that are about clearing it.
+  double topPadding = 0,
+
+  /// The HUD is written for dark glass on the Play tab and for the app's own
+  /// surface everywhere else, so the tab decides which build is under test.
+  ShellTab tab = ShellTab.home,
 }) async {
   final state = createDefaultState();
   mutate(state);
@@ -37,6 +44,7 @@ Future<ProviderContainer> pumpHud(
   );
   addTearDown(container.dispose);
   container.read(gameProvider).load();
+  container.read(shellControllerProvider.notifier).goTab(tab);
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -44,7 +52,13 @@ Future<ProviderContainer> pumpHud(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
-          home: Scaffold(body: Hud(onSettings: onSettings)),
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(400, 800),
+              padding: EdgeInsets.only(top: topPadding),
+            ),
+            child: Scaffold(body: Hud(onSettings: onSettings)),
+          ),
         ),
       ),
     ),
@@ -192,6 +206,46 @@ void main() {
     emit('reveal:end');
     await tester.pump(const Duration(milliseconds: 32));
     expect(hudVisible(tester), isTrue);
+  });
+
+  group('where it sits', () {
+    testWidgets('the resources are a group on the RIGHT', (tester) async {
+      // `.hud-chips { margin-left: auto }`. They had been packed against the
+      // crest with the empty half of the bar on the right.
+      await pumpHud(tester, (_) {});
+      final badge = tester.getRect(find.byKey(const ValueKey('hud-badge')));
+      final coins = tester.getRect(find.byKey(const ValueKey('hud-coins')));
+      final cog = tester.getRect(find.byKey(const ValueKey('hud-cog')));
+      final bar = tester.getRect(find.byType(Hud));
+
+      expect(badge.left - bar.left, lessThan(28), reason: 'crest on the left');
+      expect(
+        coins.left - badge.right,
+        greaterThan(24),
+        reason: 'and the gap is BEFORE the resources, not after them',
+      );
+      expect(bar.right - cog.right, lessThan(28));
+    });
+
+    testWidgets('and its glass covers the notch, not just the bar', (
+      tester,
+    ) async {
+      // A `SafeArea` around the whole HUD pushed the frosted band below the
+      // notch and left the raw page showing above it — a white strip across the
+      // top of the Shop in light mode.
+      await pumpHud(tester, (_) {}, topPadding: 47, tab: ShellTab.shop);
+      final glass = tester.getRect(find.byKey(const ValueKey('hud-glass')));
+      expect(
+        glass.top,
+        moreOrLessEquals(tester.getRect(find.byType(Hud)).top, epsilon: 0.5),
+        reason: 'the blur starts where the HUD does, notch included',
+      );
+      expect(
+        tester.getRect(find.byKey(const ValueKey('hud-coins'))).top,
+        greaterThanOrEqualTo(47),
+        reason: 'and the chips still clear it',
+      );
+    });
   });
 }
 

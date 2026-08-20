@@ -13,11 +13,13 @@ import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
+import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Said on every real-money control, so a player is told the feature is coming
@@ -35,6 +37,9 @@ List<Widget> paidTilesFor(WidgetRef ref, Set<String> categories) => [
       tileKey: tile.product.id,
       title: tile.name,
       subtitle: tile.desc,
+      // The shelf's own art, which nothing had ever passed — so every shelf in
+      // the shop was text with a price under it.
+      glyph: shopProductGlyph(tile.product),
       price: tile.product.price,
       badge: tile.product.popular ? t('shop.most_popular') : null,
       disabledReason: paidDisabledReason(),
@@ -51,6 +56,32 @@ class _PaidShelf extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => ShopSectionFrame(
     id: id,
     child: ShopGrid(children: paidTilesFor(ref, categories)),
+  );
+}
+
+/// The line art a product wears on its tile.
+///
+/// The catalogue's `icon` is an emoji and stays one — the toast renders it as
+/// text. A tile is not text: it gets the app's own icon set, and the coin
+/// bundles get a drawn picture of the thing they are named after.
+const Map<String, String> _productIcons = {
+  'starter_pack': 'gift',
+  'vip_pass': 'crown',
+  'energy_director': 'bolt',
+  'style_vault': 'bank',
+};
+
+Widget shopProductGlyph(IapProduct product) {
+  if (product.category == 'coins') {
+    return CoinPackPicture(art: coinPackArtFor(product.id), size: 44);
+  }
+  if (product.category == 'gems') {
+    return const GameIcon('gem', size: 34, color: Color(0xFF7FD4FF));
+  }
+  return GameIcon(
+    _productIcons[product.id] ?? 'tag',
+    size: 34,
+    color: const Color(0xFFFFD54A),
   );
 }
 
@@ -216,8 +247,15 @@ class CoinPackTile extends StatelessWidget {
                   ),
                   SizedBox(
                     height: 52,
+                    // A PICTURE of the thing it is called, not a count of coins.
+                    // All four bundles share one 💰 in the catalogue and the JS
+                    // tells them apart with a cluster of 1/2/3/5 — which is a
+                    // quantity and makes no sense of "Coin Vault".
                     child: Center(
-                      child: CoinCluster(count: coinsDrawnFor(rank)),
+                      child: CoinPackPicture(
+                        art: coinPackArtFor(product.id),
+                        size: 52,
+                      ),
                     ),
                   ),
                   if (product.popular)
@@ -320,21 +358,40 @@ class RestoreRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    // A quiet ROW rather than a stranded button with a caption under it. It is
+    // the last thing on the screen and it is housekeeping — it belongs to the
+    // shop's furniture, not to its shelves, and the "coming soon" underneath was
+    // the fourth time that sentence appeared on one screen.
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 18, 12, 32),
-      child: ShopGrid(
-        children: [
-          OutlinedButton(
-            key: const ValueKey('shop-restore'),
-            onPressed: null,
-            child: Text(t('shop.restore_purchases')),
+      child: Material(
+        color: kit.surface,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          key: const ValueKey('shop-restore'),
+          borderRadius: BorderRadius.circular(10),
+          onTap: null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Icon(Icons.restore, size: 17, color: kit.textMuted),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    t('shop.restore_purchases'),
+                    style: TextStyle(
+                      color: kit.textMuted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 18, color: kit.textMuted),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            paidDisabledReason(),
-            style: TextStyle(color: kit.textMuted, fontSize: 11),
-          ),
-        ],
+        ),
       ),
     );
   }

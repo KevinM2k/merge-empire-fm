@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
+import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
@@ -72,9 +73,7 @@ void main() {
     await pumpPaid(tester);
     expect(find.text(t('shop.restore_purchases')), findsOneWidget);
     expect(
-      tester
-          .widget<OutlinedButton>(find.byKey(const ValueKey('shop-restore')))
-          .onPressed,
+      tester.widget<InkWell>(find.byKey(const ValueKey('shop-restore'))).onTap,
       isNull,
     );
   });
@@ -128,15 +127,49 @@ void main() {
   });
 
   group('the coin shelf', () {
-    testWidgets('a bigger bundle draws a bigger pile', (tester) async {
-      // All four bundles share one 💰 in the catalogue, deliberately. The TILE
-      // is where the tiers are told apart, by drawing 1 / 2 / 3 / 5 coins.
+    testWidgets('each bundle gets a PICTURE of what it is called', (
+      tester,
+    ) async {
+      // All four share one 💰 in the catalogue, and the JS tells them apart with
+      // a cluster of 1/2/3/5 coins — which is a quantity and makes no sense of
+      // "Coin Vault".
       await pumpShopWidget(tester, (_) {}, CoinPacksSection.new);
       final drawn = tester
-          .widgetList<CoinCluster>(find.byType(CoinCluster))
-          .map((c) => c.count)
+          .widgetList<CoinPackPicture>(find.byType(CoinPackPicture))
+          .map((c) => c.art)
           .toList();
-      expect(drawn, [1, 2, 3, 5]);
+      expect(drawn, [
+        CoinPackArt.pocket,
+        CoinPackArt.pile,
+        CoinPackArt.vault,
+        CoinPackArt.mountain,
+      ]);
+    });
+
+    testWidgets('and every other shelf gets the app\'s own line art', (
+      tester,
+    ) async {
+      // `ShopTile` has had a `glyph` since it was written and nothing ever
+      // passed one, so every shelf was text with a price under it. Not the
+      // catalogue's emoji either — that one is for the toast, which renders it
+      // as text.
+      await pumpPaid(tester);
+      final onShelf = getShopProducts().where(
+        (p) => const {'bundle', 'vip', 'gems', 'coins'}.contains(p.category),
+      );
+      for (final product in onShelf) {
+        expect(
+          find.descendant(
+            of: find.byKey(ValueKey('shop-tile-${product.id}')),
+            matching: find.byWidgetPredicate(
+              (w) => w is GameIcon || w is CoinPackPicture,
+            ),
+          ),
+          findsWidgets,
+          reason: product.id,
+        );
+        expect(find.text(product.icon), findsNothing, reason: product.id);
+      }
     });
 
     testWidgets('the popular one is crowned and tagged', (tester) async {

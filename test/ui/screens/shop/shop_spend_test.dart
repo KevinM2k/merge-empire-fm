@@ -12,6 +12,18 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 
 import 'shop_helpers.dart';
 
+/// Tap a priced row and say yes. Spending is a two-beat flow now — see
+/// `purchase_flow.dart` — because a row the balance will not cover has to end
+/// at the coin or gem packs rather than at a dead button.
+Future<void> buyRow(WidgetTester tester, String tileKey) async {
+  await tester.ensureVisible(find.byKey(ValueKey('shop-buy-$tileKey')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('shop-buy-$tileKey')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(ValueKey('spend-confirm-yes-$tileKey')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   tearDown(resetLocale);
 
@@ -27,34 +39,80 @@ void main() {
           .firstWhere((t) => t.blocked == null);
       final before = container.read(gemsProvider);
 
-      // The shelves are grids now, so a tile can sit below the fold.
-      await tester.ensureVisible(
-        find.byKey(ValueKey('shop-buy-gem-${live.item.id}')),
+      await buyRow(tester, 'gem-${live.item.id}');
+      expect(container.read(gemsProvider), lessThan(before));
+
+      // And a receipt, so a purchase is an event rather than a number quietly
+      // changing.
+      expect(
+        find.byKey(ValueKey('spend-receipt-gem-${live.item.id}')),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(ValueKey('spend-receipt-ok-gem-${live.item.id}')),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('shop-buy-gem-${live.item.id}')));
-      await tester.pumpAndSettle();
       await settleSave(tester);
-
-      expect(container.read(gemsProvider), lessThan(before));
     });
 
-    testWidgets('a blocked gem row is dead and carries its reason', (
-      tester,
-    ) async {
+    testWidgets('a row nobody can afford is still LIVE', (tester) async {
+      // "Not enough gems" is never said: the player wanted the thing, and the
+      // answer to wanting it is a way to afford it.
       final container = await pumpShopWidget(tester, (_) {}, BoostsSection.new);
-      final blocked = container
+      final broke = container
           .read(gemItemTilesProvider)
-          .firstWhere((t) => t.blocked != null);
+          .firstWhere((t) => t.blocked == 'insufficient_gems');
       expect(
         tester
             .widget<ElevatedButton>(
-              find.byKey(ValueKey('shop-buy-gem-${blocked.item.id}')),
+              find.byKey(ValueKey('shop-buy-gem-${broke.item.id}')),
             )
             .onPressed,
-        isNull,
+        isNotNull,
       );
-      expect(find.text(t('shop.toast.not_enough_gems')), findsWidgets);
+      expect(find.text(t('shop.toast.not_enough_gems')), findsNothing);
+    });
+
+    testWidgets('and saying yes to it opens the GEM PACKS', (tester) async {
+      final container = await pumpShopWidget(tester, (_) {}, BoostsSection.new);
+      final broke = container
+          .read(gemItemTilesProvider)
+          .firstWhere((t) => t.blocked == 'insufficient_gems');
+      final before = container.read(gemsProvider);
+
+      await buyRow(tester, 'gem-${broke.item.id}');
+      expect(
+        find.byKey(const ValueKey('currency-sheet-gems')),
+        findsOneWidget,
+        reason: 'the next thing on screen is the thing that fixes it',
+      );
+      expect(container.read(gemsProvider), before, reason: 'and nothing spent');
+    });
+
+    testWidgets('a refusal that is NOT about money is still said', (
+      tester,
+    ) async {
+      // Already owned, already active, nobody injured — those are answers, not
+      // obstacles, and they belong on the tile.
+      final container = await pumpShopWidget(
+        tester,
+        (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
+        BoostsSection.new,
+      );
+      final other = container
+          .read(gemItemTilesProvider)
+          .where((t) => t.blocked != null && t.blocked != 'insufficient_gems');
+      for (final tile in other) {
+        expect(
+          tester
+              .widget<ElevatedButton>(
+                find.byKey(ValueKey('shop-buy-gem-${tile.item.id}')),
+              )
+              .onPressed,
+          isNull,
+          reason: tile.item.id,
+        );
+      }
     });
 
     testWidgets('a gem purchase never fires when the row is blocked', (
@@ -76,12 +134,10 @@ void main() {
       );
       final before = container.read(coinsProvider);
 
-      // The shelves are grids now, so a tile can sit below the fold.
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('shop-buy-coin-kit_sponsor')),
+      await buyRow(tester, 'coin-kit_sponsor');
+      await tester.tap(
+        find.byKey(const ValueKey('spend-receipt-ok-coin-kit_sponsor')),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('shop-buy-coin-kit_sponsor')));
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -148,12 +204,10 @@ void main() {
           .firstWhere((t) => t.blocked == null);
       final before = container.read(gemsProvider);
 
-      // The shelves are grids now, so a tile can sit below the fold.
-      await tester.ensureVisible(
-        find.byKey(ValueKey('shop-buy-voucher-${open.floor}')),
+      await buyRow(tester, 'voucher-${open.floor}');
+      await tester.tap(
+        find.byKey(ValueKey('spend-receipt-ok-voucher-${open.floor}')),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('shop-buy-voucher-${open.floor}')));
       await tester.pumpAndSettle();
       await settleSave(tester);
 
@@ -173,12 +227,10 @@ void main() {
           .read(voucherTilesProvider)
           .firstWhere((t) => t.blocked == null);
 
-      // The shelves are grids now, so a tile can sit below the fold.
-      await tester.ensureVisible(
-        find.byKey(ValueKey('shop-buy-voucher-${open.floor}')),
+      await buyRow(tester, 'voucher-${open.floor}');
+      await tester.tap(
+        find.byKey(ValueKey('spend-receipt-ok-voucher-${open.floor}')),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(ValueKey('shop-buy-voucher-${open.floor}')));
       await tester.pumpAndSettle();
       await settleSave(tester);
 

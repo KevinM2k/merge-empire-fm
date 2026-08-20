@@ -557,22 +557,39 @@ because most of these are two or three to a file.
 
 ### The HUD, on every screen
 
-- [ ] **The HUD's items should be RIGHT aligned**, not left.
-- [ ] **On the Shop and the Squad tab the HUD has a white background.** It should
-      be the glass — blur and transparency — and it should cover the safe area
-      with it, not just the bar.
+- [x] **The resources are a group on the RIGHT**, with the crest on the left —
+      `.hud-chips { margin-left: auto }`, which is the JS's own layout. They had
+      been packed against the badge with the empty half of the bar on the right.
+- [x] **The glass covers the notch.** The shell wrapped the whole HUD in a
+      `SafeArea`, which pushed the frosted band BELOW the notch and left the strip
+      above it showing the raw page — a white bar across the top of the Shop and
+      the Squad tab in light mode, with the blurred bar starting underneath it.
+      The safe area is inside the glass now, so the blur and the tint run to the
+      top of the screen and the chips still sit clear.
 
 ### Shop
 
-- [ ] **The coin and gem sheets are too big for what is in them.** They take a
-      fixed fraction of the screen; they should be the size of their content.
-- [ ] **Every image in the Shop is missing.** `ShopTile` has a `glyph` and
-      nothing has ever passed one, so every shelf is text-only. The JS gives
-      each row its own: `p.icon` for a product, `gem.<id>.icon`, 🩹 for the
-      sponge, 🤝 for the sponsor, 📺 for the TV deal, 🍀 for a voucher.
-- [ ] **The four coin packs want real pictures**, one each and each making
-      sense of its name: Pocket Change, Coin Pile, Coin Vault, Coin Mountain.
-      The drawn cluster of 1/2/3/5 coins is the JS's and is not enough.
+- [x] **The coin and gem sheets fit their content.** `heightFraction` is a
+      CEILING now, not a height: four coin packs is four coin packs tall, and
+      taking two thirds of the screen to show them read as a screen that had
+      failed to load.
+- [x] **Every shelf has its art.** `ShopTile` has had a `glyph` since it was
+      written and nothing ever passed one. Not the catalogue's emoji either —
+      that one is plain text for the toast to render — but the app's OWN line art
+      from `game_icon.dart`, which is what the rest of the game is drawn in.
+- [x] **The four coin packs have pictures of what they are called** —
+      `coin_pack_art.dart`: a drawstring pouch, a heap, a strongbox with the lid
+      up, and a peak with coins coming off it. Nothing bundled and nothing needed:
+      four compositions of the same filled coin the cluster is built from, so they
+      scale to any tile and theme with nothing.
+- [x] **Nothing is ever refused for want of money.** A priced row stays live
+      whatever the balance; tapping it asks, and answering yes either completes
+      and shows a receipt or opens the coin/gem packs — `purchase_flow.dart`. "Not
+      enough gems" is a dead end, and the answer to wanting something is a way to
+      afford it.
+- [x] **Restore Purchases is a quiet row** rather than a stranded button with a
+      caption under it, and the "coming soon" under it is gone — it was the fourth
+      time that sentence appeared on one screen.
 
 ### Club
 

@@ -39,8 +39,14 @@ class ShopTile extends StatelessWidget {
   /// "Most popular", "Owned", a tier name.
   final String? badge;
 
-  /// The emoji on top. The shelf's own art, and the first thing scanned.
-  final String? glyph;
+  /// The art on top, and the first thing scanned.
+  ///
+  /// A WIDGET rather than an emoji. The JS puts `p.icon` here — a literal 🎁 or
+  /// 💎 — because its `icon` field is plain text that the toast also renders. On
+  /// this side the two are separate: the toast can keep the emoji and the tile
+  /// gets the app's own line art (`game_icon.dart`) or, for the coin packs, a
+  /// drawn picture of the thing it is named after.
+  final Widget? glyph;
 
   @override
   Widget build(BuildContext context) {
@@ -98,12 +104,7 @@ class ShopTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (glyph != null)
-              SizedBox(
-                height: 42,
-                child: Center(
-                  child: Text(glyph!, style: const TextStyle(fontSize: 32)),
-                ),
-              ),
+              SizedBox(height: 46, child: Center(child: glyph)),
             Text(
               title,
               textAlign: TextAlign.center,

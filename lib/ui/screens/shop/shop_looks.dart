@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// A pack's tint, as a colour. Stored as a CSS hex because the catalogue is
 /// generated from the JS's own data.
@@ -152,10 +153,9 @@ class _VaultHero extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             color: ShopSectionId.looks.ink.withValues(alpha: 0.18),
           ),
-          child: Text(
-            vault.product.icon.isEmpty ? '🗄️' : vault.product.icon,
-            style: const TextStyle(fontSize: 24),
-          ),
+          // The app's own line art, not the catalogue's emoji — that one is for
+          // the toast, which renders it as text.
+          child: GameIcon('bank', size: 24, color: ShopSectionId.looks.ink),
         ),
         const SizedBox(width: 10),
         Expanded(

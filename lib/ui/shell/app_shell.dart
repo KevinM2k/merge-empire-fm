@@ -199,16 +199,16 @@ class AppShellState extends ConsumerState<AppShell>
             top: 0,
             left: 0,
             right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Visibility(
-                key: const ValueKey('hud-layer'),
-                visible: !_revealActive,
-                maintainState: true,
-                child: Hud(
-                  onSettings: () =>
-                      openRoute<void>(context, const SettingsScreen()),
-                ),
+            // NOT wrapped in a `SafeArea`: the HUD clears the notch itself, so
+            // its glass can run to the top of the screen instead of starting
+            // below it with the raw page showing above.
+            child: Visibility(
+              key: const ValueKey('hud-layer'),
+              visible: !_revealActive,
+              maintainState: true,
+              child: Hud(
+                onSettings: () =>
+                    openRoute<void>(context, const SettingsScreen()),
               ),
             ),
           ),

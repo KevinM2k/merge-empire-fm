@@ -49,8 +49,9 @@ const Map<int, List<(double, double, double)>> _layouts = {
 };
 
 /// The ¢ on the face, in the coin's own 24×24 space — the icon set's path, as
-/// six relative cubics and two ticks.
-final Path _cent = Path()
+/// six relative cubics and two ticks. Shared with `coin_pack_art.dart`, so a
+/// coin in a pouch and a coin in a cluster carry the same mark.
+final Path centGlyph = Path()
   ..moveTo(14.5, 9)
   ..relativeCubicTo(-.5, -1, -1.5, -1.5, -2.5, -1.5)
   ..relativeCubicTo(-1.5, 0, -3, .8, -3, 2.2)
@@ -114,7 +115,7 @@ class _ClusterPainter extends CustomPainter {
         ..color = Colors.black.withValues(alpha: 0.30),
     );
     canvas.drawPath(
-      _cent.transform(
+      centGlyph.transform(
         (Matrix4.identity()
               ..translateByDouble(at.dx - 12 * k, at.dy - 12 * k, 0, 1)
               ..scaleByDouble(k, k, 1, 1))
