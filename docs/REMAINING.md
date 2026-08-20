@@ -30,10 +30,12 @@ too late:
 
 ## Where we are
 
-**3,800 tests, `flutter analyze` clean.**
+**3,819 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 23 Aug", and it is 6 items** — on top of
-22 August's 4, 21 August's 9 and 20 August's 28. That is
+**The live queue is "From playtesting — 23 Aug", and it is 17 items** — on top of
+22 August's 4, 21 August's 9 and 20 August's 28. The two biggest are a whole
+missing layer each: nothing on screen draws the WEATHER, and Coach Colin does not
+exist outside the Play tab. That is
 what a session of actually playing the thing turned up, which is a different list
 from what reading the source turns up and is the one to clear first. It carries
 its own status block: the count, the clusters, what is blocked on a decision and
@@ -1401,8 +1403,9 @@ findings were arithmetic rather than taste and one is a reversal.
 
 ## From playtesting — 23 Aug
 
-The penalty game rebuilt as a simulation, the weather wired to the actual sky, and
-a handful of fixes that came out of both.
+The penalty game rebuilt as a simulation, the weather wired to the actual sky, the
+manager's walk rebuilt from the foot up, and a handful of fixes that came out of
+each.
 
 ### The penalty game
 
@@ -1505,7 +1508,172 @@ a handful of fixes that came out of both.
       translation lag. The picker's pill was making the same claim — it shows the
       attack multiplier's RANGE now, which is what the tactic actually does.
 
+### The walk, rebuilt from the foot up
+
+- [x] **THE RIG WAS KEYFRAMED AND THE KEYFRAMES WERE WRONG.** Three separate
+      complaints — a residual moonwalk, a judder as he put his foot down, and a
+      knee that went rigid — turned out to be one cause: the JS's thigh and shin
+      angles were played back and the foot went wherever they put it, which was
+      not anywhere a foot goes. Measured: over the first 6% of the step the
+      planted foot travelled BACKWARDS against a ground travelling forwards (the
+      judder), and through the rest of the stance it covered 25.8 units in the
+      first quarter and 30.4 in the second — 8% slow then 8% fast against a
+      constant grass (the skate). Neither can be retimed out, because the poses
+      themselves are wrong.
+      **So the foot's PATH is the input now and the joints are solved from it.**
+      Ordinary two-bone IK: the law of cosines gives the knee, the angle to the
+      target less the triangle's angle at the hip gives the thigh. Stated as a
+      path a walk is simple — a straight line at a constant rate while planted,
+      which is what "planted" MEANS and the only property that lets the boot and
+      the ground agree, and an eased arc while swinging.
+- [x] **The ankle rides up over the rolling boot.** It was pinned at ground height
+      while the boot rotated about it, which drives thirty degrees of toe into the
+      turf at push-off and leaves the heel planted when it should be the first
+      thing off the grass. The boot's own corners say where the ankle has to be:
+      rotate them and whichever ends up lowest is the bit standing on the ground.
+      That also means the contract to test is about the SOLE, not the ankle.
+- [x] **The step cannot be symmetric.** The two ends of it are different shapes —
+      flat foot and low hip at heel strike, up on the toe with five more units of
+      reach at push-off — so a sweep centred on the hip cuts the back half short,
+      the knee's slack eats the difference, and the THIGH stays within ten degrees
+      of vertical while the calf trails fifty. Which reads exactly as "his legs go
+      forwards and never back", because the part of a leg you read is the thigh.
+      Each end is solved from the reach available there: 21 forward, 30 back.
+- [x] **And he walked in a half-crouch**, because two bones of equal length bend
+      `2·acos(reach/total)` — brutally sensitive near full extension, so 97% of
+      reach is still a 28-degree knee. Standing him a unit deeper puts mid-stance
+      at 99% and the crouch goes with it. `walkerFootline` is derived from the
+      ankle height and the boot's sole now rather than being a typed constant that
+      could drift from either.
+- [x] **Shorts that are shorts.** A rectangle with a 4px radius from the waist to
+      the knee, with the legs coming out of its side — and the far leg swinging
+      through left its square bottom corner hanging in the air behind him, which
+      is the "hip block" that got reported. It is a waistband and a seat that
+      curves under now, the thighs are drawn in the garment's colour over bare
+      legs so the shorts END mid-thigh, and both hips are centred on it. The kit
+      reads as a kit rather than a romper suit, which took THREE tones — the old
+      one had shirt, seat and both thighs all within 22% of each other.
+- [x] **The elbow was pointing his arm horizontally.** -38 to -68 degrees on top
+      of a shoulder swinging to -27 put the forearm at -95 from vertical. Ten to
+      thirty is what an elbow does at a walk; anything more is a jog.
+- [x] **The head sat four units forward of the body**, on a torso centred at 58
+      with the skull at 62. Moved back with its hair, beard, glasses and hat as ONE
+      group — the art is all drawn against a skull at 62, so shifting the painted
+      head alone slides the face out from under its own hat.
+
+### The grid
+
+- [x] **A merge left a hole and the next card fell into it.** Two cards go in and
+      one comes out in the target's cell, so the source's cell empties — and after
+      a few merges the grid is a scatter with gaps, where "the next slot" is
+      something you have to hunt for. Closed up now, keeping the order the player
+      left them in; it is not a sort.
+- [x] **And the merged card KEEPS the cell it was dropped on.** The first cut slid
+      it to the front of the run, which meant the burst, the pop and the new face
+      all happened somewhere other than where the player was looking while a
+      NEIGHBOUR bounced into the cell they were watching. It holds its cell unless
+      that would leave a gap in front of it, in which case it goes to the end of
+      the run — because no gaps is the point. The celebration follows the card by
+      instance, not by the drop index.
+- [x] **Empty slots carry their own number**, faintly. An empty grid was a field
+      of identical dashed boxes with nothing to say how far along it you were
+      looking; now that a merge closes the gaps behind it, the first numbered box
+      is always the next card's home.
+- [x] **A pair the DIVISION will not allow is no longer offered.** `mergesInto`
+      only says a card has a next tier at all; whether this division permits it is
+      `maxPlayerTier`, which `attemptMerge` checks and refuses with
+      `division_locked`. `mergeTargetsFor` did not, so a pair the league would turn
+      down wore the gold ring and lit up as a drop target — the grid promised a
+      merge and then said no.
+
+### Coach Colin
+
+- [x] **He gave the same advice twice in one window.** The bubble's header already
+      reads `COACH COLIN SUGGESTS <TACTIC>`, and the tip pool carried a
+      `coach.tactic_suggest` line saying the identical sentence. The pool is for
+      what the header cannot say.
+- [x] **And that header line is one sentence in three treatments** — caps, then
+      sentence case, then title case. All caps now.
+
 ### Still open
+
+Ordered by how visible each one is to somebody playing.
+
+**Nothing draws the weather.** This is the biggest gap the session opened and it
+is a whole layer, not a fix.
+
+- [ ] **`resolveCondition` has no callers anywhere in `lib/ui`.** The service
+      fetches the reading, the engine turns it into `rain | snow | fog | wind |
+      storm | sunny | cloudy | clear` — and every one of them looks identical on
+      screen, because the port has no weather layer at all. The JS's is about 350
+      lines of CSS and node-building in `league-scene.css` and `PitchScene.js`:
+      `.ps-rain` (30 drops, each riding a full-height column that translates, so
+      nothing relayouts), `.ps-snow` (44 flakes plus 6 big soft near ones, the
+      column owning the fall and the flake the sway) with `.ps-snow-ground` and
+      boot prints masked to only appear behind him, `.ps-fog` (a veil plus three
+      very wide bands), `.ps-gusts` (7 streaks tearing across), `.ps-sun` (disc,
+      240px bloom, a slowly rotating conic of rays), `.ps-overcast` (a desaturating
+      grey, its own pale variant for snow), `.ps-clouds` (4–5 drifting, retimed by
+      condition), and lightning — a flash plus one of three forked bolt paths,
+      driven in JS rather than CSS so the thunder can be timed BEHIND the flash,
+      4–13s apart, near strikes brighter and louder.
+      There is a `thunder` recipe in `data/sound_defs.dart` already waiting.
+      **Also unported: the spell scheduler.** Live weather holds steady; the
+      seasonal model runs a spell, then a clear gap, then rolls again
+      (`spellDurationMs` / `gapDurationMs`), and `clear` has no spell because it IS
+      the gap. And `windAccelFor` pushes the stray ball, `comfortFor` decides
+      whether the manager is sweating in his overcoat — both ported, both with
+      nothing reading them.
+- [ ] **The reading is only as local as a timezone.** `Europe/London` is one
+      coordinate for the whole UK, so a player in the rain in Manchester gets
+      London's sky. IP geolocation would normally fix that to city level with no
+      permission prompt — but it was checked against a Starlink connection and
+      both providers put it at the London ground station, so it buys nothing for
+      satellite users. Accepted as country-level for now; a town picker in
+      Settings, using Open-Meteo's own free geocoding search, is the only thing
+      that would be exact without a permission.
+
+**Coach Colin does not exist outside the Play tab.**
+
+- [ ] **`CoachFloating.js` (456 lines) and `CoachTips.js` (448) are unported.** The
+      floating head is mounted once at App level in the JS and is visible across
+      every tab: it carries an attention pulse, click-to-expand, a ten-minute
+      per-tip dismissal cooldown in `state.ui.coachDismissals`, `priority` tips
+      that bypass it, a `setEnabled` gate for the one sub-tab where an inline panel
+      makes it redundant, and a REF-COUNTED suppression so a modal can ask him to
+      step aside and nested modals only un-suppress on the last close. The port has
+      the bubble on the Play tab and nothing else.
+
+**The diorama, still.**
+
+- [ ] **The football.** The last thing on that screen that moves in the JS and does
+      not exist here. `pitchBallSim.js` is 791 lines: a ball arrives at his feet,
+      and what he does with it is a mood-weighted roll — pass, chip, clear, pick up
+      or ignore (`ballPlays` and `_ballPlayWeight` are already ported, with
+      nothing rolling them). A carry poses the arm and suppresses gestures; an
+      ignore plays a snub gesture as it rolls past.
+- [ ] **Gestures — the data is all ported and nothing plays it.** `manager_mood.dart`
+      carries all 16 (`fistpump`, `applaud`, `point`, `checkwatch`, `armsfolded`,
+      `handsonhips`, `handsonhead`, plus nine look-pack emotes), their weights per
+      mood, `gestureGapMs`, `nextGestureDelay`, `pickGesture` with its
+      exclude-list, and the `stops` and `fullTime` flags. The keyframes are all in
+      `league-scene.css` as `.is-gest-*` blocks — arm and forearm tracks per
+      gesture, plus head tilts for checkwatch, handsonhead and bow, a body fold for
+      bow and a hard-stepped body for robot. What is missing is the scheduler, the
+      poses on the rig, and the tap that plays one.
+- [ ] **The blink.** He never does.
+- [ ] **More turf perspective**, so the diorama reads as further from the crowd.
+
+**The match popup and the cutaway.**
+
+- [ ] **The popup is missing its boxes, tactics, subs and watch-ad buttons** — see
+      22 Aug. Against the JS's own CSS.
+- [ ] **Continuous play between chances.** The stage is persistent and the players
+      only exist during a chance; the JS runs them between chances too. The hard
+      part is the one raised in the request: the ball has to arrive at each chance
+      from wherever the last one left it, or it teleports.
+
+**Elsewhere.**
 
 - [ ] **The penalty needs a run-up and a striker.** There is no player in the
       picture: the ball leaves the spot on its own. The physics does not care, but
@@ -1513,11 +1681,21 @@ a handful of fixes that came out of both.
 - [ ] **The keeper could use a save ANIMATION** — the ball is stopped by a reach
       test and then the clip ends. Parrying it away, or holding it, is the
       difference between a save and the ball vanishing.
-- [ ] **The football on the diorama** — see 22 Aug. Still the last thing on that
-      screen that moves in the JS and does not exist here.
-- [ ] **The manager's blink and tap-to-celebrate** — see 22 Aug.
-- [ ] **The match popup's missing half** — see 22 Aug.
-- [ ] **More turf perspective on the diorama** — see 22 Aug.
+- [ ] **The daily reward** does not tick the days already claimed and does not say
+      what a day pays when you tap it — see 21 Aug.
+- [ ] **The five mini-games with no screen** — `training` aside, `keepy_uppys`,
+      `through_ball`, `whack` and `pairs` are engine-only. See 21 Aug.
+- [ ] **Team Names / the pyramid editor** has no screen.
+- [ ] **Rate Us, Privacy and Account connection** are waiting on M4 — a store URL
+      and `url_launcher`, a consent SDK, and auth respectively. They look broken
+      because they are stubs; see 21 Aug.
+- [ ] **Kenney smoke, backdrops and more icons** — the merge burst and the
+      celebrations should use the particle sheets, and the customiser, training and
+      match popups could use the backdrops. See 22 Aug.
+- [ ] **The rest of the `SheetHeader` sweep** — the currency, player, sell,
+      deadline and training sheets, the leaderboard header, the boot-room and
+      penalty screens. Coach Colin's card and the achievement banner stay
+      exceptions on purpose.
 
 ## M0 — foundation and save bridge ✅
 
