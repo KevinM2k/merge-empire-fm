@@ -275,17 +275,39 @@ const Map<String, Strategy> strategies = {
 const String defaultStrategy = 'balanced';
 
 /// Plain-English descriptions shown in the pause panel.
+///
+/// **THEY HAVE TO MATCH THE MULTIPLIERS ABOVE THEM, and two did not.**
+///
+/// Counter Attack's said "ATK and DEF swap as play flows". Nothing swaps: its
+/// base is DEFENSIVE (`0.92 / 1.08`) and what moves is the attack multiplier,
+/// lifted by `commitmentGain × commitmentRead(...)` against a side that commits
+/// forward and cut against a deep block — with `swing` widening the result
+/// either way. A player reading "swap" would pick it expecting a shape that
+/// turns into an attacking one, which is the opposite of what it does.
+///
+/// High Press's "strongest boost" was true — `1.22` is the biggest attacking
+/// shift of the five — but it left out the price, which is not the injuries: at
+/// `0.78` it is the most OPEN tactic in the game, below All Out Attack's `0.82`.
+/// Tactics are zero-sum on composite rating, so the biggest shift forward is by
+/// definition the biggest hole at the back, and a description that names only
+/// the boost is selling half of it.
+///
+/// Mirrors `strategy.*.desc` in the catalogue, which is what the picker shows.
+/// Changed in `../merge-empire-fc/src/i18n/locales/en.js` and regenerated — the
+/// nine other locales still carry the old line, which is ordinary translation
+/// lag rather than a second source of truth.
 const Map<String, String> strategyDescriptions = {
   'balanced': 'Solid shape at both ends. Good default.',
   'allOutAttack':
       'Everyone forward — more chances, exposed at the back. Use when chasing.',
   'parkTheBus': 'Hard to break down, little threat forward. Protect a lead.',
   'counterAttack':
-      'Sit deep, strike on the break — ATK and DEF swap as play flows. '
-      'Underdog pick.',
+      'Sits deep and reads the opponent: your attack climbs against a side that '
+      'commits forward and drops against a deep block. Widest spread of '
+      'results. Underdog pick.',
   'highPress':
-      'Win the ball high. Strongest boost, but players tire fast and injuries '
-      'spike.',
+      'Win the ball high. The biggest attacking shift of the five, and the most '
+      'open at the back — players tire fast and injuries spike.',
 };
 
 /// What share of a side's strength sits in attack.

@@ -11,6 +11,7 @@
 library;
 
 import 'package:flame/game.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
@@ -155,6 +156,18 @@ class _CutawayStageState extends State<CutawayStage> {
                       // until the world has something in it.
                       backgroundBuilder: (_) => const SizedBox.shrink(),
                     ),
+                    // The word, over the top. In FLUTTER rather than in Flame: a
+                    // headline wants the app's own type and a spring, and Flame's
+                    // text renderer has neither.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ValueListenableBuilder<CutawayOutcome?>(
+                          valueListenable: game.verdict,
+                          builder: (context, outcome, _) =>
+                              _Verdict(outcome: outcome),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
         ),
@@ -180,4 +193,76 @@ class _IdlePitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_IdlePitchPainter oldDelegate) => false;
+}
+
+/// GOAL, SAVED, MISSED.
+///
+/// **A chance with no word on it is a chance you have to work out.** The passage
+/// ends, the ball is somewhere, and whether that was a goal or a save is a thing
+/// the player reads off the ball's position — which on a 200px pitch is asking a
+/// lot. The word is the whole point of the cutaway landing.
+///
+/// The engine only ever records two kinds of chance — on target and off — so
+/// there are three words and not six. The post and the crossbar are in
+/// [CutawayOutcome] because the geometry can draw them, and they never arrive.
+class _Verdict extends StatelessWidget {
+  const _Verdict({required this.outcome});
+
+  final CutawayOutcome? outcome;
+
+  /// Which of the three, and in what colour.
+  ({String key, Color ink})? get _word => switch (outcome) {
+    null => null,
+    CutawayOutcome.goal => (key: 'mg.goal', ink: const Color(0xFF4ADE80)),
+    CutawayOutcome.saved => (key: 'mg.saved', ink: const Color(0xFF7FD4FF)),
+    // Wide, over, off the frame — one word for all of them, because from here
+    // they are the same event.
+    _ => (key: 'mg.miss', ink: const Color(0xFFFFC247)),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final word = _word;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      // Springs in and holds. It is on screen for a second at most, so a fade
+      // out would spend most of that fading.
+      transitionBuilder: (child, animation) => ScaleTransition(
+        scale: Tween<double>(begin: 0.55, end: 1).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: const Cubic(0.34, 1.56, 0.64, 1),
+          ),
+        ),
+        child: FadeTransition(opacity: animation, child: child),
+      ),
+      child: word == null
+          ? const SizedBox.shrink(key: ValueKey('cutaway-verdict-none'))
+          : Center(
+              key: ValueKey('cutaway-verdict-${word.key}'),
+              child: Text(
+                t(word.key),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: word.ink,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.4,
+                  height: 1,
+                  // On grass, so it carries its own separation — and a heavy one,
+                  // because the turf under it is mid-green and the word is
+                  // bright.
+                  shadows: const [
+                    Shadow(color: Color(0xCC000000), blurRadius: 8),
+                    Shadow(
+                      color: Color(0x99000000),
+                      blurRadius: 2,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
 }

@@ -57,6 +57,14 @@ List<String> cutawaySpritePaths() => [
   'ball.png',
 ];
 
+/// Kenney's white smoke puff, eight frames.
+///
+/// Its own cache because it is its own directory — the pitch sprites are under
+/// `assets/pitch/` and a `flame` `Images` carries one prefix.
+final Images fxImages = Images(prefix: 'assets/fx/');
+
+List<String> puffPaths() => [for (var i = 0; i < 8; i++) 'puff_$i.png'];
+
 /// ONE cache, for the whole match rather than for each chance.
 ///
 /// A `FlameGame` owns its own `Images` by default, so every clip decoded all
@@ -72,8 +80,34 @@ final Images cutawayImages = Images(prefix: 'assets/pitch/');
 /// production and a flaky teardown in a test. The first chance pays for it
 /// once, and the stage paints the markings underneath meanwhile — so what that
 /// frame costs is the players arriving a beat late, not a green flash.
-Future<void> preloadCutawaySprites() =>
-    cutawayImages.loadAll(cutawaySpritePaths());
+Future<void> preloadCutawaySprites() async {
+  await cutawayImages.loadAll(cutawaySpritePaths());
+  await fxImages.loadAll(puffPaths());
+}
+
+/// A puff of smoke where something happened.
+///
+/// **Kenney's frames rather than a procedural burst**, and the split is worth
+/// keeping straight: the merge burst stays procedural because it has to draw in
+/// whatever colour the tier is at whatever size the card is, which a sprite sheet
+/// cannot do. This is the other case — a fixed white puff at a fixed size, where
+/// eight hand-painted frames beat anything drawn from primitives and the whole
+/// eight cost 140KB.
+class Puff extends SpriteAnimationComponent {
+  Puff({required Vector2 at, required double diameter, double speed = 0.055})
+    : super(
+        position: at.clone(),
+        size: Vector2.all(diameter),
+        anchor: Anchor.center,
+        removeOnFinish: true,
+        priority: 50,
+        animation: SpriteAnimation.spriteList(
+          [for (final path in puffPaths()) Sprite(fxImages.fromCache(path))],
+          stepTime: speed,
+          loop: false,
+        ),
+      );
+}
 
 double _easeOut(double t) => 1 - math.pow(1 - t, 3).toDouble();
 double _linear(double t) => t;
@@ -114,6 +148,21 @@ class Mover extends PositionComponent {
   /// Brains off — a wall in a free kick, or anyone after the ball has gone in.
   bool frozen = false;
 
+  /// How far into a stride, 0..1, advanced by DISTANCE COVERED rather than by
+  /// time.
+  ///
+  /// **The run cycle is a WEIGHT SHIFT, not legs.** Kenney's top-down sports
+  /// characters are a shirt oval, a head and two arm stubs — there are no legs in
+  /// the pack to swap, and the modular-character pack's legs are side-on, so they
+  /// would not work here either. What a top-down runner actually shows is the
+  /// body rocking foot to foot: a small roll of the shoulders and a bob, in time
+  /// with the stride. Driven off distance so a walking figure rocks slowly and a
+  /// sprinting one fast, without a second speed to keep in step.
+  double _stride = 0;
+
+  /// Arms up. Set for the length of a celebration.
+  bool celebrating = false;
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -138,7 +187,10 @@ class Mover extends PositionComponent {
       _velocity.scale(math.max(0, 1 - 6 * dt));
     }
 
-    position.add(_velocity * dt);
+    final step = _velocity * dt;
+    position.add(step);
+    // One stride per ~4.2 units covered.
+    _stride = (_stride + step.length / 4.2) % 1;
     if (_velocity.length2 > 1) {
       // atan2(x, -y): the sprite's "up" is -Y, so a heading of zero is north.
       heading = math.atan2(_velocity.x, -_velocity.y);
@@ -147,9 +199,16 @@ class Mover extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
+    final rock = math.sin(_stride * 2 * math.pi);
+    // Two strides per bob: the body rises on each footfall, not on each pair.
+    final bob = math.sin(_stride * 4 * math.pi);
     canvas.save();
     canvas.translate(size.x / 2, size.y / 2);
-    canvas.rotate(heading);
+    // The roll leads the heading by a few degrees either way, which is what
+    // makes the figure read as running rather than sliding.
+    canvas.rotate(heading + rock * 0.09);
+    final lift = 1 + bob * 0.035 + (celebrating ? 0.14 : 0);
+    canvas.scale(lift);
     canvas.translate(-size.x / 2, -size.y / 2);
     sprite.render(canvas, size: size);
     canvas.restore();
@@ -429,6 +488,7 @@ class CutawayGame extends FlameGame {
           from: ball.position.clone(),
           to: to,
           style: style,
+          bendSide: _rng.nextBool() ? 1 : -1,
           onArrive: () {
             carrier = receiver;
             beatIndex++;
@@ -470,6 +530,10 @@ class CutawayGame extends FlameGame {
       keeper.target = attackers[carrier].position.clone();
     }
 
+    // The strike itself. Small and quick — it is the puff off the turf as the
+    // boot goes through the ball, not an explosion.
+    world.add(Puff(at: ball.position.clone(), diameter: 7, speed: 0.04));
+
     _flight = _Flight(
       from: ball.position.clone(),
       to: target,
@@ -478,10 +542,11 @@ class CutawayGame extends FlameGame {
         // A header leaves the ground; everything else is struck along it.
         air: beat.style == 'header' ? 0.4 : 0.0,
         // A free kick has to bend, or it goes through the wall it was given
-        // for.
-        bend: _freeKickTaken ? 0.22 : 0.05,
+        // for. **AN ORDINARY SHOT DOES NOT** — see the note on `_Flight`.
+        bend: _freeKickTaken ? 0.22 : 0,
       ),
       isShot: true,
+      bendSide: _rng.nextBool() ? 1 : -1,
       onArrive: _finish,
     );
   }
@@ -523,18 +588,106 @@ class CutawayGame extends FlameGame {
   bool _freeKickTaken = false;
   double _freeKickDelay = 0;
 
+  /// The verdict, once the ball has arrived. Watched by the stage, which draws
+  /// the banner in Flutter rather than in Flame — a headline wants the app's own
+  /// type, and Flame's text renderer has none of it.
+  final ValueNotifier<CutawayOutcome?> verdict = ValueNotifier(null);
+
+  /// How much of the OUTRO is left.
+  ///
+  /// **THE CLIP DOES NOT END WHEN THE BALL ARRIVES.** It did, and that is why a
+  /// goal snapped back to an empty pitch the instant the ball hit the net — the
+  /// one moment in a match worth watching, cut on the frame it happened. A goal
+  /// gets long enough for the scorer to reach the corner flag with two of them
+  /// chasing; everything else gets a beat to read the word.
+  double _outro = 0;
+
+  static const double _goalOutro = 2.6;
+  static const double _missOutro = 1.0;
+
   void _finish() {
-    finished = true;
     _flight = null;
+    verdict.value = outcome;
+
+    if (outcome == CutawayOutcome.goal) {
+      _celebrate();
+      _outro = _goalOutro;
+      return;
+    }
+
+    // A puff where it ended — the keeper's gloves, or the turf past the post.
+    world.add(Puff(at: ball.position.clone(), diameter: 11));
     for (final m in [...attackers, ...defenders, keeper]) {
       m.frozen = true;
     }
-    onDone?.call(outcome);
+    _outro = _missOutro;
+  }
+
+  /// The corner run.
+  ///
+  /// The JS sends the scorer to the flag and it is the right instinct: a goal has
+  /// an AFTER, and the after is what makes it feel like one. The nearest corner
+  /// on the attacking side, so he runs away from the goal he just scored in
+  /// rather than back up the pitch — and two of the nearest teammates chase him
+  /// rather than all of them, because a whole team arriving at once reads as a
+  /// crowd rather than as a celebration.
+  void _celebrate() {
+    final scorer = attackers[carrier];
+    // Two puffs at the net: the ball hitting it, then the net settling.
+    world.add(Puff(at: ball.position.clone(), diameter: 14));
+
+    final cornerX = attackingRight ? pitchWidth - 4.0 : 4.0;
+    // Whichever corner he finished nearer, so he does not cross the goalmouth.
+    final cornerY = scorer.position.y < pitchHeight / 2 ? 4.0 : pitchHeight - 4;
+    final flag = Vector2(cornerX, cornerY);
+    scorer
+      ..target = flag
+      ..celebrating = true;
+
+    final chasers =
+        [
+          for (final m in attackers)
+            if (m != scorer) m,
+        ]..sort(
+          (a, b) => a.position
+              .distanceTo(scorer.position)
+              .compareTo(b.position.distanceTo(scorer.position)),
+        );
+    for (var i = 0; i < chasers.length; i++) {
+      if (i < 2) {
+        // Behind him and fanned out, so three bodies arriving at one flag do
+        // not stack into one.
+        chasers[i]
+          ..target = flag + Vector2(i == 0 ? -6 : -3, i == 0 ? 5 : -5)
+          ..celebrating = true;
+      } else {
+        chasers[i].frozen = true;
+      }
+    }
+    // Nobody in red goes anywhere. A defence that kept tracking through a
+    // celebration is the one thing that would make it read as still in play.
+    for (final m in [...defenders, keeper]) {
+      m.frozen = true;
+    }
   }
 
   @override
   void update(double dt) {
     super.update(dt);
+
+    // The outro: the ball has arrived, the word is up, and the celebration is
+    // running. `finished` is not set until it is over, so nothing else starts.
+    if (_outro > 0) {
+      _outro -= dt;
+      if (_outro <= 0) {
+        finished = true;
+        for (final m in [...attackers, ...defenders, keeper]) {
+          m.frozen = true;
+        }
+        onDone?.call(outcome);
+      }
+      return;
+    }
     if (finished) return;
 
     if (_freeKickDelay > 0) {
@@ -637,17 +790,25 @@ class _Flight {
     required this.style,
     required this.onArrive,
     this.isShot = false,
+    this.bendSide = 1,
   }) : _duration = math.max(
          0.18,
          from.distanceTo(to) / math.max(1, style.speed),
        ) {
     // The bend is perpendicular to the flight, scaled by its length — a long
     // switch swerves, a three-yard square ball does not.
+    //
+    // **THE SIDE HAS TO VARY, and it did not.** `Vector2(-delta.y, delta.x)` is
+    // always the same perpendicular, so every ball in every clip curved the same
+    // way — which does not read as a struck ball, it reads as the ball drifting
+    // for no reason with nobody near it. Randomised per flight now, and the
+    // styles that had no business bending at all have had it taken off them: a
+    // square pass along the ground goes straight.
     final delta = to - from;
     final length = delta.length;
     _control = Vector2(-delta.y, delta.x)
       ..normalize()
-      ..scale(length * style.bend);
+      ..scale(length * style.bend * bendSide);
   }
 
   final Vector2 from;
@@ -655,6 +816,9 @@ class _Flight {
   final PassStyle style;
   final void Function() onArrive;
   final bool isShot;
+
+  /// Which way it curves, +1 or -1.
+  final int bendSide;
 
   final double _duration;
   late final Vector2 _control;

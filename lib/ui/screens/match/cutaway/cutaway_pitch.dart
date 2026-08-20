@@ -95,12 +95,18 @@ class MoverTuning {
 /// header has nothing to be a header off.
 typedef PassStyle = ({double speed, double air, double bend});
 
+/// **A BALL BENDS WHEN IT HAS A REASON TO.** Every one of these used to carry
+/// some bend, so a square pass along the ground curved away from the line it was
+/// played on — which with nobody near it reads as the ball having a mind of its
+/// own rather than as a struck pass. A ball whipped in from the touchline bends
+/// and a lofted switch bends; a three-yard square ball, a through ball down the
+/// channel and a cutback do not.
 const Map<String, PassStyle> passStyles = {
-  'pass': (speed: 105, air: 0, bend: 0.06),
-  'through': (speed: 125, air: 0, bend: 0.03),
-  'lofted': (speed: 64, air: 1.0, bend: 0.10),
+  'pass': (speed: 105, air: 0, bend: 0),
+  'through': (speed: 125, air: 0, bend: 0),
+  'lofted': (speed: 64, air: 1.0, bend: 0.08),
   'cross': (speed: 82, air: 0.75, bend: 0.14),
-  'cutback': (speed: 135, air: 0, bend: 0.02),
+  'cutback': (speed: 135, air: 0, bend: 0),
 };
 
 /// How a shot of each kind is struck.

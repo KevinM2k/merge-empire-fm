@@ -412,6 +412,17 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('squad-tactic')));
       await tester.pumpAndSettle();
       for (final strategy in strategies.values) {
+        // The picker is a `ListView` and five tiles with their pills and their
+        // descriptions are taller than the sheet, so the last one is reached the
+        // way a player reaches it.
+        await tester.scrollUntilVisible(
+          find.byKey(ValueKey('tactic-${strategy.id}')),
+          120,
+          scrollable: find.descendant(
+            of: find.byKey(const ValueKey('tactic-picker')),
+            matching: find.byType(Scrollable),
+          ),
+        );
         expect(
           find.byKey(ValueKey('tactic-${strategy.id}')),
           findsOneWidget,
@@ -720,10 +731,28 @@ void main() {
       await pumpSquad(tester);
       await tester.tap(find.byKey(const ValueKey('squad-tactic')));
       await tester.pumpAndSettle();
-      // Five rows, and All Out Attack quotes its own trade.
+      // Five rows, and All Out Attack quotes its own trade. Scrolled, because
+      // five priced tiles are taller than the sheet.
       for (final id in strategies.keys) {
+        await tester.scrollUntilVisible(
+          find.byKey(ValueKey('tactic-$id')),
+          120,
+          scrollable: find.descendant(
+            of: find.byKey(const ValueKey('tactic-picker')),
+            matching: find.byType(Scrollable),
+          ),
+        );
         expect(find.byKey(ValueKey('tactic-$id')), findsOneWidget);
       }
+      // Back to the top, so the assertion below is looking at a row on screen.
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('tactic-allOutAttack')),
+        -120,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('tactic-picker')),
+          matching: find.byType(Scrollable),
+        ),
+      );
       final atk = strategies['allOutAttack']!;
       expect(
         find.text('ATK +${((atk.atkMult - 1) * 100).round()}%'),

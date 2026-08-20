@@ -321,13 +321,22 @@ class _TacticRow extends StatelessWidget {
                       spacing: 5,
                       runSpacing: 4,
                       children: [
-                        // Counter Attack's ATK and DEF trade places as the game
-                        // oscillates between absorbing and breaking, so it shows
-                        // the SWING rather than a fixed value that is only ever
-                        // half true.
+                        // **COUNTER ATTACK'S ATK IS A RANGE, NOT A SWAP.** The
+                        // pill said `ATK -8% ⇄ +8%`, which reads as the two
+                        // trading places — and nothing trades. Its DEF is a flat
+                        // +8% like anyone else's; what moves is the ATK, lifted
+                        // by `commitmentGain` against a side that commits forward
+                        // and cut against a deep block. So the attack pill shows
+                        // the two ends of that range and the defence pill is an
+                        // ordinary one.
                         if (strategy.id == 'counterAttack') ...[
-                          _SwapPill(label: 'ATK', mult: strategy.atkMult),
-                          _SwapPill(label: 'DEF', mult: strategy.defMult),
+                          _RangePill(
+                            label: 'ATK',
+                            low: strategy.atkMult * (1 - strategy.commitmentGain),
+                            high:
+                                strategy.atkMult * (1 + strategy.commitmentGain),
+                          ),
+                          _ModPill(label: 'DEF', mult: strategy.defMult),
                         ] else ...[
                           _ModPill(label: 'ATK', mult: strategy.atkMult),
                           _ModPill(label: 'DEF', mult: strategy.defMult),
@@ -399,20 +408,32 @@ class _ModPill extends StatelessWidget {
   }
 }
 
-class _SwapPill extends StatelessWidget {
-  const _SwapPill({required this.label, required this.mult});
+/// A multiplier that MOVES: the two ends of its range, low to high.
+///
+/// Only Counter Attack has one. `-15% → +1%` says what the tactic actually does
+/// — it is a bet on the opponent, and the pill is the odds.
+class _RangePill extends StatelessWidget {
+  const _RangePill({
+    required this.label,
+    required this.low,
+    required this.high,
+  });
 
   final String label;
-  final double mult;
+  final double low;
+  final double high;
 
   @override
   Widget build(BuildContext context) {
     final light = Theme.of(context).brightness == Brightness.light;
-    final v = ((mult - 1) * 100).round();
     final col = light ? const Color(0xFF1D4ED8) : const Color(0xFF4FC3F7);
-    String sign(int n) => '${n > 0 ? '+' : ''}$n%';
+    String pct(double m) {
+      final v = ((m - 1) * 100).round();
+      return '${v > 0 ? '+' : ''}$v%';
+    }
+
     return _Pill(
-      text: '$label ${sign(v)} ⇄ ${sign(-v)}',
+      text: '$label ${pct(low)} → ${pct(high)}',
       ink: col,
       edge: col.withValues(alpha: 0.4),
     );

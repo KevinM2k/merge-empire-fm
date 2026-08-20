@@ -86,6 +86,12 @@ flutter:
     # Kenney's top-down sports pack (CC0), for the 2D match cutaway.
     - assets/pitch/
 
+    # Eight frames of Kenney's white smoke puff (CC0), trimmed to their alpha
+    # box and down to 128px — 140KB of the pack's 5.9MB. The merge burst stays
+    # procedural, because it has to draw in any tier's colour at any size and a
+    # sprite sheet cannot; this is for the things that had no effect at all.
+    - assets/fx/
+
     # Kenney's modular character pack (CC0), extracted from
     # `kenneynl/kenney_modular-characters`. A layered paper doll — head, neck,
     # arm, hand and leg per skin tint, shirts with their own sleeve lengths,
