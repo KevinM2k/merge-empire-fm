@@ -64,9 +64,21 @@ const Duration walkCycle = Duration(milliseconds: 1800);
 ///
 /// [PitchScene] stands him on it too, so the contact line the home screen
 /// measures is the line his boots are actually on.
-/// DERIVED from where the leg actually stands, so the two cannot drift: the
-/// ankle is on [_groundY] and the boot's sole hangs [_bootSole] below it.
-const double walkerFootline = _groundY + _bootSole;
+/// **DERIVED from the lowest the SOLE reaches**, so it cannot drift from the leg.
+/// The lowest rather than the mean: at every other frame his boot is then a unit
+/// or two ABOVE the line, which is the JS's own float, and a boot that sometimes
+/// hovers is far less noticeable than one that sometimes sinks into the turf.
+final double walkerFootline = () {
+  var lowest = double.negativeInfinity;
+  for (var i = 0; i < 720; i++) {
+    final t = i / 720;
+    final sole =
+        math.max(walkerBootSoleY(t), walkerBootSoleY(t, near: false)) -
+        walkerHipRise(t);
+    if (sole > lowest) lowest = sole;
+  }
+  return lowest;
+}();
 
 /// The leg, in art units. **These are the lengths the rig is DRAWN at**, and
 /// the IK below solves against them, so the two cannot disagree.
@@ -75,140 +87,108 @@ const double walkerFootline = _groundY + _bootSole;
 /// hip+30 and the ankle at hip+54 — a 24-unit shin. The stride was computed off
 /// 27 and walked off 24, which is a 5% moonwalk before anything else went wrong.
 const double walkerThigh = 30;
-const double walkerShin = 30;
 
-/// How much reach is held BACK from straight, in art units.
-///
-/// **A knee that reaches full extension locks**, and a locked knee is the thing
-/// you notice: the leg goes rigid for an instant at foot-down and the figure
-/// reads as a pair of scissors. Keeping a little in hand means the joint always
-/// has a bend in it, which is also true of a real leg — nobody walks with a
-/// straight knee.
-///
-/// **Half a unit, not two.** Two bones of the same length are brutally sensitive
-/// near full extension — the bend is `2·acos(reach/total)`, so 97% of reach is
-/// still a 28-degree knee. At two units held back he walked in a permanent
-/// half-crouch. What buys the rest is [_groundY]: standing him a unit deeper puts
-/// mid-stance at 99% of the leg and the crouch goes with it.
-const double _kneeLock = 0.5;
+/// **TWENTY-FOUR, the JS's own.** Its shin rect runs y126→150 against a thigh of
+/// y96→126, so the lower leg is SHORTER than the upper. The port had both at 30,
+/// which lengthened the leg by six units and is part of why he read as
+/// long-legged and small-headed.
+const double walkerShin = 24;
 
-/// The furthest the ankle can get from the hip.
-const double _legReach = walkerThigh + walkerShin - _kneeLock;
+/// y96 in the JS's markup, where both thigh rects start.
+const double _hipY = 96;
 
-/// Where each leg hangs from, and where the ground is, in the art's own space.
-///
-/// [_groundY] is the ANKLE's height on the grass — the boot hangs below it — and
-/// it is what the stride is solved against, so moving it changes the step length
-/// rather than lifting him off the turf.
-const double _hipY = 95;
-const double _groundY = 150;
-
-/// How far the hips rise, twice a stride.
-///
-/// **The bob is not decoration here, it is what buys the step.** A leg of a fixed
-/// length standing on flat ground can only reach so far forward and back, and the
-/// hip has to come DOWN at both extremes for the foot to get there — which is
-/// exactly what a real pelvis does. Take the bob out and the stride has to
-/// shorten with it.
+/// How far the hips rise, twice a stride. The JS's `--bob`.
 const double _bob = 4;
 
-/// How much bend to keep in the knee at the ends of the step, in art units of
-/// reach held back beyond [_kneeLock].
-const double _stepMargin = 1.2;
+/// The bob — `psvBob`, transcribed: nothing at the extremes of the step, its full
+/// height at mid-stance, twice a cycle.
+///
+/// **A FIXED curve, not one derived from the legs**, and that is deliberate after
+/// trying it the other way. Lifting the figure by however far its supporting foot
+/// is off the floor gives an exact contact at every frame — no float, no skate —
+/// and it reads as BOUNCING, because the JS's joint angles were never drawn to sit
+/// on a flat floor and the correction needed is seven units against a bob of four.
+/// The JS accepts a foot that floats a couple of units and keeps the hips smooth.
+/// That is the walk that looks right, so that is the walk.
+///
+/// **The one eased track on the figure**, and the CSS says why the limbs are not:
+/// `ease-in-out` zeroes velocity at each keyframe, which on a LEG reads as it
+/// pausing at full extension. A vertical bounce genuinely should decelerate at the
+/// top.
+double walkerHipRise(double t) =>
+    _bob * math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
 
-/// How far the ankle can get from the hip at phase [t] without straightening the
-/// knee — which is what decides how long the step can be at that end of it.
-double _stepReach(double t) {
-  final drop = _bootSoleDrop(0) - _bootSoleDrop(_sample(_bootWorld, t));
-  final dy = _groundY + walkerHipRise(t) + drop - _hipY;
-  final room = _legReach - _stepMargin;
-  return math.sqrt(math.max(0, room * room - dy * dy));
+/// **THE WALK IS THE JS'S OWN KEYFRAMES, PLAYED.**
+///
+/// The port solved it the other way round for a while: the foot's PATH was the
+/// input and the joints came out of it by inverse kinematics, so the planted foot
+/// travelled at exactly the ground's rate and could not skate. That is measurably
+/// truer and it looked worse — solving for the longest step the legs allow gives a
+/// 48-unit stride, he lunged, and it kept a 40-degree bend in the leg he was
+/// standing on. What the eye actually reads is a STRAIGHT leg to stand on, and
+/// that is what these four tracks give.
+///
+/// So: `psvThighN` / `psvThighF` / `psvShinN` / `psvShinF` out of
+/// `league-scene.css`, transcribed. **Linear, all four.**
+///
+/// **Positive is BACKWARDS.** He faces +x and a rotation is clockwise, so a limb
+/// hanging from a joint swings its far end toward -x as the angle grows. The thigh
+/// runs -31 (forward, heel strike) to +25 (behind him, push-off).
+const _Track _thighNear = [(0, -31), (0.5, 25), (1, -31)];
+const _Track _thighFar = [(0, 25), (0.5, -31), (1, 25)];
+
+/// The shin, RELATIVE to the thigh — it is drawn inside it, so the two compose.
+///
+/// It stays inside 13 degrees through the whole stance, which is the straight leg
+/// to stand on, and folds to 60 to swing the foot through. That is where a walk's
+/// knee flexion lives.
+const _Track _shinNear = [(0, 6), (0.25, 4), (0.5, 13), (0.75, 60), (1, 6)];
+const _Track _shinFar = [(0, 13), (0.25, 60), (0.5, 6), (0.75, 4), (1, 13)];
+
+double walkerThighAngle(double t, {bool near = true}) =>
+    _sample(near ? _thighNear : _thighFar, t % 1);
+
+double walkerShinAngle(double t, {bool near = true}) =>
+    _sample(near ? _shinNear : _shinFar, t % 1);
+
+/// The boot's angle in the world, positive toes-down.
+///
+/// **It follows the shin, which is what the JS does**: its boot is a `<path>`
+/// INSIDE `.psv-shinN` with no animation of its own, so it turns with the lower
+/// leg and nothing else.
+///
+/// The port used to solve this against the GROUND instead, holding the sole flat
+/// through the stance and rolling heel-to-toe across it. That is more nearly how a
+/// foot works, and it put a POINTED TOE on the end of every step — which the
+/// original does not do, and which reads as a dancer rather than a manager.
+double walkerBootAngle(double t, {bool near = true}) =>
+    walkerThighAngle(t, near: near) + walkerShinAngle(t, near: near);
+
+/// Where the ankle ends up given those angles — FORWARD kinematics.
+///
+/// [x] is forward of the hip, [y] absolute in the art's space. The bob is not
+/// folded in: it is a translate on the whole figure, so the joints never see it,
+/// which is how the JS has it too.
+({double x, double y}) walkerAnkle(double t, {bool near = true}) {
+  final thigh = _deg(walkerThighAngle(t, near: near));
+  final shin = thigh + _deg(walkerShinAngle(t, near: near));
+  // A limb of length L hanging from the origin and rotated by θ puts its far end
+  // at (-L·sinθ, L·cosθ).
+  return (
+    x: -(walkerThigh * math.sin(thigh) + walkerShin * math.sin(shin)),
+    y: _hipY + walkerThigh * math.cos(thigh) + walkerShin * math.cos(shin),
+  );
 }
-
-/// **THE STEP IS NOT SYMMETRIC, AND IT CANNOT BE.**
-///
-/// The two ends of it are different shapes. At heel strike the foot is flat and
-/// the hip is low, so the leg spends 53 units going down and has little reach
-/// left over. At push-off he is up on his toe — the ankle has ridden five units
-/// clear of the grass, see [_bootSoleDrop] — so the same leg has that much more
-/// to play with and can get further behind him.
-///
-/// A symmetric sweep therefore wasted the back half: it stopped the trailing
-/// foot short of where the leg could actually put it, and because the knee had
-/// slack left the bend ate the difference — the THIGH stayed within ten degrees
-/// of vertical at push-off while the calf trailed fifty. That reads exactly as
-/// "his legs go forwards and never back", because the part of a leg you read is
-/// the thigh.
-///
-/// Solved rather than picked: each end is as far as the leg reaches there, less
-/// a margin so the knee never locks.
-///
-/// **AND IT CANNOT CURRENTLY BE SHORTENED, which is worth knowing before trying.**
-/// The forward reach reads long — he lunges rather than steps — but the rig is at
-/// a geometric corner. Bringing the front foot in moves it NEARER the hip, which
-/// folds the stance leg: the knee's worst moment is just after heel strike, at
-/// t≈0.045, and it already sits at 39.8 degrees against a 40-degree ceiling that
-/// exists because a permanent half-crouch was a reported bug. Twenty per cent off
-/// the front puts it at 40.2 and the contract fails.
-///
-/// The usual answer is to stand him deeper, and that lever is spent:
-/// `_groundY + _bob - _hipY` is 59 against a [_legReach] of 59.5. What is actually
-/// long is the LEG — 60 units of it under a 32-unit torso on a 170-unit figure —
-/// so the real fix is shorter legs and a longer body, which moves [_hipY] and
-/// every piece of generated art pinned to it. That is a structural change, not a
-/// constant.
-final double _stepFront = _stepReach(0);
-final double _stepBack = _stepReach(0.5);
 
 /// How far his planted foot travels in half a stride, in art units.
 ///
-/// **This is the number the ground has to match.** Get it wrong and he moonwalks
-/// — forwards if the ground is slow, backwards if it is fast — and no amount of
-/// looking at the walk cycle will show you which, because the walk cycle is not
-/// what is wrong.
-final double walkerStrideArtUnits = _stepFront + _stepBack;
-
-/// How high the swinging foot lifts off the grass at the top of its arc.
-const double _footLift = 11;
-
-/// Where the ankle should BE, at phase [t], in the art's own space.
-///
-/// **The foot's path is the input now, and the joints are solved from it.** The
-/// rig used to work the other way round — the JS's keyframed thigh and shin
-/// angles were played and the foot went wherever they put it, which was not
-/// anywhere a foot goes. Two things came out of that and both are visible: over
-/// the first 6% of the step the planted foot moved BACKWARDS, against a ground
-/// travelling forwards, which is the judder as he puts his foot down; and the
-/// travel through the rest of the stance was 8% slower then 8% faster than the
-/// grass, which is the residual skate. Neither can be tuned out by retiming,
-/// because the poses themselves are wrong.
-///
-/// Stated as a path it is simply what a walk is. On the ground: a straight line
-/// at a constant rate — that IS what "planted" means, and it is the one property
-/// that makes the ground and the boot agree. In the air: back to the front,
-/// eased, over an arc.
-({double x, double y}) walkerAnkle(double t) {
-  final u = t % 1;
-  // **THE ANKLE RIDES UP OVER THE BOOT.** It was pinned at ground height through
-  // the whole stance while the boot rotated about it, which drives the toe
-  // straight into the turf at push-off — thirty degrees of it — and leaves the
-  // heel planted when it should be the first thing off the grass. The boot's own
-  // corners say where the ankle has to be: rotate them and the deepest one is
-  // the bit standing on the ground.
-  final lift = _bootSoleDrop(0) - _bootSoleDrop(_sample(_bootWorld, u));
-  final y = _groundY + walkerHipRise(u) + lift;
-  if (u < 0.5) {
-    // Stance. Linear, and the only linear thing in the rig.
-    return (x: _stepFront - walkerStrideArtUnits * (u / 0.5), y: y);
-  }
-  // Swing. Eased, because the foot accelerates off the ground and decelerates
-  // into the next contact rather than sliding through at one speed.
-  final v = (u - 0.5) / 0.5;
-  return (
-    x: -_stepBack + walkerStrideArtUnits * Curves.easeInOut.transform(v),
-    y: y - _footLift * math.sin(v * math.pi),
-  );
-}
+/// **This is the number the ground has to match**, and with played keyframes it is
+/// a MEAN rather than a rate. The JS's planted foot does not travel at a constant
+/// speed, and for the first few per cent it goes backwards against a ground going
+/// forwards. That is the residual skate, and it is the price of the poses that
+/// look right. Matching the mean is what stops him drifting across the pitch on
+/// top of it.
+final double walkerStrideArtUnits = walkerAnkle(0).x - walkerAnkle(0.5).x;
 
 /// How far the boot's lowest corner hangs below the ankle, at boot angle [deg].
 ///
@@ -227,22 +207,16 @@ double _bootSoleDrop(double deg) {
 ///
 /// Public because "his foot is on the ground" is a statement about the boot and
 /// not about the ankle: the ankle rides up and down over it as the foot rolls,
-/// which is the whole point of [_bootSoleDrop].
-double walkerBootSoleY(double t) =>
-    walkerAnkle(t).y + _bootSoleDrop(_sample(_bootWorld, t % 1));
+/// the boot turns with the shin, so how far its lowest corner hangs below the
+/// ankle changes through the step.
+double walkerBootSoleY(double t, {bool near = true}) =>
+    walkerAnkle(t, near: near).y +
+    _bootSoleDrop(walkerBootAngle(t, near: near));
 
 /// The boot, measured from the ankle, in art units.
 const double _bootToe = 11.5;
 const double _bootHeel = 3.5;
 const double _bootSole = 3.5;
-
-/// How far the hips are up at phase [t].
-///
-/// Twice a stride, highest at mid-stance and lowest as the legs pass their
-/// extremes — see [_bob]. Eased, and the CSS says why: a vertical bounce should
-/// decelerate at the top.
-double walkerHipRise(double t) =>
-    _bob * math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
 
 /// Where the near foot is, at rig phase [t], in art units — forward is POSITIVE.
 ///
@@ -251,58 +225,8 @@ double walkerHipRise(double t) =>
 /// than about anything a widget renders.
 double walkerFootX(double t) => walkerAnkle(t).x;
 
-/// Solve a two-bone leg for an ankle at ([dx], [dy]) from the hip.
-///
-/// Returns the thigh's rotation and the shin's rotation RELATIVE TO IT, in
-/// degrees, in the rig's own sense: a positive rotation swings the limb
-/// backwards, because the canvas rotates clockwise and the leg hangs down.
-///
-/// Ordinary two-bone IK: the hip, knee and ankle make a triangle whose sides are
-/// the two bone lengths and the distance to the target, so the law of cosines
-/// gives the knee's interior angle, and the angle to the target less the
-/// triangle's angle at the hip gives the thigh's. The knee bends BACKWARD, which
-/// is the sign the JS's own keyframes carry — its shin track is positive
-/// throughout.
-({double thigh, double shin}) _solveLeg(double dx, double dy) {
-  final reach = math
-      .sqrt(dx * dx + dy * dy)
-      .clamp((walkerThigh - walkerShin).abs() + 2, _legReach);
-  final cosKnee =
-      (walkerThigh * walkerThigh + walkerShin * walkerShin - reach * reach) /
-      (2 * walkerThigh * walkerShin);
-  final knee = math.acos(cosKnee.clamp(-1.0, 1.0));
-  final atHip = math.asin(
-    (walkerShin * math.sin(knee) / reach).clamp(-1.0, 1.0),
-  );
-  // The target's own bearing from straight down, in the same sense as the joints.
-  final bearing = math.atan2(-dx, dy);
-  return (
-    thigh: (bearing - atHip) * 180 / math.pi,
-    shin: (math.pi - knee) * 180 / math.pi,
-  );
-}
-
-/// The boot's angle to the GROUND, in degrees, positive toes-down.
-///
-/// Solved for rather than hung off the shin, and stated in world terms because
-/// that is the only frame in which "flat on the grass" means anything: a foot
-/// whose angle is a fraction of the shin's is flat at exactly one instant of the
-/// stride and wrong either side of it.
-///
-/// Heel first, flat almost at once, then up onto the toe to push off; the toe
-/// stays down as the foot leaves and comes back up for the next contact.
-const _Track _bootWorld = [
-  (0, -13), // heel strike
-  (0.08, 0), // flat
-  (0.4, 2),
-  (0.5, 30), // toe-off
-  (0.62, 22),
-  (0.8, 2),
-  (1, -13),
-];
-
 /// How far his soles sit above the bottom of his box, in art units.
-const double walkerFootOffset = walkerHeight - walkerFootline;
+final double walkerFootOffset = walkerHeight - walkerFootline;
 
 double _deg(double d) => d * math.pi / 180;
 
@@ -415,10 +339,9 @@ const double _shadowBand = 0.10;
 
 /// How far left of the feet's midpoint the shadow sits, in art units.
 ///
-/// Was 3.5 against a step centred on the hips. The step reaches further back
-/// than forward now — see [_stepBack] — so the feet's midpoint already sits
-/// behind where it did, and this comes down to match or the shadow trails him.
-final double _shadowBias = 3.5 - (_stepBack - _stepFront) / 4;
+/// Back to the JS's plain 3.5: its step is centred on the hips, so there is no
+/// solved asymmetry left to correct for.
+const double _shadowBias = 3.5;
 
 /// The shadow's OWN half-width beyond the feet, in art units.
 ///
@@ -435,7 +358,7 @@ const double _shadowPad = 13;
 /// Derived rather than typed, so it cannot go stale if either fraction moves:
 /// `Align` puts a child of height fH inside a box of height H with its centre at
 /// H/2 + a(H - fH)/2, and we want that centre on the footline.
-const Alignment _shadowAlignment = Alignment(
+final Alignment _shadowAlignment = Alignment(
   0,
   (2 * walkerFootline / walkerHeight - 1) / (1 - _shadowBand),
 );
@@ -1552,19 +1475,18 @@ class _WalkerPainter extends CustomPainter {
     final flesh = near ? skin : _shade(skin);
     final boot = near ? const Color(0xFF141414) : const Color(0xFF0B0B0B);
 
-    // **SOLVED, not keyframed.** The ankle's path is the input and the joints
-    // come out of it — see [walkerAnkle] and [_solveLeg]. The far leg is the near
-    // one half a cycle on, which is the whole of what makes it a walk.
-    final phase = near ? t : (t + 0.5) % 1;
-    final target = walkerAnkle(phase);
-    // Both legs hang off the SAME hips, so the far leg's target is measured from
-    // its own socket while the body's rise is shared.
+    // **PLAYED, not solved** — the JS's own thigh and shin tracks. The far leg is
+    // the same tracks half a cycle on, which is the whole of what makes it a walk.
+    final phase = t % 1;
     final x = _hipX(near);
-    final solved = _solveLeg(target.x, target.y - _hipY);
-    // The boot's angle to the GROUND, less whatever the leg above it is doing —
-    // which is what leaves a foot flat on the grass rather than at a fraction of
-    // the shin's angle. See [_bootWorld].
-    final ankle = _sample(_bootWorld, phase) - solved.thigh - solved.shin;
+    final solved = (
+      thigh: walkerThighAngle(phase, near: near),
+      shin: walkerShinAngle(phase, near: near),
+    );
+    // **No rotation of its own.** The boot is drawn inside the shin's frame, so
+    // zero is the JS's arrangement exactly: it points where the lower leg points,
+    // and there is no toe left pointing at the end of the step.
+    const ankle = 0.0;
 
     final hip = Offset(x, _hipY);
     final knee = Offset(x, _hipY + walkerThigh);

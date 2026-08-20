@@ -280,44 +280,63 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
       // one hue apart and the one control the screen exists for read as a patch
       // of the pitch.
       //
-      // Outside-in: a DARK ring, then the JS's white rim (`.play-match-btn` is
-      // `2px solid rgba(255,255,255,0.6)`), then the face. Whatever is behind
-      // it, something between it and the button differs sharply — which a
-      // darker green would not do on a dark kit, nor a lighter one on a light.
-      // The accent glow is what makes it read as LIT rather than painted on.
+      // **THREE SHADOWS, NOT ONE**, and the JS's own comment says why: "the
+      // diffuse far shadow alone reads as a glow; what actually lifts a button
+      // off the pitch is the tight contact shadow right under its edge, with the
+      // mid and far passes carrying the height". The port had the far pass and
+      // the glow and neither of the other two, which is exactly why it sat flat
+      // on the grass instead of standing off it.
+      //
+      // The dark outer ring the port added is gone with them. It was there to
+      // guarantee an edge on any kit — a green button on green grass — and the
+      // contact shadow does that job properly, which is what the JS relies on.
       child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Colors.black.withValues(alpha: widget.dead ? 0.25 : 0.55),
-            width: 2,
-          ),
+          borderRadius: BorderRadius.circular(13),
           boxShadow: widget.dead
               ? null
               : [
+                  // Contact — tight, right under the edge. This is the one that
+                  // does the work.
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    blurRadius: 22,
-                    offset: const Offset(0, 8),
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
                   ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.34),
+                    blurRadius: 12,
+                    offset: const Offset(0, 7),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.46),
+                    blurRadius: 32,
+                    offset: const Offset(0, 16),
+                  ),
+                  // And the accent glow, which is what makes it read as LIT
+                  // rather than painted on.
                   BoxShadow(
                     color: kit.accent.withValues(alpha: 0.45),
                     blurRadius: 20,
+                    spreadRadius: 2,
                   ),
                 ],
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(13),
+            // The JS's own rim: ONE pixel at 55%, not two at 85%. The pop was
+            // never the border's boldness — it is the bevel and the shadows
+            // below, and a heavy white stroke on top of those reads as a sticker.
             border: Border.all(
-              color: Colors.white.withValues(alpha: widget.dead ? 0.22 : 0.85),
-              width: 2,
+              color: Colors.white.withValues(alpha: widget.dead ? 0.22 : 0.55),
+              width: 1,
             ),
           ),
           child: ClipRRect(
-            // 10, not 12: the rim sits outside, so an equal radius leaves a hairline
-            // of face showing past the stroke on the corners.
-            borderRadius: BorderRadius.circular(10),
+            // A hair inside the rim, so no sliver of face shows past the stroke
+            // on the corners.
+            borderRadius: BorderRadius.circular(12),
             child: Stack(
               children: [
                 DecoratedBox(
@@ -346,6 +365,54 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
                   ),
                   child: const SizedBox(width: double.infinity, height: 48),
                 ),
+                // **THE BEVEL.** `inset 0 1px 0 rgba(255,255,255,0.55)` and
+                // `inset 0 -2px 0 rgba(0,0,0,0.22)` in the JS — a lit line along
+                // the top inside edge and a dark one along the bottom. Flutter
+                // has no inset shadow, so they are drawn; between them they are
+                // most of what makes the face read as a raised surface rather
+                // than a coloured rectangle.
+                if (!widget.dead) ...[
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 1,
+                    child: ColoredBox(
+                      color: Colors.white.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    child: ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  // The sheen — the JS's `::before`. Bright at the top, gone by
+                  // the middle, faintly dark at the foot, which is what curves
+                  // the face.
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0x47FFFFFF),
+                              Color(0x14FFFFFF),
+                              Color(0x00FFFFFF),
+                              Color(0x1F000000),
+                            ],
+                            stops: [0, 0.42, 0.54, 1],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 // The cooldown fill, sweeping right to left as the timer runs down.
                 if (widget.inCooldown) Positioned.fill(child: _CooldownMask()),
                 if (!widget.dead && _shimmer.isAnimating)

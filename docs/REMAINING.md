@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,907 tests, `flutter analyze` clean.**
+**3,909 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 3
 items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
@@ -1966,18 +1966,46 @@ running at last.
       five minutes. **Next step is to write down what actually looks wrong** —
       whether it is the card, the timing, the queueing against other popups, or
       the arithmetic in the offer itself.
-- [ ] **His forward reach still reads long, and it cannot be shortened as a
-      constant.** The rig takes the longest step its legs allow, which is a
-      48-unit stride on a 60-unit leg. Bringing the front foot in moves it nearer
-      the hip and FOLDS the stance leg: the knee's worst moment is just after heel
-      strike and already sits at 39.8 degrees against a 40-degree ceiling that
-      exists because a permanent half-crouch was a reported bug. Standing him
-      deeper is the usual fix and that lever is spent — `_groundY + _bob - _hipY`
-      is 59 against a `_legReach` of 59.5.
-      **What is actually wrong is the proportion**: 60 units of leg under a
-      32-unit torso on a 170-unit figure. Shorter legs and a longer body fixes the
-      stride AND the small-head look — and it moves `_hipY`, which every piece of
-      generated art is pinned to. Structural, not a constant.
+- [x] **THE WALK IS THE JS'S OWN AGAIN, and the port's IK is gone.** Solving the
+      legs from the foot's path is measurably better and looks worse. Three
+      reports in a row said so and each named a symptom of the same thing: he
+      lunged (it solves for the longest step the legs allow — 48 units), he
+      crouched (40 degrees of knee on the leg he was standing on), and he pointed
+      his toe at the end of every step (the boot's angle solved against the ground
+      rather than following the shin).
+      **What the eye reads is a STRAIGHT leg to stand on.** The JS's shin track
+      stays inside 13 degrees through the whole stance and folds to 60 only to
+      swing through, and its stride is actually LONGER at 59 units — so the
+      complaint was never really about stride length. `psvThighN/F` and
+      `psvShinN/F` are transcribed and played; the ankle comes out of them by
+      forward kinematics.
+      **Its lengths too**: the shin is 24, not 30. The JS's shin rect runs
+      y126→150 against a thigh of y96→126, and the port had both at 30 — six units
+      of extra leg, which is part of why he read as long-legged and small-headed.
+      **And its bob, unchanged.** Deriving the bob from the supporting foot gives
+      an exact contact at every frame — no float, no skate — and it reads as
+      BOUNCING, because the JS's angles were never drawn to sit on a flat floor and
+      the correction is seven units against a bob of four. Tried, reported, and
+      reverted; the note is in the code so it is not tried again.
+      **The two flaws are now pinned as ACCEPTED** rather than left to be
+      rediscovered: the planted foot's rate varies by ~5.6 units across the stance
+      (the skate) and its sole by ~5.2 (the float).
+- [ ] **HANDS ON HIPS DOES NOT LOOK RIGHT.** Reported from playing; the pose is
+      `handsonhips` in `gesture_poses.dart`, transcribed from `psvGestHipsArmN` /
+      `ForeN` / `ArmF` / `ForeF` — arm to 44 and forearm to -106 on the near side,
+      38 and -101 on the far. The angles are the JS's, so if it is wrong here and
+      right there the difference is the ARM ITSELF: the port's upper arm and
+      forearm were relengthened during the redraw (shoulder 62→81, wrist 98.5) and
+      a hand that lands on the hip at one length misses it at another. Check where
+      the hand actually ends up against the waistband before touching the angles.
+- [ ] **The play button's pop is matched but unverified.** The JS's `.play-match-btn`
+      is a 1px white rim at 55%, a bevel (`inset 0 1px 0` white 55%, `inset 0 -2px
+      0` black 22%), a sheen and THREE shadows — and its own comment says why:
+      "the diffuse far shadow alone reads as a glow; what actually lifts a button
+      off the pitch is the tight contact shadow right under its edge". The port had
+      the far pass and the glow only, plus a heavier 2px rim and a dark outer ring
+      that the JS does not have. All four are in now; nobody has looked at it on a
+      device yet.
 - [ ] **The gesture halt is a hard stop, not a ramp.** The JS eases the walk, the
       strips and the ball down to zero over ~0.4s (`_rampWalk`) because
       `animation-play-state` cannot express anything between running and stopped.

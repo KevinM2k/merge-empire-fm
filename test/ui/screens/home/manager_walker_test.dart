@@ -220,89 +220,117 @@ void main() {
     });
   });
 
-  group('the walk does not skate', () {
-    // The ground moves at one speed (see `groundSpeedPxPerSec`), so the planted
-    // foot has to. It did not: the keyframed rig moved the foot BACKWARDS over
-    // the first 6% of the step and then 8% slow, 8% fast through the rest of it.
-    // The foot's path is the input now and the joints are solved from it.
+  group('the walk is the JS\'s own', () {
+    // **The port solved this rig for a while and it was measurably better and
+    // visibly worse.** Inverse kinematics off the foot's path gives a planted
+    // foot travelling at exactly the ground's rate — no skate, no float — and it
+    // takes the longest step the legs allow, so he lunged, and it kept a 40-degree
+    // bend in the leg he was standing on. The JS's four keyframe tracks are what
+    // looks like walking, so they are what runs; these pin them, and they pin the
+    // two flaws that come with them so nobody "fixes" the walk back.
 
-    test('the planted foot travels at a CONSTANT rate through its stance', () {
-      final steps = [
-        for (var i = 1; i <= 20; i++)
-          walkerFootX(0.5 * i / 20) - walkerFootX(0.5 * (i - 1) / 20),
-      ];
-      final lo = steps.reduce(math.min);
-      final hi = steps.reduce(math.max);
-      expect((hi - lo).abs(), lessThan(1e-9));
-      // And backwards, against a ground travelling forwards.
-      expect(hi, lessThan(0));
+    test('the tracks are the values in league-scene.css', () {
+      // psvThighN: -31 → 25 → -31. psvShinN: 6 → 4 → 13 → 60 → 6.
+      expect(walkerThighAngle(0), closeTo(-31, 1e-9));
+      expect(walkerThighAngle(0.5), closeTo(25, 1e-9));
+      expect(walkerShinAngle(0), closeTo(6, 1e-9));
+      expect(walkerShinAngle(0.25), closeTo(4, 1e-9));
+      expect(walkerShinAngle(0.5), closeTo(13, 1e-9));
+      expect(walkerShinAngle(0.75), closeTo(60, 1e-9));
     });
 
-    test('and it covers exactly the stride the ground is timed off', () {
-      expect(
-        (walkerFootX(0.5) - walkerFootX(0)).abs(),
-        closeTo(walkerStrideArtUnits, 1e-9),
-      );
+    test('and the far leg is the same tracks, half a cycle on', () {
+      for (var i = 0; i <= 20; i++) {
+        final t = i / 20;
+        expect(
+          walkerThighAngle(t, near: false),
+          closeTo(walkerThighAngle((t + 0.5) % 1), 1e-9),
+        );
+        expect(
+          walkerShinAngle(t, near: false),
+          closeTo(walkerShinAngle((t + 0.5) % 1), 1e-9),
+        );
+      }
     });
 
-    test('the planted BOOT stays on the ground, at one height', () {
-      // The whole figure rises and falls, and the foot ROLLS — heel first, flat,
-      // then up onto the toe — so it is the sole that has to hold its height,
-      // not the ankle. Pinning the ankle instead drove thirty degrees of toe
-      // into the turf at push-off and left the heel planted through it.
-      final heights = [
-        for (var i = 0; i <= 20; i++)
-          walkerBootSoleY(0.5 * i / 20) - walkerHipRise(0.5 * i / 20),
-      ];
-      expect(
-        heights.reduce(math.max) - heights.reduce(math.min),
-        lessThan(0.01),
-      );
+    test('THE PLANTED LEG IS STRAIGHT, which is why it reads as a walk', () {
+      // This is the difference the eye actually picks up. Through the whole
+      // stance the knee is inside 15 degrees — a straight leg to stand on. The
+      // solved version bent it 40 degrees just after heel strike, and a manager
+      // who crouches through every stance looks wrong however true his foot is.
+      for (var i = 0; i <= 20; i++) {
+        final t = 0.5 * i / 20;
+        expect(
+          walkerShinAngle(t),
+          lessThan(15),
+          reason: 'crouching on it at t=$t',
+        );
+      }
     });
 
-    test('and the ankle lifts as he rolls onto his toe', () {
-      // The heel coming off the grass is most of what reads as a push rather
-      // than a slide.
-      expect(walkerAnkle(0.5).y, lessThan(walkerAnkle(0.2).y - 3));
-    });
-
-    test('and it LIFTS while it swings — it does not drag through', () {
-      final ground = walkerAnkle(0).y - walkerHipRise(0);
-      final mid = walkerAnkle(0.75).y - walkerHipRise(0.75);
-      expect(mid, lessThan(ground - 6), reason: 'clear of the grass');
+    test('and it folds hard to swing through', () {
+      // 60 degrees at three quarters of the cycle. That is where a walk's knee
+      // flexion lives, and it is what gets the foot clear of the grass.
+      expect(walkerShinAngle(0.75), greaterThan(50));
+      expect(walkerAnkle(0.75).y, lessThan(walkerAnkle(0.25).y - 8));
     });
 
     test('the path closes, so the loop cannot jolt', () {
       expect(walkerAnkle(0).x, closeTo(walkerAnkle(0.999999).x, 1e-3));
       expect(walkerAnkle(0).y, closeTo(walkerAnkle(0.999999).y, 1e-3));
-      // The far leg is exactly half a cycle behind the near one.
-      expect(walkerFootX(0.25 + 0.5), closeTo(walkerFootX(0.75), 1e-9));
     });
 
-    test('the knee NEVER locks straight', () {
-      // A leg at full extension reads as rigid for an instant at foot-down, and
-      // that instant is the thing you notice. Stated in DEGREES because the
-      // reach is a poor proxy: two bones of equal length bend
-      // `2·acos(reach/total)`, so a leg at 99% of its reach still has twenty
-      // degrees in the knee and one at 97% has nearly thirty.
-      final total = walkerThigh + walkerShin;
-      for (var i = 0; i <= 200; i++) {
-        final t = i / 200;
-        final target = walkerAnkle(t);
-        final reach = math.sqrt(
-          target.x * target.x + (target.y - 95) * (target.y - 95),
-        );
-        expect(reach, lessThan(total), reason: 'unreachable at t=$t');
-        final bend = 2 * math.acos(reach / total) * 180 / math.pi;
-        expect(bend, greaterThan(10), reason: 'straight-legged at t=$t');
-        // And never a crouch either. The ceiling is loose because the SWING
-        // leg tucks hard — that is where a walk's knee flexion lives — and the
-        // half he is STANDING on is held much tighter.
-        expect(bend, lessThan(80), reason: 'squatting at t=$t');
-        if (t < 0.5) {
-          expect(bend, lessThan(40), reason: 'crouching on it at t=$t');
+    test('the stride is the mean the ground is timed off', () {
+      expect(
+        walkerStrideArtUnits,
+        closeTo(walkerAnkle(0).x - walkerAnkle(0.5).x, 1e-9),
+      );
+      expect(walkerStrideArtUnits, greaterThan(0));
+    });
+
+    test(
+      'and the footline is the lowest his sole reaches, not a typed number',
+      () {
+        var lowest = double.negativeInfinity;
+        for (var i = 0; i < 360; i++) {
+          final t = i / 360;
+          final sole =
+              math.max(walkerBootSoleY(t), walkerBootSoleY((t + 0.5) % 1)) -
+              walkerHipRise(t);
+          if (sole > lowest) lowest = sole;
         }
-      }
+        expect(walkerFootline, closeTo(lowest, 0.05));
+      },
+    );
+
+    group('the two flaws it comes with, measured and ACCEPTED', () {
+      // Written down rather than left to be rediscovered. Both are the price of
+      // the JS's poses, and both were the reason the port replaced them once.
+
+      test('the planted foot does NOT travel at a constant rate', () {
+        final steps = [
+          for (var i = 1; i <= 20; i++)
+            walkerFootX(0.5 * i / 20) - walkerFootX(0.5 * (i - 1) / 20),
+        ];
+        final spread = steps.reduce(math.max) - steps.reduce(math.min);
+        // ~5.6 units between the slowest and fastest quarter of the stance. The
+        // ground runs at one speed, so that difference is a skate.
+        expect(spread, greaterThan(1));
+        expect(spread, lessThan(8), reason: 'if this grows, something moved');
+      });
+
+      test('and the sole does not hold one height', () {
+        final heights = [
+          for (var i = 0; i <= 20; i++)
+            walkerBootSoleY(0.5 * i / 20) - walkerHipRise(0.5 * i / 20),
+        ];
+        final float = heights.reduce(math.max) - heights.reduce(math.min);
+        // ~5.2 units of it. Deriving the bob from the supporting foot removes it
+        // completely and costs a 7-unit hip correction against a 4-unit bob,
+        // which reads as bouncing — so the float stays and the hips stay smooth.
+        expect(float, greaterThan(1));
+        expect(float, lessThan(7), reason: 'if this grows, something moved');
+      });
     });
   });
 }
