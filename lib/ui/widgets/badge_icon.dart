@@ -36,6 +36,11 @@ class BadgeIcon extends StatelessWidget {
     } else {
       inner = ArtImage(
         path: achievementArtPath(id),
+        // **CONTAIN, not cover.** The artwork is square and the badge is a
+        // circle, so covering crops every corner — which on a trophy is its
+        // handles, its plinth and the top of the cup. It read as an icon
+        // slightly clipped on all four sides, because it was.
+        fit: BoxFit.contain,
         fallback: Center(
           child: Text(
             getAchievementDef(id)?.icon ?? '🏅',
@@ -55,7 +60,10 @@ class BadgeIcon extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: kit.border),
       ),
-      child: inner,
+      // Inset, so the art sits INSIDE the rim rather than under it. Without it
+      // a contained square touches the circle at four points and the border
+      // reads as broken there.
+      child: Padding(padding: EdgeInsets.all(size * 0.08), child: inner),
     );
   }
 }

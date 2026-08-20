@@ -142,17 +142,18 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                 ),
                 const Spacer(),
                 if (total > 0) ...[
-                  Flexible(
-                    child: Text(
-                      t('quests.total_reward'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                        color: kit.textMuted,
-                      ),
+                  // RIGID, and in caps like the heading opposite it. Flexing it
+                  // let "Total Reward" end in an ellipsis, which is the half of
+                  // this row worth keeping — the money is the reason to open the
+                  // block at all, so the HEADING is the part that gives way.
+                  Text(
+                    t('quests.total_reward').toUpperCase(),
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: kit.textMuted,
                     ),
                   ),
                   const SizedBox(width: 4),

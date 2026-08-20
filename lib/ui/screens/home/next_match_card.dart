@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
 import 'package:merge_empire_fc/ui/screens/home/match_quests_block.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
@@ -213,11 +214,17 @@ class NextMatchCard extends ConsumerWidget {
     // end of the day cycle and never read as glass at either end of it. Going
     // dark means the ink has to flip with it, which is what [GlassPanel] hands
     // its subtree; the `Builder` is what puts this card's own text under that.
-    return GlassPanel(
-      key: const ValueKey('next-match-card'),
-      deep: true,
-      padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
-      child: Builder(builder: (context) => _body(context, ref, match)),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const FixtureCaption(),
+        GlassPanel(
+          key: const ValueKey('next-match-card'),
+          deep: true,
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+          child: Builder(builder: (context) => _body(context, ref, match)),
+        ),
+      ],
     );
   }
 
@@ -260,6 +267,17 @@ class NextMatchCard extends ConsumerWidget {
           rightMods: match.right.mods,
           leftBoot: match.left.boot,
           rightBoot: match.right.boot,
+        ),
+        // A rule across the card, then the tactic. It is a different KIND of
+        // thing from the numbers above it — a decision rather than a readout —
+        // and the line is what says so. It also let the chip drop its glyph,
+        // which is a row of vertical space back on a card that has none to give.
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.12),
+          ),
         ),
         const _TacticChip(),
         const MatchQuestsBlock(),
@@ -454,10 +472,12 @@ class _TacticChip extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GameIcon(tacticIconName(id), size: 14, color: hue),
-              const SizedBox(width: 6),
+              // NO GLYPH. The chip already wears the tactic's colour on its
+              // fill, its hairline and its name — a fourth statement of the same
+              // thing, in the one place the card has no vertical room, is the
+              // easiest row on it to give back.
               Text(
-                t('play.tactic_label'),
+                t('play.tactic_label').toUpperCase(),
                 style: TextStyle(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w800,
@@ -465,12 +485,13 @@ class _TacticChip extends ConsumerWidget {
                   color: kit.textMuted,
                 ),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 6),
               Text(
-                t('strategy.$id.name'),
+                t('strategy.$id.name').toUpperCase(),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
+                  letterSpacing: 0.4,
                   color: hue,
                 ),
               ),

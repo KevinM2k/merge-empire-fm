@@ -340,6 +340,12 @@ class _Bar extends StatelessWidget {
             curve: Curves.easeOutCubic,
             builder: (context, v, _) => FractionallySizedBox(
               widthFactor: v,
+              // **`heightFactor` matters.** Without it the box passes the
+              // incoming height through LOOSE, and a `DecoratedBox` with no
+              // child takes the smallest size it is allowed — zero. The bars
+              // were drawn, at no height at all, which is why both tracks read
+              // as empty.
+              heightFactor: 1,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: colour,

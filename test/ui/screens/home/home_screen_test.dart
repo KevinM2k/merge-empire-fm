@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -401,6 +402,42 @@ void main() {
         reason: 'the screen handed the gates back',
       );
       await settleSave(tester);
+    });
+  });
+
+  group('the fixture caption', () {
+    testWidgets('names the competition and the match', (tester) async {
+      // Without it the card is two clubs and a VS: no competition, and no place
+      // in the season at all.
+      await pumpHome(tester, mutate: readyToPlay);
+      expect(find.byKey(const ValueKey('fixture-caption')), findsOneWidget);
+      final label = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('fixture-caption'))),
+      ).read(fixtureLabelProvider);
+      expect(find.text(label.competition.toUpperCase()), findsOneWidget);
+      expect(find.text(label.round.toUpperCase()), findsOneWidget);
+      expect(label.round, contains('1'), reason: 'the first match of a season');
+      // NO ELLIPSIS. A division's name is a name, and "PREMIER DIVISI…" is not
+      // one — the line scales down instead.
+      for (final text in tester.widgetList<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('fixture-caption')),
+          matching: find.byType(Text),
+        ),
+      )) {
+        expect(text.overflow, isNot(TextOverflow.ellipsis), reason: text.data);
+      }
+    });
+
+    testWidgets('and sits ABOVE the card, not in it', (tester) async {
+      await pumpHome(tester, mutate: readyToPlay);
+      final caption = tester.getRect(
+        find.byKey(const ValueKey('fixture-caption')),
+      );
+      final card = tester.getRect(
+        find.byKey(const ValueKey('next-match-card')),
+      );
+      expect(caption.bottom, lessThanOrEqualTo(card.top + 0.5));
     });
   });
 }

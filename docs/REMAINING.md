@@ -611,28 +611,107 @@ because most of these are two or three to a file.
 
 ### Home
 
+- [x] **The next-match card's ATK and DEF bars were drawn at NO HEIGHT.**
+      `FractionallySizedBox` with a `widthFactor` and no `heightFactor` passes the
+      incoming height through loose, and a `DecoratedBox` with no child takes the
+      smallest size it is allowed. Both tracks read as empty because both were
+      zero pixels tall.
+- [x] **`<LEAGUE> · MATCH N` is back over the card** — `fixture_caption.dart`,
+      the JS's `.league-fixture-caption` including the two rules that fade out of
+      the accent. Without it the card was two clubs and a VS with no competition
+      and no place in the season. **No ellipsis**: the whole line scales down
+      instead, because a division's name is a name.
+- [x] **A rule above the tactic, and no glyph on it.** The chip already wears the
+      tactic's colour on its fill, its hairline and its name; a fourth statement
+      of it cost a row of vertical space the card has none of. Both halves in
+      caps, and `TOTAL REWARD` with them.
+- [x] **The trophy badge was cropped on all four sides.** The artwork is square
+      and the badge is a circle, and it was set to `cover` — so a trophy lost its
+      handles, its plinth and the top of the cup. Contained and inset now.
 - [ ] **In dark mode the menu button is too dark to read**, and has black lines
       across it.
 - [ ] **The Play Match button blends into the pitch** when it is green. It is
       the one control the screen exists for and needs to look like it.
-- [ ] **The next-match card's ATK and DEF bars are empty.**
 - [ ] **The position badge over the club name should open the table.**
 - [ ] **The `+1` home icon under the club rating should explain itself** on a
       tap — where the number comes from, which is the Stadium's Fan Zone tier.
 - [ ] **Coach Colin talks about himself in the third person** — "Coach Colin
       suggests Balanced". He is the one speaking and he has the whole state to
-      hand; he should sound like it.
-- [ ] **The match quests on the next-match card are ellipsised**, and the reward
-      wants to sit further right.
+      hand; he should sound like it. **Every decision should come through him**:
+      he is who the player talks to, so a confirmation is his card.
 - [ ] **The income per second has to be on screen somewhere.** It matters most
       when it is NEGATIVE: a loaned-in player costs money, and the only sign of
       it today is the idle bar quietly running backwards.
+- [ ] **Is the top safe area too deep?** `hudClearance` is 56 on top of the
+      notch; check it against the bar's real height.
+
+### Quick nav and menus
+
+- [ ] **The quick nav should read as GLASS over the screen** — not as bright or
+      as dark as it is now.
+- [ ] **Its items, and the menu's (League, Team), should be CENTRED**, and in
+      caps.
+
+### The Play page
+
+- [ ] **The 2D cutaway does not work properly.** It should come on for a real
+      chance and it should ANIMATE — `../merge-empire-fc` has a whole set of
+      scenarios to port.
+- [ ] **The commentary keeps saying "Chance"** where it should be commentary.
+- [ ] **And the styling throughout it needs sorting.**
+
+### The squad, and the player sheet
+
+- [ ] **The player's image should run over the swap/bench buttons**, so he has
+      room to render.
+- [ ] **Drop the sell section and its 30s timer.** One RELEASE button that
+      deletes him, behind a Coach Colin confirmation.
+- [ ] **The trait section is nearly invisible.** Make it visual and obvious.
+- [ ] **A tier-maxed player should NOT be highlighted for merging** — he cannot
+      be, until the next tier unlocks.
+- [ ] **The player card's portrait should run to the TOP of the card.** Wider is
+      fine; the gap above it is not needed.
+
+### The manager, and the customiser
+
+- [ ] **The walking rig floats above its shadow again.**
+- [ ] **Body shape does nothing**, and the tracksuit renders as something like a
+      necklace. `../merge-empire-fc` is nearly right; this should be better.
+- [ ] **He should be WALKING in the customiser**, against a backdrop.
+- [ ] **Every style box needs a picture of what it is.**
+- [ ] **Left-to-right button rows are the wrong navigation here** — the far ones
+      are easy to miss behind a scroll.
+
+### Deadline Day, and names
+
+- [ ] **The banner still says `DEADLINE_DAY`** — a raw key.
+- [ ] **Renaming a player is missing**, and a name that IS set has to carry
+      through to Deadline Day. It did not in the original either.
+- [ ] **Buying a player on Deadline Day must deliver THAT player.** Suspected
+      bug in the original too.
+
+### Settings, sound and graphics
+
+- [ ] **Settings are missing entries** — check `../merge-empire-fc` for which.
+- [ ] **The settings screen wants a pass** to make it look like something.
+- [ ] **Music and sound do not appear to work at all.**
+- [ ] **Volume controls do nothing on iOS** and should not be shown there;
+      Android keeps them.
+- [ ] **Prefer the Kenney packs, Flame or Rive over emoji** for artwork —
+      `kenneynl/` holds game-icons, sports, emotes, modular-characters,
+      background-elements and smoke-particles, all CC0.
+- [ ] **Copy the JS's blue / yellow / orange button treatments** for the
+      different kinds of action.
 
 ### Two screens that want a pass
 
 - [ ] **The Fixtures screen is still not right stylistically.**
 - [ ] **The daily reward needs love**, and tapping a day should show what that
       day pays and then tick it off.
+- [ ] **The scout voucher shelf is wrong** — see how `../merge-empire-fc` does
+      it.
+- [ ] **The sponsor window is poor**: it wants Coach Colin's picture at the top
+      and its buttons in a line.
 
 ---
 
