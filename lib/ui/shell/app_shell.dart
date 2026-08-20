@@ -29,6 +29,7 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
+import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -193,6 +194,19 @@ class AppShellState extends ConsumerState<AppShell>
                   ),
                 ),
               ),
+            ),
+          ),
+          // **Colin, on every tab.** Above the screens and below the HUD, inside
+          // the body's `Stack` rather than in an overlay — which is what makes a
+          // sheet or a dialog cover him by construction instead of by a
+          // ref-counted "step aside" signal from every modal in the app. See
+          // `coach_floating.dart`.
+          Positioned.fill(
+            key: const ValueKey('coach-layer'),
+            child: Visibility(
+              visible: !_revealActive,
+              maintainState: true,
+              child: CoachFloating(tab: _active),
             ),
           ),
           Positioned(

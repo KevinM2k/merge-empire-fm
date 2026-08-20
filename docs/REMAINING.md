@@ -30,17 +30,16 @@ too late:
 
 ## Where we are
 
-**3,869 tests, `flutter analyze` clean.**
+**3,900 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 24 Aug", and what is left of it is 2
-items** — on top of 23 August's remaining 14, 22 August's 4, 21 August's 9 and 20
-August's 28. **The weather is drawn**, which was the biggest of the two missing
-layers; the other still stands, and is now the biggest thing left: Coach Colin
-does not exist outside the Play tab. That is what a session of actually playing
-the thing turned up, which is a different list from what reading the source turns
-up and is the one to clear first. Each section carries its own status block: the
-count, the clusters, what is blocked on a decision and what is blocked on
-artwork.
+**The live queue is "From playtesting — 24 Aug", and what is left of it is 3
+items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
+August's 28. **Both of the missing layers are in**: the weather is drawn, and
+Coach Colin follows the player across every tab. What is biggest now is the
+diorama's football — `pitchBallSim.js`, 791 lines, and the last thing on that
+screen that moves in the JS and does not exist here. Each section carries its own
+status block: the count, the clusters, what is blocked on a decision and what is
+blocked on artwork.
 
 `docs/PARITY.md` is the OTHER queue — a control-by-control and layout-by-layout
 diff of the JS against the port, taken from the source. It is the longer list and
@@ -1600,10 +1599,6 @@ each.
 
 Ordered by how visible each one is to somebody playing.
 
-**Coach Colin does not exist outside the Play tab.** With the weather layer in
-(see 24 Aug), this is the biggest gap left, and it is a whole layer rather than a
-fix.
-
 - [ ] **The reading is only as local as a timezone.** `Europe/London` is one
       coordinate for the whole UK, so a player in the rain in Manchester gets
       London's sky. IP geolocation would normally fix that to city level with no
@@ -1613,14 +1608,22 @@ fix.
       Settings, using Open-Meteo's own free geocoding search, is the only thing
       that would be exact without a permission.
 
-- [ ] **`CoachFloating.js` (456 lines) and `CoachTips.js` (448) are unported.** The
-      floating head is mounted once at App level in the JS and is visible across
-      every tab: it carries an attention pulse, click-to-expand, a ten-minute
-      per-tip dismissal cooldown in `state.ui.coachDismissals`, `priority` tips
-      that bypass it, a `setEnabled` gate for the one sub-tab where an inline panel
-      makes it redundant, and a REF-COUNTED suppression so a modal can ask him to
-      step aside and nested modals only un-suppress on the last close. The port has
-      the bubble on the Play tab and nothing else.
+- [x] **`CoachFloating.js` is ported — he follows you across every tab now.**
+      See 24 Aug. `CoachTips.js` (448 lines) is still not: that is the OTHER
+      Colin, the one-time educational popups keyed on `state.seenTips`, and it is
+      a separate system from the floating head.
+- [ ] **`CoachTips.js` — the one-time milestone tips.** Twenty-odd educational
+      popups that fire the first time a player hits something (first injury,
+      first mergeable pair, no energy, hard mode's fitness bars) and then never
+      again: the id goes into `state.seenTips` and stays there until a full
+      reset. `seenTips` is in the schema and the migration writes it; nothing
+      reads it, so the ledger is a field with no ledger in it.
+      Three gates in the JS worth keeping when it goes in: never over the
+      onboarding tutorial (`tutorial.done`), never during a match (checks run on
+      `match:close`, not `match:complete`), and never over another popup —
+      `hasPopupWork()` plus a DOM probe there, and just `hasPopupWork()` here.
+      `takeTipOnce` is the seam for a surface that says Colin's piece itself
+      instead of having a tip pop up over it.
 
 **The diorama, still.**
 
@@ -1813,6 +1816,66 @@ The weather, drawn. Everything else on this list was in the way of that.
       difference down there is the whole body having moved, which is the only
       thing the shiver does.
 
+
+### Coach Colin, on all five tabs
+
+- [x] **HE EXISTED ON ONE SCREEN OUT OF FIVE, AND THE CATALOGUE HAD 120 THINGS
+      FOR HIM TO SAY.** `coach.*` is a hundred and twenty generated strings and
+      the port read four of them: the tactic call on the Play tab's dock orb. The
+      whole per-tab pipeline — `computeCoachTip` and the five functions under it —
+      had no caller at all, so on Players, Squad, Club and Shop he did not exist.
+      `ui/shell/coach_tips.dart` is that pipeline and `ui/shell/coach_floating.dart`
+      is the surface it goes on.
+- [x] **The pool is tab-scoped and nothing crosses over**, which is the JS's own
+      decision and worth restating: a coach who says the same thing on the squad
+      screen as on the shop shelf is a banner. Order inside each pool is priority
+      — health, then age, then form, then money — so an injury outranks a merge
+      and a merge outranks a nudge about scouting.
+- [x] **`tPoolStable`, because the sentence must not reshuffle.** Dozens of
+      catalogue entries are `|`-separated pools and `tPool` picks at random, which
+      meant a different line on every rebuild. The JS seeds the pick on the thing
+      the tip is ABOUT — the season, the division, the squad size — and its own
+      comment records what happens otherwise: the Shop's seed was once the coin
+      balance, so it reshuffled on every idle tick and made his head flash. Same
+      32-bit hash as the JS, so both runtimes pick the same line out of the same
+      pool.
+- [x] **A dismissal MUTES the tip; it does not close a window.** Ten minutes for
+      most of them, a day for the ones about a decision rather than a moment (a
+      veteran is still in his final season ten minutes later), and `priority` tips
+      ignore the mute so an urgent signal still gets through. Kept in the save at
+      `ui.coachDismissals`, which is what makes a "not now" survive a restart the
+      way a player would expect.
+      **And asking is not writing.** The first cut created the ledger branch on
+      read, so every build left a `coachDismissals: {}` behind and the save was
+      dirty for having been looked at.
+- [x] **The home tab shows nothing, on purpose.** His orb already carries him
+      there, and a floating head over a screen that has him on it is the same
+      coach twice — which is exactly what the JS's `setEnabled` gate is for on its
+      League > Overview sub-tab.
+- [x] **The REF-COUNTED suppression is not ported, because there is nothing left
+      for it to do.** The JS appends the head to `document.body` at `z-index:
+      20000`, so every modal in the app has to tell it to step aside — and a count
+      rather than a flag, because a sheet can open a sheet and only the last close
+      should bring him back. All of that is bookkeeping for a decision the DOM
+      made on its behalf. Here he lives in the shell's own `Stack` below the
+      `Navigator`, and every popup in this app is a route, so a modal covers him
+      by construction. Porting the counter would have been porting a workaround.
+      A first cut kept `hasPopupWork()` as the one non-route case; it went too,
+      because it is read at build time with nothing listening to it — a check that
+      cannot notice the thing it is checking for.
+- [x] **And a reachability test that starts at the shell**, not at the widget:
+      open the app, tap Squad, find the head. The rule this repo learned the hard
+      way is that constructing a thing proves it works and says nothing about
+      whether a player can get to it.
+
+### Still open from the session
+
+- [ ] **The league sub-tab pools have nowhere to go yet.** `coach.table.*`,
+      `coach.fixtures.*`, `coach.minigames.*` and the per-sub-tab
+      `coach.cup_due.*` / `coach.low_energy.*` lines belong to what the JS has as
+      League sub-tabs and the port has as SHEETS — and a sheet is a route, so it
+      covers him. They want an inline coach inside those sheets rather than the
+      floating one, which is a design call before it is a port.
 
 ## M0 — foundation and save bridge ✅
 

@@ -66,6 +66,33 @@ String tPool(String key, [Map<String, Object?> params = const {}]) {
   return lines[math.Random().nextInt(lines.length)];
 }
 
+/// Pooled copy, but the SAME line every time for the same [seed].
+///
+/// The JS's `_pickStableT`, and the seed is the whole point of it. Coach Colin's
+/// read on the squad is a pool of a dozen phrasings, and picking at random meant
+/// a different sentence on every rebuild — which on the Shop tab, where the seed
+/// was once tied to the coin balance, reshuffled on every idle tick and made the
+/// coach's head flash. Seeded on the thing the tip is ABOUT (the season, the
+/// division, the squad size), it changes when the situation does and not before.
+///
+/// The hash is the JS's, `h * 31 + charCode` truncated to 32 signed bits, so the
+/// two runtimes pick the same line out of the same pool.
+String tPoolStable(
+  String key,
+  String seed, [
+  Map<String, Object?> params = const {},
+]) {
+  final raw = t(key, params);
+  if (raw == key) return raw;
+  final lines = raw.split('|');
+  if (lines.length == 1) return lines.first;
+  var h = 0;
+  for (final unit in seed.codeUnits) {
+    h = (h * 31 + unit).toSigned(32);
+  }
+  return lines[h.abs() % lines.length];
+}
+
 /// Resolve a division, cup or tier by its data-file id, falling back to the
 /// object's English `name` and then to the id.
 String tName(String prefix, Object? idOrObj) {
