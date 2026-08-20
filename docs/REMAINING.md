@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,916 tests, `flutter analyze` clean.**
+**3,917 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 3
 items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
@@ -2068,18 +2068,39 @@ running at last.
       could trigger it, so the one thing on the screen most worth cheering could
       not. A fist pump or a wave at the terrace now surges it. Identity rather than
       a flag, so two fist pumps in a row are two surges.
-- [ ] **MORE TURF PERSPECTIVE, AND THE STADIUM DOWN WITH IT.** Raised from playing:
-      with a stronger perspective on the turf the horizon can come down, which puts
-      the stand lower in the frame and makes it properly visible — without breaking
-      scale, because the figure's size is pinned to his own contact line rather
-      than to the horizon.
-      The horizon is currently derived from HIM: `feet - walkerHeight * scale *
-      0.72`, clamped to 16–68% of the scene. The mowing fan's convergence is
-      `_mowStretch` (2.941) and `_mowApex` (-0.95 box heights above the top edge),
-      and the note on them says the two are independent dials — the stretch for how
-      hard the lanes lean, the apex for the shape of the fall-off. Those are the
-      levers; the tuft bands and the hoardings are both timed off the fan, so
-      changing it means re-checking all three against each other.
+- [x] **THE TURF RECEDES HARDER AND THE STADIUM CAME DOWN WITH IT.** `_mowApex`
+      -0.95 → -0.58, which is the strength of the perspective: a ray's travel per
+      radian is its depth below the apex, so pulling the apex closer shortens every
+      distance and widens the gap between them. The near row ran 1.38x the far one;
+      it is 1.60x now, and the surface reads as going away from you rather than as
+      a green band with lines on it.
+      That is what paid for the horizon: `_horizonAboveBoots` 0.72 → 0.55, so the
+      terrace sits in the middle of the picture where it can be looked at instead
+      of being a strip along the top. **It cost nothing in scale** — his size is
+      about his own contact line, so the horizon cannot change how big he is.
+- [x] **The mown bands are fatter** — `_mowPeriod` 5.2° → 7°. The lanes are
+      angular, so the period widens all of them; at 5.2 they read as a texture on
+      the grass rather than as mown bands. `mowDuration` solves the sweep against
+      it, so the grass at his boots keeps its speed.
+- [x] **And he is smaller: `walkerScale` 1.35 → 1.22.** 1.35 was the settled middle
+      when the terrace was a strip along the top and he was the only thing on
+      screen with detail on it; with the stand in the middle of the picture he was
+      competing with it. The ground speed follows him, so a smaller man takes
+      smaller steps and the grass slows to match.
+- [x] **THE TUFTS WERE MOONWALKING BY 17.7%, AND HAD BEEN ALL ALONG.** Checked
+      rather than assumed, which is the only reason it turned up: the bands carried
+      ratios measured against BAND 0, and band 0 is not the row the ground's speed
+      is defined at. That row is his contact line — lower down the box and further
+      below the apex — so the whole tuft layer ran 17.7% slower than the mown
+      stripes it grows in, at every band, on every screen. A tuft is a clump of the
+      same grass the stripes are mown into; if it slides against them both layers
+      stop being ground and become wallpaper.
+      `turfScroll` replaces the ratios: every strip on the turf — three tuft bands
+      and the hoardings — is solved against HIS row, the same row `mowDuration`
+      solves the fan at. The test asserts the ratio of each layer's speed to the
+      fan's at its own row is 1, so a future change to the perspective cannot
+      desync them; the old test pinned the two constants and would have failed for
+      the wrong reason.
 - [ ] **The play button's pop is matched but unverified.** The JS's `.play-match-btn`
       is a 1px white rim at 55%, a bevel (`inset 0 1px 0` white 55%, `inset 0 -2px
       0` black 22%), a sheen and THREE shadows — and its own comment says why:
@@ -2088,6 +2109,11 @@ running at last.
       the far pass and the glow only, plus a heavier 2px rim and a dark outer ring
       that the JS does not have. All four are in now; nobody has looked at it on a
       device yet.
+- [ ] **Nobody has seen the play button, the crowd surge or the ear on a device.**
+      All three are in and all three are unverified by anything but arithmetic and
+      a widget test: the button's bevel and three-tier shadow, the stand's surge on
+      a celebration, and the ear as a thin unfilled C. Worth one pass through the
+      Play tab with an eye on each.
 - [ ] **The gesture halt is a hard stop, not a ramp.** The JS eases the walk, the
       strips and the ball down to zero over ~0.4s (`_rampWalk`) because
       `animation-play-state` cannot express anything between running and stopped.

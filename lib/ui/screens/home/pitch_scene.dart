@@ -63,10 +63,53 @@ Duration grassDuration(Mood mood) => Duration(
   microseconds: (walkDurationFor(mood).inMicroseconds * _grassRatio).round(),
 );
 
-/// The three depth bands, each matched to the mowing fan's sweep at the middle
-/// of its own band. Band 0 is the grass he is standing in, so it runs at exactly
-/// his speed; the other two keep the fan's proportions against it.
-const List<double> tuftBandRatios = [1.0, 1.1515, 1.3737];
+/// How many depth bands the tufts are spread across.
+const int _tuftBands = 3;
+
+/// The middle of one band's slice of the tuft range, as a fraction up the pitch
+/// box — the same placement `_TuftPainter` scatters within.
+double tuftBandFraction(int band) =>
+    tuftFMin + (tuftFMax - tuftFMin) * (band + 0.5) / _tuftBands;
+
+/// How far below the mowing fan's apex a row [fraction] of the way up the pitch
+/// box sits, in pixels. A ray's speed is proportional to this, which is the whole
+/// of the perspective.
+double _rowDepth(double fraction, double turfHeight) =>
+    _mowApex.abs() * turfHeight + (1 - fraction) * turfHeight;
+
+/// The depth of the row HIS BOOTS are on — the one row whose speed is pinned. See
+/// [groundSpeedPxPerSec].
+double _contactDepth(double turfHeight, double contactBelowHorizon) =>
+    _mowApex.abs() * turfHeight + contactBelowHorizon;
+
+/// How long a [segmentWidth] strip takes to cross a row [fraction] up the pitch
+/// box, at the speed the mowing fan sweeps THAT row.
+///
+/// **THIS IS WHAT STOPS THE TUFTS MOONWALKING, AND THEY WERE.** The bands carried
+/// ratios measured against BAND 0, which is not the row the ground's speed is
+/// defined at — that is his contact line, lower down the box and so further below
+/// the apex. The difference is not small: the whole tuft layer ran 17.7% slower
+/// than the mown stripes it grows in, at every band, on every screen. A tuft is a
+/// clump of the same grass the stripes are mown into, and if it slides against
+/// them at all both layers stop being ground and become wallpaper — which reads
+/// instantly even when neither speed is wrong on its own.
+///
+/// So the solve is against HIS row, exactly as [mowDuration]'s is, and every layer
+/// on the turf now takes its speed from the same one place.
+Duration turfScroll({
+  required double segmentWidth,
+  required double fraction,
+  required double turfHeight,
+  required double contactBelowHorizon,
+  required Mood mood,
+}) {
+  final speed =
+      groundSpeedPxPerSec(mood) *
+      _rowDepth(fraction, turfHeight) /
+      _contactDepth(turfHeight, contactBelowHorizon);
+  if (speed <= 0) return const Duration(seconds: 1);
+  return Duration(microseconds: (segmentWidth / speed * 1e6).round());
+}
 
 /// The JS's `SEG_GROUND` and `SEG_FAR`. One segment per loop wraps seamlessly,
 /// so these are the periods everything on their strip is drawn against — and
@@ -74,6 +117,26 @@ const List<double> tuftBandRatios = [1.0, 1.1515, 1.3737];
 /// arrangement identical on every screen size.
 const double groundSegmentWidth = 420;
 const double farSegmentWidth = 480;
+
+/// How far above his boots the horizon sits, in walker heights.
+///
+/// **DERIVED FROM HIM rather than from a percentage of the page**, which is what
+/// makes it a horizon instead of a number: the next-match card grew to five bands
+/// and the footer to three, and 46% of the page could land BELOW the man standing
+/// on it.
+///
+/// A whole walker's height put the stand in a strip along the top of the frame
+/// with a page of empty sky over it — the stadium was on screen and nobody could
+/// see it. 0.72 brought it down; **0.55 brings it down again**, and the terrace
+/// with it, so the stand sits in the middle of the picture where it can be looked
+/// at. He overlaps more of it at this height, which is correct — he is on the
+/// pitch, in front of the crowd.
+///
+/// **It costs nothing in scale.** His size is [walkerScale] about his own contact
+/// line, so where the horizon sits cannot change how big he is; what it changes is
+/// how much turf there is between him and the boards. That shorter run is paid for
+/// by [_mowApex], which recedes harder to match.
+const double _horizonAboveBoots = 0.55;
 
 /// The ad boards on the horizon.
 const double hoardingHeight = 13;
@@ -104,11 +167,32 @@ const double hoardingSegmentWidth = 240;
 const double _mowStretch = 2.941;
 
 /// Where the fan converges, in pitch-box heights above the box's top edge.
-const double _mowApex = -0.95;
+///
+/// **THE STRENGTH OF THE PERSPECTIVE, and the reason the stand can come down.** A
+/// ray's horizontal travel per radian is its distance below the apex, so pulling
+/// the apex CLOSER to the pitch shortens every one of those distances and widens
+/// the gap between them: near grass speeds up relative to far grass, and the
+/// surface recedes harder. At -0.95 the near row ran 1.38x the far one; at -0.58
+/// it is 1.60x.
+///
+/// That is what buys the horizon. A shorter run of turf can only read as ground
+/// going away from you if it recedes faster — so strengthening this is what lets
+/// [_horizonAboveBoots] come down without the pitch flattening into a green band.
+///
+/// Nothing else needs touching when it moves: [mowDuration] solves the sweep
+/// against it, and [turfScroll] solves every strip on the turf against it. Those
+/// used to be a constant each, with a comment asking whoever changed one to check
+/// the others.
+const double _mowApex = -0.58;
 
 /// One lane pair, in radians. The sweep must travel exactly one full period or
 /// the loop jumps.
-final double _mowPeriod = 5.2 * math.pi / 180;
+///
+/// **Seven degrees, not 5.2.** The lanes are ANGULAR, so widening the period
+/// widens every one of them — and the narrow ones read as a texture on the grass
+/// rather than as mown bands. [mowDuration] solves the sweep against this, so the
+/// grass at his boots keeps its speed whatever the lanes are doing.
+final double _mowPeriod = 7 * math.pi / 180;
 
 /// **THE GROUND'S SPEED, DERIVED FROM HIS LEGS.**
 ///
@@ -154,11 +238,19 @@ const double tuftFMax = 0.96;
 /// port drew 7 clumps per 96px in every band, which read as moss.
 const int _tuftsPerBand = 3;
 
-/// How big he renders. 1.2 → 1.5 → 1.35: at 1.2 he was a detail in a wide shot
-/// and the gestures, kit and look packs did not read; 1.5 read but crowded the
-/// frame on a notched phone. 1.35 is the settled middle, and it is the size the
-/// figure was TUNED at — so it is a ceiling, not a target.
-const double walkerScale = 1.35;
+/// How big he renders. 1.2 → 1.5 → 1.35 → 1.22: at 1.2 he was a detail in a wide
+/// shot and the gestures, kit and look packs did not read; 1.5 read but crowded
+/// the frame on a notched phone.
+///
+/// **Back down to 1.22 now the stadium is worth looking at.** 1.35 was the settled
+/// middle when the terrace was a strip along the top of the frame and he was the
+/// only thing on the screen with any detail on it; with the horizon down and the
+/// stand in the middle of the picture, he was competing with it. The figure is
+/// also a better drawing than it was, so it survives being smaller.
+///
+/// The ground speed follows him — [groundSpeedPxPerSec] multiplies his stride by
+/// this — so a smaller man takes smaller steps and the grass slows to match.
+const double walkerScale = 1.22;
 
 /// How far up he stands, measured from the footer rather than off a percentage of
 /// the page, so the bottom of the screen reads as one group however tall the
@@ -266,15 +358,8 @@ class PitchScene extends StatelessWidget {
         // it a horizon rather than a number — and it can never crowd him out,
         // because it is derived from where he is.
         final feet = h - walkerBottom;
-        // A walker's height above his boots was a horizon so high the stand
-        // ended up a strip along the top of the frame with a page of empty sky
-        // over it — the stadium was on screen and nobody could see it. At 0.72
-        // of him the ground line comes down, the terrace comes down with it,
-        // and there is a stadium behind him rather than a rumour of one.
-        final horizon = (feet - walkerHeight * walkerScale * 0.72).clamp(
-          h * 0.16,
-          h * 0.68,
-        );
+        final horizon = (feet - walkerHeight * walkerScale * _horizonAboveBoots)
+            .clamp(h * 0.16, h * 0.68);
 
         return ClipRect(
           child: Stack(
@@ -368,13 +453,15 @@ class PitchScene extends StatelessWidget {
                 top: horizon - hoardingHeight,
                 height: hoardingHeight,
                 child: _Scroller(
-                  duration: Duration(
-                    microseconds:
-                        (hoardingSegmentWidth *
-                                tuftBandRatios.last /
-                                groundSpeedPxPerSec(mood) *
-                                1e6)
-                            .round(),
+                  // The boards are planted ON the horizon, so their row is the far
+                  // edge of the pitch — fraction 1. Same solve as the tufts, so the
+                  // advertising and the grass at its feet can only agree.
+                  duration: turfScroll(
+                    segmentWidth: hoardingSegmentWidth,
+                    fraction: 1,
+                    turfHeight: h - horizon,
+                    contactBelowHorizon: feet - horizon,
+                    mood: mood,
                   ),
                   segmentWidth: hoardingSegmentWidth,
                   child: _HoardingSegment(kitColor: kitColor),
@@ -1118,9 +1205,9 @@ class _Turf extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Every speed on this surface comes off this one number, so nothing on the
-    // grass can slide against the grass.
-    final speed = groundSpeedPxPerSec(mood);
+    // Every speed on this surface comes off one number — his stride — and every
+    // layer reads it through [turfScroll], so nothing on the grass can slide
+    // against the grass.
     // **LIT BY THE SAME DECISION AS THE SKY.** A sunlit pitch under a night sky
     // was the one thing that gave away that the two halves of the diorama were
     // deciding their own light independently, and it is the whole reason the
@@ -1159,16 +1246,17 @@ class _Turf extends StatelessWidget {
           // Each band is a FULL-HEIGHT strip whose tufts sit at their own depth
           // inside it, and travels at the mowing fan's speed there. Band 0 is his
           // own grass and runs at exactly his stride.
-          for (var band = 0; band < tuftBandRatios.length; band++)
+          for (var band = 0; band < _tuftBands; band++)
             Positioned.fill(
               child: _Scroller(
                 frozen: frozen,
-                // One segment per loop at band 0's own speed; the far bands are
-                // slower by the fan's proportions at their depth.
-                duration: Duration(
-                  microseconds:
-                      (groundSegmentWidth * tuftBandRatios[band] / speed * 1e6)
-                          .round(),
+                // Each band at the speed the fan sweeps its OWN row.
+                duration: turfScroll(
+                  segmentWidth: groundSegmentWidth,
+                  fraction: tuftBandFraction(band),
+                  turfHeight: constraints.maxHeight,
+                  contactBelowHorizon: contactBelowHorizon,
+                  mood: mood,
                 ),
                 segmentWidth: groundSegmentWidth,
                 child: _TuftSegment(band: band),
@@ -1363,7 +1451,7 @@ class _TuftPainter extends CustomPainter {
     // Seeded per band so each depth has its own arrangement and none of them
     // reshuffle between frames.
     final rng = math.Random(31 + band);
-    final span = (tuftFMax - tuftFMin) / tuftBandRatios.length;
+    final span = (tuftFMax - tuftFMin) / _tuftBands;
 
     for (var i = 0; i < _tuftsPerBand; i++) {
       // How far up the pitch this clump sits. Its band owns a third of the

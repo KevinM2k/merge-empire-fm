@@ -238,14 +238,82 @@ void main() {
       expect(grassDuration(Mood.elated) < grassDuration(Mood.crushed), isTrue);
     });
 
-    test('and band 0 runs at exactly the turf it stands in', () {
-      // A tuft is a clump of the same grass the stripes are mown into. If it
-      // slides against them at all, both layers stop being ground.
-      expect(tuftBandRatios.first, 1.0);
-      // The far bands keep the mowing fan's own proportions.
-      expect(tuftBandRatios[1], closeTo(1.1515, 0.0001));
-      expect(tuftBandRatios[2], closeTo(1.3737, 0.0001));
+    test('EVERY layer on the turf travels at the fan\'s speed for its own row', () {
+      // **The one thing that has to be true, and it was not.** The tuft bands used
+      // to carry ratios measured against BAND 0 rather than against his contact
+      // row, and the whole layer ran 17.7% slower than the stripes it grows in — a
+      // moonwalk between two layers of the same grass, on every screen.
+      //
+      // Checked as the ratio of each layer's own speed to the fan's at that row,
+      // which has to be 1 for all of them.
+      const turfHeight = 320.0;
+      const contact = 114.0;
+      const mood = Mood.neutral;
+      final ground = groundSpeedPxPerSec(mood);
+      // The fan is solved at his row, so that is the reference.
+      final contactDepth = 0.58 * turfHeight + contact;
+
+      double speedOf(Duration d, double segment) =>
+          segment / (d.inMicroseconds / 1e6);
+
+      for (var band = 0; band < 3; band++) {
+        final fraction = tuftBandFraction(band);
+        final rowDepth = 0.58 * turfHeight + (1 - fraction) * turfHeight;
+        final fanSpeed = ground * rowDepth / contactDepth;
+        final tuftSpeed = speedOf(
+          turfScroll(
+            segmentWidth: groundSegmentWidth,
+            fraction: fraction,
+            turfHeight: turfHeight,
+            contactBelowHorizon: contact,
+            mood: mood,
+          ),
+          groundSegmentWidth,
+        );
+        expect(
+          tuftSpeed / fanSpeed,
+          closeTo(1, 0.001),
+          reason: 'band $band slides against the stripes it grows in',
+        );
+      }
+
+      // And the boards, which are planted on the horizon.
+      final boardDepth = 0.58 * turfHeight;
+      final boardSpeed = speedOf(
+        turfScroll(
+          segmentWidth: hoardingSegmentWidth,
+          fraction: 1,
+          turfHeight: turfHeight,
+          contactBelowHorizon: contact,
+          mood: mood,
+        ),
+        hoardingSegmentWidth,
+      );
+      expect(
+        boardSpeed / (ground * boardDepth / contactDepth),
+        closeTo(1, 0.001),
+        reason: 'the advertising crawls against the grass at its feet',
+      );
     });
+
+    test(
+      'and further up the pitch is slower, which is what perspective IS',
+      () {
+        const turfHeight = 320.0;
+        var last = Duration.zero;
+        for (var band = 0; band < 3; band++) {
+          final d = turfScroll(
+            segmentWidth: groundSegmentWidth,
+            fraction: tuftBandFraction(band),
+            turfHeight: turfHeight,
+            contactBelowHorizon: 114,
+            mood: Mood.neutral,
+          );
+          expect(d, greaterThan(last), reason: 'band $band is not slower');
+          last = d;
+        }
+      },
+    );
   });
 }
 
