@@ -140,10 +140,7 @@ class KitRedesignRow extends ConsumerWidget {
 }
 
 Future<void> showKitPicker(BuildContext context, WidgetRef ref) {
-  return showDialog<void>(
-    context: context,
-    builder: (_) => const _KitPicker(),
-  );
+  return showDialog<void>(context: context, builder: (_) => const _KitPicker());
 }
 
 class _KitPicker extends ConsumerWidget {
@@ -154,10 +151,7 @@ class _KitPicker extends ConsumerWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final current = ref.watch(kitColourProvider);
     final stadiumTier = ref.watch(stadiumTierProvider);
-    final unlocked = {
-      ...baseKitColours,
-      ...getUnlockedColours(stadiumTier),
-    };
+    final unlocked = {...baseKitColours, ...getUnlockedColours(stadiumTier)};
 
     return Dialog(
       backgroundColor: kit.surface,
@@ -333,10 +327,7 @@ class _Swatch extends StatelessWidget {
           ? null
           : Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(5),
@@ -380,10 +371,26 @@ class _Swatch extends StatelessWidget {
 
 /// `saturate(0) brightness(0.45)` — the JS's own treatment for a locked swatch.
 const List<double> _lockedWash = <double>[
-  0.0954, 0.3186, 0.036, 0, 0,
-  0.0954, 0.3186, 0.036, 0, 0,
-  0.0954, 0.3186, 0.036, 0, 0,
-  0, 0, 0, 1, 0,
+  0.0954,
+  0.3186,
+  0.036,
+  0,
+  0,
+  0.0954,
+  0.3186,
+  0.036,
+  0,
+  0,
+  0.0954,
+  0.3186,
+  0.036,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
 ];
 
 /// A `#rrggbb` string as a colour, defaulting to the base green rather than

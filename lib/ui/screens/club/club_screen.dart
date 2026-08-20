@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/ui/screens/club/asset_ladder_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
+import 'package:merge_empire_fc/ui/screens/club/club_stats_panel.dart';
 import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -140,6 +141,8 @@ class ClubScreen extends ConsumerWidget {
           // artwork, and artwork needs the width of a tile rather than a strip
           // beside three lines of text.
           _AssetGrid(tiles: tiles),
+          const SizedBox(height: 14),
+          const ClubStatsPanel(),
         ],
       ),
     );
@@ -316,122 +319,130 @@ class _AssetPanel extends ConsumerWidget {
     final buildable = tile.blocked == null;
     final ink = assetTierColour(tile.owned ? tile.tier : 0);
 
-    return Container(
+    return InkWell(
       key: ValueKey('club-asset-${tile.key}'),
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        color: kit.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kit.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Art(tile: tile, ink: ink, onTap: () => _openLadder(context)),
-          const SizedBox(height: 7),
-          // The name, with the facility's own glyph tinted by its tier — so a
-          // gold Stadium reads as gold before a word of it is read.
-          InkWell(
-            onTap: tile.owned ? () => _openLadder(context) : null,
-            child: Row(
-              children: [
-                GameIcon(
-                  assetCategoryIcon[tile.key] ?? 'club',
-                  size: 15,
-                  color: tile.owned ? ink : kit.textMuted,
-                ),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    t('asset.${tile.key}.name'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w900,
+      borderRadius: BorderRadius.circular(12),
+      // **The WHOLE card.** Tapping a facility to see what it has unlocked and
+      // what it has not is the obvious thing to try, and only the artwork
+      // answered — so the sheet that holds every tier was effectively hidden
+      // behind a 64px-tall strip.
+      onTap: tile.owned ? () => _openLadder(context) : null,
+      child: Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: kit.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kit.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Art(tile: tile, ink: ink, onTap: () => _openLadder(context)),
+            const SizedBox(height: 7),
+            // The name, with the facility's own glyph tinted by its tier — so a
+            // gold Stadium reads as gold before a word of it is read.
+            InkWell(
+              onTap: tile.owned ? () => _openLadder(context) : null,
+              child: Row(
+                children: [
+                  GameIcon(
+                    assetCategoryIcon[tile.key] ?? 'club',
+                    size: 15,
+                    color: tile.owned ? ink : kit.textMuted,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      t('asset.${tile.key}.name'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          // **What it GIVES.** The card used to show the flavour hint here and
-          // nothing else, so a player investing had no idea what they were
-          // buying — and `club_asset_tiers.dart`, which computes exactly this,
-          // had no caller at all. An unbuilt facility shows its hint instead:
-          // there is no perk yet to state.
-          SizedBox(
-            height: 29,
-            child: Text(
-              tile.owned ? tile.perk : t('asset.${tile.key}.hint'),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.3,
-                color: tile.owned ? null : kit.textMuted,
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 5),
-          if (tile.owned) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                key: ValueKey('club-progress-${tile.key}'),
-                value: tile.progress,
-                minHeight: 7,
-                backgroundColor: Colors.black.withValues(alpha: 0.25),
-                valueColor: AlwaysStoppedAnimation(
-                  tile.maxed ? const Color(0xFF00C8FF) : kit.accent,
+            const SizedBox(height: 4),
+            // **What it GIVES.** The card used to show the flavour hint here and
+            // nothing else, so a player investing had no idea what they were
+            // buying — and `club_asset_tiers.dart`, which computes exactly this,
+            // had no caller at all. An unbuilt facility shows its hint instead:
+            // there is no perk yet to state.
+            SizedBox(
+              height: 29,
+              child: Text(
+                tile.owned ? tile.perk : t('asset.${tile.key}.hint'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.3,
+                  color: tile.owned ? null : kit.textMuted,
                 ),
               ),
             ),
             const SizedBox(height: 5),
-            // Only what the NEXT tier changes — and at the top of the ladder,
-            // where it goes, because leaving the row blank punched a hole
-            // between the full bar and the button.
+            if (tile.owned) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  key: ValueKey('club-progress-${tile.key}'),
+                  value: tile.progress,
+                  minHeight: 7,
+                  backgroundColor: Colors.black.withValues(alpha: 0.25),
+                  valueColor: AlwaysStoppedAnimation(
+                    tile.maxed ? const Color(0xFF00C8FF) : kit.accent,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5),
+              // Only what the NEXT tier changes — and at the top of the ladder,
+              // where it goes, because leaving the row blank punched a hole
+              // between the full bar and the button.
+              SizedBox(
+                height: 27,
+                child: Text(
+                  tile.maxed
+                      ? '${t('club.tier_n', {'n': maxAssetTier})} · ${t('club.maxed')}'
+                      : tile.next ?? '',
+                  key: ValueKey('club-next-${tile.key}'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1.35,
+                    color: kit.textMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 7),
+            ],
+            const Spacer(),
             SizedBox(
-              height: 27,
-              child: Text(
-                tile.maxed
-                    ? '${t('club.tier_n', {'n': maxAssetTier})} · ${t('club.maxed')}'
-                    : tile.next ?? '',
-                key: ValueKey('club-next-${tile.key}'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10,
-                  height: 1.35,
-                  color: kit.textMuted,
+              width: double.infinity,
+              child: ElevatedButton(
+                key: ValueKey('club-action-${tile.key}'),
+                onPressed: !buildable ? null : () => _buy(context, ref, game),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  textStyle: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                child: Text(
+                  _actionLabel(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
                 ),
               ),
             ),
-            const SizedBox(height: 7),
           ],
-          const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              key: ValueKey('club-action-${tile.key}'),
-              onPressed: !buildable ? null : () => _buy(context, ref, game),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                textStyle: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              child: Text(
-                _actionLabel(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

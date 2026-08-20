@@ -593,12 +593,16 @@ because most of these are two or three to a file.
 
 ### Club
 
-- [ ] **Tapping a facility should show what is unlocked and what is not.** The
-      ladder sheet does exactly this and only the artwork opens it — the whole
-      card should.
-- [ ] **The bottom of the screen wants the quick summary** the JS has there:
-      seven rows of what the club has earned itself so far (`_renderStats`),
-      each with a tappable hint, and `club.empty` before the first build.
+- [x] **The whole card opens the upgrade path**, not just the 64px strip of
+      artwork the tap used to live on.
+- [x] **The bottom of the screen adds it all up** — `club_stats_panel.dart`,
+      ported from `_renderStats`. Seven facilities at eight tiers each is too much
+      arithmetic to do in your head, and "what is all this worth" had no answer
+      anywhere in the port. Every figure is the gate function the game runs on, so
+      the panel cannot claim a multiplier the engine does not apply. Each row
+      explains itself on a tap — those hints were written, shipped and
+      unreachable — and before the first build it is one line rather than seven
+      rows of ×1.00.
 
 ### Quick nav
 

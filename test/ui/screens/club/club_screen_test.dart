@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
+import 'package:merge_empire_fc/ui/screens/club/club_stats_panel.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
@@ -459,5 +460,82 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('asset-ladder-$_key')), findsNothing);
     });
+  });
+
+  group('what the club adds up to', () {
+    testWidgets('nothing built is ONE line, not seven rows of x1.00', (
+      tester,
+    ) async {
+      await pumpClub(tester, coins: 100000);
+      expect(find.byKey(const ValueKey('club-stats-empty')), findsOneWidget);
+      expect(find.byKey(const ValueKey('club-stats')), findsNothing);
+    });
+
+    testWidgets('and once something is, every figure is the ENGINE\'s', (
+      tester,
+    ) async {
+      // Seven facilities at eight tiers each is too much arithmetic to do in
+      // your head, and "what is all this worth" had no answer anywhere.
+      final container = await pumpClub(tester, coins: 100000000);
+      container.read(gameProvider).update((s) {
+        (s['clubAssets']
+            as Map<String, dynamic>)[AssetCategory.merch] = <String, dynamic>{
+          'owned': true,
+          'tier': 4,
+          'invested': 0,
+          'tapCount': 0,
+        };
+      });
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(find.byKey(const ValueKey('club-stats')), findsOneWidget);
+      // Merch is +5% idle income a tier, so four tiers is x1.20.
+      final income = container
+          .read(clubStatsProvider)
+          .firstWhere((r) => r.key == 'income');
+      expect(income.value, '×1.20');
+      expect(find.text('×1.20'), findsOneWidget);
+    });
+
+    testWidgets('a row explains itself on a tap', (tester) async {
+      // The hints are written and shipped, and were unreachable.
+      final container = await pumpClub(tester, coins: 100000000);
+      container.read(gameProvider).update((s) {
+        (s['clubAssets'] as Map<String, dynamic>)[AssetCategory.merch] =
+            <String, dynamic>{'owned': true, 'tier': 1};
+      });
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('club-stat-income')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('club-stat-income')));
+      await tester.pumpAndSettle();
+      expect(find.text(t('club.stats.income_hint')), findsOneWidget);
+    });
+  });
+
+  testWidgets('the WHOLE card opens the upgrade path', (tester) async {
+    // Only the artwork answered a tap, so the sheet holding every tier was
+    // hidden behind a 64px strip.
+    final container = await pumpClub(tester, coins: 100000000);
+    container.read(gameProvider).update((s) {
+      (s['clubAssets'] as Map<String, dynamic>)[_key] = <String, dynamic>{
+        'owned': true,
+        'tier': 2,
+        'invested': 0,
+        'tapCount': 0,
+      };
+    });
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+
+    // The card's own name, which is nowhere near the artwork.
+    await tester.tap(find.text(t('asset.$_key.name')).first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('asset-ladder-$_key')), findsOneWidget);
   });
 }

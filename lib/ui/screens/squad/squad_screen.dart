@@ -285,38 +285,33 @@ class _Chip extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                GameIcon(icon!, size: 16, color: iconColor),
-                const SizedBox(width: 6),
-              ],
-              if (label != null) ...[
-                // Flexible, and the SMALLER share: the label is the part a
-                // player already knows, so in a language whose word for it is
-                // long — or on a narrow phone — it gives way before the value
-                // does. Fixed, it simply overflowed the chip.
-                Flexible(
-                  flex: 2,
-                  child: Text(
+          // **Scaled down, never clipped.** "Formation" is a word, not a value,
+          // and a word that ends in an ellipsis reads as a bug. Flexing the
+          // label let it truncate; a fixed one overflowed the chip. Shrinking
+          // the whole row a hair on a narrow phone — or in a language whose word
+          // for it is longer — keeps every part of it readable.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  GameIcon(icon!, size: 16, color: iconColor),
+                  const SizedBox(width: 6),
+                ],
+                if (label != null) ...[
+                  Text(
                     '$label:',
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: kit.textMuted,
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              Flexible(
-                flex: 3,
-                child: Text(
+                  const SizedBox(width: 6),
+                ],
+                Text(
                   value,
-                  overflow: TextOverflow.ellipsis,
                   softWrap: false,
                   style: TextStyle(
                     fontSize: 13,
@@ -324,13 +319,13 @@ class _Chip extends StatelessWidget {
                     color: ink,
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Opacity(
-                opacity: 0.7,
-                child: Icon(Icons.expand_more, size: 13, color: ink),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Opacity(
+                  opacity: 0.7,
+                  child: Icon(Icons.expand_more, size: 13, color: ink),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -576,9 +571,18 @@ class _SlotTarget extends ConsumerWidget {
           delay: const Duration(milliseconds: 200),
           // The token itself, lifted. It had been an EMPTY box, so dragging a
           // man off the pitch showed nothing under the finger at all.
-          feedback: Transform.scale(
-            scale: 1.1,
-            child: PitchToken(slot: slot, proMode: pro),
+          //
+          // **Inside a Material**, because the feedback is built into the drag
+          // OVERLAY and nothing up there is one: every `Text` on the lifted token
+          // — the name, the rating, the position — drew Flutter's
+          // missing-Material double yellow underline for the length of the drag.
+          // The grid's own feedback already had this; the pitch's did not.
+          feedback: Material(
+            type: MaterialType.transparency,
+            child: Transform.scale(
+              scale: 1.1,
+              child: PitchToken(slot: slot, proMode: pro),
+            ),
           ),
           childWhenDragging: PitchEmptySlot(position: slot.slotPosition),
           child: GestureDetector(

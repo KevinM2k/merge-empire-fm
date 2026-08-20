@@ -896,13 +896,21 @@ void main() {
       );
     });
 
-    testWidgets('the formation chip fits a narrow phone', (tester) async {
-      // Its label had no flex at all, so it could only overflow the chip.
+    testWidgets('the formation chip fits a narrow phone, whole', (
+      tester,
+    ) async {
+      // It had no flex at all and could only overflow; flexing it let the WORD
+      // "Formation" end in an ellipsis, which reads as a bug. It scales instead.
       tester.view.physicalSize = const Size(320, 640);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await pumpSquad(tester);
       expect(tester.takeException(), isNull);
+      expect(
+        find.text('${t('squad.formation.label')}:'),
+        findsOneWidget,
+        reason: 'said in full',
+      );
     });
   });
 
