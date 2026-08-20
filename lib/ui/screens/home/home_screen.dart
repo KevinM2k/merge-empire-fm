@@ -25,6 +25,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/event_strip.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
@@ -181,6 +182,10 @@ class _Scene extends ConsumerWidget {
     return PitchScene(
       mood: mood,
       walkerBottom: walkerBottom,
+      // The ground the club has actually built: it buys the sky's grandeur and
+      // the floodlight pylons behind the stand. The HOUR is the theme's — see
+      // `theme/sky.dart`.
+      tier: ref.watch(stadiumTierProvider),
       // Some of the stand wears the club's colours. Support that grows with you
       // is the one thing a crowd can say about the season.
       kitColor: kit.accent,

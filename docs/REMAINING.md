@@ -30,9 +30,9 @@ too late:
 
 ## Where we are
 
-**3,650 tests, `flutter analyze` clean.**
+**3,680 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 20 Aug", and it is 34 items.** That is
+**The live queue is "From playtesting — 20 Aug", and it is 31 items.** That is
 what a session of actually playing the thing turned up, which is a different list
 from what reading the source turns up and is the one to clear first. It carries
 its own status block: the count, the clusters, what is blocked on a decision and
@@ -549,25 +549,32 @@ because most of these are two or three to a file.
 
 ### Where this queue stands
 
-**35 done, 34 open** across both playtest sessions. Of the 34: **31 are work**
-(the table below), one is a decision that is not mine to take, and two are
-artwork packs to bring in when the screens that want them come up.
+**43 done, 33 open** across both playtest sessions — counted off the boxes in
+both sections rather than kept as a running total, because the two had drifted
+apart.
 
 | Cluster | Open | What it is |
 |---|---|---|
-| Manager and customiser | 5 | the rig's shadow, body shape, the tracksuit, a walking backdrop, style previews, and the wrong navigation for it |
 | Settings, sound and graphics | 6 | missing entries, the screen itself, sound not working at all, iOS volume, the JS's button colours |
+| Manager and customiser | 5 | the rig's shadow, body shape, the tracksuit, a walking backdrop, style previews, and the wrong navigation for it |
 | Squad and the player sheet | 5 | portrait over the buttons, a release button, the traits, the tier-maxed highlight, the card's portrait |
-| The Play page | 3 | the 2D cutaway, the commentary, the styling |
 | Home, odds and ends | 5 | the position badge, the `+1` tooltip, Colin's third person, income per second, the safe area's depth |
+| The Play page | 3 | the 2D cutaway, the commentary, the styling |
 | Fixtures, daily reward, vouchers | 3 | three screens wanting a pass |
 | Deadline Day and names | 2 | renaming a player, and buying the player you actually bought |
 | Not code decisions | 2 | the IAP tiles and the rewarded-video buttons |
+| Artwork packs | 2 | the backdrop pack and going back to the sports pack |
 
-**Two things worth reading before picking one up.**
+**The two things that were worth reading before picking one up are both settled
+now.**
 
-**1. The sky follows the THEME. Decided.** See "The sky, and why it follows the
-theme" below for the reasoning and the one correction that came with it.
+**1. The sky follows the THEME, and it does.** Light mode is daylight, dark mode
+a floodlit night, with the stadium tier running the grandeur inside whichever of
+the two you are in — `lib/ui/theme/sky.dart`. Every compromise that had been
+struck against the old fixed dusk-blue sky came off with it: the next-match card,
+the HUD's glass, the diorama's turf, the crowd's haze, and
+`glassThemeProvider`, which is deleted. See "The sky, and why it follows the
+theme" below.
 
 **2. The artwork question is answered.** `kenneynl/` holds six CC0 packs and the
 useful one is now bundled — see "Artwork, and which packs" at the end of this
@@ -790,26 +797,55 @@ driving the grandeur — park to floodlit arena — which is what the JS already
 its own `darkScene` flag off. What is dropped is the JS's ~10-minute day→night
 clock, and it is dropped on purpose.
 
-- [ ] **Give `skyGradient` a light-mode palette and a dark-mode one**, and let
-      the floodlights come on with the Stadium's tier rather than with a clock.
+- [x] **`skyGradient` is a FUNCTION of the theme and the tier** —
+      `lib/ui/theme/sky.dart`, which is the one place the mapping is stated and
+      the only thing the diorama, the match page and the crowd's haze read. Two
+      ramps rather than the JS's one: the day ramp runs its tier 0 to its tier 2,
+      the night ramp its tier 5 to its tier 8, so the ends are lifted from the
+      source rather than invented. The two must not OVERLAP — a park in daylight
+      has to beat an arena at night, or the setting stops meaning anything, and
+      that is asserted rather than eyeballed.
+- [x] **The floodlights are BUILT by the tier and LIT by the theme.** The JS's
+      own counts (one at tier 4, two at tier 7), so a top-tier ground has its
+      pylons standing grey and cold in the afternoon — which is the whole
+      difference between a big club at three o'clock and the same club at night.
+      If the tier decided both, the theme would be cosmetic. The pylon is
+      proportioned off the TERRACE (2.6 of them) rather than off the viewport as
+      the JS does: at 46% of the scene the heads land behind the next-match card
+      and all you see of a floodlight is two thin poles crossing the sky, which
+      read as cables.
 
-**And then theme everything else against it — which is the real prize here.**
-Every panel that floats on the diorama is currently a COMPROMISE struck against
-one fixed dusk-blue sky, and each of those compromises can be undone the moment
-the sky is known:
+**And then theme everything else against it — which was the real prize here, and
+it is collected.** Every panel that floated on the diorama was a COMPROMISE
+struck against one fixed dusk-blue sky:
 
-- [ ] **The next-match card is dark glass in BOTH themes.** Its own note says
-      why: at `surface` it was "a pale panel on a pale sky in light mode", so it
-      was forced dark and the ink had to flip with it. With a daylit sky in light
-      mode it can be a light panel with the app's own ink, and stop being the one
-      card on the screen that ignores the theme.
-- [ ] **`glassThemeProvider` exists for the same reason** — it hands a subtree
-      the ink a dark panel needs. Half its callers should not need it any more.
-- [ ] **The turf already HAS both palettes** (`_turf` and `_turfLight`) and picks
-      by theme. Once the sky does too, the pitch and the sky above it are lit
-      from the same decision rather than by two independent ones.
-- [ ] **The HUD's `onScene` branch** builds the whole bar under a dark-glass
-      theme because the Play tab's sky is dark. In light mode it will not be.
+- [x] **The next-match card follows the theme now.** In light mode it is a light
+      pane under the app's own ink, and the one card on the screen that ignored
+      the theme stops being that.
+- [x] **`glassThemeProvider` is GONE, not halved.** It existed only to hand a
+      dark subtree the dark build of the kit — and once the pane follows the
+      theme, the app's ink is already the right ink for the surface it is written
+      on. The `DefaultTextStyle`/`IconTheme` merge inside `GlassPanel` went with
+      it, and so did the `Builder`s at both call sites that existed to get under
+      the override. **The light recipe is DENSER than the dark one, not a mirror
+      of it**: a dark pane hides a busy backdrop by swallowing it, a light one has
+      to out-shine it, and the rim and sheen invert too — a white hairline is the
+      edge of dark glass and is invisible on light, so light glass is edged in its
+      own shadow.
+- [x] **The diorama's turf has both palettes now.** A sunlit pitch under a night
+      sky was the thing that gave away that the two halves of the scene were each
+      deciding their own light. Floodlit grass is cooler and darker rather than
+      simply dimmer, and the pools the pylons throw put the light back in two
+      places. (The `_turf`/`_turfLight` pair the note pointed at is the SQUAD
+      pitch — a different file, and the pattern rather than the fix.)
+- [x] **The crowd's aerial haze was hard-coded to `#1B3A57`** — the old fixed
+      sky's top stop. Anything that fades into the distance now takes `skyHaze`,
+      which is the sky at the HORIZON rather than the sky overhead, or a daylight
+      scene would have had its terrace receding into a twilight that was nowhere
+      else on the screen.
+- [x] **The HUD's `onScene` branch** no longer forces the whole bar under the
+      dark build of the kit. In dark mode that override was always a no-op; in
+      light mode it was the reason for pale-green figures on a near-white pill.
 
 Five reasons the theme won, in the order they mattered:
 
@@ -829,13 +865,24 @@ Five reasons the theme won, in the order they mattered:
    night match. The clock option makes their choice cosmetic.
 5. **It is deterministic**, so a widget test can assert what the sky is.
 
-**And one correction that came out of checking this.** The port's sky is a single
-static gradient — `_Sky` draws `skyGradient` and nothing modulates it — so there
-is no day cycle in the port to change. If a slow light → dark → light drift is
-visible on a real device it is coming from something else and I have not found
-it: the scrollers tile seamlessly and the stand's gradient runs down its height
-rather than across its width. **Worth a screenshot if it is still there** once the
-theme-driven sky lands, because it would then be a second, separate bug.
+**And one correction that came out of checking this.** The port's sky was a
+single static gradient — nothing modulated it — so there was no day cycle in the
+port to change. If a slow light → dark → light drift is visible on a real device
+it is coming from something else and I have not found it: the scrollers tile
+seamlessly and the stand's gradient runs down its height rather than across its
+width. **Worth a screenshot if it is still there** now that the theme-driven sky
+has landed, because it would then be a second, separate bug.
+
+**What is NOT here, on purpose.** The JS also hangs a sun, clouds, stars and
+camera flashes on this sky, and none of them are ported yet — they are a
+`docs/PARITY.md` item rather than a compromise this decision unblocked. The one
+thing to know before adding them: stars and flashes are night furniture and the
+sun is day furniture, so they key off `nightScene` and nothing else.
+
+**And one thing this cannot fix from inside the scene.** On a five-band
+next-match card the pylon heads sit behind the glass. The scene does not know
+where the card ends and should not; the heads glow through, which is what the
+pane being glass is for.
 
 ### Artwork, and which packs
 

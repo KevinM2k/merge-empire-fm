@@ -208,12 +208,16 @@ class NextMatchCard extends ConsumerWidget {
     // drawn one yet — and an empty card would be worse than none.
     if (match == null) return const SizedBox.shrink();
 
-    // DARK GLASS in both themes, and DEEP because the card is tall enough to
-    // cross the sky's own gradient. It was `surface` at 74%, which is a pale
-    // panel on a pale sky in light mode — the card washed out against the bright
-    // end of the day cycle and never read as glass at either end of it. Going
-    // dark means the ink has to flip with it, which is what [GlassPanel] hands
-    // its subtree; the `Builder` is what puts this card's own text under that.
+    // GLASS, and DEEP because the card is tall enough to cross the sky's own
+    // gradient.
+    //
+    // It was forced DARK in both themes and it is not any more. The reason it
+    // was forced has gone: the sky was one fixed dusk-blue on a day→night clock,
+    // so a `surface` panel was pale-on-pale at the bright end of the cycle and
+    // the card never read as glass at either end of it. The sky follows the
+    // theme now, so in light mode this is a light pane under the app's own ink —
+    // and the one card on the screen that ignored the theme stops being that.
+    // [GlassPanel] carries both recipes; nothing here has to know which.
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -222,7 +226,7 @@ class NextMatchCard extends ConsumerWidget {
           key: const ValueKey('next-match-card'),
           deep: true,
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
-          child: Builder(builder: (context) => _body(context, ref, match)),
+          child: _body(context, ref, match),
         ),
       ],
     );

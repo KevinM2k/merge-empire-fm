@@ -19,7 +19,6 @@ import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
-import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -87,15 +86,17 @@ class Hud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // On the Play tab the whole HUD is written for DARK GLASS, so the whole HUD
-    // is built under the dark build of the kit — the figures, the captions and
-    // the icons as well as the chips they sit in. Resolving the ink out here in
-    // the app's own theme is what put pale-green numbers on a near-white pill
-    // the moment light mode was on; the `Builder` is what puts the rest of this
-    // method under it.
+    // On the Play tab the chips are GLASS over the diorama; everywhere else the
+    // page underneath is the app's own surface and they are themed pills — see
+    // `HudChip.onScene`.
     //
-    // Everywhere else it keeps the app's own theme, because everywhere else the
-    // page underneath is the app's own surface — see `HudChip.onScene`.
+    // This used to force the whole bar under the DARK build of the kit, because
+    // the glass was dark in both themes and resolving the ink out here in the
+    // app's own theme put pale-green figures on a near-white pill the moment
+    // light mode was on. The glass follows the theme now (`theme/glass.dart`),
+    // so the app's own ink is already the right ink for the pane it is written
+    // on, and the override — and the `Builder` that existed to get the rest of
+    // this method under it — are both gone.
     final onScene = ref.watch(shellControllerProvider).tab == ShellTab.home;
     if (!onScene) {
       // A REAL BLUR ACROSS THE WHOLE STRIP, not four blurred chips with gaps
@@ -105,17 +106,12 @@ class Hud extends ConsumerWidget {
       // over the band, and anything behind it is genuinely out of focus.
       return _FrostedBar(child: _bar(context, ref, onScene: false));
     }
-    return Theme(
-      data: ref.watch(glassThemeProvider),
-      child: Builder(
-        builder: (context) => Padding(
-          // The Play tab has no bar to frost — the scene shows through — so the
-          // notch is cleared here instead. See `_FrostedBar` for why neither is
-          // a `SafeArea` around the whole HUD any more.
-          padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
-          child: _bar(context, ref, onScene: true),
-        ),
-      ),
+    return Padding(
+      // The Play tab has no bar to frost — the scene shows through — so the
+      // notch is cleared here instead. See `_FrostedBar` for why neither is
+      // a `SafeArea` around the whole HUD any more.
+      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+      child: _bar(context, ref, onScene: true),
     );
   }
 

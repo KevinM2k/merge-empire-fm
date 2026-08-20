@@ -36,11 +36,13 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show walkerFootOffset, walkerHeight, walkerStrideArtUnits, walkerWidth;
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 /// One stride, by mood. The JS's `--walk-dur` per `data-mood`.
 Duration walkDurationFor(Mood mood) => switch (mood) {
@@ -174,6 +176,7 @@ class PitchScene extends StatelessWidget {
     super.key,
     required this.mood,
     required this.walker,
+    this.tier = 1,
     this.kitColor = const Color(0xFF4CAF50),
     this.walkerBottom = 150 + walkerBottomClearance,
   });
@@ -188,6 +191,12 @@ class PitchScene extends StatelessWidget {
   /// is the one thing the stand can say about the season.
   final Color kitColor;
 
+  /// How grand the ground is. It buys the height of the terrace in the JS; here
+  /// it also picks where along the sky's ramp we are and whether there are
+  /// floodlight pylons behind the stand — see `theme/sky.dart` for why the TIER
+  /// owns the grandeur and the THEME owns the hour.
+  final int tier;
+
   /// His contact line, above the scene's bottom edge. MEASURED by the caller:
   /// the pill he stands over moves with the footer, and a constant would be
   /// wrong the first frame an event strip appeared.
@@ -195,6 +204,12 @@ class PitchScene extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final night = nightScene(brightness);
+    final sky = skyGradient(brightness: brightness, tier: tier);
+    final haze = skyHaze(brightness: brightness, tier: tier);
+    final pylons = floodlightCount(tier);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
@@ -223,7 +238,40 @@ class PitchScene extends StatelessWidget {
         return ClipRect(
           child: Stack(
             children: [
-              const Positioned.fill(child: _Sky()),
+              Positioned.fill(
+                child: DecoratedBox(decoration: BoxDecoration(gradient: sky)),
+              ),
+              // The pylons, on their OWN strip behind the stand and at the
+              // stand's own speed and period — so however tall they get they
+              // cannot drift against the terrace they are planted in. A tall
+              // strip rather than a tall segment: a floodlight rises well clear
+              // of the roof, and the stand's strip is only as tall as the stand.
+              if (pylons > 0)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: h - (horizon - hoardingHeight),
+                  // **OFF THE TERRACE, NOT OFF THE VIEWPORT.** The JS gives the
+                  // pylon 100% of a layer that is 46% of the scene, which on a
+                  // phone puts the lamps up behind the next-match card — so all
+                  // you see of a floodlight is two thin poles crossing the sky,
+                  // which read as cables. A pylon is proportioned against the
+                  // stand it lights (about two and a half terraces), so the head
+                  // lands in the band of sky the diorama actually shows, and it
+                  // stays there whatever the viewport does. Clamped to the sky
+                  // above the horizon so a short scene cannot push it out of
+                  // frame.
+                  height: math.min(
+                    standHeight * _pylonStands,
+                    math.max(0, (horizon - hoardingHeight) * 0.92),
+                  ),
+                  child: _Scroller(
+                    key: const ValueKey('pitch-floodlights'),
+                    duration: const Duration(milliseconds: 16500),
+                    segmentWidth: farSegmentWidth,
+                    child: _FloodlightSegment(count: pylons, lit: night),
+                  ),
+                ),
               // The far strip: the stand and its crowd, at 16.5s — slow, because
               // distance is speed on a parallax scene. Its height is the TERRACE's
               // own, not a fraction of the page: at `h * 0.24` it was a 200px bank
@@ -241,7 +289,7 @@ class PitchScene extends StatelessWidget {
                   key: const ValueKey('pitch-stand'),
                   duration: const Duration(milliseconds: 16500),
                   segmentWidth: farSegmentWidth,
-                  child: _StandSegment(kitColor: kitColor),
+                  child: _StandSegment(kitColor: kitColor, haze: haze),
                 ),
               ),
               // **At the speed of the ground they STAND on.** They were pinned
@@ -306,6 +354,18 @@ class PitchScene extends StatelessWidget {
                   ),
                 ),
               ),
+              // The wash the pylons throw, OVER everything they light —
+              // including him, because a man standing in a floodlit ground is
+              // lit by it. The JS's `.ps-glow`: two soft pools off to either
+              // side, which is what says the light comes from up there rather
+              // than from the screen.
+              if (night && pylons > 0)
+                const Positioned.fill(
+                  key: ValueKey('pitch-floodlight-wash'),
+                  child: IgnorePointer(
+                    child: CustomPaint(painter: _FloodWash()),
+                  ),
+                ),
             ],
           ),
         );
@@ -314,27 +374,151 @@ class PitchScene extends StatelessWidget {
   }
 }
 
-/// The sky the whole game happens under.
-///
-/// Exported because the MATCH PAGE stands on it too. That page is a takeover —
-/// nearly all panel, no diorama behind it — and the JS puts it on this same sky
-/// rather than on the app's background for the reason its own note gives: a
-/// panel that followed the theme would be light-on-light at Sunday League in
-/// light mode. One sky, so arriving at a match is not arriving in a different
-/// world.
-const LinearGradient skyGradient = LinearGradient(
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-  colors: [Color(0xFF1B3A57), Color(0xFF2E5A74), Color(0xFF6E8FA0)],
-  stops: [0, 0.55, 1],
-);
+// ── Floodlights ─────────────────────────────────────────────────────────────
+// A pylon is BUILT, not switched on: the tier decides whether one is standing
+// there, the theme decides whether it is burning. So in light mode a top-tier
+// ground still has its pylons, cold and grey against a daylit sky, which is the
+// difference between a big club in the afternoon and the same club at night.
+//
+// All the geometry is the JS's `.ps-flood`, as fractions of the pylon's own
+// height rather than of the layer it sits in: the strip's height is derived
+// (46% of the scene, clamped by the sky above the horizon), so pinning the head
+// to a percentage of the LAYER would slide it up and down the pole with the
+// viewport.
 
-class _Sky extends StatelessWidget {
-  const _Sky();
+/// How many terraces tall a pylon stands.
+const double _pylonStands = 2.6;
+
+/// Where the pole and the head sit across the pylon's 30px box.
+const double _poleWidth = 4;
+const double _poleLeft = 13;
+const double _headWidth = 28;
+const double _headHeight = 10;
+
+/// The pole stops short of the top; the head hangs just below where it stops.
+const double _poleFraction = 0.86;
+const double _headTopFraction = 0.09;
+
+class _FloodlightSegment extends StatelessWidget {
+  const _FloodlightSegment({required this.count, required this.lit});
+
+  final int count;
+  final bool lit;
 
   @override
-  Widget build(BuildContext context) =>
-      const DecoratedBox(decoration: BoxDecoration(gradient: skyGradient));
+  Widget build(BuildContext context) => SizedBox(
+    key: const ValueKey('pitch-floodlight-segment'),
+    width: farSegmentWidth,
+    height: double.infinity,
+    child: CustomPaint(
+      painter: _FloodlightPainter(count: count, lit: lit),
+    ),
+  );
+}
+
+class _FloodlightPainter extends CustomPainter {
+  const _FloodlightPainter({required this.count, required this.lit});
+
+  final int count;
+  final bool lit;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Seeded like the crowd, and for the same reason: a pylon that stood
+    // somewhere else on every rebuild would read as the ground being rebuilt.
+    final rng = math.Random(11);
+    for (var i = 0; i < count; i++) {
+      final left = 60 + rng.nextDouble() * 90 + i * 220;
+      _paintPylon(canvas, size, left);
+    }
+  }
+
+  void _paintPylon(Canvas canvas, Size size, double left) {
+    final poleRect = Rect.fromLTWH(
+      left + _poleLeft,
+      size.height * (1 - _poleFraction),
+      _poleWidth,
+      size.height * _poleFraction,
+    );
+    canvas.drawRect(
+      poleRect,
+      Paint()
+        ..shader = const LinearGradient(
+          colors: [Color(0xFF667080), Color(0xFF3A424C)],
+        ).createShader(poleRect),
+    );
+
+    final head = Rect.fromLTWH(
+      left + 1,
+      size.height * _headTopFraction,
+      _headWidth,
+      _headHeight,
+    );
+    final headShape = RRect.fromRectAndRadius(head, const Radius.circular(3));
+    if (lit) {
+      // The bloom BEFORE the lamps, so the glass sits inside its own halo
+      // rather than under it. A blurred fill is the paint-side equivalent of
+      // the JS's `box-shadow` spread, and it is the one thing that makes the
+      // head read as a light rather than as a pale rectangle.
+      canvas.drawRRect(
+        headShape.inflate(5),
+        Paint()
+          ..color = const Color(0xFFFFFAD2).withValues(alpha: 0.55)
+          ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.normal, 8),
+      );
+    }
+    // The lamp bank: bright glass with the frame between each lamp showing.
+    canvas.drawRRect(
+      headShape,
+      Paint()..color = lit ? const Color(0xFFFFFBE0) : const Color(0xFF9AA4B0),
+    );
+    final mullion = Paint()
+      ..color = lit ? const Color(0xFFC9C49A) : const Color(0xFF6E7885);
+    for (var x = head.left + 4; x < head.right; x += 6) {
+      canvas.drawRect(
+        Rect.fromLTWH(x, head.top, 2, head.height).intersect(head),
+        mullion,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FloodlightPainter old) =>
+      old.count != count || old.lit != lit;
+}
+
+/// The wash the pylons throw over the ground: the JS's `.ps-glow`, two soft
+/// pools to either side of the middle rather than one even lift, because an even
+/// lift is a brightness slider and two pools are lamps.
+class _FloodWash extends CustomPainter {
+  const _FloodWash();
+
+  static const Color _light = Color(0xFFFFFADC);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final cx in const [0.18, 0.82]) {
+      final rect = Rect.fromCenter(
+        center: Offset(size.width * cx, size.height * 0.4),
+        width: size.width * 1.2,
+        height: size.height * 0.9,
+      );
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              _light.withValues(alpha: 0.10),
+              _light.withValues(alpha: 0),
+            ],
+            stops: const [0, 0.7],
+          ).createShader(rect),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FloodWash old) => false;
 }
 
 // ── The stand ───────────────────────────────────────────────────────────────
@@ -396,23 +580,31 @@ const List<Color> _fanSkins = [
 ];
 
 class _StandSegment extends StatelessWidget {
-  const _StandSegment({required this.kitColor});
+  const _StandSegment({required this.kitColor, required this.haze});
 
   final Color kitColor;
+  final Color haze;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     key: const ValueKey('pitch-stand-segment'),
     width: farSegmentWidth,
     height: double.infinity,
-    child: CustomPaint(painter: _StandPainter(kitColor: kitColor)),
+    child: CustomPaint(
+      painter: _StandPainter(kitColor: kitColor, haze: haze),
+    ),
   );
 }
 
 class _StandPainter extends CustomPainter {
-  const _StandPainter({required this.kitColor});
+  const _StandPainter({required this.kitColor, required this.haze});
 
   final Color kitColor;
+
+  /// What the distance fades TO — the sky at the horizon, handed in rather than
+  /// chosen here. See [skyHaze]: a fixed colour here was a twilight terrace
+  /// under a daylight sky.
+  final Color haze;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -479,10 +671,7 @@ class _StandPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF1B3A57).withValues(alpha: 0.42),
-            const Color(0xFF1B3A57).withValues(alpha: 0.16),
-          ],
+          colors: [haze.withValues(alpha: 0.42), haze.withValues(alpha: 0.16)],
         ).createShader(deckRect),
     );
 
@@ -559,7 +748,8 @@ class _StandPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_StandPainter old) => old.kitColor != kitColor;
+  bool shouldRepaint(_StandPainter old) =>
+      old.kitColor != kitColor || old.haze != haze;
 }
 
 /// The ad boards on the horizon: panels in the division's colour alternating
@@ -614,6 +804,18 @@ class _HoardingPainter extends CustomPainter {
   bool shouldRepaint(_HoardingPainter old) => old.kitColor != kitColor;
 }
 
+/// The grass in the afternoon, and the same grass under the lamps.
+const List<Color> _turfDay = [
+  Color(0xFF2A7231),
+  Color(0xFF3A9441),
+  Color(0xFF48AD50),
+];
+const List<Color> _turfNight = [
+  Color(0xFF17442A),
+  Color(0xFF1F6035),
+  Color(0xFF2A783F),
+];
+
 /// The ground: the turf, the mowing fan over it, the tuft bands, and the haze
 /// that puts the far end of it in the distance.
 class _Turf extends StatelessWidget {
@@ -630,23 +832,29 @@ class _Turf extends StatelessWidget {
     // Every speed on this surface comes off this one number, so nothing on the
     // grass can slide against the grass.
     final speed = groundSpeedPxPerSec(mood);
+    // **LIT BY THE SAME DECISION AS THE SKY.** A sunlit pitch under a night sky
+    // was the one thing that gave away that the two halves of the diorama were
+    // deciding their own light independently, and it is the whole reason the
+    // theme owns the hour rather than a clock: there is exactly one answer to
+    // "is it night", so the grass and the sky can only agree.
+    final night = nightSceneOf(context);
     return LayoutBuilder(
       builder: (context, constraints) => Stack(
         fit: StackFit.expand,
         children: [
           // The turf. Brighter at his boots and darker toward the horizon, which
           // is the first half of reading as ground rather than as a green wall.
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF2A7231),
-                  Color(0xFF3A9441),
-                  Color(0xFF48AD50),
-                ],
-                stops: [0, 0.45, 1],
+                // Floodlit grass is COOLER and darker rather than simply dimmer:
+                // a lamp is a narrow band of light on a field that has no sun on
+                // it, so the green loses its warmth and the pools the pylons
+                // throw put it back in two places — see `_FloodWash`.
+                colors: night ? _turfNight : _turfDay,
+                stops: const [0, 0.45, 1],
               ),
             ),
           ),

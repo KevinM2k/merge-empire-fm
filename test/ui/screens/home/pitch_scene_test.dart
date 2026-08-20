@@ -9,26 +9,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 void main() {
-  Future<void> pumpScene(WidgetTester tester, {Mood mood = Mood.neutral}) =>
-      tester.pumpWidget(
-        MaterialApp(
-          home: MediaQuery(
-            data: const MediaQueryData(
-              size: Size(400, 800),
-              disableAnimations: true,
-            ),
-            child: Scaffold(
-              body: PitchScene(
-                mood: mood,
-                walkerBottom: 150 + walkerBottomClearance,
-                walker: const SizedBox(width: 120, height: 170),
-              ),
+  Future<void> pumpScene(
+    WidgetTester tester, {
+    Mood mood = Mood.neutral,
+    int tier = 1,
+    Brightness brightness = Brightness.dark,
+  }) => tester.pumpWidget(
+    MaterialApp(
+      home: MediaQuery(
+        data: const MediaQueryData(
+          size: Size(400, 800),
+          disableAnimations: true,
+        ),
+        // An inner `Theme` rather than `MaterialApp.theme`: the app's own is
+        // wrapped in an `AnimatedTheme`, which LERPS to a new one over 200ms —
+        // so a re-pump with the other brightness read back as the old one and
+        // "the sky follows the theme" passed while the sky had not moved.
+        child: Theme(
+          data: ThemeData(brightness: brightness),
+          child: Scaffold(
+            body: PitchScene(
+              mood: mood,
+              tier: tier,
+              walkerBottom: 150 + walkerBottomClearance,
+              walker: const SizedBox(width: 120, height: 170),
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   group('the ground', () {
     testWidgets('paints, and takes real room on screen', (tester) async {
@@ -98,6 +111,116 @@ void main() {
     });
   });
 
+  group('the floodlights', () {
+    const pylons = ValueKey('pitch-floodlights');
+    const wash = ValueKey('pitch-floodlight-wash');
+
+    testWidgets('a park ground has none, at either hour', (tester) async {
+      for (final brightness in Brightness.values) {
+        await pumpScene(tester, tier: 1, brightness: brightness);
+        expect(find.byKey(pylons), findsNothing);
+        expect(find.byKey(wash), findsNothing);
+      }
+    });
+
+    testWidgets('they are BUILT by the tier, so they stand in daylight too', (
+      tester,
+    ) async {
+      await pumpScene(tester, tier: 5, brightness: Brightness.light);
+      expect(find.byKey(pylons), findsOneWidget);
+      // Standing, and unlit: nothing washes the pitch in the afternoon.
+      expect(find.byKey(wash), findsNothing);
+    });
+
+    testWidgets('and they are LIT by the theme', (tester) async {
+      await pumpScene(tester, tier: 5, brightness: Brightness.dark);
+      expect(find.byKey(pylons), findsOneWidget);
+      expect(find.byKey(wash), findsOneWidget);
+    });
+
+    testWidgets('they rise clear of the roof and stay inside the frame', (
+      tester,
+    ) async {
+      await pumpScene(tester, tier: 8, brightness: Brightness.dark);
+      final scene = tester.getRect(find.byType(PitchScene));
+      final pylon = tester.getRect(find.byKey(pylons));
+      final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
+      // Taller than the terrace — a floodlight that stops at the fascia is a
+      // post.
+      expect(pylon.height, greaterThan(stand.height * 1.5));
+      // And its head is on screen. The strip is a fraction of the scene capped
+      // by the sky above the horizon, so a short scene must clamp rather than
+      // push the lamps out through the top.
+      expect(pylon.top, greaterThanOrEqualTo(scene.top - 0.5));
+      // Planted at the stand's foot — which is the BACK of the hoardings, so
+      // the boards run in front of the pole exactly as they run in front of the
+      // front row.
+      expect(pylon.bottom, closeTo(stand.bottom, 1));
+    });
+
+    testWidgets('and they scroll with the stand, not against it', (
+      tester,
+    ) async {
+      // A pylon is planted in the ground the terrace sits on. Same period and
+      // same segment width is the only way they cannot drift apart.
+      await pumpScene(tester, tier: 8, brightness: Brightness.dark);
+      final pylon = tester.getRect(find.byKey(pylons));
+      final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
+      expect(pylon.width, stand.width);
+    });
+  });
+
+  group('the sky', () {
+    testWidgets('follows the THEME', (tester) async {
+      await pumpScene(tester, brightness: Brightness.light);
+      final day = _skyOf(tester);
+      await pumpScene(tester, brightness: Brightness.dark);
+      final night = _skyOf(tester);
+      expect(day, isNot(night));
+      expect(
+        day.colors.first.r + day.colors.first.g + day.colors.first.b,
+        greaterThan(
+          night.colors.first.r + night.colors.first.g + night.colors.first.b,
+        ),
+      );
+    });
+
+    testWidgets('and the TIER inside it', (tester) async {
+      await pumpScene(tester, tier: 1, brightness: Brightness.light);
+      final park = _skyOf(tester);
+      await pumpScene(tester, tier: 8, brightness: Brightness.light);
+      expect(_skyOf(tester), isNot(park));
+    });
+
+    testWidgets('and the GRASS is lit by the same decision', (tester) async {
+      // A sunlit pitch under a night sky was the thing that gave away that the
+      // two halves of the diorama were each deciding their own light. There is
+      // one answer to "is it night" now, so they can only agree.
+      await pumpScene(tester, brightness: Brightness.light);
+      final day = _turfOf(tester);
+      await pumpScene(tester, brightness: Brightness.dark);
+      final night = _turfOf(tester);
+      expect(day, isNot(night));
+      for (var i = 0; i < day.colors.length; i++) {
+        expect(
+          day.colors[i].g,
+          greaterThan(night.colors[i].g),
+          reason: 'stop $i is no brighter in daylight than under the lamps',
+        );
+      }
+    });
+
+    testWidgets('and it is the sky the sky file says it is', (tester) async {
+      // One source, because the match page stands on the same one and arriving
+      // at a match must not be arriving in a different world.
+      await pumpScene(tester, tier: 6, brightness: Brightness.dark);
+      expect(
+        _skyOf(tester).colors,
+        skyGradient(brightness: Brightness.dark, tier: 6).colors,
+      );
+    });
+  });
+
   group('the speeds', () {
     test('the grass is timed off HIS STRIDE, not off a number', () {
       // A fixed ground speed could only plant his feet in one of five moods; in
@@ -124,4 +247,31 @@ void main() {
       expect(tuftBandRatios[2], closeTo(1.3737, 0.0001));
     });
   });
+}
+
+/// The gradient the scene actually painted its sky with — the first full-bleed
+/// `DecoratedBox` in the stack.
+LinearGradient _skyOf(WidgetTester tester) {
+  final box = tester.widget<DecoratedBox>(
+    find
+        .descendant(
+          of: find.byType(PitchScene),
+          matching: find.byType(DecoratedBox),
+        )
+        .first,
+  );
+  return (box.decoration as BoxDecoration).gradient! as LinearGradient;
+}
+
+/// The grass's own gradient — the first `DecoratedBox` inside the turf box.
+LinearGradient _turfOf(WidgetTester tester) {
+  final box = tester.widget<DecoratedBox>(
+    find
+        .descendant(
+          of: find.byKey(const ValueKey('pitch-turf')),
+          matching: find.byType(DecoratedBox),
+        )
+        .first,
+  );
+  return (box.decoration as BoxDecoration).gradient! as LinearGradient;
 }

@@ -20,12 +20,11 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
-import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
-    show skyGradient;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
 
@@ -184,11 +183,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // ON THE SKY, not on the app's page colour. This page is a takeover — it
       // is nearly all panel, with no diorama behind it — so a background that
       // followed the theme put pale panels on a pale page in light mode and the
-      // whole match went flat. The same sky the Play screen stands under, so
-      // kicking off is not arriving somewhere else.
+      // whole match went flat. The same sky the Play screen stands under, at the
+      // same tier, so kicking off is not arriving somewhere else.
       backgroundColor: Colors.transparent,
       body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: skyGradient),
+        decoration: BoxDecoration(
+          gradient: skyGradient(
+            brightness: Theme.of(context).brightness,
+            tier: ref.watch(stadiumTierProvider),
+          ),
+        ),
         child: SafeArea(
           child: Column(
             children: [

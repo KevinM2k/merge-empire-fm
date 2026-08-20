@@ -91,15 +91,6 @@ final ownedAssetCountProvider = savePick<int>(
   (s) => AssetCategory.all.where((k) => isAssetOwned(s, k)).length,
 );
 
-/// Which stadium photo hangs over the screen.
-///
-/// An unbuilt Stadium still shows tier one rather than nothing — the ground is
-/// where the club plays whether or not it has been invested in, and an empty
-/// band at the top of the screen says the screen is broken.
-final stadiumTierProvider = savePick<int>(
-  (s) => math.max(1, assetTier(s, AssetCategory.stadium)),
-);
-
 class ClubScreen extends ConsumerWidget {
   const ClubScreen({super.key});
 

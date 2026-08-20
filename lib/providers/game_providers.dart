@@ -14,7 +14,11 @@
 /// the same instance every time and `==` will never fire.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/club_assets.dart';
+import 'package:merge_empire_fc/engine/club_asset_engine.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
@@ -114,4 +118,16 @@ final currentDivisionProvider = savePick<String>((s) {
 });
 final hardModeProvider = savePick<bool>(
   (s) => _map(s['settings'])['hardMode'] == true,
+);
+
+/// How grand the ground is, 1..[maxAssetTier].
+///
+/// Three screens key off it now, which is why it lives here rather than on the
+/// Club screen that first needed it: the stadium photo there, the sky over the
+/// Play diorama, and the same sky under the match page. An unbuilt Stadium still
+/// reads as tier one rather than nothing — the ground is where the club plays
+/// whether or not it has been invested in, and a tier-zero sky over a tier-one
+/// stand is two parts of one scene disagreeing.
+final stadiumTierProvider = savePick<int>(
+  (s) => math.max(1, assetTier(s, AssetCategory.stadium)),
 );
