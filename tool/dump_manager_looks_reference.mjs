@@ -101,4 +101,22 @@ for (const [label, state] of Object.entries(STATES)) {
   out.unlocked[label].persistentItems = m.persistentLookItems(state);
 }
 
+// How warmly each combination is dressed, and what it puts round his neck.
+//
+// Every outfit crossed with every hat, because the arithmetic is three lookups
+// and the interesting part is which ids are MISSING from each table: a crown is
+// not insulation, and the scarf is derived from the beanie rather than stored.
+out.warmth = {};
+out.neck = {};
+for (const outfit of ['none', ...m.OUTFIT_IDS]) {
+  for (const hat of m.HAT_IDS) {
+    out.warmth[`${outfit}|${hat}`] = m.garmentWarmth({ outfit, hat });
+    out.neck[`${outfit}|${hat}`] = m.neckForLook({ outfit, hat });
+  }
+}
+// A stored `neck` must not survive: nothing but the beanie may put one on him.
+out.warmth['coat|none|storedScarf'] = m.garmentWarmth({ outfit: 'coat', hat: 'none', neck: 'scarf' });
+out.warmth['empty'] = m.garmentWarmth({});
+out.warmth['missing'] = m.garmentWarmth(undefined);
+
 process.stdout.write(JSON.stringify(out));

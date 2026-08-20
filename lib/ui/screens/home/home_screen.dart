@@ -209,6 +209,9 @@ class _Scene extends ConsumerWidget {
       // is the whole reason the shell puts each tab in one — no freeze of the
       // scene's own needed.
       walker: ManagerWalker(
+        // How he is getting on in what the player dressed him in. Read fresh
+        // rather than cached, because both halves move on their own.
+        comfort: ref.watch(managerComfortProvider),
         kit: kit.accent,
         skin: const Color(0xFFEEBB8C),
         hair: const Color(0xFF3A2A1C),

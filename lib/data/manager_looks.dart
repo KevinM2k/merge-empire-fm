@@ -111,6 +111,56 @@ const List<String> ballIds = [
 
 const List<String> neckIds = ['none', 'scarf'];
 
+/// The only headwear that brings a scarf with it.
+const Map<String, String> _hatNeck = {'beanie': 'scarf'};
+
+/// What is round his neck for a whole look.
+///
+/// Derived ENTIRELY from the headwear, and a stored `neck` is IGNORED. While it
+/// was honoured, a save from when the scarf was its own choice had a scarf and
+/// no longer any control to take it off. Nothing can put one on him now except
+/// the beanie, so taking the beanie off is guaranteed to remove it.
+///
+/// Everything that draws or scores the figure goes through this rather than
+/// reading `look['neck']`, or the two disagree about whether he is wearing one.
+String neckForLook(ManagerLook? look) => _hatNeck[look?['hat']] ?? 'none';
+
+// ── How warmly he is dressed ────────────────────────────────────────────────
+//
+// Feeds `weather_engine.dart`'s `comfortFor`, which decides whether the scene
+// shows him shivering or sweating. **This does NOT dress him** — the player
+// picks the clothes and the game only reacts to how well they suit the day.
+//
+// The playing kit is the zero point: bare arms and shorts. Everything else is
+// measured against that.
+
+const Map<String, int> _outfitWarmth = {
+  'kit': 0, // short sleeves, shorts — nothing between him and the weather
+  'tracksuit': 2, // long sleeves, full-length bottoms
+  'suit': 2, // covered up, but thin cloth and no lining
+  'coat': 4, // a proper touchline overcoat
+};
+
+const Map<String, int> _neckWarmth = {'none': 0, 'scarf': 1};
+
+/// Only headwear that actually retains heat counts.
+///
+/// A cap or a crown is not insulation, and a manager in shorts and a baseball
+/// cap should still be visibly freezing. The santa hat is wool, so it counts;
+/// the viking helm and the hard hat are not, so they do not.
+const Map<String, int> _hatWarmth = {'beanie': 1, 'santa': 1};
+
+/// How warmly this look is dressed: 0 (kit, bare) to 6 (coat, scarf, beanie).
+///
+/// Unknown ids score 0, so a look from a future build can never read as warmer
+/// than it is.
+int garmentWarmth(ManagerLook? look) =>
+    (_outfitWarmth[look?['outfit']] ?? 0) +
+    // [neckForLook], not `look['neck']`: the scarf comes with the beanie, and a
+    // scarf you can see has to be a scarf that keeps him warm.
+    (_neckWarmth[neckForLook(look)] ?? 0) +
+    (_hatWarmth[look?['hat']] ?? 0);
+
 /// The five moods the face can wear. Every one of them is emitted by the rig,
 /// and CSS shows the matching one — so the expression follows the figure
 /// everywhere it renders.

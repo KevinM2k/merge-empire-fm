@@ -34,6 +34,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_art.dart';
 import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
@@ -181,10 +182,7 @@ const double _footLift = 11;
   final y = _groundY + walkerHipRise(u) + lift;
   if (u < 0.5) {
     // Stance. Linear, and the only linear thing in the rig.
-    return (
-      x: _stepFront - walkerStrideArtUnits * (u / 0.5),
-      y: y,
-    );
+    return (x: _stepFront - walkerStrideArtUnits * (u / 0.5), y: y);
   }
   // Swing. Eased, because the foot accelerates off the ground and decelerates
   // into the next contact rather than sliding through at one speed.
@@ -227,8 +225,7 @@ const double _bootSole = 3.5;
 /// extremes — see [_bob]. Eased, and the CSS says why: a vertical bounce should
 /// decelerate at the top.
 double walkerHipRise(double t) =>
-    _bob *
-    math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
+    _bob * math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
 
 /// Where the near foot is, at rig phase [t], in art units — forward is POSITIVE.
 ///
@@ -250,10 +247,9 @@ double walkerFootX(double t) => walkerAnkle(t).x;
 /// is the sign the JS's own keyframes carry — its shin track is positive
 /// throughout.
 ({double thigh, double shin}) _solveLeg(double dx, double dy) {
-  final reach = math.sqrt(dx * dx + dy * dy).clamp(
-    (walkerThigh - walkerShin).abs() + 2,
-    _legReach,
-  );
+  final reach = math
+      .sqrt(dx * dx + dy * dy)
+      .clamp((walkerThigh - walkerShin).abs() + 2, _legReach);
   final cosKnee =
       (walkerThigh * walkerThigh + walkerShin * walkerShin - reach * reach) /
       (2 * walkerThigh * walkerShin);
@@ -484,6 +480,7 @@ class ManagerWalker extends StatefulWidget {
     this.look,
     this.mood = Mood.neutral,
     this.walking = true,
+    this.comfort = 'ok',
     super.key,
   });
 
@@ -502,6 +499,16 @@ class ManagerWalker extends StatefulWidget {
 
   /// Stopped is a real state: the scene freezes when it is not being watched.
   final bool walking;
+
+  /// How he is coping in what the player put him in: `cold`, `hot`, or `ok`.
+  /// `weather_engine.dart`'s `comfortFor` decides, off the temperature and
+  /// [garmentWarmth].
+  ///
+  /// **`ok` by default, and that is what keeps this off the customiser.** The
+  /// chip previews the look you are choosing, not the weather you would be
+  /// choosing it for — the JS confines these to the scene by selector, the port
+  /// by simply not passing anything.
+  final String comfort;
 
   @override
   State<ManagerWalker> createState() => _ManagerWalkerState();
@@ -556,6 +563,34 @@ class _ManagerWalkerState extends State<ManagerWalker>
   void didUpdateWidget(ManagerWalker oldWidget) {
     super.didUpdateWidget(oldWidget);
     _sync(context);
+  }
+
+  /// The tremble, in art units.
+  ///
+  /// **Tiny and fast — a tremble, not a wobble**, so it reads at a glance
+  /// without turning the walk cycle into a bounce. 130ms, off the walk clock's
+  /// ELAPSED SECONDS rather than its 0→1: the stride runs 1.45s to 2.3s with his
+  /// mood, and a phase taken from the fraction would have him shivering faster
+  /// when he was pleased.
+  ///
+  /// The stride is not a whole number of shivers, so the phase steps at the wrap.
+  /// At 130ms and a third of an art unit that is not a thing anybody can see, and
+  /// the alternative is a second ticker for it.
+  ///
+  /// **Off entirely when he is not walking**, which covers both a frozen scene
+  /// and reduced motion. The JS leaves `.psv-tremble` out of its reduced-motion
+  /// block, so it keeps trembling there; a 130ms strobe is exactly what that
+  /// setting exists to stop, and the omission reads as one rather than a
+  /// decision. (Its PAUSED block does list it, which is the same conclusion
+  /// reached about a scene nobody is watching.)
+  Offset _shiver(BuildContext context, double t) {
+    if (widget.comfort != 'cold' || !_shouldWalk(context)) return Offset.zero;
+    final phase =
+        (t * walkDurationFor(widget.mood).inMicroseconds / 130000) % 1;
+    // translate(0.35, 0) → (-0.35, 0.2) → (0.35, 0)
+    return phase < 0.5
+        ? Offset(0.35 - phase * 1.4, phase * 0.4)
+        : Offset(-0.35 + (phase - 0.5) * 1.4, (1 - phase) * 0.4);
   }
 
   @override
@@ -626,7 +661,9 @@ class _ManagerWalkerState extends State<ManagerWalker>
                 ),
               ),
               Transform.translate(
-                offset: Offset(math.sin(t * 2 * math.pi) * _sway, _sink - rise),
+                offset:
+                    Offset(math.sin(t * 2 * math.pi) * _sway, _sink - rise) +
+                    _shiver(context, t),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -652,10 +689,16 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     for (final svg in parts.behindHead)
                       _SetBack(child: SvgArt(svg: svg)),
                     _SetBack(
-                      child: CustomPaint(painter: _HeadPainter(skin: parts.skin)),
+                      child: CustomPaint(
+                        painter: _HeadPainter(skin: parts.skin),
+                      ),
                     ),
                     for (final svg in parts.overHead)
                       _SetBack(child: SvgArt(svg: svg)),
+                    // How he is coping, over the head AND over the hat — the
+                    // pallor and the flush belong on the face, and a beanie must
+                    // not be able to cover his breath.
+                    _SetBack(child: _Comfort(comfort: widget.comfort)),
                   ],
                 ),
               ),
@@ -665,6 +708,239 @@ class _ManagerWalkerState extends State<ManagerWalker>
       ),
     );
   }
+}
+
+/// How he is coping with the weather in what the player put him in.
+///
+/// **Nothing here changes his clothes.** The player picks them and the game only
+/// shows how he is getting on: shivering in shorts in February, sweating in a
+/// coat and scarf in August. `weather_engine.dart` decides which, off the
+/// temperature and [garmentWarmth], and the whole of that chain was ported and
+/// tested with nothing reading the answer.
+///
+/// **Its own clock, and only while it is needed.** Two reasons it cannot ride the
+/// walk clock the way the tremble does: a breath is 2.6s against a stride of
+/// 1.45–2.3s, so a phase taken off the stride would cut every puff off in the
+/// middle of itself — and `ok` is the common case, where this should cost nothing
+/// at all.
+class _Comfort extends StatefulWidget {
+  const _Comfort({required this.comfort});
+
+  final String comfort;
+
+  @override
+  State<_Comfort> createState() => _ComfortState();
+}
+
+class _ComfortState extends State<_Comfort>
+    with SingleTickerProviderStateMixin {
+  final ValueNotifier<double> _seconds = ValueNotifier<double>(0);
+  late final Ticker _ticker = createTicker(
+    (elapsed) => _seconds.value = elapsed.inMicroseconds / 1e6,
+  );
+
+  bool get _showing => widget.comfort != 'ok';
+
+  void _sync() {
+    final run = _showing && !MediaQuery.of(context).disableAnimations;
+    if (run == _ticker.isActive) return;
+    if (run) {
+      _ticker.start();
+    } else {
+      _ticker.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_Comfort old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _seconds.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: AnimatedOpacity(
+      opacity: _showing ? 1 : 0,
+      duration: const Duration(milliseconds: 1200),
+      child: ValueListenableBuilder<double>(
+        valueListenable: _seconds,
+        builder: (context, t, _) => CustomPaint(
+          size: Size.infinite,
+          painter: _ComfortPainter(comfort: widget.comfort, seconds: t),
+        ),
+      ),
+    ),
+  );
+}
+
+/// One keyframe of a puff or a bead: where it is, how big, and how visible.
+typedef _Puff = ({double dx, double dy, double scale, double opacity});
+
+/// Breath on the air. One every 2.6s, which is about right for somebody standing
+/// still and cold.
+const List<(double, _Puff)> _breathFrames = [
+  (0, (dx: 0, dy: 0, scale: 0.4, opacity: 0)),
+  (0.18, (dx: 2, dy: -0.6, scale: 0.9, opacity: 0.85)),
+  (0.55, (dx: 6, dy: -2, scale: 1.5, opacity: 0.4)),
+  (0.80, (dx: 9, dy: -3.4, scale: 2, opacity: 0)),
+  (1, (dx: 9, dy: -3.4, scale: 2, opacity: 0)),
+];
+
+/// Sweat running off. Falls, fades, repeats.
+const List<(double, _Puff)> _sweatFrames = [
+  (0, (dx: 0, dy: 0, scale: 0.6, opacity: 0)),
+  (0.15, (dx: 0, dy: 1, scale: 1, opacity: 0.9)),
+  (0.70, (dx: 0.6, dy: 11, scale: 1, opacity: 0.75)),
+  (0.90, (dx: 0.8, dy: 15, scale: 0.7, opacity: 0)),
+  (1, (dx: 0.8, dy: 15, scale: 0.7, opacity: 0)),
+];
+
+/// The keyframe track at [phase], eased the way CSS eases it — per SEGMENT, not
+/// across the whole run.
+_Puff _puffAt(List<(double, _Puff)> track, double phase, Curve curve) {
+  for (var i = 0; i < track.length - 1; i++) {
+    final (from, a) = track[i];
+    final (to, b) = track[i + 1];
+    if (phase > to) continue;
+    final span = to - from;
+    final f = curve.transform(span <= 0 ? 0 : (phase - from) / span);
+    double at(double x, double y) => x + (y - x) * f;
+    return (
+      dx: at(a.dx, b.dx),
+      dy: at(a.dy, b.dy),
+      scale: at(a.scale, b.scale),
+      opacity: at(a.opacity, b.opacity),
+    );
+  }
+  return track.last.$2;
+}
+
+class _ComfortPainter extends CustomPainter {
+  const _ComfortPainter({required this.comfort, required this.seconds});
+
+  final String comfort;
+  final double seconds;
+
+  /// Cold pallor over the whole head — the skull's own circle, from the art's
+  /// space.
+  static const Offset _skull = Offset(62, 48.5);
+
+  /// A puff, or a bead: drawn in its own place, moved and scaled about the point
+  /// the CSS names as its transform origin.
+  ///
+  /// `translate(t) scale(s)` about an origin `o` puts a point `p` at
+  /// `o + t + s·(p - o)`, which is three canvas ops in that order and NOT the
+  /// order they are written in.
+  void _drop(
+    Canvas canvas,
+    Offset origin,
+    _Puff frame,
+    void Function(Paint paint) draw,
+    Color color,
+  ) {
+    if (frame.opacity <= 0.004) return;
+    canvas.save();
+    canvas.translate(origin.dx + frame.dx, origin.dy + frame.dy);
+    canvas.scale(frame.scale);
+    canvas.translate(-origin.dx, -origin.dy);
+    draw(
+      Paint()
+        ..color = Color.fromRGBO(
+          (color.r * 255).round(),
+          (color.g * 255).round(),
+          (color.b * 255).round(),
+          frame.opacity,
+        ),
+    );
+    canvas.restore();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
+
+    if (comfort == 'cold') {
+      // **The puffs are what actually read at this size** — a tint alone just
+      // looks like a lighting change.
+      canvas.drawCircle(_skull, 12.5, Paint()..color = const Color(0x4D8AB9E8));
+      // Two on the same path, offset so they overlap into a rhythm rather than
+      // pulsing in lockstep.
+      for (final puff in const [(0.0, 3.0, 2.1), (0.42, 2.4, 1.7)]) {
+        final box = Rect.fromCenter(
+          center: const Offset(78, 51.5),
+          width: puff.$2 * 2,
+          height: puff.$3 * 2,
+        );
+        _drop(
+          canvas,
+          // `transform-box: fill-box; transform-origin: 0% 50%` — the left edge
+          // of the ellipse, so a puff grows AWAY from his mouth.
+          box.centerLeft,
+          _puffAt(
+            _breathFrames,
+            ((seconds + puff.$1) / 2.6) % 1,
+            Curves.easeOut,
+          ),
+          (paint) => canvas.drawOval(box, paint),
+          const Color(0xFFEEF6FF),
+        );
+      }
+    }
+
+    if (comfort == 'hot') {
+      // Flushed cheek and brow.
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: const Offset(66.5, 52),
+          width: 9.2,
+          height: 5.6,
+        ),
+        Paint()..color = const Color(0x6BE0553F),
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(60, 43.5), width: 10, height: 4.4),
+        Paint()..color = const Color(0x38E0553F),
+      );
+      // Then sweat off the temple, staggered so the two beads do not drop in
+      // step.
+      for (final bead in const [
+        (0.0, Offset(72.6, 41), 1.5),
+        (0.95, Offset(51.5, 45), 1.3),
+      ]) {
+        final centre = bead.$2;
+        final r = bead.$3;
+        _drop(
+          canvas,
+          // `transform-origin: 50% 0%` — the top of the bead, so it stretches
+          // downward as it runs.
+          centre.translate(0, -r),
+          _puffAt(_sweatFrames, ((seconds + bead.$1) / 1.9) % 1, Curves.easeIn),
+          (paint) => canvas.drawCircle(centre, r, paint),
+          const Color(0xFFCFE9FF),
+        );
+      }
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_ComfortPainter old) =>
+      old.comfort != comfort || old.seconds != seconds;
 }
 
 /// One layer of the head, moved back over the body. See [_headSetBack].

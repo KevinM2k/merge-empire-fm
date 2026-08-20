@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 
-final Map<String, dynamic> _ref = jsonDecode(
-  File('test/fixtures/manager_looks_reference.json').readAsStringSync(),
-) as Map<String, dynamic>;
+final Map<String, dynamic> _ref =
+    jsonDecode(
+          File('test/fixtures/manager_looks_reference.json').readAsStringSync(),
+        )
+        as Map<String, dynamic>;
 
 /// The wardrobe, by the axis name the requirement keys use.
 final Map<String, List<String>> _axes = {
@@ -106,10 +108,9 @@ void main() {
     });
 
     test('the unlock tables match', () {
-      expect(
-        {for (final e in fanzoneLookUnlocks.entries) '${e.key}': e.value},
-        _ref['fanzone'],
-      );
+      expect({
+        for (final e in fanzoneLookUnlocks.entries) '${e.key}': e.value,
+      }, _ref['fanzone']);
       expect(cupLookUnlocks, _ref['cup']);
       expect(styleVaultId, _ref['styleVaultId']);
     });
@@ -128,7 +129,8 @@ void main() {
 
   group('parity — how each piece is obtained', () {
     test('every id on every axis resolves the same way', () {
-      for (final entry in (_ref['requirements'] as Map<String, dynamic>).entries) {
+      for (final entry
+          in (_ref['requirements'] as Map<String, dynamic>).entries) {
         final parts = entry.key.split(':');
         final got = lookRequirement(parts[0], parts[1]);
         final want = entry.value as Map<String, dynamic>?;
@@ -158,12 +160,21 @@ void main() {
             );
           }
         }
-        expect(unlockedPackIds(stateEntry.value), want['packIds'],
-            reason: stateEntry.key);
-        expect(persistentLookPacks(stateEntry.value), want['persistentPacks'],
-            reason: stateEntry.key);
-        expect(persistentLookItems(stateEntry.value), want['persistentItems'],
-            reason: stateEntry.key);
+        expect(
+          unlockedPackIds(stateEntry.value),
+          want['packIds'],
+          reason: stateEntry.key,
+        );
+        expect(
+          persistentLookPacks(stateEntry.value),
+          want['persistentPacks'],
+          reason: stateEntry.key,
+        );
+        expect(
+          persistentLookItems(stateEntry.value),
+          want['persistentItems'],
+          reason: stateEntry.key,
+        );
       }
     });
   });
@@ -212,7 +223,15 @@ void main() {
         final w = want[entry.key] as Map<String, dynamic>;
         // The random half of the fallback can't be compared; only the fields
         // the normaliser is deterministic about are checked.
-        for (final field in ['build', 'outfit', 'beard', 'hat', 'face', 'ball', 'neck']) {
+        for (final field in [
+          'build',
+          'outfit',
+          'beard',
+          'hat',
+          'face',
+          'ball',
+          'neck',
+        ]) {
           expect(n[field], w[field], reason: '${entry.key} $field');
         }
       }
@@ -357,11 +376,16 @@ void main() {
       final state = <String, dynamic>{};
       grantLookPack(state, 'pack_legend');
       for (final item in getLookPack('pack_legend')!.items) {
-        expect(isLookUnlocked(state, item.split(':')[0], item.split(':')[1]),
-            isTrue, reason: item);
+        expect(
+          isLookUnlocked(state, item.split(':')[0], item.split(':')[1]),
+          isTrue,
+          reason: item,
+        );
       }
-      expect(packUnlockedCount(state, 'pack_legend'),
-          getLookPack('pack_legend')!.items.length);
+      expect(
+        packUnlockedCount(state, 'pack_legend'),
+        getLookPack('pack_legend')!.items.length,
+      );
     });
 
     test('a pack that has left the catalogue is dropped on a reset', () {
@@ -426,7 +450,11 @@ void main() {
         'ball': 'ball',
       }.entries) {
         expect(
-          isLookUnlocked(<String, dynamic>{}, entry.key, bare[entry.value] as String?),
+          isLookUnlocked(
+            <String, dynamic>{},
+            entry.key,
+            bare[entry.value] as String?,
+          ),
           isTrue,
           reason: entry.value,
         );
@@ -472,7 +500,12 @@ void main() {
       final bare = <String, dynamic>{};
       for (var i = 0; i < 200; i++) {
         final a = randomAvatar(bare);
-        for (final entry in {'hair': 'style', 'beard': 'beard', 'hat': 'hat', 'face': 'face'}.entries) {
+        for (final entry in {
+          'hair': 'style',
+          'beard': 'beard',
+          'hat': 'hat',
+          'face': 'face',
+        }.entries) {
           expect(
             isLookUnlocked(bare, entry.key, a[entry.value] as String?),
             isTrue,
@@ -482,16 +515,64 @@ void main() {
       }
     });
 
-    test('the head slots stay quiet — a reroll is a manager, not a novelty', () {
-      var hatted = 0;
-      var faced = 0;
-      for (var i = 0; i < 600; i++) {
-        final a = randomAvatar();
-        if (a['hat'] != 'none') hatted++;
-        if (a['face'] != 'none') faced++;
+    test(
+      'the head slots stay quiet — a reroll is a manager, not a novelty',
+      () {
+        var hatted = 0;
+        var faced = 0;
+        for (var i = 0; i < 600; i++) {
+          final a = randomAvatar();
+          if (a['hat'] != 'none') hatted++;
+          if (a['face'] != 'none') faced++;
+        }
+        expect(hatted / 600, lessThan(0.4));
+        expect(faced / 600, lessThan(0.35));
+      },
+    );
+  });
+
+  group('how warmly he is dressed', () {
+    test('agrees with node on every outfit crossed with every hat', () {
+      // The arithmetic is three lookups; what this pins is which ids are
+      // MISSING from each table. A crown is not insulation.
+      final warmth = _ref['warmth'] as Map<String, dynamic>;
+      final neck = _ref['neck'] as Map<String, dynamic>;
+      for (final outfit in ['none', ...outfitIds]) {
+        for (final hat in hatIds) {
+          final look = <String, dynamic>{'outfit': outfit, 'hat': hat};
+          expect(
+            garmentWarmth(look),
+            warmth['$outfit|$hat'],
+            reason: 'warmth of $outfit + $hat',
+          );
+          expect(
+            neckForLook(look),
+            neck['$outfit|$hat'],
+            reason: 'what $hat puts round his neck',
+          );
+        }
       }
-      expect(hatted / 600, lessThan(0.4));
-      expect(faced / 600, lessThan(0.35));
+    });
+
+    test('the kit is the zero point, and a coat with the lot is the top', () {
+      expect(garmentWarmth({'outfit': 'kit', 'hat': 'none'}), 0);
+      expect(garmentWarmth({'outfit': 'coat', 'hat': 'beanie'}), 6);
+    });
+
+    test('a STORED scarf is ignored — only the beanie brings one', () {
+      // A save from when the scarf was its own choice had one and no longer any
+      // control to take it off, so nothing reads the field any more.
+      expect(
+        garmentWarmth({'outfit': 'coat', 'hat': 'none', 'neck': 'scarf'}),
+        _ref['warmth']['coat|none|storedScarf'],
+      );
+      expect(neckForLook({'hat': 'none', 'neck': 'scarf'}), 'none');
+    });
+
+    test('and an unknown id can never read as warmer than it is', () {
+      expect(garmentWarmth({'outfit': 'spacesuit'}), 0);
+      expect(garmentWarmth(const {}), _ref['warmth']['empty']);
+      expect(garmentWarmth(null), _ref['warmth']['missing']);
     });
   });
 }

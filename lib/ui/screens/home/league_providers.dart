@@ -10,7 +10,10 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
+import 'package:merge_empire_fc/engine/weather_engine.dart';
+import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
@@ -101,6 +104,31 @@ final managerLookProvider = savePick<ManagerLook?>((s) {
 /// `manager_mood.dart` derives it from the last result, the table and the season,
 /// and had no caller at all: the gaffer's mood was a value nobody could see.
 final managerMoodProvider = savePick<Mood>((s) => deriveMood(s, now()).mood);
+
+/// How the manager is coping with the weather in what the player put him in:
+/// `cold` when he is underdressed in the cold, `hot` when he is wrapped up in
+/// the heat, `ok` the rest of the time.
+///
+/// **The last link in a chain that was built, tested and unreachable.** The
+/// service fetches a reading, the engine turns it into a temperature and
+/// `comfortFor` compares that against [garmentWarmth] — and nothing read the
+/// answer, so the manager stood in a February sleet shower in shorts looking
+/// perfectly content.
+///
+/// **Both inputs move independently**, which is why this is derived rather than
+/// stored: the weather changes on its own, and the player can change his clothes
+/// at any moment through the customiser. The sky is the reason it recomputes on a
+/// clock at all — the temperature is read at the moment the condition changes,
+/// which in seasonal mode is every thirty to ninety seconds.
+final managerComfortProvider = Provider<String>((ref) {
+  ref.watch(saveRevisionProvider);
+  final save = ref.watch(gameProvider).state;
+  final condition = ref.watch(weatherProvider).condition;
+  return comfortFor(
+    estimatedTempC(save, now(), condition),
+    garmentWarmth(normalizeAvatar(_map(save?['club'])?['managerAvatar'])),
+  );
+});
 
 /// Last-five league form per club, oldest to newest.
 ///

@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,854 tests, `flutter analyze` clean.**
+**3,869 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 2
 items** — on top of 23 August's remaining 14, 22 August's 4, 21 August's 9 and 20
@@ -1771,12 +1771,47 @@ The weather, drawn. Everything else on this list was in the way of that.
 - [ ] **`windAccelFor` still has nothing reading it**, and cannot until the stray
       ball exists — see the diorama's football, below. The wind is on screen; what
       it would push is not there yet.
-- [ ] **`comfortFor` still has nothing reading it either, and it needs two things
-      first.** `garmentWarmth` is not ported at all — grep `lib/` and it does not
-      exist — so there is no way to ask what the player dressed him in. And the
-      rig has no poses for the answer: the JS writes `data-temp` on the scene and
-      `league-scene.css` has him shivering or sweating off it. The engine half is
-      done and tested; the manager suffering in his overcoat is a rig job.
+- [x] **He is visibly suffering now, which is the other half of the weather.**
+      `comfortFor` was the last unread link in a chain that was otherwise
+      finished: the service reads the sky, the engine estimates the temperature,
+      and that gets compared against how warmly the player dressed him. Two
+      things were missing.
+      **`garmentWarmth` was not ported at all.** It is in `data/manager_looks.dart`
+      now, pinned against node over every outfit crossed with every hat — 93
+      combinations, because the arithmetic is three lookups and the interesting
+      part is which ids are MISSING from each table. A cap or a crown is not
+      insulation, so a manager in shorts and a baseball cap is still visibly
+      freezing; the santa hat is wool, so it counts. **A stored `neck` is ignored**
+      — `neckForLook` derives the scarf from the beanie, because a save from when
+      the scarf was its own choice had one and no longer any control to take it
+      off.
+      **And the rig had no poses for the answer.** `_Comfort` in
+      `manager_walker.dart` is the JS's `.psv-chill` and `.psv-swelter`: a cold
+      pallor over the whole head with two breath puffs on the same path offset
+      into a rhythm, or a flushed cheek and brow with sweat running off the
+      temple. **The puffs are what read at this size** — a tint on its own looks
+      like a lighting change.
+      **Nothing here dresses him.** The player picks the clothes and the game
+      reacts to how well they suit the day, which is why a coat in February is
+      `ok` and the same coat under a visible sun is `hot`: `estimatedTempC` floors
+      a sunny sky at `sunnyC`, so the scene and the thermometer cannot disagree
+      about a sky the player can see.
+- [x] **Its own clock, and only while it is needed.** A breath is 2.6s against a
+      stride of 1.45–2.3s, so a phase taken off the walk clock would cut every
+      puff off in the middle of itself. The tremble DOES ride the walk clock,
+      off its elapsed seconds rather than its 0→1 — the stride retimes with his
+      mood, and a phase from the fraction would have him shivering faster when he
+      was pleased.
+- [x] **The tremble stops under reduced motion, which the JS does not do.**
+      `.psv-tremble` is in the stylesheet's PAUSED block and missing from its
+      reduced-motion one, which reads as an omission rather than a decision: a
+      130ms strobe is exactly what that setting exists to stop. Gated on whether
+      he is walking at all, so a frozen clock cannot leave him sitting a third of
+      a unit to one side either — a permanent lean rather than a shiver, which is
+      what the first cut did.
+      Tested on his LEGS, where neither the pallor nor the flush paints: any
+      difference down there is the whole body having moved, which is the only
+      thing the shiver does.
 
 
 ## M0 — foundation and save bridge ✅
