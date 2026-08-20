@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_host.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/ui/popups/achievement_unlock.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
@@ -50,16 +51,21 @@ class MergeEmpireApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const GameHost(
-        // PopupHost sits above the shell: it releases the queue's no-host
-        // blocker, so anything queued during boot has waited rather than been
-        // dropped for want of somewhere to open.
-        // ToastHost inside PopupHost: a toast never blocks and never waits, so
-        // it sits under whatever the queue has put up rather than over it. The
-        // achievement banner is inside both for the same reason, and it is the
-        // innermost of the three: it is the one that is purely a celebration.
-        child: PopupHost(
-          child: ToastHost(child: AchievementUnlockHost(child: AppShell())),
+      // SoundHost OUTSIDE the game host: the engine's warm-up and its
+      // lifecycle handling have nothing to do with the save, and putting it
+      // inside would tie the first sound to a boot that has to finish first.
+      home: const SoundHost(
+        child: GameHost(
+          // PopupHost sits above the shell: it releases the queue's no-host
+          // blocker, so anything queued during boot has waited rather than been
+          // dropped for want of somewhere to open.
+          // ToastHost inside PopupHost: a toast never blocks and never waits, so
+          // it sits under whatever the queue has put up rather than over it. The
+          // achievement banner is inside both for the same reason, and it is the
+          // innermost of the three: it is the one that is purely a celebration.
+          child: PopupHost(
+            child: ToastHost(child: AchievementUnlockHost(child: AppShell())),
+          ),
         ),
       ),
     );

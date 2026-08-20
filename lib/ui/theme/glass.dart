@@ -35,31 +35,60 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
-/// The two tint stops on a night sky. As thin as white 800-weight text survives
-/// with the blur removed — the floor, not a starting point.
+/// **LIQUID GLASS: THE BLUR DOES THE WORK, NOT THE TINT.**
+///
+/// This went the wrong way twice and it is worth writing down. A pane over a
+/// bright sky at 78% read as a smear, so the next attempt pushed it most of the
+/// way to opaque — which made it legible and made it a white BLOCK sitting on
+/// the scene. Both were trying to solve it with the tint.
+///
+/// The tint is not what makes a pane readable over a busy backdrop. The BLUR is:
+/// at a big enough sigma the crowd, the hoardings and the mown stripes stop
+/// being detail and become one smooth wash, and ink only ever has to
+/// out-contrast an average. So the tint comes right back down — half the sky
+/// shows through — the sigma goes up nearly three times, and the pane gets the
+/// two things that actually say glass: a SATURATION lift on what is behind it,
+/// and a bright specular hairline along its top edge.
+///
+/// The arithmetic that has to hold: a 52% white pane over a sky at 0.58 luma
+/// composites to about 0.80, and the app's own ink is 0.11 — 5.3:1, comfortably
+/// past the 4.5:1 small text needs. That is the floor these values are set from,
+/// and it is why they cannot go much lower without the blur becoming
+/// load-bearing for legibility rather than for looks.
 const Color _darkA = Color(0x8A141E2C);
-const Color _darkB = Color(0x5C090F18);
+const Color _darkB = Color(0x66090F18);
 
 /// A touch denser, for a panel big enough that the sky behind it varies across
 /// its own height.
-const Color _darkDeepA = Color(0xA3141E2C);
+const Color _darkDeepA = Color(0x9E141E2C);
 const Color _darkDeepB = Color(0x7A090F18);
 
 /// The same two stops in daylight.
-///
-/// **DENSER THAN THEY LOOK LIKE THEY SHOULD BE, and this is the whole trap.**
-/// The first attempt was a pale wash at 78%, which composited to about 0.92 luma
-/// over a sky already at 0.58 — a contrast of 1.4:1, so the pane did not read as
-/// a pane at all and the card floated as a smear. A dark pane hides a bright
-/// backdrop by swallowing it; a light one has to OUT-SHINE it, and that takes
-/// most of the way to opaque. What keeps it glass rather than paper is the 15%
-/// of sky still coming through, the blur behind it, and the rim — not the
-/// transparency being high.
-const Color _lightA = Color(0xD9FCFEFF);
-const Color _lightB = Color(0xC4E8F1F8);
+const Color _lightA = Color(0x85FCFEFF);
+const Color _lightB = Color(0x6BE4EFF8);
 
-const Color _lightDeepA = Color(0xE6FCFEFF);
-const Color _lightDeepB = Color(0xD4DFEBF5);
+const Color _lightDeepA = Color(0x9EFCFEFF);
+const Color _lightDeepB = Color(0x82DCEAF5);
+
+/// How much the backdrop's colour is pushed under the pane.
+///
+/// Glass concentrates what is behind it. Without this a low-opacity pane just
+/// looks like a dirty window — the lift is what makes the sky under it read as
+/// something seen THROUGH glass rather than something the pane failed to cover.
+const double _saturation = 1.4;
+
+/// A saturation matrix at the standard luma weights, as a colour filter to run
+/// INSIDE the backdrop blur.
+ColorFilter _saturate(double s) {
+  const lr = 0.213, lg = 0.715, lb = 0.072;
+  final ir = (1 - s) * lr, ig = (1 - s) * lg, ib = (1 - s) * lb;
+  return ColorFilter.matrix(<double>[
+    ir + s, ig, ib, 0, 0, //
+    ir, ig + s, ib, 0, 0, //
+    ir, ig, ib + s, 0, 0, //
+    0, 0, 0, 1, 0,
+  ]);
+}
 
 /// Top-lit sheen: a bright band across the top third falling away to nothing,
 /// plus a whisper of light caught on the bottom edge. This is what separates
@@ -78,24 +107,30 @@ const LinearGradient _darkSheen = LinearGradient(
 );
 
 /// On light glass the same white band is invisible, and pushed hard enough to
-/// show it bleaches the panel. The thickness reads off the FOOT instead: a
-/// shadow pooling in the bottom of the pane, with only a breath of light on the
-/// top edge. Kept light enough not to muddy the ink sitting on it.
+/// show it bleaches the pane. A breath of light on the top edge and almost
+/// nothing else: at a low tint the thickness reads off the RIM, and a gradient
+/// laid over a half-transparent pane only ever makes it muddier.
 const LinearGradient _lightSheen = LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
   colors: [
-    Color(0x2EFFFFFF),
+    Color(0x30FFFFFF),
     Color(0x00FFFFFF),
-    Color(0x0F0F2A44),
-    Color(0x240F2A44),
+    Color(0x00000000),
+    Color(0x0A0F2A44),
   ],
-  stops: [0, 0.34, 0.72, 1],
+  stops: [0, 0.3, 0.7, 1],
 );
 
-/// CSS blur radius is about twice the Gaussian sigma, so the JS's 14px is 7
-/// here.
-const double _sigma = 7;
+/// The blur, and it is deliberately far past the JS's.
+///
+/// The JS uses a 14px CSS radius — about sigma 7 — because `backdrop-filter`
+/// silently no-ops on the Android WebViews it ships to, so it could never lean
+/// on it. A Flutter `BackdropFilter` always works, so the blur can be the thing
+/// that carries the pane and the tint can come down. At sigma 7 a half-opacity
+/// pane shows the crowd as recognisable dots through the card; at 20 it is a
+/// wash.
+const double _sigma = 20;
 
 /// The ink a pane's own FURNITURE is drawn in — the rules between bands, the
 /// chip fills, the hairlines inside it.
@@ -152,7 +187,12 @@ class GlassPanel extends StatelessWidget {
 
     if (blur) {
       panel = BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: _sigma, sigmaY: _sigma),
+        // Saturate FIRST, then blur — the lift is meant to apply to the
+        // backdrop's own colours, and doing it after would just tint a grey wash.
+        filter: ui.ImageFilter.compose(
+          outer: ui.ImageFilter.blur(sigmaX: _sigma, sigmaY: _sigma),
+          inner: _saturate(_saturation),
+        ),
         child: panel,
       );
     }
@@ -228,9 +268,11 @@ class _GlassEdge extends CustomPainter {
     );
     canvas.save();
     canvas.clipRRect(rect);
+    // The SPECULAR line: the one hard highlight on the pane, and at a low tint it
+    // is most of what says the surface is glass rather than a hole in the scene.
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, 1),
-      Paint()..color = Colors.white.withValues(alpha: night ? 0.24 : 0.55),
+      Rect.fromLTWH(0, 0, size.width, 1.2),
+      Paint()..color = Colors.white.withValues(alpha: night ? 0.34 : 0.72),
     );
     canvas.drawRect(
       Rect.fromLTWH(0, size.height - 1, size.width, 1),

@@ -7,10 +7,13 @@
 /// exactly that reason.
 library;
 
+import 'dart:async';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/boot_room_engine.dart';
@@ -106,11 +109,22 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen> {
       return;
     }
 
-    final swapped = trySwap(_board, BootRoom.cols, BootRoom.rows, _selected, index);
+    final swapped = trySwap(
+      _board,
+      BootRoom.cols,
+      BootRoom.rows,
+      _selected,
+      index,
+    );
     setState(() => _selected = -1);
+    final sound = ref.read(soundServiceProvider);
     // A swap that matches nothing is reverted and costs NO move — the engine's
-    // rule, and the genre's.
-    if (swapped == null) return;
+    // rule, and the genre's. It gets the error cue rather than silence, because
+    // a move that changes nothing and says nothing reads as a dropped tap.
+    if (swapped == null) {
+      unawaited(sound.play('error'));
+      return;
+    }
 
     final resolution = resolve(
       swapped,
@@ -124,6 +138,10 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen> {
       _cleared += resolution.tilesCleared;
       _movesLeft--;
     });
+    // A CASCADE is the thing worth hearing — the second and third clear landing
+    // on their own is the whole appeal of the genre, so it gets the goal cue and
+    // a plain match gets the tap. The JS makes the same split at the same depth.
+    unawaited(sound.play(resolution.cascades >= 2 ? 'goal' : 'tap'));
 
     if (_movesLeft <= 0 ||
         findMove(_board, BootRoom.cols, BootRoom.rows) == null) {
@@ -133,17 +151,22 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen> {
 
   void _finish() {
     if (_finished) return;
-    final result = ref.read(gameProvider).update(
-      (s) => recordBootRoomResult(
-        s,
-        tilesCleared: _cleared,
-        target: _difficulty.target,
-      ),
-    );
+    final result = ref
+        .read(gameProvider)
+        .update(
+          (s) => recordBootRoomResult(
+            s,
+            tilesCleared: _cleared,
+            target: _difficulty.target,
+          ),
+        );
     setState(() {
       _finished = true;
       _coins = result.coins;
     });
+    if (result.coins > 0) {
+      unawaited(ref.read(soundServiceProvider).play('coin'));
+    }
   }
 
   @override

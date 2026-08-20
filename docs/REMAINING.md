@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,699 tests, `flutter analyze` clean.**
+**3,744 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 20 Aug", and it is 28 items.** That is
 what a session of actually playing the thing turned up, which is a different list
@@ -806,26 +806,47 @@ section. Nothing on the list below is blocked for want of art any more.
       while nothing can be heard is indistinguishable from a broken feature), and
       dragging the volume off zero turns the channel back on — reaching for the
       volume is how a player says they want to hear it.
-- [ ] **Music and sound still do not work, and this is the one thing on the list
-      that is BLOCKED.** There is no audio engine in the port at all: the
-      settings write `soundEnabled` / `soundVolume` and nothing reads them, which
-      is why they appear to do nothing on every platform, not just iOS. The JS
-      synthesises its SFX through an `OfflineAudioContext` and plays them as WAV
-      blobs through `HTMLAudioElement` — 782 lines of `utils/sound.js` — and none
-      of that has a Flutter equivalent without **a new dependency**. Flame is
-      already in, but Flame ships no audio; `flame_audio` and `audioplayers` are
-      separate packages. `assets/audio/` already holds the two music beds and
-      `firework.mp3`. **That dependency call is the next decision**, and it is the
-      same class of call as the Rive one nobody has taken.
-- [x] **The JS's iOS volume gate does NOT port, and that is deliberate.** It
+- [x] **The sound engine is built, and the SFX are SYNTHESISED like the JS's.**
+      `audioplayers` is the new dependency. Three files: `util/audio_render.dart`
+      is an offline renderer (envelopes at Web Audio's own semantics, RBJ biquads,
+      a soft-knee compressor, a WAV encoder), `data/sound_defs.dart` is the
+      twenty-four recipes ported one for one, and `services/sound_service.dart`
+      holds every rule with the platform behind a `SoundBackend` — so the rules
+      are all tested and only the thin `audioplayers` adapter is not.
+      Five things worth knowing before touching it:
+      **(1) Offline, not live** — the JS's reason survives (rendering to a buffer
+      never touches the audio hardware, which is what kept it clear of the Samsung
+      AAudio crash loop) and it buys a second one here: the output is plain PCM, so
+      the whole engine is testable without a device.
+      **(2) The blur-equivalent for audio is the COMPRESSOR** — at ratio 6 over a
+      -18dB threshold, a 6dB gap between two sounds comes out about 1dB apart, so
+      loudness is not a usable cue anywhere in this engine and anything that wants
+      to feel bigger has to do it with texture.
+      **(3) `_noise`'s volume lands TWICE** in the JS — buffer filled at `vol`,
+      then a gain envelope opening at `vol` — so every burst starts at `vol²`.
+      Copied rather than corrected, because the numbers were tuned by ear against
+      it and "fixing" it makes every noise layer twenty times louder.
+      **(4) The randomness is SEEDED**, unlike the JS's `Math.random()`. A synth
+      rendered once at boot gains nothing from differing per run, and a seed means
+      a test can assert what came out.
+      **(5) The bus is the wiring** — `services/sound_cues.dart` is the JS's own
+      `on(...)` table, so the merge engine and the transfer engine never learn
+      about audio and the same action sounds the same from every screen. Match
+      sounds are the exception and belong to the CLOCK: the whole ninety minutes is
+      decided before the screen opens, so an event fired when the maths was done
+      would have played every goal at once.
+      The crowd cheers are deliberately NOT ported — see the note in
+      `sound_defs.dart`. Render cost is ~800ms in debug for all 24, in an isolate
+      after the first frame.
+- [x] **The volume sliders WORK on iOS, and the JS's gate does not port.** It
       hides the slider on iOS because every sound there goes through an
       `HTMLAudioElement` and WebKit treats `HTMLMediaElement.volume` as read-only
       — Apple reserves volume for the hardware buttons. That is a restriction on
       WEBVIEWS, not on the platform: a native player sets its own gain. Porting
       the gate would have carried a web limitation into an app that does not have
-      it, and encoded a guess about an engine that does not exist yet. The note
-      saying where the gate goes if it turns out to be true anyway is at the top
-      of `settings_audio_row.dart`.
+      it. Confirmed now that the engine exists: `AudioPlayer.setVolume` is
+      `AVAudioPlayer.volume` on iOS and it is writable, so the sliders are shown
+      everywhere.
 - [ ] **Prefer the Kenney packs, Flame or Rive over emoji** for artwork —
       `kenneynl/` holds game-icons, sports, emotes, modular-characters,
       background-elements and smoke-particles, all CC0. Settings is done: every

@@ -7,9 +7,12 @@
 /// sky, and it no longer flips the ink of everything inside it.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 Future<void> pumpPanel(
   WidgetTester tester, {
@@ -68,16 +71,58 @@ void main() {
       expect(lumaOf(day), greaterThan(lumaOf(night)));
     });
 
-    testWidgets('and the light recipe is DENSER, not a mirror of the dark', (
+    testWidgets('is TRANSPARENT — you can see the scene through it', (
       tester,
     ) async {
-      // A dark pane hides a busy backdrop by swallowing it; a light one has to
-      // out-shine it, and behind these panels is a bright sky with a crowd,
-      // hoardings and mown stripes in it.
+      // This went the wrong way twice. The first pane was too pale to read; the
+      // fix pushed it most of the way to opaque, which read as a white block
+      // sitting on the diorama. Both were trying to solve legibility with the
+      // tint. Half the backdrop shows through now and the BLUR carries it.
+      for (final brightness in Brightness.values) {
+        await pumpPanel(tester, brightness: brightness);
+        expect(
+          opacityOf(tintOf(tester)),
+          lessThan(0.62),
+          reason: '$brightness: that is a block, not glass',
+        );
+      }
+    });
+
+    testWidgets('and the app\'s own ink still clears 4.5:1 on it', (
+      tester,
+    ) async {
+      // The floor the tint values are set from, and the reason they cannot come
+      // down further: the pane composites over the brightest part of a daylit
+      // sky, and the text on it is the app's near-black.
       await pumpPanel(tester, brightness: Brightness.light);
-      final day = opacityOf(tintOf(tester));
-      await pumpPanel(tester, brightness: Brightness.dark);
-      expect(day, greaterThan(opacityOf(tintOf(tester))));
+      final tint = tintOf(tester);
+      final sky = skyColours(brightness: Brightness.light, tier: 8).first;
+      final pane = Color.alphaBlend(tint.colors.first, sky);
+      final ink = ThemeData(brightness: Brightness.light).colorScheme.onSurface;
+      double rel(Color c) {
+        double ch(double v) =>
+            v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4) as double;
+        return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+      }
+
+      final ratio = (rel(pane) + 0.05) / (rel(ink) + 0.05);
+      expect(ratio, greaterThan(4.5), reason: 'text on the pane is too faint');
+    });
+
+    testWidgets('and the blur is what carries it, so it is a BIG blur', (
+      tester,
+    ) async {
+      // The JS uses about sigma 7 because `backdrop-filter` no-ops on the
+      // WebViews it ships to, so it could never lean on it. A Flutter blur
+      // always works.
+      await pumpPanel(tester, brightness: Brightness.light);
+      expect(
+        find.descendant(
+          of: find.byType(GlassPanel),
+          matching: find.byType(BackdropFilter),
+        ),
+        findsOne,
+      );
     });
 
     testWidgets('and deep is denser than not, in both', (tester) async {

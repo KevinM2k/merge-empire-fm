@@ -21,6 +21,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/engine/penalty_game_engine.dart';
@@ -128,6 +129,18 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
       result = shot.scored ? ShotResult.goal : ShotResult.saved;
     }
 
+    // The strike, then whatever became of it — the JS's own pair, and the order
+    // matters: the ball is hit before anyone knows where it went.
+    final sound = ref.read(soundServiceProvider);
+    unawaited(sound.play('shotKick'));
+    Timer(const Duration(milliseconds: 260), () {
+      if (mounted) {
+        unawaited(
+          sound.play(result == ShotResult.goal ? 'goal' : 'goalAgainst'),
+        );
+      }
+    });
+
     setState(() {
       _shooting = true;
       _taken.add(result);
@@ -151,6 +164,7 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
         (s) => recordPenaltyResult(s, scored: scored, total: Penalty.attempts),
       );
       setState(() => _coins = coins);
+      if (coins > 0) unawaited(sound.play('coin'));
     }
 
     // Back to the spot once the strike has been seen.

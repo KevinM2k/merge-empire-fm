@@ -17,6 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
+import 'package:merge_empire_fc/services/sound_service.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
@@ -72,6 +74,26 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// handing the gates back is exactly a teardown job.
   late final StateController<TickGates> _gates;
 
+  /// Held for the same reason — the bed has to go back to the menu on the way
+  /// out, and by then `ref` is gone.
+  late final SoundService _sound;
+
+  /// The delayed sound cues, so they can be cancelled.
+  ///
+  /// Several of them are a beat AFTER the thing they belong to — the crowd
+  /// reacting to a goal, the result after the final whistle — and a timer that
+  /// outlives this screen would play a fanfare over whatever came next.
+  final List<Timer> _cues = [];
+
+  void _cue(Duration after, void Function() play) {
+    late Timer timer;
+    timer = Timer(after, () {
+      _cues.remove(timer);
+      if (mounted) play();
+    });
+    _cues.add(timer);
+  }
+
   MatchFrame get frame => frameAt(widget.result, _minute, timeline: _timeline);
 
   @override
@@ -89,6 +111,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       );
     });
     _timer = Timer.periodic(minuteDuration(fast: widget.fast), (_) => _tick());
+    // **THE MATCH HAS ITS OWN BED, and the whistle starts it.** The sounds here
+    // belong to the CLOCK rather than to the simulation: the whole ninety
+    // minutes was decided before this screen opened, so an event fired when the
+    // maths was done would have played every goal at once. See
+    // `services/sound_cues.dart` for the ones that do ride the bus.
+    _sound = ref.read(soundServiceProvider);
+    unawaited(_sound.setMusicTrack(MusicBed.match));
+    unawaited(_sound.play('whistle'));
   }
 
   void _tick() {
@@ -101,6 +131,50 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       _minute++;
       _cutIfWorthWatching();
     });
+    _soundFor(_minute);
+  }
+
+  /// Whatever landed on this minute, in sound.
+  ///
+  /// Read off the timeline rather than off the cutaway, because a chance the 2D
+  /// pitch is not showing — the player has it switched off, or it is the
+  /// opponent's — still happened and still deserves the crowd's reaction.
+  void _soundFor(int minute) {
+    final sound = ref.read(soundServiceProvider);
+    for (final event in _timeline) {
+      if (event.minute != minute) continue;
+      final ours = event.team == 'home'
+          ? widget.result['isHome'] == true
+          : widget.result['isHome'] != true;
+      switch (event.type) {
+        case 'goal':
+          // The kick is what makes a goal an event rather than a chime: the ball
+          // is struck and then the reaction arrives, which is the order it
+          // happens in.
+          unawaited(sound.play('shotKick'));
+          _cue(
+            const Duration(milliseconds: 180),
+            () => unawaited(sound.play(ours ? 'goal' : 'goalAgainst')),
+          );
+        case 'chance':
+          unawaited(sound.play('kick'));
+          // A chance that hit the target and stayed out is the one the crowd
+          // reacts to; a wild one off target is not worth a sound.
+          if (event.shotResult == 'on_target') {
+            _cue(
+              const Duration(milliseconds: 200),
+              () => unawaited(sound.play(ours ? 'crowdOoh' : 'woodwork')),
+            );
+          }
+        case 'injury':
+          unawaited(sound.play('injury'));
+        case 'halftime':
+        case 'fulltime':
+          unawaited(sound.play('whistle'));
+        default:
+          break;
+      }
+    }
   }
 
   /// Put the newest event on the pitch, when it is one you can watch.
@@ -142,6 +216,24 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _timer = null;
     if (_reported) return;
     _reported = true;
+    final sound = ref.read(soundServiceProvider);
+    unawaited(sound.play('whistle'));
+    // The result, a beat after the final whistle rather than under it.
+    final f = frame;
+    final ours = widget.result['isHome'] == true ? f.homeGoals : f.awayGoals;
+    final theirs = widget.result['isHome'] == true ? f.awayGoals : f.homeGoals;
+    _cue(
+      const Duration(milliseconds: 450),
+      () => unawaited(
+        sound.play(
+          ours > theirs
+              ? 'victory'
+              : ours == theirs
+              ? 'draw'
+              : 'defeat',
+        ),
+      ),
+    );
     widget.onFinished?.call(widget.result);
   }
 
@@ -168,6 +260,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    for (final cue in _cues) {
+      cue.cancel();
+    }
+    _cues.clear();
+    // Back to the menu bed. In `dispose` rather than `deactivate` because the
+    // match popup that follows this screen is still the match as far as the
+    // player is concerned.
+    unawaited(_sound.setMusicTrack(MusicBed.menu));
     super.dispose();
   }
 
