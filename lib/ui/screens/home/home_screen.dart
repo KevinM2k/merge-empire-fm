@@ -26,12 +26,14 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/event_strip.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
+import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -188,6 +190,14 @@ class _Scene extends ConsumerWidget {
     return PitchScene(
       mood: mood,
       walkerBottom: walkerBottom,
+      // **The sky the player is actually standing under**, when there is a live
+      // reading, and the seasonal model's otherwise. The engine has been able to
+      // answer this since M1 and nothing has ever asked it on a clock — see
+      // `weather_cycle.dart`.
+      condition: ref.watch(weatherProvider).condition,
+      // The thunder, timed behind the flash by the lightning layer itself. The
+      // scene has no speaker: it says WHEN and this says with what.
+      onThunder: () => ref.read(soundServiceProvider).play('thunder'),
       // The ground the club has actually built: it buys the sky's grandeur and
       // the floodlight pylons behind the stand. The HOUR is the theme's — see
       // `theme/sky.dart`.

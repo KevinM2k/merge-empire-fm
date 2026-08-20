@@ -42,6 +42,7 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show walkerFootOffset, walkerHeight, walkerStrideArtUnits, walkerWidth;
+import 'package:merge_empire_fc/ui/screens/home/pitch_weather.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 /// One stride, by mood. The JS's `--walk-dur` per `data-mood`.
@@ -179,6 +180,8 @@ class PitchScene extends StatelessWidget {
     this.tier = 1,
     this.kitColor = const Color(0xFF4CAF50),
     this.walkerBottom = 150 + walkerBottomClearance,
+    this.condition = 'clear',
+    this.onThunder,
   });
 
   final Mood mood;
@@ -201,6 +204,19 @@ class PitchScene extends StatelessWidget {
   /// the pill he stands over moves with the footer, and a constant would be
   /// wrong the first frame an event strip appeared.
   final double walkerBottom;
+
+  /// The sky, as `weather_engine.dart` names it: one of `clear`, `sunny`,
+  /// `cloudy`, `wind`, `fog`, `rain`, `storm`, `snow`.
+  ///
+  /// A string rather than an enum so it cannot drift from the engine that
+  /// produces it — and `clear` by default, which is what every screen that does
+  /// not care about the weather already gets.
+  final String condition;
+
+  /// Play the thunder. The scene has no speaker of its own: the sound service
+  /// lives behind a provider and this widget deliberately does not read one, so
+  /// a test can build the whole diorama without wiring audio.
+  final void Function()? onThunder;
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +256,13 @@ class PitchScene extends StatelessWidget {
             children: [
               Positioned.fill(
                 child: DecoratedBox(decoration: BoxDecoration(gradient: sky)),
+              ),
+              // The sun and the clouds paint WITH the sky, before anything the
+              // ground carries. At one layer higher the sun sat in front of the
+              // terrace and a tier-5 ground had it hanging over its floodlights.
+              Positioned.fill(
+                key: const ValueKey('pitch-weather-sky'),
+                child: WeatherSky(condition: condition),
               ),
               // The pylons, on their OWN strip behind the stand and at the
               // stand's own speed and period — so however tall they get they
@@ -337,11 +360,51 @@ class PitchScene extends StatelessWidget {
                 right: 0,
                 top: horizon,
                 bottom: 0,
-                child: _Turf(mood: mood, contactBelowHorizon: feet - horizon),
+                child: _Turf(
+                  mood: mood,
+                  contactBelowHorizon: feet - horizon,
+                  condition: condition,
+                ),
+              ),
+              // His boot prints, pinned to HIS contact line rather than to the
+              // pitch box — which is why they are out here and not inside the
+              // turf with the snow they are pressed into. Above that snow,
+              // below the figure.
+              Positioned(
+                key: const ValueKey('pitch-weather-prints'),
+                left: 0,
+                right: 0,
+                // The shadow under his boots centres a shade above where he
+                // sits, hence the 6px off the shared baseline.
+                bottom: walkerBottom - 6,
+                height: 13,
+                child: WeatherPrints(
+                  condition: condition,
+                  // **The ground's own number, not one of its own.** A print
+                  // that slides against the grass is the one mistake here the
+                  // eye catches instantly, so it rides band 0's period — the
+                  // grass at his boots.
+                  scrollDuration: Duration(
+                    microseconds:
+                        (printSegmentWidth / groundSpeedPxPerSec(mood) * 1e6)
+                            .round(),
+                  ),
+                  // Where his boot actually is: he stands at `w * 0.45 - 57`
+                  // with his feet ~59 art units into the figure.
+                  contactFraction: w == 0 ? 0.45 : (w * 0.45 - 57 + 59) / w,
+                ),
+              ),
+              // Overcast, rain, snow, fog and wind: above the pitch and BELOW
+              // him. That is the CSS's z-order rather than an oversight — he is
+              // the subject of the shot, so a shower is a curtain behind him.
+              Positioned.fill(
+                key: const ValueKey('pitch-weather-air'),
+                child: WeatherAir(condition: condition),
               ),
               // He stands LEFT of centre, on the grass under the horizon, and the
               // scale is about his FEET so he stays planted however big he gets.
               Positioned(
+                key: const ValueKey('pitch-walker'),
                 left: w * 0.45 - 57,
                 // His BOOTS on the contact line, not the bottom of his box.
                 // There are 17.5 art units of empty picture under his soles, and
@@ -376,6 +439,15 @@ class PitchScene extends StatelessWidget {
                     child: CustomPaint(painter: _FloodWash()),
                   ),
                 ),
+              // The only weather layer that goes OVER him. A flash lights the
+              // whole scene, and a man standing in it is part of the scene.
+              Positioned.fill(
+                key: const ValueKey('pitch-weather-lightning'),
+                child: WeatherLightning(
+                  condition: condition,
+                  onThunder: onThunder,
+                ),
+              ),
             ],
           ),
         );
@@ -972,9 +1044,17 @@ const List<Color> _turfNight = [
 /// The ground: the turf, the mowing fan over it, the tuft bands, and the haze
 /// that puts the far end of it in the distance.
 class _Turf extends StatelessWidget {
-  const _Turf({required this.mood, required this.contactBelowHorizon});
+  const _Turf({
+    required this.mood,
+    required this.contactBelowHorizon,
+    required this.condition,
+  });
 
   final Mood mood;
+
+  /// The sky, because snow does not only fall — it settles, and grass under snow
+  /// is white.
+  final String condition;
 
   /// How far below the horizon his boots are, which is the depth the fan is
   /// pinned at.
@@ -1036,6 +1116,13 @@ class _Turf extends StatelessWidget {
                 child: _TuftSegment(band: band),
               ),
             ),
+          // Snow LYING on the grass, over the stripes and the tufts but UNDER
+          // the distance shade — settled snow is the surface, so it takes the
+          // same aerial perspective the turf does.
+          Positioned.fill(
+            key: const ValueKey('pitch-weather-ground'),
+            child: WeatherGroundSnow(condition: condition),
+          ),
           // Distance shade, OVER the fan and everything growing out of the turf.
           // It stops before it reaches him: the shading has to fall off short of
           // his boots or he ends up standing in a vignette.

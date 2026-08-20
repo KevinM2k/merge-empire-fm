@@ -35,6 +35,14 @@ import 'package:merge_empire_fc/util/time.dart';
 /// longer buys nothing and holds a request open on a phone radio.
 const Duration weatherTimeout = Duration(seconds: 5);
 
+/// How often to LOOK at the cached reading. The JS's
+/// `LeagueScreen.LIVE_RECHECK_MS`.
+///
+/// Shorter than [liveRefreshMs] on purpose, and the two are different questions:
+/// this is how often somebody asks, and `shouldRefreshLive` decides whether
+/// asking is worth a call.
+const Duration liveRecheck = Duration(minutes: 5);
+
 /// How long to leave it after a failure, so a downed API or a captive portal is
 /// not retried every time the Play tab is opened.
 const int weatherFailureBackoffMs = 15 * 60 * 1000;

@@ -17,6 +17,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/services/weather_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -48,9 +49,18 @@ class _GameHostState extends ConsumerState<GameHost>
       for (final locale in dispatcher.locales) locale.toLanguageTag(),
     ]);
     _runner = ref.read(gameRunnerProvider)..boot();
+    _weather = ref.read(weatherProvider.notifier);
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());
     _runner.start();
     _refreshWeather();
+    // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
+    // whether looking is worth a call, so most of these cost nothing.
+    //
+    // **Here rather than in the diorama's own cycle**, which is where the JS
+    // puts it: this widget only exists when the app does, and a network call
+    // wired to something a screen watches is a request in every widget test
+    // that builds that screen.
+    _weatherPoll = Timer.periodic(liveRecheck, (_) => _refreshWeather());
     // Announce the load, one frame later.
     //
     // The theme and the HUD both read a derived value ABOVE this host, so they
@@ -59,7 +69,16 @@ class _GameHostState extends ConsumerState<GameHost>
     // of default-green app. It cannot go in boot(): this is initState, and
     // Riverpod refuses a provider write inside a widget lifecycle.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _runner.game.notifyChanged();
+      if (!mounted) return;
+      _runner.game.notifyChanged();
+      // And the sky starts CHANGING. The scheduler is inert until something
+      // starts it, and this is the something: the JS runs its cycle off the
+      // League screen's mount, and this widget is the port's answer to "the app
+      // is actually running" — see `providers/weather_providers.dart`.
+      //
+      // A frame late for the same reason the notify is: the first turn emits,
+      // and Riverpod refuses a provider write inside a widget lifecycle.
+      _weather.start();
     });
   }
 
@@ -84,21 +103,18 @@ class _GameHostState extends ConsumerState<GameHost>
   /// Unawaited on purpose. Boot must never wait on a network call for a
   /// backdrop, and every failure mode is already "carry on with the seasonal
   /// model" — see `services/weather_service.dart`.
-  void _refreshWeather() {
-    final state = _runner.game.state;
-    if (state == null) return;
-    unawaited(
-      refreshLiveWeather(
-        state,
-        timeZone: DateTime.now().timeZoneName,
-        region: getPlayerRegionCode(state),
-        onStored: _runner.game.scheduleSave,
-      ),
-    );
-  }
+  Timer? _weatherPoll;
+
+  /// Held rather than read on demand: `ref` is unusable once the widget is
+  /// disposed, and [dispose] is exactly where the sky has to be switched off.
+  late final WeatherWatch _weather;
+
+  void _refreshWeather() => refreshWeatherForGame(_runner.game);
 
   @override
   void dispose() {
+    _weatherPoll?.cancel();
+    _weather.stop();
     WidgetsBinding.instance.removeObserver(this);
     // The host going away means the app is. Same treatment as a background: the
     // loop stops, the pending save lands, the mirror is flushed.
@@ -117,11 +133,16 @@ class _GameHostState extends ConsumerState<GameHost>
         // And the weather has moved on while the app was away. `shouldRefreshLive`
         // decides whether it is worth a call, so this is cheap when it is not.
         _refreshWeather();
+        _weather.start();
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         ref.read(appHiddenProvider.notifier).state = true;
         _runner.pause();
+        // The spells stop with the loop. A sky rolling over every thirty seconds
+        // behind a backgrounded app is a save read and a rebuild for something
+        // nobody is looking at.
+        _weather.stop();
       case AppLifecycleState.inactive:
         // A banner, the app switcher, a phone call. The player has not left.
         break;
@@ -130,4 +151,27 @@ class _GameHostState extends ConsumerState<GameHost>
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Go and look at the real sky, best-effort.
+///
+/// **One function rather than one per caller.** Boot, resume and the periodic
+/// recheck all ask for a reading, and the timezone, the region and the save hook
+/// are three chances for three call sites to disagree about what a reading is
+/// for.
+///
+/// Unawaited on purpose. Nothing may wait on a network call for a backdrop, and
+/// every failure mode is already "carry on with the seasonal model" — see
+/// `services/weather_service.dart`.
+void refreshWeatherForGame(GameState game) {
+  final state = game.state;
+  if (state == null) return;
+  unawaited(
+    refreshLiveWeather(
+      state,
+      timeZone: DateTime.now().timeZoneName,
+      region: getPlayerRegionCode(state),
+      onStored: game.scheduleSave,
+    ),
+  );
 }
