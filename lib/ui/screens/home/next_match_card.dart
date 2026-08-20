@@ -441,7 +441,11 @@ class _Name extends StatelessWidget {
             fontSize: 15,
             height: 1.12,
             fontWeight: FontWeight.w900,
-            color: side.ours ? kit.accentBright : null,
+            // Ours is the accent-coloured one and that is the only distinction
+            // the two columns need — but through [glassAccent], because the raw
+            // accent on a bright pane is 2.4:1 and this is the most important
+            // text on the card.
+            color: side.ours ? glassAccent(context, kit.accentBright) : null,
           ),
         ),
         if (side.ours && note != null)
@@ -506,7 +510,10 @@ class _TacticChip extends ConsumerWidget {
             const SizedBox(width: 6),
             Text(
               t('strategy.$id.name').toUpperCase(),
-              style: style.copyWith(color: hue, fontWeight: FontWeight.w900),
+              style: style.copyWith(
+                color: glassAccent(context, hue),
+                fontWeight: FontWeight.w900,
+              ),
             ),
             const SizedBox(width: 3),
             Icon(Icons.chevron_right, size: 14, color: glassMuted(context)),

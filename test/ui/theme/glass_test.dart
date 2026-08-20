@@ -57,6 +57,15 @@ double lumaOf(LinearGradient tint) {
   return (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) * c.a;
 }
 
+/// WCAG contrast against the brightest pane the app draws — the same reference
+/// `glassAccent` works to.
+double contrastOnPane(Color ink) {
+  double ch(double v) =>
+      v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+  final lum = 0.2126 * ch(ink.r) + 0.7152 * ch(ink.g) + 0.0722 * ch(ink.b);
+  return (0.62 + 0.05) / (lum + 0.05);
+}
+
 /// How much of the scene the tint hides.
 double opacityOf(LinearGradient tint) =>
     tint.colors.map((c) => c.a).reduce((a, b) => a + b) / tint.colors.length;
@@ -155,6 +164,60 @@ void main() {
       await pumpPanel(tester, brightness: Brightness.dark);
       final night = opacityOf(tintOf(tester));
       expect((day - night).abs(), lessThan(0.2));
+    });
+  });
+
+  group('a colour on a pane', () {
+    testWidgets('is darkened until it CLEARS 4.5:1 in light mode', (
+      tester,
+    ) async {
+      // Our own club name was `accentBright` — `#259328` on the default kit,
+      // which against a bright pane is 2.4:1. Under the 3:1 large text needs,
+      // let alone 4.5, and it was the most important text on the card.
+      await pumpPanel(tester, brightness: Brightness.light);
+      final context = tester.element(find.byType(GlassPanel));
+      for (final raw in const [
+        Color(0xFF259328), // the default kit's accent
+        Color(0xFFFF6B4A), // the Attack tactic's hue
+        Color(0xFF4ADE80), // the mint a +1 used to be
+        Color(0xFFFFC247), // the Press tactic's amber
+      ]) {
+        final out = glassAccent(context, raw);
+        expect(
+          contrastOnPane(out),
+          greaterThan(4.4),
+          reason: 'still unreadable: $raw -> $out',
+        );
+      }
+    });
+
+    testWidgets('and it keeps the HUE — it darkens, it does not go grey', (
+      tester,
+    ) async {
+      // The colour is the signal. A green that clears contrast by turning into
+      // charcoal has thrown the signal away to pass the test.
+      await pumpPanel(tester, brightness: Brightness.light);
+      final context = tester.element(find.byType(GlassPanel));
+      const raw = Color(0xFF259328);
+      final out = glassAccent(context, raw);
+      expect(out.g, greaterThan(out.r * 2));
+      expect(out.g, greaterThan(out.b * 2));
+    });
+
+    testWidgets('a colour already dark enough is left alone', (tester) async {
+      await pumpPanel(tester, brightness: Brightness.light);
+      final context = tester.element(find.byType(GlassPanel));
+      const already = Color(0xFF16222E);
+      expect(glassAccent(context, already), already);
+    });
+
+    testWidgets('and in DARK mode nothing is touched', (tester) async {
+      // A bright accent on a dark pane is the pairing it was chosen for.
+      await pumpPanel(tester, brightness: Brightness.dark);
+      final context = tester.element(find.byType(GlassPanel));
+      for (final raw in const [Color(0xFF6EF772), Color(0xFF4ADE80)]) {
+        expect(glassAccent(context, raw), raw);
+      }
     });
   });
 

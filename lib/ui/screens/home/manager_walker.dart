@@ -222,7 +222,21 @@ const _Track _elbowFar = [
 ];
 
 /// How tall the shadow's own box is, as a fraction of his.
-const double _shadowBand = 0.045;
+///
+/// Raised from 0.045: at that height it was a 7px sliver under a 230px figure,
+/// which is a mark on the grass rather than a shadow, and the gap between the
+/// sole and the top of it was most of what read as floating.
+const double _shadowBand = 0.075;
+
+/// The shadow's OWN half-width beyond the feet, in art units.
+///
+/// **THE SHADOW HAS TO FOLLOW THE STRIDE.** It was a fixed 34% ellipse centred on
+/// his box, so at the widest point of the walk — one leg forward, one trailing —
+/// the rear boot was outside it and he read as floating over a puddle that had
+/// nothing to do with him. It spans the FEET now, from the rear one to the front,
+/// which means it stretches and shrinks twice a stride exactly as the legs do.
+/// The pad is the width of the body over them.
+const double _shadowPad = 13;
 
 /// Where that box has to sit for its centre to land on [walkerFootline].
 ///
@@ -233,6 +247,16 @@ const Alignment _shadowAlignment = Alignment(
   0,
   (2 * walkerFootline / walkerHeight - 1) / (1 - _shadowBand),
 );
+
+/// Where both feet are at [t], as a centre and a width in art units.
+///
+/// The far leg runs half a cycle behind the near one — that is the whole of what
+/// makes it a walk — so the pair of them is `_footX(t)` and `_footX(t + 0.5)`.
+({double centre, double width}) _footSpan(double t) {
+  final near = _footX(t);
+  final far = _footX((t + 0.5) % 1);
+  return (centre: (near + far) / 2, width: (near - far).abs());
+}
 
 /// How far the whole figure rises, twice a stride.
 const double _bob = 4;
@@ -368,15 +392,27 @@ class _ManagerWalkerState extends State<ManagerWalker>
             children: [
               // The shadow does NOT bob: it is on the ground, and it tightens as
               // he leaves it, which is the whole of the depth in the figure.
+              //
+              // It also SPANS THE FEET rather than sitting at a fixed width —
+              // see [_shadowPad]. The near foot's track is one leg's; the far
+              // one is half a cycle behind it, and the two together are the
+              // stride's full extent at this instant.
               Align(
                 // At his FEET, not at the bottom of his box. Derived from the
                 // two fractions rather than typed, so it cannot go stale if
                 // either moves: for a child of height fH inside a box of height
                 // H, `Align` puts its centre at H/2 + a(H - fH)/2, and we want
                 // that centre on the footline.
-                alignment: _shadowAlignment,
+                alignment: Alignment(
+                  // Off-centre with the feet, so a trailing leg pulls the
+                  // shadow back with it.
+                  _footSpan(t).centre / (walkerWidth / 2),
+                  _shadowAlignment.y,
+                ),
                 child: FractionallySizedBox(
-                  widthFactor: 0.34 - rise / walkerHeight,
+                  widthFactor:
+                      (_footSpan(t).width + _shadowPad * 2) / walkerWidth -
+                      rise / walkerHeight,
                   heightFactor: _shadowBand,
                   child: const _GroundShadow(),
                 ),

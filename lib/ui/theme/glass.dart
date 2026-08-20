@@ -30,6 +30,7 @@
 /// invisible on light, so light glass is edged in its own shadow instead.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -186,6 +187,56 @@ Color glassInk(BuildContext context) =>
 /// 8.4:1 either way.
 Color glassText(BuildContext context) =>
     nightSceneOf(context) ? const Color(0xFFE9EFF5) : const Color(0xFF16222E);
+
+/// A COLOUR made readable on a pane.
+///
+/// **The club's accent is a mid-tone and a pane is bright, and mid-on-bright is
+/// the one combination that fails.** Our own club name is the most important text
+/// on the next-match card and it was `accentBright` — `#259328` on the default
+/// kit, which against a pane at 0.80 is **2.4:1**. That is under the 3:1 large
+/// text needs, let alone 4.5. It looked like a colour choice and it was a
+/// legibility bug.
+///
+/// The fix cannot be a fixed darker green, because the accent is the player's and
+/// there are two dozen kits: it has to be computed. This darkens toward black
+/// until the contrast clears [_target] against the brightest pane the app draws,
+/// and stops — so a kit that is already dark is left alone and a bright one comes
+/// down as far as it needs to and no further. Untouched in dark mode, where a
+/// bright accent on a dark pane is the pairing it was chosen for.
+///
+/// Every coloured thing ON glass goes through this: the club name, the tactic's
+/// hue, a verdict figure. A raw hue there is a bug by construction.
+Color glassAccent(BuildContext context, Color colour) {
+  if (nightSceneOf(context)) return colour;
+  var out = colour;
+  // Sixteen steps of 4% is enough to reach black from anything, and bails the
+  // moment it is dark enough.
+  for (var i = 0; i < 16 && _ratio(_paneLuminance, out) < _target; i++) {
+    out = Color.lerp(out, Colors.black, 0.04 + i * 0.01)!;
+  }
+  return out;
+}
+
+/// 4.5:1 — the small-text threshold, applied to everything rather than trying to
+/// decide per call site which text is "large".
+const double _target = 4.5;
+
+/// The relative luminance of the BRIGHTEST pane the app draws: a light tint over
+/// the top of a tier-0 daylit sky. Measured once here rather than per frame — the
+/// answer has to be stable, or a colour would shift as the stadium was upgraded.
+const double _paneLuminance = 0.62;
+
+double _channel(double v) =>
+    v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+
+double _relative(Color c) =>
+    0.2126 * _channel(c.r) + 0.7152 * _channel(c.g) + 0.0722 * _channel(c.b);
+
+double _ratio(double paneLuminance, Color ink) {
+  final a = paneLuminance + 0.05;
+  final b = _relative(ink) + 0.05;
+  return a > b ? a / b : b / a;
+}
 
 /// The quieter ink on a pane — a label, a caption, a progress fraction.
 ///

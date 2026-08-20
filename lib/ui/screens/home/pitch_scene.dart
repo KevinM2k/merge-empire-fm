@@ -285,11 +285,21 @@ class PitchScene extends StatelessWidget {
                 // of the front row instead of across its knees.
                 top: horizon - standHeight - hoardingHeight,
                 height: standHeight,
-                child: _Scroller(
-                  key: const ValueKey('pitch-stand'),
-                  duration: const Duration(milliseconds: 16500),
-                  segmentWidth: farSegmentWidth,
-                  child: _StandSegment(kitColor: kitColor, haze: haze),
+                // Tapping the terrace gets the crowd up — the JS's own
+                // interaction, and the one thing on this screen that answers a
+                // tap with a crowd rather than with a menu.
+                child: _Crowd(
+                  builder: (beat, excitement) => _Scroller(
+                    key: const ValueKey('pitch-stand'),
+                    duration: const Duration(milliseconds: 16500),
+                    segmentWidth: farSegmentWidth,
+                    child: _StandSegment(
+                      kitColor: kitColor,
+                      haze: haze,
+                      beat: beat,
+                      excitement: excitement,
+                    ),
+                  ),
                 ),
               ),
               // **At the speed of the ground they STAND on.** They were pinned
@@ -372,6 +382,92 @@ class PitchScene extends StatelessWidget {
       },
     );
   }
+}
+
+/// The crowd's own clock, and how worked up it is.
+///
+/// **Its own controller rather than the scroller's**, because the two are
+/// different speeds for different reasons: the stand SCROLLS at the speed of the
+/// ground it stands on (16.5s a segment, parallax), and a crowd BOUNCES at about
+/// the rate people bounce. Sharing one would tie the crowd's energy to how fast
+/// the manager happens to be walking.
+///
+/// Excitement decays rather than switching off, so a tap is a surge that settles
+/// instead of a state that ends.
+class _Crowd extends StatefulWidget {
+  const _Crowd({required this.builder});
+
+  final Widget Function(double beat, double excitement) builder;
+
+  @override
+  State<_Crowd> createState() => _CrowdState();
+}
+
+class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
+  static const Duration _bounce = Duration(milliseconds: 1150);
+
+  /// How long a tap keeps them up.
+  static const double _surgeSeconds = 2.4;
+
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: _bounce,
+  );
+
+  double _excitement = 0;
+  Duration _last = Duration.zero;
+
+  /// The same bargain the scrolling strips make — see `_ScrollerState._sync`.
+  void _sync() {
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_c.isAnimating) _c.stop();
+      return;
+    }
+    if (!_c.isAnimating) _c.repeat();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _c.addListener(_decay);
+  }
+
+  void _decay() {
+    if (_excitement <= 0) return;
+    final now = _c.lastElapsedDuration ?? Duration.zero;
+    // The controller repeats, so elapsed resets — a backwards step is a wrap and
+    // is worth one frame rather than a negative one.
+    final dt = now > _last ? (now - _last).inMicroseconds / 1e6 : 1 / 60;
+    _last = now;
+    setState(() {
+      _excitement = math.max(0, _excitement - dt / _surgeSeconds);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    key: const ValueKey('pitch-stand-tap'),
+    // Opaque, so the terrace answers a tap that lands on a gap between two
+    // supporters rather than only on a head.
+    behavior: HitTestBehavior.opaque,
+    onTap: () => setState(() => _excitement = 1),
+    child: AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => widget.builder(_c.value, _excitement),
+    ),
+  );
 }
 
 // ── Floodlights ─────────────────────────────────────────────────────────────
@@ -586,10 +682,22 @@ const List<Color> _fanSkins = [
 ];
 
 class _StandSegment extends StatelessWidget {
-  const _StandSegment({required this.kitColor, required this.haze});
+  const _StandSegment({
+    required this.kitColor,
+    required this.haze,
+    required this.beat,
+    required this.excitement,
+  });
 
   final Color kitColor;
   final Color haze;
+
+  /// Where the crowd's own clock is, 0..1 through one bounce.
+  final double beat;
+
+  /// 0 is an ordinary crowd with a few people on their feet; 1 is the whole
+  /// stand up.
+  final double excitement;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -597,13 +705,38 @@ class _StandSegment extends StatelessWidget {
     width: farSegmentWidth,
     height: double.infinity,
     child: CustomPaint(
-      painter: _StandPainter(kitColor: kitColor, haze: haze),
+      painter: _StandPainter(
+        kitColor: kitColor,
+        haze: haze,
+        beat: beat,
+        excitement: excitement,
+      ),
     ),
   );
 }
 
 class _StandPainter extends CustomPainter {
-  const _StandPainter({required this.kitColor, required this.haze});
+  const _StandPainter({
+    required this.kitColor,
+    required this.haze,
+    required this.beat,
+    required this.excitement,
+  });
+
+  /// **A CROWD IS NEVER COMPLETELY STILL.** Every fan was pinned to its seat,
+  /// and a few hundred motionless heads read as a printed backdrop rather than
+  /// as people — which is most of why the terrace looked like wallpaper next to
+  /// a walking manager and a scrolling pitch.
+  ///
+  /// The cheap version of life is a BOUNCE on its own phase per fan, so at rest a
+  /// scattering of them are up and down out of step with each other and nothing
+  /// reads as synchronised. Tapping the stand raises [excitement], which brings
+  /// the rest to their feet and lifts everyone higher — the JS's own interaction,
+  /// and the reason the phase is per fan rather than per row: a stand that
+  /// bounces in unison is a Mexican wave, which is a different thing and reads as
+  /// one.
+  final double beat;
+  final double excitement;
 
   final Color kitColor;
 
@@ -654,10 +787,21 @@ class _StandPainter extends CustomPainter {
         final shirt = rng.nextDouble() < 0.22
             ? kitColor
             : _fanColours[rng.nextInt(_fanColours.length)];
+        // Its own phase and its own idea of whether it is bothered — both drawn
+        // from the same seeded stream, so a fan bounces the same way every
+        // repaint and the stand never reshuffles.
+        final phase = rng.nextDouble();
+        final keen = rng.nextDouble();
+        // At rest only the keenest fifth are up; excitement brings the rest.
+        final up = keen < 0.2 + excitement * 0.8;
+        final lift = up
+            ? math.max(0.0, math.sin((beat + phase) * 2 * math.pi)) *
+                  (1.1 + excitement * 2.4)
+            : 0.0;
         _paintFan(
           canvas,
           x: x,
-          top: deckTop + y,
+          top: deckTop + y - lift,
           shoulder: shoulder,
           shirt: shirt,
           skin: _fanSkins[rng.nextInt(_fanSkins.length)],
@@ -755,7 +899,10 @@ class _StandPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StandPainter old) =>
-      old.kitColor != kitColor || old.haze != haze;
+      old.kitColor != kitColor ||
+      old.haze != haze ||
+      old.beat != beat ||
+      old.excitement != excitement;
 }
 
 /// The ad boards on the horizon: panels in the division's colour alternating

@@ -78,6 +78,10 @@ Color vsColor(BuildContext context, int mine, int opp) {
   return dark ? _vsLevelDark : _vsLevelLight;
 }
 
+/// The same three, taken down far enough to read on a bright pane.
+Color vsColorOnGlass(BuildContext context, int mine, int opp) =>
+    glassAccent(context, vsColor(context, mine, opp));
+
 /// One side's ATK and DEF, already through `fifaSplit`.
 typedef StatSide = ({int atk, int def});
 
@@ -98,11 +102,14 @@ enum StatTone {
   warn,
 }
 
-Color statToneColor(BuildContext context, StatTone tone) => switch (tone) {
-  StatTone.good => vsGreenOn(context),
-  StatTone.bad => vsRedOn(context),
-  StatTone.warn => vsAmberOn(context),
-};
+Color statToneColor(BuildContext context, StatTone tone) => glassAccent(
+  context,
+  switch (tone) {
+    StatTone.good => vsGreenOn(context),
+    StatTone.bad => vsRedOn(context),
+    StatTone.warn => vsAmberOn(context),
+  },
+);
 
 /// One modifier hanging off a rating: a glyph, a signed number, what it means,
 /// and the sentence that explains it.
@@ -228,16 +235,16 @@ class _StatWell extends StatelessWidget {
             leftValue: left.atk,
             rightValue: right.atk,
             // Cross-stat: attack is judged against the defence it faces.
-            leftColour: vsColor(context, left.atk, right.def),
-            rightColour: vsColor(context, right.atk, left.def),
+            leftColour: vsColorOnGlass(context, left.atk, right.def),
+            rightColour: vsColorOnGlass(context, right.atk, left.def),
           ),
           const SizedBox(height: 5),
           _StatRow(
             label: 'DEF',
             leftValue: left.def,
             rightValue: right.def,
-            leftColour: vsColor(context, left.def, right.atk),
-            rightColour: vsColor(context, right.def, left.atk),
+            leftColour: vsColorOnGlass(context, left.def, right.atk),
+            rightColour: vsColorOnGlass(context, right.def, left.atk),
           ),
         ],
       ),
@@ -371,7 +378,10 @@ class _Bar extends StatelessWidget {
       borderRadius: BorderRadius.circular(3),
       child: Container(
         height: 5,
-        color: glassInk(context).withValues(alpha: 0.15),
+        // A TRACK has to be visible on its own, or a bar at 20% reads as a
+        // stray mark rather than as a fifth of something. 0.15 was tuned against
+        // a near-opaque pane.
+        color: glassInk(context).withValues(alpha: 0.26),
         child: TweenAnimationBuilder<double>(
           tween: Tween(end: fraction),
           duration: const Duration(milliseconds: 380),
