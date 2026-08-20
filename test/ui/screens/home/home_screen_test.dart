@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/data/manager_looks.dart' show styleVaultId;
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
@@ -19,7 +20,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
-    show walkerScale;
+    show PitchScene, walkerScale;
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -101,6 +102,59 @@ void playedSeason(Map<String, dynamic> s) {
 
 void main() {
   tearDown(resetLocale);
+
+  group('he plants his feet, and then he walks on', () {
+    testWidgets('THE HALT ENDS ON ITS OWN', (tester) async {
+      // It did not. The scene read `_cue.gesture.stops` and the cue is never
+      // cleared, so the world stopped for the bow and STAYED stopped until the
+      // next gesture happened along — up to sixteen seconds of a man walking on
+      // a pitch that was not moving. The JS clears the gesture on a timer for
+      // its own length, so this does too.
+      final container = await pumpHome(
+        tester,
+        mutate: (s) {
+          // Pleased, so `bow` is in the pool at all — it is the one gesture that
+          // stops him, and only a manager having a good season takes one.
+          final p = s['progression'] as Map<String, dynamic>;
+          p['seasonWins'] = 10;
+          p['seasonDraws'] = 0;
+          p['seasonLosses'] = 0;
+          // And owned, because it comes from a look pack.
+          (s['shop'] as Map<String, dynamic>)['purchasedIds'] = [styleVaultId];
+        },
+      );
+      addTearDown(container.dispose);
+      await tester.pump();
+
+      PitchScene scene() => tester.widget<PitchScene>(find.byType(PitchScene));
+      expect(scene().frozen, isFalse, reason: 'he started off planted');
+
+      // A tap plays one immediately. `bow` is a weight-2 entry in a pool of
+      // twenty-odd, so this finds one quickly and gives up rather than hanging.
+      final walker = find.byKey(const ValueKey('pitch-walker'));
+      var taps = 0;
+      while (!scene().frozen && taps < 400) {
+        await tester.tap(walker, warnIfMissed: false);
+        await tester.pump();
+        taps++;
+      }
+      expect(
+        scene().frozen,
+        isTrue,
+        reason: 'no stopping gesture came up in $taps taps',
+      );
+
+      // `bow` is 2,200ms. Still planted just before it ends, walking after.
+      await tester.pump(const Duration(milliseconds: 2100));
+      expect(scene().frozen, isTrue, reason: 'he straightened up early');
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        scene().frozen,
+        isFalse,
+        reason: 'the world never started again — see the note on _halted',
+      );
+    });
+  });
 
   group('the layout', () {
     testWidgets('has no sub-tabs — the burger holds them', (tester) async {

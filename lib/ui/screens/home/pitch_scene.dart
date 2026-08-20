@@ -51,6 +51,7 @@ import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
         walkerStrideArtUnits,
         walkerWidth;
 import 'package:merge_empire_fc/ui/screens/home/pitch_weather.dart';
+import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 /// One stride, by mood. The JS's `--walk-dur` per `data-mood`.
@@ -292,49 +293,113 @@ double halfStridePx() =>
 /// same curve at the same instant, and a `% segmentWidth` taken from a clock that
 /// repeats on its own period jumps every time it does.
 ///
-/// So this integrates elapsed time into a distance that only ever grows. A layer
-/// takes `worldX x itsRowRatio`, mods it by its own segment width, and stays
-/// continuous forever because the distance never resets.
-class _GroundDrive extends StatefulWidget {
-  const _GroundDrive({
-    required this.mood,
-    required this.frozen,
-    required this.builder,
-  });
+/// The distance only ever grows: a layer takes `worldX x itsRowRatio`, mods it by
+/// its own segment width, and stays continuous forever because it never resets.
+///
+/// **And the clock it reads is the WALKER's**, off [WalkBeat] — see
+/// `walk_ramp.dart`. The ground used to own a ticker of its own, kept in step
+/// with his legs only by the two starting in the same frame and every stop
+/// restarting both from zero. An eased stop restarts nothing, so there is one
+/// clock now and this converts it rather than keeping up with it.
+class _GroundDrive extends StatelessWidget {
+  const _GroundDrive({required this.builder});
 
-  final Mood mood;
-  final bool frozen;
   final Widget Function(double worldX) builder;
 
   @override
-  State<_GroundDrive> createState() => _GroundDriveState();
+  Widget build(BuildContext context) {
+    final beat = WalkBeat.maybeOf(context);
+    if (beat == null) return builder(0);
+    return ValueListenableBuilder<double>(
+      valueListenable: beat,
+      builder: (context, halfStrides, _) {
+        final whole = halfStrides.floor();
+        return builder(
+          (whole + groundEase(halfStrides - whole)) * halfStridePx(),
+        );
+      },
+    );
+  }
 }
 
-class _GroundDriveState extends State<_GroundDrive>
+/// The scene's walk clock: it runs the ticker, eases the world to a stop when he
+/// plants his feet, and publishes how many half-strides he has taken.
+///
+/// **Half-strides is the unit both halves want.** The ground is solved in them —
+/// [groundEase] is one stance — and the figure takes the full cycle as
+/// `halfStrides / 2`, which is exactly the relationship the two separate clocks
+/// used to hold by both starting at zero.
+class _WalkBeat extends StatefulWidget {
+  const _WalkBeat({
+    required this.mood,
+    required this.frozen,
+    required this.child,
+  });
+
+  final Mood mood;
+
+  /// He has planted his feet. Not a switch: the world eases down over
+  /// [haltRamp] and back up again after, because he does not brake.
+  final bool frozen;
+
+  final Widget child;
+
+  @override
+  State<_WalkBeat> createState() => _WalkBeatState();
+}
+
+class _WalkBeatState extends State<_WalkBeat>
     with SingleTickerProviderStateMixin {
-  final ValueNotifier<double> _worldX = ValueNotifier<double>(0);
+  final ValueNotifier<double> _halfStrides = ValueNotifier<double>(0);
   late final Ticker _ticker = createTicker(_onTick);
 
-  /// Carried across a freeze, so stopping to bow does not teleport the pitch.
-  double _carried = 0;
+  /// The ease in progress, stated in the ticker's own elapsed seconds.
+  WalkRamp _ramp = const WalkRamp.walking();
+
+  /// The ticker's elapsed at the last frame, and the walking-seconds banked by
+  /// then. The beat advances on the DIFFERENCE, so a mood that retimes his
+  /// stride changes what a second is worth from here on without warping the
+  /// strides he has already taken.
+  double _now = 0;
+  double _walked = 0;
 
   void _onTick(Duration elapsed) {
+    _now = elapsed.inMicroseconds / 1e6;
+    final walked = _ramp.walkedAt(_now);
     final halfStrideSeconds = walkDurationFor(widget.mood).inMicroseconds / 2e6;
-    final strides = elapsed.inMicroseconds / 1e6 / halfStrideSeconds;
-    final whole = strides.floor();
-    _worldX.value =
-        _carried + (whole + groundEase(strides - whole)) * halfStridePx();
+    _halfStrides.value += (walked - _walked) / halfStrideSeconds;
+    _walked = walked;
+    // The ease is over and the world has stopped: park the ticker rather than
+    // spending a frame every frame on a diorama that is not moving.
+    if (_ramp.target == 0 && _ramp.rateAt(_now) == 0) _ticker.stop();
   }
 
   void _sync() {
-    final run = !widget.frozen && !MediaQuery.of(context).disableAnimations;
-    if (run == _ticker.isActive) return;
-    if (run) {
-      _carried = _worldX.value;
-      _ticker.start();
-    } else {
+    // Reduced motion stops the diorama outright rather than easing it down: it
+    // is perpetual movement on the screen the app opens on, which is exactly
+    // what that setting exists to stop.
+    if (MediaQuery.of(context).disableAnimations) {
       _ticker.stop();
+      return;
     }
+    final target = widget.frozen ? 0.0 : 1.0;
+    if (_ticker.isTicking) {
+      _ramp = _ramp.aim(target, _now);
+      return;
+    }
+    // A stopped ticker restarts its elapsed at zero, so the ramp is restated
+    // against the clock it is about to be read on — carrying the rate it had
+    // reached, so a bow cut short by a tap winds back up from the speed he was
+    // actually walking at.
+    _ramp = WalkRamp(
+      from: _ramp.rateAt(_now),
+      target: target,
+      since: 0,
+      banked: _walked,
+      ramp: haltRamp,
+    );
+    _now = 0;
+    if (target != 0 || _ramp.from != 0) _ticker.start();
   }
 
   @override
@@ -344,23 +409,21 @@ class _GroundDriveState extends State<_GroundDrive>
   }
 
   @override
-  void didUpdateWidget(_GroundDrive old) {
+  void didUpdateWidget(_WalkBeat old) {
     super.didUpdateWidget(old);
-    _sync();
+    if (old.frozen != widget.frozen) _sync();
   }
 
   @override
   void dispose() {
     _ticker.dispose();
-    _worldX.dispose();
+    _halfStrides.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<double>(
-    valueListenable: _worldX,
-    builder: (context, x, _) => widget.builder(x),
-  );
+  Widget build(BuildContext context) =>
+      WalkBeat(notifier: _halfStrides, child: widget.child);
 }
 
 /// A last nudge on the ground's speed, if it is ever wanted.
@@ -532,213 +595,220 @@ class PitchScene extends StatelessWidget {
             .clamp(h * 0.16, h * 0.68);
 
         return ClipRect(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: DecoratedBox(decoration: BoxDecoration(gradient: sky)),
-              ),
-              // The sun and the clouds paint WITH the sky, before anything the
-              // ground carries. At one layer higher the sun sat in front of the
-              // terrace and a tier-5 ground had it hanging over its floodlights.
-              Positioned.fill(
-                key: const ValueKey('pitch-weather-sky'),
-                child: WeatherSky(condition: condition),
-              ),
-              // The pylons, on their OWN strip behind the stand and at the
-              // stand's own speed and period — so however tall they get they
-              // cannot drift against the terrace they are planted in. A tall
-              // strip rather than a tall segment: a floodlight rises well clear
-              // of the roof, and the stand's strip is only as tall as the stand.
-              if (pylons > 0)
+          // **ONE clock for the man and for the ground he is walking on**, so a
+          // gesture that plants his feet eases both down together — see
+          // `walk_ramp.dart`. Outside the Stack because the walker is handed in
+          // from the screen above and reads the beat off the context.
+          child: _WalkBeat(
+            mood: mood,
+            frozen: frozen,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: DecoratedBox(decoration: BoxDecoration(gradient: sky)),
+                ),
+                // The sun and the clouds paint WITH the sky, before anything the
+                // ground carries. At one layer higher the sun sat in front of the
+                // terrace and a tier-5 ground had it hanging over its floodlights.
+                Positioned.fill(
+                  key: const ValueKey('pitch-weather-sky'),
+                  child: WeatherSky(condition: condition),
+                ),
+                // The pylons, on their OWN strip behind the stand and at the
+                // stand's own speed and period — so however tall they get they
+                // cannot drift against the terrace they are planted in. A tall
+                // strip rather than a tall segment: a floodlight rises well clear
+                // of the roof, and the stand's strip is only as tall as the stand.
+                if (pylons > 0)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: h - (horizon - hoardingHeight),
+                    // **OFF THE TERRACE, NOT OFF THE VIEWPORT.** The JS gives the
+                    // pylon 100% of a layer that is 46% of the scene, which on a
+                    // phone puts the lamps up behind the next-match card — so all
+                    // you see of a floodlight is two thin poles crossing the sky,
+                    // which read as cables. A pylon is proportioned against the
+                    // stand it lights (about two and a half terraces), so the head
+                    // lands in the band of sky the diorama actually shows, and it
+                    // stays there whatever the viewport does. Clamped to the sky
+                    // above the horizon so a short scene cannot push it out of
+                    // frame.
+                    height: math.min(
+                      standHeight * _pylonStands,
+                      math.max(0, (horizon - hoardingHeight) * 0.92),
+                    ),
+                    child: _Scroller(
+                      key: const ValueKey('pitch-floodlights'),
+                      duration: const Duration(milliseconds: 16500),
+                      segmentWidth: farSegmentWidth,
+                      child: _FloodlightSegment(count: pylons, lit: night),
+                    ),
+                  ),
+                // The far strip: the stand and its crowd, at 16.5s — slow, because
+                // distance is speed on a parallax scene. Its height is the TERRACE's
+                // own, not a fraction of the page: at `h * 0.24` it was a 200px bank
+                // of seats with a hundred 1px dots in it, which is the shape of a
+                // crowd without being one.
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: h - (horizon - hoardingHeight),
-                  // **OFF THE TERRACE, NOT OFF THE VIEWPORT.** The JS gives the
-                  // pylon 100% of a layer that is 46% of the scene, which on a
-                  // phone puts the lamps up behind the next-match card — so all
-                  // you see of a floodlight is two thin poles crossing the sky,
-                  // which read as cables. A pylon is proportioned against the
-                  // stand it lights (about two and a half terraces), so the head
-                  // lands in the band of sky the diorama actually shows, and it
-                  // stays there whatever the viewport does. Clamped to the sky
-                  // above the horizon so a short scene cannot push it out of
-                  // frame.
-                  height: math.min(
-                    standHeight * _pylonStands,
-                    math.max(0, (horizon - hoardingHeight) * 0.92),
+                  // ON the ad boards, not behind them: the stand's foot is the
+                  // back of the board, which is what puts the perimeter in front
+                  // of the front row instead of across its knees.
+                  top: horizon - standHeight - hoardingHeight,
+                  height: standHeight,
+                  // Tapping the terrace gets the crowd up — the JS's own
+                  // interaction, and the one thing on this screen that answers a
+                  // tap with a crowd rather than with a menu.
+                  child: _Crowd(
+                    celebration: celebration,
+                    builder: (beat, excitement) => _Scroller(
+                      key: const ValueKey('pitch-stand'),
+                      duration: const Duration(milliseconds: 16500),
+                      segmentWidth: farSegmentWidth,
+                      child: _StandSegment(
+                        kitColor: kitColor,
+                        haze: haze,
+                        beat: beat,
+                        excitement: excitement,
+                      ),
+                    ),
                   ),
+                ),
+                // **At the speed of the ground they STAND on.** They were pinned
+                // to 2.1× the grass period against a 240px segment, which works
+                // out at nearly four times slower than the turf at his feet and
+                // two and a half times slower than the farthest tuft band — the
+                // ground the boards are actually planted in. So the pitch swept
+                // past and the advertising crawled, which is the one thing on a
+                // parallax scene the eye cannot forgive.
+                //
+                // Derived the same way the tufts are — segment over speed, scaled
+                // by the depth band — so the boards and the grass at their feet
+                // can only ever agree.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: horizon - hoardingHeight,
+                  height: hoardingHeight,
                   child: _Scroller(
-                    key: const ValueKey('pitch-floodlights'),
-                    duration: const Duration(milliseconds: 16500),
-                    segmentWidth: farSegmentWidth,
-                    child: _FloodlightSegment(count: pylons, lit: night),
-                  ),
-                ),
-              // The far strip: the stand and its crowd, at 16.5s — slow, because
-              // distance is speed on a parallax scene. Its height is the TERRACE's
-              // own, not a fraction of the page: at `h * 0.24` it was a 200px bank
-              // of seats with a hundred 1px dots in it, which is the shape of a
-              // crowd without being one.
-              Positioned(
-                left: 0,
-                right: 0,
-                // ON the ad boards, not behind them: the stand's foot is the
-                // back of the board, which is what puts the perimeter in front
-                // of the front row instead of across its knees.
-                top: horizon - standHeight - hoardingHeight,
-                height: standHeight,
-                // Tapping the terrace gets the crowd up — the JS's own
-                // interaction, and the one thing on this screen that answers a
-                // tap with a crowd rather than with a menu.
-                child: _Crowd(
-                  celebration: celebration,
-                  builder: (beat, excitement) => _Scroller(
-                    key: const ValueKey('pitch-stand'),
-                    duration: const Duration(milliseconds: 16500),
-                    segmentWidth: farSegmentWidth,
-                    child: _StandSegment(
-                      kitColor: kitColor,
-                      haze: haze,
-                      beat: beat,
-                      excitement: excitement,
+                    // The boards are planted ON the horizon, so their row is the far
+                    // edge of the pitch — fraction 1. Same solve as the tufts, so the
+                    // advertising and the grass at its feet can only agree.
+                    duration: turfScroll(
+                      segmentWidth: hoardingSegmentWidth,
+                      fraction: 1,
+                      turfHeight: h - horizon,
+                      contactBelowHorizon: feet - horizon,
+                      mood: mood,
                     ),
-                  ),
-                ),
-              ),
-              // **At the speed of the ground they STAND on.** They were pinned
-              // to 2.1× the grass period against a 240px segment, which works
-              // out at nearly four times slower than the turf at his feet and
-              // two and a half times slower than the farthest tuft band — the
-              // ground the boards are actually planted in. So the pitch swept
-              // past and the advertising crawled, which is the one thing on a
-              // parallax scene the eye cannot forgive.
-              //
-              // Derived the same way the tufts are — segment over speed, scaled
-              // by the depth band — so the boards and the grass at their feet
-              // can only ever agree.
-              Positioned(
-                left: 0,
-                right: 0,
-                top: horizon - hoardingHeight,
-                height: hoardingHeight,
-                child: _Scroller(
-                  // The boards are planted ON the horizon, so their row is the far
-                  // edge of the pitch — fraction 1. Same solve as the tufts, so the
-                  // advertising and the grass at its feet can only agree.
-                  duration: turfScroll(
                     segmentWidth: hoardingSegmentWidth,
-                    fraction: 1,
-                    turfHeight: h - horizon,
-                    contactBelowHorizon: feet - horizon,
+                    child: _HoardingSegment(kitColor: kitColor),
+                  ),
+                ),
+                Positioned(
+                  key: const ValueKey('pitch-turf'),
+                  left: 0,
+                  right: 0,
+                  top: horizon,
+                  bottom: 0,
+                  child: _Turf(
                     mood: mood,
+                    contactBelowHorizon: feet - horizon,
+                    condition: condition,
                   ),
-                  segmentWidth: hoardingSegmentWidth,
-                  child: _HoardingSegment(kitColor: kitColor),
                 ),
-              ),
-              Positioned(
-                key: const ValueKey('pitch-turf'),
-                left: 0,
-                right: 0,
-                top: horizon,
-                bottom: 0,
-                child: _Turf(
-                  mood: mood,
-                  contactBelowHorizon: feet - horizon,
-                  condition: condition,
-                  frozen: frozen,
-                ),
-              ),
-              // His boot prints, pinned to HIS contact line rather than to the
-              // pitch box — which is why they are out here and not inside the
-              // turf with the snow they are pressed into. Above that snow,
-              // below the figure.
-              Positioned(
-                key: const ValueKey('pitch-weather-prints'),
-                left: 0,
-                right: 0,
-                // The shadow under his boots centres a shade above where he
-                // sits, hence the 6px off the shared baseline.
-                bottom: walkerBottom - 6,
-                height: 13,
-                child: WeatherPrints(
-                  condition: condition,
-                  // **The ground's own number, not one of its own.** A print
-                  // that slides against the grass is the one mistake here the
-                  // eye catches instantly, so it rides band 0's period — the
-                  // grass at his boots.
-                  scrollDuration: Duration(
-                    microseconds:
-                        (printSegmentWidth / groundSpeedPxPerSec(mood) * 1e6)
-                            .round(),
+                // His boot prints, pinned to HIS contact line rather than to the
+                // pitch box — which is why they are out here and not inside the
+                // turf with the snow they are pressed into. Above that snow,
+                // below the figure.
+                Positioned(
+                  key: const ValueKey('pitch-weather-prints'),
+                  left: 0,
+                  right: 0,
+                  // The shadow under his boots centres a shade above where he
+                  // sits, hence the 6px off the shared baseline.
+                  bottom: walkerBottom - 6,
+                  height: 13,
+                  child: WeatherPrints(
+                    condition: condition,
+                    // **The ground's own number, not one of its own.** A print
+                    // that slides against the grass is the one mistake here the
+                    // eye catches instantly, so it rides band 0's period — the
+                    // grass at his boots.
+                    scrollDuration: Duration(
+                      microseconds:
+                          (printSegmentWidth / groundSpeedPxPerSec(mood) * 1e6)
+                              .round(),
+                    ),
+                    // Where his boot actually is: he stands at `w * 0.45 - 57`
+                    // with his feet ~59 art units into the figure.
+                    contactFraction: w == 0 ? 0.45 : (w * 0.45 - 57 + 59) / w,
                   ),
-                  // Where his boot actually is: he stands at `w * 0.45 - 57`
-                  // with his feet ~59 art units into the figure.
-                  contactFraction: w == 0 ? 0.45 : (w * 0.45 - 57 + 59) / w,
                 ),
-              ),
-              // Overcast, rain, snow, fog and wind: above the pitch and BELOW
-              // him. That is the CSS's z-order rather than an oversight — he is
-              // the subject of the shot, so a shower is a curtain behind him.
-              Positioned.fill(
-                key: const ValueKey('pitch-weather-air'),
-                child: WeatherAir(condition: condition),
-              ),
-              // He stands LEFT of centre, on the grass under the horizon, and the
-              // scale is about his FEET so he stays planted however big he gets.
-              Positioned(
-                key: const ValueKey('pitch-walker'),
-                left: w * 0.45 - 57,
-                // His BOOTS on the contact line, not the bottom of his box.
-                // There are 17.5 art units of empty picture under his soles, and
-                // scaled up that is two dozen pixels of him floating above the
-                // line everything else on this screen is measured from.
-                bottom: walkerBottom - walkerFootOffset * walkerScale,
-                // His OWN box, at his own size — not whatever is left of the
-                // screen. He is 120×170 and scaled 1.35 about his feet, which is
-                // ~162×230 on screen; handed the column's remaining height he
-                // filled it, which is what made him tower over the pitch. The
-                // box also has to be bounded: the rig is an `AspectRatio` and an
-                // unbounded one cannot lay itself out at all.
-                child: SizedBox(
-                  width: walkerWidth,
-                  height: walkerHeight,
-                  child: GestureDetector(
-                    // A tap on HIM, not on the scene: the diorama's own taps are
-                    // the crowd's and the fireworks', and tapping the manager
-                    // used to set off a rocket — which is what you noticed.
-                    onTap: onTapWalker,
-                    child: Transform.scale(
-                      scale: walkerScale,
-                      alignment: Alignment.bottomCenter,
-                      child: walker,
+                // Overcast, rain, snow, fog and wind: above the pitch and BELOW
+                // him. That is the CSS's z-order rather than an oversight — he is
+                // the subject of the shot, so a shower is a curtain behind him.
+                Positioned.fill(
+                  key: const ValueKey('pitch-weather-air'),
+                  child: WeatherAir(condition: condition),
+                ),
+                // He stands LEFT of centre, on the grass under the horizon, and the
+                // scale is about his FEET so he stays planted however big he gets.
+                Positioned(
+                  key: const ValueKey('pitch-walker'),
+                  left: w * 0.45 - 57,
+                  // His BOOTS on the contact line, not the bottom of his box.
+                  // There are 17.5 art units of empty picture under his soles, and
+                  // scaled up that is two dozen pixels of him floating above the
+                  // line everything else on this screen is measured from.
+                  bottom: walkerBottom - walkerFootOffset * walkerScale,
+                  // His OWN box, at his own size — not whatever is left of the
+                  // screen. He is 120×170 and scaled 1.35 about his feet, which is
+                  // ~162×230 on screen; handed the column's remaining height he
+                  // filled it, which is what made him tower over the pitch. The
+                  // box also has to be bounded: the rig is an `AspectRatio` and an
+                  // unbounded one cannot lay itself out at all.
+                  child: SizedBox(
+                    width: walkerWidth,
+                    height: walkerHeight,
+                    child: GestureDetector(
+                      // A tap on HIM, not on the scene: the diorama's own taps are
+                      // the crowd's and the fireworks', and tapping the manager
+                      // used to set off a rocket — which is what you noticed.
+                      onTap: onTapWalker,
+                      child: Transform.scale(
+                        scale: walkerScale,
+                        alignment: Alignment.bottomCenter,
+                        child: walker,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              // The wash the pylons throw, OVER everything they light —
-              // including him, because a man standing in a floodlit ground is
-              // lit by it. The JS's `.ps-glow`: two soft pools off to either
-              // side, which is what says the light comes from up there rather
-              // than from the screen.
-              if (night && pylons > 0)
-                const Positioned.fill(
-                  key: ValueKey('pitch-floodlight-wash'),
-                  child: IgnorePointer(
-                    child: CustomPaint(painter: _FloodWash()),
+                // The wash the pylons throw, OVER everything they light —
+                // including him, because a man standing in a floodlit ground is
+                // lit by it. The JS's `.ps-glow`: two soft pools off to either
+                // side, which is what says the light comes from up there rather
+                // than from the screen.
+                if (night && pylons > 0)
+                  const Positioned.fill(
+                    key: ValueKey('pitch-floodlight-wash'),
+                    child: IgnorePointer(
+                      child: CustomPaint(painter: _FloodWash()),
+                    ),
+                  ),
+                // The only weather layer that goes OVER him. A flash lights the
+                // whole scene, and a man standing in it is part of the scene.
+                Positioned.fill(
+                  key: const ValueKey('pitch-weather-lightning'),
+                  child: WeatherLightning(
+                    condition: condition,
+                    onThunder: onThunder,
                   ),
                 ),
-              // The only weather layer that goes OVER him. A flash lights the
-              // whole scene, and a man standing in it is part of the scene.
-              Positioned.fill(
-                key: const ValueKey('pitch-weather-lightning'),
-                child: WeatherLightning(
-                  condition: condition,
-                  onThunder: onThunder,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -1357,11 +1427,7 @@ class _Turf extends StatelessWidget {
     required this.mood,
     required this.contactBelowHorizon,
     required this.condition,
-    this.frozen = false,
   });
-
-  /// He has planted his feet, so the grass under them stops too.
-  final bool frozen;
 
   final Mood mood;
 
@@ -1412,8 +1478,6 @@ class _Turf extends StatelessWidget {
           // anything else on it, at any instant rather than on average.
           Positioned.fill(
             child: _GroundDrive(
-              mood: mood,
-              frozen: frozen,
               builder: (worldX) {
                 final contact = _contactDepth(
                   constraints.maxHeight,

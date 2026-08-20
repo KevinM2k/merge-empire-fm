@@ -40,6 +40,7 @@ import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
+import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/walker_figure.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
@@ -520,29 +521,53 @@ class ManagerWalker extends StatefulWidget {
 
 class _ManagerWalkerState extends State<ManagerWalker>
     with TickerProviderStateMixin {
+  /// His own stride clock, for when there is no diorama around him.
+  ///
+  /// **The scene's [WalkBeat] wins whenever there is one.** His legs and the
+  /// ground he is walking on have to be warped by the same curve at the same
+  /// instant the moment a gesture eases the world to a stop — see
+  /// `walk_ramp.dart` — and two clocks kept together by both starting in the
+  /// same frame only ever worked because a stop restarted both from zero. This
+  /// one runs in the customiser's chip and in tests, where nothing on the grass
+  /// is watching.
   late final AnimationController _clock = AnimationController(
     vsync: this,
     duration: walkDurationFor(widget.mood),
   );
 
-  /// Whether he should be moving at all.
+  /// The scene's beat, in half-strides. Null off the diorama.
+  ValueNotifier<double>? _beat;
+
+  /// Where he is in his stride, 0 to 1.
+  ///
+  /// The beat counts half-strides because that is the unit the GROUND is solved
+  /// in; the figure's cycle is two of them.
+  double get _phase {
+    final beat = _beat;
+    if (beat == null) return _clock.value;
+    final t = (beat.value / 2) % 1;
+    return t < 0 ? t + 1 : t;
+  }
+
+  /// Whether his OWN clock should be running. Always false while the scene is
+  /// driving him.
   ///
   /// Honours the platform's reduce-motion setting: he is decoration on the
   /// screen the app OPENS on, which is exactly the kind of perpetual movement
   /// that setting exists to stop. It is also what lets a widget test settle —
   /// a looping animation never does.
   bool _shouldWalk(BuildContext context) =>
-      widget.walking && !_planted && !MediaQuery.of(context).disableAnimations;
+      _beat == null &&
+      widget.walking &&
+      !_planted &&
+      !MediaQuery.of(context).disableAnimations;
 
   void _sync(BuildContext context) {
-    // His TEMPO is his mood. A retime carries the phase across so a result
-    // landing mid-stride does not snap his legs back to the start of the cycle —
-    // and the grass, which is timed off the same figure, retimes with him.
-    // His TEMPO is his mood, and the grass is timed off the same figure — so a
-    // result that cheers him up speeds both up together. The stride restarts from
-    // the top rather than carrying its phase across: `repeat` cannot resume
-    // mid-cycle, and a mood only changes at full time, where the scene is not
-    // what anybody is looking at.
+    // His TEMPO is his mood. The stride restarts from the top rather than
+    // carrying its phase across: `repeat` cannot resume mid-cycle, and a mood
+    // only changes at full time, where the scene is not what anybody is looking
+    // at. (On the diorama the beat carries it properly — a retime there changes
+    // what a second is worth without moving the strides already taken.)
     final want = walkDurationFor(widget.mood);
     if (_clock.duration != want) {
       final running = _clock.isAnimating;
@@ -560,6 +585,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _beat = WalkBeat.maybeOf(context);
     // A cue supplied at MOUNT plays as well. It only started from
     // `didUpdateWidget` before, so the first gesture of a session was silently
     // dropped — invisible in the app, where the rota always arrives after the
@@ -599,9 +625,21 @@ class _ManagerWalkerState extends State<ManagerWalker>
     return 0;
   }
 
+  /// Whether he is animating AT ALL, whatever the world's speed is doing.
+  ///
+  /// Distinct from [_shouldWalk], which is only about his OWN stride clock. A
+  /// man who has planted his feet to bow is still a man: he blinks, and he still
+  /// shivers if the player dressed him for the wrong weather.
+  bool _animating(BuildContext context) =>
+      widget.walking && !MediaQuery.of(context).disableAnimations;
+
   void _syncBlink() {
     // Stops with everything else: it is a repeating animation like any other.
-    final run = _shouldWalk(context);
+    //
+    // Not gated on the WALK, though — his own five-second clock has nothing to
+    // do with the world's speed. Only reduced motion and a scene nobody is
+    // watching stop it.
+    final run = _animating(context);
     if (run == _blinkClock.isAnimating) return;
     if (run) {
       _blinkClock.repeat();
@@ -689,7 +727,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
   /// decision. (Its PAUSED block does list it, which is the same conclusion
   /// reached about a scene nobody is watching.)
   Offset _shiver(BuildContext context, double t) {
-    if (widget.comfort != 'cold' || !_shouldWalk(context)) return Offset.zero;
+    if (widget.comfort != 'cold' || !_animating(context)) return Offset.zero;
     final phase =
         (t * walkDurationFor(widget.mood).inMicroseconds / 130000) % 1;
     // translate(0.35, 0) → (-0.35, 0.2) → (0.35, 0)
@@ -720,11 +758,15 @@ class _ManagerWalkerState extends State<ManagerWalker>
     return AspectRatio(
       aspectRatio: walkerWidth / walkerHeight,
       child: AnimatedBuilder(
-        // BOTH clocks: the walk runs on one and a gesture on the other, and the
-        // figure is whatever the two say together.
-        animation: Listenable.merge([_clock, _gestureClock, _blinkClock]),
+        // EVERY clock he is on: the walk (the scene's, or his own off it), the
+        // gesture, and the blink. The figure is whatever they say together.
+        animation: Listenable.merge([
+          _beat ?? _clock,
+          _gestureClock,
+          _blinkClock,
+        ]),
         builder: (context, _) {
-          final t = _clock.value;
+          final t = _phase;
           final pose = _pose;
           // **ONE angle for every head layer.** Hair, skull and hat are three
           // widgets and one head; give them separate numbers and the face slides

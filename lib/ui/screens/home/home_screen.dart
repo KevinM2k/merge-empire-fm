@@ -199,6 +199,16 @@ class _SceneState extends ConsumerState<_Scene> {
   Timer? _next;
   GestureCue? _cue;
 
+  /// **He has planted his feet, and it has to END.**
+  ///
+  /// A separate flag rather than reading `_cue.gesture.stops`, which is what it
+  /// was: the cue is never cleared, so the world stopped for the bow and then
+  /// stayed stopped until the NEXT gesture happened along — up to sixteen
+  /// seconds of a man walking on a pitch that was not moving. The JS's own
+  /// `_clearGesture` is on a timer for the gesture's own length, so this is too.
+  bool _halted = false;
+  Timer? _halt;
+
   /// The last two he played, so the rota keeps moving.
   ///
   /// A FILTER rather than a reroll, because the weights are lopsided: a crushed
@@ -257,12 +267,28 @@ class _SceneState extends ConsumerState<_Scene> {
     if (g == null) return;
     _recent.add(g.id);
     if (_recent.length > 2) _recent.removeAt(0);
-    setState(() => _cue = GestureCue(g));
+    // He plants his feet for one of the sixteen, and the world stops travelling
+    // past him for exactly as long as he holds it — then eases back up. Every
+    // exit winds it back on, including a gesture replaced by a tap part way
+    // through, which is why the timer is cancelled rather than left to fire.
+    _halt?.cancel();
+    _halt = null;
+    if (g.stops) {
+      _halt = Timer(Duration(milliseconds: g.ms), () {
+        _halt = null;
+        if (mounted) setState(() => _halted = false);
+      });
+    }
+    setState(() {
+      _cue = GestureCue(g);
+      _halted = g.stops;
+    });
   }
 
   @override
   void dispose() {
     _next?.cancel();
+    _halt?.cancel();
     super.dispose();
   }
 
@@ -290,8 +316,9 @@ class _SceneState extends ConsumerState<_Scene> {
       // The thunder, timed behind the flash by the lightning layer itself. The
       // scene has no speaker: it says WHEN and this says with what.
       onThunder: () => ref.read(soundServiceProvider).play('thunder'),
-      // He plants his feet for a bow, and the world stops travelling past him.
-      frozen: _cue?.gesture.stops ?? false,
+      // He plants his feet for a bow, and the world eases to a stop with him —
+      // for the length of the gesture, and no longer.
+      frozen: _halted,
       // **A tap on him is answered by a person, not a menu** — the one thing on
       // this screen that is.
       onTapWalker: _play,
