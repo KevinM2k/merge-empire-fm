@@ -793,7 +793,25 @@ clock, and it is dropped on purpose.
 - [ ] **Give `skyGradient` a light-mode palette and a dark-mode one**, and let
       the floodlights come on with the Stadium's tier rather than with a clock.
 
-Five reasons, in the order they mattered:
+**And then theme everything else against it — which is the real prize here.**
+Every panel that floats on the diorama is currently a COMPROMISE struck against
+one fixed dusk-blue sky, and each of those compromises can be undone the moment
+the sky is known:
+
+- [ ] **The next-match card is dark glass in BOTH themes.** Its own note says
+      why: at `surface` it was "a pale panel on a pale sky in light mode", so it
+      was forced dark and the ink had to flip with it. With a daylit sky in light
+      mode it can be a light panel with the app's own ink, and stop being the one
+      card on the screen that ignores the theme.
+- [ ] **`glassThemeProvider` exists for the same reason** — it hands a subtree
+      the ink a dark panel needs. Half its callers should not need it any more.
+- [ ] **The turf already HAS both palettes** (`_turf` and `_turfLight`) and picks
+      by theme. Once the sky does too, the pitch and the sky above it are lit
+      from the same decision rather than by two independent ones.
+- [ ] **The HUD's `onScene` branch** builds the whole bar under a dark-glass
+      theme because the Play tab's sky is dark. In light mode it will not be.
+
+Five reasons the theme won, in the order they mattered:
 
 1. **The glass is already tuned against a KNOWN sky.** `glassThemeProvider`, the
    pitch's `_turfLight`, the HUD's dark-glass branch and the next-match card's
