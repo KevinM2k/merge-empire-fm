@@ -39,9 +39,17 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
-    show walkerFootOffset, walkerHeight, walkerStrideArtUnits, walkerWidth;
+    show
+        walkerAnkle,
+        walkerBootSoleY,
+        walkerFootOffset,
+        walkerHeight,
+        walkerHipRise,
+        walkerStrideArtUnits,
+        walkerWidth;
 import 'package:merge_empire_fc/ui/screens/home/pitch_weather.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
@@ -208,29 +216,166 @@ double groundSpeedPxPerSec(Mood mood) =>
     walkerScale /
     (walkDurationFor(mood).inMicroseconds / 2e6);
 
-/// An eye-calibrated nudge on that speed.
+/// **HOW FAR THE WORLD HAS TRAVELLED, as a fraction of one half-stride, [u] of
+/// the way through it.**
 ///
-/// **A KNOB, on purpose, and it is the one number on the surface that is not
-/// derived.** With the JS's keyframes there is no single true planted-foot rate to
-/// derive it from, which is the flaw those poses were knowingly taken with: the
-/// sole only genuinely touches the grass for about 15% of the cycle, floating a
-/// couple of units for the rest, so "the speed of the foot on the ground" is a
-/// range rather than a number.
+/// A constant ground speed cannot match this walk and no trim can rescue it. The
+/// JS's tracks are linear in ANGLE, so the supporting ankle's horizontal rate
+/// swings from -17 to +173 art units per cycle across one stance while a constant
+/// ground sat at 119. That is the foot outrunning the grass by 45% at mid-stance
+/// and briefly creeping the wrong way at heel strike — the slip that kept being
+/// reported, and it is in the poses, not in the speed.
 ///
-/// Measured, that range is 99 to 106 art units per cycle — the travel across the
-/// true contact window at its tightest, up to the net displacement across the
-/// nominal stance. The stride the ground is solved from sits at the top of it, and
-/// it still read a shade slow to the eye, so this lifts it above the range's own
-/// ceiling. A contact-weighted average was tried as a principled alternative and
-/// abandoned: widen the weighting and the SWING foot starts cancelling the planted
-/// one, so the answer walks from 84 down to 17 depending on a tolerance nobody can
-/// justify.
+/// So the ground moves at the foot's OWN rate: this is the integral of the
+/// supporting boot's horizontal velocity, normalised. A strip driven by it is
+/// stationary under the planted foot at every instant, which is what "planted"
+/// means — the one property a solved rig gets for free and a played one has to be
+/// handed.
 ///
-/// So it is a trim, it is named, and it is here rather than hidden inside the
-/// stride: if he reads as dragging his feet, this is the number to move, and
-/// everything on the turf follows it because they all read the speed through
-/// [turfScroll].
-const double groundSpeedTrim = 1.12;
+/// **Whichever boot is lower is carrying him**, and that changes hands twice a
+/// cycle, so the velocity has period half a cycle — which is why this is per
+/// half-stride.
+///
+/// Negative velocity is CLAMPED OUT. The support foot really does creep forward
+/// for a few per cent either side of each hand-over, and following that exactly
+/// would judder the whole world backwards; the JS's own note calls it "the judder
+/// as he puts his foot down". A world that never reverses, with a hair of slip in
+/// that window, is the better of the two.
+final ({List<double> table, double distance}) _groundEase = () {
+  const steps = 256;
+  double sole(double t, bool near) =>
+      walkerBootSoleY(t, near: near) - walkerHipRise(t);
+  final out = <double>[0];
+  var sum = 0.0;
+  for (var i = 0; i < steps; i++) {
+    final t = i / steps * 0.5;
+    final t2 = (i + 1) / steps * 0.5;
+    final near = sole(t, true) >= sole(t, false);
+    sum += math.max(
+      0,
+      walkerAnkle(t, near: near).x - walkerAnkle(t2, near: near).x,
+    );
+    out.add(sum);
+  }
+  return (table: [for (final v in out) v / sum], distance: sum);
+}();
+
+/// How far the SUPPORTING boot carries the world in one half-stride, in art
+/// units.
+///
+/// **Not [walkerStrideArtUnits], and the difference is the point.** That is the
+/// NEAR ankle's displacement across its own nominal stance — 53.05 — while the
+/// foot actually carrying him changes hands part way through, and integrating
+/// whichever boot is lower gives 51.83. Scaling the ground by the first while
+/// warping it by the second is a 2.3% error smeared across every step, which is
+/// exactly the kind of thing that reads as a slip and cannot be found by looking.
+double get groundHalfStrideArtUnits => _groundEase.distance;
+
+/// [_groundEaseTable], interpolated. 0 at the start of a half-stride, 1 at its end.
+double groundEase(double u) {
+  final table = _groundEase.table;
+  final x = u.clamp(0.0, 1.0) * (table.length - 1);
+  final i = x.floor().clamp(0, table.length - 2);
+  return table[i] + (table[i + 1] - table[i]) * (x - i);
+}
+
+/// How far the world travels in one half-stride, in pixels at his row.
+double halfStridePx() =>
+    groundSpeedTrim * groundHalfStrideArtUnits * walkerScale;
+
+/// One clock for everything that is GROUND, handing out how far the world has
+/// travelled, in pixels at his row.
+///
+/// **Every ground layer has to read ONE position rather than run its own clock.**
+/// A per-layer clock is fine for a constant speed and impossible for a varying
+/// one: the moment the world follows the foot they all have to be warped by the
+/// same curve at the same instant, and a `% segmentWidth` taken from a clock that
+/// repeats on its own period jumps every time it does.
+///
+/// So this integrates elapsed time into a distance that only ever grows. A layer
+/// takes `worldX x itsRowRatio`, mods it by its own segment width, and stays
+/// continuous forever because the distance never resets.
+class _GroundDrive extends StatefulWidget {
+  const _GroundDrive({
+    required this.mood,
+    required this.frozen,
+    required this.builder,
+  });
+
+  final Mood mood;
+  final bool frozen;
+  final Widget Function(double worldX) builder;
+
+  @override
+  State<_GroundDrive> createState() => _GroundDriveState();
+}
+
+class _GroundDriveState extends State<_GroundDrive>
+    with SingleTickerProviderStateMixin {
+  final ValueNotifier<double> _worldX = ValueNotifier<double>(0);
+  late final Ticker _ticker = createTicker(_onTick);
+
+  /// Carried across a freeze, so stopping to bow does not teleport the pitch.
+  double _carried = 0;
+
+  void _onTick(Duration elapsed) {
+    final halfStrideSeconds = walkDurationFor(widget.mood).inMicroseconds / 2e6;
+    final strides = elapsed.inMicroseconds / 1e6 / halfStrideSeconds;
+    final whole = strides.floor();
+    _worldX.value =
+        _carried + (whole + groundEase(strides - whole)) * halfStridePx();
+  }
+
+  void _sync() {
+    final run = !widget.frozen && !MediaQuery.of(context).disableAnimations;
+    if (run == _ticker.isActive) return;
+    if (run) {
+      _carried = _worldX.value;
+      _ticker.start();
+    } else {
+      _ticker.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_GroundDrive old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _worldX.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<double>(
+    valueListenable: _worldX,
+    builder: (context, x, _) => widget.builder(x),
+  );
+}
+
+/// A last nudge on the ground's speed, if it is ever wanted.
+///
+/// **It is 1, and it should stay 1 unless something changes.** It was 1.12 for a
+/// while and it was covering for the wrong thing: with a constant-speed ground the
+/// foot outran the grass by 45% at mid-stance, and the eye reads that as "the
+/// ground is too slow" even when the AVERAGE is right — so the average kept being
+/// pushed up, which made the rest of the cycle too fast instead.
+///
+/// [groundEase] fixes it at source: the world now travels at the supporting foot's
+/// own instantaneous rate, so there is nothing left to trim. Kept as a named knob
+/// because it is the one honest place to put a correction if one is ever needed,
+/// rather than having somebody reach into the stride for it.
+const double groundSpeedTrim = 1;
 
 /// How long one lane pair takes to sweep past, so that the grass AT HIS FEET
 /// moves at [groundSpeedPxPerSec].
@@ -1259,34 +1404,52 @@ class _Turf extends StatelessWidget {
               ),
             ),
           ),
-          _MowFan(
-            key: const ValueKey('pitch-mown'),
-            frozen: frozen,
-            duration: mowDuration(
-              turfHeight: constraints.maxHeight,
-              contactBelowHorizon: contactBelowHorizon,
+          // **THE STRIPES AND THE TUFTS OFF ONE POSITION.** They used to own a
+          // clock each, which is the only arrangement a constant speed allows and
+          // the wrong one the moment the world follows his foot — see
+          // [groundEase]. Now the drive owns the distance and each layer scales it
+          // by its own row's depth, so nothing on the surface can drift from
+          // anything else on it, at any instant rather than on average.
+          Positioned.fill(
+            child: _GroundDrive(
               mood: mood,
+              frozen: frozen,
+              builder: (worldX) {
+                final contact = _contactDepth(
+                  constraints.maxHeight,
+                  contactBelowHorizon,
+                );
+                double atRow(double fraction) =>
+                    worldX *
+                    _rowDepth(fraction, constraints.maxHeight) /
+                    contact;
+
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _MowFan(
+                      key: const ValueKey('pitch-mown'),
+                      worldX: worldX,
+                      turfHeight: constraints.maxHeight,
+                      contactBelowHorizon: contactBelowHorizon,
+                    ),
+                    // Each band a FULL-HEIGHT strip whose tufts sit at their own
+                    // depth inside it, offset by what the world has done at that
+                    // depth.
+                    for (var band = 0; band < _tuftBands; band++)
+                      Positioned.fill(
+                        child: _Scroller(
+                          offsetPx: atRow(tuftBandFraction(band)),
+                          duration: const Duration(seconds: 1),
+                          segmentWidth: groundSegmentWidth,
+                          child: _TuftSegment(band: band),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
-          // Each band is a FULL-HEIGHT strip whose tufts sit at their own depth
-          // inside it, and travels at the mowing fan's speed there. Band 0 is his
-          // own grass and runs at exactly his stride.
-          for (var band = 0; band < _tuftBands; band++)
-            Positioned.fill(
-              child: _Scroller(
-                frozen: frozen,
-                // Each band at the speed the fan sweeps its OWN row.
-                duration: turfScroll(
-                  segmentWidth: groundSegmentWidth,
-                  fraction: tuftBandFraction(band),
-                  turfHeight: constraints.maxHeight,
-                  contactBelowHorizon: contactBelowHorizon,
-                  mood: mood,
-                ),
-                segmentWidth: groundSegmentWidth,
-                child: _TuftSegment(band: band),
-              ),
-            ),
           // Snow LYING on the grass, over the stripes and the tufts but UNDER
           // the distance shade — settled snow is the surface, so it takes the
           // same aerial perspective the turf does.
@@ -1330,68 +1493,35 @@ class _Turf extends StatelessWidget {
 /// translating strip gives every depth the same speed, which is a conveyor belt
 /// rather than a pitch — and pinning that one speed anywhere but under his boots
 /// is what has him skating.
-class _MowFan extends StatefulWidget {
-  const _MowFan({super.key, required this.duration, this.frozen = false});
+/// The mown fan, swept to a WORLD POSITION rather than on a clock of its own.
+///
+/// A radian carries his row `stretch x depth` pixels, so the angle is simply the
+/// distance travelled divided by that — and the stripes under his boots move
+/// exactly as far as the world has, at every instant rather than on average.
+class _MowFan extends StatelessWidget {
+  const _MowFan({
+    super.key,
+    required this.worldX,
+    required this.turfHeight,
+    required this.contactBelowHorizon,
+  });
 
-  final Duration duration;
-  final bool frozen;
-
-  @override
-  State<_MowFan> createState() => _MowFanState();
-}
-
-class _MowFanState extends State<_MowFan> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: widget.duration,
-  );
-
-  /// Same bargain the scrolling strips make — see `_ScrollerState._sync`.
-  void _sync() {
-    if (widget.frozen || MediaQuery.of(context).disableAnimations) {
-      // STOPPED where it is, not reset: he plants his feet mid-stride, and the
-      // grass under them has to be the grass that was already there.
-      if (_c.isAnimating) _c.stop();
-      return;
-    }
-    if (!_c.isAnimating) _c.repeat();
-  }
+  final double worldX;
+  final double turfHeight;
+  final double contactBelowHorizon;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(_MowFan old) {
-    super.didUpdateWidget(old);
-    if (old.duration != widget.duration) {
-      final running = _c.isAnimating;
-      _c.stop();
-      _c.duration = widget.duration;
-      if (running) _c.repeat();
-    }
-    _sync();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _c,
-    builder: (context, _) => CustomPaint(
-      // Named rather than inherited: a loose height constraint anywhere above
-      // this is what once collapsed the surface to nothing and painted the
-      // pitch as sky.
+  Widget build(BuildContext context) {
+    final perRadian =
+        _mowStretch * _contactDepth(turfHeight, contactBelowHorizon);
+    final angle = perRadian <= 0 ? 0.0 : worldX / perRadian;
+    // Named rather than inherited: a loose height constraint anywhere above this
+    // is what once collapsed the surface to nothing and painted the pitch as sky.
+    return CustomPaint(
       size: Size.infinite,
-      painter: _MowPainter(phase: _c.value),
-    ),
-  );
+      painter: _MowPainter(phase: (angle / _mowPeriod) % 1),
+    );
+  }
 }
 
 class _MowPainter extends CustomPainter {
@@ -1526,15 +1656,20 @@ class _Scroller extends StatefulWidget {
     required this.duration,
     required this.segmentWidth,
     required this.child,
-    this.frozen = false,
+    this.offsetPx,
   });
 
   final Duration duration;
   final double segmentWidth;
   final Widget child;
 
-  /// He has stopped walking, so the strip stops with him.
-  final bool frozen;
+  /// How far the world has travelled, in pixels at THIS strip's row.
+  ///
+  /// Given it, the strip has no clock of its own — it is a window onto a position
+  /// somebody else owns, which is the only way layers can share one VARYING rate.
+  /// The parallax strips behind the pitch keep [duration]: they are not ground and
+  /// have no foot to agree with.
+  final double? offsetPx;
 
   @override
   State<_Scroller> createState() => _ScrollerState();
@@ -1555,7 +1690,10 @@ class _ScrollerState extends State<_Scroller>
   /// movement that setting exists to stop — and it is also what lets a widget
   /// test settle, because a looping animation never does.
   void _sync() {
-    final still = widget.frozen || MediaQuery.of(context).disableAnimations;
+    // A DRIVEN strip has no clock to run, and freezes because the position it
+    // reads stops moving — which is the whole advantage of one position.
+    final still =
+        widget.offsetPx != null || MediaQuery.of(context).disableAnimations;
     if (still) {
       if (_c.isAnimating) _c.stop();
       return;
@@ -1596,11 +1734,17 @@ class _ScrollerState extends State<_Scroller>
         builder: (context, constraints) {
           // One spare segment so the leading edge is always covered.
           final count = (constraints.maxWidth / widget.segmentWidth).ceil() + 2;
+          final driven = widget.offsetPx;
           return AnimatedBuilder(
             animation: _c,
             builder: (context, _) => Transform.translate(
               // Right to left: the world moves past him, he walks in place.
-              offset: Offset(-_c.value * widget.segmentWidth, 0),
+              offset: Offset(
+                driven != null
+                    ? -(driven % widget.segmentWidth)
+                    : -_c.value * widget.segmentWidth,
+                0,
+              ),
               child: OverflowBox(
                 alignment: Alignment.centerLeft,
                 maxWidth: count * widget.segmentWidth,

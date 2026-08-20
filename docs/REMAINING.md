@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,918 tests, `flutter analyze` clean.**
+**3,920 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 3
 items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
@@ -2109,7 +2109,31 @@ running at last.
       the far pass and the glow only, plus a heavier 2px rim and a dark outer ring
       that the JS does not have. All four are in now; nobody has looked at it on a
       device yet.
-- [x] **The ground runs 12% faster, and the knob is now NAMED.** Reported as still
+- [x] **THE GROUND MOVES AT THE FOOT'S OWN RATE NOW, and no constant speed ever
+      could.** Reported as the feet going backwards slightly faster than the grass.
+      Measured: the JS's tracks are linear in ANGLE, so the supporting ankle's
+      horizontal rate swings from -17 to +173 art units per cycle across a single
+      stance while a constant ground sat at 119 — 45% slow at mid-stance, briefly
+      going the wrong way at heel strike. The slip is in the POSES, not the speed,
+      and raising the average only makes the rest of the cycle too fast.
+      `groundEase` is the integral of the supporting boot's own velocity, and
+      `_GroundDrive` hands that one distance to every layer on the turf. A strip
+      driven by it is stationary under the planted foot at every instant, which is
+      what "planted" means and the one property a solved rig gets for free.
+      **Three things it took, and two of them were errors of mine.** The layers had
+      to stop owning a clock each — a `% segmentWidth` off a clock with its own
+      period jumps every time that clock repeats, so a shared VARYING rate is
+      impossible until they all read one position. The scale had to be the SUPPORT
+      foot's distance (51.83) rather than the near ankle's nominal stance (53.05);
+      the foot carrying him changes hands part way through, and scaling by one while
+      warping by the other smears 2.3% across every step. And `groundSpeedTrim` went
+      back to 1: at 1.12 it was covering for the varying rate, which is now matched
+      outright.
+      Worst residual slip is under 25 units/cycle against 78 before, and all of it
+      is the deliberate clamp — the support foot really does creep forward either
+      side of each hand-over, and a world that never reverses is better than one
+      that judders.
+- [x] **(superseded) The ground ran 12% faster on a named trim.** Reported as still
       slightly moonwalky. Measured rather than nudged: the near sole only genuinely
       touches the grass for about 15% of the cycle and floats a couple of units for
       the rest, so "the speed of the planted foot" is a RANGE — 99 to 106 art units

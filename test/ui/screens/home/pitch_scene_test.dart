@@ -297,6 +297,62 @@ void main() {
       );
     });
 
+    test('THE GROUND MOVES AT THE FOOT\'S OWN RATE, not at an average of it', () {
+      // **No constant speed can do this.** The JS's tracks are linear in angle, so
+      // the supporting ankle's rate swings from -17 to +173 art units per cycle
+      // across one stance. A ground running at the mean sat at 119: 45% slow at
+      // mid-stance, and briefly going the wrong way at heel strike. That is the
+      // slip, and it is in the poses rather than in the speed.
+      double sole(double t, bool near) =>
+          walkerBootSoleY(t, near: near) - walkerHipRise(t);
+
+      // 256 steps, the same grid the table is built on. It matters: at the
+      // support HAND-OVER the two ankles are half a stride apart in x, so a step
+      // that classifies the supporting foot differently from the table compares
+      // one boot against the other and reports a ~50-unit slip that is not there.
+      const n = 256;
+      var worst = 0.0;
+      var worstAt = 0.0;
+      for (var i = 0; i < n; i++) {
+        final t = i / n * 0.5, t2 = (i + 1) / n * 0.5;
+        // Whichever boot is lower is the one carrying him.
+        final near = sole(t, true) >= sole(t, false);
+        // Skip the hand-over itself: which foot is measured changes there, and
+        // that is a discontinuity in the measurement rather than in the world.
+        if (near != (sole(t2, true) >= sole(t2, false))) continue;
+        final foot =
+            walkerAnkle(t, near: near).x - walkerAnkle(t2, near: near).x;
+        final ground =
+            (groundEase(t2 / 0.5) - groundEase(t / 0.5)) *
+            groundHalfStrideArtUnits;
+        final slip = (foot - ground).abs() * n * 2; // units per cycle
+        if (slip > worst) {
+          worst = slip;
+          worstAt = t;
+        }
+      }
+      // What is left is the clamp: the support foot really does creep forward
+      // either side of each hand-over, and the world is not allowed to reverse.
+      expect(
+        worst,
+        lessThan(25),
+        reason:
+            'slip of ${worst.toStringAsFixed(1)} at t=$worstAt — a constant '
+            'ground was 78 out at its worst',
+      );
+    });
+
+    test('and the ease is a distance, so it never goes backwards', () {
+      var last = -1.0;
+      for (var i = 0; i <= 100; i++) {
+        final v = groundEase(i / 100);
+        expect(v, greaterThanOrEqualTo(last), reason: 'the world reversed');
+        last = v;
+      }
+      expect(groundEase(0), 0);
+      expect(groundEase(1), closeTo(1, 1e-9));
+    });
+
     test('the trim is the ONE knob, and everything follows it', () {
       // It exists because the JS's poses have no single planted-foot rate to
       // derive from — see `groundSpeedTrim`. What matters is that it is not a
@@ -304,17 +360,17 @@ void main() {
       // which is what stops someone speeding up the stripes and leaving the
       // tufts behind.
       expect(
-        groundSpeedPxPerSec(Mood.neutral),
-        closeTo(
-          groundSpeedTrim *
-              walkerStrideArtUnits *
-              walkerScale /
-              (walkDurationFor(Mood.neutral).inMicroseconds / 2e6),
-          1e-6,
-        ),
+        halfStridePx(),
+        closeTo(groundSpeedTrim * groundHalfStrideArtUnits * walkerScale, 1e-9),
       );
-      // And it is a speed-UP, not a brake: he read as dragging his feet at 1.0.
-      expect(groundSpeedTrim, greaterThan(1));
+      // The SUPPORTING foot's own distance, not the near ankle's nominal stance:
+      // the foot carrying him changes hands part way through, and the two differ
+      // by 2.3% — a systematic error smeared over every step if the warp and the
+      // scale disagree about which one they mean.
+      expect(groundHalfStrideArtUnits, lessThan(walkerStrideArtUnits));
+      // And it is 1: it was 1.12 while the ground ran at a constant speed, which
+      // was covering for the varying rate that [groundEase] now matches outright.
+      expect(groundSpeedTrim, 1);
     });
 
     test(
