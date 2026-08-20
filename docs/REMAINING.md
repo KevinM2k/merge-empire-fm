@@ -30,16 +30,17 @@ too late:
 
 ## Where we are
 
-**3,819 tests, `flutter analyze` clean.**
+**3,854 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 23 Aug", and it is 17 items** — on top of
-22 August's 4, 21 August's 9 and 20 August's 28. The two biggest are a whole
-missing layer each: nothing on screen draws the WEATHER, and Coach Colin does not
-exist outside the Play tab. That is
-what a session of actually playing the thing turned up, which is a different list
-from what reading the source turns up and is the one to clear first. It carries
-its own status block: the count, the clusters, what is blocked on a decision and
-what is blocked on artwork.
+**The live queue is "From playtesting — 24 Aug", and what is left of it is 2
+items** — on top of 23 August's remaining 14, 22 August's 4, 21 August's 9 and 20
+August's 28. **The weather is drawn**, which was the biggest of the two missing
+layers; the other still stands, and is now the biggest thing left: Coach Colin
+does not exist outside the Play tab. That is what a session of actually playing
+the thing turned up, which is a different list from what reading the source turns
+up and is the one to clear first. Each section carries its own status block: the
+count, the clusters, what is blocked on a decision and what is blocked on
+artwork.
 
 `docs/PARITY.md` is the OTHER queue — a control-by-control and layout-by-layout
 diff of the JS against the port, taken from the source. It is the longer list and
@@ -1599,31 +1600,10 @@ each.
 
 Ordered by how visible each one is to somebody playing.
 
-**Nothing draws the weather.** This is the biggest gap the session opened and it
-is a whole layer, not a fix.
+**Coach Colin does not exist outside the Play tab.** With the weather layer in
+(see 24 Aug), this is the biggest gap left, and it is a whole layer rather than a
+fix.
 
-- [ ] **`resolveCondition` has no callers anywhere in `lib/ui`.** The service
-      fetches the reading, the engine turns it into `rain | snow | fog | wind |
-      storm | sunny | cloudy | clear` — and every one of them looks identical on
-      screen, because the port has no weather layer at all. The JS's is about 350
-      lines of CSS and node-building in `league-scene.css` and `PitchScene.js`:
-      `.ps-rain` (30 drops, each riding a full-height column that translates, so
-      nothing relayouts), `.ps-snow` (44 flakes plus 6 big soft near ones, the
-      column owning the fall and the flake the sway) with `.ps-snow-ground` and
-      boot prints masked to only appear behind him, `.ps-fog` (a veil plus three
-      very wide bands), `.ps-gusts` (7 streaks tearing across), `.ps-sun` (disc,
-      240px bloom, a slowly rotating conic of rays), `.ps-overcast` (a desaturating
-      grey, its own pale variant for snow), `.ps-clouds` (4–5 drifting, retimed by
-      condition), and lightning — a flash plus one of three forked bolt paths,
-      driven in JS rather than CSS so the thunder can be timed BEHIND the flash,
-      4–13s apart, near strikes brighter and louder.
-      There is a `thunder` recipe in `data/sound_defs.dart` already waiting.
-      **Also unported: the spell scheduler.** Live weather holds steady; the
-      seasonal model runs a spell, then a clear gap, then rolls again
-      (`spellDurationMs` / `gapDurationMs`), and `clear` has no spell because it IS
-      the gap. And `windAccelFor` pushes the stray ball, `comfortFor` decides
-      whether the manager is sweating in his overcoat — both ported, both with
-      nothing reading them.
 - [ ] **The reading is only as local as a timezone.** `Europe/London` is one
       coordinate for the whole UK, so a player in the rain in Manchester gets
       London's sky. IP geolocation would normally fix that to city level with no
@@ -1632,8 +1612,6 @@ is a whole layer, not a fix.
       satellite users. Accepted as country-level for now; a town picker in
       Settings, using Open-Meteo's own free geocoding search, is the only thing
       that would be exact without a permission.
-
-**Coach Colin does not exist outside the Play tab.**
 
 - [ ] **`CoachFloating.js` (456 lines) and `CoachTips.js` (448) are unported.** The
       floating head is mounted once at App level in the JS and is visible across
@@ -1696,6 +1674,110 @@ is a whole layer, not a fix.
       deadline and training sheets, the leaderboard header, the boot-room and
       penalty screens. Coach Colin's card and the achievement banner stay
       exceptions on purpose.
+
+## From playtesting — 24 Aug
+
+The weather, drawn. Everything else on this list was in the way of that.
+
+### The sky
+
+- [x] **`resolveCondition` HAD NO CALLERS, and now it has one.** The service
+      fetched the reading and the engine turned it into `rain | snow | fog | wind
+      | storm | sunny | cloudy | clear` — and all eight looked identical, because
+      nothing on screen drew any of them. `lib/ui/screens/home/pitch_weather.dart`
+      is the layer: clouds, sun, overcast, rain, snow with its settled cover and
+      his boot prints, fog, gusts, and lightning with the thunder behind it.
+- [x] **`services/weather_cycle.dart` is the missing scheduler.** Live weather
+      HOLDS — it is the player's real sky and not ours to retime, so all the cycle
+      does is look again every five minutes. Seasonal weather runs spells: a roll,
+      a spell, a clear gap, another roll, with `clear` falling straight through
+      because it IS the gap rather than being scheduled twice. Nothing in it draws
+      and nothing in it fetches, so the whole schedule is tested with a fake clock
+      and no widget — nine cases, including the two that catch a `clear` scheduled
+      as a spell and a second `start()` running a second set of timers.
+- [x] **ONE PAINTER PER CONDITION, not one node per particle.** The JS builds 30
+      drops, 50 flakes and 7 gusts as DOM elements and spends most of its comments
+      on the consequences — each has to ride a translating column so the browser
+      composites instead of relayouting, `will-change` has to be scoped per
+      condition or the GPU pins a layer per drop forever, and `filter: blur()` is
+      off the table because it would repaint. **None of that is about weather; it
+      is about the DOM.** A `CustomPaint` has no layout to invalidate and no layers
+      to pin, so a shower is one painter reading one clock — and the near flakes
+      get the soft edge the CSS had to fake.
+      **The clock counts SECONDS, not a 0→1 phase**, because the particles in one
+      field do not share a period: a drop falls in 0.55s and its neighbour in 1.0s.
+      A wrapping controller would have to jerk every particle back to the top at
+      once to stay in step with itself.
+- [x] **Every layer is in fractions of the scene.** The JS mixes `%`, `px` and
+      `vw` and only gets away with `vw` because its diorama happens to be
+      full-bleed. A 400pt scene and a 1200pt one have to show the same weather.
+- [x] **Nothing ticks unless it is on screen and moving**, which is politeness and
+      also the lesson from the penalty screen: a `Ticker` that never stops keeps a
+      frame scheduled forever, and `pumpAndSettle` then times out in every test
+      that so much as opens the screen.
+- [x] **Reduced motion still shows you the weather** — the layers hold still, the
+      lightning is off entirely, but an overcast sky is still grey and fog is
+      still fog. That is what the stylesheet's own `prefers-reduced-motion` block
+      says it wants, and the JS contradicts its own stylesheet here: it gates the
+      whole cycle on `_sceneInteractive()`, so under reduced motion it never
+      leaves `clear` and not one of those rules can ever apply. The CSS is the
+      deliberate half of the disagreement, so it is the half ported.
+- [x] **The shower is a curtain BEHIND him, and only the flash goes over.** Not an
+      oversight — it is the CSS's z-order (`.ps-overcast` 2, rain/snow/fog/gusts
+      3, `.ps-walker` 4, lightning last) and it is right: he is the subject of the
+      shot, and a flash that lights the whole ground lights the man standing in
+      it. Asserted on the scene's own child order rather than described.
+- [x] **The prints ride the ground's period, and the mask is what makes them
+      HIS.** They are not spawned per stride: they travel at exactly the speed of
+      the grass at his boots, which makes it structurally impossible for a print
+      to slide against the pitch — the one mistake here the eye catches instantly.
+      Everything from his boot forward is masked out, so a print can only appear
+      directly under his foot, and the oldest fade out to the left where the scene
+      is dissolving anyway.
+- [x] **And a test that renders the layer and counts the ink.** A structural test
+      cannot see a silent painter: a gradient with a bad transform, a shader
+      anchored to the wrong point, a field placed off the top of the box — every
+      one leaves the layer present, at full opacity, drawing nothing. It caught
+      two things. The alpha has to be SUMMED rather than counted, because a veil
+      touches every pixel with a little and a count saturates; and every layer is
+      keyed, so a second capture in one test photographs the sky it was comparing
+      against unless the fade is pumped through first.
+
+### Where the cycle is started, and why it is not started by the screen
+
+- [x] **`GameHost` starts it, not the first widget to watch it.** The JS runs its
+      cycle off `LeagueScreen`'s mount, and the obvious port is a provider that
+      arms itself when a screen reads it. It does not survive contact with the
+      suite: `flutter_test` asserts on pending timers while the tree is STILL
+      MOUNTED, so a spell timer armed on first watch failed every widget test that
+      built the home tab — fifty of them, every one about something else. The host
+      is the port's answer to "the app is actually running", and it is the only
+      thing that should own that.
+      Two smaller versions of the same lesson: `ref` is unusable once a widget is
+      disposed, so the notifier is held rather than read in `dispose` — and the
+      first turn emits immediately, which Riverpod refuses inside a widget
+      lifecycle, so the start rides the post-frame callback that was already there
+      for the boot notify.
+- [x] **The periodic refetch went with it.** The JS asks for a fresh reading from
+      inside the cycle; here `refreshWeatherForGame` is called from the host at
+      boot, on resume and every five minutes, because a network call wired to
+      something a screen watches is an HTTP request and a scheduled save in every
+      widget test that builds that screen. One function rather than one per
+      caller: the timezone, the region and the save hook are three chances for
+      three call sites to disagree about what a reading is for.
+
+### Still open from this session
+
+- [ ] **`windAccelFor` still has nothing reading it**, and cannot until the stray
+      ball exists — see the diorama's football, below. The wind is on screen; what
+      it would push is not there yet.
+- [ ] **`comfortFor` still has nothing reading it either, and it needs two things
+      first.** `garmentWarmth` is not ported at all — grep `lib/` and it does not
+      exist — so there is no way to ask what the player dressed him in. And the
+      rig has no poses for the answer: the JS writes `data-temp` on the scene and
+      `league-scene.css` has him shivering or sweating off it. The engine half is
+      done and tested; the manager suffering in his overcoat is a rig job.
+
 
 ## M0 — foundation and save bridge ✅
 
