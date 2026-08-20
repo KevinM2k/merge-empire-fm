@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,917 tests, `flutter analyze` clean.**
+**3,918 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 3
 items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
@@ -2109,6 +2109,22 @@ running at last.
       the far pass and the glow only, plus a heavier 2px rim and a dark outer ring
       that the JS does not have. All four are in now; nobody has looked at it on a
       device yet.
+- [x] **The ground runs 12% faster, and the knob is now NAMED.** Reported as still
+      slightly moonwalky. Measured rather than nudged: the near sole only genuinely
+      touches the grass for about 15% of the cycle and floats a couple of units for
+      the rest, so "the speed of the planted foot" is a RANGE — 99 to 106 art units
+      per cycle, from the travel across the tightest contact window up to the net
+      displacement across the nominal stance. The stride the ground was solved from
+      already sat at the top of that range and still read slow, so `groundSpeedTrim`
+      lifts it above the range's own ceiling.
+      A contact-weighted average was tried as the principled alternative and
+      abandoned: widen the weighting and the SWING foot begins cancelling the
+      planted one, so the answer walks from 84 down to 17 depending on a tolerance
+      nobody can justify. There is no number to derive here — that is the flaw the
+      JS's poses were knowingly taken with — so it is a trim, it is documented with
+      the range that bounds it, and it sits in `groundSpeedPxPerSec` where every
+      layer on the turf reads it through `turfScroll`. **If he ever reads as
+      dragging his feet again, that constant is the one thing to move.**
 - [ ] **Nobody has seen the play button, the crowd surge or the ear on a device.**
       All three are in and all three are unverified by anything but arithmetic and
       a widget test: the button's bevel and three-tier shadow, the stand's surge on

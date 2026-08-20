@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
@@ -294,6 +295,26 @@ void main() {
         closeTo(1, 0.001),
         reason: 'the advertising crawls against the grass at its feet',
       );
+    });
+
+    test('the trim is the ONE knob, and everything follows it', () {
+      // It exists because the JS's poses have no single planted-foot rate to
+      // derive from — see `groundSpeedTrim`. What matters is that it is not a
+      // fudge on one layer: move it and every strip on the turf moves with it,
+      // which is what stops someone speeding up the stripes and leaving the
+      // tufts behind.
+      expect(
+        groundSpeedPxPerSec(Mood.neutral),
+        closeTo(
+          groundSpeedTrim *
+              walkerStrideArtUnits *
+              walkerScale /
+              (walkDurationFor(Mood.neutral).inMicroseconds / 2e6),
+          1e-6,
+        ),
+      );
+      // And it is a speed-UP, not a brake: he read as dragging his feet at 1.0.
+      expect(groundSpeedTrim, greaterThan(1));
     });
 
     test(

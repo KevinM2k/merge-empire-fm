@@ -203,9 +203,34 @@ final double _mowPeriod = 7 * math.pi / 180;
 /// it goes out of true whenever the pitch's height changes with the viewport;
 /// here it falls out of the rig, so it cannot.
 double groundSpeedPxPerSec(Mood mood) =>
+    groundSpeedTrim *
     walkerStrideArtUnits *
     walkerScale /
     (walkDurationFor(mood).inMicroseconds / 2e6);
+
+/// An eye-calibrated nudge on that speed.
+///
+/// **A KNOB, on purpose, and it is the one number on the surface that is not
+/// derived.** With the JS's keyframes there is no single true planted-foot rate to
+/// derive it from, which is the flaw those poses were knowingly taken with: the
+/// sole only genuinely touches the grass for about 15% of the cycle, floating a
+/// couple of units for the rest, so "the speed of the foot on the ground" is a
+/// range rather than a number.
+///
+/// Measured, that range is 99 to 106 art units per cycle — the travel across the
+/// true contact window at its tightest, up to the net displacement across the
+/// nominal stance. The stride the ground is solved from sits at the top of it, and
+/// it still read a shade slow to the eye, so this lifts it above the range's own
+/// ceiling. A contact-weighted average was tried as a principled alternative and
+/// abandoned: widen the weighting and the SWING foot starts cancelling the planted
+/// one, so the answer walks from 84 down to 17 depending on a tolerance nobody can
+/// justify.
+///
+/// So it is a trim, it is named, and it is here rather than hidden inside the
+/// stride: if he reads as dragging his feet, this is the number to move, and
+/// everything on the turf follows it because they all read the speed through
+/// [turfScroll].
+const double groundSpeedTrim = 1.12;
 
 /// How long one lane pair takes to sweep past, so that the grass AT HIS FEET
 /// moves at [groundSpeedPxPerSec].
