@@ -46,6 +46,13 @@ typedef GesturePose = ({
 
   /// The legs counter-rotating a body fold, so they stay under him.
   double? legs,
+
+  /// The index finger's opacity, 0 to 1.
+  ///
+  /// **Kept out of sight the rest of the time on purpose.** At this size a
+  /// permanent finger makes the hand read as a lumpy mitten; it only exists for
+  /// the three gestures that are pointing at something.
+  double finger,
 });
 
 const GesturePose _rest = (
@@ -57,6 +64,7 @@ const GesturePose _rest = (
   body: null,
   bodyLift: null,
   legs: null,
+  finger: 0,
 );
 
 /// One gesture's tracks, and how its time is read.
@@ -70,6 +78,7 @@ class GestureAnimation {
     this.body,
     this.bodyLift,
     this.legs,
+    this.finger,
     this.curve = Curves.easeInOut,
     this.cycleMs,
   });
@@ -82,6 +91,9 @@ class GestureAnimation {
   final GestureTrack? body;
   final GestureTrack? bodyLift;
   final GestureTrack? legs;
+
+  /// `psvFingerShow`: out almost at once, away again at the end.
+  final GestureTrack? finger;
 
   /// Eased per SEGMENT, the way CSS eases a keyframe track — not once across the
   /// whole run.
@@ -110,6 +122,21 @@ GestureTrack _hold(double rest, double held, double from, double to) => [
   (1, rest),
 ];
 
+/// The JS's `psvFingerShow`, which every pointing gesture shares.
+const GestureTrack _fingerOut = [(0, 0), (0.12, 1), (0.88, 1), (1, 0)];
+
+/// **CHIN UP while he is doing something outward, then back down.**
+///
+/// Not in the JS, which only tilts the head for the three gestures that are ABOUT
+/// the head. But the mood now sets a resting tilt — a beaten manager walks looking
+/// at the ground — and a man who points at the far post while still staring at his
+/// own boots is worse than one who never looked down at all.
+///
+/// It returns to zero at both ends, and the mood baseline is added underneath, so
+/// this LIFTS him from wherever he was carrying his head and hands him back to it.
+/// Nine degrees is enough: any more and a cheerful manager is looking at the sky.
+const GestureTrack _chinUp = [(0, 0), (0.2, -9), (0.8, -9), (1, 0)];
+
 final Map<String, GestureAnimation> _animations = {
   // ── FIST PUMP. Three pumps, and the only gesture whose track does not return
   // to rest in the middle: it is a repeated motion, not a pose held.
@@ -132,6 +159,7 @@ final Map<String, GestureAnimation> _animations = {
       (0.82, -114),
       (1, foreRest),
     ],
+    head: _chinUp,
   ),
   // ── APPLAUD. Both hands, because one hand clapping is a wave.
   'applaud': const GestureAnimation(
@@ -179,10 +207,15 @@ final Map<String, GestureAnimation> _animations = {
       (0.88, -108),
       (1, foreRest),
     ],
+    head: _chinUp,
   ),
+  // **POINTING NEEDS THE FINGER**, or it is a fist held out at the pitch. The JS
+  // shares one `psvFingerShow` across all three of its pointing gestures.
   'point': GestureAnimation(
     armNear: _hold(armNearRest, -52, 0.20, 0.80),
     foreNear: _hold(foreRest, -56, 0.20, 0.80),
+    finger: _fingerOut,
+    head: _chinUp,
   ),
   // ── CHECK WATCH. He looks at the wrist he is reading, which is the whole
   // difference between checking the time and holding an arm up.
@@ -204,11 +237,24 @@ final Map<String, GestureAnimation> _animations = {
     foreNear: _hold(foreRest, -113, 0.20, 0.80),
     foreFar: _hold(foreRest, -113, 0.20, 0.80),
   ),
+  // ── HANDS ON HIPS. **SOLVED, not transcribed — the only pose here that is.**
+  //
+  // The JS's numbers are 44 and -106, and on the JS's arm they land a hand on a
+  // hip. On this one they do not: the redraw relengthened the arm (shoulder to
+  // elbow 19, elbow to hand 19.6) and the same angles put the elbow at x 42.8 —
+  // five units OUTSIDE his back, the torso stopping at 47.9 — with the hand at
+  // (60, 85), which is the middle of his belly. An elbow sticking out behind a man
+  // patting his stomach is not the gesture.
+  //
+  // So the target is the hip and the angles come out of it: two-bone IK onto (65,
+  // 89) near and (63, 90) far, which is the top corner of the shorts on each side.
+  // A pose is a place a hand goes, not a pair of numbers — and when the limb it
+  // hangs off changes length, the numbers have to.
   'handsonhips': GestureAnimation(
-    armNear: _hold(armNearRest, 44, 0.14, 0.86),
-    foreNear: _hold(foreRest, -106, 0.14, 0.86),
-    armFar: _hold(armFarRest, 38, 0.14, 0.86),
-    foreFar: _hold(foreRest, -101, 0.14, 0.86),
+    armNear: _hold(armNearRest, 24.9, 0.14, 0.86),
+    foreNear: _hold(foreRest, -85, 0.14, 0.86),
+    armFar: _hold(armFarRest, 28.4, 0.14, 0.86),
+    foreFar: _hold(foreRest, -83.2, 0.14, 0.86),
   ),
   // ── WAVE. The arm goes UP and stays; the wave is in the forearm.
   'wave': const GestureAnimation(
@@ -222,6 +268,7 @@ final Map<String, GestureAnimation> _animations = {
       (0.84, -22),
       (1, foreRest),
     ],
+    head: _chinUp,
   ),
   'blowkiss': const GestureAnimation(
     armNear: [
@@ -260,11 +307,14 @@ final Map<String, GestureAnimation> _animations = {
   'shush': GestureAnimation(
     armNear: _hold(armNearRest, -38, 0.14, 0.86),
     foreNear: _hold(foreRest, -127, 0.14, 0.86),
+    finger: _fingerOut,
+    head: _chinUp,
   ),
   // ── SALUTE. Snapped up rather than eased: the curve is the gesture.
   'salute': GestureAnimation(
     armNear: _hold(armNearRest, -117, 0.12, 0.82),
     foreNear: _hold(foreRest, -88, 0.12, 0.82),
+    head: _chinUp,
     curve: const Cubic(0.2, 0.9, 0.3, 1),
   ),
   // ── BOW. The body folds about the HIP and the legs cancel it, so he bends
@@ -373,6 +423,7 @@ final Map<String, GestureAnimation> _animations = {
       (0.82, -79),
       (1, foreRest),
     ],
+    finger: _fingerOut,
   ),
   'facepalm': GestureAnimation(
     armNear: _hold(armNearRest, -82, 0.34, 0.84),
@@ -419,5 +470,7 @@ GesturePose gesturePose(String id, double progress, {int? gestureMs}) {
     body: _at(a.body, phase, a.curve),
     bodyLift: _at(a.bodyLift, phase, a.curve),
     legs: _at(a.legs, phase, a.curve),
+    // Linear, not the gesture's curve: it is an appearance, not a movement.
+    finger: _at(a.finger, phase, Curves.linear) ?? 0,
   );
 }

@@ -301,6 +301,13 @@ double _sample(_Track track, double t) {
 // The JS's own keyframes, verbatim.
 /// The arms, still the JS's own keyframes: they swing free and there is nothing
 /// for them to be solved against.
+/// `psvArmN` / `psvArmF`, and **the pairing with the legs is the point.**
+///
+/// Positive is backwards, the same sense as the thigh. At t=0 the near thigh is
+/// -31 (forward) and the near arm is +27 (back), so the arm you can see opposes
+/// the leg you can see — which is what a person does, and what stops a walk
+/// reading as a shuffle. The far pair mirror them, so the FORWARD arm always
+/// belongs with the forward leg on the other side of him.
 const _Track _armNear = [(0, 27), (0.5, -27), (1, 27)];
 const _Track _armFar = [(0, -27), (0.5, 27), (1, -27)];
 
@@ -396,6 +403,43 @@ final double _sink = _shadowBand * walkerHeight / 3;
 /// group, which is why it is a `FractionalTranslation` around all of them rather
 /// than a number in [_HeadPainter].
 const double _headSetBack = 3;
+
+/// How far the whole head group is lifted, in art units.
+///
+/// **There was nowhere for a neck to be.** The skull is a circle at (62, 48.5)
+/// r12.5, so its underside is y61 and the chin reaches 61.8 — and the shirt's
+/// shoulders start at y57. The head OVERLAPPED the body by four units, which is a
+/// head resting straight on a collar: no throat, no gap, and the jaw reading as
+/// part of the shirt.
+///
+/// Seven units up puts the chin three clear of the shoulder line, which is enough
+/// for the neck to be a neck. **The whole group moves, exactly as [_headSetBack]
+/// does** — hair, beard, glasses, hat and the painted skull together, because all
+/// of that art is drawn against a skull at 48.5 and lifting one layer of it slides
+/// the face out from under its own hat.
+const double _headLift = 7;
+
+/// How he CARRIES his head, by mood — degrees, positive dropping the chin.
+///
+/// **The cheapest bit of acting on the figure and the one that reads furthest.**
+/// A manager's head is up when it is going well and down when it is not, and at
+/// this size the tilt is legible when nothing else about his face is: the mouth is
+/// four pixels across on a phone.
+///
+/// It is a BASELINE, not a pose. A gesture's own head track (`checkwatch` looks
+/// down, `handsonhead` bows) is added on top, so a crushed manager checking his
+/// watch looks further down than a pleased one doing the same thing — which is
+/// what you would expect and what a replacement rather than a sum would lose.
+///
+/// Small numbers on purpose: twelve degrees is a beaten man, and much past that he
+/// is inspecting his own boots.
+double moodHeadTilt(Mood mood) => switch (mood) {
+  Mood.elated => -7,
+  Mood.pleased => -3.5,
+  Mood.neutral => 0,
+  Mood.glum => 6,
+  Mood.crushed => 12,
+};
 
 /// How far he sways, once a stride. A walk is not a figure on rails.
 const double _sway = 1.6;
@@ -516,7 +560,13 @@ class _ManagerWalkerState extends State<ManagerWalker>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // A cue supplied at MOUNT plays as well. It only started from
+    // `didUpdateWidget` before, so the first gesture of a session was silently
+    // dropped — invisible in the app, where the rota always arrives after the
+    // first frame, and it made the pose impossible to render in a test.
+    _startGesture();
     _sync(context);
+    _syncBlink();
   }
 
   @override
@@ -524,6 +574,41 @@ class _ManagerWalkerState extends State<ManagerWalker>
     super.didUpdateWidget(oldWidget);
     _startGesture();
     _sync(context);
+    _syncBlink();
+  }
+
+  /// **THE BLINK.** He never did, and a face that never blinks is a mask.
+  ///
+  /// Its own clock, and a long one: a blink is about a fifth of a second inside
+  /// five, so hanging it off the stride would have him blinking faster when he was
+  /// cheerful. Two per cycle at an uneven spacing, because a metronome blink is its
+  /// own kind of dead.
+  late final AnimationController _blinkClock = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 5000),
+  );
+
+  /// How shut his eye is, 0 to 1.
+  double get _blink {
+    final v = _blinkClock.value;
+    for (final w in const [(0.62, 0.075), (0.79, 0.05)]) {
+      if (v < w.$1 || v > w.$1 + w.$2) continue;
+      // Down and up again across the window — a lid closing, not a shutter.
+      return 1 - (((v - w.$1) / w.$2) * 2 - 1).abs();
+    }
+    return 0;
+  }
+
+  void _syncBlink() {
+    // Stops with everything else: it is a repeating animation like any other.
+    final run = _shouldWalk(context);
+    if (run == _blinkClock.isAnimating) return;
+    if (run) {
+      _blinkClock.repeat();
+    } else {
+      _blinkClock.stop();
+      _blinkClock.value = 0;
+    }
   }
 
   /// One gesture, played once. Its duration is the gesture's own, so this is
@@ -538,11 +623,16 @@ class _ManagerWalkerState extends State<ManagerWalker>
   GestureCue? _cue;
 
   /// Where the gesture is, or null when none is playing.
+  ///
+  /// **A FINISHED gesture is no gesture, and getting that wrong froze his arms.**
+  /// The clock only ever runs forward, so when it stops it stops at 1.0 — and the
+  /// first cut only treated 0.0 as "nothing playing". So from the first gesture
+  /// onward the pose was still being read, at progress 1.0, which is every
+  /// track's REST value: the arms locked at 27 and -52 and never swung again.
+  /// `isAnimating` is the whole question.
   GesturePose? get _pose {
     final g = _playing;
-    if (g == null || !_gestureClock.isAnimating && _gestureClock.value == 0) {
-      return null;
-    }
+    if (g == null || !_gestureClock.isAnimating) return null;
     return gesturePose(g.id, _gestureClock.value, gestureMs: g.ms);
   }
 
@@ -592,6 +682,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
   void dispose() {
     _clock.dispose();
     _gestureClock.dispose();
+    _blinkClock.dispose();
     super.dispose();
   }
 
@@ -611,10 +702,15 @@ class _ManagerWalkerState extends State<ManagerWalker>
       child: AnimatedBuilder(
         // BOTH clocks: the walk runs on one and a gesture on the other, and the
         // figure is whatever the two say together.
-        animation: Listenable.merge([_clock, _gestureClock]),
+        animation: Listenable.merge([_clock, _gestureClock, _blinkClock]),
         builder: (context, _) {
           final t = _clock.value;
           final pose = _pose;
+          // **ONE angle for every head layer.** Hair, skull and hat are three
+          // widgets and one head; give them separate numbers and the face slides
+          // out from under its own hat. The mood is the baseline and the gesture
+          // is added to it, so a crushed manager who points still lifts his chin.
+          final headTilt = (pose?.head ?? 0) + moodHeadTilt(widget.mood);
           // The hips, and the same number the leg solver uses — see
           // [walkerHipRise]. It is not decoration: the bob is what lets the foot
           // reach the ends of the step, so the figure's rise and its stride are
@@ -703,20 +799,23 @@ class _ManagerWalkerState extends State<ManagerWalker>
                       // face out from under its own hat.
                       for (final svg in parts.behindHead)
                         _Tilt(
-                          degrees: pose?.head,
+                          degrees: headTilt,
                           child: _SetBack(child: SvgArt(svg: svg)),
                         ),
                       _Tilt(
-                        degrees: pose?.head,
+                        degrees: headTilt,
                         child: _SetBack(
                           child: CustomPaint(
-                            painter: _HeadPainter(skin: parts.skin),
+                            painter: _HeadPainter(
+                              skin: parts.skin,
+                              blink: _blink,
+                            ),
                           ),
                         ),
                       ),
                       for (final svg in parts.overHead)
                         _Tilt(
-                          degrees: pose?.head,
+                          degrees: headTilt,
                           child: _SetBack(child: SvgArt(svg: svg)),
                         ),
                       // How he is coping, over the head AND over the hat — the
@@ -1033,7 +1132,10 @@ class _SetBack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FractionalTranslation(
-    translation: const Offset(-_headSetBack / walkerWidth, 0),
+    translation: const Offset(
+      -_headSetBack / walkerWidth,
+      -_headLift / walkerHeight,
+    ),
     child: child,
   );
 }
@@ -1173,9 +1275,12 @@ class _ShadowPainter extends CustomPainter {
 /// a pair of shades has to cover the eye, a beard has to cover the jaw, and a
 /// hat has to sit on the hair.
 class _HeadPainter extends CustomPainter {
-  const _HeadPainter({required this.skin});
+  const _HeadPainter({required this.skin, this.blink = 0});
 
   final Color skin;
+
+  /// How shut his eye is, 0 to 1.
+  final double blink;
 
   /// The skull, from the art's own space.
   static const Offset _centre = Offset(62, 48.5);
@@ -1188,23 +1293,43 @@ class _HeadPainter extends CustomPainter {
 
     final shade = Color.lerp(skin, Colors.black, 0.22)!;
 
-    // The ear first, so the skull covers all but its outer edge — an ear drawn
-    // on top of the head is a handle.
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: const Offset(51.8, 50.4),
-        width: 5.4,
-        height: 6.6,
-      ),
-      Paint()..color = shade,
+    // **THE EAR, and two ovals is not one.** It was a flat disc with a smaller
+    // dark disc inside it, which is a button on the side of his head. An ear has a
+    // rim coming over the top and down the back, a hollow inside that rim, and a
+    // lobe under it — and at this size those three shapes are the whole of what
+    // makes it read as an ear at all.
+    //
+    // Drawn first so the skull covers all but its outer edge: an ear drawn on top
+    // of the head is a handle.
+    final ear = Path()
+      ..moveTo(54.2, 53.6)
+      ..quadraticBezierTo(49.4, 52.6, 49.2, 49.0)
+      ..quadraticBezierTo(49.0, 45.4, 52.4, 45.6)
+      ..quadraticBezierTo(53.4, 47.0, 53.2, 50.2)
+      ..quadraticBezierTo(53.0, 53.0, 54.2, 53.6)
+      ..close();
+    canvas.drawPath(ear, Paint()..color = shade);
+    // The hollow — a crescent inside the rim rather than a disc in the middle of
+    // it, which is what stops the ear reading as a ring.
+    canvas.drawPath(
+      Path()
+        ..moveTo(52.6, 51.4)
+        ..quadraticBezierTo(50.6, 50.6, 50.6, 48.8)
+        ..quadraticBezierTo(50.6, 47.0, 52.2, 47.2)
+        ..quadraticBezierTo(51.8, 49.2, 52.6, 51.4)
+        ..close(),
+      Paint()..color = Color.lerp(skin, Colors.black, 0.42)!,
     );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: const Offset(52.4, 50.4),
-        width: 2.6,
-        height: 3.4,
-      ),
-      Paint()..color = Color.lerp(skin, Colors.black, 0.38)!,
+    // A lit edge along the top of the rim, where the sky reaches it.
+    canvas.drawPath(
+      Path()
+        ..moveTo(49.6, 47.4)
+        ..quadraticBezierTo(50.4, 45.2, 52.4, 45.8),
+      Paint()
+        ..color = Color.lerp(skin, Colors.white, 0.22)!
+        ..strokeWidth = 0.9
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
     );
 
     // **The head is a SKULL WITH A JAW, not a circle with an arc drawn on it.**
@@ -1299,6 +1424,39 @@ class _HeadPainter extends CustomPainter {
       1.35,
       Paint()..color = const Color(0xFF2A1F18),
     );
+
+    // **THE LID, CLIPPED TO THE EYE.** Drawn straight it is a skin-coloured
+    // rectangle sitting on a shaded face — a sticking plaster, which is what the
+    // first cut looked like. Clipped to the eye's own oval it can only ever
+    // appear where the eye is, so what you see is the eye being covered.
+    if (blink > 0.01) {
+      final socket = Rect.fromCenter(center: eye, width: 5.0, height: 4.0);
+      canvas.save();
+      canvas.clipPath(Path()..addOval(socket));
+      final lid = socket.height * blink;
+      canvas.drawRect(
+        Rect.fromLTWH(socket.left, socket.top, socket.width, lid),
+        Paint()..color = skin,
+      );
+      // The lash, along the lid's edge — curved, because an eyelid is not a
+      // shutter, and it is what makes a half-blink read as a lid coming down.
+      canvas.drawPath(
+        Path()
+          ..moveTo(socket.left, socket.top + lid)
+          ..quadraticBezierTo(
+            eye.dx,
+            socket.top + lid + 0.9,
+            socket.right,
+            socket.top + lid,
+          ),
+        Paint()
+          ..color = Color.lerp(skin, Colors.black, 0.5)!
+          ..strokeWidth = 0.9
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
+      );
+      canvas.restore();
+    }
     // The lid, which is what stops the eye reading as a bead: an eye with no top
     // to it is a dot on a face.
     canvas.drawArc(
@@ -1312,6 +1470,7 @@ class _HeadPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round,
     );
+
     // A brow, and it is the one feature doing any acting.
     canvas.drawLine(
       const Offset(64.3, 43.4),
@@ -1337,7 +1496,8 @@ class _HeadPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_HeadPainter old) => old.skin != skin;
+  bool shouldRepaint(_HeadPainter old) =>
+      old.skin != skin || old.blink != blink;
 }
 
 class _WalkerPainter extends CustomPainter {
@@ -1572,10 +1732,23 @@ class _WalkerPainter extends CustomPainter {
               base: flesh,
               far: !near,
             );
+            // The watch goes on the NEAR wrist, which is the arm every pointing
+            // and watch-checking gesture uses. Under the hand, so the palm
+            // overlaps the strap.
+            if (near) paintWatch(canvas, const Offset(56, 95.6), kit);
             // The hand as a MITTEN rather than a circle: wider across the
             // knuckles than at the wrist, which is what stops the arm reading as
             // one tapering stick with a bead on the end.
             paintHand(canvas, const Offset(56, 100.6), flesh, far: !near);
+            // And the finger, out past it, for the gestures that point.
+            if (near) {
+              paintFinger(
+                canvas,
+                const Offset(56, 100.6),
+                flesh,
+                pose?.finger ?? 0,
+              );
+            }
           },
         );
       },

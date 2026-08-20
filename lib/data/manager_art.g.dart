@@ -22,7 +22,7 @@ const Map<String, (String back, String front)> managerHair = {
   ),
   'buzz': (
     '',
-    '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M50.5 55 C46.5 45 51 35.5 62 35.5 C69 35.5 74.2 40.5 74.5 44.5 C72.5 42 69.5 41.2 66.5 42 C64.5 44.5 63.5 48 61 50.5 C58.5 52.8 55 54 50.5 55 Z" fill="#3a2a1c" opacity="0.42"/><path d="M50.5 55 C46.5 45 51 35.5 62 35.5 C69 35.5 74.2 40.5 74.5 44.5 C72.5 42 69.5 41.2 66.5 42 C64.5 44.5 63.5 48 61 50.5 C58.5 52.8 55 54 50.5 55 Z" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.6" stroke-linejoin="round"/><path d="M50.5 55 C46.5 45 51 35.5 62 35.5 C69 35.5 74.2 40.5 74.5 44.5 C72.5 42 69.5 41.2 66.5 42 C64.5 44.5 63.5 48 61 50.5 C58.5 52.8 55 54 50.5 55 Z" fill="none" stroke="#3a2a1c" stroke-opacity="0.55" stroke-width="0.7" stroke-linejoin="round"/><path d="M53.5 40.5 C55 35.5 59 33 63.5 33" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round"/><path d="M57 45 C58 41 61 38.5 64.5 37.5" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.2" stroke-linecap="round"/></svg>''',
+    '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M50.5 55 C46.5 45 51 35.5 62 35.5 C69 35.5 74.2 40.5 74.5 44.5 C72.5 42 69.5 41.2 66.5 42 C64.5 44.5 63.5 48 61 50.5 C58.5 52.8 55 54 50.5 55 Z" fill="#3a2a1c" opacity="0.42"/></svg>''',
   ),
   'shaved': (
     '',

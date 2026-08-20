@@ -244,16 +244,23 @@ void paintTorso(Canvas canvas, Color kit, {double build = 1}) {
 
 /// The neck. Drawn before the torso and the head, so both overlap it.
 ///
-/// It did not exist: the skull sat straight on the shirt, which is the other
-/// reason the head read as stuck on.
+/// **It existed and you could not see it**, which is a different bug from not
+/// having one: the skull's underside sat four units INSIDE the shirt, so the neck
+/// was entirely hidden between them and the head read as resting on the collar.
+/// The head group is lifted now — see `_headLift` — and this reaches up into the
+/// gap that opens.
+///
+/// Angled very slightly forward, because a neck that rises dead vertical out of a
+/// pair of shoulders reads as a post. Darker than the face: it is the one part of
+/// him in shadow from every direction at once.
 void paintNeck(Canvas canvas, Color skin) {
   paintLimb(
     canvas,
-    const Offset(59.4, 62),
-    const Offset(60.2, 54),
-    9.2,
-    8,
-    base: deepen(skin, 0.10),
+    const Offset(59.0, 64),
+    const Offset(60.4, 48),
+    10.4,
+    8.6,
+    base: deepen(skin, 0.16),
     occlude: false,
   );
 }
@@ -310,6 +317,55 @@ void paintBoot(Canvas canvas, Offset ankle, Color boot) {
     Paint()..color = lift(boot, 0.18),
   );
   canvas.restore();
+}
+
+/// The index finger, out past the hand along the forearm's own axis.
+///
+/// **Hidden unless something is being pointed at.** At this size a permanent
+/// finger makes the hand read as a lumpy mitten, so it fades in for the three
+/// gestures that need it — see `psvFingerShow`.
+///
+/// **OFF-CENTRE, and it has to stay that way.** The hand spans x 52.2 to 59.8, and
+/// a finger centred on that is a single digit poking out of the middle of a fist,
+/// which is an entirely different gesture. Sitting forward — the side he faces —
+/// where an index finger actually joins the hand, it reads as pointing.
+void paintFinger(Canvas canvas, Offset hand, Color skin, double opacity) {
+  if (opacity <= 0.01) return;
+  final flesh = Color.lerp(skin, Colors.white, 0.04)!;
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(hand.dx + 1.1, hand.dy + 1.4, 2.4, 5.4),
+      const Radius.circular(1.2),
+    ),
+    Paint()..color = flesh.withValues(alpha: opacity),
+  );
+}
+
+/// A wristwatch, on the near arm.
+///
+/// **Without it, checking his watch is a man staring at his own knuckles.** The
+/// gesture is in the JS's rota and the port had nothing on the wrist for him to
+/// look at, so the pose read as a shrug that had gone wrong.
+///
+/// Drawn in the forearm's own frame just above the hand, so it turns with the arm
+/// and stays on the inside of the wrist wherever the arm goes.
+void paintWatch(Canvas canvas, Offset wrist, Color accent) {
+  // The strap, across the wrist rather than around it: side-on, a band is a bar.
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromCenter(center: wrist, width: 6.4, height: 3.0),
+      const Radius.circular(1.1),
+    ),
+    Paint()..color = const Color(0xFF2A2A30),
+  );
+  // The face, catching the light, in the club's colour so it reads as HIS.
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromCenter(center: wrist.translate(1.3, 0), width: 3.0, height: 2.6),
+      const Radius.circular(0.8),
+    ),
+    Paint()..color = lift(accent, 0.42),
+  );
 }
 
 /// A hand: a mitten, wider across the knuckles than at the wrist.

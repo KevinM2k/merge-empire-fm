@@ -90,13 +90,24 @@ const layers = (value) =>
 // White at low alpha rather than a second slot: a sheen has to read on black hair
 // and on blonde, and only white does both.
 const CAPPED = new Set([
-  'crop', 'buzz', 'afro', 'pony', 'bun', 'flow', 'mullet', 'curtains',
+  'crop', 'afro', 'pony', 'bun', 'flow', 'mullet', 'curtains',
 ]);
+
+// Styles that are SHADING ON A SCALP rather than a mass of hair, and which get
+// none of the three passes.
+//
+// A buzz cut in the JS is one path at `opacity: 0.42` — the shape hair would
+// occupy, tinted, with nothing else on it, because that is what a buzz cut is.
+// Giving it a lit rim, an outline and two crown strands turns it into an
+// outlined blob with a swoosh across it: a cap of hair drawn on a shaved head.
+// The passes exist to make a MASS of hair read as hair; there is no mass here.
+const SCALP = new Set(['buzz']);
 
 /** Every `d` in a fragment, so the passes can re-use the silhouette. */
 const pathsOf = (markup) => [...markup.matchAll(/\sd="([^"]+)"/g)].map((m) => m[1]);
 
 const strands = (markup, id) => {
+  if (SCALP.has(id)) return '';
   const ds = pathsOf(markup);
   if (ds.length === 0) return '';
   const rim = ds

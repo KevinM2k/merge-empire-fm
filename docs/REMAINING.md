@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,909 tests, `flutter analyze` clean.**
+**3,913 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 3
 items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
@@ -1990,14 +1990,72 @@ running at last.
       **The two flaws are now pinned as ACCEPTED** rather than left to be
       rediscovered: the planted foot's rate varies by ~5.6 units across the stance
       (the skate) and its sole by ~5.2 (the float).
-- [ ] **HANDS ON HIPS DOES NOT LOOK RIGHT.** Reported from playing; the pose is
-      `handsonhips` in `gesture_poses.dart`, transcribed from `psvGestHipsArmN` /
-      `ForeN` / `ArmF` / `ForeF` — arm to 44 and forearm to -106 on the near side,
-      38 and -101 on the far. The angles are the JS's, so if it is wrong here and
-      right there the difference is the ARM ITSELF: the port's upper arm and
-      forearm were relengthened during the redraw (shoulder 62→81, wrist 98.5) and
-      a hand that lands on the hip at one length misses it at another. Check where
-      the hand actually ends up against the waistband before touching the angles.
+- [x] **HANDS ON HIPS LANDS ON THE HIP NOW, and it is the one pose that is
+      SOLVED rather than transcribed.** The JS's 44 and -106 put a hand on a hip on
+      the JS's arm and not on this one: the redraw relengthened it, and the same
+      angles left the elbow at x 42.8 — five units outside a back that stops at
+      47.9 — with the hand at (60, 85), the middle of his belly. Two-bone IK onto
+      (65, 89) and (63, 90) instead, which is the top corner of the shorts each
+      side. **A pose is a place a hand goes**, and when the limb it hangs off
+      changes length the numbers have to as well.
+- [x] **The arms were STUCK, and it was a real bug rather than a look.** The
+      gesture clock only ever runs forward, so when it stops it stops at 1.0 — and
+      the pose getter treated only 0.0 as "nothing playing". From the first gesture
+      of a session onward the pose was still being read at progress 1.0, which is
+      every track's REST value: the arms pinned at 27 and -52 and never swung
+      again. `isAnimating` is the whole question.
+      Also: a gesture handed in at MOUNT never played, because the start only ran
+      from `didUpdateWidget`. Invisible in the app, where the rota always arrives
+      after the first frame, and it made the poses impossible to render in a test.
+- [x] **The head is UP when it is going well and down when it is not.**
+      `moodHeadTilt` — seven degrees of chin up when elated, twelve of chin down
+      when crushed. The cheapest acting on the figure and the one that reads
+      furthest, because the mouth is four pixels across on a phone.
+      **It is a baseline and a gesture ADDS to it**, so a beaten manager who points
+      at the far post lifts his head from wherever he was carrying it and is handed
+      back to it afterwards — `_chinUp` on the outward gestures. All three head
+      layers share one angle, or the face slides out from under its own hat.
+- [x] **He blinks.** Its own five-second clock, twice per cycle at an uneven
+      spacing, because a metronome blink is its own kind of dead. **Clipped to the
+      eye**: drawn straight, a skin-coloured lid on a shaded face is a sticking
+      plaster, which is exactly what the first cut looked like.
+- [x] **Pointing shows the finger**, which the JS shares across all three of its
+      pointing gestures (`psvFingerShow`) and the port had no finger at all for. A
+      point with no finger is a fist held out at the pitch. Hidden the rest of the
+      time — at this size a permanent finger makes the hand read as a mitten.
+- [x] **And there is a watch on the near wrist**, without which checking it is a
+      man staring at his own knuckles.
+- [x] **THE BUZZ CUT IS SCALP SHADING, NOT HAIR, and the generator was treating it
+      as hair.** The JS draws it as ONE path at `opacity: 0.42` — the shape hair
+      would occupy, tinted, and nothing else, because that is what a buzz cut is.
+      `gen_manager_art.mjs` adds three passes to every style — a lit rim, an
+      outline and two crown strands — and on a buzz cut that is an outlined blob
+      with a swoosh across it: a cap of hair drawn on a shaved head. The passes
+      exist to make a MASS of hair read as hair and there is no mass here, so a
+      `SCALP` set skips them. Fixed in the GENERATOR and regenerated, per the rule.
+- [x] **A neck, and the head lifted to make room for one.** It existed and could
+      not be seen: the skull's underside sat four units INSIDE the shirt, so the
+      neck was hidden between them and the head read as resting on the collar.
+      Seven units of lift puts the chin three clear of the shoulder line. The whole
+      GROUP moves — hair, beard, glasses, hat and skull together.
+- [ ] **The ear is redrawn but nobody has seen it.** It was a flat disc with a
+      smaller dark disc inside — a button on the side of his head. It is a rim over
+      the top and down the back, a hollow inside the rim and a lobe under it now.
+      **Unverified**: every hairstyle rendered so far covers the side of the head
+      past the jaw, so the only looks it shows on are `shaved` and possibly `buzz`.
+      Worth checking whether it is ever visible at all before spending more on it.
+- [ ] **MORE TURF PERSPECTIVE, AND THE STADIUM DOWN WITH IT.** Raised from playing:
+      with a stronger perspective on the turf the horizon can come down, which puts
+      the stand lower in the frame and makes it properly visible — without breaking
+      scale, because the figure's size is pinned to his own contact line rather
+      than to the horizon.
+      The horizon is currently derived from HIM: `feet - walkerHeight * scale *
+      0.72`, clamped to 16–68% of the scene. The mowing fan's convergence is
+      `_mowStretch` (2.941) and `_mowApex` (-0.95 box heights above the top edge),
+      and the note on them says the two are independent dials — the stretch for how
+      hard the lanes lean, the apex for the shape of the fall-off. Those are the
+      levers; the tuft bands and the hoardings are both timed off the fan, so
+      changing it means re-checking all three against each other.
 - [ ] **The play button's pop is matched but unverified.** The JS's `.play-match-btn`
       is a 1px white rim at 55%, a bevel (`inset 0 1px 0` white 55%, `inset 0 -2px
       0` black 22%), a sheen and THREE shadows — and its own comment says why:

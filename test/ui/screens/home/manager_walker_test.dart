@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/data/manager_art.dart';
 import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
@@ -331,6 +332,71 @@ void main() {
         expect(float, greaterThan(1));
         expect(float, lessThan(7), reason: 'if this grows, something moved');
       });
+    });
+  });
+
+  group('the poses land where they are aiming', () {
+    /// Forward kinematics on the arm, in the art's own space: shoulder (56, 62),
+    /// elbow 19 below it, hand 19.6 past that.
+    ({Offset elbow, Offset hand}) arm(double armDeg, double foreDeg) {
+      const shoulder = Offset(56, 62);
+      const upper = 19.0, fore = 19.6;
+      final a = armDeg * math.pi / 180;
+      final elbow = Offset(
+        shoulder.dx - upper * math.sin(a),
+        shoulder.dy + upper * math.cos(a),
+      );
+      final w = (armDeg + foreDeg) * math.pi / 180;
+      return (
+        elbow: elbow,
+        hand: Offset(
+          elbow.dx - fore * math.sin(w),
+          elbow.dy + fore * math.cos(w),
+        ),
+      );
+    }
+
+    test('HANDS ON HIPS puts the hand on the hip', () {
+      // The JS's own 44 / -106 do that on the JS's arm and not on this one: they
+      // land the elbow at x 42.8, five units outside a back that stops at 47.9,
+      // and the hand at (60, 85) — the middle of his belly. The pose is a place a
+      // hand goes, so this checks the place.
+      final pose = gesturePose('handsonhips', 0.5, gestureMs: 2400);
+      final near = arm(pose.armNear!, pose.foreNear!);
+      expect(near.hand.dx, closeTo(65, 1.5), reason: 'not on the hip');
+      expect(near.hand.dy, closeTo(89, 1.5));
+      // And the elbow stays within the silhouette rather than jutting out behind.
+      expect(
+        near.elbow.dx,
+        greaterThan(46),
+        reason: 'the elbow is outside his back',
+      );
+    });
+
+    test('POINTING shows the finger', () {
+      // A point with no finger is a fist held out at the pitch.
+      expect(gesturePose('point', 0.5, gestureMs: 1700).finger, 1);
+      expect(gesturePose('fingerwag', 0.5, gestureMs: 1900).finger, 1);
+      expect(gesturePose('shush', 0.5, gestureMs: 1900).finger, 1);
+    });
+
+    test('and nothing else does', () {
+      // It is hidden the rest of the time: at this size a permanent finger makes
+      // the hand read as a lumpy mitten.
+      for (final id in const ['handsonhips', 'applaud', 'fistpump', 'bow']) {
+        expect(gesturePose(id, 0.5, gestureMs: 2000).finger, 0, reason: id);
+      }
+      expect(gesturePose('point', 0, gestureMs: 1700).finger, 0);
+    });
+
+    test('CHECK WATCH brings the wrist up to where he can read it', () {
+      final pose = gesturePose('checkwatch', 0.5, gestureMs: 1800);
+      final near = arm(pose.armNear!, pose.foreNear!);
+      // The skull sits at (62, 48.5) once the head group is lifted 7, so the face
+      // is around y 42. The wrist has to get near it or he is reading his knee.
+      expect(near.hand.dy, lessThan(70), reason: 'the watch never came up');
+      // And he looks down at it rather than staring ahead.
+      expect(pose.head, greaterThan(5));
     });
   });
 }
