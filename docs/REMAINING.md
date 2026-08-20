@@ -536,6 +536,72 @@ things a player could see:
 
 ---
 
+## Open from playtesting — 20 Aug
+
+A second session, all of it visual and all of it checkable against
+`../merge-empire-fc`. Grouped by where the work is rather than by severity,
+because most of these are two or three to a file.
+
+### The HUD, on every screen
+
+- [ ] **The HUD's items should be RIGHT aligned**, not left.
+- [ ] **On the Shop and the Squad tab the HUD has a white background.** It should
+      be the glass — blur and transparency — and it should cover the safe area
+      with it, not just the bar.
+
+### Shop
+
+- [ ] **The coin and gem sheets are too big for what is in them.** They take a
+      fixed fraction of the screen; they should be the size of their content.
+- [ ] **Every image in the Shop is missing.** `ShopTile` has a `glyph` and
+      nothing has ever passed one, so every shelf is text-only. The JS gives
+      each row its own: `p.icon` for a product, `gem.<id>.icon`, 🩹 for the
+      sponge, 🤝 for the sponsor, 📺 for the TV deal, 🍀 for a voucher.
+- [ ] **The four coin packs want real pictures**, one each and each making
+      sense of its name: Pocket Change, Coin Pile, Coin Vault, Coin Mountain.
+      The drawn cluster of 1/2/3/5 coins is the JS's and is not enough.
+
+### Club
+
+- [ ] **Tapping a facility should show what is unlocked and what is not.** The
+      ladder sheet does exactly this and only the artwork opens it — the whole
+      card should.
+- [ ] **The bottom of the screen wants the quick summary** the JS has there:
+      seven rows of what the club has earned itself so far (`_renderStats`),
+      each with a tappable hint, and `club.empty` before the first build.
+
+### Quick nav
+
+- [ ] **The Table button is white text on a light background** in light mode.
+- [ ] **Its backdrop should be the glass**, like everything else that floats.
+
+### Home
+
+- [ ] **In dark mode the menu button is too dark to read**, and has black lines
+      across it.
+- [ ] **The Play Match button blends into the pitch** when it is green. It is
+      the one control the screen exists for and needs to look like it.
+- [ ] **The next-match card's ATK and DEF bars are empty.**
+- [ ] **The position badge over the club name should open the table.**
+- [ ] **The `+1` home icon under the club rating should explain itself** on a
+      tap — where the number comes from, which is the Stadium's Fan Zone tier.
+- [ ] **Coach Colin talks about himself in the third person** — "Coach Colin
+      suggests Balanced". He is the one speaking and he has the whole state to
+      hand; he should sound like it.
+- [ ] **The match quests on the next-match card are ellipsised**, and the reward
+      wants to sit further right.
+- [ ] **The income per second has to be on screen somewhere.** It matters most
+      when it is NEGATIVE: a loaned-in player costs money, and the only sign of
+      it today is the idle bar quietly running backwards.
+
+### Two screens that want a pass
+
+- [ ] **The Fixtures screen is still not right stylistically.**
+- [ ] **The daily reward needs love**, and tapping a day should show what that
+      day pays and then tick it off.
+
+---
+
 ## M0 — foundation and save bridge ✅
 
 - [x] Scaffold, lints, architecture test
