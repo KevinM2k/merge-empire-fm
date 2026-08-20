@@ -45,13 +45,21 @@ const Color _darkB = Color(0x5C090F18);
 const Color _darkDeepA = Color(0xA3141E2C);
 const Color _darkDeepB = Color(0x7A090F18);
 
-/// The same two stops in daylight. Not white: a hint of the sky's own blue is
-/// what keeps it glass rather than paper laid on the scene.
-const Color _lightA = Color(0xC7F3F8FC);
-const Color _lightB = Color(0xA8D9E6F1);
+/// The same two stops in daylight.
+///
+/// **DENSER THAN THEY LOOK LIKE THEY SHOULD BE, and this is the whole trap.**
+/// The first attempt was a pale wash at 78%, which composited to about 0.92 luma
+/// over a sky already at 0.58 — a contrast of 1.4:1, so the pane did not read as
+/// a pane at all and the card floated as a smear. A dark pane hides a bright
+/// backdrop by swallowing it; a light one has to OUT-SHINE it, and that takes
+/// most of the way to opaque. What keeps it glass rather than paper is the 15%
+/// of sky still coming through, the blur behind it, and the rim — not the
+/// transparency being high.
+const Color _lightA = Color(0xD9FCFEFF);
+const Color _lightB = Color(0xC4E8F1F8);
 
-const Color _lightDeepA = Color(0xDBF3F8FC);
-const Color _lightDeepB = Color(0xC2D0E0EC);
+const Color _lightDeepA = Color(0xE6FCFEFF);
+const Color _lightDeepB = Color(0xD4DFEBF5);
 
 /// Top-lit sheen: a bright band across the top third falling away to nothing,
 /// plus a whisper of light caught on the bottom edge. This is what separates
@@ -71,16 +79,16 @@ const LinearGradient _darkSheen = LinearGradient(
 
 /// On light glass the same white band is invisible, and pushed hard enough to
 /// show it bleaches the panel. The thickness reads off the FOOT instead: a
-/// faint shadow pooling in the bottom of the pane, with only a breath of light
-/// on the top edge.
+/// shadow pooling in the bottom of the pane, with only a breath of light on the
+/// top edge. Kept light enough not to muddy the ink sitting on it.
 const LinearGradient _lightSheen = LinearGradient(
   begin: Alignment.topCenter,
   end: Alignment.bottomCenter,
   colors: [
-    Color(0x26FFFFFF),
+    Color(0x2EFFFFFF),
     Color(0x00FFFFFF),
-    Color(0x0A102A44),
-    Color(0x1A102A44),
+    Color(0x0F0F2A44),
+    Color(0x240F2A44),
   ],
   stops: [0, 0.34, 0.72, 1],
 );
@@ -88,6 +96,16 @@ const LinearGradient _lightSheen = LinearGradient(
 /// CSS blur radius is about twice the Gaussian sigma, so the JS's 14px is 7
 /// here.
 const double _sigma = 7;
+
+/// The ink a pane's own FURNITURE is drawn in — the rules between bands, the
+/// chip fills, the hairlines inside it.
+///
+/// Not white. On dark glass white at 6–15% is the whole vocabulary for
+/// separating one band from the next; on a near-white pane it is nothing at all,
+/// so every rule and every chip outline inside the card disappeared the moment
+/// the pane followed the theme. Same alphas, inverted ink.
+Color glassInk(BuildContext context) =>
+    nightSceneOf(context) ? Colors.white : const Color(0xFF0F2A44);
 
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
@@ -146,7 +164,12 @@ class GlassPanel extends StatelessWidget {
         borderRadius: shape,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: night ? 0.3 : 0.18),
+            // Heavier in daylight than the dark theme's, which sounds backwards
+            // and is not: on a night sky the pane is darker than its backdrop
+            // and its own edge separates it, while in daylight the pane is
+            // BRIGHTER than the sky and the shadow is the only thing that lifts
+            // it off. A light card with no shadow is a hole in the sky.
+            color: Colors.black.withValues(alpha: night ? 0.3 : 0.26),
             blurRadius: deep ? 26 : 18,
             offset: Offset(0, deep ? 10 : 6),
           ),
@@ -197,7 +220,9 @@ class _GlassEdge extends CustomPainter {
       Paint()
         ..color = night
             ? Colors.white.withValues(alpha: 0.18)
-            : const Color(0xFF12283C).withValues(alpha: 0.16)
+            // Firmer than the dark rim: it is the edge of a bright pane against
+            // a bright sky, and at the dark theme's 0.18 it vanished.
+            : const Color(0xFF0F2A44).withValues(alpha: 0.30)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );
@@ -212,7 +237,7 @@ class _GlassEdge extends CustomPainter {
       Paint()
         ..color = night
             ? Colors.black.withValues(alpha: 0.3)
-            : const Color(0xFF12283C).withValues(alpha: 0.22),
+            : const Color(0xFF0F2A44).withValues(alpha: 0.26),
     );
     canvas.restore();
   }

@@ -11,6 +11,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 
 import 'shop_helpers.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// Tap a priced row and say yes. Spending is a two-beat flow now — see
 /// `purchase_flow.dart` — because a row the balance will not cover has to end
@@ -64,10 +65,10 @@ void main() {
           .firstWhere((t) => t.blocked == 'insufficient_gems');
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<StoreButton>(
               find.byKey(ValueKey('shop-buy-gem-${broke.item.id}')),
             )
-            .onPressed,
+            .onTap,
         isNotNull,
       );
       expect(find.text(t('shop.toast.not_enough_gems')), findsNothing);
@@ -105,10 +106,10 @@ void main() {
       for (final tile in other) {
         expect(
           tester
-              .widget<ElevatedButton>(
+              .widget<StoreButton>(
                 find.byKey(ValueKey('shop-buy-gem-${tile.item.id}')),
               )
-              .onPressed,
+              .onTap,
           isNull,
           reason: tile.item.id,
         );
@@ -153,10 +154,10 @@ void main() {
       }, BoostsSection.new);
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<StoreButton>(
               find.byKey(const ValueKey('shop-buy-coin-kit_sponsor')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
       expect(find.text(t('shop.already_active')), findsWidgets);
@@ -173,10 +174,10 @@ void main() {
       );
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<StoreButton>(
               find.byKey(const ValueKey('shop-buy-coin-magic_sponge')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
       expect(find.text(t('shop.toast.no_injured')), findsWidgets);

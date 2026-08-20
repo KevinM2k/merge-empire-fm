@@ -29,6 +29,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// A pack's tint, as a colour. Stored as a CSS hex because the catalogue is
 /// generated from the JS's own data.
@@ -202,20 +203,15 @@ class _VaultHero extends StatelessWidget {
                   ),
                 ),
               )
-            : ElevatedButton(
+            // The CASE is Looks purple and the button is priced green: the
+            // frame says what this is, the button says what it costs. See
+            // [StoreButton].
+            : StoreButton(
                 key: ValueKey('shop-buy-${vault.product.id}'),
-                onPressed: null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                ),
-                child: Text(
-                  vault.product.price,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                tone: StoreTone.cash,
+                label: vault.product.price,
+                stretch: false,
+                onTap: null,
               ),
       ],
     );

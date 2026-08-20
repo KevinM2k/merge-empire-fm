@@ -31,6 +31,7 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// Which balance a row spends from.
 enum SpendCurrency {
@@ -166,10 +167,16 @@ class _ConfirmCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: ElevatedButton(
+              // Coloured for the WALLET it is about to take from, so the
+              // confirmation and the tile it came from agree — see
+              // [StoreButton].
+              child: StoreButton(
                 key: ValueKey('spend-confirm-yes-${offer.key}'),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(t('shop.buy_now')),
+                tone: offer.currency == SpendCurrency.gems
+                    ? StoreTone.gem
+                    : StoreTone.coin,
+                label: t('shop.buy_now'),
+                onTap: () => Navigator.of(context).pop(true),
               ),
             ),
           ],
@@ -215,10 +222,13 @@ class _ReceiptCard extends StatelessWidget {
       actions: [
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton(
+          // Not a price, so it takes the club's accent rather than borrowing a
+          // currency's colour.
+          child: StoreButton(
             key: ValueKey('spend-receipt-ok-${offer.key}'),
-            onPressed: () => Navigator.of(context).maybePop(),
-            child: Text(t('common.got_it')),
+            tone: StoreTone.neutral,
+            label: t('common.got_it'),
+            onTap: () => Navigator.of(context).maybePop(),
           ),
         ),
       ],

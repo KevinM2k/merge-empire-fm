@@ -14,6 +14,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
@@ -475,9 +476,8 @@ class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
                 Positioned.fill(child: ColoredBox(color: widget.track)),
                 AnimatedBuilder(
                   animation: _fill,
-                  builder: (context, _) => FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: _fill.value,
+                  builder: (context, _) => BarFill(
+                    fraction: _fill.value,
                     child: ColoredBox(color: widget.ink),
                   ),
                 ),

@@ -387,7 +387,13 @@ class PitchScene extends StatelessWidget {
 // viewport.
 
 /// How many terraces tall a pylon stands.
-const double _pylonStands = 2.6;
+///
+/// Tall enough to clear the roof and read as a floodlight, short enough that the
+/// HEAD lands in the strip of sky the next-match card leaves — which on a phone
+/// is a hundred-odd pixels between the card's foot and the stand's fascia. At
+/// 2.6 the lamps sat behind the card on every screen size, which is the same
+/// fault as the JS's viewport fraction, one step smaller.
+const double _pylonStands = 2.0;
 
 /// Where the pole and the head sit across the pylon's 30px box.
 const double _poleWidth = 4;

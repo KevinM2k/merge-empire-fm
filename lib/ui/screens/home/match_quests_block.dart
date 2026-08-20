@@ -20,6 +20,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/data/quests.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -111,7 +112,7 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: glassInk(context).withValues(alpha: 0.08)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

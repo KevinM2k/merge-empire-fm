@@ -28,6 +28,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
@@ -161,9 +163,15 @@ class _StatWell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.24),
+        // A RECESS, not a grey box. On dark glass a black wash reads as depth
+        // and can take a quarter of the pane's opacity; on a near-white pane the
+        // same wash is a mid-grey slab that outweighs everything on the card. It
+        // has to be a whisper there — the border does the work instead.
+        color: Colors.black.withValues(
+          alpha: Theme.of(context).brightness == Brightness.dark ? 0.24 : 0.05,
+        ),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: glassInk(context).withValues(alpha: 0.10)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -331,26 +339,18 @@ class _Bar extends StatelessWidget {
       borderRadius: BorderRadius.circular(3),
       child: Container(
         height: 5,
-        color: Colors.white.withValues(alpha: 0.15),
-        child: Align(
-          alignment: fromRight ? Alignment.centerRight : Alignment.centerLeft,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(end: fraction),
-            duration: const Duration(milliseconds: 380),
-            curve: Curves.easeOutCubic,
-            builder: (context, v, _) => FractionallySizedBox(
-              widthFactor: v,
-              // **`heightFactor` matters.** Without it the box passes the
-              // incoming height through LOOSE, and a `DecoratedBox` with no
-              // child takes the smallest size it is allowed — zero. The bars
-              // were drawn, at no height at all, which is why both tracks read
-              // as empty.
-              heightFactor: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colour,
-                  borderRadius: BorderRadius.circular(3),
-                ),
+        color: glassInk(context).withValues(alpha: 0.15),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(end: fraction),
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeOutCubic,
+          builder: (context, v, _) => BarFill(
+            alignment: fromRight ? Alignment.centerRight : Alignment.centerLeft,
+            fraction: v,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colour,
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
           ),

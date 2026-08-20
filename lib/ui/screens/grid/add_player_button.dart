@@ -323,12 +323,20 @@ class _BatchSegment extends StatelessWidget {
 
     final Color fill;
     final Color ink;
+    // **THE SELECTED CHIP NEEDS AN EDGE IN LIGHT MODE.** Inverting to an
+    // accent-ink fill is what makes ×2/×4 read as the selected half of the pair
+    // — but `accentInk` IS near-white on a light theme, and the page behind the
+    // bar is near-white too, so the chip disappeared and the ×4 floated on
+    // nothing. The edge is the ACCENT, which is the colour the chip inverted
+    // away from, so the pair still reads as one control.
+    Color? outline;
     if (bothDead) {
       fill = kit.surface2;
       ink = kit.textMuted;
     } else if (multi) {
       fill = kit.accentInk;
       ink = kit.accent;
+      outline = kit.accent;
     } else {
       // The wash is a translucent black over the accent rather than a pre-mixed
       // colour, so it works on any kit accent.
@@ -345,6 +353,7 @@ class _BatchSegment extends StatelessWidget {
         segKey: 'scout-batch',
         fill: fill,
         ink: ink,
+        outline: outline,
         onTap: stuck ? null : onCycle,
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
         child: Text(
@@ -442,6 +451,7 @@ class _Segment extends StatelessWidget {
     required this.child,
     this.onTap,
     this.gradient,
+    this.outline,
     this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
   });
 
@@ -451,11 +461,15 @@ class _Segment extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
   final Gradient? gradient;
+
+  /// A hairline round the segment, for the one case where the FILL is the page's
+  /// own colour — see [_BatchSegment].
+  final Color? outline;
   final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final body = Material(
       color: gradient == null ? fill : Colors.transparent,
       child: Ink(
         decoration: gradient == null ? null : BoxDecoration(gradient: gradient),
@@ -465,6 +479,13 @@ class _Segment extends StatelessWidget {
           child: Padding(padding: padding, child: child),
         ),
       ),
+    );
+    if (outline == null) return body;
+    return DecoratedBox(
+      // Inside the segment rather than round the group: the group already has a
+      // border, and this one has to separate ONE segment from the page.
+      decoration: BoxDecoration(border: Border.all(color: outline!)),
+      child: body,
     );
   }
 }

@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Whether a refusal is just about MONEY.
@@ -90,6 +91,7 @@ class BoostsSection extends ConsumerWidget {
               subtitle: t(row.descKey),
               glyph: _icon(consumableIcons[row.id] ?? 'coin', hudCoinInk),
               price: formatCoins(row.cost),
+              tone: StoreTone.coin,
               disabledReason: blockedCopy(row.blocked),
               onBuy: blockedCopy(row.blocked) != null
                   ? null
@@ -111,6 +113,7 @@ class BoostsSection extends ConsumerWidget {
               subtitle: t('gem.${tile.item.id}.desc'),
               glyph: _icon(gemItemIcons[tile.item.id] ?? 'gem', hudGemInk),
               price: formatCoins(tile.item.cost),
+              tone: StoreTone.gem,
               disabledReason: blockedCopy(tile.blocked),
               onBuy: blockedCopy(tile.blocked) != null
                   ? null
@@ -156,6 +159,7 @@ class VouchersSection extends ConsumerWidget {
               title: '${t('shop.section.vouchers')} ${tile.floor}',
               glyph: _icon('ticket', hudGemInk),
               price: '${tile.cost ?? 0}',
+              tone: StoreTone.gem,
               disabledReason: blockedCopy(tile.blocked?.name),
               onBuy: blockedCopy(tile.blocked?.name) != null
                   ? null

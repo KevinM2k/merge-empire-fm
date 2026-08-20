@@ -832,12 +832,42 @@ section. Nothing on the list below is blocked for want of art any more.
       row takes a glyph from the app's own line-art set. The two Start Over rows
       keep their emoji ON PURPOSE — a ball and a skull are what tell those two
       apart at a glance and neither is in the set.
-- [ ] **Copy the JS's blue / yellow / orange button treatments** for the
-      different kinds of action. Deliberately not folded into the settings pass:
-      it is a shared button widget touching every screen, not a settings change,
-      and doing it here would have meant a semantic palette invented for one
-      page. `settingsDanger` is local to `settings_controls.dart` for the same
-      reason — promote it to the kit when a third caller turns up.
+- [x] **The JS's button treatments are `StoreButton`, and the rule is the JS's
+      own sentence: ONE BUTTON, FOUR COLOURS, and the colour always answers
+      "what does this cost me?"** Green real money, blue gems, gold coins, yellow
+      a rewarded video — plus a fifth, accent-coloured tone for the buttons that
+      are not prices at all, so a confirm does not borrow a currency's colour.
+      Every one of them had been a plain `ElevatedButton` in the kit accent, so a
+      shelf holding coin packs, gem packs and cash packs was one green wall and
+      the price was the only thing telling them apart.
+      Three details that are not decoration: **the card around a button is
+      coloured for what it IS and the button for what it COSTS** (which is what
+      lets the Looks vault be purple, hold blue-priced packs and carry a green
+      buy button without any of the three lying); **it is MOULDED** — a hard 3px
+      edge under the face, and a press that drops the face onto its own edge,
+      because a shop is the one screen where a control has to look worth pressing;
+      and **yellow carries its own DARK ink**, since white on `#ffd54a` is
+      unreadable and it is the one tone in the set that inverts. `tone` is
+      REQUIRED on `ShopTile` — a tile that forgets its currency looks identical
+      to one priced in the accent, and the whole point is that it cannot be got
+      wrong quietly.
+
+### The bar that was never there — four times
+
+- [x] **`BarFill`, and every progress bar in the game goes through it now.**
+      Four separate bars were drawn, in the tree, and **zero pixels tall**: the
+      next-match card's ATK/DEF tracks, the Play button's cooldown sweep,
+      Deadline Day's fuse, and the player card's income bar. One of them had been
+      fixed in place with a comment explaining the mechanism; the other three
+      were still broken, which is what a local fix buys you.
+      The mechanism needs BOTH halves, which is why it keeps coming back: a
+      `FractionallySizedBox` with a `widthFactor` and no `heightFactor` passes the
+      incoming height through LOOSE, and a `ColoredBox`/`DecoratedBox` with no
+      child takes the smallest size it is allowed. The code looks right, the
+      widget is there, and a test that asks "is it on screen" passes. So no track
+      states the factor for itself any more — if a fill is a fraction of a bar,
+      it is a `BarFill`, and the test measures the rendered box rather than
+      finding it.
 
 ### Two screens that want a pass
 
@@ -949,7 +979,51 @@ sun is day furniture, so they key off `nightScene` and nothing else.
 **And one thing this cannot fix from inside the scene.** On a five-band
 next-match card the pylon heads sit behind the glass. The scene does not know
 where the card ends and should not; the heads glow through, which is what the
-pane being glass is for.
+pane being glass is for. What DID have to change is how tall the pylon is: the
+JS gives it 100% of a layer that is 46% of the scene, which on a phone put the
+lamps behind the card at every size. It is proportioned off the TERRACE now
+(2.0 of them), so the head lands in the strip of sky between the card's foot and
+the stand's fascia.
+
+### What the light sky broke, and what it took to fix
+
+A daylit sky is not a free win: **every panel and every line of text on the
+diorama had been written against a dark backdrop**, and the ones that hardcoded
+white went white-on-white the moment the sky came up. Found by rendering the
+screen rather than by reading it, which is the only way this class shows up.
+
+- [x] **The glass was far too pale.** The first light recipe was a wash at 78%,
+      which composites to about 0.92 luma over a sky already at 0.58 — 1.4:1, so
+      the pane did not read as a pane and the next-match card was a smear. **A
+      dark pane hides a bright backdrop by swallowing it; a light one has to
+      OUT-SHINE it**, and that takes most of the way to opaque. What keeps it
+      glass is the 15% of sky still coming through, the blur, and the rim — not
+      the transparency being high. The rim and the drop shadow both went UP for
+      the same reason: in daylight the pane is brighter than the sky, so the
+      shadow is the only thing lifting it off, and a light card without one is a
+      hole in the sky.
+- [x] **The fixture caption was white in both themes**, and its own note said
+      why: "no theme colour survives both ends of that". True of a sky on a
+      clock, false of one that follows the theme. `skyInk` is the single answer
+      now — dark ink with a white halo in daylight, white with a dark halo at
+      night — and the halo has to invert with the ink or the line dissolves
+      wherever the gradient passes through its own tone.
+- [x] **Everything a pane draws INSIDE itself was white at 6–15%.** On dark glass
+      that is the whole vocabulary for separating one band from the next; on a
+      near-white pane it is nothing, so every rule, chip outline and hairline in
+      the card vanished. `glassInk` inverts it and keeps the alphas.
+- [x] **The ATK/DEF well was a black wash at 24%** — depth on dark glass, a
+      mid-grey slab on a light one that outweighed everything else on the card.
+      A whisper there; the border does the work instead.
+- [x] **The ×2/×4 chip disappeared in light mode.** Inverting to an accent-INK
+      fill is what makes it read as the selected half of the pair — but
+      `accentInk` is near-white on a light theme and so is the page behind the
+      bar, so the ×4 floated on nothing. It takes an edge in the ACCENT, which is
+      the colour it inverted away from, so the pair still reads as one control.
+
+**The rule this leaves behind:** anything sitting on the diorama takes `skyInk`
+or `glassInk`. A literal `Colors.white` there is now a bug by construction, and
+grepping for one is how the next of these gets found.
 
 ### Artwork, and which packs
 

@@ -32,6 +32,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/data/deadline_day.dart';
 import 'package:merge_empire_fc/data/events.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -1079,15 +1080,15 @@ class _Fuse extends StatelessWidget {
                 // Held: no animation, and the bar sits at whatever fraction was
                 // left when the talking started. An animated bar on a stopped
                 // clock says the opposite of what is true.
-                ? FractionallySizedBox(
-                    widthFactor: fraction,
+                ? BarFill(
+                    fraction: fraction,
                     child: ColoredBox(color: style.ink),
                   )
                 : TweenAnimationBuilder<double>(
                     tween: Tween(begin: fraction, end: 0),
                     duration: Duration(milliseconds: math.max(0, remaining)),
-                    builder: (_, value, _) => FractionallySizedBox(
-                      widthFactor: value.clamp(0.0, 1.0),
+                    builder: (_, value, _) => BarFill(
+                      fraction: value,
                       child: ColoredBox(color: style.ink),
                     ),
                   ),

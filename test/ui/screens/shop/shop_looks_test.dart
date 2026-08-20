@@ -11,6 +11,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_looks.dart';
 
 import 'shop_helpers.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 void main() {
   tearDown(resetLocale);
@@ -21,8 +22,8 @@ void main() {
     expect(find.text(vault.price), findsOneWidget);
     expect(
       tester
-          .widget<ElevatedButton>(find.byKey(ValueKey('shop-buy-${vault.id}')))
-          .onPressed,
+          .widget<StoreButton>(find.byKey(ValueKey('shop-buy-${vault.id}')))
+          .onTap,
       isNull,
     );
   });
@@ -58,7 +59,7 @@ void main() {
     tester,
   ) async {
     await pumpShopWidget(tester, (_) {}, LooksSection.new);
-    expect(find.byType(ElevatedButton), findsOneWidget);
+    expect(find.byType(StoreButton), findsOneWidget);
   });
 
   group('the case', () {
@@ -130,7 +131,7 @@ void main() {
       );
       expect(find.text(t('shop.looks.vault_owned')), findsOneWidget);
       expect(
-        find.byType(ElevatedButton),
+        find.byType(StoreButton),
         findsNothing,
         reason: 'nothing left to buy',
       );

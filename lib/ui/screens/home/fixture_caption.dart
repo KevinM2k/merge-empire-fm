@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num _num(Object? v) => v is num ? v : 0;
@@ -71,13 +72,12 @@ class FixtureCaption extends ConsumerWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final label = ref.watch(fixtureLabelProvider);
 
-    // White with a shadow rather than the theme's ink: this line sits directly
-    // on the diorama, whose sky runs from bright noon to floodlit night, and no
-    // theme colour survives both ends of that.
-    const shadows = [
-      Shadow(color: Color(0xBF000000), blurRadius: 4, offset: Offset(0, 1)),
-      Shadow(color: Color(0x80000000), blurRadius: 10),
-    ];
+    // The ink the SKY wants — see [skyInk]. This line sits directly on the
+    // diorama with nothing behind it, and it used to be white in both themes
+    // because the sky ran from noon to midnight on a clock. It does not any
+    // more: a daylit sky gets the app's own near-black with a white halo, a
+    // floodlit one gets white with a dark halo.
+    final (ink: ink, inkSoft: inkSoft, shadows: shadows) = skyInk(context);
 
     return Padding(
       key: const ValueKey('fixture-caption'),
@@ -92,26 +92,30 @@ class FixtureCaption extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _Rule(ink: kit.accentBright, fromLeft: true),
+            _Rule(
+              ink: kit.accentBright,
+              halo: shadows.first.color,
+              fromLeft: true,
+            ),
             const SizedBox(width: 6),
             Text(
               label.competition.toUpperCase(),
               softWrap: false,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0.8,
-                color: Colors.white,
+                color: ink,
                 shadows: shadows,
               ),
             ),
             const SizedBox(width: 6),
-            const Text(
+            Text(
               '·',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: Color(0x8CFFFFFF),
+                color: inkSoft.withValues(alpha: 0.55),
                 shadows: shadows,
               ),
             ),
@@ -119,16 +123,20 @@ class FixtureCaption extends ConsumerWidget {
             Text(
               label.round.toUpperCase(),
               softWrap: false,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.1,
-                color: Color(0xCCFFFFFF),
+                color: inkSoft,
                 shadows: shadows,
               ),
             ),
             const SizedBox(width: 6),
-            _Rule(ink: kit.accentBright, fromLeft: false),
+            _Rule(
+              ink: kit.accentBright,
+              halo: shadows.first.color,
+              fromLeft: false,
+            ),
           ],
         ),
       ),
@@ -141,9 +149,13 @@ class FixtureCaption extends ConsumerWidget {
 /// flex against under unbounded constraints, and the scaling handles the case a
 /// flex was there for.
 class _Rule extends StatelessWidget {
-  const _Rule({required this.ink, required this.fromLeft});
+  const _Rule({required this.ink, required this.halo, required this.fromLeft});
 
   final Color ink;
+
+  /// The rule's own shadow, which inverts with the sky the same way the text's
+  /// does — a dark line on a bright sky needs a light one under it.
+  final Color halo;
   final bool fromLeft;
 
   @override
@@ -158,12 +170,8 @@ class _Rule extends StatelessWidget {
           end: fromLeft ? Alignment.centerRight : Alignment.centerLeft,
           colors: [ink.withValues(alpha: 0), ink],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x99000000),
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
+        boxShadow: [
+          BoxShadow(color: halo, blurRadius: 3, offset: const Offset(0, 1)),
         ],
       ),
     ),

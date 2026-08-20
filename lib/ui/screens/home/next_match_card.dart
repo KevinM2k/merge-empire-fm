@@ -280,7 +280,7 @@ class NextMatchCard extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
           child: Container(
             height: 1,
-            color: Colors.white.withValues(alpha: 0.12),
+            color: glassInk(context).withValues(alpha: 0.12),
           ),
         ),
         const _TacticChip(),
@@ -342,9 +342,9 @@ class _PosChip extends StatelessWidget {
       key: ValueKey('nm-pos-${side.ours ? 'ours' : 'theirs'}'),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: glassInk(context).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -352,11 +352,13 @@ class _PosChip extends StatelessWidget {
         children: [
           Text(
             '${t('play.pos_label')}:',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.6,
-              color: Color(0x8CFFFFFF),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.55),
             ),
           ),
           const SizedBox(width: 4),
@@ -365,10 +367,12 @@ class _PosChip extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '$pos',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xE0FFFFFF),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.88),
                   ),
                 ),
                 // The ordinal rides high against the numeral's cap line, so
@@ -378,10 +382,12 @@ class _PosChip extends StatelessWidget {
                   alignment: PlaceholderAlignment.top,
                   child: Text(
                     ordinalSuffix(pos),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 7.5,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xE0FFFFFF),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.88),
                     ),
                   ),
                 ),

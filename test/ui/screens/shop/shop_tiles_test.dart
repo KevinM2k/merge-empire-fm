@@ -7,6 +7,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// A tile is a GRID CELL — its button is pushed to the bottom so every button
 /// in a row lines up — so it needs a bounded height, the way the grid gives it
@@ -76,6 +77,7 @@ void main() {
         tileKey: 'thing',
         title: 'Thing',
         price: '1,000',
+        tone: StoreTone.coin,
         onBuy: () => bought++,
       ),
     );
@@ -94,6 +96,7 @@ void main() {
         tileKey: 'thing',
         title: 'Thing',
         price: '£4.99',
+        tone: StoreTone.cash,
         disabledReason: t('settings.comingSoon'),
       ),
     );
@@ -101,9 +104,72 @@ void main() {
     expect(find.text(t('settings.comingSoon')), findsOneWidget);
     expect(
       tester
-          .widget<ElevatedButton>(find.byKey(const ValueKey('shop-buy-thing')))
-          .onPressed,
+          .widget<StoreButton>(find.byKey(const ValueKey('shop-buy-thing')))
+          .onTap,
       isNull,
     );
+  });
+
+  testWidgets('and the button is coloured for what it COSTS', (tester) async {
+    // The colour answers "what does this cost me?" — green real money, blue
+    // gems, gold coins, yellow an ad. Before this every one of them was the kit
+    // accent, so a shelf of coin, gem and cash packs was one green wall.
+    for (final (tone, expected) in [
+      (StoreTone.cash, const Color(0xFF43A047)),
+      (StoreTone.gem, const Color(0xFF1E88C7)),
+      (StoreTone.coin, const Color(0xFFD8A01A)),
+      (StoreTone.ad, const Color(0xFFFFD54A)),
+    ]) {
+      await pump(
+        tester,
+        ShopTile(
+          tileKey: 'thing',
+          title: 'Thing',
+          price: '1,000',
+          tone: tone,
+          onBuy: () {},
+        ),
+      );
+      final box = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byKey(const ValueKey('shop-buy-thing')),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      expect(
+        (box.decoration! as BoxDecoration).color,
+        expected,
+        reason: '$tone',
+      );
+    }
+  });
+
+  testWidgets('a rewarded-video button discloses that it is an ad', (
+    tester,
+  ) async {
+    // The label is a verb ("Claim"), so the disclosure has to come from
+    // somewhere.
+    await pump(
+      tester,
+      ShopTile(
+        tileKey: 'thing',
+        title: 'Thing',
+        price: 'Claim',
+        tone: StoreTone.ad,
+        onBuy: () {},
+      ),
+    );
+    expect(find.text('AD'), findsOneWidget);
+    await pump(
+      tester,
+      ShopTile(
+        tileKey: 'thing',
+        title: 'Thing',
+        price: '1,000',
+        tone: StoreTone.coin,
+        onBuy: () {},
+      ),
+    );
+    expect(find.text('AD'), findsNothing);
   });
 }

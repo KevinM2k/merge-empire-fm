@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 import 'shop_helpers.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 void main() {
   tearDown(resetLocale);
@@ -37,12 +38,10 @@ void main() {
 
   testWidgets('every paid tile is priced and dead', (tester) async {
     await pumpPaid(tester);
-    final buttons = tester.widgetList<ElevatedButton>(
-      find.byType(ElevatedButton),
-    );
+    final buttons = tester.widgetList<StoreButton>(find.byType(StoreButton));
     expect(buttons, isNotEmpty);
     for (final b in buttons) {
-      expect(b.onPressed, isNull);
+      expect(b.onTap, isNull);
     }
     expect(find.text(t('settings.comingSoon')), findsWidgets);
   });
@@ -267,10 +266,10 @@ void main() {
       await pumpShopWidget(tester, (_) {}, FreeShelfSection.new);
       expect(find.text(t('shop.lucky_boot_ad_name')), findsOneWidget);
       expect(find.text(t('shop.match_cooldown_ad_name')), findsOneWidget);
-      for (final b in tester.widgetList<ElevatedButton>(
-        find.byType(ElevatedButton),
+      for (final b in tester.widgetList<StoreButton>(
+        find.byType(StoreButton),
       )) {
-        expect(b.onPressed, isNull);
+        expect(b.onTap, isNull);
       }
     });
 

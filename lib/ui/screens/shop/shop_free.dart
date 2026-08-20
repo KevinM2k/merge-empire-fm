@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// How many rewarded views the daily cap has left, and how long until the next.
 typedef AdGate = ({int remaining, bool ready, int waitMs});
@@ -46,6 +47,7 @@ class FreeShelfSection extends ConsumerWidget {
             title: t('shop.match_cooldown_ad_name'),
             subtitle: t('shop.match_cooldown_ad_desc'),
             price: t('shop.claim_cta'),
+            tone: StoreTone.ad,
             badge: status,
             disabledReason: paidDisabledReason(),
           ),
@@ -54,6 +56,7 @@ class FreeShelfSection extends ConsumerWidget {
             title: t('shop.lucky_boot_ad_name'),
             subtitle: t('shop.lucky_boot_ad_desc'),
             price: t('shop.claim_cta'),
+            tone: StoreTone.ad,
             badge: status,
             disabledReason: paidDisabledReason(),
           ),

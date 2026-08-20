@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
@@ -508,12 +509,12 @@ class _CooldownMaskState extends ConsumerState<_CooldownMask> {
     final fraction = total <= 0
         ? 0.0
         : (matchCooldownRemaining(state) / total).clamp(0.0, 1.0);
-    return Align(
+    return BarFill(
+      // From the right: what is left of the clock is the part still masked, so
+      // the bright face grows out from the left as the wait runs down.
       alignment: Alignment.centerRight,
-      child: FractionallySizedBox(
-        widthFactor: fraction,
-        child: ColoredBox(color: Colors.black.withValues(alpha: 0.68)),
-      ),
+      fraction: fraction,
+      child: ColoredBox(color: Colors.black.withValues(alpha: 0.68)),
     );
   }
 }

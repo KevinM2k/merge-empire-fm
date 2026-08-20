@@ -102,6 +102,43 @@ LinearGradient skyGradient({
 Color skyHaze({required Brightness brightness, required int tier}) =>
     skyColours(brightness: brightness, tier: tier).last;
 
+/// The ink for text drawn DIRECTLY on the sky, with the halo that keeps it
+/// legible against a gradient.
+///
+/// The fixture caption's own note used to say why it was white in both themes:
+/// "this line sits directly on the diorama, whose sky runs from bright noon to
+/// floodlit night, and no theme colour survives both ends of that." That was
+/// true of a sky on a clock. It is not true of a sky that follows the theme —
+/// there are two known backdrops now, so there are two right answers, and white
+/// on a daylit sky is the one thing that was never legible.
+///
+/// The halo inverts with the ink: dark text needs a light glow behind it and
+/// light text needs a dark one, and either way the shadow is what stops the line
+/// dissolving where the gradient passes through its own tone.
+({Color ink, Color inkSoft, List<Shadow> shadows}) skyInk(
+  BuildContext context,
+) {
+  if (nightSceneOf(context)) {
+    return (
+      ink: Colors.white,
+      inkSoft: const Color(0xCCFFFFFF),
+      shadows: const [
+        Shadow(color: Color(0xBF000000), blurRadius: 4, offset: Offset(0, 1)),
+        Shadow(color: Color(0x80000000), blurRadius: 10),
+      ],
+    );
+  }
+  final ink = Theme.of(context).colorScheme.onSurface;
+  return (
+    ink: ink,
+    inkSoft: ink.withValues(alpha: 0.72),
+    shadows: const [
+      Shadow(color: Color(0xD9FFFFFF), blurRadius: 4, offset: Offset(0, 1)),
+      Shadow(color: Color(0x99FFFFFF), blurRadius: 10),
+    ],
+  );
+}
+
 /// How many floodlight pylons stand behind the terrace.
 ///
 /// The JS's own counts, and keyed on the TIER on purpose: a pylon is BUILT, not

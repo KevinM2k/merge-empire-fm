@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Said on every real-money control, so a player is told the feature is coming
@@ -41,6 +42,8 @@ List<Widget> paidTilesFor(WidgetRef ref, Set<String> categories) => [
       // the shop was text with a price under it.
       glyph: shopProductGlyph(tile.product),
       price: tile.product.price,
+      // Real money, and the only tone that leaves the game to be paid.
+      tone: StoreTone.cash,
       badge: tile.product.popular ? t('shop.most_popular') : null,
       disabledReason: paidDisabledReason(),
     ),

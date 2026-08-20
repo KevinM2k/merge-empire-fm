@@ -13,6 +13,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 class ShopTile extends StatelessWidget {
   const ShopTile({
@@ -20,6 +22,7 @@ class ShopTile extends StatelessWidget {
     required this.tileKey,
     required this.title,
     required this.price,
+    required this.tone,
     this.subtitle,
     this.onBuy,
     this.disabledReason,
@@ -30,6 +33,12 @@ class ShopTile extends StatelessWidget {
   final String tileKey;
   final String title;
   final String price;
+
+  /// What it costs, which is what colours the button — see [StoreButton].
+  /// Required rather than defaulted: a tile that forgets its currency looks
+  /// exactly like one that is priced in the club's accent, and the whole point
+  /// of the colour is that it cannot be guessed wrong quietly.
+  final StoreTone tone;
   final String? subtitle;
   final VoidCallback? onBuy;
 
@@ -123,13 +132,19 @@ class ShopTile extends StatelessWidget {
             // was always supposed to be, rather than half the tile.
             const Spacer(),
             const SizedBox(height: 10),
-            ElevatedButton(
+            StoreButton(
               key: ValueKey('shop-buy-$tileKey'),
-              onPressed: onBuy,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-              child: Text(price, maxLines: 1, overflow: TextOverflow.ellipsis),
+              tone: tone,
+              label: price,
+              leading: switch (tone) {
+                // The wallet, on the button, before the number — the same two
+                // marks the HUD shows the balances with, so a price and a
+                // balance are read in the same units.
+                StoreTone.coin => const CoinIcon(size: 12, solid: true),
+                StoreTone.gem => const GameIcon('gem', size: 13),
+                _ => null,
+              },
+              onTap: onBuy,
             ),
           ],
         ),

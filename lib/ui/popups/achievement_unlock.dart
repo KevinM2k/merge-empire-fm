@@ -455,6 +455,9 @@ class _Sheen extends StatelessWidget {
         transform: Matrix4.skewX(-0.35),
         child: FractionallySizedBox(
           widthFactor: 0.3,
+          // See `BarFill`: without this the gradient box below, which has no
+          // child, collapses to nothing and the glint never appears.
+          heightFactor: 1,
           alignment: Alignment.centerLeft,
           child: DecoratedBox(
             decoration: BoxDecoration(
