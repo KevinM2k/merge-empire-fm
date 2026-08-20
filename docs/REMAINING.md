@@ -30,12 +30,17 @@ too late:
 
 ## Where we are
 
-**3,628 tests, `flutter analyze` clean.** Everything below that is not ticked
-is what remains, and **`docs/PARITY.md` is the queue** — a control-by-control and
-layout-by-layout diff of the JS against the port, taken from the source.
-**"Open from playtesting" below is the short queue**: what a session of actually
-playing the thing turned up, which is a different list from what reading the
-source turns up and is worth clearing first.
+**3,650 tests, `flutter analyze` clean.**
+
+**The live queue is "From playtesting — 20 Aug", and it is 34 items.** That is
+what a session of actually playing the thing turned up, which is a different list
+from what reading the source turns up and is the one to clear first. It carries
+its own status block: the count, the clusters, what is blocked on a decision and
+what is blocked on artwork.
+
+`docs/PARITY.md` is the OTHER queue — a control-by-control and layout-by-layout
+diff of the JS against the port, taken from the source. It is the longer list and
+the less urgent one: nothing on it is a thing a player has complained about.
 
 **Read that before porting another screen.** The port was being built screen by
 screen with the gaps surfacing as bug reports from playing, which is the slowest
@@ -536,11 +541,44 @@ things a player could see:
 
 ---
 
-## Open from playtesting — 20 Aug
+## From playtesting — 20 Aug
 
 A second session, all of it visual and all of it checkable against
 `../merge-empire-fc`. Grouped by where the work is rather than by severity,
 because most of these are two or three to a file.
+
+### Where this queue stands
+
+**35 done, 34 open** across both playtest sessions. Of the 34: **31 are work**
+(the table below), one is a decision that is not mine to take, and two are
+artwork packs to bring in when the screens that want them come up.
+
+| Cluster | Open | What it is |
+|---|---|---|
+| Manager and customiser | 5 | the rig's shadow, body shape, the tracksuit, a walking backdrop, style previews, and the wrong navigation for it |
+| Settings, sound and graphics | 6 | missing entries, the screen itself, sound not working at all, iOS volume, the JS's button colours |
+| Squad and the player sheet | 5 | portrait over the buttons, a release button, the traits, the tier-maxed highlight, the card's portrait |
+| The Play page | 3 | the 2D cutaway, the commentary, the styling |
+| Home, odds and ends | 5 | the position badge, the `+1` tooltip, Colin's third person, income per second, the safe area's depth |
+| Fixtures, daily reward, vouchers | 3 | three screens wanting a pass |
+| Deadline Day and names | 2 | renaming a player, and buying the player you actually bought |
+| Not code decisions | 2 | the IAP tiles and the rewarded-video buttons |
+
+**Two things worth reading before picking one up.**
+
+**1. One item is waiting on a DECISION, not on work.** The diorama's sky
+currently runs a slow light → dark → light cycle, and it should be one of two
+things instead — neither of which is a port of anything, so it needs choosing:
+
+- [ ] **The sky: device clock, or the theme?** Matching the phone's own time is
+      alive and is what most sports games do, but a player on a night shift never
+      sees daylight. Following light/dark mode is predictable, makes the setting
+      mean something, and matches the card and HUD glass, which are already tuned
+      per theme. **Nothing else on this list is blocked by it.**
+
+**2. The artwork question is answered.** `kenneynl/` holds six CC0 packs and the
+useful one is now bundled — see "Artwork, and which packs" at the end of this
+section. Nothing on the list below is blocked for want of art any more.
 
 ### The grid
 
@@ -739,6 +777,45 @@ because most of these are two or three to a file.
       its own, so a card with real content (a sponsor's terms, a player's
       portrait) uses his frame rather than inventing one. The sponsor offer had a
       company logo where his head goes and two uncoloured buttons at the bottom.
+
+---
+
+### Artwork, and which packs
+
+`kenneynl/` holds six of Kenney's packs, all CC0 (credit optional). The rule from
+playtesting is **no emoji where a drawn thing will do** — which is why the shop
+now uses the app's own line art and the coin bundles get real pictures.
+
+- [x] **`kenney_modular-characters` is BUNDLED** — 428 PNGs, 1.8MB, extracted flat
+      per layer into `assets/manager/{skin,face,hair,shirts,pants,shoes}` and
+      registered in `pubspec.yaml`. Only the PNG tree: the pack also ships
+      vectors, spritesheets, a preview and a licence, and a pubspec pointed at the
+      raw folder would put all of it in the app.
+      It is a layered paper doll — head, neck, arm, hand and leg per skin tint,
+      shirts carrying their own sleeve lengths, pants, shoes, hair in six colours,
+      face features — which is exactly the shape `manager_walker.dart` already
+      works in. The rig turns JOINTS, so giving it real parts to turn is a swap
+      rather than a rewrite. **This is what unblocks the whole manager cluster
+      above**, previews included.
+- [ ] **`kenney_background-elements-remastered` (1.6MB) is the next candidate** —
+      for the customiser's backdrop, and possibly the diorama.
+- [ ] **`kenney_sports-pack` is already half-extracted** into `assets/pitch/`.
+      Worth going back to it for the 2D cutaway rather than drawing more by hand.
+
+Three that are deliberately NOT bundled, so nobody spends the download twice:
+
+- **`kenney_game-icons`** — the app already ships a consistent line-art set
+  ported from the JS (`game_icon.dart`, 57 glyphs). Swapping it churns something
+  that works. `video` for the rewarded-ad buttons is the only piece worth taking.
+- **`kenney_smoke-particles`** — 5.9MB, and the merge burst already draws its
+  particles procedurally at any size and in any tier's colours.
+- **`kenney_emotes-pack`** — good for Colin's reactions one day; nothing needs it.
+
+**Rive is not a route yet.** The MCP server is registered for this project but
+ships inside the Rive **Early Access** desktop app, which is not installed — and
+Rive's own pricing page lists Early Access under Cadet/Voyager/Enterprise rather
+than Free. Separately, PLAYING a Rive rig in the app would mean adding the `rive`
+runtime alongside `flame`, which is a dependency decision nobody has taken.
 
 ---
 
