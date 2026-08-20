@@ -82,8 +82,13 @@ void main() {
         await pumpPanel(tester, brightness: brightness);
         expect(
           opacityOf(tintOf(tester)),
-          lessThan(0.62),
+          lessThan(0.45),
           reason: '$brightness: that is a block, not glass',
+        );
+        expect(
+          opacityOf(tintOf(tester)),
+          greaterThan(0.1),
+          reason: '$brightness: that is not a pane at all',
         );
       }
     });
@@ -138,19 +143,14 @@ void main() {
       }
     });
 
-    testWidgets('still reads with the blur removed', (tester) async {
-      // The tint carries legibility and the blur is a bonus — a blur is a
-      // backdrop snapshot per panel per frame over a diorama that is already
-      // animating, and it is the first thing to drop on a phone that cannot
-      // afford it.
-      for (final brightness in Brightness.values) {
-        await pumpPanel(tester, brightness: brightness);
-        expect(
-          opacityOf(tintOf(tester)),
-          greaterThan(0.4),
-          reason: '$brightness: the tint alone would not hold the text',
-        );
-      }
+    testWidgets('and the pane is what it is in BOTH themes', (tester) async {
+      // Neither one is allowed to drift into being a slab while the other stays
+      // glass, which is how the light recipe got to near-opaque the first time.
+      await pumpPanel(tester, brightness: Brightness.light);
+      final day = opacityOf(tintOf(tester));
+      await pumpPanel(tester, brightness: Brightness.dark);
+      final night = opacityOf(tintOf(tester));
+      expect((day - night).abs(), lessThan(0.2));
     });
   });
 

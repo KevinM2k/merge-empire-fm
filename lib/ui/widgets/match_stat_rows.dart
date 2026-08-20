@@ -167,9 +167,9 @@ class _StatWell extends StatelessWidget {
         // and can take a quarter of the pane's opacity; on a near-white pane the
         // same wash is a mid-grey slab that outweighs everything on the card. It
         // has to be a whisper there — the border does the work instead.
-        color: Colors.black.withValues(
-          alpha: Theme.of(context).brightness == Brightness.dark ? 0.24 : 0.05,
-        ),
+        // See the same note in `match_quests_block.dart`: on a pane that is half
+        // transparent, any real wash reads as a slab rather than as depth.
+        color: glassInk(context).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(11),
         border: Border.all(color: glassInk(context).withValues(alpha: 0.10)),
       ),

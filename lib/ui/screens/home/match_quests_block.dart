@@ -110,9 +110,14 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.2),
+        // A RECESS, not a black box. On the old near-opaque pane a 20% black wash
+        // read as depth; on glass at half opacity it is a dark slab punched
+        // through the middle of the card, and the sky behind stops showing where
+        // the block is. Same fix as the ATK/DEF well: a whisper, and let the
+        // border do the separating.
+        color: glassInk(context).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: glassInk(context).withValues(alpha: 0.08)),
+        border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

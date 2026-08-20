@@ -70,10 +70,10 @@ void main() {
   group('effects', () {
     test('play at the base level times the player\'s own', () {
       final (service: s, backend: b) = build();
-      s.play('merge');
+      unawaited(s.play('merge'));
       expect(b.sfx.single.volume, closeTo(sfxBaseVolume, 1e-9));
       s.setSoundVolume(0.5);
-      s.play('merge');
+      unawaited(s.play('merge'));
       expect(b.sfx.last.volume, closeTo(sfxBaseVolume * 0.5, 1e-9));
     });
 
@@ -88,7 +88,7 @@ void main() {
     test('nothing plays with sound off', () {
       final (service: s, backend: b) = build();
       s.setSoundEnabled(false);
-      s.play('merge');
+      unawaited(s.play('merge'));
       expect(b.sfx, isEmpty);
     });
 
@@ -96,10 +96,10 @@ void main() {
       // Without this the OS keeps playing after the app leaves the foreground.
       final (service: s, backend: b) = build();
       await s.suspend();
-      s.play('merge');
+      unawaited(s.play('merge'));
       expect(b.sfx, isEmpty);
       await s.resume();
-      s.play('merge');
+      unawaited(s.play('merge'));
       expect(b.sfx, hasLength(1));
     });
 
@@ -117,13 +117,13 @@ void main() {
 
     test('overlap is passed through for the ones that need it', () {
       final (service: s, backend: b) = build();
-      s.play('goal', overlap: true);
+      unawaited(s.play('goal', overlap: true));
       expect(b.sfx.single.overlap, isTrue);
     });
 
     test('the firework is a bundled recording, kept well back', () {
       final (service: s, backend: b) = build();
-      s.playFirework();
+      unawaited(s.playFirework());
       expect(b.assets.single.asset, fireworkAsset);
       expect(
         b.assets.single.volume,
@@ -134,13 +134,16 @@ void main() {
   });
 
   group('music', () {
-    test('ships off, and turning it on starts the bed the game wants', () async {
-      final (service: s, backend: b) = build();
-      expect(s.musicEnabled, isFalse);
-      expect(b.music, isEmpty);
-      await s.setMusicEnabled(true);
-      expect(b.music.single.asset, musicAssets[MusicBed.menu]);
-    });
+    test(
+      'ships off, and turning it on starts the bed the game wants',
+      () async {
+        final (service: s, backend: b) = build();
+        expect(s.musicEnabled, isFalse);
+        expect(b.music, isEmpty);
+        await s.setMusicEnabled(true);
+        expect(b.music.single.asset, musicAssets[MusicBed.menu]);
+      },
+    );
 
     test('at the base level times the player\'s own', () async {
       final (service: s, backend: b) = build();
@@ -237,15 +240,21 @@ void main() {
       expect(b.resumed, 0);
     });
 
-    test('and coming back onto the same bed resumes rather than restarts',
-        () async {
-      final (service: s, backend: b) = build();
-      await s.setMusicEnabled(true);
-      final calls = b.music.length;
-      await s.suspend();
-      await s.resume();
-      expect(b.music.length, calls, reason: 'the loop restarted from the top');
-      expect(b.resumed, 1);
-    });
+    test(
+      'and coming back onto the same bed resumes rather than restarts',
+      () async {
+        final (service: s, backend: b) = build();
+        await s.setMusicEnabled(true);
+        final calls = b.music.length;
+        await s.suspend();
+        await s.resume();
+        expect(
+          b.music.length,
+          calls,
+          reason: 'the loop restarted from the top',
+        );
+        expect(b.resumed, 1);
+      },
+    );
   });
 }

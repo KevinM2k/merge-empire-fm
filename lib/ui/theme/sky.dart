@@ -128,13 +128,17 @@ Color skyHaze({required Brightness brightness, required int tier}) =>
       ],
     );
   }
+  // **DAYLIGHT NEEDS NO HALO.** A white glow behind dark text on a bright sky is
+  // a smudge — it has nothing to lift the letters off, because they are already
+  // the darkest thing on the screen, and all it does is fur their edges. One
+  // hairline of white directly under the baseline is enough to stop the ink
+  // dissolving where the sky's gradient runs darkest, and that is all.
   final ink = Theme.of(context).colorScheme.onSurface;
   return (
     ink: ink,
     inkSoft: ink.withValues(alpha: 0.72),
     shadows: const [
-      Shadow(color: Color(0xD9FFFFFF), blurRadius: 4, offset: Offset(0, 1)),
-      Shadow(color: Color(0x99FFFFFF), blurRadius: 10),
+      Shadow(color: Color(0x66FFFFFF), blurRadius: 1.5, offset: Offset(0, 1)),
     ],
   );
 }

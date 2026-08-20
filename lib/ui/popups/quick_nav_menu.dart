@@ -12,9 +12,9 @@
 /// won" makes eight destinations findable in a way one flat list does not.
 library;
 
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -56,7 +56,10 @@ Future<void> showQuickNavMenu(
 }) {
   return showDialog<void>(
     context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.55),
+    // Lighter than a normal dialog's. The menu is real glass, so the scene has
+    // to be visible THROUGH it — a 55% barrier put the diorama behind a curtain
+    // and the pane had nothing left to be transparent to.
+    barrierColor: Colors.black.withValues(alpha: 0.32),
     builder: (dialogContext) => _QuickNavMenu(groups: groups),
   );
 }
@@ -76,64 +79,59 @@ class _QuickNavMenu extends StatelessWidget {
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: kit.surface.withValues(alpha: 0.72),
-              border: Border.all(color: kit.border.withValues(alpha: 0.6)),
-            ),
-            child: SingleChildScrollView(
-              key: const ValueKey('quick-nav'),
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    t('quicknav.title'),
+      // **ONE GLASS RECIPE FOR THE WHOLE APP.** This had its own — 72% surface
+      // and its own sigma — which is a second answer to the question
+      // `theme/glass.dart` already answers, and it drifted from it: the frame was
+      // nearly opaque and every tile inside it was a solid card, so the menu read
+      // as a grid on a slab rather than as something laid over the scene.
+      child: GlassPanel(
+        radius: 18,
+        deep: true,
+        child: SingleChildScrollView(
+          key: const ValueKey('quick-nav'),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                t('quicknav.title'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: kit.accentBright,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              for (final group in groups) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 16, bottom: 8),
+                  child: Text(
+                    t(group.titleKey).toUpperCase(),
+                    // CENTRED over the tiles it heads, which are centred. Left
+                    // against a centred `Wrap` read as a heading for something
+                    // else.
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: kit.accentBright,
-                      fontSize: 18,
+                      color: kit.textMuted,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  for (final group in groups) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 8),
-                      child: Text(
-                        t(group.titleKey).toUpperCase(),
-                        // CENTRED over the tiles it heads, which are centred. Left
-                        // against a centred `Wrap` read as a heading for something
-                        // else.
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: kit.textMuted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                    // Wrap rather than a fixed grid: a group of two centres rather
-                    // than left-packing beside an empty third cell.
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        for (final item in group.items)
-                          _QuickNavTile(item: item),
-                      ],
-                    ),
+                ),
+                // Wrap rather than a fixed grid: a group of two centres rather
+                // than left-packing beside an empty third cell.
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final item in group.items) _QuickNavTile(item: item),
                   ],
-                ],
-              ),
-            ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -163,9 +161,14 @@ class _QuickNavTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
           decoration: BoxDecoration(
-            color: kit.surface2,
+            // Etched INTO the glass rather than laid on it. A solid `surface2`
+            // card here is what made a transparent frame read as opaque: the
+            // pane showed the scene and then eleven blocks covered it.
+            color: glassInk(context).withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kit.border),
+            border: Border.all(
+              color: glassInk(context).withValues(alpha: 0.16),
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

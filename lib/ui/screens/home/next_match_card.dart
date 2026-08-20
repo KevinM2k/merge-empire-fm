@@ -458,6 +458,18 @@ class _Name extends StatelessWidget {
 }
 
 /// The tactic, wearing its own colour, and a way to change it without leaving.
+/// The tactic, as a LINE rather than a badge.
+///
+/// It was a filled, hairlined chip. On a pane that is itself glass that is a
+/// second panel inside the first — and the row above it is already separated by a
+/// rule, so the chip was saying "these two words are a group" twice. The colour
+/// carries it: the tactic's own hue on its name is the whole identity, and it is
+/// the same hue the Squad picker and the in-match strip use.
+///
+/// **BOTH HALVES AT ONE SIZE.** "TACTIC" at 9.5 and the name at 12 read as a
+/// label with a heading stuck on the end of it. One size, one weight, and the
+/// only difference between them is that the label is muted and the name is the
+/// tactic's colour.
 class _TacticChip extends ConsumerWidget {
   const _TacticChip();
 
@@ -466,47 +478,37 @@ class _TacticChip extends ConsumerWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final id = ref.watch(strategyIdProvider);
     final hue = tacticColor(context, id);
+    const style = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.6,
+      height: 1.1,
+    );
 
-    return Material(
-      color: tacticTint(context, id, 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: tacticTint(context, id, 55)),
-      ),
-      child: InkWell(
-        key: const ValueKey('nm-tactic'),
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => showTacticPicker(context, ref),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // NO GLYPH. The chip already wears the tactic's colour on its
-              // fill, its hairline and its name — a fourth statement of the same
-              // thing, in the one place the card has no vertical room, is the
-              // easiest row on it to give back.
-              Text(
-                t('play.tactic_label').toUpperCase(),
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  color: kit.textMuted,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                t('strategy.$id.name').toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.4,
-                  color: hue,
-                ),
-              ),
-            ],
-          ),
+    return InkWell(
+      key: const ValueKey('nm-tactic'),
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => showTacticPicker(context, ref),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // NO GLYPH. The name already wears the tactic's colour; a fourth
+            // statement of the same thing, in the one place the card has no
+            // vertical room, is the easiest row on it to give back.
+            Text(
+              t('play.tactic_label').toUpperCase(),
+              style: style.copyWith(color: kit.textMuted),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              t('strategy.$id.name').toUpperCase(),
+              style: style.copyWith(color: hue, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(width: 3),
+            Icon(Icons.chevron_right, size: 14, color: kit.textMuted),
+          ],
         ),
       ),
     );

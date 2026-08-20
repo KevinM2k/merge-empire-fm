@@ -50,25 +50,32 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 /// two things that actually say glass: a SATURATION lift on what is behind it,
 /// and a bright specular hairline along its top edge.
 ///
-/// The arithmetic that has to hold: a 52% white pane over a sky at 0.58 luma
-/// composites to about 0.80, and the app's own ink is 0.11 — 5.3:1, comfortably
-/// past the 4.5:1 small text needs. That is the floor these values are set from,
-/// and it is why they cannot go much lower without the blur becoming
-/// load-bearing for legibility rather than for looks.
-const Color _darkA = Color(0x8A141E2C);
-const Color _darkB = Color(0x66090F18);
+/// **AND THE TINT CAN GO MUCH LOWER THAN IT LOOKS LIKE IT CAN**, which is the
+/// part that kept being got wrong by eye. Worked out properly rather than
+/// guessed: contrast is a ratio of RELATIVE LUMINANCE, not of the linear grey
+/// values it is tempting to compare. The app's light ink `#191d17` has a relative
+/// luminance of 0.012, so anything it sits on needs 0.23 to clear 4.5:1 — which
+/// is a mid-grey. The daylit sky is already past that on its own. The pane's tint
+/// is therefore doing nothing for legibility at all in light mode, and it is free
+/// to be as thin as it looks best at.
+///
+/// So these are set by EYE, with the arithmetic only as a floor, and the things
+/// that make a quarter-opacity pane read as glass are the four below it: the
+/// blur, the saturation lift, the specular rim and the drop shadow.
+const Color _darkA = Color(0x59141E2C);
+const Color _darkB = Color(0x42090F18);
 
 /// A touch denser, for a panel big enough that the sky behind it varies across
 /// its own height.
-const Color _darkDeepA = Color(0x9E141E2C);
-const Color _darkDeepB = Color(0x7A090F18);
+const Color _darkDeepA = Color(0x6E141E2C);
+const Color _darkDeepB = Color(0x54090F18);
 
 /// The same two stops in daylight.
-const Color _lightA = Color(0x85FCFEFF);
-const Color _lightB = Color(0x6BE4EFF8);
+const Color _lightA = Color(0x45FCFEFF);
+const Color _lightB = Color(0x33E4EFF8);
 
-const Color _lightDeepA = Color(0x9EFCFEFF);
-const Color _lightDeepB = Color(0x82DCEAF5);
+const Color _lightDeepA = Color(0x57FCFEFF);
+const Color _lightDeepB = Color(0x42DCEAF5);
 
 /// How much the backdrop's colour is pushed under the pane.
 ///
@@ -204,12 +211,13 @@ class GlassPanel extends StatelessWidget {
         borderRadius: shape,
         boxShadow: [
           BoxShadow(
-            // Heavier in daylight than the dark theme's, which sounds backwards
-            // and is not: on a night sky the pane is darker than its backdrop
-            // and its own edge separates it, while in daylight the pane is
-            // BRIGHTER than the sky and the shadow is the only thing that lifts
-            // it off. A light card with no shadow is a hole in the sky.
-            color: Colors.black.withValues(alpha: night ? 0.3 : 0.26),
+            // At a quarter opacity the shadow is not decoration — it is the only
+            // thing telling you the pane is IN FRONT of the scene rather than a
+            // patch of it. Heavier in daylight, which sounds backwards and is
+            // not: on a night sky the pane is darker than its backdrop and its
+            // own edge separates it; in daylight it is brighter, and the shadow
+            // is what lifts it off.
+            color: Colors.black.withValues(alpha: night ? 0.34 : 0.30),
             blurRadius: deep ? 26 : 18,
             offset: Offset(0, deep ? 10 : 6),
           ),

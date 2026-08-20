@@ -171,7 +171,7 @@ class _Rule extends StatelessWidget {
           colors: [ink.withValues(alpha: 0), ink],
         ),
         boxShadow: [
-          BoxShadow(color: halo, blurRadius: 3, offset: const Offset(0, 1)),
+          BoxShadow(color: halo, blurRadius: 2, offset: const Offset(0, 1)),
         ],
       ),
     ),
