@@ -182,6 +182,8 @@ class PitchScene extends StatelessWidget {
     this.walkerBottom = 150 + walkerBottomClearance,
     this.condition = 'clear',
     this.onThunder,
+    this.frozen = false,
+    this.onTapWalker,
   });
 
   final Mood mood;
@@ -217,6 +219,19 @@ class PitchScene extends StatelessWidget {
   /// lives behind a provider and this widget deliberately does not read one, so
   /// a test can build the whole diorama without wiring audio.
   final void Function()? onThunder;
+
+  /// **The world stops travelling past him.**
+  ///
+  /// He walks in place and the scene scrolls, so a gesture that plants his feet
+  /// has to stop the scroll with it — otherwise the ground keeps sliding past a
+  /// man standing still, which is the one thing that gives the whole trick away.
+  /// The walker stops itself; this is every surface he is standing on.
+  final bool frozen;
+
+  /// A tap on the figure. The JS answers it with a mood-appropriate gesture,
+  /// which is the one thing on this screen that replies with a person rather
+  /// than a menu.
+  final void Function()? onTapWalker;
 
   @override
   Widget build(BuildContext context) {
@@ -364,6 +379,7 @@ class PitchScene extends StatelessWidget {
                   mood: mood,
                   contactBelowHorizon: feet - horizon,
                   condition: condition,
+                  frozen: frozen,
                 ),
               ),
               // His boot prints, pinned to HIS contact line rather than to the
@@ -420,10 +436,16 @@ class PitchScene extends StatelessWidget {
                 child: SizedBox(
                   width: walkerWidth,
                   height: walkerHeight,
-                  child: Transform.scale(
-                    scale: walkerScale,
-                    alignment: Alignment.bottomCenter,
-                    child: walker,
+                  child: GestureDetector(
+                    // A tap on HIM, not on the scene: the diorama's own taps are
+                    // the crowd's and the fireworks', and tapping the manager
+                    // used to set off a rocket — which is what you noticed.
+                    onTap: onTapWalker,
+                    child: Transform.scale(
+                      scale: walkerScale,
+                      alignment: Alignment.bottomCenter,
+                      child: walker,
+                    ),
                   ),
                 ),
               ),
@@ -490,6 +512,11 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
   Duration _last = Duration.zero;
 
   /// The same bargain the scrolling strips make — see `_ScrollerState._sync`.
+  ///
+  /// It does NOT take the scene's freeze, and that is the point of it being here
+  /// rather than shared: the crowd bounces at the rate people bounce, not at the
+  /// rate the ground travels. A stand that stopped dead because the manager
+  /// paused to bow would be stranger than one that carried on.
   void _sync() {
     if (MediaQuery.of(context).disableAnimations) {
       if (_c.isAnimating) _c.stop();
@@ -1048,7 +1075,11 @@ class _Turf extends StatelessWidget {
     required this.mood,
     required this.contactBelowHorizon,
     required this.condition,
+    this.frozen = false,
   });
+
+  /// He has planted his feet, so the grass under them stops too.
+  final bool frozen;
 
   final Mood mood;
 
@@ -1093,6 +1124,7 @@ class _Turf extends StatelessWidget {
           ),
           _MowFan(
             key: const ValueKey('pitch-mown'),
+            frozen: frozen,
             duration: mowDuration(
               turfHeight: constraints.maxHeight,
               contactBelowHorizon: contactBelowHorizon,
@@ -1105,6 +1137,7 @@ class _Turf extends StatelessWidget {
           for (var band = 0; band < tuftBandRatios.length; band++)
             Positioned.fill(
               child: _Scroller(
+                frozen: frozen,
                 // One segment per loop at band 0's own speed; the far bands are
                 // slower by the fan's proportions at their depth.
                 duration: Duration(
@@ -1160,9 +1193,10 @@ class _Turf extends StatelessWidget {
 /// rather than a pitch — and pinning that one speed anywhere but under his boots
 /// is what has him skating.
 class _MowFan extends StatefulWidget {
-  const _MowFan({super.key, required this.duration});
+  const _MowFan({super.key, required this.duration, this.frozen = false});
 
   final Duration duration;
+  final bool frozen;
 
   @override
   State<_MowFan> createState() => _MowFanState();
@@ -1176,7 +1210,9 @@ class _MowFanState extends State<_MowFan> with SingleTickerProviderStateMixin {
 
   /// Same bargain the scrolling strips make — see `_ScrollerState._sync`.
   void _sync() {
-    if (MediaQuery.of(context).disableAnimations) {
+    if (widget.frozen || MediaQuery.of(context).disableAnimations) {
+      // STOPPED where it is, not reset: he plants his feet mid-stride, and the
+      // grass under them has to be the grass that was already there.
       if (_c.isAnimating) _c.stop();
       return;
     }
@@ -1352,11 +1388,15 @@ class _Scroller extends StatefulWidget {
     required this.duration,
     required this.segmentWidth,
     required this.child,
+    this.frozen = false,
   });
 
   final Duration duration;
   final double segmentWidth;
   final Widget child;
+
+  /// He has stopped walking, so the strip stops with him.
+  final bool frozen;
 
   @override
   State<_Scroller> createState() => _ScrollerState();
@@ -1377,7 +1417,7 @@ class _ScrollerState extends State<_Scroller>
   /// movement that setting exists to stop — and it is also what lets a widget
   /// test settle, because a looping animation never does.
   void _sync() {
-    final still = MediaQuery.of(context).disableAnimations;
+    final still = widget.frozen || MediaQuery.of(context).disableAnimations;
     if (still) {
       if (_c.isAnimating) _c.stop();
       return;

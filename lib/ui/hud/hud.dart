@@ -244,10 +244,17 @@ class Hud extends ConsumerWidget {
                           TextSpan(
                             text: '${ref.watch(energyProvider).floor()}',
                             style: valueStyle.copyWith(
-                              color: energyInk(
-                                ref.watch(energyProvider),
-                                ref.watch(energyMaxProvider),
-                                kit.accentBright,
+                              // Through [glassAccent] like every other colour on
+                              // the pane. The ladder's own green is `#4ADE80` —
+                              // 1.9:1 on a bright pane, which is a figure you
+                              // cannot read at all in daylight.
+                              color: glassAccent(
+                                context,
+                                energyInk(
+                                  ref.watch(energyProvider),
+                                  ref.watch(energyMaxProvider),
+                                  kit.accentBright,
+                                ),
                               ),
                             ),
                           ),
@@ -255,8 +262,14 @@ class Hud extends ConsumerWidget {
                             text: '/${ref.watch(energyMaxProvider)}',
                             style: valueStyle.copyWith(
                               fontSize: 10,
-                              color: (valueStyle.color ?? kit.textMuted)
-                                  .withValues(alpha: 0.6),
+                              // **Quiet, not invisible**, and there is already a
+                              // colour for exactly this — `glassMuted`, whose own
+                              // doc names "a progress fraction". It was the
+                              // FIGURE's colour at 60% alpha, and that colour is
+                              // already ramped to the edge of legibility, so 60%
+                              // of it sits under the threshold and the cap read
+                              // as a smudge.
+                              color: glassMuted(context),
                             ),
                           ),
                         ],

@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class HudChip extends StatelessWidget {
@@ -63,7 +64,33 @@ class HudChip extends StatelessWidget {
           // SHAPE is identity and a number is information: the coin is a coin
           // whatever its luminance, and the figure beside it is what has to be
           // read. So the icon is left alone and the value is darkened.
-          Icon(icon, size: iconSize, color: iconColor ?? kit.accentBright),
+          Icon(
+            icon,
+            size: iconSize,
+            // **A wallet's hue is left EXACTLY alone; a control's is ramped.**
+            //
+            // Those are two different jobs. The cog carries no meaning in its
+            // colour, so it takes the pane's contrast ramp — on a kit whose
+            // accent is the same hue as the glass it was the one control in the
+            // bar you could not find. The coin, the bolt and the gem carry
+            // nothing BUT their colour: gold is money, cyan is gems, violet is
+            // energy, and their separation from each other is the whole reason
+            // those three were picked. See [hudCoinInk].
+            //
+            // And you cannot fix a bright hue by darkening it. Yellow is
+            // intrinsically light — taking gold to 4.5:1 against a near-white
+            // pane lands on `#665600`, a dark olive that is perfectly legible and
+            // no longer money. So the hue stays and the BACKING changes: a soft
+            // dark halo under the glyph in daylight, which is contrast the colour
+            // does not have to pay for.
+            color: iconColor ?? glassAccent(context, kit.accentBright),
+            shadows: iconColor == null || nightSceneOf(context)
+                ? null
+                : const [
+                    Shadow(color: Color(0x59102030), blurRadius: 3),
+                    Shadow(color: Color(0x33102030), blurRadius: 6),
+                  ],
+          ),
           // The cog has no figure, so it gets no gutter either — otherwise it
           // sits off-centre in its own segment.
           if (child is! SizedBox) ...[const SizedBox(width: 4), child],

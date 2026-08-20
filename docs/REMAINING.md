@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,900 tests, `flutter analyze` clean.**
+**3,907 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 3
 items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
@@ -1876,6 +1876,114 @@ The weather, drawn. Everything else on this list was in the way of that.
       League sub-tabs and the port has as SHEETS — and a sheet is a route, so it
       covers him. They want an inline coach inside those sheets rather than the
       floating one, which is a design call before it is a port.
+
+## From playtesting — 25 Aug
+
+The manager redrawn, the HUD made readable in daylight, and the gesture rota
+running at last.
+
+### The figure
+
+- [x] **THE MOTION WAS NEVER THE PROBLEM; EVERY PART OF HIM WAS A PRIMITIVE.**
+      Limbs were round-capped lines of constant width, the torso a 15×32 rounded
+      rectangle, the boot another rectangle, the head a circle with an ellipse for
+      a jaw. Constant-width sausages on a rounded brick is programmer art however
+      well it walks. `ui/screens/home/walker_figure.dart` is the form layer:
+      tapered limbs with a highlight inset from the leading edge and an occlusion
+      at each socket, a torso silhouette, a boot with a heel and a toe, and a neck
+      — which did not exist, so the skull sat straight on the shirt.
+- [x] **The torso's width was not a choice — the generated art already stated
+      it.** Every outfit overlay in `manager_art.g.dart` is a full garment
+      silhouette running x 47.8 to 69.9, so the coat and the suit have always
+      drawn a body 22 units across. The hand-drawn shirt under them was 15.7,
+      which is exactly why he read as a stick in the plain kit and as a person the
+      moment you put a coat on him. Reading the art rather than guessing at a
+      build is the same lesson the CSS keeps teaching.
+- [x] **The arm reached the waistband**, which is a child's proportion — the hand
+      hung level with the hip. It goes to mid-thigh now.
+- [x] **The nose had a line through it.** It was its own slightly-lighter sliver
+      drawn over the face, and a two-point curve closed with a straight edge — so
+      the closing edge ran down the middle of the cheek as a visible seam. A nose
+      is a bump in the PROFILE; it is part of the skull path now and there is
+      nothing left to see.
+- [x] **Nothing moved a pivot**, and that was the constraint throughout: the
+      shoulder is still (56, 62), the elbow (56, 80), the hips (58±2, 95), the
+      skull a circle at (62, 48.5) r12.5. The gesture poses rotate about those and
+      every generated hat, hair and outfit is drawn against them. The geometry
+      tests are what caught it each time the redraw drifted.
+
+### Coach Colin's gestures, finally playing
+
+- [x] **`manager_mood.dart` has carried all sixteen since M1 and nothing ever ran
+      the timer.** Weights per mood, `gestureGapMs`, `nextGestureDelay`,
+      `pickGesture` with its exclude-list, the `stops` and `fullTime` flags — all
+      ported, all tested, and he just walked. `gesture_poses.dart` is the poses,
+      `home_screen.dart` runs the rota, and a tap on him jumps the queue.
+- [x] **A joint a gesture does not mention KEEPS WALKING**, which is the CSS's
+      semantics rather than a simplification: `animation` on `.psv-armN` replaces
+      the walk for that element and leaves its siblings alone. A fist pump is one
+      arm; the other arm swings on. Every track is nullable and null means the
+      walk still owns that joint.
+- [x] **He plants his feet for the bow and the world stops with him.** He walks in
+      place while the scene scrolls, so a stride that stops without the scroll
+      stopping is a man standing still on a conveyor belt. The crowd is
+      deliberately NOT frozen with it — a stand that stopped dead because the
+      manager paused to bow would be stranger than one that carried on.
+
+### The HUD in daylight
+
+- [x] **Four of the bar's colours went onto the pane raw**, and `glass.dart` says
+      in as many words that "every coloured thing ON glass goes through this — a
+      raw hue there is a bug by construction". The figures, the cog and the energy
+      ladder are ramped now, and the cap beside the energy figure uses
+      `glassMuted`, whose own doc names "a progress fraction": it was the figure's
+      colour at 60% alpha, and that colour is already at the edge of legibility,
+      so `11/10` read as `11` and a smudge.
+- [x] **But the WALLET ICONS are not ramped, and that is the interesting half.**
+      You cannot fix a bright hue by darkening it. Yellow is intrinsically light —
+      taking gold to 4.5:1 against a near-white pane lands on `#665600`, a dark
+      olive that reads perfectly and is no longer money. Their hue IS the meaning
+      and their separation from each other is the whole reason those three were
+      picked, so the hue stays and the backing changes: a soft dark halo under the
+      glyph in daylight, and nothing at all at night, where the vivid hues were
+      chosen to sit.
+- [x] **Asserted as a ratio rather than a screenshot.** A widget test renders
+      icons as tofu and text without fonts, so a picture of this bar proves
+      nothing. `paneContrast` and `paneContrastTarget` are public now, so the test
+      measures through the app's own model instead of restating the formula and
+      drifting from it — seven kits, every step of the energy ladder, and both
+      panes.
+
+### Still open from the session
+
+- [ ] **THE INCOMING BIDS NEED WORK.** Raised from playing; the specific fault is
+      not written down yet, so this is a placeholder with the surfaces named
+      rather than a diagnosis. What exists: `maybeGenerateOffer` in the transfer
+      engine, `transfer_offer_card.dart` for a rival's bid on one of ours,
+      `sponsor_offer_card.dart` beside it, and the incoming list Deadline Day
+      reads at `deadline_day_view.dart`. The 19 Aug notes already record that the
+      engine half had no caller once and that an unanswered bid times out after
+      five minutes. **Next step is to write down what actually looks wrong** —
+      whether it is the card, the timing, the queueing against other popups, or
+      the arithmetic in the offer itself.
+- [ ] **His forward reach still reads long, and it cannot be shortened as a
+      constant.** The rig takes the longest step its legs allow, which is a
+      48-unit stride on a 60-unit leg. Bringing the front foot in moves it nearer
+      the hip and FOLDS the stance leg: the knee's worst moment is just after heel
+      strike and already sits at 39.8 degrees against a 40-degree ceiling that
+      exists because a permanent half-crouch was a reported bug. Standing him
+      deeper is the usual fix and that lever is spent — `_groundY + _bob - _hipY`
+      is 59 against a `_legReach` of 59.5.
+      **What is actually wrong is the proportion**: 60 units of leg under a
+      32-unit torso on a 170-unit figure. Shorter legs and a longer body fixes the
+      stride AND the small-head look — and it moves `_hipY`, which every piece of
+      generated art is pinned to. Structural, not a constant.
+- [ ] **The gesture halt is a hard stop, not a ramp.** The JS eases the walk, the
+      strips and the ball down to zero over ~0.4s (`_rampWalk`) because
+      `animation-play-state` cannot express anything between running and stopped.
+      Here the walk clock and the turf simply stop together. One gesture in
+      sixteen has `stops`, so it is one abrupt halt on one celebration.
+
 
 ## M0 — foundation and save bridge ✅
 

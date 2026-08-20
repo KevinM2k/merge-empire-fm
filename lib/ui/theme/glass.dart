@@ -211,7 +211,7 @@ Color glassAccent(BuildContext context, Color colour) {
   var out = colour;
   // Sixteen steps of 4% is enough to reach black from anything, and bails the
   // moment it is dark enough.
-  for (var i = 0; i < 16 && _ratio(_paneLuminance, out) < _target; i++) {
+  for (var i = 0; i < 16 && paneContrast(out) < paneContrastTarget; i++) {
     out = Color.lerp(out, Colors.black, 0.04 + i * 0.01)!;
   }
   return out;
@@ -219,12 +219,15 @@ Color glassAccent(BuildContext context, Color colour) {
 
 /// 4.5:1 — the small-text threshold, applied to everything rather than trying to
 /// decide per call site which text is "large".
-const double _target = 4.5;
+///
+/// Public so a test can assert the thing this file is FOR, rather than restating
+/// the number and drifting from it.
+const double paneContrastTarget = 4.5;
 
 /// The relative luminance of the BRIGHTEST pane the app draws: a light tint over
 /// the top of a tier-0 daylit sky. Measured once here rather than per frame — the
 /// answer has to be stable, or a colour would shift as the stadium was upgraded.
-const double _paneLuminance = 0.62;
+const double paneLuminance = 0.62;
 
 double _channel(double v) =>
     v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
@@ -232,11 +235,17 @@ double _channel(double v) =>
 double _relative(Color c) =>
     0.2126 * _channel(c.r) + 0.7152 * _channel(c.g) + 0.0722 * _channel(c.b);
 
-double _ratio(double paneLuminance, Color ink) {
-  final a = paneLuminance + 0.05;
+double _ratio(double luminance, Color ink) {
+  final a = luminance + 0.05;
   final b = _relative(ink) + 0.05;
   return a > b ? a / b : b / a;
 }
+
+/// How well [ink] reads on the brightest pane the app draws.
+///
+/// The one place the contrast of a colour on glass is measured, so a test and the
+/// ramp cannot disagree about what "readable" means.
+double paneContrast(Color ink) => _ratio(paneLuminance, ink);
 
 /// The quieter ink on a pane — a label, a caption, a progress fraction.
 ///

@@ -22,6 +22,8 @@
 /// moment the measurement and the real height disagree.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +32,7 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/event_strip.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
+import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
@@ -177,19 +180,108 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 /// above the figure. They are on the next-match card now, which is where the
 /// fixture is described — a heading that names the same match a card directly
 /// under it also names was the scene carrying furniture rather than scene.
-class _Scene extends ConsumerWidget {
+class _Scene extends ConsumerStatefulWidget {
   const _Scene({required this.walkerBottom});
 
   final double walkerBottom;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Scene> createState() => _SceneState();
+}
+
+/// The gesture rota, and the tap that jumps its queue.
+///
+/// **`manager_mood.dart` has carried every gesture, weight and gap since M1 and
+/// nothing ever ran the timer.** Which gestures may play and how often is the
+/// mood's job and `gesture_poses.dart` knows what each looks like; this only
+/// runs the clock and hands the rig a cue.
+class _SceneState extends ConsumerState<_Scene> {
+  Timer? _next;
+  GestureCue? _cue;
+
+  /// The last two he played, so the rota keeps moving.
+  ///
+  /// A FILTER rather than a reroll, because the weights are lopsided: a crushed
+  /// manager's pool is mostly two gestures, and rerolling until one of them is
+  /// not picked lands back on them often enough to read as a loop.
+  final List<String> _recent = [];
+
+  /// True while the scene is live and movement is welcome — the JS's
+  /// `_sceneInteractive()`.
+  ///
+  /// `TickerMode` already stops every animation here when the tab is offscreen,
+  /// but a `Timer` is not an animation, so the rota has to ask for itself.
+  bool get _live =>
+      mounted &&
+      TickerMode.of(context) &&
+      !MediaQuery.of(context).disableAnimations;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion, or a hidden tab, can both arrive after mount.
+    if (_live) {
+      _arm();
+    } else {
+      _next?.cancel();
+      _next = null;
+    }
+  }
+
+  void _arm() {
+    if (_next != null || !_live) return;
+    _next = Timer(
+      Duration(
+        milliseconds: nextGestureDelay(ref.read(managerMoodProvider)).round(),
+      ),
+      () {
+        _next = null;
+        if (!_live) return;
+        _play();
+        _arm();
+      },
+    );
+  }
+
+  /// Play one now, replacing whatever was running.
+  void _play() {
+    // The save, so the rota only rolls the emotes the player actually OWNS. The
+    // free gestures are ungated, so a save with no packs behaves exactly as it
+    // did before emotes existed.
+    final g = pickGesture(
+      ref.read(managerMoodProvider),
+      null,
+      ref.read(gameProvider).state,
+      (fullTime: false, exclude: List.of(_recent)),
+    );
+    if (g == null) return;
+    _recent.add(g.id);
+    if (_recent.length > 2) _recent.removeAt(0);
+    setState(() => _cue = GestureCue(g));
+  }
+
+  @override
+  void dispose() {
+    _next?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final mood = ref.watch(managerMoodProvider);
+    // A mood change is a different pool AND a different rhythm, so the rota
+    // restarts: a sixteen-second neutral gap must not sit through the
+    // celebration the player has just earned.
+    ref.listen(managerMoodProvider, (_, _) {
+      _next?.cancel();
+      _next = null;
+      _arm();
+    });
 
     return PitchScene(
       mood: mood,
-      walkerBottom: walkerBottom,
+      walkerBottom: widget.walkerBottom,
       // **The sky the player is actually standing under**, when there is a live
       // reading, and the seasonal model's otherwise. The engine has been able to
       // answer this since M1 and nothing has ever asked it on a clock — see
@@ -198,6 +290,11 @@ class _Scene extends ConsumerWidget {
       // The thunder, timed behind the flash by the lightning layer itself. The
       // scene has no speaker: it says WHEN and this says with what.
       onThunder: () => ref.read(soundServiceProvider).play('thunder'),
+      // He plants his feet for a bow, and the world stops travelling past him.
+      frozen: _cue?.gesture.stops ?? false,
+      // **A tap on him is answered by a person, not a menu** — the one thing on
+      // this screen that is.
+      onTapWalker: _play,
       // The ground the club has actually built: it buys the sky's grandeur and
       // the floodlight pylons behind the stand. The HOUR is the theme's — see
       // `theme/sky.dart`.
@@ -219,6 +316,7 @@ class _Scene extends ConsumerWidget {
         // reading them.
         look: ref.watch(managerLookProvider),
         mood: mood,
+        gesture: _cue,
       ),
     );
   }
