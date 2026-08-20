@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**3,913 tests, `flutter analyze` clean.**
+**3,916 tests, `flutter analyze` clean.**
 
 **The live queue is "From playtesting — 24 Aug", and what is left of it is 3
 items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
@@ -2038,12 +2038,36 @@ running at last.
       neck was hidden between them and the head read as resting on the collar.
       Seven units of lift puts the chin three clear of the shoulder line. The whole
       GROUP moves — hair, beard, glasses, hat and skull together.
-- [ ] **The ear is redrawn but nobody has seen it.** It was a flat disc with a
-      smaller dark disc inside — a button on the side of his head. It is a rim over
-      the top and down the back, a hollow inside the rim and a lobe under it now.
-      **Unverified**: every hairstyle rendered so far covers the side of the head
-      past the jaw, so the only looks it shows on are `shaved` and possibly `buzz`.
-      Worth checking whether it is ever visible at all before spending more on it.
+- [x] **THE "EAR THAT LOOKS LIKE AN EYE" WAS NOT THE EAR.** It was the FAR EYE — a
+      pale oval with a dark dot at x 59.6, drawn as "a hint of the eye on the other
+      side of the head". On a head seen side-on there is no other side to see, and
+      x 59.6 is precisely where an ear belongs, so what it read as was a small
+      second eye stuck where his ear should be. Deleted; the ear went there instead.
+      **And the ear is a C with no fill.** Three attempts: a flat disc with a
+      smaller dark disc inside it, then a filled teardrop with a dark crescent
+      inside it — and a pale blob with something dark in the middle is an EYE, which
+      is what both read as. There is no interior left to mistake for an eyeball now,
+      just a thin stroked arc opening FORWARD, the way he faces.
+      Three more things it took: **drawn AFTER the skull**, because an ear halfway
+      along a profile is in front of the outline and the old
+      draw-it-behind-and-let-the-edge-peek trick showed nothing at all in the
+      middle of the head; **small**, since the first C at 5.2×7.6 with a 2.2 stroke
+      was a third of his face; and **back from the skull's own centre**, because
+      the visible head's middle sits forward of the circle's — the nose and face
+      stick out past it.
+- [x] **A LIFT ONLY BRINGS HIM UP TO LEVEL.** Adding the mood baseline and the
+      gesture's head track blindly meant a manager already looking straight ahead —
+      or up, when it was going well — raised his chin FURTHER to point at
+      something, and ended up addressing the sky. A gesture that looks DOWN still
+      adds (a beaten manager checking his watch looks further down than a cheerful
+      one, which is right); a gesture that LIFTS is capped at the horizontal and
+      does nothing at all to a head that was not down.
+- [x] **The crowd answers a celebration.** `manager_mood.dart` already marks which
+      of the sixteen gestures are worth getting out of your seat for, and the stand
+      already had an excitement surge that decays — but only a TAP on the terrace
+      could trigger it, so the one thing on the screen most worth cheering could
+      not. A fist pump or a wave at the terrace now surges it. Identity rather than
+      a flag, so two fist pumps in a row are two surges.
 - [ ] **MORE TURF PERSPECTIVE, AND THE STADIUM DOWN WITH IT.** Raised from playing:
       with a stronger perspective on the turf the horizon can come down, which puts
       the stand lower in the frame and makes it properly visible — without breaking

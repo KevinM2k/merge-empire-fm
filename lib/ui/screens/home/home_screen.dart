@@ -295,6 +295,10 @@ class _SceneState extends ConsumerState<_Scene> {
       // **A tap on him is answered by a person, not a menu** — the one thing on
       // this screen that is.
       onTapWalker: _play,
+      // And the CROWD answers him. Only the celebrations: `manager_mood.dart`
+      // already marks which of the sixteen are worth getting out of your seat
+      // for, and arms folded is not one of them.
+      celebration: (_cue?.gesture.celebration ?? false) ? _cue : null,
       // The ground the club has actually built: it buys the sky's grandeur and
       // the floodlight pylons behind the stand. The HOUR is the theme's — see
       // `theme/sky.dart`.

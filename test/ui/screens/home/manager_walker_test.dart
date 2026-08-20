@@ -399,4 +399,56 @@ void main() {
       expect(pose.head, greaterThan(5));
     });
   });
+
+  group('the head, mood and gesture together', () {
+    test('carries the mood: up when it is going well, down when it is not', () {
+      expect(moodHeadTilt(Mood.elated), lessThan(0));
+      expect(moodHeadTilt(Mood.neutral), 0);
+      expect(moodHeadTilt(Mood.crushed), greaterThan(6));
+      // Monotonic, so the ladder cannot be reordered by accident.
+      final ladder = Mood.values.map(moodHeadTilt).toList();
+      for (var i = 1; i < ladder.length; i++) {
+        expect(
+          ladder[i],
+          greaterThan(ladder[i - 1]),
+          reason: '${Mood.values[i]}',
+        );
+      }
+    });
+
+    test('a LIFT only ever brings him up to level, never past it', () {
+      // Adding the two blindly had a manager who was already looking straight
+      // ahead raise his chin FURTHER to point at something — addressing the sky.
+      double lifted(Mood m) {
+        final base = moodHeadTilt(m);
+        const gesture = -9.0; // `_chinUp`
+        return gesture >= 0
+            ? base + gesture
+            : math.max(base + gesture, math.min(base, 0));
+      }
+
+      expect(
+        lifted(Mood.crushed),
+        closeTo(3, 0.01),
+        reason: 'lifted, not level',
+      );
+      expect(lifted(Mood.neutral), 0, reason: 'he was already looking ahead');
+      expect(
+        lifted(Mood.elated),
+        moodHeadTilt(Mood.elated),
+        reason: 'a raised head must not raise further',
+      );
+    });
+
+    test('but a gesture that looks DOWN adds to however he was carrying it', () {
+      // A beaten manager checking his watch looks further down than a cheerful
+      // one, and that is right.
+      final watch = gesturePose('checkwatch', 0.5, gestureMs: 1800).head!;
+      expect(watch, greaterThan(0));
+      expect(
+        moodHeadTilt(Mood.crushed) + watch,
+        greaterThan(moodHeadTilt(Mood.elated) + watch),
+      );
+    });
+  });
 }

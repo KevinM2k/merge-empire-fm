@@ -650,6 +650,26 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _gestureClock.forward(from: 0);
   }
 
+  /// Where he is carrying his head, mood and gesture together.
+  ///
+  /// **A LIFT ONLY EVER BRINGS HIM UP TO LEVEL.** The two compose differently
+  /// depending on which way the gesture looks, and adding them blindly was wrong:
+  /// a manager already looking straight ahead — or up, when it is going well —
+  /// would raise his chin FURTHER to point at something and end up addressing the
+  /// sky.
+  ///
+  /// So a gesture that looks DOWN (checking a watch, hands on head, a bow) adds to
+  /// however he was carrying it, because a beaten manager checking his watch looks
+  /// further down than a cheerful one and that is right. A gesture that lifts him
+  /// is capped at level: it can pull a dropped head up to the horizontal and no
+  /// higher, and it does nothing at all to a head that was not down.
+  double _headAngle(GesturePose? pose) {
+    final base = moodHeadTilt(widget.mood);
+    final gesture = pose?.head ?? 0;
+    if (gesture >= 0) return base + gesture;
+    return math.max(base + gesture, math.min(base, 0));
+  }
+
   /// The tremble, in art units.
   ///
   /// **Tiny and fast — a tremble, not a wobble**, so it reads at a glance
@@ -708,9 +728,8 @@ class _ManagerWalkerState extends State<ManagerWalker>
           final pose = _pose;
           // **ONE angle for every head layer.** Hair, skull and hat are three
           // widgets and one head; give them separate numbers and the face slides
-          // out from under its own hat. The mood is the baseline and the gesture
-          // is added to it, so a crushed manager who points still lifts his chin.
-          final headTilt = (pose?.head ?? 0) + moodHeadTilt(widget.mood);
+          // out from under its own hat.
+          final headTilt = _headAngle(pose);
           // The hips, and the same number the leg solver uses — see
           // [walkerHipRise]. It is not decoration: the bob is what lets the foot
           // reach the ends of the step, so the figure's rise and its stride are
@@ -1293,45 +1312,6 @@ class _HeadPainter extends CustomPainter {
 
     final shade = Color.lerp(skin, Colors.black, 0.22)!;
 
-    // **THE EAR, and two ovals is not one.** It was a flat disc with a smaller
-    // dark disc inside it, which is a button on the side of his head. An ear has a
-    // rim coming over the top and down the back, a hollow inside that rim, and a
-    // lobe under it — and at this size those three shapes are the whole of what
-    // makes it read as an ear at all.
-    //
-    // Drawn first so the skull covers all but its outer edge: an ear drawn on top
-    // of the head is a handle.
-    final ear = Path()
-      ..moveTo(54.2, 53.6)
-      ..quadraticBezierTo(49.4, 52.6, 49.2, 49.0)
-      ..quadraticBezierTo(49.0, 45.4, 52.4, 45.6)
-      ..quadraticBezierTo(53.4, 47.0, 53.2, 50.2)
-      ..quadraticBezierTo(53.0, 53.0, 54.2, 53.6)
-      ..close();
-    canvas.drawPath(ear, Paint()..color = shade);
-    // The hollow — a crescent inside the rim rather than a disc in the middle of
-    // it, which is what stops the ear reading as a ring.
-    canvas.drawPath(
-      Path()
-        ..moveTo(52.6, 51.4)
-        ..quadraticBezierTo(50.6, 50.6, 50.6, 48.8)
-        ..quadraticBezierTo(50.6, 47.0, 52.2, 47.2)
-        ..quadraticBezierTo(51.8, 49.2, 52.6, 51.4)
-        ..close(),
-      Paint()..color = Color.lerp(skin, Colors.black, 0.42)!,
-    );
-    // A lit edge along the top of the rim, where the sky reaches it.
-    canvas.drawPath(
-      Path()
-        ..moveTo(49.6, 47.4)
-        ..quadraticBezierTo(50.4, 45.2, 52.4, 45.8),
-      Paint()
-        ..color = Color.lerp(skin, Colors.white, 0.22)!
-        ..strokeWidth = 0.9
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
-    );
-
     // **The head is a SKULL WITH A JAW, not a circle with an arc drawn on it.**
     // The circle stays exactly where it was — the generated hair, hats and
     // glasses are all positioned against a skull at (62, 48.5) r12.5, so moving
@@ -1377,6 +1357,56 @@ class _HeadPainter extends CustomPainter {
           stops: const [0, 0.55, 1],
         ).createShader(skull.getBounds()),
     );
+
+    // **THE EAR IS A C, IT IS NOT FILLED, AND IT IS NOT AT THE BACK.**
+    //
+    // Three goes at this. A flat disc with a smaller dark disc inside it, then a
+    // filled teardrop with a dark crescent inside it — and a pale blob with
+    // something dark in the middle is an EYE, which is what both read as. So there
+    // is no fill: just a thick stroked arc, with no interior left to mistake for an
+    // eyeball. **The gap faces FORWARD**, the way he does, because that is the side
+    // an ear opens on.
+    //
+    // And it sits in the MIDDLE of the skull. The circle spans x 49.5 to 74.5, so
+    // the middle is 62 — which is where an ear is on a head seen side-on, roughly
+    // level with the eye and half way back. Both earlier attempts had it out on the
+    // rearmost edge of the silhouette, where it was very nearly out of sight and
+    // read as something stuck to the back of his head.
+    // **And it is SMALL.** The first C at this position was 5.2 by 7.6 with a
+    // 2.2 stroke, so its outer extent was 7.4 by 9.8 against a skull 25 across —
+    // an ear taking up a third of his face. A real one is about a quarter of the
+    // head's height; this is 5 by 6.9 all in.
+    // A shade further back than the skull's own middle — the middle of the SKULL
+    // is 62, but the middle of the visible head is forward of that, because the
+    // face and nose stick out past the circle on the front. Sitting on 62 the ear
+    // read as too far forward.
+    const ear = Rect.fromLTWH(58.2, 47.4, 3.6, 5.4);
+    canvas.drawArc(
+      ear,
+      _deg(56),
+      _deg(248),
+      false,
+      Paint()
+        ..color = shade
+        ..strokeWidth = 1.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+    // A thinner, darker arc inside the helix — the fold of the concha. It gives the
+    // C a near edge and a far one, rather than reading as a bracket drawn on him.
+    canvas.drawArc(
+      ear.deflate(0.9),
+      _deg(70),
+      _deg(206),
+      false,
+      Paint()
+        ..color = Color.lerp(skin, Colors.black, 0.26)!
+        ..strokeWidth = 0.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+    // The lobe, hanging a little proud at the bottom of the C.
+    canvas.drawCircle(const Offset(60.5, 52.4), 0.7, Paint()..color = shade);
 
     // A soft shadow in the crease under the nose, which is what gives it
     // relief now that it is the same fill as the face rather than a lighter
@@ -1480,17 +1510,12 @@ class _HeadPainter extends CustomPainter {
         ..strokeWidth = 1.5
         ..strokeCap = StrokeCap.round,
     );
-    // The far eye, mostly hidden round the curve of the head — a hint, not a
-    // second full eye.
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(59.6, 47.8), width: 2.6, height: 3),
-      Paint()..color = const Color(0x66FAF7F2),
-    );
-    canvas.drawCircle(
-      const Offset(59.9, 48),
-      0.9,
-      Paint()..color = const Color(0xCC2A1F18),
-    );
+    // **THE FAR EYE IS GONE, and it was the "ear that looks like an eye".** It was
+    // a pale oval with a dark dot at x 59.6, meant as a hint of the eye on the
+    // other side of the head. On a head drawn side-on there is no other side to
+    // see — and worse, x 59.6 is precisely where an EAR belongs, so what it
+    // actually read as was a small second eye stuck where his ear should be.
+    // Nothing replaces it; the ear goes there instead.
 
     canvas.restore();
   }

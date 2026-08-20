@@ -184,6 +184,7 @@ class PitchScene extends StatelessWidget {
     this.onThunder,
     this.frozen = false,
     this.onTapWalker,
+    this.celebration,
   });
 
   final Mood mood;
@@ -232,6 +233,15 @@ class PitchScene extends StatelessWidget {
   /// which is the one thing on this screen that replies with a person rather
   /// than a menu.
   final void Function()? onTapWalker;
+
+  /// **THE CROWD ANSWERS A CELEBRATION.** A new identity here means he has just
+  /// done something worth reacting to — a fist pump, a wave at the terrace — and
+  /// the stand surges.
+  ///
+  /// Identity rather than a bool, so two fist pumps in a row are two surges. The
+  /// crowd already had the mechanism and only a TAP on the terrace could trigger
+  /// it, so the one thing on the screen most worth cheering could not.
+  final Object? celebration;
 
   @override
   Widget build(BuildContext context) {
@@ -327,6 +337,7 @@ class PitchScene extends StatelessWidget {
                 // interaction, and the one thing on this screen that answers a
                 // tap with a crowd rather than with a menu.
                 child: _Crowd(
+                  celebration: celebration,
                   builder: (beat, excitement) => _Scroller(
                     key: const ValueKey('pitch-stand'),
                     duration: const Duration(milliseconds: 16500),
@@ -489,9 +500,13 @@ class PitchScene extends StatelessWidget {
 /// Excitement decays rather than switching off, so a tap is a surge that settles
 /// instead of a state that ends.
 class _Crowd extends StatefulWidget {
-  const _Crowd({required this.builder});
+  const _Crowd({required this.builder, this.celebration});
 
   final Widget Function(double beat, double excitement) builder;
+
+  /// A new identity is something worth getting up for. See
+  /// [PitchScene.celebration].
+  final Object? celebration;
 
   @override
   State<_Crowd> createState() => _CrowdState();
@@ -553,6 +568,16 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
   void dispose() {
     _c.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_Crowd old) {
+    super.didUpdateWidget(old);
+    // Same surge a tap gives, and it decays the same way — a crowd that stayed up
+    // would be a crowd that had stopped reacting.
+    if (widget.celebration != null && widget.celebration != old.celebration) {
+      setState(() => _excitement = 1);
+    }
   }
 
   @override
