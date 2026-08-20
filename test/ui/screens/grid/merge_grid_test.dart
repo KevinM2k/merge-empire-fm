@@ -1003,6 +1003,85 @@ void main() {
     });
   });
 
+  group('a card arrives when it LANDS, not before', () {
+    testWidgets('the square stays empty until the reveal is over', (
+      tester,
+    ) async {
+      // The engine has to place a signing to allocate its square, so without
+      // holding it back the card is already sitting in the cell it is about to
+      // be flown into — and the flight lands on top of itself.
+      final container = await pumpGrid(tester);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pump();
+
+      expect(container.read(gridPendingProvider), isNotEmpty);
+      expect(
+        container.read(gridCellsProvider).where((c) => c.card != null),
+        isEmpty,
+        reason: 'in the save, not yet on the grid',
+      );
+
+      await tester.pump(scoutRevealHold(1) + const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(container.read(gridPendingProvider), isEmpty);
+      expect(
+        container.read(gridCellsProvider).where((c) => c.card != null),
+        hasLength(1),
+        reason: 'and then it is there',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('a card moved by hand does not glide there afterwards', (
+      tester,
+    ) async {
+      // The player watched it travel under their own finger; sliding it again
+      // afterwards is the app repeating something they just did.
+      await pumpGridAnimated(
+        tester,
+        cards: {0: _card(_baseDefId, 'a', variant: _maleVariant)},
+      );
+      dropOn(tester, 0, 4);
+      await tester.pump();
+      final moved = tester.getRect(find.byType(PlayerCard));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        tester.getRect(find.byType(PlayerCard)),
+        moved,
+        reason: 'already where it was put',
+      );
+      // Explicit pumps, not `pumpAndSettle`: the animated harness has loops in
+      // it that never settle.
+      await settleSave(tester);
+    });
+
+    testWidgets('but a SORT glides, because it reorders everything', (
+      tester,
+    ) async {
+      final low = players.firstWhere((p) => p.tier == 1).id;
+      final high = players.firstWhere((p) => p.tier > 1).id;
+      await pumpGridAnimated(
+        tester,
+        cards: {
+          0: _card(low, 'a', variant: _maleVariant),
+          1: _card(high, 'b', variant: _maleVariant),
+        },
+      );
+      final before = tester.getRect(find.byKey(const ValueKey('grid-card-b')));
+      await tester.tap(find.byKey(const ValueKey('grid-sort')));
+      await tester.pump();
+      final atStart = tester.getRect(find.byKey(const ValueKey('grid-card-b')));
+      expect(atStart, before, reason: 'it has not jumped — it is on its way');
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        tester.getRect(find.byKey(const ValueKey('grid-card-b'))),
+        isNot(before),
+      );
+      await settleSave(tester);
+    });
+  });
+
   group('the way home', () {
     testWidgets('the grid lends the reveal a way to find a square', (
       tester,

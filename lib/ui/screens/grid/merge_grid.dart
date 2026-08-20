@@ -71,6 +71,15 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   int? _burstAt;
   int _burstTier = 1;
 
+  /// How long a card takes to slide to a new index.
+  ///
+  /// **Zero for a move the player made themselves.** A card dragged from one
+  /// square to another should be where they put it, not gliding there after
+  /// their finger has gone — they watched it travel already. The slide is for the
+  /// SORT, which reorders the whole grid at once and is the one case where a
+  /// player needs telling what moved.
+  Duration _slide = Duration.zero;
+
   /// The card under the finger, and the cells it could actually MERGE with.
   ///
   /// Everything that is not a target dims, which is the JS's
@@ -94,6 +103,12 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   final Map<int, GlobalKey> _slotKeys = {};
 
   GlobalKey _slotKey(int index) => _slotKeys.putIfAbsent(index, GlobalKey.new);
+
+  /// Let the next index change GLIDE. Called by the sort, which is the only
+  /// thing that reorders the grid rather than moving one card.
+  void animateNextSlide() {
+    setState(() => _slide = const Duration(milliseconds: 350));
+  }
 
   /// Runs while the finger is held inside an edge band.
   Timer? _edgeScroll;
@@ -210,6 +225,9 @@ class MergeGridState extends ConsumerState<MergeGrid> {
   }
 
   Future<void> _drop(int from, int to) async {
+    // Set before the update, so the frame that moves the card is already the
+    // frame that does not animate it.
+    _slide = Duration.zero;
     final game = ref.read(gameProvider);
     final maxTier = ref.read(maxMergeTierProvider);
     // Captured BEFORE the update: a merge consumes this card, so after it there
@@ -250,28 +268,41 @@ class MergeGridState extends ConsumerState<MergeGrid> {
     // is the only card a merge produces that is worth stopping the grid for, and
     // reusing the scout's reveal is what stops the two drifting apart.
     if (!result.isNewDiscovery) return;
-    final view = cardViewFor(
-      gridCells(game.state)[to],
-      proMode: ref.read(proModeProvider),
-    );
+    final cell = gridCells(game.state)[to];
+    final view = cardViewFor(cell, proMode: ref.read(proModeProvider));
     if (view == null || !mounted) return;
-    await showScoutReveal(
-      context,
-      (
-        cards: [
-          (
-            view: view,
-            badge: null,
-            isNewDiscovery: true,
-            vanish: false,
-            idx: to,
-          ),
-        ],
-        caption: t('grid.new_player_found'),
-      ),
-      // Back into the square it came out of, which is the cell that just merged.
-      landing: _landingRects,
-    );
+
+    // Held back for the length of the reveal, as a signing is: the card is
+    // already in the square it is about to be flown into.
+    final pending = cell is Map<String, dynamic>
+        ? {if (cell['instanceId'] case final String id) id}
+        : const <String>{};
+    if (pending.isNotEmpty) {
+      ref.read(gridPendingProvider.notifier).state = pending;
+    }
+    try {
+      await showScoutReveal(
+        context,
+        (
+          cards: [
+            (
+              view: view,
+              badge: null,
+              isNewDiscovery: true,
+              vanish: false,
+              idx: to,
+            ),
+          ],
+          caption: t('grid.new_player_found'),
+        ),
+        // Back into the square it came out of — the cell that just merged.
+        landing: _landingRects,
+      );
+    } finally {
+      if (pending.isNotEmpty && ref.exists(gridPendingProvider)) {
+        ref.read(gridPendingProvider.notifier).state = const {};
+      }
+    }
   }
 
   @override
@@ -352,7 +383,7 @@ class MergeGridState extends ConsumerState<MergeGrid> {
                                     key: ValueKey(
                                       'grid-card-${cell.instanceId}',
                                     ),
-                                    duration: const Duration(milliseconds: 350),
+                                    duration: _slide,
                                     curve: Curves.easeInOutCubic,
                                     left: at(cell.index).dx,
                                     top: at(cell.index).dy,
@@ -447,7 +478,14 @@ class _SortFab extends ConsumerWidget {
         elevation: 6,
         child: InkWell(
           borderRadius: BorderRadius.circular(999),
-          onTap: () => game.update((s) => sortGridByTier(gridCells(s))),
+          onTap: () {
+            // The one case worth animating: the whole grid reorders at once and
+            // a player needs telling what moved.
+            context
+                .findAncestorStateOfType<MergeGridState>()
+                ?.animateNextSlide();
+            game.update((s) => sortGridByTier(gridCells(s)));
+          },
           child: Tooltip(
             message: t('players.sort'),
             child: SizedBox(

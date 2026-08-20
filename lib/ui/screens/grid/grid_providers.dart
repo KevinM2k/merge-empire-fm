@@ -5,6 +5,7 @@
 /// to `attemptMerge`, which owns every rule about what a drag may do.
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 
@@ -14,6 +15,7 @@ import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
+import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -81,7 +83,20 @@ CardView? cardViewFor(
 bool isProMode(Map<String, dynamic>? s) =>
     _map(s?['settings'])?['hardMode'] == true;
 
-final gridCellsProvider = savePick<List<GridCell>>((s) {
+/// Cards that are IN the save but should not be on the grid yet.
+///
+/// A signing is placed by the engine — that is what allocates its square and
+/// charges for it — and only then turned over. So for the length of the reveal
+/// the card is in the cell the player is about to watch it fly into, and the
+/// flight landed on top of a card that was already sitting there. Held back by
+/// instance id until the reveal has finished, so the square is empty until the
+/// card arrives in it.
+final gridPendingProvider = StateProvider<Set<String>>((_) => const {});
+
+final gridCellsProvider = Provider<List<GridCell>>((ref) {
+  ref.watch(saveRevisionProvider);
+  final s = ref.watch(gameProvider).state ?? const <String, dynamic>{};
+  final pending = ref.watch(gridPendingProvider);
   final cells = gridCells(s);
   // Slots past the roster the player owns are shown LOCKED rather than hidden:
   // a grid that silently grows by one reads as the game glitching, where a
@@ -90,26 +105,55 @@ final gridCellsProvider = savePick<List<GridCell>>((s) {
   final pro = isProMode(s);
   return [
     for (var i = 0; i < Grid.totalCells; i++)
-      (
-        index: i,
-        instanceId: i < cells.length && cells[i] is Map<String, dynamic>
-            ? (cells[i] as Map<String, dynamic>)['instanceId'] as String?
-            : null,
-        card: i < cells.length
-            ? cardViewFor(
-                cells[i],
-                proMode: pro,
-                state: s,
-                maxTier: getDivision(
-                  _map(s['progression'])?['currentDivision'] as String? ??
-                      divisions.first.id,
-                ).maxPlayerTier,
-              )
-            : null,
-        locked: i >= owned,
-      ),
+      if (_pendingAt(cells, i, pending))
+        // Empty for now: the card is in the save but still in the air.
+        (index: i, instanceId: null, card: null, locked: i >= owned)
+      else
+        (
+          index: i,
+          instanceId: i < cells.length && cells[i] is Map<String, dynamic>
+              ? (cells[i] as Map<String, dynamic>)['instanceId'] as String?
+              : null,
+          card: i < cells.length
+              ? cardViewFor(
+                  cells[i],
+                  proMode: pro,
+                  state: s,
+                  maxTier: getDivision(
+                    _map(s['progression'])?['currentDivision'] as String? ??
+                        divisions.first.id,
+                  ).maxPlayerTier,
+                )
+              : null,
+          locked: i >= owned,
+        ),
   ];
 });
+
+/// The instance ids a batch of signings landed in, for [gridPendingProvider].
+///
+/// Read off the CELLS rather than the signings, because a `Signing` carries the
+/// square it went into and not the card that ended up there.
+Set<String> pendingInstanceIds(
+  Map<String, dynamic>? state,
+  List<Signing> placed,
+) {
+  final cells = gridCells(state);
+  return {
+    for (final signing in placed)
+      if (signing.idx case final idx?)
+        if (idx < cells.length && cells[idx] is Map<String, dynamic>)
+          if ((cells[idx] as Map<String, dynamic>)['instanceId']
+              case final String id)
+            id,
+  };
+}
+
+bool _pendingAt(List<dynamic> cells, int i, Set<String> pending) {
+  if (pending.isEmpty || i >= cells.length) return false;
+  final cell = cells[i];
+  return cell is Map<String, dynamic> && pending.contains(cell['instanceId']);
+}
 
 /// How many cards are on the grid, and how many it may hold.
 ///

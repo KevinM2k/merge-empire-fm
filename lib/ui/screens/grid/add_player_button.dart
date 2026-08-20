@@ -127,14 +127,31 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
       // in the grid at this point, which is what lets an auto-sold one be shown
       // at full size before it is cashed in.
       final reveal = scoutRevealFor(game.state, result.placed);
-      if (reveal != null && mounted) {
-        // The grid lends the way home, and is null when there is no grid to fly
-        // into — the button is on the Players tab, but a test pumps it alone.
-        await showScoutReveal(
-          context,
-          reveal,
-          landing: ref.read(scoutLandingProvider),
-        );
+
+      // And HELD BACK from the grid until the reveal has finished. The engine
+      // has to place a signing to allocate its square, so without this the card
+      // is already sitting in the cell it is about to be flown into and the
+      // flight lands on top of itself.
+      final pending = pendingInstanceIds(game.state, result.placed);
+      if (pending.isNotEmpty) {
+        ref.read(gridPendingProvider.notifier).state = pending;
+      }
+
+      try {
+        if (reveal != null && mounted) {
+          // The grid lends the way home, and is null when there is no grid to
+          // fly into — the button is on the Players tab, but a test pumps it
+          // alone.
+          await showScoutReveal(
+            context,
+            reveal,
+            landing: ref.read(scoutLandingProvider),
+          );
+        }
+      } finally {
+        if (pending.isNotEmpty && ref.exists(gridPendingProvider)) {
+          ref.read(gridPendingProvider.notifier).state = const {};
+        }
       }
 
       game.update((s) => settleAutoSales(s, result.placed));

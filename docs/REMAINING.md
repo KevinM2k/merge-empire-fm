@@ -542,6 +542,19 @@ A second session, all of it visual and all of it checkable against
 `../merge-empire-fc`. Grouped by where the work is rather than by severity,
 because most of these are two or three to a file.
 
+### The grid
+
+- [x] **A signing arrives when it LANDS.** The engine has to place a card to
+      allocate its square, so the card was already sitting in the cell the flight
+      was about to deliver it to — the flight landed on top of itself.
+      `gridPendingProvider` holds an instance id back for the length of the
+      reveal, so the square is empty until the card gets there. The merge's own
+      discovery reveal does the same.
+- [x] **A card moved by hand is just THERE.** The 350ms slide is for the SORT,
+      which reorders the whole grid at once and is the one case where a player
+      needs telling what moved. A card dragged between two squares travelled
+      under their finger already.
+
 ### The HUD, on every screen
 
 - [ ] **The HUD's items should be RIGHT aligned**, not left.
