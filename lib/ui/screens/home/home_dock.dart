@@ -91,7 +91,23 @@ class DockButton extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Center(child: child),
+                    // **The glyph is LIGHT, whatever the theme.** The disc is
+                    // deliberately dark glass on the diorama — same reasoning as
+                    // the rim above it — and the child was inheriting the app's
+                    // own icon colour, which in dark mode is dark. The burger
+                    // drew three black lines on a black orb.
+                    child: Center(
+                      child: IconTheme(
+                        data: const IconThemeData(
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        child: DefaultTextStyle.merge(
+                          style: const TextStyle(color: Colors.white),
+                          child: child,
+                        ),
+                      ),
+                    ),
                   ),
                   // UNDER the disc, clear of it. It used to ride up over the
                   // bottom edge, which put the word across the picture it is

@@ -273,84 +273,101 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
     final isCup = widget.cupRound != null;
 
     return RepaintBoundary(
+      // **THREE EDGES, and a glow.** A white rim alone was not enough: the face
+      // is the club's colours, the club's colours are green as often as not, and
+      // this button sits on green turf — so rim, face and background were all
+      // one hue apart and the one control the screen exists for read as a patch
+      // of the pitch.
+      //
+      // Outside-in: a DARK ring, then the JS's white rim (`.play-match-btn` is
+      // `2px solid rgba(255,255,255,0.6)`), then the face. Whatever is behind
+      // it, something between it and the button differs sharply — which a
+      // darker green would not do on a dark kit, nor a lighter one on a light.
+      // The accent glow is what makes it read as LIT rather than painted on.
       child: DecoratedBox(
-        // A 2px WHITE RIM and a shadow under it. The face is the club's colours
-        // and the club's colours are green as often as not, so on the Play
-        // screen the one button that matters was a green slab on green turf with
-        // nothing between them. The rim is the JS's own answer (`.play-match-btn`
-        // is `2px solid rgba(255,255,255,0.6)`) and it works on any kit against
-        // any background, which a darker green would not; the shadow is what
-        // sits it ON the pitch rather than in it.
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: Colors.white.withValues(alpha: widget.dead ? 0.22 : 0.6),
+            color: Colors.black.withValues(alpha: widget.dead ? 0.25 : 0.55),
             width: 2,
           ),
           boxShadow: widget.dead
               ? null
               : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.38),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: kit.accent.withValues(alpha: 0.45),
+                    blurRadius: 20,
                   ),
                 ],
         ),
-        child: ClipRRect(
-          // 10, not 12: the rim sits outside, so an equal radius leaves a hairline
-          // of face showing past the stroke on the corners.
-          borderRadius: BorderRadius.circular(10),
-          child: Stack(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: widget.dead
-                      ? null
-                      : isCup
-                      // A cup keeps the old prestige CTA's purple→amber, so the
-                      // action holds its colour wherever it turns up.
-                      ? const LinearGradient(
-                          begin: Alignment(-0.6, -1),
-                          end: Alignment(0.6, 1),
-                          colors: [
-                            Color(0xFF9A46E0),
-                            Color(0xFF7B2FBE),
-                            Color(0xFFFFB300),
-                          ],
-                          stops: [0, 0.46, 1],
-                        )
-                      : LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [kit.accentBright, kit.accent],
-                        ),
-                  color: widget.dead ? kit.surface2 : null,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: widget.dead ? 0.22 : 0.85),
+              width: 2,
+            ),
+          ),
+          child: ClipRRect(
+            // 10, not 12: the rim sits outside, so an equal radius leaves a hairline
+            // of face showing past the stroke on the corners.
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: widget.dead
+                        ? null
+                        : isCup
+                        // A cup keeps the old prestige CTA's purple→amber, so the
+                        // action holds its colour wherever it turns up.
+                        ? const LinearGradient(
+                            begin: Alignment(-0.6, -1),
+                            end: Alignment(0.6, 1),
+                            colors: [
+                              Color(0xFF9A46E0),
+                              Color(0xFF7B2FBE),
+                              Color(0xFFFFB300),
+                            ],
+                            stops: [0, 0.46, 1],
+                          )
+                        : LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [kit.accentBright, kit.accent],
+                          ),
+                    color: widget.dead ? kit.surface2 : null,
+                  ),
+                  child: const SizedBox(width: double.infinity, height: 48),
                 ),
-                child: const SizedBox(width: double.infinity, height: 48),
-              ),
-              // The cooldown fill, sweeping right to left as the timer runs down.
-              if (widget.inCooldown) Positioned.fill(child: _CooldownMask()),
-              if (!widget.dead && _shimmer.isAnimating)
+                // The cooldown fill, sweeping right to left as the timer runs down.
+                if (widget.inCooldown) Positioned.fill(child: _CooldownMask()),
+                if (!widget.dead && _shimmer.isAnimating)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _shimmer,
+                        builder: (context, _) => _Shimmer(t: _shimmer.value),
+                      ),
+                    ),
+                  ),
                 Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedBuilder(
-                      animation: _shimmer,
-                      builder: (context, _) => _Shimmer(t: _shimmer.value),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      key: const ValueKey('play-match'),
+                      onTap: widget.onTap,
+                      child: Center(child: _Label(widget: widget)),
                     ),
                   ),
                 ),
-              Positioned.fill(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    key: const ValueKey('play-match'),
-                    onTap: widget.onTap,
-                    child: Center(child: _Label(widget: widget)),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

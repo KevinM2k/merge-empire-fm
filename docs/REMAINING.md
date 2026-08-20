@@ -628,10 +628,16 @@ because most of these are two or three to a file.
 - [x] **The trophy badge was cropped on all four sides.** The artwork is square
       and the badge is a circle, and it was set to `cover` — so a trophy lost its
       handles, its plinth and the top of the cup. Contained and inset now.
-- [ ] **In dark mode the menu button is too dark to read**, and has black lines
-      across it.
-- [ ] **The Play Match button blends into the pitch** when it is green. It is
-      the one control the screen exists for and needs to look like it.
+- [x] **The dock orbs' glyphs are LIGHT, whatever the theme.** The disc is
+      deliberately dark glass over the diorama and the glyph was inheriting the
+      app's own icon colour — so in dark mode the burger drew three black lines on
+      a black orb. One `IconTheme` on the disc fixes every orb at once.
+- [x] **The Play button has three edges and a glow now.** The white rim alone
+      was not enough: the face is the club's colours, those are green as often as
+      not, and the button sits on green turf — rim, face and background were all
+      one hue apart. A dark ring outside the white one means something between
+      the button and the pitch differs sharply on ANY kit, and the accent glow is
+      what makes it read as lit rather than painted on.
 - [ ] **The position badge over the club name should open the table.**
 - [ ] **The `+1` home icon under the club rating should explain itself** on a
       tap — where the number comes from, which is the Stadium's Fan Zone tier.
