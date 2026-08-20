@@ -66,6 +66,12 @@ class LineupSlot {
   String toString() => 'LineupSlot($slotId, $slotPosition, $cardInstanceId)';
 }
 
+/// **Two shapes diverge from `formations.js` on purpose**, and both are marked
+/// where they do: 4-2-3-1's five bands and 5-3-2's back five are packed closer
+/// together in the JS than a token is big, so they overlapped on screen. The
+/// numbers are display-only — nothing in the sim reads `x` or `y` — and
+/// `pitchTokenScale` in `pitch_token.dart` is what guarantees the rest of the
+/// set, including any shape added later.
 const Map<String, Formation> formations = {
   '4-3-3': Formation(
     id: '4-3-3',
@@ -103,22 +109,31 @@ const Map<String, Formation> formations = {
       FormationSlot(slotId: 'ls', slotPosition: 'FWD', x: 62, y: 18),
     ],
   ),
+  // **FIVE bands, not four**, and the only shape in the set with five. The JS
+  // packs them at 90 / 66 / 50 / 34 / 18 — a 24 to the keeper and then three 16s
+  // — and 16% of the pitch is LESS than a token is tall, so the defence, the
+  // holding pair and the three ahead of them literally overlapped.
+  //
+  // Spread evenly over the room the shape has instead: the defence drops back
+  // toward the keeper and the forward comes up, which buys four equal 19s. That
+  // is the widest even spacing available — a band centre has to stay half a token
+  // clear of the touchline, which puts the keeper at 90 and the striker at 14.
   '4-2-3-1': Formation(
     id: '4-2-3-1',
     label: '4-2-3-1',
     style: 'balanced',
     slots: [
       FormationSlot(slotId: 'gk', slotPosition: 'GK', x: 50, y: 90),
-      FormationSlot(slotId: 'rb', slotPosition: 'DEF', x: 14, y: 66),
-      FormationSlot(slotId: 'rcb', slotPosition: 'DEF', x: 38, y: 66),
-      FormationSlot(slotId: 'lcb', slotPosition: 'DEF', x: 62, y: 66),
-      FormationSlot(slotId: 'lb', slotPosition: 'DEF', x: 86, y: 66),
-      FormationSlot(slotId: 'rdm', slotPosition: 'MID', x: 37, y: 50),
-      FormationSlot(slotId: 'ldm', slotPosition: 'MID', x: 63, y: 50),
-      FormationSlot(slotId: 'rw', slotPosition: 'MID', x: 15, y: 34),
-      FormationSlot(slotId: 'am', slotPosition: 'MID', x: 50, y: 34),
-      FormationSlot(slotId: 'lw', slotPosition: 'MID', x: 85, y: 34),
-      FormationSlot(slotId: 'cf', slotPosition: 'FWD', x: 50, y: 18),
+      FormationSlot(slotId: 'rb', slotPosition: 'DEF', x: 14, y: 71),
+      FormationSlot(slotId: 'rcb', slotPosition: 'DEF', x: 38, y: 71),
+      FormationSlot(slotId: 'lcb', slotPosition: 'DEF', x: 62, y: 71),
+      FormationSlot(slotId: 'lb', slotPosition: 'DEF', x: 86, y: 71),
+      FormationSlot(slotId: 'rdm', slotPosition: 'MID', x: 37, y: 52),
+      FormationSlot(slotId: 'ldm', slotPosition: 'MID', x: 63, y: 52),
+      FormationSlot(slotId: 'rw', slotPosition: 'MID', x: 15, y: 33),
+      FormationSlot(slotId: 'am', slotPosition: 'MID', x: 50, y: 33),
+      FormationSlot(slotId: 'lw', slotPosition: 'MID', x: 85, y: 33),
+      FormationSlot(slotId: 'cf', slotPosition: 'FWD', x: 50, y: 14),
     ],
   ),
   '5-3-2': Formation(
@@ -127,11 +142,16 @@ const Map<String, Formation> formations = {
     style: 'defensive',
     slots: [
       FormationSlot(slotId: 'gk', slotPosition: 'GK', x: 50, y: 90),
-      FormationSlot(slotId: 'rb', slotPosition: 'DEF', x: 14, y: 66),
-      FormationSlot(slotId: 'rcb', slotPosition: 'DEF', x: 32, y: 66),
+      // **Widened from 14–86 to 10–90.** Five across one band is the tightest
+      // row in the game and the JS's 18-unit gaps are narrower than a token,
+      // so the back five overlapped each other. The full-back stops where
+      // 3-5-2's wing-backs already stand, which is as far out as a token can go
+      // and stay on the grass.
+      FormationSlot(slotId: 'rb', slotPosition: 'DEF', x: 10, y: 66),
+      FormationSlot(slotId: 'rcb', slotPosition: 'DEF', x: 30, y: 66),
       FormationSlot(slotId: 'cb', slotPosition: 'DEF', x: 50, y: 66),
-      FormationSlot(slotId: 'lcb', slotPosition: 'DEF', x: 68, y: 66),
-      FormationSlot(slotId: 'lb', slotPosition: 'DEF', x: 86, y: 66),
+      FormationSlot(slotId: 'lcb', slotPosition: 'DEF', x: 70, y: 66),
+      FormationSlot(slotId: 'lb', slotPosition: 'DEF', x: 90, y: 66),
       FormationSlot(slotId: 'rm', slotPosition: 'MID', x: 25, y: 42),
       FormationSlot(slotId: 'cm', slotPosition: 'MID', x: 50, y: 42),
       FormationSlot(slotId: 'lm', slotPosition: 'MID', x: 75, y: 42),

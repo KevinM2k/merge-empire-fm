@@ -14,6 +14,8 @@
 /// for a near one, red for a misfit.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
@@ -26,13 +28,51 @@ import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 /// The wrapper's width. The token fills it; the empty slot is inset inside it.
 const double pitchTokenWidth = 74;
 
-/// The pitch height these fixed sizes were drawn for: a 7:10 pitch on a phone
-/// about 400 wide, which is what the JS's own 74px token was measured against.
+/// The token's own height at full size, which is what a formation's spacing has
+/// to clear. Measured rather than declared — the token is built out of a tier
+/// strip, art, a name and a position chip — and pinned by a test, so changing
+/// any of those parts fails loudly instead of quietly crowding the pitch.
+const double pitchTokenHeight = 97;
+
+/// How much clear grass a pair of tokens must have between them, as a fraction
+/// of the token's own size. The knob for "the pitch feels tight": 1.0 would let
+/// two tokens touch exactly.
+const double pitchTokenBreathing = 1.15;
+
+/// The largest the token can be drawn at on [pitch] without two of them
+/// touching, never above its design size.
 ///
-/// Below it the whole token is scaled down in proportion — see the note in
-/// `squad_screen.dart`. Eleven tokens that never shrink are what put the back
-/// four in the midfield's band on a short screen.
-const double pitchTokenReferenceHeight = 570;
+/// **The formations are laid out in percentages and the token is laid out in
+/// pixels**, so whether a shape crowds depends on the screen — and eleven tokens
+/// that never shrink are what put a back four in the midfield's band on a short
+/// phone, and a back FIVE on top of itself on any phone. Rather than hand-check
+/// five shapes at three sizes, ask the only question that matters: for every pair
+/// of slots, does one axis or the other separate them by more than a token?
+///
+/// A pair needs clearing on ONE axis, not both — two players side by side in the
+/// same band are separated horizontally, and the same two in adjacent bands
+/// vertically. Taking the minimum over every pair means the tightest pair in the
+/// shape sets the size, so a five-man defence draws slightly smaller cards than a
+/// four-man one. That is the honest answer: it has less room per player.
+double pitchTokenScale(Iterable<({int x, int y})> slots, Size pitch) {
+  if (pitch.isEmpty) return 1;
+  final at = slots.toList();
+  var scale = 1.0;
+  for (var i = 0; i < at.length; i++) {
+    for (var j = i + 1; j < at.length; j++) {
+      final dx =
+          (at[i].x - at[j].x).abs() / 100 * pitch.width / pitchTokenWidth;
+      final dy =
+          (at[i].y - at[j].y).abs() / 100 * pitch.height / pitchTokenHeight;
+      final clears = math.max(dx, dy) / pitchTokenBreathing;
+      if (clears < scale) scale = clears;
+    }
+  }
+  // Floored: below about half size the rating and the name stop being readable,
+  // and a pitch that cannot fit the shape legibly is better slightly crowded
+  // than filled with cards nobody can read.
+  return scale.clamp(0.55, 1.0);
+}
 
 /// `penaltyColor` / `penaltyBg` from `playerMiniCard.js`.
 Color penaltyColor(double p) => p == 0

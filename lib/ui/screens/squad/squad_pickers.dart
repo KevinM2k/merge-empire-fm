@@ -340,9 +340,7 @@ class _TacticRow extends StatelessWidget {
                           )
                         else if (strategy.injMod < 1.0)
                           _RiskPill(
-                            label: t('squad.tactic.injury_down', {
-                              'n': injPct,
-                            }),
+                            label: t('squad.tactic.injury_down', {'n': injPct}),
                             ink: kit.accentBright,
                             edge: kit.accent,
                           ),
@@ -422,11 +420,7 @@ class _SwapPill extends StatelessWidget {
 }
 
 class _RiskPill extends StatelessWidget {
-  const _RiskPill({
-    required this.label,
-    required this.ink,
-    required this.edge,
-  });
+  const _RiskPill({required this.label, required this.ink, required this.edge});
 
   final String label;
   final Color ink;
@@ -612,7 +606,9 @@ class _SlotPickerState extends ConsumerState<_SlotPicker> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final pro = ref.watch(proModeProvider);
     final candidates = [
-      for (final entry in ref.watch(slotCandidatesProvider(widget.slotPosition)))
+      for (final entry in ref.watch(
+        slotCandidatesProvider(widget.slotPosition),
+      ))
         if (_filter == 'ALL' || entry.card.position == _filter) entry,
     ];
 
@@ -818,8 +814,7 @@ void sendOnFromBench(WidgetRef ref, {required String instanceId}) {
 
     final incoming = CardInstance.from(
       gridCells(s).firstWhere(
-        (raw) =>
-            raw is Map<String, dynamic> && raw['instanceId'] == instanceId,
+        (raw) => raw is Map<String, dynamic> && raw['instanceId'] == instanceId,
         orElse: () => null,
       ),
     );

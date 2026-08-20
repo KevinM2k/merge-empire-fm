@@ -5,8 +5,6 @@
 /// the header is recomputed by the engine rather than adjusted by hand.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
@@ -494,22 +492,20 @@ class _Pitch extends ConsumerWidget {
     return SquadPitch(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // **The eleven scale with the pitch.** The lines are 24% of the
-          // pitch's height apart — the JS's own figures, and every formation is
-          // laid out on them — so what decides whether a line has room around it
-          // is how much of that 24% the token eats. The token was a fixed 74×97
-          // whatever the pitch: forty pixels of grass between the bands on a tall
-          // phone and eleven on a short one, with the keeper standing ON the goal
-          // line. Scaled instead, and never scaled UP, so a big screen still
-          // draws the token at the size it was designed at.
+          // **The eleven scale to the shape they are in.** A formation is laid
+          // out in percentages and the token is laid out in pixels, so whether a
+          // shape crowds depends on the screen — and it is the TIGHTEST pair in
+          // the shape that decides, which is a different pair in a 4-3-3 (two
+          // centre-backs) than in a 4-2-3-1 (a centre-back and the man in front
+          // of him). `pitchTokenScale` asks that question directly rather than
+          // trusting five hand-checked shapes at three sizes.
           //
           // Not an inset: giving the outer lines a margin by squeezing the
           // formation into a shorter field would take the room out of exactly
           // the place it is missing from — between the midfield and the attack.
-          final scale = math.min(
-            1.0,
-            constraints.maxHeight / pitchTokenReferenceHeight,
-          );
+          final scale = pitchTokenScale([
+            for (final slot in slots) (x: slot.x, y: slot.y),
+          ], constraints.biggest);
           return Stack(
             key: const ValueKey('squad-pitch'),
             clipBehavior: Clip.none,

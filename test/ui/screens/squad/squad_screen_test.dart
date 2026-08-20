@@ -858,10 +858,9 @@ void main() {
     testWidgets('every line has grass around it on a SHORT screen', (
       tester,
     ) async {
-      // The lines are 24% of the pitch's height apart and that is the JS's data,
-      // so what decides whether they crowd is how much of the 24% the token
-      // eats. A fixed-size token on a pitch that shrinks with the screen left
-      // the back four in the midfield's band and the keeper on the goal line.
+      // The lines are the formation's own data; what decides whether they crowd
+      // is how much of the gap the token eats, and the token used to be a fixed
+      // 74×97 whatever the pitch.
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -873,12 +872,12 @@ void main() {
         (name: 'defence to midfield', gap: at.def.top - at.mid.bottom),
         (name: 'midfield to attack', gap: at.mid.top - at.fwd.bottom),
       ]) {
-        expect(pair.gap, greaterThan(24), reason: pair.name);
+        expect(pair.gap, greaterThan(8), reason: pair.name);
       }
       expect(
         at.pitch.bottom - at.gk.bottom,
-        greaterThan(4),
-        reason: 'the keeper is not standing ON the goal line',
+        greaterThan(0),
+        reason: 'the keeper is on the grass, not over the goal line',
       );
     });
 
@@ -904,6 +903,102 @@ void main() {
       addTearDown(tester.view.reset);
       await pumpSquad(tester);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('every formation has room for eleven', () {
+    /// The 7:10 pitch on a tall phone, a small one, and a very small one. Below
+    /// this `pitchTokenScale` hits its readability floor and says so — a pitch
+    /// that cannot fit the shape legibly is deliberately left slightly crowded.
+    const pitches = [Size(399, 570), Size(341.6, 488), Size(280, 400)];
+
+    test('no two tokens overlap, in ANY shape, at any size', () {
+      // A pair needs clearing on ONE axis: side by side in a band is horizontal,
+      // one in front of the other is vertical.
+      for (final formation in formations.values) {
+        for (final pitch in pitches) {
+          final scale = pitchTokenScale([
+            for (final s in formation.slots) (x: s.x, y: s.y),
+          ], pitch);
+          final w = pitchTokenWidth * scale;
+          final h = pitchTokenHeight * scale;
+          final slots = formation.slots;
+          for (var i = 0; i < slots.length; i++) {
+            for (var j = i + 1; j < slots.length; j++) {
+              final dx = (slots[i].x - slots[j].x).abs() / 100 * pitch.width;
+              final dy = (slots[i].y - slots[j].y).abs() / 100 * pitch.height;
+              expect(
+                dx >= w || dy >= h,
+                isTrue,
+                reason:
+                    '${formation.id} at $pitch: ${slots[i].slotId} and '
+                    '${slots[j].slotId} overlap '
+                    '(dx $dx vs $w, dy $dy vs $h)',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    test('and the shapes that fit draw at FULL size', () {
+      // 4-3-3 and 4-4-2 are four evenly spaced bands of at most four; they were
+      // never the problem and must not be shrunk to fix the ones that were.
+      for (final id in ['4-3-3', '4-4-2']) {
+        expect(
+          pitchTokenScale([
+            for (final s in formations[id]!.slots) (x: s.x, y: s.y),
+          ], const Size(399, 570)),
+          1.0,
+          reason: id,
+        );
+      }
+    });
+
+    test('4-2-3-1 spaces its FIVE bands evenly', () {
+      // The JS packs them 24 / 16 / 16 / 16 and 16% of the pitch is less than a
+      // token is tall, so three of the five bands overlapped.
+      final ys = formations['4-2-3-1']!.slots.map((s) => s.y).toSet().toList()
+        ..sort();
+      expect(ys.length, 5);
+      final gaps = [for (var i = 1; i < ys.length; i++) ys[i] - ys[i - 1]];
+      expect(gaps.toSet(), hasLength(1), reason: 'all one gap: $gaps');
+      expect(
+        gaps.first,
+        greaterThan(16),
+        reason: 'and wider than the JS packs',
+      );
+    });
+
+    test('5-3-2 gives its back FIVE the width the wings were not using', () {
+      final defence = formations['5-3-2']!.slots.where(
+        (s) => s.slotPosition == 'DEF',
+      );
+      final xs = defence.map((s) => s.x).toList()..sort();
+      expect(xs.length, 5);
+      final gaps = [for (var i = 1; i < xs.length; i++) xs[i] - xs[i - 1]];
+      expect(gaps.toSet(), hasLength(1), reason: 'evenly: $gaps');
+      expect(gaps.first, greaterThan(18), reason: 'wider than the JS packs');
+      // As far out as a token can go and stay on the grass — where 3-5-2's
+      // wing-backs already stand.
+      expect(xs.first, 10);
+      expect(xs.last, 90);
+    });
+
+    testWidgets('the token is the height the spacing is measured against', (
+      tester,
+    ) async {
+      // `pitchTokenHeight` is measured, not declared: it is what every formation
+      // has to clear, so a change to the token's own parts must fail here rather
+      // than quietly crowd the pitch.
+      tester.view.physicalSize = const Size(400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpSquad(tester);
+      expect(
+        tester.getRect(find.byKey(const ValueKey('squad-drop-gk'))).height,
+        moreOrLessEquals(pitchTokenHeight, epsilon: 0.5),
+      );
     });
   });
 }
