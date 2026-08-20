@@ -1,0 +1,126 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this repo is
+
+A Flutter port, in progress, of a shipped JavaScript game. **The JS at
+`../merge-empire-fc/src/` is the specification** — not a reference, the spec. Its
+comments carry the reasoning behind nearly every decision and its CSS states
+column counts, backgrounds and container nesting. Read the module and its
+stylesheet in full before porting either.
+
+Two queues, and they are different lists:
+
+- `docs/REMAINING.md` — the live queue, newest playtesting session first. What a
+  player actually noticed. Clear this one first.
+- `docs/PARITY.md` — control-by-control and layout-by-layout diff taken from the
+  source. Longer, drier, and it finds things playing does not.
+
+## Commands
+
+```bash
+flutter analyze                      # must be clean before any commit
+flutter test                         # ~3,800 tests
+TZ=UTC flutter test                  # test/data/events_test.dart and
+                                     # test/engine/event_engine_test.dart skip
+                                     # themselves outside UTC — annual event
+                                     # windows resolve local wall-clock time
+flutter test test/engine/foo_test.dart          # one file
+flutter test test/engine/foo_test.dart --name X # one test
+```
+
+**Never run `dart format lib/ test/`.** It reformats ~186 files and trips
+`curly_braces_in_flow_control_structures` in about ten pre-existing ones, turning
+a clean analyze into eleven issues. Format only files you touched.
+
+Fixtures are dumped from node, not hand-written:
+
+```bash
+node tool/dump_<module>_reference.mjs > test/fixtures/<module>.json
+node tool/difftest/run.mjs > test/fixtures/season_difftest.json  # whole seasons
+```
+
+Generators — edit the generator, never the output:
+
+```bash
+node tool/gen_i18n.mjs        # lib/i18n/catalogs.g.dart + locales/*.g.dart
+node tool/gen_club_art.mjs    # lib/data/club_art.g.dart
+node tool/gen_manager_art.mjs # lib/data/manager_art.g.dart
+```
+
+Locale copy and generated catalogue text are fixed in `../merge-empire-fc`'s own
+`en.js` and regenerated — the catalogue comes from the JS.
+
+## Architecture
+
+**The bottom half may not import Flutter.** `lib/engine/`, `lib/data/`,
+`lib/i18n/`, `lib/state/`, `lib/util/` are pure Dart, enforced by
+`test/architecture_test.dart`. That is what lets 56 engines and the whole save
+layer run under plain `dart test` with no widget binding.
+
+- `lib/state/game_state.dart` — one `Map<String, dynamic>`, held for the process
+  lifetime and **mutated in place**. Every screen and engine holds that same map,
+  so a cloud restore or reset replaces its *contents*, not the reference. Key
+  insertion order is preserved; a Dart record must never be stored in it.
+- `lib/state/game_tick.dart` — one pure turn of the loop. Reasons *not* to act
+  (a mini-game open, the match popup up) arrive as `TickGates` and it returns a
+  `TickReport`. Nothing here emits or draws.
+- `lib/state/game_runner.dart` — the loop, the timer, the listeners. Emits on the
+  bus; does not draw, toast or play sound.
+- `lib/state/game_wiring.dart` — bus listeners that change the **save**. Several
+  engines deliberately do not apply their own reward; without these listeners
+  achievements unlock and pay nothing. Listeners that toast, play a sound or log
+  analytics live in the UI layer on the same bus.
+- `lib/util/event_bus.dart` — every cross-cutting signal (`coins:updated`,
+  `match:complete`, `merge:happened`, `season:ended`, …). Grep before inventing an
+  event name. The UI subscribes and republishes into Riverpod, which is how
+  widgets get narrow rebuilds without dragging Flutter into the engines.
+- `lib/providers/game_host.dart` — boot, and app-lifecycle pause. Only states
+  that mean the app is really gone pause the loop; `inactive` fires for the
+  notification shade. Pausing saves and flushes the durable mirror.
+
+## Rules that bite
+
+- **Navigate through `shellControllerProvider`** (`lib/ui/shell/shell_controller.dart`),
+  never by emitting a bus event by hand. Its listeners are the only code that
+  should know those strings.
+- **A popup is one of three shapes** — bottom sheet, Coach Colin card, quick-nav
+  menu — and goes on screen through `enqueuePopup`. A fourth shape is a spec
+  change first. The queue drains in priority order and **may never time out or
+  discard**: the welcome-back card holds coins that exist nowhere else.
+- **Every user-facing string goes through `t()`.** The key must exist in `en` or
+  `test/i18n/call_sites_test.dart` fails the build.
+- **Colours come from `Theme.of(context).extension<KitTheme>()!`.** The whole
+  palette is derived from the club's kit; a hardcoded colour is a bug.
+- Seeded gameplay randomness goes through `util/random.dart`; anything mirroring
+  JS `Math.random()` uses `dart:math`. Mixing them shifts every later draw, and
+  **draw order matters as much as the formula**.
+- Nothing ending `.g.dart` is edited by hand.
+
+## Porting habits
+
+- **Reach for the widget before porting the CSS.** The JS builds what the DOM
+  won't give it; a straight port of that build is usually worse than the Flutter
+  widget it stood in for (`ListWheelScrollView` for a hand-scrolled DOM strip,
+  `AnimatedRotation` with an `Alignment` for four `transform-origin` transitions).
+  The exceptions are what a widget cannot express — a rig whose limbs turn about
+  their own joints wants a painter.
+- **Generate a node fixture for anything with non-obvious arithmetic or an RNG
+  draw.** Every fixture so far has caught something.
+- **Check reachability; do not assume it.** Widget tests construct the state they
+  need, so they prove a part works and say nothing about whether a player can get
+  to it. Before calling a module done, grep for who *calls* it — "only its own
+  test" is the module's real status. This catches engines too: `trackEvent` had no
+  caller in `lib/`, so three quests could never advance while every test passed.
+  And grep the JS for a caller as well — some functions are a dead end *there*,
+  and building a UI for one is adding a feature rather than porting it.
+- A port with no tests is not done.
+
+## Identifiers
+
+The display name is "Merge Empire Football Manager" (`CFBundleDisplayName`,
+`android:label`, window title, store listings); `CFBundleName` is
+"Merge Empire FM". The identifiers deliberately still read `mergeempirefc` —
+`com.mergeempirefc.app` on both stores is the primary key of an already-published
+app, and the Dart package name `merge_empire_fc` is internal.
