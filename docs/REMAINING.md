@@ -30,9 +30,10 @@ too late:
 
 ## Where we are
 
-**3,744 tests, `flutter analyze` clean.**
+**3,745 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 20 Aug", and it is 28 items.** That is
+**The live queue is "From playtesting — 21 Aug", and it is 9 items** — on top of
+20 August's 28. That is
 what a session of actually playing the thing turned up, which is a different list
 from what reading the source turns up and is the one to clear first. It carries
 its own status block: the count, the clusters, what is blocked on a decision and
@@ -1084,6 +1085,122 @@ than Free. Separately, PLAYING a Rive rig in the app would mean adding the `rive
 runtime alongside `flame`, which is a dependency decision nobody has taken.
 
 ---
+
+## From playtesting — 21 Aug
+
+A third session, run against the light-mode sky and the new sound engine. Most
+of it was closed as it came in — the entries below are what is LEFT, plus three
+designs that came out of it and are worth writing down properly before anyone
+starts them.
+
+### Where this queue stands
+
+**9 open.** Two are real gaps behind a control that looks broken, two are
+services M4 has not delivered, two are screens, three are designs, and one is
+the rest of a consistency sweep.
+
+### The five mini-games that have no screen
+
+- [ ] **"Training sessions are not unlocking" is not an unlock bug — it is FIVE
+      MISSING SCREENS.** The ladder works: `getUnlockedMinigames` adds one kind
+      per Training Ground tier and the provider recomputes on every save change.
+      What happens is that the row then says "coming soon", because
+      `playableMiniGames` holds only `penalty` and `bootRoom` — so tiering up
+      unlocks a drill that cannot be played, which reads exactly like an unlock
+      that did not fire. `training`, `keepy_uppys`, `through_ball`, `whack` and
+      `pairs` are all unported.
+      **Two things to do, and the small one first:** the locked row should name
+      the TIER that unlocks it rather than saying "coming soon" for two different
+      reasons, and then the five screens.
+- [ ] **The rewarded-ad skip has an engine and NO CALLER.**
+      `resetMiniGameCooldown`, `skipAdsLeftToday`, `recordSkipAd` and
+      `Minigame.skipCapPerDay` have all been in `mini_games_engine.dart` since
+      M1 and nothing in the UI has ever called them, which is why there is no
+      advert button on a cooling-down drill. The row wants a `StoreTone.ad`
+      button with the day's remaining skips on it — disabled with a reason until
+      AdMob lands, the way the Shop's own two ad tiles ship.
+
+### Four controls that look broken because they are waiting on M4
+
+- [ ] **Rate Us, Privacy Options and Account Connection** are `PendingControl`s
+      with "coming soon" on them, and a player reasonably reads that as broken.
+      Rate Us is the one that could ship now — it is a store URL and a
+      `url_launcher` dependency, nothing more. Privacy needs the consent SDK and
+      Account needs auth; both are genuinely M4.
+- [ ] **Team Names is a SCREEN, not a service** — the pyramid editor, with
+      presets, import and export (`pyramid.*` has fourteen keys waiting for it).
+      It is the one of the four that is only work.
+
+### The daily reward
+
+- [ ] **It does not tick off the days you have claimed**, which is the whole
+      point of a seven-day strip, and tapping a day does not say what that day
+      pays — it just swaps the title to "Congrats". Check `../merge-empire-fc`:
+      the cycle strip marks banked days and a tap previews the rung.
+
+### Three designs that came out of this session
+
+**These are specs rather than tickets.** Each is a real piece of work and each
+has a trap in it that is worth stating before the first line is written.
+
+- [ ] **THE 2D PITCH SHOULD PLAY CONTINUOUSLY, not cut to chances.** Today the
+      cutaway appears for a chance and vanishes; the idea is that the players
+      keep moving between chances — making runs, passing, holding shape — and
+      that when a chance is coming the shapes TRANSITION into the positions the
+      chance needs, so the passage flows out of the play rather than replacing
+      it. Stats move behind a button next to the commentary; with the 2D view
+      switched off the stats stay put and the button does not appear.
+      **The trap, and it is the whole difficulty: the ball has to be
+      CONTINUOUS.** Chances are independent draws from the sim — four shots in a
+      row can be at alternate ends — so played literally the ball teleports
+      after every one. Making it work means the in-between play is what RECONCILES
+      two consecutive events: after a shot the ball has to plausibly get from
+      that goal-kick or corner to wherever the next event starts, and the
+      interval between the two minutes is the budget for doing it. That is a
+      pathing problem over a fixed timetable, not an animation problem, and it is
+      where the design either holds or does not. A tackle, a clearance and a
+      throw-in are the vocabulary that makes an arbitrary transition legible.
+      **What is already in place:** the clock now STOPS while a chance is on the
+      pitch (it did not, which is why the minute lurched), and `cutaway_stage`
+      already owns a clip with an outcome.
+- [ ] **THE PENALTY GAME WANTS A PHYSICS PASS.** The ball should turn as it is
+      struck, arc and fall properly, and bounce off the frame; the keeper should
+      fall rather than translate. Building the goal, the frame and the net as
+      geometry rather than using the flat art is explicitly fine, and is probably
+      the way in — a net that can be deformed by the ball is most of what sells
+      it.
+      **The trap: the OUTCOME is already decided** by `takePenalty` before
+      anything moves, and it must stay that way (the engine is proven against the
+      JS). So this is not a simulation — it is an animation that has to be
+      constrained to end in a known state, which means solving for the flight
+      that reaches the given corner and the given result rather than integrating
+      forces and seeing what happens.
+- [ ] **USE THE KENNEY PACKS FOR CELEBRATION AND BACKDROP.**
+      `kenney_smoke-particles` for a merge, a discovery, a pop — anything that
+      appears or is worth celebrating; `kenney_background-elements-remastered`
+      behind the manager customiser, the training screens and the match popups;
+      and more of `kenney_game-icons` where the app's own set has no glyph.
+      **The trap: the merge burst is currently PROCEDURAL** and draws at any size
+      in any tier's colours, which a sprite sheet cannot do. So this is an
+      addition rather than a replacement — sprites for the things that have no
+      effect at all today, and the procedural burst stays where a tier colour has
+      to drive it.
+
+### Consistency, and how far it got
+
+- [x] **`SheetHeader` is the one rule for a popup title** — caps, the club's
+      accent, centred, 15/w900, with an optional muted sentence under it. There
+      were five: the Energy sheet's green at 18 centred, Auto-Sell's plain ink at
+      16 left-aligned, the Trophy Room's caps, Coach Colin's plain w900 at 17,
+      the quick nav's accent at 18. Each defensible alone; the set of them reads
+      as five different apps.
+- [ ] **The sweep is not finished.** Energy, Quests, Auto-Sell, Daily Reward, the
+      league table and the asset ladder are converted. Still to go: the currency
+      sheet, the player sheet, the sell sheet, the deadline sheets, the training
+      sheet, the leaderboard's own header and the boot-room and penalty screens.
+      Two are deliberate exceptions and should stay that way — Coach Colin's card
+      (his title is him speaking, under his own name plate) and the achievement
+      banner (a celebration, not a heading).
 
 ## M0 — foundation and save bridge ✅
 
