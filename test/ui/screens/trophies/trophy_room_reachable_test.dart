@@ -100,6 +100,7 @@ void main() {
     await _pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey('dock-menu')));
     await tester.pumpAndSettle();
-    expect(find.text(t('scene.dock.trophies')), findsOneWidget);
+    // Caps, like every other nav label — the words are still the catalogue's.
+    expect(find.text(t('scene.dock.trophies').toUpperCase()), findsOneWidget);
   });
 }

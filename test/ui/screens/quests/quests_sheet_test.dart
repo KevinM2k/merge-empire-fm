@@ -122,7 +122,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('dock-menu')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('quick-nav')), findsOneWidget);
-    expect(find.text(t('quests.title')), findsWidgets);
+    // The tile labels are CAPS now, like every other nav label.
+    expect(find.text(t('quests.title').toUpperCase()), findsWidgets);
   });
 
   testWidgets('and Quests opens from it', (tester) async {

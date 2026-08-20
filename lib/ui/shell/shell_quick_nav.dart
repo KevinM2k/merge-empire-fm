@@ -149,7 +149,10 @@ class _TablePositionBadge extends ConsumerWidget {
         context,
       ).extension<KitTheme>()!.accentBright,
       LeagueZone.relegation => const Color(0xFFF87171),
-      LeagueZone.midtable => Colors.white,
+      // The THEME's ink, not a hard white: a mid-table position on a light-mode
+      // tile was white on near-white, which is the one row in the table nobody
+      // could read.
+      LeagueZone.midtable => Theme.of(context).colorScheme.onSurface,
     };
 
     return SizedBox(

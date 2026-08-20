@@ -13,6 +13,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:merge_empire_fc/i18n/i18n.dart';
+
 /// When an event runs.
 sealed class EventTrigger {
   const EventTrigger({this.previewDays = 0});
@@ -74,9 +76,8 @@ class AnnualWindowTrigger extends EventTrigger {
   /// A daily appointment beats the whole-day form.
   bool get isDaily => startHour != null;
 
-  int get durationMs => isDaily
-      ? durationMinutes * 60 * 1000
-      : durationHours * 60 * 60 * 1000;
+  int get durationMs =>
+      isDaily ? durationMinutes * 60 * 1000 : durationHours * 60 * 60 * 1000;
 }
 
 /// One challenge inside an event.
@@ -110,7 +111,12 @@ class EventChallenge {
 /// What a reward tier hands over.
 typedef EventReward = ({num coins, int trophies, int energy, bool freeScout});
 
-const EventReward noReward = (coins: 0, trophies: 0, energy: 0, freeScout: false);
+const EventReward noReward = (
+  coins: 0,
+  trophies: 0,
+  energy: 0,
+  freeScout: false,
+);
 
 /// A milestone the player claims as their score accrues.
 class RewardTier {
@@ -195,6 +201,25 @@ class EventCosmetic {
 }
 
 /// One event in the catalogue.
+/// An event's name and its flavour line, as the player reads them.
+///
+/// **NOT `tName('event', id)`.** That builds the key from the id — `event.
+/// deadline_day` — and the catalogue holds these under their own `nameKey`,
+/// `event.deadline.name`. So the lookup missed, `tName` fell back to the id, and
+/// the Deadline Day banner announced itself as "DEADLINE_DAY".
+///
+/// The definition's English field is the fallback, which is what every other
+/// catalogue lookup in the app does.
+String eventName(EventDef event) {
+  final hit = t(event.nameKey);
+  return hit == event.nameKey ? event.name : hit;
+}
+
+String eventFlavour(EventDef event) {
+  final hit = t(event.flavourKey);
+  return hit == event.flavourKey ? event.flavour : hit;
+}
+
 class EventDef {
   const EventDef({
     required this.id,
@@ -307,42 +332,103 @@ const List<EventDef> events = [
         'DR Congo': 67, 'New Zealand': 65, 'Curaçao': 63, 'Haiti': 62,
       },
       flags: {
-        'USA': '🇺🇸', 'Canada': '🇨🇦', 'Mexico': '🇲🇽',
-        'Argentina': '🇦🇷', 'Brazil': '🇧🇷', 'Uruguay': '🇺🇾',
-        'Colombia': '🇨🇴', 'Ecuador': '🇪🇨', 'Paraguay': '🇵🇾',
-        'France': '🇫🇷', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Spain': '🇪🇸', 'Germany': '🇩🇪',
-        'Portugal': '🇵🇹', 'Netherlands': '🇳🇱', 'Belgium': '🇧🇪',
-        'Croatia': '🇭🇷', 'Switzerland': '🇨🇭', 'Austria': '🇦🇹',
-        'Norway': '🇳🇴', 'Türkiye': '🇹🇷', 'Czechia': '🇨🇿',
-        'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Bosnia and Herzegovina': '🇧🇦', 'Sweden': '🇸🇪',
-        'Morocco': '🇲🇦', 'Senegal': '🇸🇳', 'Tunisia': '🇹🇳', 'Algeria': '🇩🇿',
-        'Egypt': '🇪🇬', "Côte d'Ivoire": '🇨🇮', 'Ghana': '🇬🇭',
-        'DR Congo': '🇨🇩', 'Cape Verde': '🇨🇻', 'South Africa': '🇿🇦',
-        'Japan': '🇯🇵', 'South Korea': '🇰🇷', 'Iran': '🇮🇷', 'Australia': '🇦🇺',
-        'Saudi Arabia': '🇸🇦', 'Uzbekistan': '🇺🇿', 'Jordan': '🇯🇴',
-        'Iraq': '🇮🇶', 'Qatar': '🇶🇦',
-        'Panama': '🇵🇦', 'Curaçao': '🇨🇼', 'Haiti': '🇭🇹',
+        'USA': '🇺🇸',
+        'Canada': '🇨🇦',
+        'Mexico': '🇲🇽',
+        'Argentina': '🇦🇷',
+        'Brazil': '🇧🇷',
+        'Uruguay': '🇺🇾',
+        'Colombia': '🇨🇴',
+        'Ecuador': '🇪🇨',
+        'Paraguay': '🇵🇾',
+        'France': '🇫🇷',
+        'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+        'Spain': '🇪🇸',
+        'Germany': '🇩🇪',
+        'Portugal': '🇵🇹',
+        'Netherlands': '🇳🇱',
+        'Belgium': '🇧🇪',
+        'Croatia': '🇭🇷',
+        'Switzerland': '🇨🇭',
+        'Austria': '🇦🇹',
+        'Norway': '🇳🇴',
+        'Türkiye': '🇹🇷',
+        'Czechia': '🇨🇿',
+        'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+        'Bosnia and Herzegovina': '🇧🇦',
+        'Sweden': '🇸🇪',
+        'Morocco': '🇲🇦',
+        'Senegal': '🇸🇳',
+        'Tunisia': '🇹🇳',
+        'Algeria': '🇩🇿',
+        'Egypt': '🇪🇬',
+        "Côte d'Ivoire": '🇨🇮',
+        'Ghana': '🇬🇭',
+        'DR Congo': '🇨🇩',
+        'Cape Verde': '🇨🇻',
+        'South Africa': '🇿🇦',
+        'Japan': '🇯🇵',
+        'South Korea': '🇰🇷',
+        'Iran': '🇮🇷',
+        'Australia': '🇦🇺',
+        'Saudi Arabia': '🇸🇦',
+        'Uzbekistan': '🇺🇿',
+        'Jordan': '🇯🇴',
+        'Iraq': '🇮🇶',
+        'Qatar': '🇶🇦',
+        'Panama': '🇵🇦',
+        'Curaçao': '🇨🇼',
+        'Haiti': '🇭🇹',
         'New Zealand': '🇳🇿',
       },
       nationColors: {
-        'USA': '#4169b3', 'Canada': '#e4002b', 'Mexico': '#00b25b',
-        'Argentina': '#75aadb', 'Brazil': '#ffdf00', 'Uruguay': '#5cb8e6',
-        'Colombia': '#fcd116', 'Ecuador': '#ffd100', 'Paraguay': '#d52b1e',
-        'France': '#3b6fd4', 'England': '#ffffff', 'Spain': '#c60b1e',
-        'Germany': '#ffce00', 'Portugal': '#da291c', 'Netherlands': '#ff7f00',
-        'Belgium': '#ed2939', 'Croatia': '#e34234', 'Switzerland': '#e60026',
-        'Austria': '#ef3340', 'Norway': '#d81e3f', 'Türkiye': '#e30a17',
-        'Czechia': '#3d7edb', 'Scotland': '#0065bd',
-        'Bosnia and Herzegovina': '#ffcc00', 'Sweden': '#ffcd00',
-        'Morocco': '#c1272d', 'Senegal': '#fdef42', 'Tunisia': '#e70013',
-        'Algeria': '#ffffff', 'Egypt': '#ce1126', "Côte d'Ivoire": '#f77f00',
-        'Ghana': '#fcd116', 'DR Congo': '#007fff', 'Cape Verde': '#3d6fd0',
+        'USA': '#4169b3',
+        'Canada': '#e4002b',
+        'Mexico': '#00b25b',
+        'Argentina': '#75aadb',
+        'Brazil': '#ffdf00',
+        'Uruguay': '#5cb8e6',
+        'Colombia': '#fcd116',
+        'Ecuador': '#ffd100',
+        'Paraguay': '#d52b1e',
+        'France': '#3b6fd4',
+        'England': '#ffffff',
+        'Spain': '#c60b1e',
+        'Germany': '#ffce00',
+        'Portugal': '#da291c',
+        'Netherlands': '#ff7f00',
+        'Belgium': '#ed2939',
+        'Croatia': '#e34234',
+        'Switzerland': '#e60026',
+        'Austria': '#ef3340',
+        'Norway': '#d81e3f',
+        'Türkiye': '#e30a17',
+        'Czechia': '#3d7edb',
+        'Scotland': '#0065bd',
+        'Bosnia and Herzegovina': '#ffcc00',
+        'Sweden': '#ffcd00',
+        'Morocco': '#c1272d',
+        'Senegal': '#fdef42',
+        'Tunisia': '#e70013',
+        'Algeria': '#ffffff',
+        'Egypt': '#ce1126',
+        "Côte d'Ivoire": '#f77f00',
+        'Ghana': '#fcd116',
+        'DR Congo': '#007fff',
+        'Cape Verde': '#3d6fd0',
         'South Africa': '#ffb612',
-        'Japan': '#4169e1', 'South Korea': '#cd2e3a', 'Iran': '#ffffff',
-        'Australia': '#ffcd00', 'Saudi Arabia': '#ffffff',
-        'Uzbekistan': '#0099b5', 'Jordan': '#ce1126', 'Iraq': '#a91d2a',
+        'Japan': '#4169e1',
+        'South Korea': '#cd2e3a',
+        'Iran': '#ffffff',
+        'Australia': '#ffcd00',
+        'Saudi Arabia': '#ffffff',
+        'Uzbekistan': '#0099b5',
+        'Jordan': '#ce1126',
+        'Iraq': '#a91d2a',
         'Qatar': '#8a1538',
-        'Panama': '#da121a', 'Curaçao': '#4f86e0', 'Haiti': '#2a48c4',
+        'Panama': '#da121a',
+        'Curaçao': '#4f86e0',
+        'Haiti': '#2a48c4',
         'New Zealand': '#ffffff',
       },
       nationFactCount: 3,
@@ -406,18 +492,41 @@ const List<EventDef> events = [
     // winning the bracket.
     theme: EventTheme(
       palette: {
-        'bg': '#0c0820', 'surface': '#15103a', 'surface2': '#1d1750',
-        'border': '#3a2c8a', 'text': '#fff7e1', 'textMuted': '#a89dd4',
-        'accent': '#ffd700', 'accentBright': '#ffe14a', 'accentDark': '#d4af37',
-        'accentInk': '#1a0d4a', 'accentRgb': '255,215,0',
-        'chromeTop': '#14094a', 'chromeBottom': '#0a0420',
-        'glowA': 'rgba(255,215,0,0.18)', 'glowB': 'rgba(220,40,80,0.22)',
+        'bg': '#0c0820',
+        'surface': '#15103a',
+        'surface2': '#1d1750',
+        'border': '#3a2c8a',
+        'text': '#fff7e1',
+        'textMuted': '#a89dd4',
+        'accent': '#ffd700',
+        'accentBright': '#ffe14a',
+        'accentDark': '#d4af37',
+        'accentInk': '#1a0d4a',
+        'accentRgb': '255,215,0',
+        'chromeTop': '#14094a',
+        'chromeBottom': '#0a0420',
+        'glowA': 'rgba(255,215,0,0.18)',
+        'glowB': 'rgba(220,40,80,0.22)',
       },
       bgGradient:
           'linear-gradient(180deg, rgba(255,215,0,0.10) 0%, rgba(123,47,190,0.06) 60%, transparent 100%)',
       buntingFlags: [
-        '🇺🇸', '🇨🇦', '🇲🇽', '🇧🇷', '🇦🇷', '🇫🇷', '🇪🇸', '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-        '🇩🇪', '🇵🇹', '🇳🇱', '🇯🇵', '🇲🇦', '🇸🇳', '🇰🇷', '🇭🇷',
+        '🇺🇸',
+        '🇨🇦',
+        '🇲🇽',
+        '🇧🇷',
+        '🇦🇷',
+        '🇫🇷',
+        '🇪🇸',
+        '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+        '🇩🇪',
+        '🇵🇹',
+        '🇳🇱',
+        '🇯🇵',
+        '🇲🇦',
+        '🇸🇳',
+        '🇰🇷',
+        '🇭🇷',
       ],
       accentBorder: '#ffd700',
       headerEmoji: '🏆',
@@ -535,7 +644,8 @@ List<AnnualOccurrence> annualWindowOccurrences(
   if (trigger is! AnnualWindowTrigger) return const [];
 
   final asOf = DateTime.fromMillisecondsSinceEpoch(nowMs);
-  final key = '${_triggerKey(trigger)}|${asOf.year}|'
+  final key =
+      '${_triggerKey(trigger)}|${asOf.year}|'
       '${asOf.timeZoneOffset.inMinutes}';
   final cached = _occurrenceCache[key];
   if (cached != null) return cached;

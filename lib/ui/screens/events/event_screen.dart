@@ -90,9 +90,7 @@ class _EventScreenState extends ConsumerState<EventScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(
-          active != null
-              ? tName('event', active.id)
-              : t('event.banner.coming_up'),
+          active != null ? eventName(active) : t('event.banner.coming_up'),
         ),
       ),
       body: SafeArea(child: body),

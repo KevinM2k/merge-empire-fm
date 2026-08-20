@@ -647,10 +647,15 @@ because most of these are two or three to a file.
 
 ### Quick nav and menus
 
-- [ ] **The quick nav should read as GLASS over the screen** — not as bright or
-      as dark as it is now.
-- [ ] **Its items, and the menu's (League, Team), should be CENTRED**, and in
-      caps.
+- [x] **The quick nav is GLASS over the screen** — blurred and translucent
+      rather than the opaque `surface` slab it was, which is the heaviest thing
+      the app puts up for what is only a way of getting somewhere else.
+- [x] **Its group headings are centred over the tiles they head**, and the tile
+      labels are caps with no ellipsis — they scale instead.
+- [x] **The Table tile was WHITE ON NEAR-WHITE in light mode.** A mid-table
+      position was hard-coded to `Colors.white`, so the one league position most
+      players are actually in was the one nobody could read. It takes the theme's
+      ink now.
 
 ### The Play page
 
@@ -684,7 +689,11 @@ because most of these are two or three to a file.
 
 ### Deadline Day, and names
 
-- [ ] **The banner still says `DEADLINE_DAY`** — a raw key.
+- [x] **The banner said `DEADLINE_DAY`** because the strip asked `tName` for
+      `event.deadline_day`, and the catalogue holds the name under the
+      definition's own `nameKey`, `event.deadline.name`. The lookup missed, so
+      `tName` fell back to the id and the banner shouted it. `eventName` and
+      `eventFlavour` resolve it properly, and all three call sites use them.
 - [ ] **Renaming a player is missing**, and a name that IS set has to carry
       through to Deadline Day. It did not in the original either.
 - [ ] **Buying a player on Deadline Day must deliver THAT player.** Suspected

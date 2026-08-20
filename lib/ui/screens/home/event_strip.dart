@@ -129,7 +129,7 @@ class _StripState extends ConsumerState<_Strip> {
         onTap: () => openEventScreen(context, ref),
         child: Semantics(
           button: true,
-          label: tName('event', event.id),
+          label: eventName(event),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: _paper,
@@ -148,7 +148,7 @@ class _StripState extends ConsumerState<_Strip> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _Headline(
-                    name: tName('event', event.id),
+                    name: eventName(event),
                     // Live counts DOWN TO the doors shutting; upcoming counts to
                     // them opening, and says so rather than quoting a bare
                     // figure that would read as time left.

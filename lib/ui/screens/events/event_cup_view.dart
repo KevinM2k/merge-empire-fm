@@ -563,7 +563,7 @@ class _CupOver extends ConsumerWidget {
                     ? t('event.cup.champions_body', {
                         'flag': flag,
                         'nation': nation ?? '',
-                        'event': tName('event', event.id),
+                        'event': eventName(event),
                       })
                     : t('event.cup.eliminated_body', {
                         'flag': flag,

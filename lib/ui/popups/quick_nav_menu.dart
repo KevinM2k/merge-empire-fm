@@ -12,6 +12,8 @@
 /// won" makes eight destinations findable in a way one flat list does not.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -67,54 +69,72 @@ class _QuickNavMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    // **GLASS over the screen**, not a panel on top of it. It was an opaque
+    // `surface` slab, which is the heaviest thing the app puts up for what is
+    // only a way of getting somewhere else — the diorama should read through it.
     return Dialog(
-      backgroundColor: kit.surface,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-      shape: RoundedRectangleBorder(
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: kit.border),
-      ),
-      child: SingleChildScrollView(
-        key: const ValueKey('quick-nav'),
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              t('quicknav.title'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: kit.accentBright,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: kit.surface.withValues(alpha: 0.72),
+              border: Border.all(color: kit.border.withValues(alpha: 0.6)),
             ),
-            for (final group in groups) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 8),
-                child: Text(
-                  t(group.titleKey).toUpperCase(),
-                  style: TextStyle(
-                    color: kit.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              // Wrap rather than a fixed grid: a group of two centres rather
-              // than left-packing beside an empty third cell.
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 10,
-                runSpacing: 10,
+            child: SingleChildScrollView(
+              key: const ValueKey('quick-nav'),
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final item in group.items) _QuickNavTile(item: item),
+                  Text(
+                    t('quicknav.title'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: kit.accentBright,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  for (final group in groups) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16, bottom: 8),
+                      child: Text(
+                        t(group.titleKey).toUpperCase(),
+                        // CENTRED over the tiles it heads, which are centred. Left
+                        // against a centred `Wrap` read as a heading for something
+                        // else.
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: kit.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    // Wrap rather than a fixed grid: a group of two centres rather
+                    // than left-packing beside an empty third cell.
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final item in group.items)
+                          _QuickNavTile(item: item),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );
@@ -172,15 +192,20 @@ class _QuickNavTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
-                t(item.labelKey),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
+              // CAPS, and no ellipsis — a label that scales is readable and a
+              // label that is cut off is not.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  t(item.labelKey).toUpperCase(),
+                  textAlign: TextAlign.center,
+                  softWrap: false,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                    height: 1.2,
+                  ),
                 ),
               ),
             ],
