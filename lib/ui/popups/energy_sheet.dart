@@ -11,6 +11,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
@@ -54,13 +55,9 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
           key: const ValueKey('energy-sheet'),
           padding: const EdgeInsets.all(16),
           children: [
-            Text(
-              t('shop.section.energy'),
-              style: TextStyle(
-                color: kit.accentBright,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+            SheetHeader(
+              title: t('shop.section.energy'),
+              padding: EdgeInsets.zero,
             ),
             const SizedBox(height: 12),
             Row(

@@ -14,6 +14,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
@@ -92,14 +93,10 @@ class _AutoTierSheet extends ConsumerWidget {
       key: const ValueKey('auto-tier-sheet'),
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
       children: [
-        Text(
-          t('settings.autoTier'),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          t('settings.autoTier.body'),
-          style: TextStyle(color: kit.textMuted, fontSize: 12, height: 1.5),
+        SheetHeader(
+          title: t('settings.autoTier'),
+          subtitle: t('settings.autoTier.body'),
+          padding: EdgeInsets.zero,
         ),
         const SizedBox(height: 12),
         // Dormant until the tutorial is done, and it says so rather than letting

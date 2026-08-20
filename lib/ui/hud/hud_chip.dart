@@ -91,14 +91,13 @@ class HudCluster extends StatelessWidget {
       decoration: BoxDecoration(
         color: kit.surface.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(14),
+        // NO SHADOW. It was there to lift the pill off the diorama, and on the
+        // diorama is exactly where it did not work: the cluster sits on a sky
+        // that is already a gradient, so a soft dark edge under it read as
+        // grime rather than as height. The border separates it on every page,
+        // and a shadow that only convinces on four of five screens is worse
+        // than none.
         border: Border.all(color: kit.border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x40000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Row(

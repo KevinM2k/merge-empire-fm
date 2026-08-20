@@ -18,6 +18,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -92,14 +93,9 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
       key: const ValueKey('daily-reward-sheet'),
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
       children: [
-        Text(
-          claim == null ? t('daily.title') : t('daily.congrats'),
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: kit.accentBright,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
+        SheetHeader(
+          title: claim == null ? t('daily.title') : t('daily.congrats'),
+          padding: EdgeInsets.zero,
         ),
         const SizedBox(height: 4),
         Text(

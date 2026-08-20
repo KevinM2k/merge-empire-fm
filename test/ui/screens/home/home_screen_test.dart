@@ -188,7 +188,10 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('league-table')),
-          matching: find.text(container.read(divisionNameProvider)),
+          // Upper-cased, because every sheet title is — see `SheetHeader`.
+          matching: find.text(
+            container.read(divisionNameProvider).toUpperCase(),
+          ),
         ),
         findsOneWidget,
       );

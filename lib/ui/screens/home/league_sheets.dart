@@ -12,6 +12,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
@@ -70,16 +71,9 @@ class LeagueTableView extends ConsumerWidget {
       key: const ValueKey('league-table'),
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-          child: Text(
-            ref.watch(divisionNameProvider),
-            style: TextStyle(
-              color: kit.accentBright,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+        SheetHeader(
+          title: ref.watch(divisionNameProvider),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         ),
         for (var i = 0; i < rows.length; i++) ...[
           if (!isTop && i == 0)

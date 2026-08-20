@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -94,14 +95,7 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
           key: const ValueKey('quests-sheet'),
           padding: const EdgeInsets.all(16),
           children: [
-            Text(
-              t('quests.title'),
-              style: TextStyle(
-                color: kit.accentBright,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            SheetHeader(title: t('quests.title'), padding: EdgeInsets.zero),
             const SizedBox(height: 12),
             Text(
               t('quests.season'),

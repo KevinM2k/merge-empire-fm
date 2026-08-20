@@ -163,7 +163,7 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const CoinIcon(size: 11),
+                  const CoinIcon(size: 11, onGlass: true),
                   const SizedBox(width: 2),
                   Text(
                     '+${formatCoins(total)}',
@@ -173,8 +173,11 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                       // GOLD, not the kit accent. A coin figure in green asks
                       // the player to work out which currency it is, and the
                       // glyph beside it is already gold — so the number was the
-                      // one part of the pair that did not say "coins".
-                      color: goldFor(context),
+                      // one part of the pair that did not say "coins". Yellow
+                      // rather than the bronze a legible-on-white gold would
+                      // have to be: see [coinFigureInk].
+                      color: coinFigureInk(context),
+                      shadows: coinFigureShadows(context),
                     ),
                   ),
                 ],
@@ -271,14 +274,15 @@ class _QuestTile extends StatelessWidget {
           ],
           if (row.reward > 0) ...[
             const SizedBox(width: 6),
-            const CoinIcon(size: 10),
+            const CoinIcon(size: 10, onGlass: true),
             const SizedBox(width: 2),
             Text(
               formatCoins(row.reward),
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
-                color: kit.accentBright,
+                color: coinFigureInk(context),
+                shadows: coinFigureShadows(context),
               ),
             ),
           ],

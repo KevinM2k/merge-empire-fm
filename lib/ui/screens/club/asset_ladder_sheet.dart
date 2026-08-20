@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
 import 'package:merge_empire_fc/engine/club_asset_tiers.dart';
@@ -87,12 +88,9 @@ class AssetLadderSheetState extends ConsumerState<AssetLadderSheet> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  t('asset.${widget.assetKey}.name'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: SheetHeader(
+                  title: t('asset.${widget.assetKey}.name'),
+                  padding: EdgeInsets.zero,
                 ),
               ),
               IconButton(
