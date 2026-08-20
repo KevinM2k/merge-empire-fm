@@ -566,15 +566,8 @@ artwork packs to bring in when the screens that want them come up.
 
 **Two things worth reading before picking one up.**
 
-**1. One item is waiting on a DECISION, not on work.** The diorama's sky
-currently runs a slow light → dark → light cycle, and it should be one of two
-things instead — neither of which is a port of anything, so it needs choosing:
-
-- [ ] **The sky: device clock, or the theme?** Matching the phone's own time is
-      alive and is what most sports games do, but a player on a night shift never
-      sees daylight. Following light/dark mode is predictable, makes the setting
-      mean something, and matches the card and HUD glass, which are already tuned
-      per theme. **Nothing else on this list is blocked by it.**
+**1. The sky follows the THEME. Decided.** See "The sky, and why it follows the
+theme" below for the reasoning and the one correction that came with it.
 
 **2. The artwork question is answered.** `kenneynl/` holds six CC0 packs and the
 useful one is now bundled — see "Artwork, and which packs" at the end of this
@@ -789,6 +782,42 @@ section. Nothing on the list below is blocked for want of art any more.
       company logo where his head goes and two uncoloured buttons at the bottom.
 
 ---
+
+### The sky, and why it follows the theme
+
+**Decided: light mode is daylight, dark mode is night.** The stadium TIER keeps
+driving the grandeur — park to floodlit arena — which is what the JS already keys
+its own `darkScene` flag off. What is dropped is the JS's ~10-minute day→night
+clock, and it is dropped on purpose.
+
+- [ ] **Give `skyGradient` a light-mode palette and a dark-mode one**, and let
+      the floodlights come on with the Stadium's tier rather than with a clock.
+
+Five reasons, in the order they mattered:
+
+1. **The glass is already tuned against a KNOWN sky.** `glassThemeProvider`, the
+   pitch's `_turfLight`, the HUD's dark-glass branch and the next-match card's
+   "deep" tint were each chosen against one fixed backdrop. A sky on its own
+   ten-minute clock fights all four: the card's opacity, the HUD's tint and the
+   turf's palette would each be right twice a cycle and wrong the rest of it.
+2. **The match page stands on this same sky** — deliberately, so that "arriving
+   at a match is not arriving in a different world". A cycling sky means the
+   background changes mid-match for a reason nothing on screen explains.
+3. **The device clock has a failure mode with no fix.** A player on a night shift
+   never sees the daylight art at all — and the stadium heroes are PHOTOGRAPHS
+   keyed to tier, not to time, so you would get a night sky over a daylit
+   stadium. That needs a second set of eight photographs to solve.
+4. **It makes the setting mean something.** Someone who chooses dark mode gets a
+   night match. The clock option makes their choice cosmetic.
+5. **It is deterministic**, so a widget test can assert what the sky is.
+
+**And one correction that came out of checking this.** The port's sky is a single
+static gradient — `_Sky` draws `skyGradient` and nothing modulates it — so there
+is no day cycle in the port to change. If a slow light → dark → light drift is
+visible on a real device it is coming from something else and I have not found
+it: the scrollers tile seamlessly and the stand's gradient runs down its height
+rather than across its width. **Worth a screenshot if it is still there** once the
+theme-driven sky lands, because it would then be a second, separate bug.
 
 ### Artwork, and which packs
 
