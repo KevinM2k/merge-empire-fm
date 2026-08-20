@@ -478,6 +478,7 @@ class ManagerWalker extends StatefulWidget {
     this.walking = true,
     this.comfort = 'ok',
     this.gesture,
+    this.carrying = false,
     super.key,
   });
 
@@ -514,6 +515,15 @@ class ManagerWalker extends StatefulWidget {
   /// `manager_mood.dart` decides WHICH and how often; `gesture_poses.dart` knows
   /// what each one looks like. Both were ported with nothing calling them.
   final GestureCue? gesture;
+
+  /// He has picked the stray ball up and is carrying it — `pitch_ball.dart`
+  /// says when, because the sim owns the ball and this owns the man.
+  ///
+  /// The JS's `.ps-walker.is-carrying`: both arms to -20 and both forearms to
+  /// -110, cradled in front of the chest, eased in over a quarter of a second.
+  /// It BEATS a gesture, and the screen stops offering one while it is true —
+  /// his arms are visibly full.
+  final bool carrying;
 
   @override
   State<ManagerWalker> createState() => _ManagerWalkerState();
@@ -593,6 +603,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _startGesture();
     _sync(context);
     _syncBlink();
+    _syncCarry();
   }
 
   @override
@@ -601,6 +612,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _startGesture();
     _sync(context);
     _syncBlink();
+    _syncCarry();
   }
 
   /// **THE BLINK.** He never did, and a face that never blinks is a mask.
@@ -647,6 +659,50 @@ class _ManagerWalkerState extends State<ManagerWalker>
       _blinkClock.stop();
       _blinkClock.value = 0;
     }
+  }
+
+  /// The carry, eased in and out over the CSS's own `transition: transform
+  /// 0.25s`. Without the ease his arms snap to the cradle the instant the ball
+  /// touches his hands, which reads as a dropped frame rather than as a man
+  /// picking something up.
+  late final AnimationController _carryClock = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  );
+
+  void _syncCarry() {
+    if (widget.carrying) {
+      if (_carryClock.status != AnimationStatus.forward &&
+          _carryClock.value != 1) {
+        _carryClock.forward();
+      }
+    } else if (_carryClock.status != AnimationStatus.reverse &&
+        _carryClock.value != 0) {
+      _carryClock.reverse();
+    }
+  }
+
+  /// The rig with a ball in its hands, blended over whatever it was doing.
+  ///
+  /// Blended from the WALK rather than from the gesture's own angles, which is
+  /// correct because the two never overlap: taking hold of the ball cancels the
+  /// running gesture and blocks the next one, exactly as the JS does.
+  GesturePose? _carryOver(GesturePose? pose, double t) {
+    final k = _carryClock.value;
+    if (k == 0) return pose;
+    double to(double target, _Track track) =>
+        _sample(track, t) + (target - _sample(track, t)) * k;
+    return (
+      armNear: to(-20, _armNear),
+      armFar: to(-20, _armFar),
+      foreNear: to(-110, _elbowNear),
+      foreFar: to(-110, _elbowFar),
+      head: pose?.head,
+      body: pose?.body,
+      bodyLift: pose?.bodyLift,
+      legs: pose?.legs,
+      finger: 0,
+    );
   }
 
   /// One gesture, played once. Its duration is the gesture's own, so this is
@@ -741,6 +797,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _clock.dispose();
     _gestureClock.dispose();
     _blinkClock.dispose();
+    _carryClock.dispose();
     super.dispose();
   }
 
@@ -764,10 +821,11 @@ class _ManagerWalkerState extends State<ManagerWalker>
           _beat ?? _clock,
           _gestureClock,
           _blinkClock,
+          _carryClock,
         ]),
         builder: (context, _) {
           final t = _phase;
-          final pose = _pose;
+          final pose = _carryOver(_pose, t);
           // **ONE angle for every head layer.** Hair, skull and hat are three
           // widgets and one head; give them separate numbers and the face slides
           // out from under its own hat.

@@ -50,6 +50,7 @@ import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
         walkerHipRise,
         walkerStrideArtUnits,
         walkerWidth;
+import 'package:merge_empire_fc/ui/screens/home/pitch_ball.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_weather.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
@@ -367,7 +368,13 @@ class _WalkBeatState extends State<_WalkBeat>
     _now = elapsed.inMicroseconds / 1e6;
     final walked = _ramp.walkedAt(_now);
     final halfStrideSeconds = walkDurationFor(widget.mood).inMicroseconds / 2e6;
-    _halfStrides.value += (walked - _walked) / halfStrideSeconds;
+    // **Clamped, the same way the ball clamps its own step.** A ticker MUTED by
+    // `TickerMode` still counts the time it spent muted, so coming back to this
+    // tab after a minute elsewhere hands the world a minute of travel in one
+    // frame and the whole diorama leaps. It does not owe anybody the distance it
+    // did not draw.
+    final step = math.min(walked - _walked, 0.05);
+    _halfStrides.value += step / halfStrideSeconds;
     _walked = walked;
     // The ease is over and the world has stopped: park the ticker rather than
     // spending a frame every frame on a diorama that is not moving.
@@ -383,7 +390,10 @@ class _WalkBeatState extends State<_WalkBeat>
       return;
     }
     final target = widget.frozen ? 0.0 : 1.0;
-    if (_ticker.isTicking) {
+    // **`isActive`, not `isTicking`.** A ticker muted by `TickerMode` — every
+    // tab that is not the one on screen — is active and not ticking, and
+    // starting one that is already running throws.
+    if (_ticker.isActive) {
       _ramp = _ramp.aim(target, _now);
       return;
     }
@@ -508,6 +518,8 @@ class PitchScene extends StatelessWidget {
     this.condition = 'clear',
     this.onThunder,
     this.frozen = false,
+    this.onBallCue,
+    this.ballWind = 0,
     this.onTapWalker,
     this.celebration,
   });
@@ -567,6 +579,18 @@ class PitchScene extends StatelessWidget {
   /// crowd already had the mechanism and only a TAP on the terrace could trigger
   /// it, so the one thing on the screen most worth cheering could not.
   final Object? celebration;
+
+  /// A stray ball has reached his hands, left them, or rolled past him
+  /// untouched. `pitch_ball.dart` owns the ball; the screen above owns the man,
+  /// so the two meet here rather than the sim reaching into the figure.
+  final void Function(BallCue cue)? onBallCue;
+
+  /// What the weather does to a ball in flight, from `windAccelFor`.
+  ///
+  /// **The last link in that chain.** The service fetches a reading, the engine
+  /// turns it into a gust and `windAccelFor` turns that into an acceleration —
+  /// and until the ball arrived nothing in the port had ever read the answer.
+  final double ballWind;
 
   @override
   Widget build(BuildContext context) {
@@ -781,7 +805,30 @@ class PitchScene extends StatelessWidget {
                       child: Transform.scale(
                         scale: walkerScale,
                         alignment: Alignment.bottomCenter,
-                        child: walker,
+                        // **The ball is in HIS box**, so it is scaled by the
+                        // same number he is and a distance means the same thing
+                        // to it as to his boot — which is the whole reason the
+                        // JS parents `.ps-ball` to `.ps-walker`. Unclipped,
+                        // because a pass has to travel most of the scene's
+                        // width and his box is 120 units wide; the scene's own
+                        // `ClipRect` is what stops it at the frame.
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(child: walker),
+                            Positioned.fill(
+                              key: const ValueKey('pitch-ball'),
+                              child: PitchBall(
+                                mood: mood,
+                                wind: ballWind,
+                                frozen: frozen,
+                                onCue: onBallCue ?? (_) {},
+                                sceneWidth: w,
+                                walkerLeft: w * 0.45 - 57,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

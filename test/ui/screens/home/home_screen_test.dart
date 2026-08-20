@@ -19,6 +19,9 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/engine/weather_engine.dart' show windAccelFor;
+import 'package:merge_empire_fc/providers/weather_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/pitch_ball.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
     show PitchScene, walkerScale;
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
@@ -102,6 +105,99 @@ void playedSeason(Map<String, dynamic> s) {
 
 void main() {
   tearDown(resetLocale);
+
+  group('the stray ball', () {
+    // **Reachability, which is the whole point of testing it here.** The sim is
+    // pinned against the JS frame by frame in `pitch_ball_test.dart` and that
+    // says nothing about whether a player ever sees a ball — four engines in
+    // this port have been fully ported, fully tested and never called.
+    testWidgets('is on the diorama at all', (tester) async {
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      expect(
+        find.byKey(const ValueKey('pitch-ball')),
+        findsOneWidget,
+        reason: 'no ball on the pitch',
+      );
+      // In HIS box, so it is scaled by the same number he is and a distance
+      // means the same thing to it as to his boot.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('pitch-walker')),
+          matching: find.byKey(const ValueKey('pitch-ball')),
+        ),
+        findsOneWidget,
+        reason: 'the ball is not parented to the walker',
+      );
+    });
+
+    testWidgets('and the weather actually reaches it', (tester) async {
+      // `windAccelFor` was ported and tested with NO READER: the service
+      // fetched a reading, the engine resolved a gust, and nothing in the game
+      // was ever blown by it. A storm is the one condition that moves a ball.
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      final scene = tester.widget<PitchScene>(find.byType(PitchScene));
+      expect(
+        scene.ballWind,
+        windAccelFor(container.read(weatherProvider).condition).toDouble(),
+        reason: 'the ball is not reading the weather',
+      );
+    });
+
+    testWidgets('A CARRY BEATS A GESTURE — his arms are full', (tester) async {
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      PitchBall ball() => tester.widget<PitchBall>(find.byType(PitchBall));
+      ManagerWalker man() =>
+          tester.widget<ManagerWalker>(find.byType(ManagerWalker));
+
+      expect(man().carrying, isFalse);
+      ball().onCue(BallCue.hold);
+      await tester.pump();
+      expect(man().carrying, isTrue, reason: 'he never took hold of it');
+
+      // And nothing can start a gesture while he has it: arms cannot do two
+      // things at once and the ball is the one that is visibly in them.
+      await tester.tap(
+        find.byKey(const ValueKey('pitch-walker')),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      expect(
+        man().gesture,
+        isNull,
+        reason: 'a gesture played over a ball in his hands',
+      );
+
+      ball().onCue(BallCue.release);
+      await tester.pump();
+      expect(man().carrying, isFalse, reason: 'he never let go');
+      await tester.tap(
+        find.byKey(const ValueKey('pitch-walker')),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      expect(
+        man().gesture,
+        isNotNull,
+        reason: 'he stayed blocked after putting the ball down',
+      );
+    });
+
+    testWidgets('and an ignored ball is SNUBBED, not just missed', (
+      tester,
+    ) async {
+      // Without a tell it reads as the ball getting lost rather than left. He
+      // folds his arms as it goes past — head in hands when he has had enough.
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      tester.widget<PitchBall>(find.byType(PitchBall)).onCue(BallCue.ignore);
+      await tester.pump();
+      final man = tester.widget<ManagerWalker>(find.byType(ManagerWalker));
+      expect(man.gesture?.gesture.id, 'armsfolded');
+    });
+  });
 
   group('he plants his feet, and then he walks on', () {
     testWidgets('THE HALT ENDS ON ITS OWN', (tester) async {

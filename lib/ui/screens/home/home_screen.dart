@@ -34,6 +34,8 @@ import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/engine/weather_engine.dart' show windAccelFor;
+import 'package:merge_empire_fc/ui/screens/home/pitch_ball.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
@@ -209,6 +211,13 @@ class _SceneState extends ConsumerState<_Scene> {
   bool _halted = false;
   Timer? _halt;
 
+  /// He has the stray ball in his hands.
+  ///
+  /// **Which is why the rota has to know.** Arms cannot do two things at once
+  /// and the ball is the one that has to win — it is visibly in them — so
+  /// taking hold cancels whatever gesture was running and blocks the next.
+  bool _carrying = false;
+
   /// The last two he played, so the rota keeps moving.
   ///
   /// A FILTER rather than a reroll, because the weights are lopsided: a crushed
@@ -253,6 +262,39 @@ class _SceneState extends ConsumerState<_Scene> {
     );
   }
 
+  /// The stray ball, and what it asks of the man.
+  ///
+  /// The sim owns the ball and this owns the manager, so it reports rather than
+  /// reaching in — the JS's `onEvent`, and the same three answers.
+  void _onBall(BallCue cue) {
+    if (!mounted) return;
+    switch (cue) {
+      case BallCue.hold:
+        // The arms are full. Cancel the running gesture rather than letting the
+        // two fight over the same joints.
+        _halt?.cancel();
+        _halt = null;
+        setState(() {
+          _carrying = true;
+          _cue = null;
+          _halted = false;
+        });
+      case BallCue.release:
+        setState(() => _carrying = false);
+      case BallCue.ignore:
+        // **He is letting this one run past him**, and without a tell that reads
+        // as the ball getting lost rather than snubbed. So he reacts as it goes
+        // by: arms folded for "can't be bothered", head in hands when he has had
+        // enough. Both are already glum- and crushed-weighted, which is exactly
+        // when an ignore comes up.
+        _playNamed(
+          ref.read(managerMoodProvider) == Mood.crushed
+              ? 'handsonhead'
+              : 'armsfolded',
+        );
+    }
+  }
+
   /// Play one now, replacing whatever was running.
   void _play() {
     // The save, so the rota only rolls the emotes the player actually OWNS. The
@@ -267,6 +309,19 @@ class _SceneState extends ConsumerState<_Scene> {
     if (g == null) return;
     _recent.add(g.id);
     if (_recent.length > 2) _recent.removeAt(0);
+    _start(g);
+  }
+
+  /// One gesture by name — the ball's snub, which is not a roll.
+  void _playNamed(String id) {
+    final g = getGesture(id);
+    if (g != null) _start(g);
+  }
+
+  void _start(Gesture g) {
+    // **Never over a carry.** His arms are visibly full of a football, and a
+    // gesture would be two things happening to the same joints.
+    if (_carrying || !mounted) return;
     // He plants his feet for one of the sixteen, and the world stops travelling
     // past him for exactly as long as he holds it — then eases back up. Every
     // exit winds it back on, including a gesture replaced by a tap part way
@@ -322,6 +377,16 @@ class _SceneState extends ConsumerState<_Scene> {
       // **A tap on him is answered by a person, not a menu** — the one thing on
       // this screen that is.
       onTapWalker: _play,
+      // **The stray ball, at last** — `pitchBallSim.js`, and the last thing on
+      // this screen that moves in the JS and did not exist here.
+      onBallCue: _onBall,
+      // What the weather does to one in flight. `windAccelFor` has been ported
+      // and tested since the weather landed and had no reader at all: the chain
+      // resolved a gust and nothing was ever blown by it.
+      ballWind: windAccelFor(
+        ref.watch(weatherProvider).condition,
+        ref.watch(weatherProvider).windKph,
+      ).toDouble(),
       // And the CROWD answers him. Only the celebrations: `manager_mood.dart`
       // already marks which of the sixteen are worth getting out of your seat
       // for, and arms folded is not one of them.
@@ -348,6 +413,7 @@ class _SceneState extends ConsumerState<_Scene> {
         look: ref.watch(managerLookProvider),
         mood: mood,
         gesture: _cue,
+        carrying: _carrying,
       ),
     );
   }

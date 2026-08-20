@@ -88,6 +88,17 @@ void main() {
   group('on the diorama', () {
     late ValueNotifier<double>? beat;
 
+    /// Real frames, not one big jump. A `pump(100ms)` is ONE frame carrying a
+    /// tenth of a second, and the beat clamps a frame's travel — a ticker muted
+    /// by `TickerMode` still counts the time it spent muted, so a tab returned
+    /// to after a minute elsewhere would otherwise leap. At sixteen milliseconds
+    /// a frame that clamp never fires, which is the case worth testing.
+    Future<void> pumpFrames(WidgetTester tester, int ms) async {
+      for (var left = ms; left > 0; left -= 16) {
+        await tester.pump(Duration(milliseconds: left < 16 ? left : 16));
+      }
+    }
+
     Future<void> pumpScene(WidgetTester tester, {required bool frozen}) =>
         tester.pumpWidget(
           MaterialApp(
@@ -130,22 +141,22 @@ void main() {
     testWidgets('THE WORLD KEEPS MOVING THROUGH THE HALT', (tester) async {
       beat = null;
       await pumpScene(tester, frozen: false);
-      await tester.pump(const Duration(milliseconds: 300));
+      await pumpFrames(tester, 304);
       final walking = beat!.value;
       expect(walking, greaterThan(0), reason: 'he never set off');
 
       await pumpScene(tester, frozen: true);
       // One frame in, he is slower but he has NOT stopped — which is the whole
       // difference from the switch this replaced.
-      await tester.pump(const Duration(milliseconds: 100));
+      await pumpFrames(tester, 96);
       final easing = beat!.value;
       expect(easing, greaterThan(walking), reason: 'the world stopped dead');
 
-      await tester.pump(const Duration(milliseconds: 400));
+      await pumpFrames(tester, 400);
       final stopped = beat!.value;
       // And it does come to rest: a third of a ramp's worth of stride past the
       // moment he planted his feet, and then nothing.
-      await tester.pump(const Duration(milliseconds: 400));
+      await pumpFrames(tester, 400);
       expect(beat!.value, stopped, reason: 'it never actually stopped');
 
       // The ease banked ground rather than discarding it. Against his stride:
@@ -163,15 +174,15 @@ void main() {
     testWidgets('and it winds back up again', (tester) async {
       beat = null;
       await pumpScene(tester, frozen: false);
-      await tester.pump(const Duration(milliseconds: 300));
+      await pumpFrames(tester, 304);
       await pumpScene(tester, frozen: true);
-      await tester.pump(const Duration(milliseconds: 600));
+      await pumpFrames(tester, 608);
       final stopped = beat!.value;
 
       await pumpScene(tester, frozen: false);
-      await tester.pump(const Duration(milliseconds: 60));
+      await pumpFrames(tester, 64);
       final easing = beat!.value - stopped;
-      await tester.pump(const Duration(milliseconds: 600));
+      await pumpFrames(tester, 608);
       final running = beat!.value;
       expect(
         running,
@@ -183,7 +194,7 @@ void main() {
       final halfStride = walkDurationFor(Mood.neutral).inMicroseconds / 2e6;
       expect(
         easing,
-        lessThan(0.06 / halfStride * 0.6),
+        lessThan(0.064 / halfStride * 0.6),
         reason: 'it came back at full pace instead of easing up',
       );
       addTearDown(() => tester.pumpWidget(const SizedBox()));
@@ -216,7 +227,7 @@ void main() {
           ),
         ),
       );
-      await tester.pump(const Duration(milliseconds: 500));
+      await pumpFrames(tester, 496);
       expect(beat!.value, 0, reason: 'he walked with reduced motion on');
     });
   });
