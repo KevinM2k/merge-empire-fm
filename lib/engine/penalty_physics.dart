@@ -33,6 +33,15 @@ const double goalHalfWidth = goalWidth / 2;
 /// Post and bar radius. A real one is about 6cm across.
 const double postRadius = 0.06;
 
+/// How deep the goal is, front frame to back net. Regulation is at least 1.5m;
+/// 1.85 is a typical one.
+///
+/// **It is not decoration.** A goal resolves when the ball reaches the BACK NET
+/// rather than when it crosses the line, which is what lets the net be struck and
+/// bulge — and it is why the ball is still on screen, in the net, when the word
+/// goes up.
+const double goalDepth = 1.85;
+
 /// How far the spot is from the line.
 const double spotDistance = 11;
 
@@ -285,10 +294,15 @@ class PenaltyKick {
       _crossLine();
     }
 
-    // Gone. Behind the goal, or back out past the spot after coming off the
-    // frame — a rebound that is still in front of the line can go in, so this
-    // waits for it to be genuinely away rather than ending on the contact.
-    if (position.y > 3) {
+    // Into the net. The goal resolves HERE rather than on the line, so the ball
+    // is in the picture when the word goes up.
+    if (crossedInside && position.y >= goalDepth - ballRadius) {
+      position.y = goalDepth - ballRadius;
+      netContact ??= position.clone();
+      result ??= PenaltyResult.goal;
+    }
+    // A ball that somehow got behind without crossing inside — belt and braces.
+    if (position.y > goalDepth + 1.5) {
       result ??= PenaltyResult.goal;
     }
     if (hitFrame != null && position.y < -2.5) {
@@ -335,8 +349,16 @@ class PenaltyKick {
       result = PenaltyResult.over;
       return;
     }
-    result = PenaltyResult.goal;
+    // Inside the frame — but NOT a goal yet. It has a net to reach first, which
+    // is what gives the strike something to hit and the picture its depth.
+    crossedInside = true;
   }
+
+  /// The ball is past the line and inside the frame, on its way to the net.
+  bool crossedInside = false;
+
+  /// Where it hit the net, once it has. The renderer bulges the mesh here.
+  Vec3? netContact;
 
   /// A shot that never reached the line, or came off the frame and stayed out.
   PenaltyResult _missedBy() {

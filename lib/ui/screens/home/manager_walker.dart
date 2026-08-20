@@ -263,6 +263,16 @@ const Alignment _shadowAlignment = Alignment(
   return (centre: (near + far) / 2, width: (near - far).abs());
 }
 
+/// How far the figure is SUNK into its own shadow, in art units.
+///
+/// The shadow's centre is at [walkerFootline] by construction, so in principle
+/// the soles land on it — and on screen he still read as standing on TOP of the
+/// ellipse rather than in it. The boot art carries its own sole below the
+/// footline, and the shadow is tall enough now that the difference shows. Sinking
+/// him a third of the shadow's own height puts the contact where the eye expects
+/// it: the ground line through the middle of the shadow, not along its top edge.
+final double _sink = _shadowBand * walkerHeight / 3;
+
 /// How far the whole figure rises, twice a stride.
 const double _bob = 4;
 
@@ -431,7 +441,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                 ),
               ),
               Transform.translate(
-                offset: Offset(math.sin(t * 2 * math.pi) * _sway, -rise),
+                offset: Offset(math.sin(t * 2 * math.pi) * _sway, _sink - rise),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [

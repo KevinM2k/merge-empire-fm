@@ -30,10 +30,10 @@ too late:
 
 ## Where we are
 
-**3,767 tests, `flutter analyze` clean.**
+**3,800 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 22 Aug", and it is 5 items** — on top of
-21 August's 9 and 20 August's 28. That is
+**The live queue is "From playtesting — 23 Aug", and it is 6 items** — on top of
+22 August's 4, 21 August's 9 and 20 August's 28. That is
 what a session of actually playing the thing turned up, which is a different list
 from what reading the source turns up and is the one to clear first. It carries
 its own status block: the count, the clusters, what is blocked on a decision and
@@ -1398,6 +1398,126 @@ findings were arithmetic rather than taste and one is a reversal.
       **Forge2D earns its place only where the outcome is genuinely emergent.**
       If a mini-game is ever built where the physics DECIDES rather than
       illustrates, that is the moment to add it.
+
+## From playtesting — 23 Aug
+
+The penalty game rebuilt as a simulation, the weather wired to the actual sky, and
+a handful of fixes that came out of both.
+
+### The penalty game
+
+- [x] **It was a coin flip with a picture over it.** Four corner buttons, one roll
+      of `keeperSmartChance`, and a read was an AUTOMATIC save — so aim was a menu
+      of four and everything else was luck. The scene was a flat photograph with a
+      keeper sprite slid across it, which is why a ball could not hit a post, a net
+      could not move, a dive was a translation, and three of the shipped outcome
+      lines (`penalty.post`, `penalty.crossbar`, `penalty.wide_left`) were
+      unreachable copy.
+- [x] **`engine/penalty_physics.dart`: real geometry, and the outcome is
+      EMERGENT.** A 7.32×2.44 goal, a spot 11m out, a 430g ball; gravity,
+      quadratic drag and a Magnus force. One swipe carries three decisions — where
+      it finishes is the aim, how far you dragged is the power, and how much you
+      HOOKED the drag is the curl. Whether it goes in is where the ball ends up.
+      **The keeper is luck, not a verdict**, which is the change that matters: he
+      goes the right way with the division's own probability and then still has to
+      REACH it.
+      **The whole thing balances on one number.** 2.6m of dive plus a 1.05m arm is
+      3.65 — the post, to the centimetre. Shorter and the corners are free; longer
+      and there is nowhere to shoot. So a perfect corner is only saved by a keeper
+      who read it AND went early, and that trade is the difficulty.
+      Deterministic, so it is all tested without a widget — 19 cases, including
+      that a dropped frame cannot change the answer.
+      Three bugs the tests caught, all sign or saturation errors: the post
+      reflection drove the ball INTO the post (a rebound came out at 17 metres
+      across), the Magnus cross product bent a positive curl left when the field
+      is documented as positive-is-right, and a proportional dive under-reached
+      every corner — a keeper diving for a corner dives FULLY that way, so it
+      saturates at three quarters out.
+- [x] **`penalty_view.dart`: the goal is GEOMETRY.** Posts, bar, side netting,
+      roof netting and a back net, drawn from the same regulation numbers the
+      physics simulates in — which is the only way the picture and the outcome can
+      agree. The camera is a pinhole and nothing more, four lines, so the net's
+      vertices, the keeper's hands and the ball all project through one function
+      and nothing can drift relative to anything else.
+      **The four camera values are SOLVED, not chosen.** The ball at rest is a few
+      metres from the lens and the goal is twenty-odd, so a lens wide enough to
+      fill the frame throws the ball off the bottom of it — which the first set of
+      numbers did. Writing out both constraints and solving gives a camera 10m
+      behind the spot at 2.6m with eye level near the top of the frame. Move one
+      and the other three have to be re-solved.
+      **A goal resolves at the BACK NET, not on the line**, which is what lets the
+      net be struck and bulge — and it is why the ball is still in the picture,
+      in the net, when the word goes up.
+      **The net MOVES.** A grid whose vertices are pushed by the impact and spring
+      back, soft and lightly damped so it ripples two or three times; edges pinned,
+      because a net is tied to its frame.
+      **The keeper is a person** — two legs that split as he dives, a torso, two
+      arms that both reach, gloves in a different colour from the shirt, a head
+      with a face. The dive is a ROTATION of his whole frame, so at full stretch
+      he is lying down; three strokes and a circle read as a bollard.
+      **The ball is a ball** — a shaded sphere, the real panel pattern, and it
+      TURNS at the rate the physics says it is rolling.
+- [x] **And two things the rebuild exposed.** The ticker ran unconditionally, so
+      the screen repainted the whole pitch sixty times a second to draw an
+      identical picture — and worse, a live `Ticker` keeps a frame scheduled
+      forever, so `pumpAndSettle` timed out in every test that so much as OPENED
+      the screen, including the ones about the gate and the cooldown. It now runs
+      only while something is moving. And a `late final` ticker that nothing
+      touched until `dispose` was CREATED in dispose, where looking up an
+      inherited `TickerMode` is illegal.
+
+### The weather
+
+- [x] **The engine has had a live tier since M1 and nothing ever wrote to it.**
+      `weather_engine.dart` reads `state.weather.live` first and falls through to
+      a seasonal model — and the live branch has always been empty, so the weather
+      over the pitch has never had anything to do with the weather outside.
+      `services/weather_service.dart` is the missing writer.
+      **No location permission is asked for anywhere in it.** The coordinates come
+      from the DEVICE TIMEZONE via `data/geo_zones.dart` (already ported, also
+      waiting for a caller), rounded to two decimals — a city, not a person, and
+      all the precision a backdrop could use. No key, no signup, no account:
+      Open-Meteo is the one that fits because a decorative sky cannot justify a
+      credential to rotate or a bill to watch.
+      **Nothing in it throws and nothing in it blocks boot.** Offline, DNS
+      failure, a captive portal, a timeout, malformed JSON — all the same outcome,
+      which is that the seasonal model carries on. A failure backs off for fifteen
+      minutes so an outage is not retried every time the Play tab opens, and a
+      missing thermometer stores NULL rather than zero, because 0°C is a
+      plausible reading and a missing one must not read as a freezing one.
+
+### And the rest
+
+- [x] **A sound that would not stop.** `ReleaseMode` is a platform promise about
+      what happens at the end of a clip and it has not held everywhere, so an
+      effect could run on. The service passes the clip's own LENGTH to the backend
+      now and the backend stops it itself — a sound that will not stop is far
+      worse than one that costs a little to start.
+- [x] **The manager sits IN his shadow.** The shadow's centre is at the footline
+      by construction, but the boot art carries its own sole below it and the
+      taller shadow made the difference show. He is sunk a third of the shadow's
+      height, which puts the contact through the middle of the ellipse rather than
+      along its top edge.
+- [x] **Counter Attack's description is fixed at SOURCE.** "ATK and DEF swap as
+      play flows" — nothing swaps. Changed in `../merge-empire-fc`'s own `en.js`
+      and regenerated, because the catalogue is generated and the JS is where it
+      comes from; the nine other locales carry the old line, which is ordinary
+      translation lag. The picker's pill was making the same claim — it shows the
+      attack multiplier's RANGE now, which is what the tactic actually does.
+
+### Still open
+
+- [ ] **The penalty needs a run-up and a striker.** There is no player in the
+      picture: the ball leaves the spot on its own. The physics does not care, but
+      a penalty with nobody taking it is the last thing between this and finished.
+- [ ] **The keeper could use a save ANIMATION** — the ball is stopped by a reach
+      test and then the clip ends. Parrying it away, or holding it, is the
+      difference between a save and the ball vanishing.
+- [ ] **The football on the diorama** — see 22 Aug. Still the last thing on that
+      screen that moves in the JS and does not exist here.
+- [ ] **The manager's blink and tap-to-celebrate** — see 22 Aug.
+- [ ] **The match popup's missing half** — see 22 Aug.
+- [ ] **More turf perspective on the diorama** — see 22 Aug.
 
 ## M0 — foundation and save bridge ✅
 

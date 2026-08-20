@@ -10,10 +10,12 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/sound_defs.dart';
 import 'package:merge_empire_fc/services/sound_service.dart';
 
 class FakeBackend implements SoundBackend {
-  final List<({String name, double volume, bool overlap})> sfx = [];
+  final List<({String name, double volume, bool overlap, Duration length})>
+  sfx = [];
   final List<({String asset, double volume})> assets = [];
   final List<({String? asset, double volume, bool fade})> music = [];
   final List<double> volumes = [];
@@ -27,7 +29,9 @@ class FakeBackend implements SoundBackend {
     Uint8List wav, {
     required double volume,
     required bool overlap,
-  }) async => sfx.add((name: name, volume: volume, overlap: overlap));
+    required Duration length,
+  }) async =>
+      sfx.add((name: name, volume: volume, overlap: overlap, length: length));
 
   @override
   Future<void> playAsset(String asset, {required double volume}) async =>
@@ -113,6 +117,16 @@ void main() {
       final (service: s, backend: b) = build();
       expect(() => unawaited(s.play('nothing-like-this')), returnsNormally);
       expect(b.sfx, isEmpty);
+    });
+
+    test('and the clip\'s own LENGTH goes with it', () {
+      // The backend stops the sound itself rather than trusting the platform's
+      // release mode — a sound that will not stop is far worse than one that
+      // costs a little to start.
+      final (service: s, backend: b) = build();
+      unawaited(s.play('merge'));
+      expect(b.sfx.single.length, soundLength('merge'));
+      expect(b.sfx.single.length.inMilliseconds, greaterThan(0));
     });
 
     test('overlap is passed through for the ones that need it', () {

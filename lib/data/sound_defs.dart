@@ -427,6 +427,14 @@ Uint8List? renderSound(String name) {
   return encodeWav(masterProcess(r.out));
 }
 
+/// How long one effect runs for, tail included.
+///
+/// The service hands this to the player so it can stop the clip itself rather
+/// than trusting the platform's release mode — see `SoundBackend.playSfx`.
+Duration soundLength(String name) => Duration(
+  microseconds: (((soundDefs[name]?.seconds ?? 0.4) + 0.05) * 1e6).round(),
+);
+
 /// Every sound, rendered. Run in an isolate — see `services/sound_service.dart`.
 Map<String, Uint8List> renderAllSounds() => {
   for (final name in soundDefs.keys) name: renderSound(name)!,

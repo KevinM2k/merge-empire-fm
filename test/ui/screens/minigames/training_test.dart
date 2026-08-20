@@ -19,7 +19,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
-import 'package:merge_empire_fc/ui/screens/minigames/penalty_scene.dart';
+import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -149,20 +149,42 @@ void main() {
   /// Tap the goalmouth at a point in scene percentages — the goal IS the
   /// target, so a test aims the way a player does rather than pressing a button
   /// named after a corner.
-  Future<void> shootAt(WidgetTester tester, double x, double y) async {
-    final scene = find.byKey(const ValueKey('penalty-goal'));
-    final rect = tester.getRect(scene);
-    await tester.tapAt(
-      Offset(
-        rect.left + rect.width * x / 100,
-        rect.top + rect.height * y / 100,
-      ),
+  /// One swipe at the goal.
+  ///
+  /// [across] and [lift] are where the thumb FINISHES, as a fraction of the
+  /// view — which is the aim. [hook] bends the drag, which is the curl. The
+  /// gesture has to be a real drag: a tap is deliberately not a shot, because a
+  /// stray touch must not spend one of five attempts.
+  Future<void> swipe(
+    WidgetTester tester, {
+    double across = 0.5,
+    double lift = 0.5,
+    double hook = 0,
+  }) async {
+    final view = find.byKey(const ValueKey('penalty-swipe'));
+    final rect = tester.getRect(view);
+    final from = Offset(
+      rect.left + rect.width * 0.5,
+      rect.top + rect.height * 0.92,
     );
-    await tester.pumpAndSettle();
-    // The strike plays out on a timer, and the next shot is refused until it
-    // has. `pumpAndSettle` only chases frames, so the wait has to be explicit.
-    await tester.pump(const Duration(milliseconds: 950));
-    await tester.pumpAndSettle();
+    final to = Offset(
+      rect.left + rect.width * across,
+      rect.top + rect.height * lift,
+    );
+    final gesture = await tester.startGesture(from);
+    // Three moves, so the middle one is sampled as the hook.
+    final mid = Offset.lerp(from, to, 0.5)!;
+    await gesture.moveTo(Offset.lerp(from, to, 0.2)!);
+    await gesture.moveTo(mid.translate(rect.width * hook, 0));
+    await gesture.moveTo(to);
+    await gesture.up();
+    await tester.pump();
+    // The flight and the hold that follows it are real time on a ticker: a
+    // floated penalty is over a second in the air and the hold is nearly two, so
+    // the wait has to cover both or the next swipe is refused.
+    for (var i = 0; i < 260; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
   }
 
   group('Penalty Training', () {
@@ -186,7 +208,7 @@ void main() {
 
       final coinsBefore = container.read(coinsProvider);
       for (var i = 0; i < Penalty.attempts; i++) {
-        await shootAt(tester, 25, 15);
+        await swipe(tester, across: 0.3 + 0.1 * i, lift: 0.42);
       }
       await settleSave(tester);
 
@@ -200,68 +222,92 @@ void main() {
       expect(state.scored, inInclusiveRange(0, Penalty.attempts));
     });
 
-    testWidgets('a shot outside the frame goes wide and never asks the keeper', (
+    testWidgets('a swipe past the post goes WIDE, and says which side', (
       tester,
     ) async {
-      // The whole reason the goal is the target rather than four buttons: with
-      // buttons there is no way to miss, so `penalty.wide_left` was shipped
-      // copy nothing could ever reach.
+      // The whole reason the goal is simulated rather than picked from a menu:
+      // with four buttons there is no way to miss, so `penalty.wide_left` was
+      // shipped copy nothing could ever reach.
       await pumpTraining(tester, saveWith());
       await tester.tap(find.byKey(const ValueKey('training-penalty')));
       await tester.pumpAndSettle();
 
-      await shootAt(tester, 2, 25);
+      await swipe(tester, across: -0.15, lift: 0.45);
       final state = tester.state<PenaltyScreenState>(
         find.byType(PenaltyScreen),
       );
-      expect(state.lastResult, ShotResult.wideLeft);
+      expect(state.lastResult?.result, PenaltyResult.wide);
       expect(state.scored, 0);
       expect(find.text(t('penalty.wide_left')), findsOneWidget);
       await settleSave(tester);
     });
 
-    testWidgets('clipping a post is its own outcome, not a save', (
-      tester,
-    ) async {
+    testWidgets('and over the top goes OVER', (tester) async {
       await pumpTraining(tester, saveWith());
       await tester.tap(find.byKey(const ValueKey('training-penalty')));
       await tester.pumpAndSettle();
 
-      // Just inside the left post, within the woodwork margin.
-      await shootAt(tester, goalFrame.left + 1, 25);
+      await swipe(tester, across: 0.5, lift: -0.25);
       final state = tester.state<PenaltyScreenState>(
         find.byType(PenaltyScreen),
       );
-      expect(state.lastResult, ShotResult.post);
-      expect(state.scored, 0);
+      expect(state.lastResult?.result, PenaltyResult.over);
+      expect(find.text(t('penalty.over_the_bar')), findsOneWidget);
       await settleSave(tester);
     });
 
-    testWidgets('a second tap during the strike does not spend an attempt', (
+    testWidgets('a TAP is not a shot, so a stray touch costs nothing', (
       tester,
     ) async {
-      // Five attempts is the whole game; a double tap must not cost two.
+      // Five attempts is the whole game.
       await pumpTraining(tester, saveWith());
       await tester.tap(find.byKey(const ValueKey('training-penalty')));
       await tester.pumpAndSettle();
 
-      final scene = find.byKey(const ValueKey('penalty-goal'));
-      final rect = tester.getRect(scene);
-      final at = Offset(
-        rect.left + rect.width * 0.25,
-        rect.top + rect.height * 0.15,
-      );
-      await tester.tapAt(at);
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tapAt(at);
-      await tester.pumpAndSettle();
+      final view = find.byKey(const ValueKey('penalty-swipe'));
+      final rect = tester.getRect(view);
+      await tester.tapAt(rect.center);
+      await tester.pump(const Duration(milliseconds: 200));
 
       final state = tester.state<PenaltyScreenState>(
         find.byType(PenaltyScreen),
       );
+      expect(state.lastResult, isNull);
       expect(state.finished, isFalse);
-      expect(state.scored, inInclusiveRange(0, 1));
-      await tester.pump(const Duration(milliseconds: 950));
+      await settleSave(tester);
+    });
+
+    testWidgets('and a second swipe during the flight does not spend one', (
+      tester,
+    ) async {
+      await pumpTraining(tester, saveWith());
+      await tester.tap(find.byKey(const ValueKey('training-penalty')));
+      await tester.pumpAndSettle();
+
+      final view = find.byKey(const ValueKey('penalty-swipe'));
+      final rect = tester.getRect(view);
+      Future<void> quickSwipe() async {
+        final g = await tester.startGesture(
+          Offset(rect.center.dx, rect.bottom - 8),
+        );
+        await g.moveTo(Offset(rect.center.dx, rect.top + rect.height * 0.45));
+        await g.up();
+      }
+
+      await quickSwipe();
+      await tester.pump(const Duration(milliseconds: 50));
+      await quickSwipe();
+      for (var i = 0; i < 260; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      final state = tester.state<PenaltyScreenState>(
+        find.byType(PenaltyScreen),
+      );
+      expect(state.lastResult, isNotNull);
+      expect(
+        tester.state<PenaltyScreenState>(find.byType(PenaltyScreen)).finished,
+        isFalse,
+      );
       await settleSave(tester);
     });
 

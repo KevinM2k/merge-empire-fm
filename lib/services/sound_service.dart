@@ -63,11 +63,18 @@ const String fireworkAsset = 'audio/firework.mp3';
 abstract class SoundBackend {
   /// Play a rendered effect. [overlap] lets copies stack — for a sound whose
   /// tail can still be rolling when the next one starts.
+  ///
+  /// [length] is how long the rendered effect actually is. Passed in rather than
+  /// trusted to the player: **a sound that will not stop is far worse than one
+  /// that costs a little to start**, and `ReleaseMode` is a platform promise
+  /// about what happens at the end of a clip that has not held everywhere. With
+  /// the length known, the backend can stop it itself.
   Future<void> playSfx(
     String name,
     Uint8List wav, {
     required double volume,
     required bool overlap,
+    required Duration length,
   });
 
   /// Play a bundled file, for the one effect that is a recording.
@@ -178,6 +185,7 @@ class SoundService {
       wav,
       volume: sfxBaseVolume * _sfxVolume,
       overlap: overlap,
+      length: soundLength(name),
     );
   }
 
@@ -296,12 +304,17 @@ class AudioPlayersBackend implements SoundBackend {
   AudioPlayer? _music;
   Timer? _fade;
 
+  /// One stop timer per named effect, so a retrigger re-arms rather than leaving
+  /// the previous one to cut the new play short.
+  final Map<String, Timer> _stops = {};
+
   @override
   Future<void> playSfx(
     String name,
     Uint8List wav, {
     required double volume,
     required bool overlap,
+    required Duration length,
   }) => _quietly(() async {
     if (overlap) {
       // A copy of its own, disposed when it finishes — a sound whose tail can
@@ -329,6 +342,14 @@ class AudioPlayersBackend implements SoundBackend {
     // behaviour for everything but thunder and fireworks.
     await player.seek(Duration.zero);
     await player.resume();
+    // **AND STOP IT OURSELVES.** See the note on [SoundBackend.playSfx]: the clip
+    // is a known length, and arming a stop is the one way to be certain a tap
+    // makes a sound once rather than a sound that runs on.
+    _stops.remove(name)?.cancel();
+    _stops[name] = Timer(length + const Duration(milliseconds: 60), () {
+      _stops.remove(name);
+      unawaited(player!.stop());
+    });
   });
 
   @override
@@ -423,6 +444,10 @@ class AudioPlayersBackend implements SoundBackend {
 
   @override
   Future<void> stopAllSfx() => _quietly(() async {
+    for (final timer in _stops.values) {
+      timer.cancel();
+    }
+    _stops.clear();
     for (final player in _players.values) {
       await player.stop();
     }

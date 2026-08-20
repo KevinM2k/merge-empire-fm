@@ -11,11 +11,14 @@
 /// mirror, because on Android `detached` may be the last code that runs.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
+import 'package:merge_empire_fc/services/weather_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/util/region.dart';
 
@@ -47,6 +50,7 @@ class _GameHostState extends ConsumerState<GameHost>
     _runner = ref.read(gameRunnerProvider)..boot();
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());
     _runner.start();
+    _refreshWeather();
     // Announce the load, one frame later.
     //
     // The theme and the HUD both read a derived value ABOVE this host, so they
@@ -69,6 +73,30 @@ class _GameHostState extends ConsumerState<GameHost>
     if (ensurePlayerRegion(state, locale).stored) game.scheduleSave();
   }
 
+  /// Ask the sky what it is doing.
+  ///
+  /// **The pure layers cannot read a timezone**, so this is where it is supplied
+  /// — the same arrangement as the locale above it. `DateTime.timeZoneName` is
+  /// the abbreviation rather than an IANA zone on some platforms, so the OFFSET
+  /// is the fallback: `data/geo_zones.dart` resolves either, and a wrong guess
+  /// costs a slightly wrong sky rather than anything.
+  ///
+  /// Unawaited on purpose. Boot must never wait on a network call for a
+  /// backdrop, and every failure mode is already "carry on with the seasonal
+  /// model" — see `services/weather_service.dart`.
+  void _refreshWeather() {
+    final state = _runner.game.state;
+    if (state == null) return;
+    unawaited(
+      refreshLiveWeather(
+        state,
+        timeZone: DateTime.now().timeZoneName,
+        region: getPlayerRegionCode(state),
+        onStored: _runner.game.scheduleSave,
+      ),
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -86,6 +114,9 @@ class _GameHostState extends ConsumerState<GameHost>
         // The time away belongs to the offline earnings calculation, so the
         // loop skips it rather than being paid for it twice.
         _runner.resume();
+        // And the weather has moved on while the app was away. `shouldRefreshLive`
+        // decides whether it is worth a call, so this is cheap when it is not.
+        _refreshWeather();
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
