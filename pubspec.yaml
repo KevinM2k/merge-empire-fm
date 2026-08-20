@@ -85,6 +85,24 @@ flutter:
     # Kenney's top-down sports pack (CC0), for the 2D match cutaway.
     - assets/pitch/
 
+    # Kenney's modular character pack (CC0), extracted from
+    # `kenneynl/kenney_modular-characters`. A layered paper doll — head, neck,
+    # arm, hand and leg per skin tint, shirts with their own sleeve lengths,
+    # pants, shoes, hair and face features — which is exactly the shape
+    # `manager_walker.dart`'s rig already draws: it turns joints, so giving it
+    # real parts to turn is a swap rather than a rewrite. It is also every
+    # preview the customiser's style boxes need.
+    #
+    # Only the PNG tree is bundled, flattened one directory per layer: the pack
+    # also ships vectors, spritesheets, a preview and a licence, and none of
+    # those belong in an app. 1.8MB for 428 parts.
+    - assets/manager/skin/
+    - assets/manager/face/
+    - assets/manager/hair/
+    - assets/manager/shirts/
+    - assets/manager/pants/
+    - assets/manager/shoes/
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

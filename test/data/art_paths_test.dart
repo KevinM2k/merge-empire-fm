@@ -117,8 +117,34 @@ void main() {
         'assets/whack/',
         'assets/ui/',
         'assets/audio/',
+        // Kenney's modular character parts, one directory per layer.
+        'assets/manager/skin/',
+        'assets/manager/face/',
+        'assets/manager/hair/',
+        'assets/manager/shirts/',
+        'assets/manager/pants/',
+        'assets/manager/shoes/',
       ]) {
         expect(pubspec.contains('- $dir'), isTrue, reason: dir);
+      }
+    });
+
+    test('and the manager parts are actually on disk', () {
+      // Bundled from `kenneynl/kenney_modular-characters` rather than referenced
+      // in place: the pack also ships vectors, spritesheets and a preview, and a
+      // pubspec pointed at the raw folder would put all of it in the app.
+      for (final layer in const [
+        (dir: 'skin', least: 30),
+        (dir: 'face', least: 60),
+        (dir: 'hair', least: 100),
+        (dir: 'shirts', least: 80),
+        (dir: 'pants', least: 80),
+        (dir: 'shoes', least: 30),
+      ]) {
+        final found = Directory(
+          'assets/manager/${layer.dir}',
+        ).listSync().where((f) => f.path.endsWith('.png')).length;
+        expect(found, greaterThanOrEqualTo(layer.least), reason: layer.dir);
       }
     });
   });
