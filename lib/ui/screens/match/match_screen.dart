@@ -123,6 +123,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   void _tick() {
     if (!mounted) return;
+    // **THE CLOCK STOPS WHILE A CHANCE IS ON THE PITCH.** It did not, and that is
+    // what made the minute jump: the cutaway takes a second or two to play out
+    // and the clock kept counting under it, so the passage ended three or four
+    // minutes after the one it belongs to and the feed lurched to catch up. A
+    // chance is a RETELLING of a minute — the minute cannot have moved on while
+    // it is being retold.
+    if (_clip != null) return;
     if (_minute >= _end) {
       _finish();
       return;

@@ -17,7 +17,7 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 Future<void> pumpPanel(
   WidgetTester tester, {
   required Brightness brightness,
-  bool deep = false,
+  GlassDensity density = GlassDensity.panel,
   Widget child = const SizedBox(width: 80, height: 40),
 }) => tester.pumpWidget(
   MaterialApp(
@@ -27,7 +27,7 @@ Future<void> pumpPanel(
       data: ThemeData(brightness: brightness),
       child: Scaffold(
         body: Center(
-          child: GlassPanel(deep: deep, child: child),
+          child: GlassPanel(density: density, child: child),
         ),
       ),
     ),
@@ -134,7 +134,11 @@ void main() {
       for (final brightness in Brightness.values) {
         await pumpPanel(tester, brightness: brightness);
         final plain = opacityOf(tintOf(tester));
-        await pumpPanel(tester, brightness: brightness, deep: true);
+        await pumpPanel(
+          tester,
+          brightness: brightness,
+          density: GlassDensity.deep,
+        );
         expect(
           opacityOf(tintOf(tester)),
           greaterThan(plain),

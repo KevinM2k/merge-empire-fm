@@ -224,7 +224,7 @@ class NextMatchCard extends ConsumerWidget {
         const FixtureCaption(),
         GlassPanel(
           key: const ValueKey('next-match-card'),
-          deep: true,
+          density: GlassDensity.deep,
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
           child: _body(context, ref, match),
         ),

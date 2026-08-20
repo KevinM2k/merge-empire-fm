@@ -1,11 +1,18 @@
-/// One frosted chip in the HUD.
+/// One reading in the HUD's cluster.
 ///
-/// There is no bar behind these. The JS deleted the header background so the
-/// game scene shows through and each stat floats on its own.
+/// **THE CHIPS HAVE NO CHROME OF THEIR OWN ANY MORE.** They were four separate
+/// pills — glass on the Play tab and a themed pill everywhere else — which is two
+/// problems in one. The HUD looked like a different HUD depending on which tab
+/// you were on, and the glass version was the worse of the two: four small panes
+/// each with their own rim and shadow read as embossed buttons rather than as
+/// status. And four boxes is four boxes; the coins, the energy, the gems and the
+/// cog are ONE thing, which is what a player is checking when they look up there.
+///
+/// So [HudCluster] draws the box, once, and a chip is now just icon | value |
+/// trailing with a hairline between it and its neighbour.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class HudChip extends StatelessWidget {
@@ -17,10 +24,8 @@ class HudChip extends StatelessWidget {
     this.onTap,
     this.trailing,
     this.semanticLabel,
-    this.onScene = false,
+    this.iconSize = 16,
   });
-
-  /// True on the Play tab, where the chip floats on the diorama's sky.
 
   final IconData icon;
 
@@ -36,55 +41,78 @@ class HudChip extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailing;
   final String? semanticLabel;
-  final bool onScene;
+
+  /// Bigger for the cog, which has no figure beside it. At the resources' 16 it
+  /// was the one item in the cluster that read as smaller than the rest, because
+  /// every other one is a glyph AND a number.
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final row = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: iconColor ?? kit.accentBright),
-        const SizedBox(width: 4),
-        child,
-        if (trailing != null) ...[const SizedBox(width: 4), trailing!],
-      ],
+    final body = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: iconSize, color: iconColor ?? kit.accentBright),
+          // The cog has no figure, so it gets no gutter either — otherwise it
+          // sits off-centre in its own segment.
+          if (child is! SizedBox) ...[const SizedBox(width: 4), child],
+          if (trailing != null) ...[const SizedBox(width: 4), trailing!],
+        ],
+      ),
     );
-
-    // GLASS ONLY OVER THE SCENE.
-    //
-    // Dark glass on the diorama, because there the alternative is a near-white
-    // pill carrying pale-green figures on a blue-white sky, which is how the
-    // whole HUD went missing the moment light mode was on. But dark glass on
-    // the Shop or the Club — pale pages in light mode — is not glass at all,
-    // it is four black boxes sitting on a white screen. The JS scopes its glass
-    // to the Play tab for exactly this reason and keeps a themed chip
-    // everywhere else.
-    final body = onScene
-        ? GlassPanel(
-            radius: 14,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: row,
-          )
-        : Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: kit.surface.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kit.border),
-            ),
-            child: row,
-          );
     return Semantics(
       label: semanticLabel,
       button: onTap != null,
-      child: onTap == null
-          ? body
-          : InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: onTap,
-              child: body,
-            ),
+      child: onTap == null ? body : InkWell(onTap: onTap, child: body),
+    );
+  }
+}
+
+/// The one box the whole cluster sits in.
+///
+/// Identical on every tab, which is the point: the HUD is the same instrument
+/// wherever you are, and the Play tab having its own treatment is what made it
+/// read as a different app. A themed pill rather than glass — see the note in
+/// `theme/glass.dart` about what glass is for. The Play tab, where the diorama
+/// runs behind it, is exactly the case a solid pill is needed for.
+class HudCluster extends StatelessWidget {
+  const HudCluster({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Container(
+      key: const ValueKey('hud-cluster'),
+      decoration: BoxDecoration(
+        color: kit.surface.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kit.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x40000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            // A hairline, not a gap. The four readings are one instrument, and
+            // the divider is what keeps them from running into each other
+            // without splitting them back into four boxes.
+            if (i > 0) Container(width: 1, height: 22, color: kit.border),
+            children[i],
+          ],
+        ],
+      ),
     );
   }
 }

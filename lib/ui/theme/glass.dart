@@ -62,17 +62,43 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 /// So these are set by EYE, with the arithmetic only as a floor, and the things
 /// that make a quarter-opacity pane read as glass are the four below it: the
 /// blur, the saturation lift, the specular rim and the drop shadow.
+/// How much pane a surface gets.
+///
+/// **A SMALL PANE NEEDS MORE TINT THAN A BIG ONE, and that is not a contradiction
+/// of the note above.** The floor is set by what has to be READ on it: a card
+/// carrying 14px near-black ink clears 4.5:1 on the bare sky, so it can be a
+/// quarter opacity and look like glass. A HUD chip carries a 13px figure in the
+/// kit's accent — a mid-tone green, not near-black — at maybe forty pixels wide,
+/// and on the same pane that is under 2:1. It was unreadable on the Play tab and
+/// fine everywhere else, because everywhere else the chip is a near-opaque pill.
+/// So a chip gets a denser pane. It covers so little of the scene that the cost
+/// is nothing, and the alternative is a status bar you cannot read.
+enum GlassDensity {
+  /// Small, numerous, and carrying accent-coloured figures.
+  chip,
+
+  /// The default.
+  panel,
+
+  /// Tall enough to cross the sky's own gradient.
+  deep,
+}
+
 const Color _darkA = Color(0x59141E2C);
 const Color _darkB = Color(0x42090F18);
 
-/// A touch denser, for a panel big enough that the sky behind it varies across
-/// its own height.
+const Color _darkChipA = Color(0xAD141E2C);
+const Color _darkChipB = Color(0x8F090F18);
+
 const Color _darkDeepA = Color(0x6E141E2C);
 const Color _darkDeepB = Color(0x54090F18);
 
-/// The same two stops in daylight.
+/// The same stops in daylight.
 const Color _lightA = Color(0x45FCFEFF);
 const Color _lightB = Color(0x33E4EFF8);
+
+const Color _lightChipA = Color(0xC4FCFEFF);
+const Color _lightChipB = Color(0xADE4EFF8);
 
 const Color _lightDeepA = Color(0x57FCFEFF);
 const Color _lightDeepB = Color(0x42DCEAF5);
@@ -155,7 +181,7 @@ class GlassPanel extends StatelessWidget {
     required this.child,
     this.radius = 16,
     this.padding = EdgeInsets.zero,
-    this.deep = false,
+    this.density = GlassDensity.panel,
     this.blur = true,
   });
 
@@ -163,19 +189,26 @@ class GlassPanel extends StatelessWidget {
   final double radius;
   final EdgeInsetsGeometry padding;
 
-  /// A denser tint, for a panel tall enough to cross the sky's own gradient.
-  final bool deep;
+  /// How much pane this surface gets — see [GlassDensity].
+  final GlassDensity density;
 
   /// Off for anything small or numerous — the tint stands alone by design.
   final bool blur;
+
+  bool get _deep => density == GlassDensity.deep;
 
   @override
   Widget build(BuildContext context) {
     final shape = BorderRadius.circular(radius);
     final night = nightSceneOf(context);
-    final tints = night
-        ? (deep ? const [_darkDeepA, _darkDeepB] : const [_darkA, _darkB])
-        : (deep ? const [_lightDeepA, _lightDeepB] : const [_lightA, _lightB]);
+    final tints = switch ((night, density)) {
+      (true, GlassDensity.chip) => const [_darkChipA, _darkChipB],
+      (true, GlassDensity.panel) => const [_darkA, _darkB],
+      (true, GlassDensity.deep) => const [_darkDeepA, _darkDeepB],
+      (false, GlassDensity.chip) => const [_lightChipA, _lightChipB],
+      (false, GlassDensity.panel) => const [_lightA, _lightB],
+      (false, GlassDensity.deep) => const [_lightDeepA, _lightDeepB],
+    };
 
     Widget panel = DecoratedBox(
       decoration: BoxDecoration(
@@ -218,8 +251,8 @@ class GlassPanel extends StatelessWidget {
             // own edge separates it; in daylight it is brighter, and the shadow
             // is what lifts it off.
             color: Colors.black.withValues(alpha: night ? 0.34 : 0.30),
-            blurRadius: deep ? 26 : 18,
-            offset: Offset(0, deep ? 10 : 6),
+            blurRadius: _deep ? 26 : 18,
+            offset: Offset(0, _deep ? 10 : 6),
           ),
         ],
       ),

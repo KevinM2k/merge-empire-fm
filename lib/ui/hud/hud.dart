@@ -86,17 +86,16 @@ class Hud extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // On the Play tab the chips are GLASS over the diorama; everywhere else the
-    // page underneath is the app's own surface and they are themed pills — see
-    // `HudChip.onScene`.
+    // **THE HUD LOOKS THE SAME ON EVERY TAB.** It did not: the Play tab put each
+    // reading in its own pane of glass and everywhere else they were themed
+    // pills, so the same instrument read as two — and the glass version was the
+    // worse of them, because four small panes each with a rim and a shadow read
+    // as embossed buttons rather than as status. One cluster, one pill, all four
+    // tabs; see `HudCluster`.
     //
-    // This used to force the whole bar under the DARK build of the kit, because
-    // the glass was dark in both themes and resolving the ink out here in the
-    // app's own theme put pale-green figures on a near-white pill the moment
-    // light mode was on. The glass follows the theme now (`theme/glass.dart`),
-    // so the app's own ink is already the right ink for the pane it is written
-    // on, and the override — and the `Builder` that existed to get the rest of
-    // this method under it — are both gone.
+    // What is still per-tab is the BAND behind the bar, and that is a different
+    // question: off the Play tab content scrolls under the HUD and has to be
+    // blurred, and on it the diorama is meant to show.
     final onScene = ref.watch(shellControllerProvider).tab == ShellTab.home;
     if (!onScene) {
       // A REAL BLUR ACROSS THE WHOLE STRIP, not four blurred chips with gaps
@@ -104,18 +103,18 @@ class Hud extends ConsumerWidget {
       // through the gaps it went past in full focus — so the HUD read as four
       // dark boxes with a shop tile sliding between them. One backdrop filter
       // over the band, and anything behind it is genuinely out of focus.
-      return _FrostedBar(child: _bar(context, ref, onScene: false));
+      return _FrostedBar(child: _bar(context, ref));
     }
     return Padding(
       // The Play tab has no bar to frost — the scene shows through — so the
       // notch is cleared here instead. See `_FrostedBar` for why neither is
       // a `SafeArea` around the whole HUD any more.
       padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
-      child: _bar(context, ref, onScene: true),
+      child: _bar(context, ref),
     );
   }
 
-  Widget _bar(BuildContext context, WidgetRef ref, {required bool onScene}) {
+  Widget _bar(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final valueStyle = TextStyle(
       color: kit.accentBright,
@@ -151,88 +150,104 @@ class Hud extends ConsumerWidget {
           // port had them all packed against the badge with the empty half of the
           // bar on the right.
           const Spacer(),
-          HudChip(
-            onScene: onScene,
-            key: const ValueKey('hud-coins'),
-            iconColor: hudCoinInk,
-            icon: Icons.monetization_on,
-            semanticLabel: t('hud.aria.income_breakdown'),
-            trailing: HudPlus(
-              key: const ValueKey('hud-coins-plus'),
-              label: t('nav.shop'),
-              // The SHEET, not the tab: a player who tapped the coin counter
-              // wants to buy coins, not to be taken somewhere and shown where
-              // they are. See `currency_sheet.dart`.
-              onTap: () => showCurrencySheet(context, ShopSection.coins),
-            ),
-            child: CoinCounter(
-              value: ref.watch(coinsProvider),
-              style: valueStyle,
-            ),
-          ),
-          const SizedBox(width: 4),
-          HudChip(
-            onScene: onScene,
-            key: const ValueKey('hud-energy'),
-            icon: Icons.bolt,
-            iconColor: hudEnergyInk,
-            semanticLabel: t('hud.aria.energy'),
-            trailing: HudPlus(
-              key: const ValueKey('hud-energy-plus'),
-              label: t('hud.aria.energy'),
-              // The energy popup owns what happens next; the HUD only says the
-              // player asked for it.
-              onTap: () => emit('nav:energy'),
-            ),
-            // The COUNT carries the ladder; the cap beside it stays quiet, so
-            // the colour reads as "how much is left" rather than as a warning
-            // about the chip.
-            child: Text.rich(
-              TextSpan(
+          // ONE BOX round all four. See `HudCluster`.
+          //
+          // **It SCALES rather than overflowing.** Four readings in one pill is
+          // a fixed width where four separate chips with gaps between them had
+          // slack to give, and on a 400px screen it was 1.8px over. A caption
+          // that scales down a point is the same answer the fixture caption
+          // gives, and it beats both an ellipsis and a yellow overflow stripe.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: HudCluster(
                 children: [
-                  TextSpan(
-                    text: '${ref.watch(energyProvider).floor()}',
-                    style: valueStyle.copyWith(
-                      color: energyInk(
-                        ref.watch(energyProvider),
-                        ref.watch(energyMaxProvider),
-                        kit.accentBright,
+                  HudChip(
+                    key: const ValueKey('hud-coins'),
+                    iconColor: hudCoinInk,
+                    icon: Icons.monetization_on,
+                    semanticLabel: t('hud.aria.income_breakdown'),
+                    trailing: HudPlus(
+                      key: const ValueKey('hud-coins-plus'),
+                      label: t('nav.shop'),
+                      // The SHEET, not the tab: a player who tapped the coin counter
+                      // wants to buy coins, not to be taken somewhere and shown where
+                      // they are. See `currency_sheet.dart`.
+                      onTap: () =>
+                          showCurrencySheet(context, ShopSection.coins),
+                    ),
+                    child: CoinCounter(
+                      value: ref.watch(coinsProvider),
+                      style: valueStyle,
+                    ),
+                  ),
+                  HudChip(
+                    key: const ValueKey('hud-energy'),
+                    icon: Icons.bolt,
+                    iconColor: hudEnergyInk,
+                    semanticLabel: t('hud.aria.energy'),
+                    trailing: HudPlus(
+                      key: const ValueKey('hud-energy-plus'),
+                      label: t('hud.aria.energy'),
+                      // The energy popup owns what happens next; the HUD only says the
+                      // player asked for it.
+                      onTap: () => emit('nav:energy'),
+                    ),
+                    // The COUNT carries the ladder; the cap beside it stays quiet, so
+                    // the colour reads as "how much is left" rather than as a warning
+                    // about the chip.
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: '${ref.watch(energyProvider).floor()}',
+                            style: valueStyle.copyWith(
+                              color: energyInk(
+                                ref.watch(energyProvider),
+                                ref.watch(energyMaxProvider),
+                                kit.accentBright,
+                              ),
+                            ),
+                          ),
+                          TextSpan(
+                            text: '/${ref.watch(energyMaxProvider)}',
+                            style: valueStyle.copyWith(
+                              fontSize: 10,
+                              color: (valueStyle.color ?? kit.textMuted)
+                                  .withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  TextSpan(
-                    text: '/${ref.watch(energyMaxProvider)}',
-                    style: valueStyle.copyWith(
-                      fontSize: 10,
-                      color: (valueStyle.color ?? kit.textMuted).withValues(
-                        alpha: 0.6,
-                      ),
+                  HudChip(
+                    key: const ValueKey('hud-gems'),
+                    icon: Icons.diamond,
+                    iconColor: hudGemInk,
+                    semanticLabel: t('shop.section.gems'),
+                    // No + of its own: the whole chip opens the packs, which keeps a
+                    // third resource from widening the row by another mini-badge.
+                    onTap: () => showCurrencySheet(context, ShopSection.gems),
+                    child: Text(
+                      '${ref.watch(gemsProvider)}',
+                      style: valueStyle,
                     ),
+                  ),
+                  HudChip(
+                    key: const ValueKey('hud-cog'),
+                    icon: Icons.settings,
+                    // Bigger, because it is the one item with no figure next to it —
+                    // at the resources' 16 it read as the smallest thing in the row.
+                    iconSize: 20,
+                    semanticLabel: t('hud.aria.settings'),
+                    onTap: onSettings,
+                    child: const SizedBox.shrink(),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(width: 4),
-          HudChip(
-            onScene: onScene,
-            key: const ValueKey('hud-gems'),
-            icon: Icons.diamond,
-            iconColor: hudGemInk,
-            semanticLabel: t('shop.section.gems'),
-            // No + of its own: the whole chip opens the packs, which keeps a
-            // third resource from widening the row by another mini-badge.
-            onTap: () => showCurrencySheet(context, ShopSection.gems),
-            child: Text('${ref.watch(gemsProvider)}', style: valueStyle),
-          ),
-          const SizedBox(width: 4),
-          HudChip(
-            onScene: onScene,
-            key: const ValueKey('hud-cog'),
-            icon: Icons.settings,
-            semanticLabel: t('hud.aria.settings'),
-            onTap: onSettings,
-            child: const SizedBox.shrink(),
           ),
         ],
       ),

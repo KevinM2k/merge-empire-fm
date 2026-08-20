@@ -12,9 +12,7 @@
 /// won" makes eight destinations findable in a way one flat list does not.
 library;
 
-
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -79,62 +77,135 @@ class _QuickNavMenu extends StatelessWidget {
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-      // **ONE GLASS RECIPE FOR THE WHOLE APP.** This had its own — 72% surface
-      // and its own sigma — which is a second answer to the question
-      // `theme/glass.dart` already answers, and it drifted from it: the frame was
-      // nearly opaque and every tile inside it was a solid card, so the menu read
-      // as a grid on a slab rather than as something laid over the scene.
-      child: GlassPanel(
-        radius: 18,
-        deep: true,
-        child: SingleChildScrollView(
-          key: const ValueKey('quick-nav'),
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                t('quicknav.title'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: kit.accentBright,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+      // **NOT GLASS, and that is a reversal worth writing down.** It was tried as
+      // glass and it was too many layers: eleven tiles inside a pane inside a
+      // barrier over a diorama is four things to see through before you find the
+      // one you are looking for. Glass is for something that FLOATS on the scene
+      // and has to be read against it — the HUD, the next-match card. A menu
+      // covers the screen on purpose and its job is to be legible in one glance.
+      child: _PopIn(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: kit.surface,
+            border: Border.all(color: kit.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x73000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
               ),
-              for (final group in groups) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 16, bottom: 8),
-                  child: Text(
-                    t(group.titleKey).toUpperCase(),
-                    // CENTRED over the tiles it heads, which are centred. Left
-                    // against a centred `Wrap` read as a heading for something
-                    // else.
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: kit.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            key: const ValueKey('quick-nav'),
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  t('quicknav.title'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: kit.accentBright,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                // Wrap rather than a fixed grid: a group of two centres rather
-                // than left-packing beside an empty third cell.
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final item in group.items) _QuickNavTile(item: item),
-                  ],
-                ),
+                for (final group in groups) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 8),
+                    child: Text(
+                      t(group.titleKey).toUpperCase(),
+                      // CENTRED over the tiles it heads, which are centred. Left
+                      // against a centred `Wrap` read as a heading for something
+                      // else.
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: kit.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  // Wrap rather than a fixed grid: a group of two centres rather
+                  // than left-packing beside an empty third cell.
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      for (final item in group.items) _QuickNavTile(item: item),
+                    ],
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The menu arrives with a BOUNCE.
+///
+/// The JS's `coachBubblePop` curve — `cubic-bezier(0.34, 1.56, 0.64, 1)`, which
+/// overshoots and settles. A menu that appears instantly reads as a page you
+/// were navigated to; one that springs in reads as something you OPENED, and
+/// that is the difference between the burger feeling like a control and feeling
+/// like a link. Honours reduce-motion, where it simply appears.
+class _PopIn extends StatefulWidget {
+  const _PopIn({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PopIn> createState() => _PopInState();
+}
+
+class _PopInState extends State<_PopIn> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _c.value = 1;
+    } else if (!_c.isAnimating && _c.value == 0) {
+      _c.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // The overshoot is in the CURVE rather than in a tween that goes past 1:
+    // `Cubic(0.34, 1.56, 0.64, 1)` returns values above 1 through the middle, so
+    // the same 0.9 → 1 scale springs.
+    final t = CurvedAnimation(
+      parent: _c,
+      curve: const Cubic(0.34, 1.56, 0.64, 1),
+    );
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) => Opacity(
+        // Fading on its own linear clock: an opacity riding the overshoot would
+        // go past fully opaque and clamp, which shows as a flat spot.
+        opacity: Curves.easeOut.transform(_c.value),
+        child: Transform.scale(scale: 0.9 + 0.1 * t.value, child: child),
+      ),
+      child: widget.child,
     );
   }
 }
@@ -161,14 +232,9 @@ class _QuickNavTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
           decoration: BoxDecoration(
-            // Etched INTO the glass rather than laid on it. A solid `surface2`
-            // card here is what made a transparent frame read as opaque: the
-            // pane showed the scene and then eleven blocks covered it.
-            color: glassInk(context).withValues(alpha: 0.07),
+            color: kit.surface2,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: glassInk(context).withValues(alpha: 0.16),
-            ),
+            border: Border.all(color: kit.border),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
