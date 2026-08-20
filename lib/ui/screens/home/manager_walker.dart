@@ -61,7 +61,9 @@ const Duration walkCycle = Duration(milliseconds: 1800);
 ///
 /// [PitchScene] stands him on it too, so the contact line the home screen
 /// measures is the line his boots are actually on.
-const double walkerFootline = 152.5;
+/// DERIVED from where the leg actually stands, so the two cannot drift: the
+/// ankle is on [_groundY] and the boot's sole hangs [_bootSole] below it.
+const double walkerFootline = _groundY + _bootSole;
 
 /// The leg, in art units. **These are the lengths the rig is DRAWN at**, and
 /// the IK below solves against them, so the two cannot disagree.
@@ -76,10 +78,16 @@ const double walkerShin = 30;
 ///
 /// **A knee that reaches full extension locks**, and a locked knee is the thing
 /// you notice: the leg goes rigid for an instant at foot-down and the figure
-/// reads as a pair of scissors. Keeping a couple of units in hand means the joint
-/// always has a bend in it, which is also true of a real leg — nobody walks with
-/// a straight knee.
-const double _kneeLock = 1.6;
+/// reads as a pair of scissors. Keeping a little in hand means the joint always
+/// has a bend in it, which is also true of a real leg — nobody walks with a
+/// straight knee.
+///
+/// **Half a unit, not two.** Two bones of the same length are brutally sensitive
+/// near full extension — the bend is `2·acos(reach/total)`, so 97% of reach is
+/// still a 28-degree knee. At two units held back he walked in a permanent
+/// half-crouch. What buys the rest is [_groundY]: standing him a unit deeper puts
+/// mid-stance at 99% of the leg and the crouch goes with it.
+const double _kneeLock = 0.5;
 
 /// The furthest the ankle can get from the hip.
 const double _legReach = walkerThigh + walkerShin - _kneeLock;
@@ -90,7 +98,7 @@ const double _legReach = walkerThigh + walkerShin - _kneeLock;
 /// it is what the stride is solved against, so moving it changes the step length
 /// rather than lifting him off the turf.
 const double _hipY = 95;
-const double _groundY = 149;
+const double _groundY = 150;
 
 /// How far the hips rise, twice a stride.
 ///
@@ -101,19 +109,46 @@ const double _groundY = 149;
 /// shorten with it.
 const double _bob = 4;
 
+/// How much bend to keep in the knee at the ends of the step, in art units of
+/// reach held back beyond [_kneeLock].
+const double _stepMargin = 1.2;
+
+/// How far the ankle can get from the hip at phase [t] without straightening the
+/// knee — which is what decides how long the step can be at that end of it.
+double _stepReach(double t) {
+  final drop = _bootSoleDrop(0) - _bootSoleDrop(_sample(_bootWorld, t));
+  final dy = _groundY + walkerHipRise(t) + drop - _hipY;
+  final room = _legReach - _stepMargin;
+  return math.sqrt(math.max(0, room * room - dy * dy));
+}
+
+/// **THE STEP IS NOT SYMMETRIC, AND IT CANNOT BE.**
+///
+/// The two ends of it are different shapes. At heel strike the foot is flat and
+/// the hip is low, so the leg spends 53 units going down and has little reach
+/// left over. At push-off he is up on his toe — the ankle has ridden five units
+/// clear of the grass, see [_bootSoleDrop] — so the same leg has that much more
+/// to play with and can get further behind him.
+///
+/// A symmetric sweep therefore wasted the back half: it stopped the trailing
+/// foot short of where the leg could actually put it, and because the knee had
+/// slack left the bend ate the difference — the THIGH stayed within ten degrees
+/// of vertical at push-off while the calf trailed fifty. That reads exactly as
+/// "his legs go forwards and never back", because the part of a leg you read is
+/// the thigh.
+///
+/// Solved rather than picked: each end is as far as the leg reaches there, less
+/// a margin so the knee never locks.
+final double _stepFront = _stepReach(0);
+final double _stepBack = _stepReach(0.5);
+
 /// How far his planted foot travels in half a stride, in art units.
 ///
-/// **This is the number the ground has to match**, and it is SOLVED rather than
-/// picked: at the extremes of the step the hip is at its lowest and the leg is at
-/// full reach, so half the step is the base of a right triangle with the leg as
-/// its hypotenuse. Get it wrong and he moonwalks — forwards if the ground is
-/// slow, backwards if it is fast — and no amount of looking at the walk cycle
-/// will show you which, because the walk cycle is not what is wrong.
-final double walkerStrideArtUnits = 2 * _halfStride;
-
-final double _halfStride = math.sqrt(
-  _legReach * _legReach - (_groundY - _hipY) * (_groundY - _hipY),
-);
+/// **This is the number the ground has to match.** Get it wrong and he moonwalks
+/// — forwards if the ground is slow, backwards if it is fast — and no amount of
+/// looking at the walk cycle will show you which, because the walk cycle is not
+/// what is wrong.
+final double walkerStrideArtUnits = _stepFront + _stepBack;
 
 /// How high the swinging foot lifts off the grass at the top of its arc.
 const double _footLift = 11;
@@ -146,13 +181,16 @@ const double _footLift = 11;
   final y = _groundY + walkerHipRise(u) + lift;
   if (u < 0.5) {
     // Stance. Linear, and the only linear thing in the rig.
-    return (x: _halfStride - walkerStrideArtUnits * (u / 0.5), y: y);
+    return (
+      x: _stepFront - walkerStrideArtUnits * (u / 0.5),
+      y: y,
+    );
   }
   // Swing. Eased, because the foot accelerates off the ground and decelerates
   // into the next contact rather than sliding through at one speed.
   final v = (u - 0.5) / 0.5;
   return (
-    x: -_halfStride + walkerStrideArtUnits * Curves.easeInOut.transform(v),
+    x: -_stepBack + walkerStrideArtUnits * Curves.easeInOut.transform(v),
     y: y - _footLift * math.sin(v * math.pi),
   );
 }
@@ -363,7 +401,11 @@ const _Track _elbowFar = [
 const double _shadowBand = 0.10;
 
 /// How far left of the feet's midpoint the shadow sits, in art units.
-const double _shadowBias = 3.5;
+///
+/// Was 3.5 against a step centred on the hips. The step reaches further back
+/// than forward now — see [_stepBack] — so the feet's midpoint already sits
+/// behind where it did, and this comes down to match or the shadow trails him.
+final double _shadowBias = 3.5 - (_stepBack - _stepFront) / 4;
 
 /// The shadow's OWN half-width beyond the feet, in art units.
 ///

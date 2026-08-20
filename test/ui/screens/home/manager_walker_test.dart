@@ -281,19 +281,27 @@ void main() {
 
     test('the knee NEVER locks straight', () {
       // A leg at full extension reads as rigid for an instant at foot-down, and
-      // that instant is the thing you notice. Held back by `_kneeLock`.
+      // that instant is the thing you notice. Stated in DEGREES because the
+      // reach is a poor proxy: two bones of equal length bend
+      // `2·acos(reach/total)`, so a leg at 99% of its reach still has twenty
+      // degrees in the knee and one at 97% has nearly thirty.
+      final total = walkerThigh + walkerShin;
       for (var i = 0; i <= 200; i++) {
         final t = i / 200;
         final target = walkerAnkle(t);
         final reach = math.sqrt(
-          target.x * target.x +
-              (target.y - 95) * (target.y - 95),
+          target.x * target.x + (target.y - 95) * (target.y - 95),
         );
-        expect(
-          reach,
-          lessThan(walkerThigh + walkerShin - 1),
-          reason: 'straight-legged at t=$t',
-        );
+        expect(reach, lessThan(total), reason: 'unreachable at t=$t');
+        final bend = 2 * math.acos(reach / total) * 180 / math.pi;
+        expect(bend, greaterThan(10), reason: 'straight-legged at t=$t');
+        // And never a crouch either. The ceiling is loose because the SWING
+        // leg tucks hard — that is where a walk's knee flexion lives — and the
+        // half he is STANDING on is held much tighter.
+        expect(bend, lessThan(80), reason: 'squatting at t=$t');
+        if (t < 0.5) {
+          expect(bend, lessThan(40), reason: 'crouching on it at t=$t');
+        }
       }
     });
   });
