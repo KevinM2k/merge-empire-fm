@@ -9,6 +9,16 @@ library;
 /// tracks and `deadlineDay`, so the merged schema is v7.
 const int saveVersion = 7;
 
+/// What this build is, for the one place in the game that says so — the footer
+/// on every Settings tab.
+///
+/// The JS reads `package.json` at build time. There is no runtime equivalent of
+/// that here without a plugin, so it is a constant — and a test asserts it
+/// against `pubspec.yaml`, because a version string that has quietly drifted is
+/// worse than none: it is the first thing a support message needs and the one
+/// thing a screenshot cannot tell you.
+const String appVersion = '1.0.0';
+
 /// Coins a brand-new player starts with. Single source of truth — used by
 /// `createDefaultState` and surfaced in the welcome tutorial copy.
 const int startingCoins = 1500;

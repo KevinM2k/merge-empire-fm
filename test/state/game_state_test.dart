@@ -270,18 +270,33 @@ void main() {
     });
   });
 
-  test('a reset freezes saves, so a pending one cannot land on top', () {
+  test('a reset drops a pending save rather than letting it land on top', () {
     final loaded = _loaded(_before('softRich'));
     loaded.game.update((s) => s['clubName'] = 'About To Be Wiped');
     expect(loaded.game.savePending, isTrue);
     loaded.game.resetState();
-    expect(loaded.game.frozen, isTrue);
     expect(loaded.game.savePending, isFalse);
     // And the write that follows is the fresh state, not the pending one.
     final stored =
         jsonDecode(loaded.store.values[saveKeyPrimary]!)
             as Map<String, dynamic>;
     expect(stored['clubName'], isNot('About To Be Wiped'));
+  });
+
+  test('and the game can still save AFTER one', () {
+    // The freeze is for the length of the reset, not for the rest of the
+    // session. The JS reloads the page after a reset and so never had to clear
+    // it; this app has no reload, so a permanent freeze means a game that
+    // silently stops saving the moment someone takes a new job.
+    final loaded = _loaded(_before('softRich'));
+    loaded.game.resetState();
+    expect(loaded.game.frozen, isFalse);
+    loaded.game.update((s) => s['clubName'] = 'The New Job');
+    loaded.game.saveNow();
+    final stored =
+        jsonDecode(loaded.store.values[saveKeyPrimary]!)
+            as Map<String, dynamic>;
+    expect(stored['clubName'], 'The New Job');
   });
 
   test('dispose flushes a debounced write rather than dropping it', () {

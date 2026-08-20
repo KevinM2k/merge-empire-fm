@@ -30,9 +30,9 @@ too late:
 
 ## Where we are
 
-**3,680 tests, `flutter analyze` clean.**
+**3,699 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 20 Aug", and it is 31 items.** That is
+**The live queue is "From playtesting — 20 Aug", and it is 28 items.** That is
 what a session of actually playing the thing turned up, which is a different list
 from what reading the source turns up and is the one to clear first. It carries
 its own status block: the count, the clusters, what is blocked on a decision and
@@ -549,21 +549,25 @@ because most of these are two or three to a file.
 
 ### Where this queue stands
 
-**43 done, 33 open** across both playtest sessions — counted off the boxes in
+**50 done, 30 open** across both playtest sessions — counted off the boxes in
 both sections rather than kept as a running total, because the two had drifted
 apart.
 
 | Cluster | Open | What it is |
 |---|---|---|
-| Settings, sound and graphics | 6 | missing entries, the screen itself, sound not working at all, iOS volume, the JS's button colours |
 | Manager and customiser | 5 | the rig's shadow, body shape, the tracksuit, a walking backdrop, style previews, and the wrong navigation for it |
 | Squad and the player sheet | 5 | portrait over the buttons, a release button, the traits, the tier-maxed highlight, the card's portrait |
 | Home, odds and ends | 5 | the position badge, the `+1` tooltip, Colin's third person, income per second, the safe area's depth |
 | The Play page | 3 | the 2D cutaway, the commentary, the styling |
+| Sound, and the buttons | 3 | **sound is blocked on an audio-dependency call**; the emoji sweep; the JS's action colours |
 | Fixtures, daily reward, vouchers | 3 | three screens wanting a pass |
 | Deadline Day and names | 2 | renaming a player, and buying the player you actually bought |
 | Not code decisions | 2 | the IAP tiles and the rewarded-video buttons |
 | Artwork packs | 2 | the backdrop pack and going back to the sports pack |
+
+**One of those thirty is BLOCKED and the rest are not.** Music and sound need a
+new dependency — Flame ships no audio, so `flame_audio`/`audioplayers` is a call
+nobody has taken. See the Settings cluster below.
 
 **The two things that were worth reading before picking one up are both settled
 now.**
@@ -761,16 +765,79 @@ section. Nothing on the list below is blocked for want of art any more.
 
 ### Settings, sound and graphics
 
-- [ ] **Settings are missing entries** — check `../merge-empire-fc` for which.
-- [ ] **The settings screen wants a pass** to make it look like something.
-- [ ] **Music and sound do not appear to work at all.**
-- [ ] **Volume controls do nothing on iOS** and should not be shown there;
-      Android keeps them.
+- [x] **The screen is CARDS now, not a list.** It was a flat `ListView` of
+      `SwitchListTile`s, which is a debug menu: no grouping, no icon column, and
+      every setting the same weight as every other. `settings_controls.dart`
+      carries the JS's two containers (`SettingsCard` for an unlabelled group,
+      `SettingsGroup` for one with a heading) and its row — icon, label, control
+      on the right — and nothing on the screen draws its own box any more. The
+      toggle is the JS's own 48×28 pill rather than a Material `Switch`, for the
+      same reason the icons are the JS's line art: beside the game's own
+      controls, a borrowed one reads as borrowed.
+- [x] **A pair of named states is a SEGMENT.** Match speed as a toggle asks the
+      player to work out which way is fast; as `1× | 2×` it says so. All three of
+      the JS's segmented controls were switches here — speed, difficulty, and the
+      pitch-view pair, which is not even one choice out of two but **two
+      independent flags** drawn side by side, because the cutaway can be on for
+      both sides, one, or neither.
+- [x] **The entries the JS has and the port did not.** Club name (a real rename
+      through Colin's card, screened by `validateClubName` on the way in, with
+      the JS's name generator behind a dice); Team Names; Rate Us; Privacy
+      Options; the rankings-visibility toggle, disabled the way the JS disables
+      it when nobody is signed in; and the FOOTER, which is the only place in the
+      game that says which build a player is on. Anything needing a service M4
+      has not delivered ships disabled with a reason.
+- [x] **The Start Over rows did NOTHING.** Both opened Colin's card with an empty
+      handler behind the confirm button — a player could read the warning, agree
+      to it, and watch nothing happen. Wired to `resetState` / `fullResetState`,
+      which have been in the engine since M1. They are on GENERAL now, under
+      their own heading, where the JS has them; they had been on Account, which
+      is the tab about signing in.
+- [x] **And a reset used to leave the game unable to save, permanently.**
+      `_finalizeReset` left `_frozen` set, and the doc comment said so: "only a
+      reload clears it". That is true of the JS, which follows a reset with
+      `location.reload()`. This app has no reload, so wiring the button would have
+      shipped a save that silently stops writing. The freeze is now for the length
+      of the reset only — by the end of it the pending timer is cancelled and the
+      fresh state is in both the slot and the mirror, so there is nothing left to
+      protect against.
+- [x] **The audio toggle and slider are ONE control**, with the JS's two rules:
+      turning a channel on at 0% nudges it to 5% (a control that says it is on
+      while nothing can be heard is indistinguishable from a broken feature), and
+      dragging the volume off zero turns the channel back on — reaching for the
+      volume is how a player says they want to hear it.
+- [ ] **Music and sound still do not work, and this is the one thing on the list
+      that is BLOCKED.** There is no audio engine in the port at all: the
+      settings write `soundEnabled` / `soundVolume` and nothing reads them, which
+      is why they appear to do nothing on every platform, not just iOS. The JS
+      synthesises its SFX through an `OfflineAudioContext` and plays them as WAV
+      blobs through `HTMLAudioElement` — 782 lines of `utils/sound.js` — and none
+      of that has a Flutter equivalent without **a new dependency**. Flame is
+      already in, but Flame ships no audio; `flame_audio` and `audioplayers` are
+      separate packages. `assets/audio/` already holds the two music beds and
+      `firework.mp3`. **That dependency call is the next decision**, and it is the
+      same class of call as the Rive one nobody has taken.
+- [x] **The JS's iOS volume gate does NOT port, and that is deliberate.** It
+      hides the slider on iOS because every sound there goes through an
+      `HTMLAudioElement` and WebKit treats `HTMLMediaElement.volume` as read-only
+      — Apple reserves volume for the hardware buttons. That is a restriction on
+      WEBVIEWS, not on the platform: a native player sets its own gain. Porting
+      the gate would have carried a web limitation into an app that does not have
+      it, and encoded a guess about an engine that does not exist yet. The note
+      saying where the gate goes if it turns out to be true anyway is at the top
+      of `settings_audio_row.dart`.
 - [ ] **Prefer the Kenney packs, Flame or Rive over emoji** for artwork —
       `kenneynl/` holds game-icons, sports, emotes, modular-characters,
-      background-elements and smoke-particles, all CC0.
+      background-elements and smoke-particles, all CC0. Settings is done: every
+      row takes a glyph from the app's own line-art set. The two Start Over rows
+      keep their emoji ON PURPOSE — a ball and a skull are what tell those two
+      apart at a glance and neither is in the set.
 - [ ] **Copy the JS's blue / yellow / orange button treatments** for the
-      different kinds of action.
+      different kinds of action. Deliberately not folded into the settings pass:
+      it is a shared button widget touching every screen, not a settings change,
+      and doing it here would have meant a semantic palette invented for one
+      page. `settingsDanger` is local to `settings_controls.dart` for the same
+      reason — promote it to the kit when a third caller turns up.
 
 ### Two screens that want a pass
 

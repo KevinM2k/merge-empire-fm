@@ -51,6 +51,7 @@ class CoachAction {
     required this.labelKey,
     required this.onTap,
     this.tone = CoachTone.neutral,
+    this.dismisses = true,
   });
 
   final String labelKey;
@@ -58,6 +59,15 @@ class CoachAction {
 
   /// Yes, no, or neither.
   final CoachTone tone;
+
+  /// Whether pressing it closes the card.
+  ///
+  /// Almost always yes — an answer given is an answer, and the card goes. False
+  /// is for a card the player can get WRONG: one carrying a name to validate
+  /// keeps its own card up so the error has somewhere to appear, and pops itself
+  /// once the answer is good. Without this the frame popped before the handler
+  /// ran, so a rejected name closed the card it was rejected on.
+  final bool dismisses;
 }
 
 /// One more line under the body, in its own right.
@@ -327,7 +337,7 @@ class _CoachButton extends StatelessWidget {
     return ElevatedButton(
       key: ValueKey('coach-action-${action.labelKey}'),
       onPressed: () {
-        Navigator.of(context).pop();
+        if (action.dismisses) Navigator.of(context).pop();
         action.onTap();
       },
       style: ElevatedButton.styleFrom(

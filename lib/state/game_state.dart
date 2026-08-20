@@ -144,8 +144,11 @@ class GameState {
   /// is what tells the two apart.
   bool get bootedOnDefault => _bootedOnDefault;
 
-  /// True while saves are frozen. Only a reset sets this, and only a reload
-  /// clears it.
+  /// True while saves are frozen.
+  ///
+  /// Set for the length of a reset — see [_finalizeReset], which clears it — and
+  /// by [commitAndFreeze], which is the app going away and stays frozen because
+  /// there is nothing after it.
   bool get frozen => _frozen;
 
   /// A save is waiting on the debounce.
@@ -815,6 +818,13 @@ class GameState {
     // Overwrite the durable mirror with the post-reset state, so a later
     // eviction recovery cannot resurrect the pre-reset game.
     _mirrorNative(force: true);
+    // **AND UNFREEZE.** The freeze exists for one reason — a save scheduled
+    // BEFORE the reset must not land on top of it — and by here that danger has
+    // passed: `_beginFreshState` cancelled the timer, and the fresh state is
+    // written to both the slot and the mirror. The JS could leave it frozen
+    // because a reset there is followed by `location.reload()`; this app has no
+    // reload, so staying frozen means the game silently never saves again.
+    _frozen = false;
     notifyChanged();
   }
 
