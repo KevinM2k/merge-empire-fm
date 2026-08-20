@@ -604,11 +604,6 @@ because most of these are two or three to a file.
       unreachable — and before the first build it is one line rather than seven
       rows of ×1.00.
 
-### Quick nav
-
-- [ ] **The Table button is white text on a light background** in light mode.
-- [ ] **Its backdrop should be the glass**, like everything else that floats.
-
 ### Home
 
 - [x] **The next-match card's ATK and DEF bars were drawn at NO HEIGHT.**
