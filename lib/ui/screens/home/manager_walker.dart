@@ -225,8 +225,13 @@ const _Track _elbowFar = [
 ///
 /// Raised from 0.045: at that height it was a 7px sliver under a 230px figure,
 /// which is a mark on the grass rather than a shadow, and the gap between the
-/// sole and the top of it was most of what read as floating.
-const double _shadowBand = 0.075;
+/// sole and the top of it was most of what read as floating. At 0.10 the top of
+/// the ellipse reaches the soles, which is the point — a shadow a boot does not
+/// touch is a shadow of something else.
+const double _shadowBand = 0.10;
+
+/// How far left of the feet's midpoint the shadow sits, in art units.
+const double _shadowBias = 3.5;
 
 /// The shadow's OWN half-width beyond the feet, in art units.
 ///
@@ -404,9 +409,17 @@ class _ManagerWalkerState extends State<ManagerWalker>
                 // H, `Align` puts its centre at H/2 + a(H - fH)/2, and we want
                 // that centre on the footline.
                 alignment: Alignment(
-                  // Off-centre with the feet, so a trailing leg pulls the
-                  // shadow back with it.
-                  _footSpan(t).centre / (walkerWidth / 2),
+                  // Off-centre with the feet, so a trailing leg pulls the shadow
+                  // back with it — but HALF the offset, and biased left.
+                  //
+                  // At the full offset it slid about as far as the boots do and
+                  // read as a separate object being dragged along; half of it
+                  // reads as the shadow of a body whose weight is moving. The
+                  // bias is because the figure is drawn side-on facing right, so
+                  // its mass sits left of the box's centre while the leading boot
+                  // reaches right of it — centring on the feet alone put the
+                  // shadow ahead of him.
+                  (_footSpan(t).centre * 0.5 - _shadowBias) / (walkerWidth / 2),
                   _shadowAlignment.y,
                 ),
                 child: FractionallySizedBox(

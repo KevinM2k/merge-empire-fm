@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -206,6 +207,97 @@ void main() {
     emit('reveal:end');
     await tester.pump(const Duration(milliseconds: 32));
     expect(hudVisible(tester), isTrue);
+  });
+
+  group('the resource colours', () {
+    test('are three colours a player can actually tell apart', () {
+      // Energy was `#57BCFF` and gems `#7FD4FF` — twenty degrees apart, both
+      // pale, both blue. Coding that cannot be told apart is not coding.
+      double hue(Color c) => HSLColor.fromColor(c).hue;
+      final hues = [hudCoinInk, hudEnergyInk, hudGemInk].map(hue).toList();
+      for (var i = 0; i < hues.length; i++) {
+        for (var j = i + 1; j < hues.length; j++) {
+          final apart = (hues[i] - hues[j]).abs();
+          expect(
+            apart > 45 && apart < 315,
+            isTrue,
+            reason: 'hues ${hues[i]} and ${hues[j]} are the same colour',
+          );
+        }
+      }
+    });
+
+    test('and all three are vivid enough to read on the club\'s chrome', () {
+      for (final c in [hudCoinInk, hudEnergyInk, hudGemInk]) {
+        expect(HSLColor.fromColor(c).saturation, greaterThan(0.6), reason: '$c');
+      }
+    });
+  });
+
+  group('the chrome', () {
+    testWidgets('both bars wear the CLUB\'s colour, not a grey surface', (
+      tester,
+    ) async {
+      // The JS's own decision: light mode is a neutral page, and the kit hue is
+      // used for accents "AND for the HUD top bar + bottom tab bar, which are
+      // solid accent-coloured chrome". Both bars were `surface`, so a player who
+      // picked claret and blue got a grey app with a green tint in the buttons.
+      await pumpHud(tester, (_) {}, tab: ShellTab.shop);
+      final context = tester.element(find.byType(Hud));
+      final kit = Theme.of(context).extension<KitTheme>()!;
+      final gradients = tester
+          .widgetList<DecoratedBox>(
+            find.descendant(
+              of: find.byKey(const ValueKey('hud-glass')),
+              matching: find.byType(DecoratedBox),
+            ),
+          )
+          .map((b) => b.decoration)
+          .whereType<BoxDecoration>()
+          .map((d) => d.gradient)
+          .whereType<LinearGradient>();
+      // The middle stop IS the accent in light mode.
+      expect(
+        gradients.any((g) => g.colors.contains(kit.accent)),
+        isTrue,
+        reason: 'the band is not wearing the kit',
+      );
+    });
+
+    testWidgets('and it is a dark TINT of the same hue in dark mode', (
+      tester,
+    ) async {
+      // A saturated bar on a near-black page is a stripe of daylight across it.
+      await pumpHud(
+        tester,
+        (s) => (s['settings'] as Map<String, dynamic>)['lightMode'] = false,
+        tab: ShellTab.shop,
+      );
+      final context = tester.element(find.byType(Hud));
+      final kit = Theme.of(context).extension<KitTheme>()!;
+      final chrome = hudChrome(kit, context);
+      for (final c in chrome.colors) {
+        final luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        expect(luma, lessThan(0.12), reason: 'too bright for a dark page: $c');
+        // Still the hue — a bar that has gone to pure black says nothing about
+        // whose club it is.
+        expect(c.g, greaterThan(c.r));
+      }
+    });
+
+    testWidgets('the cluster is ONE glass pane, on every tab', (tester) async {
+      // It was four panes on Play and four themed pills everywhere else: one
+      // instrument reading as two, and the glass version reading as embossed
+      // buttons.
+      for (final tab in [ShellTab.home, ShellTab.shop]) {
+        await pumpHud(tester, (_) {}, tab: tab);
+        expect(
+          find.byKey(const ValueKey('hud-cluster')),
+          findsOne,
+          reason: tab.name,
+        );
+      }
+    });
   });
 
   group('where it sits', () {

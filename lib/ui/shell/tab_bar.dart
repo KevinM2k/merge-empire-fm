@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -27,7 +28,9 @@ class ShellTabBar extends StatelessWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Container(
       decoration: BoxDecoration(
-        color: kit.surface,
+        // The club's own chrome, same as the top bar — see `hudChrome`. It was
+        // `surface`, so a player who picked claret and blue got a grey app.
+        gradient: hudChrome(kit, context),
         border: Border(top: BorderSide(color: kit.border)),
       ),
       child: SafeArea(
@@ -81,17 +84,32 @@ class _TabButton extends StatelessWidget {
             width: 60,
             height: 60,
             margin: const EdgeInsets.symmetric(vertical: 4),
+            // INVERTED, now the bar is the accent. An accent disc on an accent
+            // bar is one colour, and the one tab with any weight in the bar was
+            // the one that disappeared.
             decoration: BoxDecoration(
-              color: kit.accent,
+              color: kit.accentInk,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            child: Icon(tabIcons[tab], size: 28, color: kit.accentInk),
+            child: Icon(tabIcons[tab], size: 28, color: kit.accent),
           ),
         ),
       );
     }
 
-    final colour = active ? kit.accent : kit.textMuted;
+    // ON the accent, so the ink is the accent's own — the JS's rule for both
+    // bars. `textMuted` is a grey picked for a grey surface and on claret it
+    // read as dirt.
+    final colour = active
+        ? kit.accentInk
+        : kit.accentInk.withValues(alpha: 0.62);
     return Semantics(
       button: true,
       selected: active,

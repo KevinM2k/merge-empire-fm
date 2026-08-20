@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class HudChip extends StatelessWidget {
@@ -55,6 +56,13 @@ class HudChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // **THE GLYPH KEEPS ITS HUE; THE FIGURE BUYS THE CONTRAST.** These
+          // were briefly pushed through `glassAccent` with everything else, and
+          // it took the colour coding out — a darkened gold and a darkened cyan
+          // are two browns. The split is that a 16px glyph with a distinctive
+          // SHAPE is identity and a number is information: the coin is a coin
+          // whatever its luminance, and the figure beside it is what has to be
+          // read. So the icon is left alone and the value is darkened.
           Icon(icon, size: iconSize, color: iconColor ?? kit.accentBright),
           // The cog has no figure, so it gets no gutter either — otherwise it
           // sits off-centre in its own segment.
@@ -73,11 +81,19 @@ class HudChip extends StatelessWidget {
 
 /// The one box the whole cluster sits in.
 ///
-/// Identical on every tab, which is the point: the HUD is the same instrument
-/// wherever you are, and the Play tab having its own treatment is what made it
-/// read as a different app. A themed pill rather than glass — see the note in
-/// `theme/glass.dart` about what glass is for. The Play tab, where the diorama
-/// runs behind it, is exactly the case a solid pill is needed for.
+/// **GLASS, and the SAME glass as the next-match card.** This has been round the
+/// houses and the landing point is worth writing down.
+///
+/// It started as four separate panes — one per reading — which is what read as
+/// embossed buttons: four rims, four shadows and four highlights for what is one
+/// instrument. Collapsing them into one box fixed that, and the box was made a
+/// solid pill because at the glass of the time a 13px accent-green figure on it
+/// was under 2:1.
+///
+/// That was solving the wrong end. The pane was never the problem — the FIGURE
+/// was, and `glassAccent` is the fix for it: a mid-tone hue darkened until it
+/// reads on a bright pane. With the ink handled, the pane can be the app's one
+/// glass recipe, and the HUD stops being the one surface that does its own thing.
 class HudCluster extends StatelessWidget {
   const HudCluster({super.key, required this.children});
 
@@ -85,21 +101,9 @@ class HudCluster extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return Container(
+    return GlassPanel(
       key: const ValueKey('hud-cluster'),
-      decoration: BoxDecoration(
-        color: kit.surface.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(14),
-        // NO SHADOW. It was there to lift the pill off the diorama, and on the
-        // diorama is exactly where it did not work: the cluster sits on a sky
-        // that is already a gradient, so a soft dark edge under it read as
-        // grime rather than as height. The border separates it on every page,
-        // and a shadow that only convinces on four of five screens is worse
-        // than none.
-        border: Border.all(color: kit.border),
-      ),
-      clipBehavior: Clip.antiAlias,
+      radius: 14,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -107,7 +111,12 @@ class HudCluster extends StatelessWidget {
             // A hairline, not a gap. The four readings are one instrument, and
             // the divider is what keeps them from running into each other
             // without splitting them back into four boxes.
-            if (i > 0) Container(width: 1, height: 22, color: kit.border),
+            if (i > 0)
+              Container(
+                width: 1,
+                height: 22,
+                color: glassInk(context).withValues(alpha: 0.22),
+              ),
             children[i],
           ],
         ],

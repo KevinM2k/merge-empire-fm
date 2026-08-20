@@ -112,7 +112,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Padding(
             // Clears the HUD and the notch. The SCENE behind it does not: it
             // runs to the top of the glass, which is the whole point of it.
-            padding: EdgeInsets.fromLTRB(13, hudClearanceOf(context), 13, 0),
+            // No bar to clear here — just the notch and the floating cluster.
+            padding: EdgeInsets.fromLTRB(
+              13,
+              hudClearanceOf(context, underBar: false),
+              13,
+              0,
+            ),
             child: const NextMatchCard(),
           ),
         ),

@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -31,9 +32,26 @@ final energyMaxProvider = savePick<int>(getEnergyMax);
 /// bright yellow with the kit and the theme, and no accent-derived set survives
 /// that range — so the coin is gold, the bolt blue and the gem cyan on EVERY kit,
 /// which is what keeps them told apart at a glance.
+/// **THREE READINGS, THREE COLOURS — AND TWO OF THEM WERE THE SAME.** Energy was
+/// `#57BCFF` and gems `#7FD4FF`: twenty degrees of hue apart, both pale, both
+/// blue. Colour-coding that a player cannot tell apart is not colour-coding, and
+/// on the club's own chrome the paler of the two sank into the bar.
+///
+/// Separated as far as three hues can be here, and the constraints are tighter
+/// than they look. GOLD is money and is not negotiable. The GEM keeps cyan —
+/// which is what a gem is — but a vivid one rather than a wash. That leaves
+/// energy, and the obvious answer of yellow is the one hue it cannot have,
+/// because that is the coins; green is out too, because green is the chrome the
+/// icons sit on and half the kits are some shade of it; and orange came out 30°
+/// from gold, which is the same mistake one hue over.
+///
+/// So the bolt is VIOLET. Lightning is drawn violet about as often as it is drawn
+/// yellow, it is 135° from the gold and 90° from the gem, and it is the one warm-
+/// side hue no wallet in this game has a claim on. Fixed on every kit, because
+/// what these code is WHICH WALLET, and that does not change with the strip.
 const Color hudCoinInk = Color(0xFFFFD700);
-const Color hudEnergyInk = Color(0xFF57BCFF);
-const Color hudGemInk = Color(0xFF7FD4FF);
+const Color hudEnergyInk = Color(0xFFA855F7);
+const Color hudGemInk = Color(0xFF22D3EE);
 
 /// The energy figure's colour, full to empty.
 ///
@@ -84,8 +102,15 @@ const double hudBottomMargin = 10;
 /// glass, which is where the JS puts it (`.ps-holder` is `position: fixed;
 /// top: 0` precisely so it escapes). The ground bleeds now and the CONTENT clears
 /// the notch itself, which is this.
-double hudClearanceOf(BuildContext context) =>
-    MediaQuery.paddingOf(context).top + hudClearance;
+///
+/// [underBar] is false on the Play tab, and that is the only place it is:
+/// [hudBottomMargin] exists to separate a page from the BAR above it, and on the
+/// diorama there is no bar — the cluster floats and the scene runs to the top of
+/// the screen. Ten pixels of nothing under an invisible bar is ten pixels the
+/// card and the pitch could have had.
+double hudClearanceOf(BuildContext context, {bool underBar = true}) =>
+    MediaQuery.paddingOf(context).top +
+    (underBar ? hudClearance : hudClearance - hudBottomMargin);
 
 class Hud extends ConsumerWidget {
   const Hud({super.key, this.onSettings});
@@ -124,9 +149,12 @@ class Hud extends ConsumerWidget {
 
   Widget _bar(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    // The figures, through [glassAccent]: 13px of mid-tone accent on a bright
+    // pane is the 2.4:1 case, and these are the numbers the whole bar exists to
+    // show.
     final valueStyle = TextStyle(
-      color: kit.accentBright,
-      fontWeight: FontWeight.w600,
+      color: glassAccent(context, kit.accentBright),
+      fontWeight: FontWeight.w700,
       fontSize: 13,
     );
 
@@ -268,6 +296,48 @@ class Hud extends ConsumerWidget {
   }
 }
 
+/// The kit's own chrome, for the top bar and the bottom tab bar.
+///
+/// **THE BARS ARE THE ONE PLACE THE KIT COLOUR IS STRUCTURAL**, and that is the
+/// JS's decision rather than this file's. Its note, verbatim in intent: light mode
+/// is deliberately NEUTRAL — white cards on a light-grey page — and the kit hue is
+/// used for accents AND *"for the HUD top bar + bottom tab bar, which are solid
+/// accent-coloured chrome"*. The page stays white; the chrome is the club.
+///
+/// The port had both bars as `surface`, so a player who picked claret and blue got
+/// a grey app with a green tint in the buttons. On the tabs, the bars were the
+/// only two surfaces big enough to say whose club this is.
+///
+/// Dark mode is the kit's `--hud-gradient`: a very dark tint of the same hue
+/// rather than the accent at full strength, because a saturated bar on a
+/// near-black page is a stripe of daylight across it. Derived from the accent
+/// here rather than added to `KitSurfaces` — the JS builds it per kit from the
+/// same hue, and blending to near-black reaches the same place without a second
+/// pinned value to keep in step.
+LinearGradient hudChrome(KitTheme kit, BuildContext context) {
+  final light = Theme.of(context).brightness == Brightness.light;
+  if (light) {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color.lerp(kit.accent, Colors.white, 0.10)!,
+        kit.accent,
+        Color.lerp(kit.accent, Colors.black, 0.06)!,
+      ],
+    );
+  }
+  return LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color.lerp(kit.accent, Colors.black, 0.90)!,
+      Color.lerp(kit.accent, Colors.black, 0.82)!,
+      Color.lerp(kit.accent, Colors.black, 0.90)!,
+    ],
+  );
+}
+
 /// The band the HUD sits in, off the Play tab.
 ///
 /// A blur has to be CLIPPED to be a band: a `BackdropFilter` with nothing
@@ -286,14 +356,7 @@ class _FrostedBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: DecoratedBox(
-          decoration: BoxDecoration(
-            // Enough tint that white text on it survives whatever it is over —
-            // the blur softens the background, it does not darken it.
-            color: kit.bg.withValues(alpha: 0.62),
-            border: Border(
-              bottom: BorderSide(color: kit.border.withValues(alpha: 0.5)),
-            ),
-          ),
+          decoration: BoxDecoration(gradient: hudChrome(kit, context)),
           // **THE SAFE AREA IS INSIDE THE GLASS.** The shell used to wrap the
           // whole HUD in a `SafeArea`, which pushed the frosted band below the
           // notch and left the strip above it showing the raw page — a white bar

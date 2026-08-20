@@ -30,10 +30,10 @@ too late:
 
 ## Where we are
 
-**3,751 tests, `flutter analyze` clean.**
+**3,767 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 21 Aug", and it is 9 items** — on top of
-20 August's 28. That is
+**The live queue is "From playtesting — 22 Aug", and it is 5 items** — on top of
+21 August's 9 and 20 August's 28. That is
 what a session of actually playing the thing turned up, which is a different list
 from what reading the source turns up and is the one to clear first. It carries
 its own status block: the count, the clusters, what is blocked on a decision and
@@ -1233,6 +1233,171 @@ has a trap in it that is worth stating before the first line is written.
       Two are deliberate exceptions and should stay that way — Coach Colin's card
       (his title is him speaking, under his own name plate) and the achievement
       banner (a celebration, not a heading).
+
+## From playtesting — 22 Aug
+
+Live feedback, mostly on the diorama, the HUD and the 2D cutaway. What is left is
+at the end; the rest was closed as it came in and is recorded because two of the
+findings were arithmetic rather than taste and one is a reversal.
+
+### The chrome is the club, and that is the JS's decision
+
+- [x] **Both bars wear the kit colour now.** `kitTheme.js` says it in as many
+      words: light mode is deliberately NEUTRAL — white cards on a light-grey page
+      — and the hue is for accents *"AND for the HUD top bar + bottom tab bar,
+      which are solid accent-coloured chrome"*, with their text and icons flipped
+      to `accentInk`. Both bars were `surface`, so a player who picked claret and
+      blue got a grey app with a green tint in the buttons. On four of the five
+      tabs those bars are the only surfaces big enough to say whose club it is.
+      Dark mode is a very dark tint of the same hue rather than the accent at full
+      strength — a saturated bar on a near-black page is a stripe of daylight
+      across it. Derived from the accent rather than added to `KitSurfaces`: the
+      JS builds `--hud-gradient` per kit from the same hue, and blending to
+      near-black reaches the same place without a second pinned value.
+      Two consequences that had to follow: the tab bar's ink is `accentInk`
+      (`textMuted` is a grey for a grey surface and on claret read as dirt), and
+      the Play tab's disc INVERTS — an accent circle on an accent bar is one
+      colour, and the one tab with any weight in the bar was the one that
+      disappeared.
+
+### One HUD, after three tries
+
+- [x] **The cluster is ONE glass pane, on every tab.** Worth recording the whole
+      path because two of the three attempts were wrong for the same reason.
+      It began as four separate pills — one per reading — which read as embossed
+      buttons: four rims, four shadows and four highlights for what is one
+      instrument. Collapsing them into one box fixed that, and the box was then
+      made a SOLID pill because a 13px accent-green figure on glass was under
+      2:1. That was the wrong end: the pane was never the problem, the FIGURE was.
+      With `glassAccent` handling the ink the pane can be the app's one glass
+      recipe, and the HUD stops being the surface that does its own thing.
+- [x] **The glyph keeps its hue; the figure buys the contrast.** Pushing the
+      resource icons through `glassAccent` with everything else took the colour
+      coding out — a darkened gold and a darkened cyan are two browns. A 16px
+      glyph with a distinctive SHAPE is identity and a number is information, so
+      the icon is left alone and the value is darkened.
+- [x] **And two of the three resource colours were the same colour.** Energy was
+      `#57BCFF` and gems `#7FD4FF`: twenty degrees of hue apart, both pale, both
+      blue. The constraints are tighter than they look — gold is money and is not
+      negotiable, the gem keeps cyan because that is what a gem is, yellow is out
+      for energy because that is the coins, green is out because green is the
+      chrome half the kits sit on, and orange came out 30° from gold, which is the
+      same mistake one hue over. So the bolt is VIOLET: 135° from the gold, 90°
+      from the gem, and the one hue no wallet in this game has a claim on.
+- [x] **The top HUD has a 10px margin under it — except on Play**, where there is
+      no bar for it to separate the page from.
+
+### What the arithmetic caught
+
+- [x] **Our own club name was 2.4:1.** `accentBright` is `#259328` on the default
+      kit and the pane composites to about 0.80 — under even the 3:1 large text
+      needs, on the most important text on the next-match card. It looked like a
+      colour choice.
+      The fix cannot be a fixed darker green, because the accent is the player's
+      and there are two dozen kits. `glassAccent` DARKENS toward black until the
+      contrast clears 4.5:1 against the brightest pane the app draws, and stops —
+      so a kit that is already dark is untouched and a bright one comes down as
+      far as it needs to. Everything coloured on glass goes through it now: the
+      club name, the tactic's hue, the verdict figures, the HUD's numbers. A raw
+      hue on a pane is a bug by construction.
+- [x] **The ball's bend was always the same perpendicular.**
+      `Vector2(-delta.y, delta.x)` never varies, so every ball in every clip
+      curved the same way — which does not read as a struck ball, it reads as the
+      ball drifting for no reason with nobody near it. Randomised per flight, and
+      the styles with no business bending have had it taken off: a square pass, a
+      through ball and a cutback go straight.
+
+### The cutaway has an AFTER
+
+- [x] **A goal used to end on the frame the ball crossed the line** — the one
+      moment in a match worth watching, cut as it happened. There is an outro now:
+      GOAL / SAVED / MISSED goes up (in Flutter, not Flame — a headline wants the
+      app's own type and a spring), the scorer runs to the NEARER corner with two
+      teammates chasing, everyone in red stops dead, and only then does the pitch
+      clear. A miss gets a shorter beat, long enough to read the word.
+- [x] **The clock stops while a chance is on the pitch.** It did not, which is why
+      the minute lurched: the cutaway takes a second or two and the clock kept
+      counting under it, so the passage ended three or four minutes after the one
+      it belongs to and the feed jumped to catch up. A chance is a RETELLING of a
+      minute — the minute cannot have moved on while it is being retold.
+- [x] **Kenney's smoke is in.** Eight frames of the white puff, trimmed to their
+      alpha box and down to 128px — 140KB of the pack's 5.9MB — on the strike and
+      in the net. The merge burst stays PROCEDURAL and that is not laziness: it
+      has to draw in whatever colour the tier is at whatever size the card is,
+      which a sprite sheet cannot do. Sprites are for the things that had no
+      effect at all.
+- [x] **Movers rock foot to foot.** Kenney's top-down characters are a shirt oval,
+      a head and two arm stubs — there are no legs in the pack to swap, and the
+      modular-character pack's legs are side-on so they would not work here
+      either. What a top-down runner actually shows is the body rocking: a small
+      roll and a bob, driven off DISTANCE COVERED so a walking figure rocks slowly
+      and a sprinting one fast without a second speed to keep in step. They
+      already faced their direction of travel.
+
+### The diorama
+
+- [x] **The crowd moves.** Every fan was pinned to its seat and a few hundred
+      motionless heads read as a printed backdrop. Each one bounces on its OWN
+      phase, so at rest a scattering are up and out of step — and tapping the
+      terrace brings the rest to their feet and lifts everyone higher, which is
+      the JS's own interaction. Per fan rather than per row on purpose: a stand
+      that bounces in unison is a Mexican wave, which is a different thing and
+      reads as one. Excitement decays, so a tap is a surge that settles.
+- [x] **The manager stopped floating.** The shadow was a fixed 34% ellipse at 4.5%
+      of his height — a 7px sliver under a 230px figure, centred on his BOX. At the
+      widest point of the stride the rear boot was outside it entirely. It spans
+      the FEET now (`_footX(t)` and `_footX(t + 0.5)`, the two legs half a cycle
+      apart), is tall enough for its top edge to reach the soles, tracks at HALF
+      the feet's offset so it reads as weight moving rather than as a separate
+      object being dragged, and is biased left because the figure is drawn side-on
+      facing right — its mass sits left of the box's centre while the leading boot
+      reaches right of it.
+- [x] **The hair is not a block.** See the 21 Aug entry.
+
+### Still open from this session
+
+- [ ] **A football on the diorama.** The JS runs a small SIM: `.ps-ball` with an
+      x-position and a hop, `.ps-ball-spin` for the roll, a shadow that separates
+      as it rises, and a `.ps-hold-arm` pose for when the manager picks it up —
+      driven every frame and frozen by the same scene-pause gate as everything
+      else. There is no ball at all in the port. It is the last thing on the
+      diorama that moves and does not exist.
+- [ ] **More perspective on the manager's turf**, so he reads as further from the
+      crowd than he does. The mowing fan already converges; what is missing is
+      that HE does not scale with depth and the tuft bands' size ratio is gentle.
+- [ ] **The manager wants LIFE: a blink, and a tap.** He should blink on his own
+      every few seconds, and tapping him should play one of the celebrations the
+      save has UNLOCKED — chosen by mood, so an elated gaffer and a crushed one
+      reach for different ones. `manager_looks.dart` has the unlock tables and
+      `manager_mood.dart` has the five moods; the JS's `GESTURES` table in
+      `data/managerMood.js` is the mapping, and `DugoutCam.js` is how it plays
+      one.
+- [ ] **The match popup is missing most of itself** — boxes, tactics, subs, the
+      watch-ad buttons. It is a screen-sized parity job against the JS's own CSS
+      rather than a fix.
+- [ ] **A PHYSICS pass, and it wants a real decision first.** The ask is to be
+      more creative with a physics engine for the cutaway, the penalty game and
+      the character drawing. The honest position:
+      **Flame ships no physics; `flame_forge2d` (Box2D) is another dependency**,
+      and it is the wrong shape for two of the three. The cutaway and the penalty
+      both have an outcome ALREADY DECIDED by an engine that is pinned against the
+      JS — `takePenalty` knows whether it is a goal before anything moves — so a
+      rigid-body simulation is not a simulation here, it is an animation that must
+      terminate in a known state. Forge2D gives you "let go and see what happens",
+      which is exactly what neither can have.
+      What actually buys the look, without a solver fighting a constraint: solve
+      the FLIGHT for the known landing point (the launch velocity and spin that
+      reach that corner with that result), then integrate it forward — spin on the
+      ball so it turns as it is struck, a parabola that falls properly, and a
+      restitution bounce off a post or a bar. A net built as geometry rather than
+      as flat art, deformed by the impact point, is most of what sells a goal. The
+      keeper falls under gravity from a launch impulse rather than translating. All
+      of that is a couple of hundred lines of purpose-built integration and no new
+      dependency, and it can be made deterministic — which the outcome-pinned
+      design needs and a Box2D world does not give you for free.
+      **Forge2D earns its place only where the outcome is genuinely emergent.**
+      If a mini-game is ever built where the physics DECIDES rather than
+      illustrates, that is the moment to add it.
 
 ## M0 — foundation and save bridge ✅
 
