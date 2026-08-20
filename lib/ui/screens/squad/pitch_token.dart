@@ -26,6 +26,14 @@ import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 /// The wrapper's width. The token fills it; the empty slot is inset inside it.
 const double pitchTokenWidth = 74;
 
+/// The pitch height these fixed sizes were drawn for: a 7:10 pitch on a phone
+/// about 400 wide, which is what the JS's own 74px token was measured against.
+///
+/// Below it the whole token is scaled down in proportion — see the note in
+/// `squad_screen.dart`. Eleven tokens that never shrink are what put the back
+/// four in the midfield's band on a short screen.
+const double pitchTokenReferenceHeight = 570;
+
 /// `penaltyColor` / `penaltyBg` from `playerMiniCard.js`.
 Color penaltyColor(double p) => p == 0
     ? const Color(0xFF4ADE80)

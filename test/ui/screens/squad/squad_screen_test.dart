@@ -797,7 +797,9 @@ void main() {
       final gkSlot = container
           .read(pitchSlotsProvider)
           .firstWhere((s) => s.slotPosition == 'GK');
-      final ranked = container.read(slotCandidatesProvider(gkSlot.slotPosition));
+      final ranked = container.read(
+        slotCandidatesProvider(gkSlot.slotPosition),
+      );
       for (var i = 1; i < ranked.length; i++) {
         expect(
           ranked[i - 1].effRating,
@@ -838,6 +840,70 @@ void main() {
           );
         }
       }
+    });
+  });
+
+  group('room for eleven', () {
+    /// The pitch, and the four lines that stand on it.
+    ({Rect pitch, Rect gk, Rect def, Rect mid, Rect fwd}) lines(
+      WidgetTester tester,
+    ) => (
+      pitch: tester.getRect(find.byKey(const ValueKey('squad-pitch-surface'))),
+      gk: tester.getRect(find.byKey(const ValueKey('squad-drop-gk'))),
+      def: tester.getRect(find.byKey(const ValueKey('squad-drop-rcb'))),
+      mid: tester.getRect(find.byKey(const ValueKey('squad-drop-cm'))),
+      fwd: tester.getRect(find.byKey(const ValueKey('squad-drop-cf'))),
+    );
+
+    testWidgets('every line has grass around it on a SHORT screen', (
+      tester,
+    ) async {
+      // The lines are 24% of the pitch's height apart and that is the JS's data,
+      // so what decides whether they crowd is how much of the 24% the token
+      // eats. A fixed-size token on a pitch that shrinks with the screen left
+      // the back four in the midfield's band and the keeper on the goal line.
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpSquad(tester);
+      final at = lines(tester);
+
+      for (final pair in [
+        (name: 'keeper to defence', gap: at.gk.top - at.def.bottom),
+        (name: 'defence to midfield', gap: at.def.top - at.mid.bottom),
+        (name: 'midfield to attack', gap: at.mid.top - at.fwd.bottom),
+      ]) {
+        expect(pair.gap, greaterThan(24), reason: pair.name);
+      }
+      expect(
+        at.pitch.bottom - at.gk.bottom,
+        greaterThan(4),
+        reason: 'the keeper is not standing ON the goal line',
+      );
+    });
+
+    testWidgets('and the token is its design size where there IS room', (
+      tester,
+    ) async {
+      // Scaled down, never up: a big screen still draws the token at the size it
+      // was drawn for.
+      tester.view.physicalSize = const Size(400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpSquad(tester);
+      expect(
+        lines(tester).gk.width,
+        moreOrLessEquals(pitchTokenWidth, epsilon: 0.5),
+      );
+    });
+
+    testWidgets('the formation chip fits a narrow phone', (tester) async {
+      // Its label had no flex at all, so it could only overflow the chip.
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpSquad(tester);
+      expect(tester.takeException(), isNull);
     });
   });
 }

@@ -478,12 +478,29 @@ Two are not code decisions and are marked so.
       Its own host rather than a fourth popup shape — it answers nothing, like a
       toast, but it is a celebration and they QUEUE, because one match can unlock
       several.
-- [ ] **The squad pitch is cramped.** The back four sit too far from the keeper,
-      which squeezes the midfield into the same band as the attack. Move the
-      defence back toward the goal and let every line have room around it —
-      the slots are laid out in `squad_screen.dart` against the formation.
-- [ ] **The Club screen's "Build" column needs a pass.** Full-screen is right
-      and worth keeping; what is on it looks unfinished.
+- [x] **The squad pitch has room for eleven.** The band positions were NOT
+      changed: `x`/`y` are `formations.js`'s own data with a parity fixture
+      behind them, and all four lines are already an even 24% of the pitch apart.
+      What was eating the room is that the tokens never shrank — a fixed 74×97
+      whatever the pitch, so on a 360-wide phone the lines had twenty pixels
+      between them and the keeper stood ON the goal line. The token is now
+      measured against the pitch and never scaled UP, so a tall phone draws it at
+      exactly the size it was drawn for. Insetting the field instead was tried
+      and is wrong: it buys the outer lines a margin by taking it from between
+      the midfield and the attack, which is where it was missing.
+      Found while measuring: the formation chip's label had no flex at all, so it
+      could only overflow the chip. It yields before the value does now.
+- [x] **The Club screen's Build column says what a facility GIVES.**
+      `club_asset_tiers.dart` was a fourth engine with no caller — fully ported,
+      fully tested, computing what every tier gives and what one step up actually
+      changes, and none of it reached the screen. A card was a name, a hint and a
+      price, so a player investing could not know what they were buying.
+      Now the JS's own tile: full-width artwork in a `minmax(165px, 1fr)` grid,
+      the tier badge on it (or a lock), the live perk, the bar, and only what the
+      next tier changes. The eight-tier ladder is one tap away on the art —
+      `asset_ladder_sheet.dart`, opening on the tier the club is on — which is
+      what lets the card stay one height in all ten languages. A dead button now
+      names the shortfall rather than only going grey.
 
 ### Not code decisions
 

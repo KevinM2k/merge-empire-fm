@@ -23,13 +23,19 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
+import 'package:merge_empire_fc/ui/screens/club/asset_ladder_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
-/// One facility, resolved.
+/// One facility, resolved — including WHAT IT GIVES, which the card had never
+/// said. [perk] is what the club has at this tier and [next] is only what the
+/// step up changes; both come off `club_asset_tiers.dart` through
+/// `asset_tier_copy.dart`.
 typedef AssetTile = ({
   String key,
   bool owned,
@@ -38,24 +44,47 @@ typedef AssetTile = ({
   double progress,
   int nextCost,
   String? blocked,
+  String perk,
+  String? next,
+
+  /// How far short the club is, for the button that says so rather than just
+  /// going grey.
+  int shortBy,
 });
 
-final assetTilesProvider = savePick<List<AssetTile>>(
-  (s) => [
+final assetTilesProvider = savePick<List<AssetTile>>((s) {
+  final coins = _coinsOf(s);
+  return [
     for (final key in AssetCategory.all)
-      (
-        key: key,
-        owned: isAssetOwned(s, key),
-        tier: assetTier(s, key),
-        maxed: isAssetMaxed(s, key),
-        progress: investProgress(s, key),
-        nextCost: isAssetOwned(s, key) ? nextInvestCost(s, key) : buildCost,
-        blocked: isAssetOwned(s, key)
-            ? investBlocked(s, key)
-            : buildBlocked(s, key),
-      ),
-  ],
-);
+      () {
+        final owned = isAssetOwned(s, key);
+        final tier = assetTier(s, key);
+        final cost = owned ? nextInvestCost(s, key) : buildCost;
+        return (
+          key: key,
+          owned: owned,
+          tier: tier,
+          maxed: isAssetMaxed(s, key),
+          progress: investProgress(s, key),
+          nextCost: cost,
+          blocked: owned ? investBlocked(s, key) : buildBlocked(s, key),
+          perk: assetPerkLine(key, tier),
+          next: owned
+              ? assetNextLine(key, tier)
+              : assetNextLine(key, 0) ?? assetPerkLine(key, 1),
+          shortBy: (cost - coins).clamp(0, cost).toInt(),
+        );
+      }(),
+  ];
+});
+
+int _coinsOf(Map<String, dynamic> s) {
+  final resources = s['resources'];
+  final coins = resources is Map<String, dynamic>
+      ? resources['fanCoins']
+      : null;
+  return coins is num ? coins.toInt() : 0;
+}
 
 final ownedAssetCountProvider = savePick<int>(
   (s) => AssetCategory.all.where((k) => isAssetOwned(s, k)).length,
@@ -69,15 +98,6 @@ final ownedAssetCountProvider = savePick<int>(
 final stadiumTierProvider = savePick<int>(
   (s) => math.max(1, assetTier(s, AssetCategory.stadium)),
 );
-
-/// Why a button is dead, in copy that already ships.
-String? assetBlockedCopy(String? reason) => switch (reason) {
-  null => null,
-  'insufficient_coins' => t('toast.not_enough_coins'),
-  'needs_player' => t('club.build_needs_player'),
-  'max_tier' => t('shop.owned'),
-  _ => t('settings.comingSoon'),
-};
 
 class ClubScreen extends ConsumerWidget {
   const ClubScreen({super.key});
@@ -114,7 +134,12 @@ class ClubScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          for (final tile in tiles) _AssetPanel(tile: tile),
+          // A GRID, as the JS lays it out — `minmax(165px, 1fr)`, so two across
+          // on a phone and three on a tablet. Seven full-width rows was a
+          // settings list; the facility a player is looking for is found by its
+          // artwork, and artwork needs the width of a tile rather than a strip
+          // beside three lines of text.
+          _AssetGrid(tiles: tiles),
         ],
       ),
     );
@@ -177,6 +202,58 @@ class _StadiumHero extends StatelessWidget {
   }
 }
 
+/// The seven facilities. Wrapped rather than a `GridView`: the screen is one
+/// scroll view already, and the cards in a row have to be the same height as
+/// each other — which is what `IntrinsicHeight` over a plain `Row` buys and a
+/// grid delegate's fixed aspect ratio does not.
+class _AssetGrid extends StatelessWidget {
+  const _AssetGrid({required this.tiles});
+
+  final List<AssetTile> tiles;
+
+  /// The JS's `minmax(165px, 1fr)`.
+  static const double _minTile = 165;
+  static const double _gap = 10;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns = ((constraints.maxWidth + _gap) / (_minTile + _gap))
+          .floor()
+          .clamp(1, 4);
+      final rows = <List<AssetTile>>[];
+      for (var i = 0; i < tiles.length; i += columns) {
+        rows.add(tiles.sublist(i, math.min(i + columns, tiles.length)));
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var r = 0; r < rows.length; r++) ...[
+            if (r > 0) const SizedBox(height: _gap),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var c = 0; c < columns; c++) ...[
+                    if (c > 0) const SizedBox(width: _gap),
+                    // The short last row keeps its columns empty rather than
+                    // stretching the cards that ARE there across the screen.
+                    Expanded(
+                      child: c < rows[r].length
+                          ? _AssetPanel(tile: rows[r][c])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    },
+  );
+}
+
 class _AssetPanel extends ConsumerWidget {
   const _AssetPanel({required this.tile});
 
@@ -236,134 +313,257 @@ class _AssetPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final game = ref.read(gameProvider);
-    final reason = assetBlockedCopy(tile.blocked);
     final buildable = tile.blocked == null;
+    final ink = assetTierColour(tile.owned ? tile.tier : 0);
 
-    return Card(
+    return Container(
       key: ValueKey('club-asset-${tile.key}'),
-      color: kit.surface,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: kit.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kit.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Art(tile: tile, ink: ink, onTap: () => _openLadder(context)),
+          const SizedBox(height: 7),
+          // The name, with the facility's own glyph tinted by its tier — so a
+          // gold Stadium reads as gold before a word of it is read.
+          InkWell(
+            onTap: tile.owned ? () => _openLadder(context) : null,
+            child: Row(
               children: [
-                // The generated artwork, with the composed SVG behind it as the
-                // fallback — the same order the JS uses, and the reason both
-                // exist. An unbuilt facility shows its tier-one art dimmed:
-                // what it will look like is a better prompt than an empty
-                // square.
-                Container(
-                  width: 52,
-                  height: 52,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: kit.surface2,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: kit.border),
-                  ),
-                  child: ArtImage(
-                    key: ValueKey('club-art-${tile.key}'),
-                    path: clubAssetImagePath(
-                      tile.key,
-                      tile.owned ? tile.tier : 1,
-                    ),
-                    dimmed: !tile.owned,
-                    dimBrightness: 0.45,
-                    fallback: SvgArt(
-                      svg: clubArtFor(tile.key, tile.owned ? tile.tier : 1),
-                    ),
-                  ),
+                GameIcon(
+                  assetCategoryIcon[tile.key] ?? 'club',
+                  size: 15,
+                  color: tile.owned ? ink : kit.textMuted,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t('asset.${tile.key}.name'),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        t('asset.${tile.key}.hint'),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: kit.textMuted, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (tile.owned) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                  key: ValueKey('club-progress-${tile.key}'),
-                  value: tile.progress,
-                  minHeight: 6,
-                  backgroundColor: kit.surface2,
-                  valueColor: AlwaysStoppedAnimation(kit.accent),
-                ),
-              ),
-            ],
-            const SizedBox(height: 10),
-            // ONE LINE EACH, and the button capped. Nothing here wraps: the row
-            // is a status, a reason and an action, and a long localised label or
-            // a seven-figure price used to widen the button until the two texts
-            // beside it wrapped to five or six lines apiece — which is what
-            // opened the tall band of empty card under every heading. A row that
-            // cannot wrap cannot do that.
-            Row(
-              children: [
+                const SizedBox(width: 5),
                 Expanded(
                   child: Text(
-                    tile.owned
-                        ? t('club.tier_n', {'n': tile.tier})
-                        : t('club.build'),
+                    t('asset.${tile.key}.name'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: kit.textMuted, fontSize: 12),
-                  ),
-                ),
-                if (reason != null)
-                  Flexible(
-                    child: Text(
-                      reason,
-                      textAlign: TextAlign.right,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: kit.textMuted, fontSize: 11),
-                    ),
-                  ),
-                const SizedBox(width: 8),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.sizeOf(context).width * 0.42,
-                  ),
-                  child: ElevatedButton(
-                    key: ValueKey('club-action-${tile.key}'),
-                    onPressed: !buildable
-                        ? null
-                        : () => _buy(context, ref, game),
-                    child: Text(
-                      tile.maxed
-                          ? t('shop.owned')
-                          : '${tile.owned ? t('club.invest') : t('club.build')}'
-                                ' ${formatCoins(tile.nextCost)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 4),
+          // **What it GIVES.** The card used to show the flavour hint here and
+          // nothing else, so a player investing had no idea what they were
+          // buying — and `club_asset_tiers.dart`, which computes exactly this,
+          // had no caller at all. An unbuilt facility shows its hint instead:
+          // there is no perk yet to state.
+          SizedBox(
+            height: 29,
+            child: Text(
+              tile.owned ? tile.perk : t('asset.${tile.key}.hint'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.3,
+                color: tile.owned ? null : kit.textMuted,
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          if (tile.owned) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                key: ValueKey('club-progress-${tile.key}'),
+                value: tile.progress,
+                minHeight: 7,
+                backgroundColor: Colors.black.withValues(alpha: 0.25),
+                valueColor: AlwaysStoppedAnimation(
+                  tile.maxed ? const Color(0xFF00C8FF) : kit.accent,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            // Only what the NEXT tier changes — and at the top of the ladder,
+            // where it goes, because leaving the row blank punched a hole
+            // between the full bar and the button.
+            SizedBox(
+              height: 27,
+              child: Text(
+                tile.maxed
+                    ? '${t('club.tier_n', {'n': maxAssetTier})} · ${t('club.maxed')}'
+                    : tile.next ?? '',
+                key: ValueKey('club-next-${tile.key}'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1.35,
+                  color: kit.textMuted,
+                ),
+              ),
+            ),
+            const SizedBox(height: 7),
           ],
-        ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              key: ValueKey('club-action-${tile.key}'),
+              onPressed: !buildable ? null : () => _buy(context, ref, game),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                textStyle: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              child: Text(
+                _actionLabel(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openLadder(BuildContext context) =>
+      showAssetLadderSheet(context, tile.key);
+
+  /// What the button says.
+  ///
+  /// A dead button that only greys out tells the player nothing; the JS names
+  /// the shortfall instead, which is the difference between "you cannot" and
+  /// "you need this much more". The other two refusals — no players yet, top of
+  /// the ladder — are their own copy.
+  String _actionLabel() => switch (tile.blocked) {
+    _ when tile.maxed => '★ ${t('club.maxed')}',
+    'needs_player' => t('club.sign_player_first'),
+    'insufficient_coins' when tile.shortBy > 0 => t('club.need_more', {
+      'coin': '💰',
+      'amount': formatCoins(tile.shortBy),
+    }),
+    // A refusal the engine has but this screen has no words for. It should not
+    // happen; a dead button with a price on it and no reason should not either.
+    null || 'insufficient_coins' =>
+      '${tile.owned ? t('club.invest') : t('club.build')} '
+          '💰 ${formatCoins(tile.nextCost)}',
+    _ => t('settings.comingSoon'),
+  };
+}
+
+/// The facility's artwork, and the two badges on it: what tier it is at, and
+/// that there is a ladder behind it.
+class _Art extends StatelessWidget {
+  const _Art({required this.tile, required this.ink, required this.onTap});
+
+  final AssetTile tile;
+  final Color ink;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return GestureDetector(
+      onTap: tile.owned ? onTap : null,
+      child: Stack(
+        children: [
+          // Full width, as tall as the JS's `TILE_H`. It had been a 52px square
+          // beside the text, which is a list icon — the artwork is generated per
+          // tier and is how a facility is recognised.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              height: 64,
+              width: double.infinity,
+              child: ArtImage(
+                key: ValueKey('club-art-${tile.key}'),
+                path: clubAssetImagePath(tile.key, tile.owned ? tile.tier : 1),
+                // An unbuilt facility shows its tier-one art, drained: what it
+                // will look like is a better prompt than an empty square.
+                dimmed: !tile.owned,
+                dimBrightness: 0.45,
+                fallback: SvgArt(
+                  svg: clubArtFor(tile.key, tile.owned ? tile.tier : 1),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 5,
+            right: 5,
+            child: tile.owned
+                ? Container(
+                    key: ValueKey('club-tier-badge-${tile.key}'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tile.maxed ? const Color(0xFF00C8FF) : ink,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      tile.maxed ? '★ MAX' : t('club.tier_n', {'n': tile.tier}),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        height: 1.4,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(color: Color(0x66000000), blurRadius: 2),
+                        ],
+                      ),
+                    ),
+                  )
+                : Container(
+                    key: ValueKey('club-locked-${tile.key}'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.lock_outline,
+                      size: 10,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+          ),
+          // The ladder is one tap away, and this is what says so.
+          if (tile.owned)
+            Positioned(
+              bottom: 5,
+              right: 5,
+              child: Container(
+                width: 17,
+                height: 17,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.6),
+                ),
+                child: Icon(
+                  Icons.info_outline,
+                  size: 11,
+                  color: kit.textMuted.withValues(alpha: 0.95),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -15,10 +15,12 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
+import 'package:merge_empire_fc/util/format.dart';
 
 const String _key = AssetCategory.training;
 
@@ -159,7 +161,15 @@ void main() {
             .onPressed,
         isNull,
       );
-      expect(find.text(t('toast.not_enough_coins')), findsWidgets);
+      // The BUTTON says how far short, rather than only going grey: "you
+      // cannot" and "you need this much more" are different sentences.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('club-action-$_key')),
+          matching: find.textContaining(formatCoins(buildCost)),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a club with no players cannot build, and is told why', (
@@ -175,7 +185,13 @@ void main() {
             .onPressed,
         isNull,
       );
-      expect(find.text(t('club.build_needs_player')), findsWidgets);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('club-action-$_key')),
+          matching: find.text(t('club.sign_player_first')),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a maxed facility offers nothing more', (tester) async {
@@ -318,6 +334,130 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('feature-unlock')), findsNothing);
       await settleSave(tester);
+    });
+  });
+
+  group('what a card says', () {
+    /// Own the facility at [tier] so the card has something to report.
+    Future<ProviderContainer> pumpOwned(
+      WidgetTester tester, {
+      int tier = 1,
+      int coins = 100000000,
+    }) async {
+      final container = await pumpClub(tester, coins: coins);
+      container.read(gameProvider).update((s) {
+        final assets = s['clubAssets'] as Map<String, dynamic>;
+        assets[_key] = <String, dynamic>{
+          'owned': true,
+          'tier': tier,
+          'invested': 0,
+          'tapCount': 0,
+        };
+      });
+      await tester.pumpAndSettle();
+      // The mutation arms the debounced save; a test that walks away from it
+      // ends with a timer pending and the binding rightly complains.
+      await settleSave(tester);
+      return container;
+    }
+
+    testWidgets('WHAT IT GIVES, which the card had never said', (tester) async {
+      // `club_asset_tiers.dart` is a ported, tested engine that computes exactly
+      // this and had no caller at all: the card showed a name, a hint and a
+      // price, so a player investing could not know what they were buying.
+      await pumpOwned(tester, tier: 3);
+      expect(assetPerkLine(_key, 3), isNot('—'));
+      expect(find.text(assetPerkLine(_key, 3)), findsOneWidget);
+    });
+
+    testWidgets('and only what the NEXT tier changes', (tester) async {
+      await pumpOwned(tester, tier: 3);
+      final next = assetNextLine(_key, 3);
+      expect(next, isNotNull);
+      expect(find.byKey(const ValueKey('club-next-$_key')), findsOneWidget);
+      expect(find.text(next!), findsOneWidget);
+      expect(
+        next,
+        isNot(assetPerkLine(_key, 3)),
+        reason: 'a next line that repeats the current one reads as broken',
+      );
+    });
+
+    testWidgets('the tier it is at, on the art', (tester) async {
+      await pumpOwned(tester, tier: 4);
+      expect(
+        find.byKey(const ValueKey('club-tier-badge-$_key')),
+        findsOneWidget,
+      );
+      expect(find.text(t('club.tier_n', {'n': 4})), findsWidgets);
+    });
+
+    testWidgets('and a LOCK while it is unbuilt', (tester) async {
+      await pumpClub(tester, coins: 100000);
+      expect(find.byKey(const ValueKey('club-locked-$_key')), findsOneWidget);
+      expect(find.byKey(const ValueKey('club-tier-badge-$_key')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('club-next-$_key')),
+        findsNothing,
+        reason: 'nothing to step up from yet',
+      );
+    });
+
+    testWidgets('the top of the ladder says so rather than going blank', (
+      tester,
+    ) async {
+      await pumpOwned(tester, tier: maxAssetTier);
+      expect(
+        find.textContaining(t('club.maxed')),
+        findsWidgets,
+        reason: 'a blank row punched a hole between the bar and the button',
+      );
+    });
+  });
+
+  group('the upgrade path', () {
+    testWidgets('opens from the card, and lands on the tier the club is on', (
+      tester,
+    ) async {
+      final container = await pumpClub(tester, coins: 100000000);
+      container.read(gameProvider).update((s) {
+        (s['clubAssets'] as Map<String, dynamic>)[_key] = <String, dynamic>{
+          'owned': true,
+          'tier': 3,
+          'invested': 0,
+          'tapCount': 0,
+        };
+      });
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('club-art-$_key')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('asset-ladder-$_key')), findsOneWidget);
+      expect(find.text(t('club.upgrade_path').toUpperCase()), findsOneWidget);
+      // The tier the club is on is marked, and every tier is listed.
+      expect(find.byKey(const ValueKey('asset-ladder-now')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('asset-ladder-row-3'), skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('asset-ladder-row-$maxAssetTier'),
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('an unbuilt facility has no ladder to open yet', (
+      tester,
+    ) async {
+      await pumpClub(tester, coins: 100000);
+      await tester.tap(find.byKey(const ValueKey('club-art-$_key')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('asset-ladder-$_key')), findsNothing);
     });
   });
 }
