@@ -1885,9 +1885,19 @@ Ordered by how visible each one is to somebody playing.
       swipe ends, the keeper's plan is already rolled and a second swipe is
       already refused, so nothing about the physics or the outcome depends on
       the animation in front of it.
-- [ ] **The keeper could use a save ANIMATION** — the ball is stopped by a reach
+- [x] **The keeper could use a save ANIMATION** — the ball is stopped by a reach
       test and then the clip ends. Parrying it away, or holding it, is the
-      difference between a save and the ball vanishing.
+      difference between a save and the ball vanishing. Both are in: a struck
+      penalty is PUSHED away — back out towards the taker and off to the side
+      the glove met it on, at a fraction of the pace it arrived with, with the
+      boot's spin taken off it — and a weak one is GATHERED, riding the hands
+      rather than dropping out of them, which would be a fumble and a different
+      outcome from the one that was rolled. The simulation keeps running through
+      it, which is the point: it used to set the result and return.
+      The result is set BEFORE the deflection, so nothing about which way the
+      game went depends on the animation. `flightTime` is the new name for how
+      long the ball was in the air — the follow-through is time on the clock but
+      it is not flight, and the keeper's dive is tuned against the flight.
 - [x] **The daily reward** ticks the days already claimed now — and what a day
       pays was always on the tile. See 25 Aug.
 - [x] **The five mini-games with no screen** — `training` aside, `keepy_uppys`,

@@ -210,7 +210,38 @@ class PenaltyKick {
   /// twice.
   final Vec3 keeperHand = Vec3(0, 0, 0.9);
 
-  bool get done => result != null;
+  /// He clung on to it, rather than pushing it away.
+  bool held = false;
+
+  /// Seconds since the gloves got to it. Null until they do.
+  double? savedAt;
+
+  /// How long the ball stays live after a save.
+  ///
+  /// **A save that stops the ball dead is a ball vanishing.** The keeper reached
+  /// it and then the simulation simply ended, which on screen is the ball
+  /// freezing in mid-air — the one moment of the game the player most wants to
+  /// watch. It is pushed away or clung to now, and it keeps moving while that
+  /// happens.
+  static const double saveFollowThrough = 0.85;
+
+  /// A held ball is over sooner: there is nothing left to watch once it is in
+  /// his gloves.
+  static const double holdFollowThrough = 0.35;
+
+  /// How long the ball was in the air on its way to the goal.
+  ///
+  /// Distinct from [elapsed] now that a save keeps running: the follow-through
+  /// is time on the clock but it is not flight, and the keeper's dive is tuned
+  /// against the flight.
+  double get flightTime => savedAt ?? elapsed;
+
+  bool get done {
+    if (result == null) return false;
+    final at = savedAt;
+    if (at == null) return true;
+    return elapsed - at >= (held ? holdFollowThrough : saveFollowThrough);
+  }
 
   /// The launch, from the aim.
   ///
@@ -255,6 +286,19 @@ class PenaltyKick {
   }
 
   void _step(double dt) {
+    // In his gloves, and staying there. It rides the hands rather than dropping
+    // out of them — a caught ball that then falls to the turf under gravity is
+    // a fumble, which is a different outcome and not the one that was rolled.
+    if (held) {
+      elapsed += dt;
+      _moveKeeper();
+      position
+        ..x = keeperHand.x
+        ..y = keeperHand.y
+        ..z = keeperHand.z;
+      return;
+    }
+
     final before = position.clone();
 
     // Drag opposes the flight and grows with the square of the speed.
@@ -276,8 +320,10 @@ class PenaltyKick {
     elapsed += dt;
 
     _moveKeeper();
-    if (_keeperGotIt()) {
+    if (savedAt == null && _keeperGotIt()) {
       result = PenaltyResult.saved;
+      savedAt = elapsed;
+      _parry(speed);
       return;
     }
 
@@ -396,6 +442,43 @@ class PenaltyKick {
   /// Only ever inside the frame's own depth: a keeper cannot save a ball that is
   /// still four metres out, and testing distance alone let him pluck one out of
   /// the air on the way past.
+  /// What the gloves DO to it.
+  ///
+  /// Two outcomes, and the difference is the pace on the shot. A weak one
+  /// straight at him is gathered — the ball stops in his hands and drops with
+  /// them. Anything struck is pushed AWAY: back out towards the taker and off to
+  /// the side the hand met it on, at a fraction of the pace it arrived with,
+  /// which is what a parry looks like.
+  void _parry(double speed) {
+    if (speed < _holdSpeed) {
+      held = true;
+      velocity
+        ..x = 0
+        ..y = 0
+        ..z = 0;
+      spin
+        ..x = 0
+        ..y = 0
+        ..z = 0;
+      return;
+    }
+    // Away from the centre of the gloves, so a ball met on the outside of the
+    // hand goes wide and one met square comes back down the middle.
+    final offset = position.x - keeperHand.x;
+    final side = offset.abs() < 0.02
+        ? (keeperHand.x < 0 ? -1.0 : 1.0)
+        : offset.sign;
+    velocity
+      ..x = side * speed * _parryOut
+      ..y = -speed * _parryBack
+      ..z = speed * _parryUp;
+    // The spin is gone: it was the boot's, and the gloves have taken it off.
+    spin
+      ..x = 0
+      ..y = 0
+      ..z = 0;
+  }
+
   bool _keeperGotIt() {
     if (position.y < -0.6 || position.y > 0.35) return false;
     final dx = position.x - keeperHand.x;
@@ -404,6 +487,15 @@ class PenaltyKick {
     return dx * dx + dz * dz < reach * reach;
   }
 }
+
+/// Below this, in metres per second, he gathers it rather than pushing it away.
+const double _holdSpeed = 13;
+
+/// What is left of the shot's pace after the gloves, split three ways. They are
+/// deliberately small: a parried ball loops away, it does not rocket.
+const double _parryOut = 0.30;
+const double _parryBack = 0.22;
+const double _parryUp = 0.26;
 
 /// The keeper's plan for one kick.
 ///
@@ -432,6 +524,8 @@ KeeperPlan planKeeper({
     height: read ? aim.lift.abs().clamp(0.0, 1.0) : rng.nextDouble(),
     // Reading it early is the other half of a good keeper. A guess commits late
     // and has further to travel.
-    commitAt: read ? 0.02 + rng.nextDouble() * 0.06 : 0.10 + rng.nextDouble() * 0.1,
+    commitAt: read
+        ? 0.02 + rng.nextDouble() * 0.06
+        : 0.10 + rng.nextDouble() * 0.1,
   );
 }

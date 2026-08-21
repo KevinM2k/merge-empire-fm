@@ -33,18 +33,10 @@ KeeperPlan reads(PenaltyAim aim) => (
 );
 
 /// A keeper who guessed the wrong way.
-KeeperPlan guessesWrong(PenaltyAim aim) => (
-  side: aim.across > 0 ? -0.8 : 0.8,
-  height: 0.4,
-  commitAt: 0.16,
-);
+KeeperPlan guessesWrong(PenaltyAim aim) =>
+    (side: aim.across > 0 ? -0.8 : 0.8, height: 0.4, commitAt: 0.16);
 
-const PenaltyAim _corner = (
-  across: -0.74,
-  lift: 0.62,
-  power: 0.9,
-  curl: 0.0,
-);
+const PenaltyAim _corner = (across: -0.74, lift: 0.62, power: 0.9, curl: 0.0);
 
 void main() {
   group('the geometry is the real geometry', () {
@@ -59,15 +51,18 @@ void main() {
     test('and a hard penalty takes about half a second', () {
       // The number the keeper's dive is tuned against. If this moves, the dive
       // times have to move with it.
+      // The FLIGHT, not the clip: a save keeps the ball live afterwards while
+      // it is parried away, and that is time on the clock rather than time in
+      // the air.
       final k = kick((across: 0, lift: 0.3, power: 1, curl: 0));
-      expect(k.elapsed, greaterThan(0.3));
-      expect(k.elapsed, lessThan(0.55));
+      expect(k.flightTime, greaterThan(0.3));
+      expect(k.flightTime, lessThan(0.55));
     });
 
     test('and a floated one takes twice as long', () {
       final soft = kick((across: 0, lift: 0.45, power: 0.05, curl: 0));
       final hard = kick((across: 0, lift: 0.45, power: 1, curl: 0));
-      expect(soft.elapsed, greaterThan(hard.elapsed * 1.8));
+      expect(soft.flightTime, greaterThan(hard.flightTime * 1.8));
     });
   });
 
@@ -207,11 +202,7 @@ void main() {
     test('a read follows the aim; a guess does not', () {
       final aim = (across: -0.8, lift: 0.6, power: 0.9, curl: 0.0);
       // Seeded so "reads" and "guesses" are both reachable.
-      final always = planKeeper(
-        readChance: 1,
-        aim: aim,
-        rng: math.Random(1),
-      );
+      final always = planKeeper(readChance: 1, aim: aim, rng: math.Random(1));
       expect(always.side, lessThan(-0.9), reason: 'he under-committed');
       final never = planKeeper(readChance: 0, aim: aim, rng: math.Random(1));
       expect(never.commitAt, greaterThan(always.commitAt));
@@ -226,6 +217,70 @@ void main() {
         rng: math.Random(3),
       );
       expect(plan.side.abs(), lessThan(1));
+    });
+  });
+
+  group('THE SAVE IS A SAVE, not the ball vanishing', () {
+    /// A shot straight at a keeper who is standing still: he gets it.
+    PenaltyKick saved({double power = 1}) =>
+        kick((across: 0, lift: 0.25, power: power, curl: 0));
+
+    test('the ball is PUSHED AWAY rather than stopped dead', () {
+      // It used to set the result and return, which on screen is the ball
+      // freezing in mid-air — the one moment of the game the player most wants
+      // to watch.
+      final k = saved();
+      expect(k.result, PenaltyResult.saved);
+      expect(k.savedAt, isNotNull);
+      expect(k.held, isFalse, reason: 'a struck penalty was gathered');
+      // Back out towards the taker, and still moving when the clip ends.
+      expect(k.position.y, lessThan(0));
+      expect(k.elapsed, greaterThan(k.flightTime));
+    });
+
+    test('and it goes OUT to the side the hand met it on', () {
+      // A ball met on the outside of the glove goes wide; one met square comes
+      // back down the middle. Either way it leaves the goalmouth.
+      final k = kick(
+        (across: 0.25, lift: 0.25, power: 1, curl: 0),
+        plan: (side: 0.32, height: 0.4, commitAt: 0.05),
+      );
+      if (k.result != PenaltyResult.saved) return;
+      expect(k.position.x.abs(), greaterThan(0));
+    });
+
+    test('A WEAK ONE IS GATHERED, and that is over sooner', () {
+      final soft = saved(power: 0.02);
+      expect(soft.result, PenaltyResult.saved);
+      expect(soft.held, isTrue, reason: 'a dribbled penalty was parried away');
+      // In his gloves: it stops.
+      expect(soft.velocity.length, 0);
+      final after = soft.elapsed - soft.savedAt!;
+      expect(after, lessThan(PenaltyKick.saveFollowThrough));
+    });
+
+    test('THE OUTCOME IS UNCHANGED — a save is still a save', () {
+      // The whole point of doing this after the result is set: nothing about
+      // which way the game went depends on the animation.
+      for (final power in [0.02, 0.4, 1.0]) {
+        final k = saved(power: power);
+        expect(k.result, PenaltyResult.saved, reason: '$power');
+      }
+    });
+
+    test('and it cannot be saved twice', () {
+      // The parry sends the ball back through the goalmouth, and the reach test
+      // would happily catch it again on the way out.
+      final k = saved();
+      final at = k.savedAt;
+      k.advance(0.5);
+      expect(k.savedAt, at);
+    });
+
+    test('the clip ENDS, rather than running for ever', () {
+      final k = saved();
+      expect(k.done, isTrue);
+      expect(k.elapsed, lessThan(k.flightTime + 1.2));
     });
   });
 }
