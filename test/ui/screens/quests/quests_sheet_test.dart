@@ -168,6 +168,58 @@ void main() {
     expect(find.byKey(const ValueKey('quests-none-season')), findsOneWidget);
   });
 
+  group('WHAT IT PAYS', () {
+    testWidgets('every quest names its reward, and so does the track', (
+      tester,
+    ) async {
+      // The sheet listed the work and never the pay — not for one quest and
+      // not for the set — so a season's quests read as a chore list.
+      final container = await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      final row = container.read(seasonQuestsProvider).single;
+      expect(row.coins, greaterThan(0), reason: 'the row carries no reward');
+      expect(
+        find.byKey(ValueKey('quest-reward-season-$_questId')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('quests-track-prize')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('quests-track-coins')),
+        findsOneWidget,
+        reason: 'the track never says what finishing it is worth',
+      );
+      // The division capstone: the only gem in the game that is not a
+      // purchase, and nothing on screen mentioned it.
+      expect(find.byKey(const ValueKey('quests-track-gem')), findsOneWidget);
+      expect(find.text(t('quests.capstone_reward', {'n': 1})), findsOneWidget);
+    });
+
+    testWidgets('and a division that has already paid its gem stops offering '
+        'it', (tester) async {
+      final state = saveWithQuests();
+      state['gemGrants'] = <String, dynamic>{
+        'questDivisionFirsts': [
+          (state['progression'] as Map<String, dynamic>)['currentDivision'],
+        ],
+      };
+      await pumpShell(tester, state);
+      await openQuests(tester);
+      expect(find.byKey(const ValueKey('quests-track-prize')), findsOneWidget);
+      expect(find.byKey(const ValueKey('quests-track-gem')), findsNothing);
+    });
+
+    testWidgets('the track counts what has been banked', (tester) async {
+      await pumpShell(tester, saveWithQuests(completed: true, claimed: true));
+      await openQuests(tester);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('quests-track-progress')))
+            .data,
+        '1 / 1',
+      );
+    });
+  });
+
   group('the badge', () {
     // A dot on the burger rather than a count, which is what the JS shows: it
     // is the OR of every tile behind it, so a number would have to mean the sum

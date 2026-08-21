@@ -14,11 +14,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
+import 'package:merge_empire_fc/data/quests.dart' show getQuest;
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// One quest, as a row.
 typedef QuestRow = ({
@@ -28,12 +30,20 @@ typedef QuestRow = ({
   num target,
   bool completed,
   bool claimed,
+
+  /// What claiming it pays, in coins, at THIS division.
+  ///
+  /// **A quest that does not say what it pays is a chore.** The reward is a
+  /// percentage of one league win rather than a literal, so it is worth
+  /// different money in every division — which is exactly why the row has to
+  /// carry the resolved figure rather than the bank's number.
+  int coins,
 });
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num _num(Object? v) => v is num ? v : 0;
 
-List<QuestRow> _rowsFrom(List<dynamic> raw) {
+List<QuestRow> _rowsFrom(Map<String, dynamic>? state, List<dynamic> raw) {
   final out = <QuestRow>[];
   for (final entry in raw) {
     final inst = _map(entry);
@@ -49,6 +59,7 @@ List<QuestRow> _rowsFrom(List<dynamic> raw) {
       target: target,
       completed: inst['completed'] == true,
       claimed: inst['claimedAt'] != null,
+      coins: questRewardCoins(state, getQuest(id)?.reward.coins),
     ));
   }
   return out;
@@ -56,21 +67,40 @@ List<QuestRow> _rowsFrom(List<dynamic> raw) {
 
 final seasonQuestsProvider = savePick<List<QuestRow>>((s) {
   final season = ensureQuests(s)['season'];
-  return _rowsFrom(season is List ? season : const []);
+  return _rowsFrom(s, season is List ? season : const []);
 });
 
 final matchQuestsProvider = savePick<List<QuestRow>>((s) {
   final active = _map(ensureQuests(s)['match'])?['active'];
-  return _rowsFrom(active is List ? active : const []);
+  return _rowsFrom(s, active is List ? active : const []);
 });
 
 /// How many season quests are sitting there completed and unclaimed.
 final claimableQuestsProvider = savePick<int>((s) {
   final season = ensureQuests(s)['season'];
   return _rowsFrom(
+    s,
     season is List ? season : const [],
   ).where((q) => q.completed && !q.claimed).length;
 });
+
+/// What the WHOLE track is worth, and how much of it is banked.
+///
+/// The gem is the division capstone: every season quest completed AND claimed
+/// pays one, once ever, for that division. `quests.capstone_title` and
+/// `quests.capstone_reward` were translated into all ten catalogues with
+/// nothing able to reach either — a track whose prize nothing mentions.
+final seasonQuestPrizeProvider =
+    savePick<({int coins, int gems, int claimed, int total})>((s) {
+      final season = ensureQuests(s)['season'];
+      final rows = _rowsFrom(s, season is List ? season : const []);
+      return (
+        coins: rows.fold<int>(0, (sum, q) => sum + q.coins),
+        gems: divisionCapstonePending(s) ? capstoneGems : 0,
+        claimed: rows.where((q) => q.claimed).length,
+        total: rows.length,
+      );
+    });
 
 /// What a reroll would cost, and whether one is possible at all.
 final questRerollProvider = savePick<({bool can, int cost, int free})>(
@@ -116,6 +146,11 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
                     ? () => game.update((s) => claimQuest(s, quest.id))
                     : null,
               ),
+            // **WHAT THE WHOLE TRACK IS WORTH.** The sheet listed the work and
+            // never the pay — not for one quest and not for the set — so a
+            // season's quests read as a chore list rather than as a prize with
+            // a number on it.
+            if (season.isNotEmpty) const _TrackPrize(),
             if (season.isNotEmpty) _RerollRow(),
             // The MATCH track is not here. It belongs on the next-match card —
             // a match quest is an instruction for the game you are about to
@@ -126,6 +161,126 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
           ],
         );
       },
+    ),
+  );
+}
+
+/// The prize for the whole track: the coins it pays, and the division's gem.
+///
+/// The gem is `checkDivisionCapstone` — every season quest completed AND
+/// claimed pays one, once ever, for that division. It is the only gem route in
+/// the game that is not a purchase, and nothing on screen mentioned it:
+/// `quests.capstone_title` and `quests.capstone_reward` sat translated in all
+/// ten catalogues with no caller.
+class _TrackPrize extends ConsumerWidget {
+  const _TrackPrize();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final prize = ref.watch(seasonQuestPrizeProvider);
+    if (prize.total == 0) return const SizedBox.shrink();
+    final done = prize.claimed >= prize.total;
+
+    return Container(
+      key: const ValueKey('quests-track-prize'),
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: kit.accent.withValues(alpha: done ? 0.18 : 0.08),
+        border: Border.all(
+          color: kit.accent.withValues(alpha: done ? 0.7 : 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t('quests.capstone_title').toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                    color: kit.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${prize.claimed} / ${prize.total}',
+                  key: const ValueKey('quests-track-progress'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: done ? kit.accentBright : null,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (prize.coins > 0)
+            _RewardChip(
+              key: const ValueKey('quests-track-coins'),
+              icon: 'coin',
+              ink: coinFigureInk(context),
+              label: t('quests.reward_coins', {'n': prize.coins}),
+            ),
+          // The gem only while it is still there to be earned: a division that
+          // has already paid it would be advertising a prize that cannot come
+          // twice.
+          if (prize.gems > 0) ...[
+            const SizedBox(width: 6),
+            _RewardChip(
+              key: const ValueKey('quests-track-gem'),
+              icon: 'gem',
+              ink: const Color(0xFF7FD4FF),
+              label: t('quests.capstone_reward', {'n': prize.gems}),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A figure with the currency's own glyph on it.
+class _RewardChip extends StatelessWidget {
+  const _RewardChip({
+    required this.icon,
+    required this.ink,
+    required this.label,
+    super.key,
+  });
+
+  final String icon;
+  final Color ink;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(999),
+      color: ink.withValues(alpha: 0.14),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GameIcon(icon, size: 13, color: ink),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            color: ink,
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -199,7 +354,30 @@ class _QuestTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(quest.text, style: const TextStyle(fontSize: 13)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(quest.text, style: const TextStyle(fontSize: 13)),
+                ),
+                if (quest.coins > 0) ...[
+                  const SizedBox(width: 8),
+                  // **WHAT IT PAYS, on the row that asks for the work.** The
+                  // figure is a percentage of one league win rather than a
+                  // literal, so it is worth different money in every division
+                  // — which is the other half of why it has to be shown.
+                  Opacity(
+                    opacity: quest.claimed ? 0.5 : 1,
+                    child: _RewardChip(
+                      key: ValueKey('quest-reward-$track-${quest.id}'),
+                      icon: 'coin',
+                      ink: coinFigureInk(context),
+                      label: t('quests.reward_coins', {'n': quest.coins}),
+                    ),
+                  ),
+                ],
+              ],
+            ),
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(3),

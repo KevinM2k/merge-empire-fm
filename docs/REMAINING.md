@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,363 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,366 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -42,7 +42,7 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
-**110 items are open**, plus six carrying a `[~]` — answered, but with a decision
+**109 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3319,8 +3319,15 @@ is wrong in six places.
 ### Everywhere else
 
 - [ ] **Fixtures: the design is not right.**
-- [ ] **Season quests do not look good, and do not show the reward** — neither
-      for one of them nor for all of them.
+- [~] **Season quests do not look good, and do not show the reward** — neither
+      for one of them nor for all of them. **The rewards are on now**: every
+      quest carries what it pays, resolved for THIS division (the bank's figure
+      is a percentage of one league win, not a literal), and the track carries
+      what finishing it is worth — the coins plus the division capstone gem,
+      which is the only gem in the game that is not a purchase and which nothing
+      on screen had ever mentioned. `quests.capstone_title` and
+      `quests.capstone_reward` were translated ten times over with no caller.
+      **The LOOK is still open**: the tiles are still plain cards with a bar.
 - [ ] **The training popup has no images and is boring.**
 - [x] **Daily: the boxes should be equal**, there is much more room than it uses,
       and the tick should cross the WHOLE box rather than sit in a corner where
