@@ -21,7 +21,7 @@ Two queues, and they are different lists:
 
 ```bash
 flutter analyze                      # must be clean before any commit
-flutter test                         # ~3,800 tests
+flutter test                         # ~4,200 tests
 TZ=UTC flutter test                  # test/data/events_test.dart and
                                      # test/engine/event_engine_test.dart skip
                                      # themselves outside UTC — annual event
@@ -90,13 +90,30 @@ layer run under plain `dart test` with no widget binding.
   change first. The queue drains in priority order and **may never time out or
   discard**: the welcome-back card holds coins that exist nowhere else.
 - **Every user-facing string goes through `t()`.** The key must exist in `en` or
-  `test/i18n/call_sites_test.dart` fails the build.
+  `test/i18n/call_sites_test.dart` fails the build. `t()` also turns a catalogue
+  `<br>` into a newline — three entries are still written for a DOM, and the
+  catalogues are generated, so the fix has to live at the boundary.
+- **A cue emitted N times in one frame plays ONCE.** `retriggerFloor` in
+  `sound_service.dart` is 70ms, because a batch signing places four cards inside
+  one `update` and four retriggers of a 0.55s clip is a burr rather than four
+  sounds. Anything that wants to stack — thunder, fireworks — passes
+  `overlap: true`.
 - **Colours come from `Theme.of(context).extension<KitTheme>()!`.** The whole
   palette is derived from the club's kit; a hardcoded colour is a bug.
 - Seeded gameplay randomness goes through `util/random.dart`; anything mirroring
   JS `Math.random()` uses `dart:math`. Mixing them shifts every later draw, and
   **draw order matters as much as the formula**.
 - Nothing ending `.g.dart` is edited by hand.
+- **Reuse these rather than building a second one.** Each exists because there
+  were two and they disagreed: `PitchBoard` (`squad_pitch.dart`) lays the eleven
+  out for the squad tab AND the subs panel; `PlayerHeroArt` and `benchColumns`
+  (`player_card.dart`) are the full-length figure and the bench's column count;
+  `CoachBubbleTail` and `coachAlert` (`coach_card.dart`) are the speech tail and
+  the unread red.
+- **`PlayerCard.light` is null by default and resolves from the theme.** It was a
+  `bool` defaulting to false, so seven callers each had to remember and the squad,
+  the bench and the pickers were dark on a light page. Pass it only for a card
+  that is genuinely not in the page's theme — one lifted onto a drag overlay.
 
 ## Porting habits
 
