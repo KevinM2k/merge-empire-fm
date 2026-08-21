@@ -44,6 +44,7 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -251,41 +252,45 @@ class _PlayerDetail extends ConsumerWidget {
     );
   }
 
-  /// Selling is irreversible and the button sits under the thumb at the bottom
-  /// of a scrolling sheet, so nothing leaves the squad without a confirm.
+  /// **LETTING A PLAYER GO IS A DECISION, SO IT IS COLIN'S CARD.**
+  ///
+  /// All three of these were `AlertDialog`s — the app's own voice asking about
+  /// the squad, on a screen whose whole premise is that you have a manager to
+  /// talk to. The rule this port already keeps everywhere else is that every
+  /// decision comes through him, with the answers COLOURED so the shape of the
+  /// question is readable before the words are.
+  ///
+  /// It is irreversible and the button sits under the thumb at the bottom of a
+  /// scrolling sheet, so nothing leaves the squad without being asked.
   Future<void> _sell(
     BuildContext context,
     WidgetRef ref,
     CardInstance card,
     PlayerDef def,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        key: const ValueKey('detail-sell-confirm'),
-        title: Text(t('sell.title', {'name': card.name(def.name)})),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${t('sell.receive')}: ${formatCoins(offer.price)}'),
-            const SizedBox(height: 6),
-            Text(t('sell.lose_bonuses')),
-          ],
+    final confirmed = await showCoachCard<bool>(
+      context,
+      titleKey: 'sell.title',
+      bodyKey: 'sell.receive',
+      bodyParams: {'name': card.name(def.name)},
+      body: '${t('sell.receive')}: ${formatCoins(offer.price)}',
+      // What the sale COSTS, in its own right: the bonuses go with him, and
+      // burying that inside the offer is how somebody agrees to something they
+      // did not read.
+      extraLines: [(key: 'sell.lose_bonuses', params: const {}, strong: false)],
+      actions: [
+        CoachAction(
+          labelKey: 'common.cancel',
+          tone: CoachTone.decline,
+          onTap: () {},
         ),
-        actions: [
-          TextButton(
-            key: const ValueKey('detail-sell-cancel'),
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(t('common.cancel')),
-          ),
-          ElevatedButton(
-            key: const ValueKey('detail-sell-go'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(t('common.sell')),
-          ),
-        ],
-      ),
+        CoachAction(
+          labelKey: 'common.sell',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: true,
+        ),
+      ],
     );
     if (confirmed != true || !context.mounted) return;
     ref
@@ -303,28 +308,24 @@ class _PlayerDetail extends ConsumerWidget {
   ) async {
     final team =
         card.raw['loanFrom'] as String? ?? t('squad.detail.another_club');
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        key: const ValueKey('detail-sendback-confirm'),
-        content: Text(
-          t('squad.detail.send_back_confirm', {
-            'name': card.name(),
-            'team': team,
-          }),
+    final confirmed = await showCoachCard<bool>(
+      context,
+      titleKey: 'squad.detail.send_back',
+      bodyKey: 'squad.detail.send_back_confirm',
+      bodyParams: {'name': card.name(), 'team': team},
+      actions: [
+        CoachAction(
+          labelKey: 'common.cancel',
+          tone: CoachTone.decline,
+          onTap: () {},
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(t('common.cancel')),
-          ),
-          ElevatedButton(
-            key: const ValueKey('detail-sendback-go'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(t('squad.detail.send_back')),
-          ),
-        ],
-      ),
+        CoachAction(
+          labelKey: 'squad.detail.send_back',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: true,
+        ),
+      ],
     );
     if (confirmed != true || !context.mounted) return;
     ref.read(gameProvider).update((s) => sendLoaneeBack(s, card.instanceId));
@@ -338,25 +339,24 @@ class _PlayerDetail extends ConsumerWidget {
     CardInstance card,
   ) async {
     final team = _map(card.loanedOut)?['toTeam'] as String? ?? '';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        key: const ValueKey('detail-recall-confirm'),
-        content: Text(
-          t('squad.detail.recall_confirm', {'name': card.name(), 'team': team}),
+    final confirmed = await showCoachCard<bool>(
+      context,
+      titleKey: 'squad.detail.recall_loan',
+      bodyKey: 'squad.detail.recall_confirm',
+      bodyParams: {'name': card.name(), 'team': team},
+      actions: [
+        CoachAction(
+          labelKey: 'common.cancel',
+          tone: CoachTone.decline,
+          onTap: () {},
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(t('common.cancel')),
-          ),
-          ElevatedButton(
-            key: const ValueKey('detail-recall-go'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(t('squad.detail.recall_loan')),
-          ),
-        ],
-      ),
+        CoachAction(
+          labelKey: 'squad.detail.recall_loan',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: true,
+        ),
+      ],
     );
     if (confirmed != true || !context.mounted) return;
     ref.read(gameProvider).update((s) => recallLoan(s, card.instanceId));

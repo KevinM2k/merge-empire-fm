@@ -20,12 +20,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/coach_tip_engine.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
@@ -130,12 +132,17 @@ Future<TransferAnswer?> showTransferOffer(
   final offer = ref.read(pendingOfferProvider);
   if (offer == null) return null;
 
+  // Through `update`, because spending the id WRITES to the save.
+  final explain = ref
+      .read(gameProvider)
+      .update((s) => takeTipOnce(s, 'transfer_offer'));
+
   final answer = await showDialog<TransferAnswer>(
     context: context,
     // Tapping outside parks it rather than answering, which is only safe
     // because nothing is lost by doing so.
     barrierDismissible: true,
-    builder: (_) => _TransferOfferCard(offer: offer),
+    builder: (_) => _TransferOfferCard(offer: offer, explain: explain),
   );
   if (answer == null) return null;
 
@@ -149,9 +156,13 @@ Future<TransferAnswer?> showTransferOffer(
 }
 
 class _TransferOfferCard extends ConsumerWidget {
-  const _TransferOfferCard({required this.offer});
+  const _TransferOfferCard({required this.offer, required this.explain});
 
   final Map<String, dynamic> offer;
+
+  /// Whether this is the first bid this save has ever received, and so carries
+  /// Colin's one-time explanation of what one IS.
+  final bool explain;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -189,101 +200,89 @@ class _TransferOfferCard extends ConsumerWidget {
       '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.',
     ].join(' ');
 
-    return AlertDialog(
+    return CoachCardFrame(
       key: const ValueKey('transfer-offer'),
-      backgroundColor: kit.surface,
-      title: Column(
-        children: [
-          const Text('💸', style: TextStyle(fontSize: 30)),
-          const SizedBox(height: 6),
-          Text(
-            t('coachtip.name'),
-            style: TextStyle(fontSize: 12, color: kit.textMuted),
+      title: t('transfer.card_title', {'club': offer['fromTeam'] ?? ''}),
+      badge: '💸',
+      // **What a bid MEANS, once ever.** A paragraph inside the offer rather
+      // than a coach tip stacked on top of it — the JS makes that point twice,
+      // and it is why `coachtip.transfer_offer.*` exists and still turns up in
+      // `seenTips`.
+      extraLines: [
+        if (explain)
+          (
+            key: 'coachtip.transfer_offer.body',
+            params: const {},
+            strong: false,
           ),
+      ],
+      // Park, no, yes. Three answers stack rather than sharing a row, which is
+      // the frame's own rule: at three, a row makes every label too narrow.
+      actions: [
+        CoachAction(
+          labelKey: 'transfer.accept_amount',
+          labelParams: <String, Object?>{'amount': formatCoins(price)},
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: TransferAnswer.accepted,
+        ),
+        CoachAction(
+          labelKey: 'common.decline',
+          tone: CoachTone.decline,
+          onTap: () {},
+          result: TransferAnswer.declined,
+        ),
+        // **Parking is not an answer**, so it does not take a colour. Tapping
+        // outside does the same thing, and nothing is lost by it.
+        CoachAction(labelKey: 'transfer.minimize', onTap: () {}),
+      ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (def != null)
+            SizedBox(
+              height: 110,
+              child: ArtImage(
+                path: playerImagePath(
+                  def.position,
+                  def.tier,
+                  _num(offer['variant']).toInt(),
+                ),
+                fit: BoxFit.contain,
+                fallback: PlayerPortrait(
+                  variantIndex: _num(offer['variant']).toInt(),
+                  kitColor: kit.accent,
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
           Text(
-            t('transfer.card_title', {'club': offer['fromTeam'] ?? ''}),
+            pitch,
+            key: const ValueKey('transfer-pitch'),
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 13, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            transferAdvice(state, offer, card),
+            key: const ValueKey('transfer-advice'),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, height: 1.5, color: kit.textMuted),
+          ),
+          const SizedBox(height: 10),
+          // Stated plainly, because it is the half of the decision the numbers
+          // do not carry.
+          Text(
+            t('transfer.decline_warning', {'club': offer['fromTeam'] ?? ''}),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFFFB74D),
+            ),
           ),
         ],
       ),
-      content: SizedBox(
-        width: 340,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (def != null)
-                SizedBox(
-                  height: 110,
-                  child: ArtImage(
-                    path: playerImagePath(
-                      def.position,
-                      def.tier,
-                      _num(offer['variant']).toInt(),
-                    ),
-                    fit: BoxFit.contain,
-                    fallback: PlayerPortrait(
-                      variantIndex: _num(offer['variant']).toInt(),
-                      kitColor: kit.accent,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 10),
-              Text(
-                pitch,
-                key: const ValueKey('transfer-pitch'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, height: 1.5),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                transferAdvice(state, offer, card),
-                key: const ValueKey('transfer-advice'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.5,
-                  color: kit.textMuted,
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Stated plainly, because it is the half of the decision the
-              // numbers do not carry.
-              Text(
-                t('transfer.decline_warning', {
-                  'club': offer['fromTeam'] ?? '',
-                }),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFFFB74D),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          key: const ValueKey('transfer-park'),
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(t('transfer.minimize')),
-        ),
-        OutlinedButton(
-          key: const ValueKey('transfer-decline'),
-          onPressed: () => Navigator.of(context).pop(TransferAnswer.declined),
-          child: Text(t('common.decline')),
-        ),
-        ElevatedButton(
-          key: const ValueKey('transfer-accept'),
-          onPressed: () => Navigator.of(context).pop(TransferAnswer.accepted),
-          child: Text(
-            t('transfer.accept_amount', {'amount': formatCoins(price)}),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -52,10 +52,24 @@ class CoachAction {
     required this.onTap,
     this.tone = CoachTone.neutral,
     this.dismisses = true,
+    this.result,
+    this.labelParams = const {},
   });
 
   final String labelKey;
+
+  /// Anything the label needs filling in — a bid's own figure, so the button
+  /// says what it is agreeing to rather than just "Accept".
+  final Map<String, Object?> labelParams;
   final VoidCallback onTap;
+
+  /// What [showCoachCard] resolves to when this is the answer.
+  ///
+  /// **A yes/no question should be able to just ANSWER.** Without this the only
+  /// way to hear which button was pressed is a captured variable and an
+  /// `onTap` that writes to it, which is how three squad confirmations ended up
+  /// as `AlertDialog`s instead — the plumbing was easier than the card's.
+  final Object? result;
 
   /// Yes, no, or neither.
   final CoachTone tone;
@@ -205,78 +219,96 @@ class CoachCardFrame extends StatelessWidget {
                 20,
                 14,
               ),
-              // **SCROLLS RATHER THAN OVERFLOWS.** What he says is a sentence
-              // in whichever of ten languages the player has picked — German is
-              // the measured worst case — and a card that carries a portrait, a
-              // set of terms and two answers has no slack left. A `Column` in a
-              // loose box takes its natural height and paints past the bottom of
-              // the screen; inside a scroll view it takes what there is and the
-              // rest is reachable.
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      t('coachtip.name').toUpperCase(),
-                      key: const ValueKey('coach-card-name'),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: kit.accentBright,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        height: 1.2,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    if (child != null) ...[const SizedBox(height: 10), child!],
-                    if (body != null) ...[
-                      const SizedBox(height: 8),
-                      // What he says. Straight away — see the note at the top.
-                      Text(
-                        body!,
-                        key: const ValueKey('coach-card-body'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: kit.textMuted,
-                          fontSize: 13.5,
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
-                    for (final line in extraLines)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          t(line.key, line.params),
-                          key: ValueKey('coach-line-${line.key}'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: line.strong
-                                ? kit.accentBright
-                                : kit.textMuted,
-                            fontSize: line.strong ? 15 : 12,
-                            fontWeight: line.strong
-                                ? FontWeight.w900
-                                : FontWeight.w400,
+              // **THE READING MATTER SCROLLS; THE ANSWERS DO NOT.**
+              //
+              // What he says is a sentence in whichever of ten languages the
+              // player has picked — German is the measured worst case — and a
+              // card carrying a portrait, a set of terms and three answers has
+              // no slack left. A `Column` in a loose box takes its natural
+              // height and paints straight past the bottom of the screen.
+              //
+              // Scrolling the WHOLE card is the other half of the same bug,
+              // though: it put a rival's Decline below the fold, where a tap
+              // found the barrier instead of the button. A question whose
+              // answers you have to go looking for is worse than one that
+              // overflows — so the buttons sit outside the scroll region and the
+              // reading moves under them.
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            t('coachtip.name').toUpperCase(),
+                            key: const ValueKey('coach-card-name'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: kit.accentBright,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              height: 1.2,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          if (child != null) ...[
+                            const SizedBox(height: 10),
+                            child!,
+                          ],
+                          if (body != null) ...[
+                            const SizedBox(height: 8),
+                            // What he says. Straight away — see the note at the top.
+                            Text(
+                              body!,
+                              key: const ValueKey('coach-card-body'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: kit.textMuted,
+                                fontSize: 13.5,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                          for (final line in extraLines)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                t(line.key, line.params),
+                                key: ValueKey('coach-line-${line.key}'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: line.strong
+                                      ? kit.accentBright
+                                      : kit.textMuted,
+                                  fontSize: line.strong ? 15 : 12,
+                                  fontWeight: line.strong
+                                      ? FontWeight.w900
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                    if (actions.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      _Actions(actions: actions),
-                    ],
+                    ),
+                  ),
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _Actions(actions: actions),
                   ],
-                ),
+                ],
               ),
             ),
           ),
@@ -383,7 +415,7 @@ class _CoachButton extends StatelessWidget {
     return ElevatedButton(
       key: ValueKey('coach-action-${action.labelKey}'),
       onPressed: () {
-        if (action.dismisses) Navigator.of(context).pop();
+        if (action.dismisses) Navigator.of(context).pop(action.result);
         action.onTap();
       },
       style: ElevatedButton.styleFrom(
@@ -397,7 +429,7 @@ class _CoachButton extends StatelessWidget {
         textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
       ),
       child: Text(
-        t(action.labelKey),
+        t(action.labelKey, action.labelParams),
         maxLines: 1,
         softWrap: false,
         overflow: TextOverflow.fade,

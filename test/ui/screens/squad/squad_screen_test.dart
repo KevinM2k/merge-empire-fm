@@ -546,9 +546,14 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('detail-sell')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('detail-sell-confirm')), findsOneWidget);
+      // **AND IT ASKS AS COLIN.** It was an `AlertDialog` — the app's own voice
+      // asking about the squad, on a screen whose premise is that you have a
+      // manager to talk to.
+      expect(find.byKey(const ValueKey('coach-card')), findsOneWidget);
       // Cancelling leaves the squad alone.
-      await tester.tap(find.byKey(const ValueKey('detail-sell-cancel')));
+      await tester.tap(
+        find.byKey(const ValueKey('coach-action-common.cancel')),
+      );
       await tester.pumpAndSettle();
       expect(container.read(benchProvider).length + 11, greaterThan(11));
     });

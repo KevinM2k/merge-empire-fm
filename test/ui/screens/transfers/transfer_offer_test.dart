@@ -106,6 +106,11 @@ Future<ProviderContainer> _pump(
   );
   await tester.tap(find.byKey(const ValueKey('open')));
   await tester.pumpAndSettle();
+  // **Opening the card WRITES to the save now**: the first bid a save ever gets
+  // carries Colin's one-time explanation of what one is, and spending that id is
+  // a change like any other. Flush the debounce so the test does not end holding
+  // its timer.
+  await _settleSave(tester);
   return container;
 }
 
@@ -151,7 +156,9 @@ void main() {
       final container = await _pump(tester, _saveWithOffer(price: 5000));
       final coinsBefore = container.read(coinsProvider);
 
-      await tester.tap(find.byKey(const ValueKey('transfer-accept')));
+      await tester.tap(
+        find.byKey(const ValueKey('coach-action-transfer.accept_amount')),
+      );
       await tester.pumpAndSettle();
       await _settleSave(tester);
 
@@ -166,7 +173,9 @@ void main() {
     ) async {
       final container = await _pump(tester, _saveWithOffer());
 
-      await tester.tap(find.byKey(const ValueKey('transfer-decline')));
+      await tester.tap(
+        find.byKey(const ValueKey('coach-action-common.decline')),
+      );
       await tester.pumpAndSettle();
       await _settleSave(tester);
 
@@ -185,7 +194,9 @@ void main() {
       // squad can be looked over before answering.
       final container = await _pump(tester, _saveWithOffer());
 
-      await tester.tap(find.byKey(const ValueKey('transfer-park')));
+      await tester.tap(
+        find.byKey(const ValueKey('coach-action-transfer.minimize')),
+      );
       await tester.pumpAndSettle();
       await _settleSave(tester);
 
