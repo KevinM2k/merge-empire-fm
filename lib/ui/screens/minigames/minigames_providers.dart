@@ -44,6 +44,7 @@ const Set<String> playableMiniGames = {
   MiniGameKind.penalty,
   MiniGameKind.bootRoom,
   MiniGameKind.throughBall,
+  MiniGameKind.whack,
 };
 
 final miniGamesProvider = savePick<List<MiniGameRow>>((s) {
