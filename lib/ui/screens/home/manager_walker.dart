@@ -47,6 +47,50 @@ import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 
 /// The figure's own space, shared with `data/manager_art.g.dart` so a hat lands
 /// on the head with no positioning of its own.
+/// One layer of the head's furniture, and how much of it to draw.
+///
+/// [hideAbove] is a y in the art's own 120x170 space: above it, this layer is
+/// not drawn. It exists for exactly one thing — a hat hiding the hair going
+/// through it — and it is on the LAYER rather than on the whole head because the
+/// hat itself must not be clipped by its own brow. See [hatCrownY].
+typedef HeadLayer = ({String svg, double? hideAbove});
+
+/// One head layer, clipped to below a hat's brow when it has one.
+class _HeadArt extends StatelessWidget {
+  const _HeadArt({required this.layer});
+
+  final HeadLayer layer;
+
+  @override
+  Widget build(BuildContext context) {
+    final art = SvgArt(svg: layer.svg);
+    final above = layer.hideAbove;
+    if (above == null) return art;
+    return ClipRect(
+      clipper: _BelowClipper(above / managerArtHeight),
+      child: art,
+    );
+  }
+}
+
+/// Keeps the bottom [_BelowClipper.from] of a box, as a fraction of its height.
+///
+/// A fraction rather than pixels: every layer fills the walker's box and the box
+/// is whatever the scene gives it, so an art-unit line has to be expressed
+/// against the height it is drawn at.
+class _BelowClipper extends CustomClipper<Rect> {
+  const _BelowClipper(this.from);
+
+  final double from;
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(0, size.height * from, size.width, size.height);
+
+  @override
+  bool shouldReclip(_BelowClipper old) => old.from != from;
+}
+
 const double walkerWidth = managerArtWidth;
 const double walkerHeight = managerArtHeight;
 
@@ -955,10 +999,10 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // reason [_headSetBack] does: the art is all drawn against a
                     // skull at 62, so turning the painted head alone slides the
                     // face out from under its own hat.
-                    for (final svg in parts.behindHead)
+                    for (final layer in parts.behindHead)
                       _Tilt(
                         degrees: headTilt,
-                        child: _SetBack(child: SvgArt(svg: svg)),
+                        child: _SetBack(child: _HeadArt(layer: layer)),
                       ),
                     _Tilt(
                       degrees: headTilt,
@@ -971,10 +1015,10 @@ class _ManagerWalkerState extends State<ManagerWalker>
                         ),
                       ),
                     ),
-                    for (final svg in parts.overHead)
+                    for (final layer in parts.overHead)
                       _Tilt(
                         degrees: headTilt,
-                        child: _SetBack(child: SvgArt(svg: svg)),
+                        child: _SetBack(child: _HeadArt(layer: layer)),
                       ),
                     // How he is coping, over the head AND over the hat — the
                     // pallor and the flush belong on the face, and a beanie must
@@ -1301,8 +1345,8 @@ class _SetBack extends StatelessWidget {
 typedef ManagerParts = ({
   Color skin,
   List<String> overTorso,
-  List<String> behindHead,
-  List<String> overHead,
+  List<HeadLayer> behindHead,
+  List<HeadLayer> overHead,
 });
 
 /// Resolve a look into drawable, recoloured fragments.
@@ -1342,8 +1386,19 @@ ManagerParts managerPartsFor(
       if (svg != null && svg.trim().isNotEmpty) paint(svg),
   ];
 
+  List<HeadLayer> layers(Iterable<String?> raw, {double? hideAbove}) => [
+    for (final svg in present(raw)) (svg: svg, hideAbove: hideAbove),
+  ];
+
   final (hairBack, hairFront) =
       managerHair['${look['style']}'] ?? managerHair['crop']!;
+
+  // **A HAT HIDES THE HAIR GOING THROUGH IT.** The hat is drawn over the hair,
+  // so whatever its own shape covers is already hidden — what came through was
+  // hair ABOVE it, a mohawk's fin standing clear of a cap. Both hair layers are
+  // clipped, because a fin has a back half too. Null for a headband or a pair of
+  // headphones, which cover nothing above themselves — see [hatCrownY].
+  final crown = hairHiddenAboveY('${look['hat']}');
 
   return (
     skin: _colourOf(skinColour) ?? skin,
@@ -1351,17 +1406,19 @@ ManagerParts managerPartsFor(
       managerOutfits['${look['outfit']}'],
       managerNeck['${look['neck']}'],
     ]),
-    behindHead: present([hairBack]),
-    overHead: present([
-      hairFront,
-      managerBeards['${look['beard']}'],
-      managerFaces['${look['face']}'],
-      managerHats['${look['hat']}'],
-      // The mouth is the manager's MOOD, and `manager_mood.dart` was ported with
-      // nothing to draw it: how the gaffer feels about the season was a value
-      // nobody could see. Last, so a beard cannot cover it.
-      managerMouths[mood.name],
-    ]),
+    behindHead: layers([hairBack], hideAbove: crown),
+    overHead: [
+      ...layers([hairFront], hideAbove: crown),
+      ...layers([
+        managerBeards['${look['beard']}'],
+        managerFaces['${look['face']}'],
+        managerHats['${look['hat']}'],
+        // The mouth is the manager's MOOD, and `manager_mood.dart` was ported
+        // with nothing to draw it: how the gaffer feels about the season was a
+        // value nobody could see. Last, so a beard cannot cover it.
+        managerMouths[mood.name],
+      ]),
+    ],
   );
 }
 

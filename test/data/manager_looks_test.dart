@@ -575,4 +575,53 @@ void main() {
       expect(garmentWarmth(null), _ref['warmth']['missing']);
     });
   });
+
+  group('a hat and the hair under it', () {
+    test('EVERY HAT DECIDES whether it covers the crown', () {
+      // The bug was hair coming through the top of a hat. The fix cannot be a
+      // blanket "a hat hides hair", because four of these are BANDS — a
+      // headband, a visor, a laurel, a pair of headphones — and clipping the
+      // hair for those would shave the top off his head.
+      //
+      // So it is a decision per hat, and this is what makes it a decision rather
+      // than a default: add a hat without one and the build stops.
+      for (final id in hatIds) {
+        expect(
+          hatCrownY.containsKey(id),
+          isTrue,
+          reason: '$id does not say whether it covers the crown',
+        );
+      }
+      // And nothing in the map that is not a hat.
+      for (final id in hatCrownY.keys) {
+        expect(hatIds, contains(id), reason: '$id is not a hat');
+      }
+    });
+
+    test('the bands cover nothing, and the hats cover from their own brow', () {
+      expect(hairHiddenAboveY('none'), isNull);
+      for (final band in ['headband', 'visor', 'headphones', 'laurel']) {
+        expect(
+          hairHiddenAboveY(band),
+          isNull,
+          reason: '$band would shave the top off his head',
+        );
+      }
+      for (final hat in ['cap', 'beanie', 'tophat', 'party']) {
+        final y = hairHiddenAboveY(hat);
+        expect(y, isNotNull, reason: '$hat lets hair through it');
+        // Inside the head's own band of the 120x170 art. A number outside it
+        // would clip everything or nothing.
+        expect(y, greaterThan(15));
+        expect(y, lessThan(40));
+      }
+    });
+
+    test('and an unknown hat hides nothing rather than guessing', () {
+      // A look off a newer save naming a hat this build has never heard of. The
+      // hair showing is the recoverable answer; a clip at a guessed height is
+      // not.
+      expect(hairHiddenAboveY('sombrero'), isNull);
+    });
+  });
 }

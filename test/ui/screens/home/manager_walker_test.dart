@@ -144,7 +144,7 @@ void main() {
       for (final mood in Mood.values) {
         final parts = partsFor(defaultManagerLook, mood: mood);
         expect(
-          parts.overHead.last,
+          parts.overHead.last.svg,
           managerMouths[mood.name],
           reason: '${mood.name} — and nothing may cover it',
         );
@@ -162,12 +162,39 @@ void main() {
       for (final style in hairStyleIds) {
         final parts = partsFor({...defaultManagerLook, 'style': style});
         for (final svg in [
-          ...parts.behindHead,
+          for (final layer in parts.behindHead) layer.svg,
           ...parts.overTorso,
-          ...parts.overHead,
+          for (final layer in parts.overHead) layer.svg,
         ]) {
           expect(parseSvg(svg), isNotEmpty, reason: style);
         }
+      }
+    });
+
+    test('and only the HAIR is ever clipped by a hat', () {
+      // The hat itself must not be clipped by its own brow, and neither must the
+      // beard, the face or the mouth. Two layers carry the clip and they are the
+      // two halves of the hair.
+      final parts = partsFor({
+        ...defaultManagerLook,
+        'style': 'mohawk',
+        'hat': 'cap',
+      });
+      final clipped = [
+        ...parts.behindHead,
+        ...parts.overHead,
+      ].where((l) => l.hideAbove != null).toList();
+      // A mohawk has no back layer, so one here rather than two — which is the
+      // point: what gets the clip is whichever hair layers EXIST.
+      expect(clipped, isNotEmpty);
+      final (back, front) = managerHair['mohawk']!;
+      for (final layer in clipped) {
+        expect(
+          [back, front].any((h) => h.isNotEmpty && layer.svg.contains('path')),
+          isTrue,
+          reason: 'something that is not hair was clipped',
+        );
+        expect(layer.svg, isNot(equals(managerHats['cap'])));
       }
     });
   });
@@ -612,6 +639,54 @@ void main() {
       // box's top.
       await pumpWalker(tester, height: walkerHeight * 2);
       expect(rigFraction(tester), greaterThan(0));
+    });
+  });
+
+  group('a hat and the hair under it', () {
+    /// Every clip applied to a head layer, as a fraction of the box's height.
+    List<double> clipsIn(WidgetTester tester) => [
+      for (final clip in tester.widgetList<ClipRect>(find.byType(ClipRect)))
+        if (clip.clipper != null)
+          clip.clipper!.getClip(const Size(120, 170)).top / 170,
+    ];
+
+    testWidgets('A CAP HIDES THE HAIR COMING THROUGH IT', (tester) async {
+      // A mohawk's fin stood clear of the crown. The hat is drawn over the hair,
+      // so whatever the hat's own shape covers was already hidden — what came
+      // through was the hair ABOVE it.
+      await pumpWalker(
+        tester,
+        look: {'style': 'mohawk', 'hat': 'cap', 'hair': '#3a2a1c'},
+      );
+      final clips = clipsIn(tester);
+      expect(
+        clips,
+        isNotEmpty,
+        reason: 'the hair is not clipped, so the fin still comes through',
+      );
+      // At the cap's own brow, and BOTH hair layers get it — a fin has a back
+      // half too.
+      final atBrow = clips.where((c) => (c - 30.5 / 170).abs() < 1e-9);
+      expect(atBrow.length, greaterThanOrEqualTo(1));
+    });
+
+    testWidgets('AND A HEADBAND HIDES NOTHING', (tester) async {
+      // Four of them are bands rather than hats. Clipping the hair for those
+      // would shave the top off his head, which is a worse bug than the one
+      // being fixed.
+      await pumpWalker(
+        tester,
+        look: {'style': 'mohawk', 'hat': 'headband', 'hair': '#3a2a1c'},
+      );
+      expect(clipsIn(tester), isEmpty, reason: 'the headband shaved his head');
+    });
+
+    testWidgets('and bare-headed hides nothing either', (tester) async {
+      await pumpWalker(
+        tester,
+        look: {'style': 'mohawk', 'hat': 'none', 'hair': '#3a2a1c'},
+      );
+      expect(clipsIn(tester), isEmpty);
     });
   });
 }

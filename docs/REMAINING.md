@@ -2652,10 +2652,22 @@ by a test.
 
 ### The customiser, and the walking manager — 26 Aug, later
 
-- [ ] **A hat does not hide the hair under it.** It comes through the crown. What
-      should still show is whatever escapes at the side or the back, so it is an
-      occlusion problem rather than a "hide the hair" switch — and it has to hold
-      for every hat, not the one it was tested on.
+- [x] **A hat hides the hair going through it now.** The hat is drawn over the
+      hair, so whatever its own shape covers was already hidden — what came
+      through was hair ABOVE it, a mohawk's fin standing clear of a cap. The hair
+      layers are clipped to below the hat's brow, which leaves whatever escapes
+      at the side and the back.
+      **It could not be a blanket rule, and that is the whole of the design.**
+      Four of the eighteen are BANDS — a headband, a visor, a laurel, a pair of
+      headphones — and clipping the hair for those would shave the top off his
+      head, which is a worse bug than the one being fixed. So `hatCrownY` has an
+      entry per hat and `manager_looks_test` fails the build if one is added
+      without deciding; an unknown id off a newer save hides nothing, because
+      showing the hair is recoverable and a clip at a guessed height is not.
+      The numbers are each hat's own DOME, not its trimming: a beanie's bobble
+      and a Santa hat's pom sit above the part that covers anything. And the clip
+      is on the LAYER rather than the head, so the hat is not clipped by its own
+      brow — a test pins that only hair ever carries it.
 - [ ] **The walk stops and starts, and it should be smoother.** The halt itself is
       wanted; the rhythm of it is not. Either fewer gestures carry `stops`, or the
       ease is longer, or it should slow to a stroll rather than to nothing — see

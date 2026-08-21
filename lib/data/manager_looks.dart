@@ -60,6 +60,55 @@ const List<String> facialHairIds = [
   'braided',
 ];
 
+/// Where each hat's brow sits, in the art's own 120x170 space, or null for one
+/// that does not cover the crown at all.
+///
+/// **A HAT HAS TO HIDE THE HAIR GOING THROUGH IT.** Hair and hat are separate
+/// layers and the hat is drawn over the hair, so anything the hat's own shape
+/// covers is already hidden — what came through was hair ABOVE it, a mohawk's
+/// fin standing clear of a cap. Clipping the hair above the brow fixes that and
+/// leaves what escapes at the side and the back, which is what should still
+/// show.
+///
+/// **It cannot be a blanket rule**, and that is why this is a map rather than a
+/// flag: four of these are BANDS — a headband, a visor, a laurel, a pair of
+/// headphones — and clipping the hair for those would shave the top off his
+/// head. Each one decides, and `manager_looks_test` fails the build if a hat is
+/// added without deciding.
+///
+/// The numbers are the top of each hat's own DOME, not of its trimming: a
+/// beanie's bobble and a Santa hat's pom sit above the part that covers
+/// anything.
+const Map<String, double?> hatCrownY = {
+  'none': null,
+  // Bands. They sit around the head and hide nothing above themselves.
+  'headband': null,
+  'visor': null,
+  'headphones': null,
+  'laurel': null,
+  // And the ones that sit on the crown.
+  'cap': 30.5,
+  'beanie': 28.2,
+  'crown': 27.5,
+  'flatcap': 32,
+  'bucket': 28.4,
+  'snapback': 30.5,
+  'sunhat': 31.8,
+  'santa': 28.2,
+  'tophat': 21,
+  'viking': 29,
+  'party': 22.4,
+  'hardhat': 29.6,
+  'diamond': 27.5,
+};
+
+/// Above this, the hair is not drawn. Null leaves it alone.
+///
+/// An unknown id hides nothing: a look off a newer save naming a hat this build
+/// has never heard of should show the hair, which is recoverable, rather than
+/// clip it at a guessed height, which is not.
+double? hairHiddenAboveY(String? hatId) => hatCrownY[hatId ?? 'none'];
+
 const List<String> hatIds = [
   'none',
   'headband',
