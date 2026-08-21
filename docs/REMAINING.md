@@ -997,7 +997,20 @@ section. Nothing on the list below is blocked for want of art any more.
 
 ### Two screens that want a pass
 
-- [ ] **The Fixtures screen is still not right stylistically.**
+- [x] **The Fixtures screen is still not right stylistically.** It was showing
+      the WRONG LIST, which is why nothing about it read right: it rendered
+      `seasonFixtures` — the whole division's grid — as neutral "Ayton v
+      Beeches" rows with a round number. That table exists to feed the
+      standings' form dots and is not what a manager opens Fixtures for. The
+      source's panel is the manager's own fourteen, and every one of them
+      involves US — so a row names only the OPPONENT, leads with a fixed-width
+      venue chip that can be scanned straight down (it answers "am I at home"
+      for the whole season at a glance), carries their rating with a `~` while
+      it is still a guess off the division's midpoint, and puts the score in a
+      fixed right column coloured by the OUTCOME rather than by whether it has
+      been played. Three headings split it: previous, next, coming up.
+      Still to do: the cup rounds woven in between league matches (after #3, #8
+      and #12 in the source), and scrolling to the current fixture on open.
 - [x] **The daily reward's cycle FILLS UP.** The strip picked out today and
       marked nothing else, so a player four days into a streak saw days one to
       three drawn exactly like days five to seven — seven identical tiles with

@@ -10,6 +10,8 @@ import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart' show styleVaultId;
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart'
+    show matchesPerSeason, opponentsPerSeason;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -407,6 +409,118 @@ void main() {
         find.byKey(const ValueKey('league-fixtures-empty')),
         findsOneWidget,
       );
+    });
+
+    group('THE PANEL IS OUR OWN SEASON', () {
+      /// A season two matches in, with a result on each.
+      void ourSeason(Map<String, dynamic> s) {
+        final prog = s['progression'] as Map<String, dynamic>;
+        prog['seasonCount'] = 1;
+        prog['seasonMatchesPlayed'] = 2;
+        prog['seasonOpponents'] = [
+          'Ayton',
+          'Beeches',
+          'Cadley',
+          'Dunmore',
+          'Elder',
+          'Fenwick',
+          'Garrow',
+        ];
+        prog['fixtureResults'] = {
+          // `homeGoals` is OURS whatever the venue was.
+          's1_m0': {'homeGoals': 2, 'awayGoals': 1, 'won': true},
+          's1_m1': {'homeGoals': 0, 'awayGoals': 3, 'won': false},
+        };
+        prog['seasonOpponentRatings'] = {'s1_o0': 31};
+      }
+
+      testWidgets('EVERY ROW IS ONE OF OURS, named by the opponent', (
+        tester,
+      ) async {
+        // It used to render the whole division's grid as neutral "Ayton v
+        // Beeches" rows — a table that exists to feed the standings' form dots
+        // and is not what a manager opens Fixtures for.
+        final container = await pumpHome(tester, mutate: ourSeason);
+        final rows = container.read(ourFixturesProvider);
+        expect(rows, hasLength(matchesPerSeason));
+        expect(rows.map((r) => r.opponent), everyElement(isNotEmpty));
+        // Two legs, so each opponent appears exactly twice.
+        expect(rows.where((r) => r.opponent == 'Ayton'), hasLength(2));
+      });
+
+      testWidgets('and the two legs are at DIFFERENT grounds', (tester) async {
+        final container = await pumpHome(tester, mutate: ourSeason);
+        final rows = container.read(ourFixturesProvider);
+        for (var i = 0; i < opponentsPerSeason; i++) {
+          final legs = rows.where((r) => r.matchNum % opponentsPerSeason == i);
+          expect(
+            legs.map((r) => r.isHome).toSet(),
+            hasLength(2),
+            reason: 'opponent $i is at the same ground twice',
+          );
+        }
+      });
+
+      testWidgets('THE SCORE IS ORIENTED to the ground it was played on', (
+        tester,
+      ) async {
+        // Football's own convention puts the home side's goals on the left, and
+        // a stored result keeps ours in `homeGoals` whatever the venue was.
+        final container = await pumpHome(tester, mutate: ourSeason);
+        await openFromMenu(tester, 'subnav.fixtures');
+        final first = container.read(ourFixturesProvider).first;
+        expect(first.played, isTrue);
+        expect(
+          find.text(first.isHome ? '2 - 1' : '1 - 2'),
+          findsOneWidget,
+          reason: 'the score was printed the wrong way round',
+        );
+      });
+
+      testWidgets('THE VENUE LEADS EVERY ROW', (tester) async {
+        final container = await pumpHome(tester, mutate: ourSeason);
+        await openFromMenu(tester, 'subnav.fixtures');
+        final rows = container.read(ourFixturesProvider);
+        for (final row in rows.take(3)) {
+          expect(
+            find.byKey(ValueKey('fixture-venue-${row.matchNum}')),
+            findsOneWidget,
+            reason: 'match ${row.matchNum}',
+          );
+        }
+      });
+
+      testWidgets('and the three GROUP HEADINGS split the season', (
+        tester,
+      ) async {
+        final container = await pumpHome(tester, mutate: ourSeason);
+        await openFromMenu(tester, 'subnav.fixtures');
+        expect(
+          find.text(t('play.previousMatches').toUpperCase()),
+          findsOneWidget,
+        );
+        expect(find.text(t('play.nextMatch').toUpperCase()), findsOneWidget);
+        expect(find.text(t('play.comingUp').toUpperCase()), findsOneWidget);
+        // Exactly one row is next, and it is the one after the played ones.
+        final next = container.read(ourFixturesProvider).where((r) => r.isNext);
+        expect(next, hasLength(1));
+        expect(next.first.matchNum, 2);
+      });
+
+      testWidgets('an UNPLAYED opponent rating says it is an estimate', (
+        tester,
+      ) async {
+        // A number that does not say it is a guess is a number the player will
+        // hold the game to.
+        final container = await pumpHome(tester, mutate: ourSeason);
+        final rows = container.read(ourFixturesProvider);
+        // The pyramid's own boot sweep may restate a stored rating, so what is
+        // pinned is the DISTINCTION rather than the number: one we have played
+        // is known, one we have not is a guess off the division's midpoint.
+        expect(rows.first.ratingEstimated, isFalse);
+        expect(rows.first.rating, greaterThan(0));
+        expect(rows.last.ratingEstimated, isTrue);
+      });
     });
   });
 

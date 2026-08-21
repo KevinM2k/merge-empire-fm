@@ -11,6 +11,7 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/fixture_preview.dart' show fixtureIsHome;
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/engine/weather_engine.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
@@ -22,6 +23,80 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 int _int(Object? v, [int fallback = 0]) => v is num ? v.toInt() : fallback;
+
+/// One of OUR fixtures — the season as the manager plays it.
+///
+/// **The panel was showing the wrong list.** It rendered `seasonFixtures`, the
+/// whole division's grid, as neutral "home v away" rows with a round number.
+/// That table exists to feed the standings' form dots and nothing else; the
+/// source's Fixtures panel is the manager's own fourteen, and every one of them
+/// involves us — which is why a row names only the OPPONENT and leads with a
+/// venue chip that says whether WE are at home.
+typedef OurFixture = ({
+  int matchNum,
+  String opponent,
+  bool isHome,
+  bool played,
+
+  /// The one being played next. Exactly one row has it, and only while the
+  /// season is still running.
+  bool isNext,
+
+  /// Ours and theirs, however the match was played. The row orients them to
+  /// physical home and away itself.
+  int? ourGoals,
+  int? theirGoals,
+  bool won,
+  bool drawn,
+
+  /// Their squad rating — the division's midpoint until we have actually
+  /// played them, which is when it is materialised.
+  int rating,
+  bool ratingEstimated,
+});
+
+/// The manager's own season, all fourteen, in order.
+final ourFixturesProvider = savePick<List<OurFixture>>((s) {
+  final prog = _map(s['progression']);
+  if (prog == null) return const [];
+  final season = _int(prog['seasonCount'], 1);
+  final played = _int(prog['seasonMatchesPlayed']);
+  final opponents = prog['seasonOpponents'];
+  // A season that has not been drawn yet has no fixtures to show. Fourteen rows
+  // against "Opponent" is not a schedule, it is a placeholder pretending to be
+  // one — the panel says it is still loading instead.
+  if (opponents is! List || opponents.isEmpty) return const [];
+  final results = _map(prog['fixtureResults']) ?? const {};
+  final ratings = _map(prog['seasonOpponentRatings']) ?? const {};
+  final div = getDivision('${prog['currentDivision']}');
+  final midpoint =
+      ((div.opponentRatingRange.$1 + div.opponentRatingRange.$2) / 2).round();
+
+  return [
+    for (var m = 0; m < matchesPerSeason; m++)
+      () {
+        final oppIdx = m % opponentsPerSeason;
+        final result = _map(results['s${season}_m$m']);
+        final stored = ratings['s${season}_o$oppIdx'];
+        return (
+          matchNum: m,
+          opponent: oppIdx < opponents.length
+              ? '${opponents[oppIdx]}'
+              : t('common.opponent'),
+          isHome: fixtureIsHome(season, oppIdx, m),
+          played: m < played,
+          isNext: m == played && played < matchesPerSeason,
+          // `homeGoals` in a stored result is OURS whatever the venue was.
+          ourGoals: m < played ? _int(result?['homeGoals']) : null,
+          theirGoals: m < played ? _int(result?['awayGoals']) : null,
+          won: result?['won'] == true,
+          drawn: result?['drawn'] == true,
+          rating: stored is num ? stored.round() : midpoint,
+          ratingEstimated: stored is! num,
+        );
+      }(),
+  ];
+});
 
 /// One line of the schedule.
 typedef FixtureRow = ({

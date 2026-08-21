@@ -310,13 +310,26 @@ class _FormDot extends StatelessWidget {
   }
 }
 
+/// The manager's own season.
+///
+/// **It was showing the wrong list.** The panel rendered `seasonFixtures` — the
+/// whole division's grid — as neutral "Ayton v Beeches" rows with a round
+/// number, which is a table that exists to feed the standings' form dots and is
+/// not what a manager opens Fixtures for. Every fixture here involves US, so a
+/// row names only the OPPONENT.
+///
+/// The venue chip leads every row and is always the same width in the same
+/// place, so it can be scanned straight down: it answers "am I at home" for the
+/// whole season at a glance. The score sits in a fixed right column coloured by
+/// the OUTCOME rather than by whether it has been played, because "2 - 1" tells
+/// you nothing until you know which way round it went.
 class FixturesView extends ConsumerWidget {
   const FixturesView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final fixtures = ref.watch(fixturesProvider);
+    final fixtures = ref.watch(ourFixturesProvider);
 
     if (fixtures.isEmpty) {
       return Padding(
@@ -331,64 +344,147 @@ class FixturesView extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
+    // Three headings, in the order the season runs: what has happened, what is
+    // next, and what is left. A heading is emitted at the point the group
+    // changes rather than by splitting the list, so the rows stay one column.
+    var comingUpShown = false;
+    final rows = <Widget>[];
+    for (final fixture in fixtures) {
+      if (fixture.matchNum == 0 && fixture.played) {
+        rows.add(_When(kit: kit, text: t('play.previousMatches')));
+      }
+      if (fixture.isNext) {
+        rows.add(_When(kit: kit, text: t('play.nextMatch')));
+      }
+      if (!fixture.played && !fixture.isNext && !comingUpShown) {
+        rows.add(_When(kit: kit, text: t('play.comingUp')));
+        comingUpShown = true;
+      }
+      rows.add(_FixtureRow(fixture: fixture));
+    }
+
+    return ListView(
       key: const ValueKey('league-fixtures'),
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: fixtures.length,
-      itemBuilder: (context, i) => _FixtureRow(index: i, row: fixtures[i]),
+      children: rows,
     );
   }
 }
 
-class _FixtureRow extends StatelessWidget {
-  const _FixtureRow({required this.index, required this.row});
+class _When extends StatelessWidget {
+  const _When({required this.kit, required this.text});
 
-  final int index;
-  final FixtureRow row;
+  final KitTheme kit;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+    child: Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        color: kit.textMuted,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1,
+      ),
+    ),
+  );
+}
+
+class _FixtureRow extends StatelessWidget {
+  const _FixtureRow({required this.fixture});
+
+  final OurFixture fixture;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final score = row.played ? '${row.homeGoals}–${row.awayGoals}' : 'v';
-    final weight = row.involvesPlayer ? FontWeight.w700 : FontWeight.w400;
+
+    // Football's own convention: the home side's goals on the left. A stored
+    // result keeps OURS in `homeGoals` whatever the venue was, so an away
+    // fixture is flipped here — and the colour still says who won, which is the
+    // half the orientation cannot carry.
+    final String score;
+    final Color scoreInk;
+    if (fixture.played) {
+      final left = fixture.isHome ? fixture.ourGoals : fixture.theirGoals;
+      final right = fixture.isHome ? fixture.theirGoals : fixture.ourGoals;
+      score = '$left - $right';
+      scoreInk = fixture.won
+          ? kit.accentBright
+          : fixture.drawn
+          ? kit.textMuted
+          : Colors.redAccent;
+    } else if (fixture.isNext) {
+      score = t('common.vs');
+      scoreInk = kit.accentBright;
+    } else {
+      score = '-:-';
+      scoreInk = kit.textMuted;
+    }
 
     return Container(
-      key: ValueKey('league-fixture-$index'),
-      color: row.involvesPlayer ? kit.surface2 : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      key: ValueKey('league-fixture-${fixture.matchNum}'),
+      color: fixture.isNext ? kit.surface2 : null,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       child: Row(
         children: [
+          // FIXED WIDTH, always first: the chip is scanned down the column
+          // rather than read per row.
           SizedBox(
-            width: 24,
-            child: Text(
-              '${row.round}',
-              style: TextStyle(color: kit.textMuted, fontSize: 11),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              row.homeTeam,
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontWeight: weight),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              score,
-              style: TextStyle(
-                color: row.played ? kit.accentBright : kit.textMuted,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
+            width: 46,
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: fixture.isHome
+                    ? kit.accent.withValues(alpha: 0.25)
+                    : kit.surface2,
+              ),
+              child: Text(
+                t(fixture.isHome ? 'play.home' : 'play.away'),
+                key: ValueKey('fixture-venue-${fixture.matchNum}'),
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                  color: fixture.isHome ? kit.accentBright : kit.textMuted,
+                ),
               ),
             ),
           ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              row.awayTeam,
+              fixture.opponent,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontWeight: weight),
+              style: TextStyle(
+                fontWeight: fixture.isNext ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ),
+          // Their rating, tilde'd until we have actually played them — an
+          // estimate that does not say it is one is a number the player will
+          // hold the game to.
+          Text(
+            fixture.ratingEstimated
+                ? '~${fixture.rating}'
+                : '${fixture.rating}',
+            style: TextStyle(color: kit.textMuted, fontSize: 11),
+          ),
+          SizedBox(
+            width: 52,
+            child: Text(
+              score,
+              key: ValueKey('fixture-score-${fixture.matchNum}'),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: scoreInk,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
