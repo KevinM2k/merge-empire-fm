@@ -252,4 +252,50 @@ void main() {
       }
     });
   });
+  group('THE WEEK USES THE ROOM IT HAS', () {
+    testWidgets('SEVEN EQUAL BOXES, and the row is as wide as the sheet', (
+      tester,
+    ) async {
+      // They were fixed at 84px in a `Wrap`, so seven of them broke into a full
+      // row and a short one centred under it — and on any phone wider than the
+      // four that fitted, the strip left a third of the sheet empty rather than
+      // growing.
+      await pumpSheet(tester, save());
+      final sizes = [
+        for (var day = 1; day <= cycleDays; day++)
+          tester.getSize(find.byKey(ValueKey('daily-day-$day'))),
+      ];
+      for (final size in sizes) {
+        expect(size, sizes.first, reason: 'the boxes are not the same box');
+      }
+
+      // The top row spans the strip: four tiles and three gaps, edge to edge.
+      final left = tester.getTopLeft(find.byKey(const ValueKey('daily-day-1')));
+      final right = tester.getTopRight(
+        find.byKey(const ValueKey('daily-day-4')),
+      );
+      final sheet = tester.getSize(find.byType(DailyRewardSheet));
+      expect(
+        right.dx - left.dx,
+        closeTo(sheet.width - 32, 1),
+        reason: 'the strip is narrower than the room it has',
+      );
+    });
+
+    testWidgets('AND THE TICK CROSSES THE BOX', (tester) async {
+      // It was an 11px glyph tucked in front of the day's label, at the size of
+      // the caption beside it — so a claimed day and an unclaimed one read the
+      // same from a foot away.
+      await pumpSheet(tester, save(cycleDay: 4));
+      final tick = tester.getSize(
+        find.byKey(const ValueKey('daily-claimed-1')),
+      );
+      final tile = tester.getSize(find.byKey(const ValueKey('daily-day-1')));
+      expect(
+        tick.height,
+        greaterThan(tile.height * 0.5),
+        reason: 'the tick still sits in a corner',
+      );
+    });
+  });
 }

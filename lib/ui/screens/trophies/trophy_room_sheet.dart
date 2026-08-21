@@ -341,70 +341,82 @@ class _TrophyCard extends StatelessWidget {
         border: Border.all(color: colour, width: 2),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Same as the achievement tiles: the trophy fills its box and the
-          // caption sits over it. `contain` inside a padded column left a
-          // letterboxed picture in two thirds of the tile.
-          ArtImage(
-            path: path,
-            fallback: const Center(
-              child: Text('🏆', style: TextStyle(fontSize: 44)),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(10),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    kit.surface.withValues(alpha: 0),
-                    kit.surface.withValues(alpha: 0.88),
-                    kit.surface.withValues(alpha: 0.96),
-                  ],
-                  stops: const [0, 0.35, 1],
-                ),
+      // **CLIPPED TO THE INSIDE OF THE BORDER, not the outside.**
+      // `Container.clipBehavior` clips to the decoration's OUTER path, so a
+      // child that fills the box paints over the border's own curve at every
+      // corner — and the caption band at the foot is opaque, which is why the
+      // two BOTTOM corners were the ones that visibly lost their border. The
+      // child's box is already inset by the border, so what it needs is the
+      // border's radius LESS its width: the curve of the hole it sits in. The
+      // same fault, and the same fix, as the player card's caption scrim.
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14 - 2),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Same as the achievement tiles: the trophy fills its box and the
+            // caption sits over it. `contain` inside a padded column left a
+            // letterboxed picture in two thirds of the tile.
+            ArtImage(
+              path: path,
+              fallback: const Center(
+                child: Text('🏆', style: TextStyle(fontSize: 44)),
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
-                child: Column(
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        color: colour,
-                        shadows: const [
-                          Shadow(color: Color(0x99000000), blurRadius: 3),
-                        ],
-                      ),
-                    ),
-                    if (subtitle.isNotEmpty)
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              // No radius of its own: the band is inside the clip now, and a
+              // second curve guessed at from the outside is what left a sliver
+              // of border showing through it.
+              child: DecoratedBox(
+                key: const ValueKey('trophy-caption'),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      kit.surface.withValues(alpha: 0),
+                      kit.surface.withValues(alpha: 0.88),
+                      kit.surface.withValues(alpha: 0.96),
+                    ],
+                    stops: const [0, 0.35, 1],
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 12, 6, 6),
+                  child: Column(
+                    children: [
                       Text(
-                        subtitle,
+                        name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 10, color: kit.textMuted),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: colour,
+                          shadows: const [
+                            Shadow(color: Color(0x99000000), blurRadius: 3),
+                          ],
+                        ),
                       ),
-                  ],
+                      if (subtitle.isNotEmpty)
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 10, color: kit.textMuted),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -487,100 +499,101 @@ class _AchievementTile extends ConsumerWidget {
           border: Border.all(color: border, width: 2),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // **THE PICTURE FILLS THE TILE.** It used to take an `Expanded`
-            // slice with the caption below it, so a 512×512 painting was
-            // letterboxed into two thirds of a square box and the tile read as
-            // an icon with a label rather than as a trophy.
-            ArtImage(
-              path: achievementArtPath(achievement.id),
-              dimmed: !unlocked,
-              fallback: Center(
-                child: Text(
-                  achievement.icon ?? '🏅',
-                  style: const TextStyle(fontSize: 40),
+        // Clipped to the INSIDE of the border — see the trophy card above.
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12 - 2),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // **THE PICTURE FILLS THE TILE.** It used to take an `Expanded`
+              // slice with the caption below it, so a 512×512 painting was
+              // letterboxed into two thirds of a square box and the tile read as
+              // an icon with a label rather than as a trophy.
+              ArtImage(
+                path: achievementArtPath(achievement.id),
+                dimmed: !unlocked,
+                fallback: Center(
+                  child: Text(
+                    achievement.icon ?? '🏅',
+                    style: const TextStyle(fontSize: 40),
+                  ),
                 ),
               ),
-            ),
-            // The caption OVER it, as a band. Its own bottom radius matters: the
-            // tile clips to a 12px round and its border is 2px wide, so the
-            // child's clip and the border's inner edge are two different curves
-            // — and a square-cornered band between them is the sliver that made
-            // the tile look loose at the bottom.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(10),
+              // The caption OVER it, as a band, with no radius of its own: the
+              // tile clipped to its OUTER path, which is not the curve the border
+              // leaves inside itself, so a band guessing at a third radius
+              // between the two is what made the bottom corners look loose. The
+              // clip above is the hole the band actually sits in.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    // A scrim rather than a solid slab: the art runs under it, so
+                    // the band reads as part of the picture.
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        kit.surface2.withValues(alpha: 0),
+                        kit.surface2.withValues(alpha: 0.86),
+                        kit.surface2.withValues(alpha: 0.96),
+                      ],
+                      stops: const [0, 0.35, 1],
+                    ),
                   ),
-                  // A scrim rather than a solid slab: the art runs under it, so
-                  // the band reads as part of the picture.
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      kit.surface2.withValues(alpha: 0),
-                      kit.surface2.withValues(alpha: 0.86),
-                      kit.surface2.withValues(alpha: 0.96),
-                    ],
-                    stops: const [0, 0.35, 1],
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 10, 6, 5),
-                  child: Column(
-                    children: [
-                      Text(
-                        achievementTitle(achievement),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: unlocked ? trophyGold : kit.textMuted,
-                          shadows: const [
-                            // On artwork rather than on a surface now, so the
-                            // title needs its own separation where the scrim is
-                            // thinnest.
-                            Shadow(color: Color(0x99000000), blurRadius: 3),
-                          ],
-                        ),
-                      ),
-                      if (progress != null) ...[
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: progress.$1,
-                            minHeight: 3,
-                            backgroundColor: kit.border,
-                            valueColor: AlwaysStoppedAnimation(
-                              trophyGold.withValues(alpha: 0.55),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(6, 10, 6, 5),
+                    child: Column(
+                      children: [
                         Text(
-                          progress.$2,
+                          achievementTitle(achievement),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 9, color: kit.textMuted),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: unlocked ? trophyGold : kit.textMuted,
+                            shadows: const [
+                              // On artwork rather than on a surface now, so the
+                              // title needs its own separation where the scrim is
+                              // thinnest.
+                              Shadow(color: Color(0x99000000), blurRadius: 3),
+                            ],
+                          ),
                         ),
+                        if (progress != null) ...[
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: progress.$1,
+                              minHeight: 3,
+                              backgroundColor: kit.border,
+                              valueColor: AlwaysStoppedAnimation(
+                                trophyGold.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            progress.$2,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 9, color: kit.textMuted),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (count >= 2)
-              Positioned(top: 6, right: 6, child: _CountPill(count: count)),
-          ],
+              if (count >= 2)
+                Positioned(top: 6, right: 6, child: _CountPill(count: count)),
+            ],
+          ),
         ),
       ),
     );

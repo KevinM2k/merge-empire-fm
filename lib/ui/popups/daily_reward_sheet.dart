@@ -209,95 +209,120 @@ class _CycleStrip extends StatelessWidget {
   final bool claimedToday;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      // **EQUAL BOXES, and the row uses the width it has.** They were fixed at
+      // 84px in a `Wrap`, so seven of them broke into a full row and a short
+      // one that sat centred under it — and on any phone wider than the four
+      // they fitted, the strip left a third of the sheet empty rather than
+      // growing. Four and three, each tile a share of the same width, so a day
+      // is the same object wherever it is in the week.
+      const spacing = 6.0;
+      const perRow = 4;
+      final width = (box.maxWidth - spacing * (perRow - 1)) / perRow;
+      Widget row(Iterable<int> days) => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (final day in days) ...[
+            SizedBox(width: width, child: _tile(context, day)),
+            if (day != days.last) const SizedBox(width: spacing),
+          ],
+        ],
+      );
+      return Column(
+        children: [
+          row([for (var d = 1; d <= perRow; d++) d]),
+          const SizedBox(height: spacing),
+          row([for (var d = perRow + 1; d <= cycleDays; d++) d]),
+        ],
+      );
+    },
+  );
+
+  Widget _tile(BuildContext context, int day) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (var day = 1; day <= cycleDays; day++)
-          if (getDailyRewardPreview(state, day) case final reward?)
-            () {
-              // **Banked is everything BEFORE today, plus today once claimed.**
-              // The cycle runs 1 to 7 in order and today's position is how far
-              // through it you are — and a broken streak resets that position to
-              // 1, so nothing is marked, which is exactly right: a streak that
-              // broke has nothing banked.
-              final banked = day < today || (day == today && claimedToday);
-              final now = day == today;
-              return Container(
-                key: ValueKey('daily-day-$day'),
-                width: 84,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                decoration: BoxDecoration(
-                  color: now
-                      ? kit.surface2
-                      : banked
-                      ? kit.accent.withValues(alpha: 0.10)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: now
-                        ? kit.accent
-                        : banked
-                        ? kit.accent.withValues(alpha: 0.45)
-                        : kit.border,
-                    width: now ? 2 : 1,
+    final reward = getDailyRewardPreview(state, day);
+    if (reward == null) return const SizedBox.shrink();
+    // **Banked is everything BEFORE today, plus today once claimed.** The cycle
+    // runs 1 to 7 in order and today's position is how far through it you are —
+    // and a broken streak resets that position to 1, so nothing is marked,
+    // which is exactly right: a streak that broke has nothing banked.
+    final banked = day < today || (day == today && claimedToday);
+    final now = day == today;
+    return Container(
+      key: ValueKey('daily-day-$day'),
+      // One height for all seven: a strip whose tiles are as tall as their own
+      // reward line is a strip that steps up and down across the week.
+      height: 76,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: now
+            ? kit.surface2
+            : banked
+            ? kit.accent.withValues(alpha: 0.10)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: now
+              ? kit.accent
+              : banked
+              ? kit.accent.withValues(alpha: 0.45)
+              : kit.border,
+          width: now ? 2 : 1,
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                now && !claimedToday
+                    ? t('daily.today')
+                    : t('daily.day', {'n': day}),
+                style: TextStyle(
+                  color: now || banked ? kit.accentBright : kit.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              // **A banked day is DIMMED, not hidden.** What it paid is still
+              // the answer to "what does this cycle give me", and a strip that
+              // blanks its own history teaches nothing.
+              Opacity(
+                opacity: banked && !now ? 0.5 : 1,
+                child: Text(
+                  dayRewardLine(reward),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1.25,
+                    fontWeight: now ? FontWeight.w900 : FontWeight.w400,
                   ),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // The tick, and nothing else changes size — a row whose
-                        // tiles grow as they are claimed reflows the strip every
-                        // morning.
-                        if (banked)
-                          Padding(
-                            key: ValueKey('daily-claimed-$day'),
-                            padding: const EdgeInsets.only(right: 2),
-                            child: Icon(
-                              Icons.check_circle,
-                              size: 11,
-                              color: kit.accentBright,
-                            ),
-                          ),
-                        Text(
-                          now && !claimedToday
-                              ? t('daily.today')
-                              : t('daily.day', {'n': day}),
-                          style: TextStyle(
-                            color: now || banked
-                                ? kit.accentBright
-                                : kit.textMuted,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    // **A banked day is DIMMED, not hidden.** What it paid is
-                    // still the answer to "what does this cycle give me", and a
-                    // strip that blanks its own history teaches nothing.
-                    Opacity(
-                      opacity: banked && !now ? 0.55 : 1,
-                      child: Text(
-                        dayRewardLine(reward),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: now ? FontWeight.w900 : FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+            ],
+          ),
+          // **THE TICK CROSSES THE WHOLE BOX.** It was an 11px glyph tucked in
+          // front of the day's label, at the size of the caption it sat beside
+          // — so a claimed day and an unclaimed one read the same from a foot
+          // away. A stamp over the tile is what "done" looks like, and the
+          // reward underneath still shows through it.
+          if (banked)
+            Center(
+              key: ValueKey('daily-claimed-$day'),
+              child: FittedBox(
+                child: Icon(
+                  Icons.check,
+                  size: 60,
+                  color: kit.accentBright.withValues(alpha: 0.55),
                 ),
-              );
-            }(),
-      ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

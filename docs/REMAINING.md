@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,353 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,356 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -42,7 +42,7 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
-**115 items are open**, plus six carrying a `[~]` — answered, but with a decision
+**113 items are open**, plus six carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3311,11 +3311,23 @@ is wrong in six places.
 - [ ] **Season quests do not look good, and do not show the reward** — neither
       for one of them nor for all of them.
 - [ ] **The training popup has no images and is boring.**
-- [ ] **Daily: the boxes should be equal**, there is much more room than it uses,
+- [x] **Daily: the boxes should be equal**, there is much more room than it uses,
       and the tick should cross the WHOLE box rather than sit in a corner where
-      it does not read as done.
-- [ ] **Trophies: the bottom-left and bottom-right corners are wrong** — a radius
-      plus something else that loses the borders.
+      it does not read as done. They were fixed at 84px in a `Wrap`, so seven
+      broke into a full row and a short one centred under it, and a phone wider
+      than the four that fitted left a third of the sheet empty. Four and three,
+      each tile a share of the same width and all seven the same height. The
+      tick is a stamp across the tile now — it was an 11px glyph at the size of
+      the caption it sat beside, so a claimed day and an unclaimed one read the
+      same from a foot away.
+- [x] **Trophies: the bottom-left and bottom-right corners are wrong** — a radius
+      plus something else that loses the borders. It is the fault the player
+      card's caption scrim had: `Container.clipBehavior` clips to the
+      decoration's OUTER path, not to the hole the border leaves inside itself,
+      so the opaque caption band painted over the border's own curve — and being
+      at the FOOT is why it was the two bottom corners. The child is clipped to
+      the outer radius less the border width, and the band's own guessed-at
+      third radius has gone. The achievement tiles had it too.
 - [ ] **The energy popup's "up to +3 energy" is greyed out and says coming
       soon.** It wants to be boxes side by side, with graphics.
 
