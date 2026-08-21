@@ -30,11 +30,31 @@ too late:
 
 ## Where we are
 
-**3,991 tests, `flutter analyze` clean.**
+**4,221 tests, `flutter analyze` clean.**
 
-**84 items are open**, down from 108. What went in the last pass, and every one
-of them turned out to be the same shape — a thing that was fully ported, fully
-tested and never called, or a piece of shipped copy nothing could reach:
+**79 items are open**, plus five carrying a `[~]` — answered, but with a decision
+left for the manager rather than a line of code.
+
+**The newest section is `From playtesting — 26 Aug`, and it is the one to read
+first.** It is a different shape from everything above it: those were things
+ported and never called, and these are things a player watched and did not
+believe. Several turned out not to be the fault they looked like, and each of
+those is written up with the measurement rather than the guess — the walk was not
+stopping for the bow, the ghost hits had nothing to do with the lineup, the coin
+was not orange by accident.
+
+**Two decisions the manager has already made, so nobody re-asks:**
+
+- **Selling STAYS** — not release-for-nothing. Which makes the reroll on reopen a
+  real bug rather than a curiosity; see the players page.
+- **Colin should be MORE VISIBLE**, confirmed, but which of the three was not
+  chosen: a stronger badge and pulse, a bigger head, or him opening himself
+  unprompted. The first is the least intrusive and is the one to do absent
+  anything else.
+
+What went in the pass BEFORE this one, and every one of them turned out to be the
+same shape — a thing that was fully ported, fully tested and never called, or a
+piece of shipped copy nothing could reach:
 
 - **The football is on the diorama.** `PitchBallSim.js`, pinned frame by frame
   against the JS with the random draws in the fixture. `windAccelFor` has a
@@ -2756,9 +2776,12 @@ by a test.
       floating one `#E23B3B`; two reds a shade apart is two badges, so both take
       `coachAlert` and the floating one takes the home badge's white ring and drop
       shadow with it.
-- [ ] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Whatever it takes:
-      it is the game talking to the player and it currently sits quietly in a
-      corner.
+- [ ] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Confirmed wanted; the
+      SHAPE of it is not settled. Three readings, and they are three different
+      games: a stronger badge and a bigger pulse; a bigger head; or him opening
+      himself unprompted. The first is the least intrusive and is what to do
+      absent a decision — the third hijacks the screen and should not be chosen
+      by default.
 - [x] **And the bubble sits ABOVE him**, because the tail points down. Beside him
       it pointed past his shoulder into the HUD, which is a bubble attributed to
       the coin counter. He is at the foot of the stack now and what he says goes
