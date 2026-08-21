@@ -2513,19 +2513,26 @@ by a test.
 
 ### The penalty shootout
 
-- [ ] **THE KEEPER'S AND THE TAKER'S LIMBS STRETCH like the Fantastic Four.**
-      Confirmed from the source, not just on screen: the drawn glove sits
-      **1.3 to 2.4 metres** from where the reach test says his hand is
-      (measured at four dive angles), because the figure is positioned at
-      `hand.x * 0.42` and the arm is then drawn to a body-relative offset
-      instead of to the hand. So the arm has to span whatever gap is left, and a
-      gathered ball — which is pinned to `keeperHand` — floats in open air
-      beside the gloves that supposedly caught it.
-      **The fix is to draw the figure FROM the hand**, which is the one point
-      the physics actually knows: `keeperReach` is 1.05m and the hands travel
-      2.6m, so the shoulder travels the difference. Same file's own stated
-      principle — the net's vertices, the keeper's hands and the ball are all
-      projected by one function so nothing can drift against anything else.
+- [x] **THE KEEPER'S AND THE TAKER'S LIMBS STRETCHED like the Fantastic Four.**
+      Two faults, and the measurements are in `penalty_view_test.dart`.
+      A LIMB GREW: the keeper's leading arm ran 0.40 to 1.35 units across the
+      dive while the trailing one halved, and the taker's kicking leg went 0.80
+      to 1.05 right at the strike. Every segment is a fixed length at an animated
+      ANGLE now, which is what a joint is.
+      And HE WAS IN THE WRONG PLACE: the figure sat at `hand.x * 0.42` with the
+      arm drawn to a body-relative offset, so the drawn glove was 1.3 to 2.4
+      METRES from the point the save was decided at.
+      **`keeperHand` is the CENTRE of his reach, not a fingertip** — whatever its
+      name says, `_keeperGotIt` tests against it and then allows another
+      `keeperReach` on top, and `_parry` calls it "the centre of the gloves". So
+      it is his chest: `keeperRigFor` anchors him there, the arms are
+      `keeperReach` long so the sweep on screen IS the circle in the maths, and a
+      gathered ball ends up pinned to his chest, which is where a keeper holds
+      one he has caught. The taker is anchored on his PLANT BOOT, because that is
+      his contact with the turf.
+      Both rigs are pure functions returning screen-space joints, so the figure
+      that is drawn is the figure that is tested — fifteen cases over five dive
+      angles, four extensions and three heights.
 - [ ] **And the hand FREEZES at full stretch.** `_moveKeeper` clamps its
       extension, so for the whole save follow-through the arm is a statue while
       the ball loops away — and a GATHERED ball hangs motionless in mid-air for
@@ -2533,6 +2540,12 @@ by a test.
       kill, moved from the ball to the hands. He should land, and the ball he
       caught should come down with him. Measured: catch at t=1.15, and ball and
       hand both sit at exactly (0, 0, 1.00) until the clip ends.
+- [x] **The aim line is dotted, and the dashes MARCH toward the goal.** A solid
+      curve reads as a target; the same curve with movement in it reads as a
+      shot, which is the part the preview was not saying. `dashedPath` is pure
+      and tested — path arithmetic is easy to get subtly wrong and impossible to
+      see — and the ticker now counts a drag as live, since it is the one thing
+      on that screen that moves while the ball is still on the spot.
 - [ ] **The net should look like a NET — see-through.** You should be able to
       see through it to what is behind, which is most of what says "net" rather
       than "wall". A Kenney backdrop behind it would give it something to be

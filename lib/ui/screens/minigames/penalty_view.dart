@@ -207,6 +207,7 @@ class PenaltyFrame {
     required this.net,
     required this.aimPreview,
     this.taker = 0,
+    this.aimPhase = 0,
   });
 
   final Vec3 ball;
@@ -222,6 +223,289 @@ class PenaltyFrame {
 
   /// The line the player is currently dragging, in screen space, or null.
   final ({Offset from, Offset to, Offset control})? aimPreview;
+
+  /// How far the aim line's dashes have marched, in pixels.
+  final double aimPhase;
+}
+
+/// How long his thigh-to-boot reads, and how far the torso and head sit above
+/// the hip. All in metres, so the figure is a person rather than a proportion of
+/// a card.
+const double _keeperLeg = 0.88;
+const double _keeperTorso = 0.64;
+const double _keeperNeck = 0.22;
+
+/// How far the legs open, from straight down, at rest and at full stretch.
+const double _legSplitRest = 6.5 * math.pi / 180;
+const double _legSplitDive = 30 * math.pi / 180;
+
+/// Where the arms point, measured from straight up. The leading one swings out
+/// past horizontal as he reaches; the trailing one tucks in.
+const double _armRest = 52 * math.pi / 180;
+const double _armLead = 96 * math.pi / 180;
+const double _armTrail = 22 * math.pi / 180;
+
+/// The keeper's figure, solved in SCREEN space from the one point the physics
+/// actually knows.
+///
+/// **HIS GLOVES GO WHERE THE REACH TEST SAYS THEY ARE.** They were 1.3 to 2.4
+/// METRES away: the figure was placed at `hand.x * 0.42` and the arm was then
+/// drawn to a body-relative offset, so the two never had to agree. A GATHERED
+/// ball — which the engine pins to `keeperHand` exactly — floated in open air
+/// beside the gloves that had supposedly caught it, and a save happened at a
+/// point where no glove was drawn.
+///
+/// So the solve runs the other way round. The glove is the projected hand, the
+/// shoulder is [keeperReach] back along the arm, and the body hangs off that.
+/// It is the file's own stated principle finally applied to the figure: one
+/// projection for the net's vertices, the hands and the ball, so nothing can
+/// drift against anything else.
+///
+/// **AND A LIMB KEEPS ITS LENGTH.** The leading arm used to run from 0.40 to
+/// 1.35 units across the dive while the trailing one halved, and the legs
+/// changed length with the stride — an arm that more than triples is not an arm
+/// reaching, it is an arm growing, which is what read as the Fantastic Four.
+/// Every segment here is a fixed length at an animated ANGLE, which is what a
+/// joint is.
+typedef KeeperRig = ({
+  /// The leading glove. On the projected hand, by construction.
+  Offset glove,
+  Offset trailGlove,
+  Offset shoulder,
+  Offset hip,
+  Offset head,
+  Offset leftBoot,
+  Offset rightBoot,
+
+  /// Between the boots, for a shadow or a scale.
+  Offset feet,
+
+  /// Pixels per metre at his depth.
+  double unit,
+
+  /// How far over he has gone, in radians. The painter needs it for nothing but
+  /// the head tilt; the joints are already solved.
+  double lean,
+});
+
+KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
+  final hand = project(pose.hand, view);
+  if (hand == null) return null;
+  // Scaled at the depth he STANDS at rather than at his fingertips: he is a body
+  // on the goal line, and the hand is only the end of it.
+  const bodyY = -0.25;
+  final unit = scaleAt(bodyY, view, 1);
+  if (unit <= 0) return null;
+
+  final dive = pose.dive.clamp(0.0, 1.0);
+  final lean = dive * 1.15 * (pose.side.isNegative ? -1 : 1);
+  // No lead arm until he has actually gone: at `side == 0` picking one made him
+  // look like he was holding something.
+  final way = pose.side.abs() < 0.05 ? 0.0 : (pose.side < 0 ? -1.0 : 1.0);
+  final out = way == 0 ? 1.0 : way;
+
+  // Local frame, hip at the origin, head up. Every length below is a constant.
+  final torso = unit * _keeperTorso;
+  final legLen = unit * _keeperLeg;
+  // **The arm is the PHYSICS' own reach.** `keeperReach` is what the save test
+  // measures with, so the drawn arm and the arm that saves it are one number.
+  final armLen = unit * keeperReach;
+
+  final localHip = Offset.zero;
+  final localShoulder = Offset(0, -torso);
+  final localHead = Offset(0, -torso - unit * _keeperNeck);
+
+  final split = _legSplitRest + (_legSplitDive - _legSplitRest) * dive;
+  final legOut = math.sin(split) * legLen;
+  final legDown = math.cos(split) * legLen;
+  final localLeft = Offset(-legOut, legDown);
+  final localRight = Offset(legOut, legDown);
+
+  final leadAngle = _armRest + (_armLead - _armRest) * dive;
+  final trailAngle = _armRest + (_armTrail - _armRest) * dive;
+  final localLead =
+      localShoulder +
+      Offset(math.sin(leadAngle) * armLen * out, -math.cos(leadAngle) * armLen);
+  final localTrail =
+      localShoulder +
+      Offset(
+        -math.sin(trailAngle) * armLen * out,
+        -math.cos(trailAngle) * armLen,
+      );
+
+  // **`keeperHand` IS THE CENTRE OF HIS REACH, not a fingertip**, whatever its
+  // name says — `_keeperGotIt` tests the ball against it and then allows another
+  // [keeperReach] on top, and `_parry` calls it "the centre of the gloves". So
+  // it is his chest, the arms go out from there, and a GATHERED ball ends up
+  // pinned to it, which is exactly where a keeper holds one he has caught.
+  //
+  // Anchoring a glove on it instead put the whole figure a wingspan out of
+  // place and left the reach circle centred on nobody.
+  final anchor = localShoulder;
+
+  final c = math.cos(lean);
+  final sn = math.sin(lean);
+  Offset turn(Offset p) => Offset(p.dx * c - p.dy * sn, p.dx * sn + p.dy * c);
+  // The whole figure is placed so the anchor lands on the hand. Nothing here
+  // stretches to reach it; he MOVES to it.
+  final origin = hand - turn(anchor);
+  Offset at(Offset local) => origin + turn(local);
+
+  final leftBoot = at(localLeft);
+  final rightBoot = at(localRight);
+  return (
+    glove: at(localLead),
+    trailGlove: at(localTrail),
+    shoulder: at(localShoulder),
+    hip: at(localHip),
+    head: at(localHead),
+    leftBoot: leftBoot,
+    rightBoot: rightBoot,
+    feet: Offset(
+      (leftBoot.dx + rightBoot.dx) / 2,
+      (leftBoot.dy + rightBoot.dy) / 2,
+    ),
+    unit: unit,
+    lean: lean,
+  );
+}
+
+/// One dash and one gap of the aim line, in pixels.
+const double aimDash = 9;
+const double aimGap = 7;
+
+/// How fast the dashes march, in pixels a second.
+const double aimMarch = 46;
+
+/// [source] cut into dashes, offset by [phase] pixels along its own length.
+///
+/// **A solid line says where you are pointing; a MARCHING one says which way the
+/// ball is going.** The dashes run from the ball toward the goal, which is the
+/// one thing the preview was not saying — a static curve reads as a target,
+/// while the same curve with movement in it reads as a shot.
+///
+/// Pure, and separate from the painter, because path arithmetic is exactly the
+/// kind of thing that is easy to get subtly wrong and impossible to see.
+Path dashedPath(
+  Path source, {
+  double dash = aimDash,
+  double gap = aimGap,
+  double phase = 0,
+}) {
+  final out = Path();
+  final period = dash + gap;
+  if (period <= 0) return out;
+  for (final metric in source.computeMetrics()) {
+    // The phase runs BACKWARDS along the path so the dashes travel forwards.
+    var at = -(phase % period);
+    while (at < metric.length) {
+      final start = math.max(0.0, at);
+      final end = math.min(metric.length, at + dash);
+      if (end > start) out.addPath(metric.extractPath(start, end), Offset.zero);
+      at += period;
+    }
+  }
+  return out;
+}
+
+/// The taker's own proportions, in metres.
+const double _takerLeg = 0.90;
+const double _takerTorso = 0.64;
+const double _takerNeck = 0.22;
+const double _takerArm = 0.45;
+
+/// The man taking it, solved in screen space.
+///
+/// **A LEG SWINGS; IT DOES NOT GROW.** The kicking leg used to run from 0.80 to
+/// 1.05 units across the strike — a 31% stretch arriving exactly when the eye is
+/// on it — because the boot was placed at an offset and the thigh drawn to reach
+/// it. Every segment here is a fixed length at an animated angle.
+///
+/// **And his standing boot is the anchor**, because that is the contact: the
+/// world path places the foot he is standing on and the rest of him hangs off
+/// it. Anchoring the hip instead let the plant foot drift off the turf.
+typedef TakerRig = ({
+  Offset ground,
+  Offset hip,
+  Offset shoulder,
+  Offset head,
+  Offset plantBoot,
+  Offset kickBoot,
+  Offset leftHand,
+  Offset rightHand,
+  double unit,
+
+  /// 1 while he is on screen, easing to 0 as he leaves it.
+  double fade,
+});
+
+TakerRig? takerRigFor(double t, Size view) {
+  if (t <= 0) return null;
+  // Gone by the time the ball is halfway: he has struck it and the camera is
+  // watching the ball, not him.
+  final fade = (1 - (t - 1) / 0.9).clamp(0.0, 1.0);
+  if (fade <= 0) return null;
+
+  // Solved rather than chosen: he has to enter from the edge without filling the
+  // frame (the camera is only ten metres back, so anything closer than about
+  // five is taller than the view), and finish a boot's width to the side of the
+  // ball rather than on top of it.
+  final run = t.clamp(0.0, 1.0);
+  final ease = 1 - (1 - run) * (1 - run);
+  final at = Vec3(
+    -3.15 + (-0.62 + 3.15) * ease,
+    (-spotDistance - 5.1) + 4.75 * ease,
+    0,
+  );
+  final ground = project(at, view);
+  if (ground == null) return null;
+  final unit = scaleAt(at.y, view, 1);
+  if (unit <= 0) return null;
+
+  final legLen = unit * _takerLeg;
+  final armLen = unit * _takerArm;
+  final torso = unit * _takerTorso;
+
+  // The stride, and then the STRIKE. Up to the plant his legs alternate on a
+  // running cycle; from the plant the kicking leg swings through and stays
+  // through, which is the follow-through that says the ball has been hit.
+  final striking = (t - 0.82).clamp(0.0, 1.0) / 0.18;
+  final cycle = math.sin(run * 3.4 * math.pi);
+  // Angles from straight down, so a swing is a rotation about the hip.
+  final kickAngle = striking > 0
+      ? 0.36 + striking * 0.78
+      : cycle * 0.36;
+  final plantAngle = striking > 0 ? -0.16 : -cycle * 0.34;
+
+  Offset fromHip(Offset hip, double angle) =>
+      hip + Offset(math.sin(angle) * legLen, math.cos(angle) * legLen);
+
+  // The hip is wherever it has to be for the PLANT boot to be on the turf.
+  final hip =
+      ground -
+      Offset(math.sin(plantAngle) * legLen, math.cos(plantAngle) * legLen);
+  final shoulder = hip + Offset(0, -torso);
+
+  // Arms counter-swing, which is most of what makes a run read as a run — by
+  // angle, at a length that never moves.
+  final swingArm = 0.62 + cycle * 0.22;
+  final other = 0.62 - cycle * 0.22;
+  return (
+    ground: ground,
+    hip: hip,
+    shoulder: shoulder,
+    head: hip + Offset(0, -torso - unit * _takerNeck),
+    plantBoot: fromHip(hip, plantAngle),
+    kickBoot: fromHip(hip, kickAngle),
+    leftHand:
+        shoulder +
+        Offset(-math.sin(swingArm) * armLen, math.cos(swingArm) * armLen),
+    rightHand:
+        shoulder +
+        Offset(math.sin(other) * armLen, math.cos(other) * armLen),
+    unit: unit,
+    fade: fade,
+  );
 }
 
 class PenaltyPainter extends CustomPainter {
@@ -473,89 +757,48 @@ class PenaltyPainter extends CustomPainter {
   /// difference between a keeper diving and a keeper side-stepping, and it is one
   /// `canvas.rotate` rather than a second set of poses to draw.
   void _paintKeeper(Canvas canvas, Size size) {
-    final pose = frame.keeper;
-    // He stands ON the line, a little in front of the net.
-    final standing = Vec3(pose.hand.x * 0.42, -0.25, 0);
-    final feet = project(standing, size);
-    if (feet == null) return;
-    final unit = scaleAt(standing.y, size, 1);
-    if (unit <= 0) return;
+    final rig = keeperRigFor(frame.keeper, size);
+    if (rig == null) return;
+    final unit = rig.unit;
 
     const shirtColour = Color(0xFFFFC63D);
     const shortsColour = Color(0xFF23303F);
     const gloveColour = Color(0xFF1F2A37);
     const skin = Color(0xFFE8B78E);
 
-    // How far over he is: a full dive lays him flat, and which way follows the
-    // side he went.
-    final lean = pose.dive * 1.15 * (pose.side.isNegative ? -1 : 1);
-
-    canvas.save();
-    canvas.translate(feet.dx, feet.dy);
-    canvas.rotate(lean);
-
-    final hip = -unit * 0.88;
-    final shoulder = -unit * 1.52;
-    final head = -unit * 1.74;
-
     Paint limb(Color c, double w) => Paint()
       ..color = c
       ..strokeWidth = unit * w
       ..strokeCap = StrokeCap.round;
 
-    // Legs. They SPLIT with the dive — a keeper at full stretch has one leg
-    // trailing, and two parallel lines read as a man standing to attention.
-    final split = unit * (0.10 + pose.dive * 0.34);
-    canvas.drawLine(
-      Offset(-split, 0),
-      Offset(-unit * 0.06, hip),
-      limb(shortsColour, 0.17),
-    );
-    canvas.drawLine(
-      Offset(split, 0),
-      Offset(unit * 0.06, hip),
-      limb(shortsColour, 0.17),
-    );
+    // Legs, hip to boot. They SPLIT with the dive — a keeper at full stretch has
+    // one leg trailing — and they do it by ANGLE, at a length that never moves.
+    canvas.drawLine(rig.hip, rig.leftBoot, limb(shortsColour, 0.17));
+    canvas.drawLine(rig.hip, rig.rightBoot, limb(shortsColour, 0.17));
     // Torso.
-    canvas.drawLine(
-      Offset(0, hip),
-      Offset(0, shoulder),
-      limb(shirtColour, 0.30),
-    );
-    // Both arms UP and out, which is what a keeper does with them.
-    //
-    // SYMMETRIC at rest and asymmetric in the dive: standing, the two go out
-    // equally, which is a keeper set; diving, the leading one extends and the
-    // trailing one tucks, which is where the reach visibly is. Signed off the
-    // side he went, and only once he has gone — at `side == 0` there is no lead
-    // arm, and picking one made him look like he was holding something.
-    final way = pose.side.abs() < 0.05 ? 0.0 : (pose.side < 0 ? -1.0 : 1.0);
-    final spread = unit * 0.40;
-    final leadX = spread + unit * pose.dive * 0.95;
-    final trailX = spread * (1 - pose.dive * 0.55);
-    for (final (x, w) in [
-      (way == 0 ? spread : leadX * way, 0.14),
-      (way == 0 ? -spread : -trailX * way, 0.13),
-    ]) {
-      canvas.drawLine(
-        Offset(0, shoulder),
-        Offset(x, shoulder - unit * 0.22),
-        limb(shirtColour, w),
-      );
+    canvas.drawLine(rig.hip, rig.shoulder, limb(shirtColour, 0.30));
+    // Both arms out, and both exactly `keeperReach` long: the leading one swings
+    // out past horizontal as he reaches and the trailing one tucks in, which is
+    // where the reach visibly is. Neither grows.
+    canvas.drawLine(rig.shoulder, rig.glove, limb(shirtColour, 0.14));
+    canvas.drawLine(rig.shoulder, rig.trailGlove, limb(shirtColour, 0.13));
+    for (final glove in [rig.glove, rig.trailGlove]) {
+      canvas.drawCircle(glove, unit * 0.10, Paint()..color = gloveColour);
+    }
+    // Head, and a face — two dots are enough at this size, and without them he
+    // is a ball on a stick. The eyes turn with him.
+    canvas.drawCircle(rig.head, unit * 0.13, Paint()..color = skin);
+    final eye = Paint()..color = const Color(0xFF20262E);
+    final c = math.cos(rig.lean);
+    final sn = math.sin(rig.lean);
+    for (final side in [-1.0, 1.0]) {
+      final dx = side * unit * 0.045;
       canvas.drawCircle(
-        Offset(x, shoulder - unit * 0.22),
-        unit * 0.10,
-        Paint()..color = gloveColour,
+        rig.head + Offset(dx * c, dx * sn),
+        unit * 0.02,
+        eye,
       );
     }
-    // Head, and a face — two dots and the eye line are enough at this size, and
-    // without them he is a ball on a stick.
-    canvas.drawCircle(Offset(0, head), unit * 0.13, Paint()..color = skin);
-    final eye = Paint()..color = const Color(0xFF20262E);
-    canvas.drawCircle(Offset(-unit * 0.045, head), unit * 0.02, eye);
-    canvas.drawCircle(Offset(unit * 0.045, head), unit * 0.02, eye);
-    // A shirt number, so he is wearing a kit rather than a colour.
-    canvas.restore();
   }
 
   /// The man taking it.
@@ -576,28 +819,9 @@ class PenaltyPainter extends CustomPainter {
   /// he is running on. Interpolating two screen points would slide a
   /// same-sized figure across a converging pitch.
   void _paintTaker(Canvas canvas, Size size) {
-    final t = frame.taker;
-    if (t <= 0) return;
-    // Gone by the time the ball is halfway: he has struck it and the camera is
-    // watching the ball, not him.
-    final fade = (1 - (t - 1) / 0.9).clamp(0.0, 1.0);
-    if (fade <= 0) return;
-
-    // Solved rather than chosen: he has to enter from the edge without filling
-    // the frame (the camera is only ten metres back, so anything closer than
-    // about five is taller than the view), and finish a boot's width to the
-    // side of the ball rather than on top of it.
-    final run = t.clamp(0.0, 1.0);
-    final ease = 1 - (1 - run) * (1 - run);
-    final at = Vec3(
-      -3.15 + (-0.62 + 3.15) * ease,
-      (-spotDistance - 5.1) + 4.75 * ease,
-      0,
-    );
-    final feet = project(at, size);
-    if (feet == null) return;
-    final unit = scaleAt(at.y, size, 1);
-    if (unit <= 0) return;
+    final rig = takerRigFor(frame.taker, size);
+    if (rig == null) return;
+    final unit = rig.unit;
 
     const shirt = Color(0xFFE9EEF5);
     const shorts = Color(0xFF1E2A38);
@@ -611,67 +835,23 @@ class PenaltyPainter extends CustomPainter {
 
     canvas.saveLayer(
       null,
-      Paint()..color = Colors.white.withValues(alpha: fade),
-    );
-    canvas.translate(feet.dx, feet.dy);
-
-    final hip = -unit * 0.90;
-    final shoulder = -unit * 1.54;
-    final head = -unit * 1.76;
-
-    // The stride, and then the STRIKE. Up to the plant his legs alternate on a
-    // running cycle; from the plant the kicking leg swings through and stays
-    // through, which is the follow-through that says the ball has been hit.
-    final striking = (t - 0.82).clamp(0.0, 1.0) / 0.18;
-    final cycle = math.sin(run * 3.4 * math.pi);
-    final swing = striking > 0 ? (0.34 + striking * 0.62) : cycle * 0.34;
-    final plant = striking > 0 ? -0.14 : -cycle * 0.30;
-
-    canvas.drawLine(
-      Offset(unit * plant, 0),
-      Offset(-unit * 0.05, hip),
-      limb(shorts, 0.17),
-    );
-    canvas.drawCircle(
-      Offset(unit * plant, 0),
-      unit * 0.075,
-      Paint()..color = boot,
-    );
-    canvas.drawLine(
-      Offset(unit * swing, -unit * (striking > 0 ? 0.38 : 0.10)),
-      Offset(unit * 0.05, hip),
-      limb(shorts, 0.17),
-    );
-    canvas.drawCircle(
-      Offset(unit * swing, -unit * (striking > 0 ? 0.38 : 0.10)),
-      unit * 0.075,
-      Paint()..color = boot,
+      Paint()..color = Colors.white.withValues(alpha: rig.fade),
     );
 
-    canvas.drawLine(Offset(0, hip), Offset(0, shoulder), limb(shirt, 0.30));
-    // Arms counter-swing, which is most of what makes a run read as a run.
-    for (final side in [-1.0, 1.0]) {
-      canvas.drawLine(
-        Offset(0, shoulder),
-        Offset(
-          unit * (0.30 * side + cycle * 0.12 * side),
-          shoulder + unit * (0.34 - cycle * 0.10 * side),
-        ),
-        limb(shirt, 0.13),
-      );
-      canvas.drawCircle(
-        Offset(
-          unit * (0.30 * side + cycle * 0.12 * side),
-          shoulder + unit * (0.34 - cycle * 0.10 * side),
-        ),
-        unit * 0.065,
-        Paint()..color = skin,
-      );
+    // Legs, hip to boot, both the same length however far they swing.
+    for (final foot in [rig.plantBoot, rig.kickBoot]) {
+      canvas.drawLine(rig.hip, foot, limb(shorts, 0.17));
+      canvas.drawCircle(foot, unit * 0.075, Paint()..color = boot);
+    }
+    canvas.drawLine(rig.hip, rig.shoulder, limb(shirt, 0.30));
+    for (final hand in [rig.leftHand, rig.rightHand]) {
+      canvas.drawLine(rig.shoulder, hand, limb(shirt, 0.13));
+      canvas.drawCircle(hand, unit * 0.065, Paint()..color = skin);
     }
     // The back of his head — no face, because we are behind him.
-    canvas.drawCircle(Offset(0, head), unit * 0.135, Paint()..color = skin);
+    canvas.drawCircle(rig.head, unit * 0.135, Paint()..color = skin);
     canvas.drawArc(
-      Rect.fromCircle(center: Offset(0, head), radius: unit * 0.135),
+      Rect.fromCircle(center: rig.head, radius: unit * 0.135),
       math.pi,
       math.pi,
       true,
@@ -774,9 +954,9 @@ class PenaltyPainter extends CustomPainter {
       ..moveTo(aim.from.dx, aim.from.dy)
       ..quadraticBezierTo(aim.control.dx, aim.control.dy, aim.to.dx, aim.to.dy);
     canvas.drawPath(
-      path,
+      dashedPath(path, phase: frame.aimPhase),
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.75)
+        ..color = Colors.white.withValues(alpha: 0.85)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round,
@@ -910,6 +1090,15 @@ class PenaltyViewState extends State<PenaltyView>
   /// Test seam: true while he is still running in.
   bool get runningUp => _runUp > 0;
 
+  /// How far the aim line's dashes have marched, in pixels.
+  ///
+  /// A drag is the one thing on this screen that moves without the ball moving,
+  /// so the ticker has to be awake for it — see [_wake].
+  double _aimPhase = 0;
+
+  /// Test seam.
+  double get aimPhase => _aimPhase;
+
   Offset? _dragFrom;
   Offset? _dragTo;
   Offset? _dragMid;
@@ -958,6 +1147,8 @@ class PenaltyViewState extends State<PenaltyView>
         : ((now - _last).inMicroseconds / 1e6).clamp(0.0, 1 / 20);
     _last = now;
 
+    if (_dragFrom != null) _aimPhase += aimMarch * dt;
+
     if (_runUp > 0) {
       _runUp -= dt;
       // The ball does not move while he is running at it. Everything else —
@@ -994,7 +1185,9 @@ class PenaltyViewState extends State<PenaltyView>
     // `pumpAndSettle` in every test that opened this screen timed out. The
     // ticker keeps running because it is what notices the next swipe; what stops
     // is the work.
-    final live = _kick != null || _hold > 0 || _net.moving;
+    // A drag counts as live: the dashes march while the thumb is down.
+    final live =
+        _kick != null || _hold > 0 || _net.moving || _dragFrom != null;
     if (!live) {
       _ticker?.stop();
       return;
@@ -1055,11 +1248,16 @@ class PenaltyViewState extends State<PenaltyView>
       return GestureDetector(
         key: const ValueKey('penalty-swipe'),
         behavior: HitTestBehavior.opaque,
-        onPanStart: (d) => setState(() {
-          _dragFrom = d.localPosition;
-          _dragTo = d.localPosition;
-          _dragMid = null;
-        }),
+        onPanStart: (d) {
+          setState(() {
+            _dragFrom = d.localPosition;
+            _dragTo = d.localPosition;
+            _dragMid = null;
+          });
+          // The dashes need a clock, and this is the only thing on screen that
+          // moves while the ball is still on the spot.
+          _wake();
+        },
         onPanUpdate: (d) => setState(() {
           _dragTo = d.localPosition;
           // The midpoint is SAMPLED rather than computed, which is the whole
@@ -1087,6 +1285,7 @@ class PenaltyViewState extends State<PenaltyView>
               ),
               net: _net,
               taker: taker,
+              aimPhase: _aimPhase,
               aimPreview: from == null || to == null || (from - to).distance < 8
                   ? null
                   : (
