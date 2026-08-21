@@ -1537,9 +1537,21 @@ findings were arithmetic rather than taste and one is a reversal.
       happened cannot un-happen, and something that can no longer happen is
       gone. Everything else stays undecided — "win by two" is not missed at 0-0
       in the 89th.
-      Still to go: the watch-ad buttons (M4), and the injury flow — the source
-      opens the subs panel by itself when somebody goes down, with the casualty
-      preselected and Colin naming the best cover.
+      **The INJURY FLOW is in too**: one of ours goes down, the match stops and
+      the panel opens by itself with the hole already picked, so a single tap on
+      the bench covers it. Nobody is ever subbed on automatically — that is the
+      manager's call — so without it a side quietly finishes with ten men
+      because the player was reading the feed. The slot is FOUND rather than
+      carried: the port's injury event has the casualty's name and nothing else,
+      and the sim vacates their slot before the screen opens. One hole is the
+      ordinary case and is preselected; with two the manager chooses, which is
+      the honest answer rather than a guess.
+      Still to go: the watch-ad buttons (M4), and Colin naming the best cover on
+      the panel — the `match.subs.injury_tip*` and `best_cover` copy is still
+      unreached, and it wants the casualty's instance id on the event.
+      **And the SPEED button** is in: the setting decides how a match opens, the
+      button is for the moment ten minutes in when the manager has seen enough
+      of this one.
 - [ ] **A PHYSICS pass, and it wants a real decision first.** The ask is to be
       more creative with a physics engine for the cutaway, the penalty game and
       the character drawing. The honest position:

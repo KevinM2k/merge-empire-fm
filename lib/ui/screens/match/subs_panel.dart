@@ -37,19 +37,33 @@ Future<void> showSubsPanel(
   BuildContext context, {
   required int used,
   required void Function(SubMade) onSub,
+  String? openOn,
 }) => showBottomSheetPopup<void>(
   context,
   heightFraction: 0.9,
-  child: SubsPanel(used: used, onSub: onSub),
+  child: SubsPanel(used: used, onSub: onSub, openOn: openOn),
 );
 
 class SubsPanel extends ConsumerStatefulWidget {
-  const SubsPanel({super.key, required this.used, required this.onSub});
+  const SubsPanel({
+    super.key,
+    required this.used,
+    required this.onSub,
+    this.openOn,
+  });
 
   /// How many changes have already been made this match.
   final int used;
 
   final void Function(SubMade) onSub;
+
+  /// A slot to arrive with already picked.
+  ///
+  /// The injury case: somebody has gone down, the sim has already vacated their
+  /// slot, and asking the manager to tap the hole before they can tap a
+  /// replacement is asking them to answer a question they were just told the
+  /// answer to.
+  final String? openOn;
 
   @override
   ConsumerState<SubsPanel> createState() => SubsPanelState();
@@ -66,6 +80,15 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
 
   /// Nobody comes off twice, and nobody who has been off comes back on.
   final Set<String> _spent = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    final open = widget.openOn;
+    // No `offId`: the slot is empty, so there is nobody to withdraw. That is
+    // exactly what makes the second tap the only one needed.
+    if (open != null) _off = (offId: null, slotId: open);
+  }
 
   /// Test seams.
   int get left => PlayerEnergy.maxSubs - widget.used - _made;

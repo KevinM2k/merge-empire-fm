@@ -913,6 +913,84 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('AN INJURY OPENS IT BY ITSELF, with the hole picked', (
+      tester,
+    ) async {
+      // Nobody is ever subbed on automatically — that is the manager's call —
+      // so the alternative is a side quietly finishing with ten men because
+      // the player was reading the feed.
+      tallView(tester);
+      final save = squadSave();
+      final container = await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 10, 'type': 'injury', 'team': 'home', 'player': 'Ada'},
+          ],
+        ),
+        save: save,
+      );
+      // Empty one slot, the way the sim does before the screen ever opens.
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      container.read(gameProvider).update((s) {
+        final rows = (s['squad'] as Map<String, dynamic>)['lineup'] as List;
+        for (final row in rows) {
+          if (row is Map<String, dynamic> && row['slotId'] == slot.slotId) {
+            row['cardInstanceId'] = null;
+          }
+        }
+      });
+      await tester.pump();
+
+      await tester.pump(minuteDurationFor(11));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('subs-panel')),
+        findsOneWidget,
+        reason: 'an injury left the manager reading the feed',
+      );
+      expect(stateOf(tester).paused, isTrue);
+      // Already picked: one tap on the bench finishes it.
+      final panel = tester.state<SubsPanelState>(find.byType(SubsPanel));
+      expect(panel.selectedSlot, slot.slotId);
+
+      final bench = container.read(benchProvider).first;
+      final onRow = find.byKey(ValueKey('sub-bench-${bench.instanceId}'));
+      await tester.ensureVisible(onRow);
+      await tester.pumpAndSettle();
+      await tester.tap(onRow);
+      await tester.pumpAndSettle();
+      expect(
+        container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
+        contains(bench.instanceId),
+      );
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('but THEIR injury is not our problem', (tester) async {
+      tallView(tester);
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 10, 'type': 'injury', 'team': 'away', 'player': 'Them'},
+          ],
+        ),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(11));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('subs-panel')), findsNothing);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('and the button is GONE at full time', (tester) async {
       tallView(tester);
       await pumpMatch(tester, matchResult(addedTime: 0), save: squadSave());

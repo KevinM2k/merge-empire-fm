@@ -14,6 +14,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/config.dart' show PlayerEnergy;
 import 'package:merge_empire_fc/data/quests.dart' show questBank;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/quest_match.dart'
@@ -36,6 +37,8 @@ import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart'
     show QuestRow, matchQuestsProvider;
+import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart'
+    show pitchSlotsProvider;
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
@@ -265,6 +268,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           }
         case 'injury':
           unawaited(sound.play('injury'));
+          // Ours only: the opponent's physio is not our problem, and there is
+          // no hole in OUR side to cover.
+          if (ours) {
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _onInjuryShown(),
+            );
+          }
         case 'halftime':
         case 'fulltime':
           unawaited(sound.play('whistle'));
@@ -400,11 +410,42 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   }
 
   /// Open the panel, holding the match while it is up.
-  Future<void> openSubs() async {
+  ///
+  /// [openOn] arrives already picked — the injury case, where the sim has
+  /// vacated a slot and the manager only has to name a replacement.
+  Future<void> openSubs({String? openOn}) async {
     if (frame.finished || _paused) return;
     setState(() => _paused = true);
-    await showSubsPanel(context, used: _subsUsed, onSub: _onSub);
+    await showSubsPanel(
+      context,
+      used: _subsUsed,
+      onSub: _onSub,
+      openOn: openOn,
+    );
     if (mounted) setState(() => _paused = false);
+  }
+
+  /// **AN INJURY STOPS THE MATCH AND PUTS YOU IN FRONT OF THE BENCH.**
+  ///
+  /// Nobody is ever subbed on automatically — that is the manager's call — so
+  /// the alternative is a side quietly finishing with ten men because the
+  /// player was reading the feed. The source opens the panel itself for exactly
+  /// this reason.
+  ///
+  /// The slot is found rather than carried: the port's injury event has the
+  /// casualty's NAME and nothing else, and the sim vacates their slot before
+  /// the screen opens. One hole is the ordinary case and it is preselected;
+  /// with two the manager chooses, which is the honest answer rather than a
+  /// guess.
+  void _onInjuryShown() {
+    if (_paused || frame.finished) return;
+    if (_subsUsed >= PlayerEnergy.maxSubs) return;
+    final holes = [
+      for (final slot in ref.read(pitchSlotsProvider))
+        if (slot.cardInstanceId == null) slot.slotId,
+    ];
+    if (holes.isEmpty) return;
+    unawaited(openSubs(openOn: holes.length == 1 ? holes.first : null));
   }
 
   /// Record a change the panel has already written to the save.
