@@ -7,6 +7,8 @@
 /// to put it.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
@@ -15,6 +17,14 @@ import 'package:merge_empire_fc/ui/popups/boot_popups.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
+
+/// The queue entry a rolled bid takes.
+///
+/// After the welcome-back card and the daily reward — both of those hold coins
+/// the player has already earned — and ahead of a coach tip, which is a lesson
+/// rather than a decision with a clock on it.
+const String transferOfferPopupId = 'transfer-offer';
+const int transferOfferPriority = 40;
 
 class PopupHost extends ConsumerStatefulWidget {
   const PopupHost({super.key, required this.child});
@@ -57,9 +67,32 @@ class PopupHostState extends ConsumerState<PopupHost> {
   /// and the timeout is scored as a DECLINE, grudge and all. A bid that costs
   /// you something has to be shown.
   ///
+  /// **THROUGH THE QUEUE, not straight onto the screen.** It opened the card
+  /// the instant the tick announced one, wherever the player happened to be —
+  /// including over the full-time summary, which is the one screen in the game
+  /// a player is reading a result off. The queue is what already knows a match
+  /// is on: `play_button` holds a blocker for the whole match, the summary and
+  /// the round trip after it, so a bid rolled in that window now waits until
+  /// the player is back on the home screen with nothing else up.
+  ///
   /// The gate is claimed while the card is up so the next tick does not roll a
   /// second one behind it.
-  Future<void> _onIdleOffer(Object? _) async {
+  void _onIdleOffer(Object? _) {
+    if (!mounted) return;
+    enqueuePopup(
+      PopupEntry(
+        id: transferOfferPopupId,
+        priority: transferOfferPriority,
+        // Re-checked at show time: the bid may have been answered while it
+        // waited — through the pill, or on the card the player opened
+        // themselves — and a card for an offer that is gone shows nothing.
+        canShow: () => mounted && ref.read(pendingOfferProvider) != null,
+        show: (done) => unawaited(_openIdleOffer().whenComplete(done)),
+      ),
+    );
+  }
+
+  Future<void> _openIdleOffer() async {
     if (!mounted) return;
     final gates = ref.read(tickGatesProvider.notifier);
     final before = ref.read(tickGatesProvider);
