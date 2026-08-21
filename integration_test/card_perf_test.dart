@@ -36,6 +36,11 @@ void main() {
                 incomePerSec: null,
                 maxed: false,
                 atCap: false,
+                // A badge on most of them: it is a Container and a Text over
+                // the art, and the budget has to hold it on a full grid.
+                trait: i % 3 == 0
+                    ? null
+                    : (icon: '⚽', level: 'III', title: 'Finisher III'),
               ),
             ),
           ),

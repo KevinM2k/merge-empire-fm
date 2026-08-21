@@ -23,6 +23,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
@@ -114,7 +116,33 @@ class LooksSection extends ConsumerWidget {
               columns: 3,
               children: [
                 for (final tile in tiles)
-                  _LookTile(packId: tile.packId, tile: tile.tile),
+                  _LookTile(
+                    packId: tile.packId,
+                    tile: tile.tile,
+                    // **EVERY PACK IS TAPPABLE.** The tile answered "what does
+                    // this cost" and stopped there, because what spent the gems
+                    // was a sheet the port did not have — so the price on ten
+                    // tiles was a figure the player could read and not act on.
+                    // The Shop's own three beats do the rest: ask, and if the
+                    // balance will not cover it, the gem packs rather than a
+                    // sentence explaining that they cannot.
+                    onBuy: tile.tile.status == 'owned' || vaultOwned
+                        ? null
+                        : () => offerToBuy(context, ref, (
+                            key: 'pack-${tile.packId}',
+                            title: t('customise.pack.${tile.packId}'),
+                            subtitle: t('customise.pack.count', {
+                              'n': tile.tile.total,
+                            }),
+                            glyph: 'shirt',
+                            currency: SpendCurrency.gems,
+                            cost: tile.tile.cost,
+                            buy: () => ref
+                                .read(gameProvider)
+                                .update((s) => buyLookPack(s, tile.packId))
+                                .reason,
+                          )),
+                  ),
               ],
             ),
           ],
@@ -220,10 +248,14 @@ class _VaultHero extends StatelessWidget {
 
 /// One pack, inside the case: its own colour, what it holds, and what it costs.
 class _LookTile extends StatelessWidget {
-  const _LookTile({required this.packId, required this.tile});
+  const _LookTile({required this.packId, required this.tile, this.onBuy});
 
   final String packId;
   final LookTile tile;
+
+  /// Null for a pack there is nothing left to buy — owned outright, or covered
+  /// by the Vault.
+  final VoidCallback? onBuy;
 
   @override
   Widget build(BuildContext context) {
@@ -232,51 +264,54 @@ class _LookTile extends StatelessWidget {
     final tint = pack == null ? kit.accent : lookPackTint(pack.tint);
     final owned = tile.status == 'owned';
 
-    return Container(
-      key: ValueKey('shop-tile-pack-$packId'),
-      padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: tint.withValues(alpha: owned ? 0.20 : 0.10),
-        border: Border.all(color: tint.withValues(alpha: owned ? 0.7 : 0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            pack?.icon ?? '🎽',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 20, height: 1.2),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            t('customise.pack.$packId'),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              height: 1.2,
+    return GestureDetector(
+      onTap: onBuy,
+      child: Container(
+        key: ValueKey('shop-tile-pack-$packId'),
+        padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: tint.withValues(alpha: owned ? 0.20 : 0.10),
+          border: Border.all(color: tint.withValues(alpha: owned ? 0.7 : 0.35)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              pack?.icon ?? '🎽',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 20, height: 1.2),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            // Partial progress is the normal state — a video buys one item — so
-            // a part-owned pack counts, and an untouched one says its size.
-            tile.owned > 0 && tile.owned < tile.total
-                ? t('customise.pack.progress', {
-                    'n': tile.owned,
-                    'total': tile.total,
-                  })
-                : t('customise.pack.count', {'n': tile.total}),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: kit.textMuted, fontSize: 10),
-          ),
-          const Spacer(),
-          const SizedBox(height: 6),
-          _PackPill(cost: tile.cost, owned: owned),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              t('customise.pack.$packId'),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              // Partial progress is the normal state — a video buys one item — so
+              // a part-owned pack counts, and an untouched one says its size.
+              tile.owned > 0 && tile.owned < tile.total
+                  ? t('customise.pack.progress', {
+                      'n': tile.owned,
+                      'total': tile.total,
+                    })
+                  : t('customise.pack.count', {'n': tile.total}),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: kit.textMuted, fontSize: 10),
+            ),
+            const Spacer(),
+            const SizedBox(height: 6),
+            _PackPill(cost: tile.cost, owned: owned),
+          ],
+        ),
       ),
     );
   }
@@ -294,28 +329,34 @@ class _PackPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    // **A BLUE BUTTON WITH A WHITE GEM.** It was a near-black pill with a blue
+    // gem and blue digits inside it — the gem's own colour on the darkest thing
+    // on the tile, at 11px, which reads as a disabled chip rather than as the
+    // control that buys the pack. The price is the button, so it wears the
+    // gem's colour as a FILL and everything on it is white.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      key: ValueKey(owned ? 'pack-pill-owned' : 'pack-pill-buy'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: owned
             ? kit.accent.withValues(alpha: 0.22)
-            : Colors.black.withValues(alpha: 0.28),
+            : ShopSectionId.gems.ink,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (owned)
-            Icon(Icons.check, size: 11, color: kit.accentBright)
+            Icon(Icons.check, size: 12, color: kit.accentBright)
           else
-            Icon(Icons.diamond, size: 11, color: ShopSectionId.gems.ink),
-          const SizedBox(width: 3),
+            const Icon(Icons.diamond, size: 12, color: Colors.white),
+          const SizedBox(width: 4),
           Text(
             owned ? t('shop.owned') : '$cost',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
-              color: owned ? kit.accentBright : ShopSectionId.gems.ink,
+              color: owned ? kit.accentBright : Colors.white,
             ),
           ),
         ],

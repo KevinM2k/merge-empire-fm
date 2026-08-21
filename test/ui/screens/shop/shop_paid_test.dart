@@ -68,6 +68,38 @@ void main() {
     }
   });
 
+  testWidgets('THE OFFERS ARE ONE PER ROW, full width', (tester) async {
+    // Three of them, and they are the shelf the shop opens on: two up made the
+    // highest-converting slot in the game the same size as a consumable, with
+    // the third alone in a half-width tile beside a gap.
+    await pumpShopWidget(tester, (_) {}, () => const OffersSection());
+    final offers = getShopProducts().where(
+      (p) => p.category == 'bundle' || p.category == 'vip',
+    );
+    expect(offers.length, greaterThan(1));
+    final widths = [
+      for (final p in offers)
+        tester
+            .getSize(
+              find.byKey(ValueKey('shop-tile-${p.id}'), skipOffstage: false),
+            )
+            .width,
+    ];
+    final shelf = tester.getSize(find.byType(OffersSection)).width;
+    for (final width in widths) {
+      expect(
+        width,
+        closeTo(widths.first, 1),
+        reason: 'the offers are not the same width',
+      );
+      expect(
+        width,
+        greaterThan(shelf * 0.8),
+        reason: 'an offer is sharing its row',
+      );
+    }
+  });
+
   testWidgets('Restore Purchases is present and disabled', (tester) async {
     await pumpPaid(tester);
     expect(find.text(t('shop.restore_purchases')), findsOneWidget);

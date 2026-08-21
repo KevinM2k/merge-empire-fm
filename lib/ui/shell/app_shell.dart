@@ -26,6 +26,8 @@ import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
 import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart'
+    show TransferPill;
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
@@ -237,6 +239,17 @@ class AppShellState extends ConsumerState<AppShell>
                       openRoute<void>(context, const SettingsScreen()),
                 ),
               ),
+            ),
+            // **THE WAY BACK TO A PARKED BID.** Above the tab bar so it
+            // follows the player across every tab — the offer is about the
+            // squad, and the squad is three tabs from wherever it was parked.
+            // Under the coin flight, which is the layer nothing shares.
+            const Positioned(
+              key: ValueKey('transfer-pill-layer'),
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: TransferPill(),
             ),
             // **ABOVE THE GLASS.** A coin flying to the counter that passes
             // UNDER the HUD disappears a third of the way through the throw,

@@ -21,9 +21,13 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 const String _defId = 'player_t3_fwd';
@@ -114,6 +118,42 @@ Future<ProviderContainer> _pump(
   return container;
 }
 
+/// The pill lives in the shell, so the test gives it one: the widget under a
+/// Navigator, with the save it reads.
+Future<ProviderContainer> _pumpShell(
+  WidgetTester tester,
+  Map<String, dynamic> state,
+) async {
+  final container = ProviderContainer(
+    overrides: [
+      saveStoreProvider.overrideWithValue(
+        MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(gameProvider).load();
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: Consumer(
+        builder: (context, ref, _) => MaterialApp(
+          theme: ref.watch(appThemeProvider),
+          home: const Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: TransferPill(),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return container;
+}
+
 Future<void> _settleSave(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
@@ -127,6 +167,7 @@ List<dynamic> _cells(ProviderContainer c) =>
 void main() {
   tearDown(() {
     resetBus();
+    resetPopupQueue();
     resetLocale();
   });
 
@@ -202,6 +243,178 @@ void main() {
 
       expect(_market(container)['pendingOffer'], isNotNull);
       expect((_market(container)['grudges'] as Map<String, dynamic>), isEmpty);
+    });
+  });
+
+  group('THE MONEY IS NOT A SENTENCE', () {
+    testWidgets('the fee wears a coin and the premium wears its band', (
+      tester,
+    ) async {
+      // Every fact used to be one paragraph in the same 13px grey, so the
+      // number the whole card is about had to be found by reading.
+      final sellValue = players.firstWhere((p) => p.id == _defId).sellValue;
+      await _pump(tester, _saveWithOffer(price: (sellValue * 2.2).round()));
+      expect(find.byKey(const ValueKey('transfer-price')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('transfer-price')),
+          matching: find.byType(CoinIcon),
+        ),
+        findsOneWidget,
+      );
+      // 120% over fair value is a great deal, not a jackpot.
+      expect(
+        find.byKey(const ValueKey('transfer-band-transfer.market.great')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('transfer-premium')))
+            .style
+            ?.color,
+        transferBand(120).colour,
+      );
+    });
+
+    test('the bands are Colin\'s own thresholds, so they cannot disagree', () {
+      // He calls 200% incredible and 60% a good deal; below fair value he
+      // starts talking about what the player is worth instead.
+      expect(transferBand(250).key, 'transfer.market.jackpot');
+      expect(transferBand(200).key, 'transfer.market.jackpot');
+      expect(transferBand(60).key, 'transfer.market.great');
+      expect(transferBand(20).key, 'transfer.market.fair');
+      expect(transferBand(1).key, 'transfer.market.modest');
+      expect(transferBand(0).key, 'transfer.market.below');
+      expect(transferBand(-30).key, 'transfer.market.below');
+    });
+
+    testWidgets('and a bid at fair value says so rather than showing +0%', (
+      tester,
+    ) async {
+      final sellValue = players.firstWhere((p) => p.id == _defId).sellValue;
+      await _pump(tester, _saveWithOffer(price: sellValue));
+      expect(
+        find.text(
+          t('transfer.at_fair_market', {'value': formatCoins(sellValue)}),
+        ),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('THE WAY BACK TO A PARKED BID', () {
+    testWidgets('a pending offer puts the pill up, and it opens the card', (
+      tester,
+    ) async {
+      // Minimise had no return trip: the one dismissal that is not an answer
+      // was also the one that could lose you the offer.
+      final container = await _pumpShell(tester, _saveWithOffer());
+      expect(find.byKey(const ValueKey('transfer-pill')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('transfer-pill')));
+      await tester.pumpAndSettle();
+      await _settleSave(tester);
+      expect(find.byKey(const ValueKey('transfer-offer')), findsOneWidget);
+
+      // Answering it takes the pill away with it.
+      container.read(gameProvider).update((s) => declineOffer(s));
+      await tester.pumpAndSettle();
+      await _settleSave(tester);
+      expect(find.byKey(const ValueKey('transfer-pill')), findsNothing);
+    });
+
+    testWidgets('and a save with no bid shows nothing at all', (tester) async {
+      await _pumpShell(tester, createDefaultState());
+      expect(find.byKey(const ValueKey('transfer-pill')), findsNothing);
+    });
+  });
+
+  group('A BID WAITS FOR THE SCREEN IT LANDS ON', () {
+    // The idle roll opened the card the instant the tick announced one,
+    // wherever the player happened to be — including over the full-time
+    // summary, which is the one screen in the game a player is reading a
+    // result off. It goes through the queue now, and `play_button` holds a
+    // blocker for the whole match, the summary and the round trip after it.
+    /// A save with nothing else to say at boot: an unclaimed daily reward is a
+    /// popup of its own, and it would be the one on screen.
+    Map<String, dynamic> quietBoot() {
+      final s = _saveWithOffer();
+      s['dailyReward'] = <String, dynamic>{
+        'cycleDay': 1,
+        'lastClaimDayKey': dateString(),
+        'streak': 1,
+        'longestStreak': 1,
+        'totalClaims': 1,
+        'lastAutoPopupDayKey': dateString(),
+      };
+      return s;
+    }
+
+    Future<ProviderContainer> pumpHost(
+      WidgetTester tester,
+      Map<String, dynamic> state,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          saveStoreProvider.overrideWithValue(
+            MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(gameProvider).load();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: const PopupHost(child: Scaffold(body: SizedBox.expand())),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return container;
+    }
+
+    testWidgets('a bid rolled during a match holds until the match lets go', (
+      tester,
+    ) async {
+      await pumpHost(tester, quietBoot());
+      blockPopups('match');
+      addTearDown(() => unblockPopups('match'));
+
+      emit('transfer:offered');
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('transfer-offer')),
+        findsNothing,
+        reason: 'a bid opened over a match',
+      );
+      // Held, not dropped: nothing in this queue may time out or discard.
+      expect(isPopupPending(transferOfferPopupId), isTrue);
+
+      unblockPopups('match');
+      await tester.pumpAndSettle();
+      await _settleSave(tester);
+      expect(find.byKey(const ValueKey('transfer-offer')), findsOneWidget);
+    });
+
+    testWidgets('and one answered while it waited never opens', (tester) async {
+      // The pill is a second way to answer, so the entry is re-checked at show
+      // time rather than trusted from when it was queued.
+      final container = await pumpHost(tester, quietBoot());
+      blockPopups('match');
+      addTearDown(() => unblockPopups('match'));
+      emit('transfer:offered');
+      await tester.pumpAndSettle();
+
+      container.read(gameProvider).update((s) => declineOffer(s));
+      unblockPopups('match');
+      await tester.pumpAndSettle();
+      await _settleSave(tester);
+      expect(find.byKey(const ValueKey('transfer-offer')), findsNothing);
     });
   });
 

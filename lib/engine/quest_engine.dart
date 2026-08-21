@@ -1137,6 +1137,20 @@ typedef CapstoneAward = ({String divisionId, int gems});
 /// power items, so a renewable gem faucet would become a renewable pipeline
 /// into squad strength. A once-per-division award is bounded by something the
 /// player cannot farm.
+/// Is this division's capstone gem still there to be earned?
+///
+/// A READ, where [checkDivisionCapstone] is the award: the sheet has to be able
+/// to say what finishing the track is worth without paying anybody for looking
+/// at it.
+bool divisionCapstonePending(Map<String, dynamic>? state) {
+  if (state == null) return false;
+  final divId = _map(state['progression'])?['currentDivision'];
+  if (divId is! String || divId.isEmpty) return false;
+  final grants = _map(state['gemGrants']);
+  final ledger = grants?['questDivisionFirsts'];
+  return !(ledger is List && ledger.contains(divId));
+}
+
 CapstoneAward? checkDivisionCapstone(Map<String, dynamic> state) {
   ensureQuests(state);
   final divId = _map(state['progression'])?['currentDivision'];

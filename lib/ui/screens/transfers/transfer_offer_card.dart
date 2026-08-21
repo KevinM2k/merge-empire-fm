@@ -16,6 +16,8 @@
 /// never shown.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
@@ -30,6 +32,7 @@ import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -47,6 +50,29 @@ final pendingOfferProvider = savePick<Map<String, dynamic>?>((s) {
 
 /// The player's decision.
 enum TransferAnswer { accepted, declined }
+
+/// How good the bid IS, as a band with a name and a colour.
+///
+/// **Five names, translated ten times over, with nothing able to reach one of
+/// them.** `transfer.market.jackpot` down to `transfer.market.below` sat in
+/// every catalogue while the card printed the premium as a percentage buried
+/// mid-sentence — a number the player has to rank for themselves, on the one
+/// screen where the whole question is "is this a lot".
+///
+/// The thresholds are Colin's own, so the chip and his read can never disagree:
+/// he calls 200% incredible and 60% a good deal, and below fair value he starts
+/// talking about what the player is worth instead.
+({String key, Color colour}) transferBand(int premiumPct) =>
+    switch (premiumPct) {
+      >= 200 => (
+        key: 'transfer.market.jackpot',
+        colour: const Color(0xFFFFD700),
+      ),
+      >= 60 => (key: 'transfer.market.great', colour: const Color(0xFF4ADE80)),
+      >= 20 => (key: 'transfer.market.fair', colour: const Color(0xFFFBBF24)),
+      >= 1 => (key: 'transfer.market.modest', colour: const Color(0xFFFB923C)),
+      _ => (key: 'transfer.market.below', colour: const Color(0xFFF87171)),
+    };
 
 /// Colin's read on the bid.
 ///
@@ -190,15 +216,16 @@ class _TransferOfferCard extends ConsumerWidget {
     final multiplier = _num(_map(card?.sponsor)?['multiplier']);
     if (multiplier > 0) incomePerSec *= multiplier;
 
-    // One paragraph carrying every fact the old panel spread over six rows,
-    // assembled from fragments every locale ALREADY has — so this needs no new
-    // translation and cannot drift between languages.
+    // **THE MONEY IS NOT A SENTENCE.** Every fact used to be one paragraph —
+    // the fee, the premium and the income all set in the same 13px grey — so
+    // the number the whole card is about had to be found by reading. The two
+    // ends of the question keep their words; the figure between them gets a
+    // coin, a size and the band it falls in.
     final pitch = [
       t('transfer.they_want', {'player': name}),
-      '${t('transfer.their_offer')}: ${formatCoins(price)} — '
-          '${premiumPct > 0 ? t('transfer.over_fair_market', {'pct': formatPct(premiumPct), 'value': formatCoins(sellValue)}) : t('transfer.at_fair_market', {'value': formatCoins(sellValue)})}.',
       '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.',
     ].join(' ');
+    final band = transferBand(premiumPct);
 
     return CoachCardFrame(
       key: const ValueKey('transfer-offer'),
@@ -263,6 +290,69 @@ class _TransferOfferCard extends ConsumerWidget {
             style: const TextStyle(fontSize: 13, height: 1.5),
           ),
           const SizedBox(height: 10),
+          Row(
+            key: const ValueKey('transfer-price'),
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CoinIcon(size: 22, solid: true, color: coinFigureInk(context)),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  formatCoins(price),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: coinFigureInk(context),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // What the figure MEANS, named and coloured: five bands the
+              // catalogues have carried all along with nothing able to reach
+              // one of them.
+              Container(
+                key: ValueKey('transfer-band-${band.key}'),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: band.colour.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(color: band.colour.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  t(band.key),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    color: band.colour,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // The premium against fair value, in the band's own colour — the
+          // sentence it used to be buried in gave the same fact the same weight
+          // as the club's name.
+          Text(
+            premiumPct > 0
+                ? t('transfer.over_fair_market', {
+                    'pct': formatPct(premiumPct),
+                    'value': formatCoins(sellValue),
+                  })
+                : t('transfer.at_fair_market', {
+                    'value': formatCoins(sellValue),
+                  }),
+            key: const ValueKey('transfer-premium'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: band.colour,
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(
             transferAdvice(state, offer, card),
             key: const ValueKey('transfer-advice'),
@@ -282,6 +372,66 @@ class _TransferOfferCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The way back to a bid that was parked.
+///
+/// **Parking had no return trip.** Minimise — and a tap outside, which does the
+/// same thing — left an offer pending with nothing on screen saying so, and the
+/// only other way it could come back was the idle roll announcing a bid the
+/// player had already seen. So the one dismissal that is not an answer was also
+/// the one that could lose you the offer.
+///
+/// `transfer.pill_label` — "Transfer offer — tap to review" — was translated
+/// into all ten catalogues with nothing able to reach it, which is the tell.
+///
+/// It sits in the shell above the tab bar, so it follows the player across every
+/// tab: the bid is about the squad, and the squad is three tabs away from
+/// wherever the card was parked.
+class TransferPill extends ConsumerWidget {
+  const TransferPill({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offer = ref.watch(pendingOfferProvider);
+    if (offer == null) return const SizedBox.shrink();
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Material(
+          key: const ValueKey('transfer-pill'),
+          color: kit.surface,
+          shape: StadiumBorder(
+            side: BorderSide(color: kit.accentBright.withValues(alpha: 0.55)),
+          ),
+          elevation: 6,
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () => unawaited(showTransferOffer(context, ref)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('💸', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 8),
+                  Text(
+                    t('transfer.pill_label'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: kit.accentBright,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

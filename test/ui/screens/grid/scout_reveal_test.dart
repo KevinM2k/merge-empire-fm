@@ -338,6 +338,7 @@ void main() {
               incomePerSec: null,
               maxed: false,
               atCap: false,
+              trait: null,
             ),
             badge: null,
             isNewDiscovery: true,

@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
     show CutawayOutcome;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
+import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -744,6 +745,125 @@ void main() {
       await tester.pumpAndSettle();
       expect(state.frame.ourGoals, 1);
       expect(state.frame.theirGoals, 0);
+    });
+  });
+
+  group('A GOAL CAN BE WATCHED AGAIN', () {
+    /// A match with one of ours in the 22nd minute, run to full time so the
+    /// card is in the feed.
+    Future<MatchScreenState> feedWithGoal(
+      WidgetTester tester, {
+      String team = 'home',
+    }) async {
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 22, 'type': 'goal', 'team': team, 'scorer': 'Smith'},
+          ],
+        ),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      return state;
+    }
+
+    /// Open the replay without settling — a Flame loop never settles, so the
+    /// popup has to be pumped up by hand.
+    Future<void> openReplay(WidgetTester tester, int minute) async {
+      await tester.tap(find.byKey(ValueKey('feed-replay-$minute')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    testWidgets('THE CHIP IS ON THE GOAL AND NOWHERE ELSE', (tester) async {
+      // The one thing a player wants to see twice was the only thing on the
+      // screen they could not.
+      await feedWithGoal(tester);
+      expect(find.byKey(const ValueKey('feed-replay-22')), findsOneWidget);
+      // Half time is a line in the feed and has no passage of play; the chip
+      // is offered only where `clipFor` can actually build one.
+      expect(find.byKey(const ValueKey('feed-replay-45')), findsNothing);
+    });
+
+    testWidgets('AND IT PLAYS THE PASSAGE THAT WAS WATCHED', (tester) async {
+      // Seeded off the minute, so a replay is not a recording — it is the same
+      // passage rebuilt from the same number. Another seed would be another
+      // goal.
+      final state = await feedWithGoal(tester);
+      await openReplay(tester, 22);
+      expect(find.byKey(const ValueKey('goal-replay')), findsOneWidget);
+      final stage = tester.widget<CutawayStage>(
+        find.descendant(
+          of: find.byKey(const ValueKey('goal-replay')),
+          matching: find.byType(CutawayStage),
+        ),
+      );
+      expect(stage.clip?.seed, state.replayClipFor(22, ours: true)?.seed);
+      expect(stage.clip?.outcome, CutawayOutcome.goal);
+    });
+
+    testWidgets('and THE MATCH WAITS while it is up', (tester) async {
+      // The same bargain the subs panel strikes: coming back to a match that
+      // had run on without you is what a popup over a live game does if the
+      // clock does not stop.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expect(state.paused, isFalse);
+
+      await openReplay(tester, 10);
+      expect(state.paused, isTrue, reason: 'the clock ran under the replay');
+
+      await tester.tap(find.byKey(const ValueKey('goal-replay-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('goal-replay')), findsNothing);
+      expect(state.paused, isFalse);
+    });
+
+    testWidgets('AND THE WHISTLE DOES NOT CLOSE IT', (tester) async {
+      // Full time leaves the commentary page on a timer, and `maybePop` pops
+      // whatever is TOPMOST — so the whistle closed the replay the player had
+      // just opened on the goal that won it, and left the finished match
+      // sitting behind it.
+      final state = await feedWithGoal(tester);
+      expect(state.frame.finished, isTrue);
+      await openReplay(tester, 22);
+      expect(find.byKey(const ValueKey('goal-replay')), findsOneWidget);
+
+      // And it stays up for as long as the player wants it.
+      await tester.pump(const Duration(seconds: 2));
+      expect(
+        find.byKey(const ValueKey('goal-replay')),
+        findsOneWidget,
+        reason: 'the whistle closed the replay',
+      );
+      await tester.tap(find.byKey(const ValueKey('goal-replay-close')));
+      await tester.pumpAndSettle();
+      expect(state.paused, isFalse);
+    });
+
+    testWidgets('THEIRS CAN BE WATCHED TOO, and it is red', (tester) async {
+      // A goal against is still a passage of play; what changes is which way
+      // it runs and what colour the head is.
+      await feedWithGoal(tester, team: 'away');
+      await openReplay(tester, 22);
+      final dialog = tester.widget<GoalReplayDialog>(
+        find.byType(GoalReplayDialog),
+      );
+      expect(dialog.ours, isFalse);
+      expect(dialog.title, 'Ayton');
+      // Ours attack right at home, so theirs run the other way.
+      expect(dialog.clip.attackingRight, isFalse);
     });
   });
 

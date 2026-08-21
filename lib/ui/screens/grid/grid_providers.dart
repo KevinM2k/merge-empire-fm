@@ -13,12 +13,14 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 
 /// One slot: a card, an empty slot the player has room for, or a slot beyond
 /// the roster they have not grown into yet.
@@ -76,6 +78,24 @@ CardView? cardViewFor(
     // moves when you go up.
     maxed: def.mergesInto == null,
     atCap: maxTier != null && def.tier >= maxTier && def.mergesInto != null,
+    // **Resolved HERE, like every other value on the view.** The widget is
+    // handed what to draw and never asked what a trait is; the catalogue is
+    // what names it, and the definition is only the fallback.
+    trait: _traitFor(card.raw['trait']),
+  );
+}
+
+/// The glyph, the level and the localised title of a card's trait, or null for
+/// a card carrying none — or one whose id the data no longer knows.
+({String icon, String level, String title})? _traitFor(Object? raw) {
+  if (raw is! Map<String, dynamic>) return null;
+  final trait = getTrait(raw['id'] as String?);
+  if (trait == null) return null;
+  final level = (raw['level'] as num?)?.toInt();
+  return (
+    icon: trait.icon,
+    level: (level == null ? null : getTraitLevel(trait, level)?.label) ?? '',
+    title: traitTitle(raw),
   );
 }
 
@@ -214,9 +234,7 @@ Set<int> mergeTargetsFor(Map<String, dynamic>? state, int from) {
   if (source == null || loanBlock(source) != null) return const {};
   final sourceFemale = isVariantFemale(source.variant);
   final divisionId = _map(state?['progression'])?['currentDivision'] as String?;
-  final maxTier = getDivision(
-    divisionId ?? divisions.first.id,
-  ).maxPlayerTier;
+  final maxTier = getDivision(divisionId ?? divisions.first.id).maxPlayerTier;
 
   final out = <int>{};
   for (var i = 0; i < cells.length; i++) {

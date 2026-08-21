@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart' show TraitBadge;
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
 /// The wrapper's width. The token fills it; the empty slot is inset inside it.
@@ -339,9 +340,7 @@ class PitchToken extends StatelessWidget {
                           const ColoredBox(
                             color: Color(0x80640000),
                             child: Center(
-                              child: InjuryCross(
-                                size: pitchTokenWidth * 0.34,
-                              ),
+                              child: InjuryCross(size: pitchTokenWidth * 0.34),
                             ),
                           ),
                         // The rating IN THIS SLOT, coloured by what the slot
@@ -357,6 +356,21 @@ class PitchToken extends StatelessWidget {
                             size: 9.5,
                           ),
                         ),
+                        // **The same badge the bench draws**, at the foot of
+                        // the art where the token has room: the eleven and the
+                        // men waiting to come on have to say the same thing
+                        // about the same player.
+                        if (card.trait case final trait?)
+                          Positioned(
+                            bottom: 2,
+                            left: 2,
+                            child: TraitBadge(
+                              icon: trait.icon,
+                              level: trait.level,
+                              title: trait.title,
+                              size: 8,
+                            ),
+                          ),
                         if (slot.seasons > 0)
                           Positioned(
                             top: 2,

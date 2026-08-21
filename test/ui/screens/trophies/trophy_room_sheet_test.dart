@@ -138,6 +138,46 @@ void main() {
       expect(find.byKey(const ValueKey('trophy-empty')), findsNothing);
     });
 
+    testWidgets('THE BORDER SURVIVES THE CAPTION at all four corners', (
+      tester,
+    ) async {
+      // `Container.clipBehavior` clips to the decoration's OUTER path, not to
+      // the hole the border leaves inside itself — so the opaque caption band
+      // at the foot painted over the border's own curve, and the two BOTTOM
+      // corners were the ones that visibly lost it. The child's box is already
+      // inset by the border, so its clip has to be the outer radius LESS the
+      // border width.
+      await pumpRoom(
+        tester,
+        _stateWith(
+          trophies: [
+            {'season': 3, 'division': 'sunday_league', 'position': 1},
+          ],
+        ),
+      );
+      final card = find.byKey(const ValueKey('trophy-sunday_league-3'));
+      final box = tester.widget<Container>(card).decoration! as BoxDecoration;
+      final outer = box.borderRadius! as BorderRadius;
+      final width = box.border!.top.width;
+      final clip = tester.widget<ClipRRect>(
+        find.descendant(of: card, matching: find.byType(ClipRRect)).first,
+      );
+      expect(
+        clip.borderRadius,
+        BorderRadius.circular(outer.topLeft.x - width),
+        reason: 'the child is clipped to the border rather than to the hole',
+      );
+      // And the band inside it guesses at no third curve of its own.
+      final band = tester.widget<DecoratedBox>(
+        find.byKey(const ValueKey('trophy-caption')),
+      );
+      expect(
+        (band.decoration as BoxDecoration).borderRadius,
+        isNull,
+        reason: 'the caption band still has a radius the tile does not share',
+      );
+    });
+
     testWidgets('a cup win draws the CUP art, not the division', (
       tester,
     ) async {

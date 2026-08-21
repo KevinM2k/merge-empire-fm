@@ -1427,4 +1427,48 @@ void main() {
       expect(find.text(t('trait.desc.finisher')), findsOneWidget);
     });
   });
+  group('THE TRAIT IS ON THE MEN', () {
+    testWidgets('ON THE PITCH AND ON THE BENCH, the same badge', (
+      tester,
+    ) async {
+      // Picking an eleven was done blind to it: the trait lived on the sheet a
+      // tap opens, which is one tap per player to compare two of them on the
+      // one attribute the game asks you to roll for.
+      await pumpSquad(
+        tester,
+        mutate: (state) {
+          final cells =
+              (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+          for (final cell in cells) {
+            if (cell is Map<String, dynamic>) {
+              cell['trait'] = {'id': 'finisher', 'level': 3};
+            }
+          }
+        },
+      );
+      expect(
+        find.descendant(
+          of: find.byType(PitchToken),
+          matching: find.byKey(const ValueKey('card-trait')),
+        ),
+        findsWidgets,
+        reason: 'the eleven say nothing about their traits',
+      );
+
+      await openBench(tester);
+      expect(
+        find.descendant(
+          of: find.byType(PlayerCard),
+          matching: find.byKey(const ValueKey('card-trait')),
+        ),
+        findsWidgets,
+        reason: 'the bench says nothing about their traits',
+      );
+    });
+
+    testWidgets('and a squad that has rolled none draws none', (tester) async {
+      await pumpSquad(tester);
+      expect(find.byKey(const ValueKey('card-trait')), findsNothing);
+    });
+  });
 }
