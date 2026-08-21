@@ -323,6 +323,67 @@ class PitchBackdrop extends PositionComponent {
 }
 
 /// A scripted chance, played out.
+/// The cast a passage needs: where each attacker starts, and who receives each
+/// ball.
+///
+/// **Pure, and public, because this is where the ball got passed to nobody.**
+/// The two halves have to agree — a pass whose receiver has no body still gets
+/// a receiver index, and the index lands on whoever happens to be nearest the
+/// end of the list, which is very often the man doing the passing. He is then
+/// told to run onto his own pass, and the ball arrives on empty grass ahead of
+/// him. `tiki_box` was one man passing to himself three times.
+typedef AttackCast = ({
+  /// Where each attacker starts. Index 0 is the carrier.
+  List<AttackPoint> starts,
+
+  /// The receiver's index per beat index. -1 where the beat is not a pass.
+  List<int> receiverAt,
+});
+
+/// How far back a receiver stands from the ball he is about to be played.
+///
+/// **He has to run ONTO it**, which is the whole reason the scripts carry a
+/// `run` field: a receiver already standing on the spot makes the ball arrive at
+/// a statue. This is the fallback for a pass that names no run, and it is back
+/// toward our own goal because that is the side a team-mate comes from.
+const double _receiverLag = 0.11;
+
+AttackCast castFor(CutawaySequence sequence) {
+  final starts = <AttackPoint>[];
+  final receiverAt = List<int>.filled(sequence.play.length, -1);
+
+  for (var i = 0; i < sequence.play.length; i++) {
+    final beat = sequence.play[i];
+    if (beat is Start) {
+      starts.add(beat.at);
+      continue;
+    }
+    if (beat is! Pass) continue;
+    // A one-two goes back to somebody who already has a body.
+    if (beat.who != null) {
+      receiverAt[i] = beat.who!;
+      continue;
+    }
+    // **EVERY OTHER PASS GETS ITS OWN BODY.** It used to get one only if the
+    // script named a `run`, while still being assigned a receiver — so a bare
+    // pass was received by whoever was already nearest the end of the list.
+    receiverAt[i] = starts.length;
+    starts.add(
+      beat.run ??
+          (
+            p: (beat.to.p - _receiverLag).clamp(0.0, 1.0),
+            q: beat.to.q,
+          ),
+    );
+  }
+
+  // A script that is nothing but a carrier still needs somebody to pass to.
+  while (starts.length < 2) {
+    starts.add((p: 0.5, q: starts.isEmpty ? 0.5 : 0.35));
+  }
+  return (starts: starts, receiverAt: receiverAt);
+}
+
 class CutawayGame extends FlameGame {
   CutawayGame({
     required this.sequence,
@@ -439,31 +500,10 @@ class CutawayGame extends FlameGame {
     _beginBeat();
   }
 
-  /// Where each attacker starts.
-  ///
-  /// The first is the carrier's opening spot; the rest come from the `run`
-  /// fields, which is what makes a receiver's run into the ball visible instead
-  /// of the ball arriving at somebody already standing there.
-  List<AttackPoint> _attackerStarts() {
-    final out = <AttackPoint>[];
-    for (final beat in sequence.play) {
-      if (beat is Start) out.add(beat.at);
-      if (beat is Pass && beat.run != null && beat.who == null) {
-        out.add(beat.run!);
-      }
-    }
-    // A script that never names a run still needs somebody to pass to.
-    while (out.length < 2) {
-      out.add((p: 0.5, q: out.isEmpty ? 0.5 : 0.35));
-    }
-    return out;
-  }
+  /// Where each attacker starts, and who receives each ball.
+  late final AttackCast _cast = castFor(sequence);
 
-  /// Whoever receives the next ball.
-  int _receiverFor(Pass beat, int nextFreeAttacker) =>
-      beat.who ?? math.min(nextFreeAttacker, attackers.length - 1);
-
-  int _nextAttacker = 1;
+  List<AttackPoint> _attackerStarts() => _cast.starts;
 
   void _beginBeat() {
     if (finished || beatIndex >= sequence.play.length) return;
@@ -476,10 +516,7 @@ class CutawayGame extends FlameGame {
         _beginBeat();
 
       case Pass():
-        final receiver = _receiverFor(beat, _nextAttacker);
-        if (beat.who == null && _nextAttacker < attackers.length - 1) {
-          _nextAttacker++;
-        }
+        final receiver = _cast.receiverAt[beatIndex];
         final style = passStyles[beat.kind] ?? passStyles['pass']!;
         final to = _at(beat.to);
         // The receiver runs to MEET it, so the two arrive together.

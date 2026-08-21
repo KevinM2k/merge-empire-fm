@@ -2472,10 +2472,21 @@ by a test.
       Note for anyone testing near this: a clip cannot be driven to its own end
       in a widget test, because the stage is a Flame loop and a Flame loop never
       settles. `skipToEnd` is the path that clears one.
-- [ ] **Ghost hits — the ball moves with nobody in the position.** A move played
-      through a slot that has no player in it. Related to the injured-slot hole
-      and to `effRating` reading zero: an empty slot is a hole, and the pitch is
-      animating it as if somebody were standing there.
+- [x] **Ghost hits — the ball moved with nobody in the position.** Nothing to do
+      with the lineup: the cutaway builds its cast from the SCRIPT. The bug was
+      that the two halves disagreed. `_attackerStarts` created a body only for a
+      pass that named a `run`, while every pass was still assigned a receiver —
+      and the index landed on whoever was nearest the end of the list, which is
+      very often the man doing the passing. He was then told to run onto his own
+      pass, so the ball crossed the pitch to empty grass and waited there for
+      him. `tiki_box` was one man passing to himself three times, and
+      `through_center` did it on beat 2.
+      `castFor` is one pure function answering both halves now — a body per pass
+      and the receiver index for each — so they cannot disagree. A bare pass
+      gets its receiver placed `_receiverLag` back from the ball, because the
+      point of the `run` field is that he runs ONTO it rather than standing on
+      it. Two invariants over every shipped sequence: nobody passes to himself,
+      and no receiver starts on the ball.
 
 ### The squad page — rolling a trait
 

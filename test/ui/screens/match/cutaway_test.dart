@@ -133,6 +133,59 @@ void main() {
       }
     });
 
+    test('EVERY PASS HAS SOMEBODY TO RECEIVE IT', () {
+      // The ghost hits. A pass that named no `run` got no BODY — but it still
+      // got a receiver index, and the index landed on whoever was nearest the
+      // end of the list, which is very often the man doing the passing. He was
+      // then told to run onto his own pass, so the ball crossed the pitch to a
+      // patch of empty grass and waited there for him. `tiki_box` was one man
+      // passing to himself three times.
+      for (final seq in cutawaySequences) {
+        final cast = castFor(seq);
+        var carrier = 0;
+        for (var i = 0; i < seq.play.length; i++) {
+          final beat = seq.play[i];
+          if (beat is! Pass) continue;
+          final receiver = cast.receiverAt[i];
+          expect(
+            receiver,
+            greaterThanOrEqualTo(0),
+            reason: '${seq.id} beat $i: nobody was assigned the ball',
+          );
+          expect(
+            receiver,
+            lessThan(cast.starts.length),
+            reason: '${seq.id} beat $i: receiver $receiver has no body',
+          );
+          expect(
+            receiver,
+            isNot(carrier),
+            reason: '${seq.id} beat $i: he passed it to himself',
+          );
+          carrier = receiver;
+        }
+      }
+    });
+
+    test('and a receiver RUNS ONTO it rather than standing on it', () {
+      // A receiver already on the spot makes the ball arrive at a statue, which
+      // is what the `run` field is for. A pass that names none gets the same
+      // treatment rather than none at all.
+      for (final seq in cutawaySequences) {
+        final cast = castFor(seq);
+        for (var i = 0; i < seq.play.length; i++) {
+          final beat = seq.play[i];
+          if (beat is! Pass || beat.who != null) continue;
+          final start = cast.starts[cast.receiverAt[i]];
+          expect(
+            start.p == beat.to.p && start.q == beat.to.q,
+            isFalse,
+            reason: '${seq.id} beat $i: the receiver starts on the ball',
+          );
+        }
+      }
+    });
+
     test('ids are unique', () {
       final ids = cutawaySequences.map((s) => s.id).toList();
       expect(ids.toSet().length, ids.length);
