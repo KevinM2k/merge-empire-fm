@@ -30,9 +30,12 @@ too late:
 
 ## Where we are
 
-**4,221 tests, `flutter analyze` clean.**
+**4,235 tests, `flutter analyze` clean** — both of which had stopped being
+true. Twenty-seven of those tests were failing at HEAD and analyze had an
+`info`; see `Found while clearing this queue — 27 Aug`. Neither was anything
+the failing tests were about.
 
-**79 items are open**, plus five carrying a `[~]` — answered, but with a decision
+**73 items are open**, plus five carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code.
 
 **The newest section is `From playtesting — 26 Aug`, and it is the one to read
@@ -2486,16 +2489,49 @@ by a test.
 
 ### The Play Match screen
 
-- [ ] **The top card should be the NEXT MATCH CARD from the home page.** It is
-      the same fixture, described twice in two different shapes — and the home
-      page's version is the one that got the design work.
-      `lib/ui/screens/home/next_match_card.dart` against whatever the match
-      screen puts up now.
-- [ ] **The commentary needs to look better, and it should carry the
+- [x] **The top card should be the NEXT MATCH CARD from the home page.** It is
+      the same fixture described twice, and the home page's version is the one
+      that got the design work.
+      Two things were literally duplicated. The `[1fr | gutter | 1fr]` row —
+      the shape whose entire job is making the ratings line up under the club
+      names — existed once per screen; it is `MatchRow`, with `nmGutter` and
+      `nmGap`, which are what it is made of. And the STANDINGS band the card
+      opens with was missing from the board: `PosChip` is public now and takes a
+      position rather than the card's own record, because a chip that can only be
+      drawn from one screen's data structure is a chip that gets built twice.
+      **The standings are a SNAPSHOT taken at kick-off.** `finalizeMatchOutcome`
+      runs at full time with the screen still up, so a live table would slide the
+      chips under the player at the whistle — and a fixture card describes the
+      fixture as it was played.
+      **The MODIFIER chips did not come across, and cannot yet.** They are what
+      explains the two ratings — home advantage, the grudge, a relegation scrap —
+      and the card builds them from `previewFixture`. The match screen has only
+      the RESULT, which carries `playerInRelegationZone`, `grudgeBoost` and
+      `homeAdvDisplay` but neither the opponent's home advantage nor their
+      relegation flag: three of the five, and a card that under-explains a rating
+      is worse than one that does not try. Re-previewing mid-match is not the way
+      out either — `simulateMatch` has already consumed the grudge. Adding the
+      two fields to the result map is the fix and it is a PARITY change: the
+      whole map is compared against the JS fixture field by field.
+      The board also had to give the height back — see the 0.28 stage cap. At
+      full time on a 600pt screen the feed is down to single figures.
+- [x] **The commentary needs to look better, and it should carry the
       GOALSCORER'S FACE.** A goal line naming a player, next to the art of the
-      player it names — the portraits are already bundled and already resolved
-      by `playerImagePath`, so this is a feed row that knows who it is about
-      rather than a string.
+      player it names. What was missing was the row knowing WHO it was about: it
+      had the scorer's name as a string, while the engine has written
+      `scorerInstanceId` all along — `finalizeMatchOutcome` attributes career
+      goals by it — and the timeline was dropping it on the floor. `FeedLine`
+      carries an `aboutId` now, and so does a SUBSTITUTION, which names the man
+      coming on and knows his id for the same reason.
+      `PlayerFace` is the round crop, and it lives beside `PlayerHeroArt`
+      because it is the same decision — the art is a full-length figure, so the
+      crop is `cover` anchored to the TOP or a square box of a standing man is a
+      torso. A scorer who has since been SOLD still gets his line: no card, no
+      face, and the ball glyph stands in.
+      **And a goal is the headline of the feed, so it has a surface** — a tint
+      and a rule down the leading edge. That is as far as "needs to look better"
+      went: the run-of-play lines are still a transcript, which is what they
+      should be, but the feed has had no other design pass.
 - [ ] **The dugout camera is missing.** In `../merge-empire-fc` — read it before
       building anything, it is the spec.
 - [x] **THE GOAL LANDED ON THE SCOREBOARD BEFORE THE 2D PITCH SHOWED THE MOVE.**
@@ -2572,13 +2608,38 @@ by a test.
       Both rigs are pure functions returning screen-space joints, so the figure
       that is drawn is the figure that is tested — fifteen cases over five dive
       angles, four extensions and three heights.
-- [ ] **And the hand FREEZES at full stretch.** `_moveKeeper` clamps its
-      extension, so for the whole save follow-through the arm is a statue while
-      the ball loops away — and a GATHERED ball hangs motionless in mid-air for
+- [x] **And the hand FREEZES at full stretch.** `_moveKeeper` clamped its
+      extension, so for the whole save follow-through the arm was a statue while
+      the ball looped away — and a GATHERED ball hung motionless in mid-air for
       0.35s, which is the same "ball vanishing" defect the parry was written to
-      kill, moved from the ball to the hands. He should land, and the ball he
-      caught should come down with him. Measured: catch at t=1.15, and ball and
-      hand both sit at exactly (0, 0, 1.00) until the clip ends.
+      kill, moved from the ball to the hands. Measured: catch at t=1.15, and ball
+      and hand both at exactly (0, 0, 1.00) until the clip ended.
+      A dive is a jump, so it has a LANDING. **How far he falls is how far he
+      went**: full length puts him on the turf, while a keeper who simply put his
+      hands up is still on his feet and dropping him to the ground would be a man
+      collapsing rather than a save. A ball he gathered takes him down whatever
+      he did to reach it, because a keeper who has caught one smothers it.
+      **It is timed from the DECISION rather than from full extension**, and that
+      is a trade rather than an oversight. Letting gravity have him mid-flight is
+      physically truer and it is a BALANCE change: measured, a keeper who read a
+      corner struck at 0.28 power is a third of the way to the turf when it
+      arrives and no longer reaches it, so "a read keeper saves a soft corner" —
+      what the whole file is tuned around — stops holding. What a player watched
+      was the follow-through, and that is what moved.
+      The clip also stopped being STEPPED the instant it was decided, while the
+      picture holds for the best part of two seconds; `advance` settles a
+      finished kick now. And the renderer had a second copy of the dive curve on
+      a straight ramp, so the limbs were on a different curve from the glove they
+      hang off — `keeperDive` is published and is the one that moved the hand.
+- [ ] **HIS HANDS TELEPORT 35cm THE INSTANT HE COMMITS.** Found while landing
+      him, pre-existing and NOT fixed: he stands with his shoulders at 0.9 and
+      the dive's own curve starts at `0.55 + height · 1.5 · dive`, which is 0.55
+      at `dive = 0`. So the frame he commits, the whole figure drops a third of a
+      metre and then climbs back out of it.
+      The fix is one line — start the curve at [keeperStandZ] and interpolate —
+      and it is left alone deliberately, because it moves where his gloves are
+      DURING the flight and therefore what he saves. It wants a balance pass, or
+      a fixture, rather than a tidy-up.
 - [x] **The aim line is dotted, and the dashes MARCH toward the goal.** A solid
       curve reads as a target; the same curve with movement in it reads as a
       shot, which is the part the preview was not saying. `dashedPath` is pure
@@ -2830,9 +2891,18 @@ by a test.
       keeper. Not a list of label/value rows: they want a shape.
 - [ ] **The trait box needs designing.** It is the most interesting thing on the
       sheet and it is drawn as the least.
-- [ ] **THE RATINGS MUST NOT MOVE UNTIL THE REELS STOP.** Half-fixed already —
-      the trait's NAME is held for the spin — but the stats read the save, and the
-      save is written before the reels move, so the numbers still give it away.
+- [x] **THE RATINGS MUST NOT MOVE UNTIL THE REELS STOP.** Half-fixed already —
+      the trait's NAME was held for the spin — but every other number on the
+      sheet reads the save, and the save is written before the reels move, so the
+      rating, ATK and DEF still gave it away. They are exactly what a roll is
+      bought to move, which is what made them the tell.
+      **The hold belongs to the SHEET rather than to the badge**: it is a fact
+      about what the sheet is showing, and two answers to that is the drift the
+      badge already had once. `_PlayerDetail` owns it and draws everything from
+      the man he is being shown as — a copy of the card's map with the old trait
+      in it, never written back, since the save's key order is pinned against the
+      fixture. `TraitHold` is a box rather than a bare map for the reason the old
+      flag existed: null means he had NOTHING before the roll.
 - [ ] **And then it should ANNOUNCE it**, the way a club asset unlock does: a
       window with what he just got.
 
@@ -2941,6 +3011,32 @@ by a test.
       the pitch token's fit colours, the league zones, the form letters, the club
       stats, the cutaway's verdict. So either this is already what was wanted, or
       it is a pair I have not found — worth naming the screen.
+
+### Found while clearing this queue — 27 Aug
+
+- [x] **THE SUITE WAS RED, and had been for a while.** 27 tests across
+      `auto_tier_sheet_test` and `merge_grid_test` — everything that can open
+      the auto-sell sheet — were failing on a framework assertion, not on
+      anything they assert: a `ListTile` paints its background and its ink on
+      the nearest `Material` ANCESTOR, and inside a bottom sheet that is behind
+      the sheet's own decorated box, so Flutter refuses it.
+      The sheet's `SwitchListTile`s were the last Material rows in the game and
+      they were already the odd ones out — `settings_controls.dart` records the
+      objection: Material's `Switch` is 52×32 with its own knob travel and state
+      layer, and beside the game's own toggles it reads as a borrowed control.
+      They are the house row and `SettingsToggle` now, which is a
+      `GestureDetector` with no ancestor to look for, and the whole row is the
+      target rather than a 48-pixel switch.
+- [x] **And `flutter analyze` was not clean either.** One `info`:
+      `TickerMode.of` has been deprecated since 3.35 and `pubspec.lock` pins
+      `flutter >=3.44.0`, so it was showing on the project's own SDK.
+      `valuesOf(...).enabled` is the replacement and exists throughout that band.
+- [ ] **The SDK the port builds against is worth writing down.** `pubspec.lock`
+      says `dart >=3.12.0` and `flutter >=3.44.0` and nothing else does — no
+      `.fvmrc`, no CI pin — so a fresh clone picks up whatever `flutter` is on
+      the path. On 3.47 the same suite fails 34 rather than 27, because the
+      newer framework adds assertions. Both numbers were one bug; the next one
+      might not be.
 
 ### The walker
 
