@@ -206,6 +206,7 @@ class PenaltyFrame {
     required this.keeper,
     required this.net,
     required this.aimPreview,
+    this.taker = 0,
   });
 
   final Vec3 ball;
@@ -213,6 +214,11 @@ class PenaltyFrame {
   final double roll;
   final KeeperPose keeper;
   final NetMesh net;
+
+  /// How far through the run-up he is: 0 waiting on the arc, 1 planted and
+  /// through the ball. Past 1 he is following through and on his way out of
+  /// shot.
+  final double taker;
 
   /// The line the player is currently dragging, in screen space, or null.
   final ({Offset from, Offset to, Offset control})? aimPreview;
@@ -231,6 +237,9 @@ class PenaltyPainter extends CustomPainter {
     _paintKeeper(canvas, size);
     _paintFrame(canvas, size);
     if (frame.ballVisible) _paintBall(canvas, size);
+    // AFTER the ball, and before the aim: he is nearer the camera than
+    // everything else in the scene, so he passes in front of it.
+    _paintTaker(canvas, size);
     _paintAim(canvas, size);
   }
 
@@ -549,6 +558,128 @@ class PenaltyPainter extends CustomPainter {
     canvas.restore();
   }
 
+  /// The man taking it.
+  ///
+  /// **A penalty with nobody taking it is a ball leaving the spot on its own**,
+  /// and that is what this scene was. He is drawn in the same primitives as the
+  /// keeper — this file's own idiom — rather than imported from a rig built for
+  /// a manager in a coat.
+  ///
+  /// He is seen from BEHIND, because the camera stands behind the taker, which
+  /// is where the shot comes from on television. So he runs up from the left of
+  /// frame and across, and the last thing the player sees of him is his back as
+  /// the ball goes.
+  ///
+  /// **The path is in WORLD space, not screen space.** He starts near the camera
+  /// and finishes beside the ball ten metres away, so he has to SHRINK as he
+  /// runs — and projecting the path is the only way that agrees with the pitch
+  /// he is running on. Interpolating two screen points would slide a
+  /// same-sized figure across a converging pitch.
+  void _paintTaker(Canvas canvas, Size size) {
+    final t = frame.taker;
+    if (t <= 0) return;
+    // Gone by the time the ball is halfway: he has struck it and the camera is
+    // watching the ball, not him.
+    final fade = (1 - (t - 1) / 0.9).clamp(0.0, 1.0);
+    if (fade <= 0) return;
+
+    // Solved rather than chosen: he has to enter from the edge without filling
+    // the frame (the camera is only ten metres back, so anything closer than
+    // about five is taller than the view), and finish a boot's width to the
+    // side of the ball rather than on top of it.
+    final run = t.clamp(0.0, 1.0);
+    final ease = 1 - (1 - run) * (1 - run);
+    final at = Vec3(
+      -3.15 + (-0.62 + 3.15) * ease,
+      (-spotDistance - 5.1) + 4.75 * ease,
+      0,
+    );
+    final feet = project(at, size);
+    if (feet == null) return;
+    final unit = scaleAt(at.y, size, 1);
+    if (unit <= 0) return;
+
+    const shirt = Color(0xFFE9EEF5);
+    const shorts = Color(0xFF1E2A38);
+    const skin = Color(0xFFD9A277);
+    const boot = Color(0xFF15181D);
+
+    Paint limb(Color c, double w) => Paint()
+      ..color = c
+      ..strokeWidth = unit * w
+      ..strokeCap = StrokeCap.round;
+
+    canvas.saveLayer(
+      null,
+      Paint()..color = Colors.white.withValues(alpha: fade),
+    );
+    canvas.translate(feet.dx, feet.dy);
+
+    final hip = -unit * 0.90;
+    final shoulder = -unit * 1.54;
+    final head = -unit * 1.76;
+
+    // The stride, and then the STRIKE. Up to the plant his legs alternate on a
+    // running cycle; from the plant the kicking leg swings through and stays
+    // through, which is the follow-through that says the ball has been hit.
+    final striking = (t - 0.82).clamp(0.0, 1.0) / 0.18;
+    final cycle = math.sin(run * 3.4 * math.pi);
+    final swing = striking > 0 ? (0.34 + striking * 0.62) : cycle * 0.34;
+    final plant = striking > 0 ? -0.14 : -cycle * 0.30;
+
+    canvas.drawLine(
+      Offset(unit * plant, 0),
+      Offset(-unit * 0.05, hip),
+      limb(shorts, 0.17),
+    );
+    canvas.drawCircle(
+      Offset(unit * plant, 0),
+      unit * 0.075,
+      Paint()..color = boot,
+    );
+    canvas.drawLine(
+      Offset(unit * swing, -unit * (striking > 0 ? 0.38 : 0.10)),
+      Offset(unit * 0.05, hip),
+      limb(shorts, 0.17),
+    );
+    canvas.drawCircle(
+      Offset(unit * swing, -unit * (striking > 0 ? 0.38 : 0.10)),
+      unit * 0.075,
+      Paint()..color = boot,
+    );
+
+    canvas.drawLine(Offset(0, hip), Offset(0, shoulder), limb(shirt, 0.30));
+    // Arms counter-swing, which is most of what makes a run read as a run.
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawLine(
+        Offset(0, shoulder),
+        Offset(
+          unit * (0.30 * side + cycle * 0.12 * side),
+          shoulder + unit * (0.34 - cycle * 0.10 * side),
+        ),
+        limb(shirt, 0.13),
+      );
+      canvas.drawCircle(
+        Offset(
+          unit * (0.30 * side + cycle * 0.12 * side),
+          shoulder + unit * (0.34 - cycle * 0.10 * side),
+        ),
+        unit * 0.065,
+        Paint()..color = skin,
+      );
+    }
+    // The back of his head — no face, because we are behind him.
+    canvas.drawCircle(Offset(0, head), unit * 0.135, Paint()..color = skin);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(0, head), radius: unit * 0.135),
+      math.pi,
+      math.pi,
+      true,
+      Paint()..color = const Color(0xFF2B2118),
+    );
+    canvas.restore();
+  }
+
   /// The ball, as a BALL.
   ///
   /// A white circle with three dots on it was a golf ball. What makes a football
@@ -767,6 +898,18 @@ class PenaltyViewState extends State<PenaltyView>
   /// How long the ball stays where it finished before the spot is reset.
   double _hold = 0;
 
+  /// Seconds left of the run-up, and how long one takes.
+  ///
+  /// **The kick exists from the moment the swipe ends; only the BALL waits.**
+  /// The shot is decided, the keeper's plan is rolled, and `canShoot` is already
+  /// false — what the run-up delays is `advance`, so nothing about the physics
+  /// or the outcome depends on the animation in front of it.
+  double _runUp = 0;
+  static const double _runUpSeconds = 0.62;
+
+  /// Test seam: true while he is still running in.
+  bool get runningUp => _runUp > 0;
+
   Offset? _dragFrom;
   Offset? _dragTo;
   Offset? _dragMid;
@@ -814,6 +957,15 @@ class PenaltyViewState extends State<PenaltyView>
         ? 1 / 60
         : ((now - _last).inMicroseconds / 1e6).clamp(0.0, 1 / 20);
     _last = now;
+
+    if (_runUp > 0) {
+      _runUp -= dt;
+      // The ball does not move while he is running at it. Everything else —
+      // the net settling, a rebuild — carries on.
+      if (mounted) setState(() {});
+      _net.settle(dt);
+      return;
+    }
 
     final kick = _kick;
     if (kick != null && !kick.done) {
@@ -871,6 +1023,7 @@ class PenaltyViewState extends State<PenaltyView>
       _dragFrom = null;
       _dragTo = null;
       _dragMid = null;
+      _runUp = _runUpSeconds;
     });
     _wake();
   }
@@ -881,6 +1034,13 @@ class PenaltyViewState extends State<PenaltyView>
       final view = Size(constraints.maxWidth, constraints.maxHeight);
       final kick = _kick;
       final ball = kick?.position ?? _spot;
+      // 0 before the swipe, 1 at the plant, and on past it through the
+      // follow-through as the ball flies.
+      final taker = kick == null
+          ? 0.0
+          : _runUp > 0
+          ? 1 - _runUp / _runUpSeconds
+          : 1 + kick.elapsed * 1.4;
       final hand = kick?.keeperHand ?? Vec3(0, -0.3, 0.9);
       final dive = kick == null
           ? 0.0
@@ -926,6 +1086,7 @@ class PenaltyViewState extends State<PenaltyView>
                 side: kick?.plan.side ?? 0,
               ),
               net: _net,
+              taker: taker,
               aimPreview: from == null || to == null || (from - to).distance < 8
                   ? null
                   : (

@@ -1873,9 +1873,18 @@ Ordered by how visible each one is to somebody playing.
 
 **Elsewhere.**
 
-- [ ] **The penalty needs a run-up and a striker.** There is no player in the
-      picture: the ball leaves the spot on its own. The physics does not care, but
-      a penalty with nobody taking it is the last thing between this and finished.
+- [x] **The penalty needs a run-up and a striker.** There is somebody taking it
+      now: he enters from the left, runs in, plants and strikes, and follows
+      through as the ball goes. Seen from BEHIND, because the camera stands
+      behind the taker — which is where the shot comes from on television — so
+      the last thing on screen is his back.
+      Two things it is careful about. The path is in WORLD space and projected,
+      so he shrinks as he runs the ten metres to the ball; interpolating two
+      screen points would slide a same-sized figure across a converging pitch.
+      And **only the BALL waits for him** — the kick is created the moment the
+      swipe ends, the keeper's plan is already rolled and a second swipe is
+      already refused, so nothing about the physics or the outcome depends on
+      the animation in front of it.
 - [ ] **The keeper could use a save ANIMATION** — the ball is stopped by a reach
       test and then the clip ends. Parrying it away, or holding it, is the
       difference between a save and the ball vanishing.

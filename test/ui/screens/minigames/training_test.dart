@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -278,6 +279,56 @@ void main() {
       );
       expect(state.lastResult, isNull);
       expect(state.finished, isFalse);
+      await settleSave(tester);
+    });
+
+    testWidgets('SOMEBODY TAKES IT — the run-up holds the ball on the spot', (
+      tester,
+    ) async {
+      // The scene had nobody in it: the ball left the spot on its own. The kick
+      // exists from the moment the swipe ends — it is decided, and a second
+      // swipe is already refused — but the BALL waits for him.
+      await pumpTraining(tester, saveWith());
+      await tester.tap(find.byKey(const ValueKey('training-penalty')));
+      await tester.pumpAndSettle();
+
+      final rect = tester.getRect(find.byKey(const ValueKey('penalty-swipe')));
+      final gesture = await tester.startGesture(
+        Offset(rect.center.dx, rect.bottom - 8),
+      );
+      await gesture.moveTo(Offset(rect.center.dx, rect.center.dy));
+      await gesture.moveTo(Offset(rect.center.dx, rect.top + 12));
+      await gesture.up();
+      await tester.pump();
+
+      final view = tester.state<PenaltyViewState>(find.byType(PenaltyView));
+      expect(view.kick, isNotNull, reason: 'the shot was not decided');
+      expect(view.runningUp, isTrue);
+      final atSpot = view.kick!.position.y;
+
+      // FRAME BY FRAME. A single long pump is one frame carrying the whole
+      // duration, and the loop clamps a frame's dt at 50ms so a slow device
+      // cannot teleport the ball — so a 250ms pump advances the run-up by 50.
+      Future<void> frames(int n) async {
+        for (var i = 0; i < n; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+      }
+
+      // Half way through the run-up the ball has not moved.
+      await frames(15);
+      expect(view.runningUp, isTrue);
+      expect(view.kick!.position.y, atSpot);
+      expect(view.kick!.elapsed, 0, reason: 'the physics ran under him');
+
+      // Past the plant, and it is on its way.
+      await frames(30);
+      expect(view.runningUp, isFalse);
+      expect(view.kick!.position.y, greaterThan(atSpot));
+
+      for (var i = 0; i < 260; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
       await settleSave(tester);
     });
 
