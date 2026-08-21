@@ -646,6 +646,24 @@ const double _takerTorso = 0.64;
 const double _takerNeck = 0.22;
 const double _takerArm = 0.45;
 
+/// The two bones the leg is actually made of.
+///
+/// **A KICK IS A KNEE**, and the leg had none: one rigid segment from hip to
+/// boot, pivoting through 45 degrees, which is what was reported as an odd
+/// swing. These are what bend, and they are what may never change length —
+/// unlike the hip-to-boot distance, which SHOULD change, because a folded leg is
+/// a shorter leg. That is the difference between the two-bone solve here and the
+/// fixed-length stick it replaces.
+const double _takerThigh = 0.47;
+const double _takerShin = _takerLeg - _takerThigh;
+
+/// How far through the strike he cocks it before it comes through.
+///
+/// He had no backlift at all: the leg ran from 0.36 radians to 1.14 and that was
+/// the whole kick. A leg goes BACK with the knee folded and then snaps through
+/// and straightens into the ball, and the straightening is what lands on it.
+const double _takerCock = 0.42;
+
 /// The man taking it, solved in screen space.
 ///
 /// **A LEG SWINGS; IT DOES NOT GROW.** The kicking leg used to run from 0.80 to
@@ -663,6 +681,11 @@ typedef TakerRig = ({
   Offset head,
   Offset plantBoot,
   Offset kickBoot,
+
+  /// The knees. A kicking leg with no joint in it is a stick pivoting at the
+  /// hip, which is what an odd swing looks like — see [_takerThigh].
+  Offset plantKnee,
+  Offset kickKnee,
   Offset leftHand,
   Offset rightHand,
   double unit,
@@ -670,6 +693,37 @@ typedef TakerRig = ({
   /// 1 while he is on screen, easing to 0 as he leaves it.
   double fade,
 });
+
+double _mix(double a, double b, double t) => a + (b - a) * t;
+
+/// Where the knee goes, given a hip and a boot.
+///
+/// **A two-bone solve, which is the only way both bones keep their length.**
+/// The thigh and the shin are fixed at [_takerThigh] and [_takerShin]; the
+/// distance between hip and boot is what varies, because a folded leg is a
+/// shorter leg. Turning that round — pinning hip to boot and letting the bones
+/// stretch — is what the old rig did, and it is what a leg growing 31% across a
+/// strike looks like.
+///
+/// The knee sits along the hip-to-boot line at the point where the two circles
+/// meet, offset square to it. [bow] picks which side, and it is the direction
+/// the leg is swinging: seen from directly behind him a knee's own forward bend
+/// projects to nearly nothing, so the kink that reads is the one in the plane of
+/// the swing.
+Offset kneeBetween(Offset hip, Offset boot, double unit, double bow) {
+  final thigh = unit * _takerThigh;
+  final shin = unit * _takerShin;
+  final line = boot - hip;
+  // Never quite locked and never folded past the bones: a leg at full stretch
+  // still has a knee in it, and one that cannot reach has to stop somewhere.
+  final span = line.distance.clamp((thigh - shin).abs() + 1e-6, thigh + shin);
+  if (span <= 0) return hip;
+  final along = line / line.distance;
+  final reach = (span * span + thigh * thigh - shin * shin) / (2 * span);
+  final drop = math.sqrt(math.max(0, thigh * thigh - reach * reach));
+  final side = bow.isNegative ? -1.0 : 1.0;
+  return hip + along * reach + Offset(-along.dy, along.dx) * drop * side;
+}
 
 TakerRig? takerRigFor(double t, Size view) {
   if (t <= 0) return null;
@@ -703,18 +757,47 @@ TakerRig? takerRigFor(double t, Size view) {
   // through, which is the follow-through that says the ball has been hit.
   final striking = (t - 0.82).clamp(0.0, 1.0) / 0.18;
   final cycle = math.sin(run * 3.4 * math.pi);
-  // Angles from straight down, so a swing is a rotation about the hip.
-  final kickAngle = striking > 0 ? 0.36 + striking * 0.78 : cycle * 0.36;
-  final plantAngle = striking > 0 ? -0.16 : -cycle * 0.34;
 
-  Offset fromHip(Offset hip, double angle) =>
-      hip + Offset(math.sin(angle) * legLen, math.cos(angle) * legLen);
+  // **THE STRIKE IS TWO BEATS, NOT ONE ROTATION.** The kicking leg used to run
+  // straight from 0.36 radians to 1.14 with nothing else happening — no
+  // backlift, no knee, a stick pivoting at the hip. It goes BACK first with the
+  // knee folded ([_takerCock]), then snaps through and STRAIGHTENS into the
+  // ball, which is the part that reads as a kick rather than a step.
+  final cock = (striking / _takerCock).clamp(0.0, 1.0);
+  final swing = ((striking - _takerCock) / (1 - _takerCock)).clamp(0.0, 1.0);
+  // Eased, so it accelerates out of the backlift instead of sweeping evenly.
+  final through = swing * swing * (3 - 2 * swing);
+
+  // Angles from straight down, so a swing is a rotation about the hip; reach is
+  // how far the boot is from the hip, which is what a folded knee shortens.
+  final (kickAngle, kickReach) = striking <= 0
+      ? (cycle * 0.36, 0.96 - 0.14 * math.max(0.0, cycle))
+      : swing <= 0
+      ? (_mix(0.36, -0.5, cock), _mix(0.96, 0.7, cock))
+      : (_mix(-0.5, 1.12, through), _mix(0.7, 1.0, math.min(1, swing / 0.7)));
+  // The plant leg takes his weight, so it is nearly straight and stays there.
+  final (plantAngle, plantReach) = striking > 0
+      ? (-0.16, 0.98)
+      : (-cycle * 0.34, 0.96 + 0.02 * math.max(0.0, cycle));
 
   // The hip is wherever it has to be for the PLANT boot to be on the turf.
   final hip =
       ground -
-      Offset(math.sin(plantAngle) * legLen, math.cos(plantAngle) * legLen);
+      Offset(
+        math.sin(plantAngle) * legLen * plantReach,
+        math.cos(plantAngle) * legLen * plantReach,
+      );
   final shoulder = hip + Offset(0, -torso);
+
+  Offset bootAt(double angle, double reach) =>
+      hip +
+      Offset(
+        math.sin(angle) * legLen * reach,
+        math.cos(angle) * legLen * reach,
+      );
+
+  final plantBoot = bootAt(plantAngle, plantReach);
+  final kickBoot = bootAt(kickAngle, kickReach);
 
   // Arms counter-swing, which is most of what makes a run read as a run — by
   // angle, at a length that never moves.
@@ -725,8 +808,13 @@ TakerRig? takerRigFor(double t, Size view) {
     hip: hip,
     shoulder: shoulder,
     head: hip + Offset(0, -torso - unit * _takerNeck),
-    plantBoot: fromHip(hip, plantAngle),
-    kickBoot: fromHip(hip, kickAngle),
+    plantBoot: plantBoot,
+    kickBoot: kickBoot,
+    // Bowed the way the leg is SWINGING: from directly behind him a knee's own
+    // forward bend projects to almost nothing, and what the eye reads is the
+    // kink in the plane of the swing.
+    plantKnee: kneeBetween(hip, plantBoot, unit, plantAngle),
+    kickKnee: kneeBetween(hip, kickBoot, unit, kickAngle),
     leftHand:
         shoulder +
         Offset(-math.sin(swingArm) * armLen, math.cos(swingArm) * armLen),
@@ -1144,9 +1232,16 @@ class PenaltyPainter extends CustomPainter {
       Paint()..color = Colors.white.withValues(alpha: rig.fade),
     );
 
-    // Legs, hip to boot, both the same length however far they swing.
-    for (final foot in [rig.plantBoot, rig.kickBoot]) {
-      canvas.drawLine(rig.hip, foot, limb(shorts, 0.17));
+    // Legs, hip to knee to boot. The BONES are what never change length — the
+    // distance from his hip to his boot does, because a folded leg is a shorter
+    // leg, and folding it is most of what makes the strike a kick. The shin is
+    // thinner than the thigh, which is the rest.
+    for (final (knee, foot) in [
+      (rig.plantKnee, rig.plantBoot),
+      (rig.kickKnee, rig.kickBoot),
+    ]) {
+      canvas.drawLine(rig.hip, knee, limb(shorts, 0.17));
+      canvas.drawLine(knee, foot, limb(shorts, 0.13));
       canvas.drawCircle(foot, unit * 0.075, Paint()..color = boot);
     }
     canvas.drawLine(rig.hip, rig.shoulder, limb(shirt, 0.30));

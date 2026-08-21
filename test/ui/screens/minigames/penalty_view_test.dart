@@ -261,19 +261,81 @@ void main() {
     test('HIS LEGS DO NOT STRETCH EITHER', () {
       // The kicking leg ran 0.80 to 1.05 units across the strike — a 31% stretch
       // arriving exactly when the eye is on it. A leg swings; it does not grow.
+      //
+      // Measured on the BONES, which is where the invariant belongs. It used to
+      // be measured hip-to-boot, because the leg was one rigid segment — and
+      // pinning that distance is exactly what forced the bones to stretch once
+      // there was a knee between them. A folded leg is a SHORTER leg; a thigh is
+      // a thigh whatever the knee is doing.
       final thighs = <double>{};
+      final shins = <double>{};
       for (final t in moments) {
         final rig = takerRigFor(t, view);
         if (rig == null) continue;
-        for (final boot in [rig.plantBoot, rig.kickBoot]) {
+        for (final (knee, boot) in [
+          (rig.plantKnee, rig.plantBoot),
+          (rig.kickKnee, rig.kickBoot),
+        ]) {
           thighs.add(
             double.parse(
-              ((boot - rig.hip).distance / rig.unit).toStringAsFixed(6),
+              ((knee - rig.hip).distance / rig.unit).toStringAsFixed(5),
+            ),
+          );
+          shins.add(
+            double.parse(
+              ((boot - knee).distance / rig.unit).toStringAsFixed(5),
             ),
           );
         }
       }
-      expect(thighs, hasLength(1), reason: 'a leg changed length: \$thighs');
+      expect(thighs, hasLength(1), reason: 'a thigh changed length: $thighs');
+      expect(shins, hasLength(1), reason: 'a shin changed length: $shins');
+    });
+
+    test('HE COCKS THE LEG BEFORE HE SWINGS IT', () {
+      // Reported from the couch as an odd swing, and it was: the kicking leg ran
+      // straight from 0.36 radians to 1.14 with nothing else happening — no
+      // backlift, no knee, one stick pivoting at the hip. A kick goes BACK with
+      // the knee folded and then snaps through and straightens into the ball.
+      double across(double t) {
+        final rig = takerRigFor(t, view)!;
+        return rig.kickBoot.dx - rig.hip.dx;
+      }
+
+      double fold(double t) {
+        final rig = takerRigFor(t, view)!;
+        return (rig.kickBoot - rig.hip).distance / rig.unit;
+      }
+
+      // The backlift: behind the hip, and the leg is short because it is folded.
+      expect(across(0.90), lessThan(0));
+      expect(fold(0.90), lessThan(fold(0.82)));
+      // And through it: in front of the hip, and straightened out again.
+      expect(across(1.0), greaterThan(0));
+      expect(fold(1.0), greaterThan(fold(0.90)));
+      expect(across(1.0), greaterThan(across(0.90)));
+    });
+
+    test('and the knee is a real joint, off the hip-to-boot line', () {
+      for (final t in moments) {
+        final rig = takerRigFor(t, view);
+        if (rig == null) continue;
+        for (final (knee, boot) in [
+          (rig.plantKnee, rig.plantBoot),
+          (rig.kickKnee, rig.kickBoot),
+        ]) {
+          // It never folds past what the bones allow, and it never locks flat
+          // enough to be a straight line pretending to be a leg.
+          final span = (boot - rig.hip).distance;
+          expect(
+            span,
+            lessThanOrEqualTo(
+              (knee - rig.hip).distance + (boot - knee).distance + 1e-6,
+            ),
+          );
+          expect(span, greaterThan(0));
+        }
+      }
     });
 
     test('and neither do his arms', () {
