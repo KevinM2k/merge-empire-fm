@@ -24,9 +24,29 @@ framework's own assertions move between minors, and the same suite that is green
 here fails 34 tests on 3.47. A clone that picks up whatever `flutter` is on the
 path will disagree with CI about whether the port works.
 
+**A cloud session starts with NO Flutter at all**, and `analyze` and the suite
+are the only evidence a change works — so install the pinned one first rather
+than reasoning about the code:
+
+```bash
+curl -sSo /tmp/f.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.44.9-stable.tar.xz
+mkdir -p ~/sdk && tar xf /tmp/f.tar.xz -C ~/sdk
+git config --global --add safe.directory ~/sdk/flutter   # or every call dies on ownership
+export PATH=~/sdk/flutter/bin:$PATH && flutter pub get
+```
+
+**And `../merge-empire-fc` — the spec — is NOT in a cloud container.** It is a
+separate repo and only this one is cloned. Read what the port already has (the
+source comments carry the JS's reasoning, which is why they are so long) and say
+in the commit that the JS could not be consulted; do not reconstruct a rule from
+memory and present it as the spec's. The generated catalogues are downstream of
+that repo too, so **no new `t()` key can be added from here** — a change that
+needs new copy is blocked on `en.js`, and the honest move is a glyph, an
+existing key, or the queue saying it is blocked.
+
 ```bash
 flutter analyze                      # must be clean before any commit
-flutter test                         # ~4,200 tests
+flutter test                         # ~4,350 tests
 TZ=UTC flutter test                  # test/data/events_test.dart and
                                      # test/engine/event_engine_test.dart skip
                                      # themselves outside UTC — annual event
@@ -114,7 +134,11 @@ layer run under plain `dart test` with no widget binding.
   out for the squad tab AND the subs panel; `PlayerHeroArt` and `benchColumns`
   (`player_card.dart`) are the full-length figure and the bench's column count;
   `CoachBubbleTail` and `coachAlert` (`coach_card.dart`) are the speech tail and
-  the unread red.
+  the unread red; `TraitBadge` (`player_card.dart`) is the trait glyph the
+  eleven's `PitchToken` and every `PlayerCard` both wear, off `CardView.trait`;
+  `conceded` (`goal_replay.dart`) is the red a goal AGAINST is drawn in, shared
+  by the feed's goal card and the replay popup — it moved out of
+  `match_screen.dart` so the dependency runs screen → widget.
 - **A planted manager is `standing`, not `walking: false`.** `ManagerWalker`
   distinguishes them: `walking: false` is a scene nobody is watching and stops
   him dead, blink and all; `standing` stops only the STRIDE, and `idle` gives

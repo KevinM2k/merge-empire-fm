@@ -42,6 +42,14 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
+**READ `CLAUDE.md`'s Commands section before touching anything in a cloud
+session.** Two facts about that environment are not obvious and both cost a
+session time: there is **no Flutter on the PATH** until you install the pinned
+3.44.9 yourself, and **`../merge-empire-fc` — the spec — is not cloned**, which
+also means the generated catalogues cannot be regenerated and **no new `t()` key
+can be added from here**. Anything in this queue that needs new COPY is blocked
+on that repo, not on the port; say so rather than inventing a key.
+
 **109 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
@@ -70,6 +78,13 @@ whoever picks this up next will want to know before reading the queue:
 - **`TraitBadge` is the trait on a card**, and `CardView.trait` is where it is
   resolved — one change reaching the Players page, the bench, the subs panel and
   the pitch tokens, because all of them draw the same view.
+- **`buyLookPack` is the first thing that spends gems on a look pack.**
+  `grantLookPack` had been sitting there uncalled, so the Shop's five-gem price
+  was unactionable; the tile now runs `purchase_flow.dart`'s three beats, which
+  is the flow any other gem purchase should reuse rather than re-implement.
+- **`divisionCapstonePending` is a READ of the quest capstone**, where
+  `checkDivisionCapstone` is the award — the quests sheet has to be able to say
+  what finishing the track is worth without paying anybody for looking at it.
 
 The section below still applies to the full-time summary and the live match
 screen, which is what the pass before this one was about:
