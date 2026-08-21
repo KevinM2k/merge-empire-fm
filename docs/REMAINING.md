@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,325 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,353 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -42,15 +42,37 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
-**123 items are open**, plus five carrying a `[~]` — answered, but with a decision
+**115 items are open**, plus six carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
 what is open now came out of them.
 
-**The newest work is the FULL-TIME SUMMARY and the live match screen it came
-off.** Four things whoever picks this up next will want to know before reading
-the queue, because none of them is where you would look for it:
+**The newest work is the SUMMARY, the replay and the bid window.** Five things
+whoever picks this up next will want to know before reading the queue:
+
+- **`summary_league_move.dart` is the table moving**, and it invents nothing:
+  `buildLeagueTable` stamps `prevPos` and `posDelta` on every row for the
+  next-match card, so the block is those two figures given movement. When the
+  engine has no honest "before" — a season rollover, a round nobody rendered —
+  it draws the settled table and claims none.
+- **`goal_replay.dart` plays a goal again**, and a passage is not a recording:
+  `clipFor` rebuilds it from the minute, seeded, so the chip costs nothing to
+  offer and the replay is the passage that was watched. **The screen's own
+  full-time leave now checks it is still the page on top** — `maybePop` pops
+  whatever is topmost, and it was closing the replay the player had just opened.
+- **`TransferPill` (in `transfer_offer_card.dart`) is the way back to a parked
+  bid**, in the shell above the tab bar. Parking is the one dismissal that is
+  not an answer, and it used to leave nothing on screen saying so.
+- **A rolled bid goes through `enqueuePopup`** rather than opening where it
+  lands, which is what keeps it off the full-time summary: the match holds a
+  queue blocker until the player is home.
+- **`TraitBadge` is the trait on a card**, and `CardView.trait` is where it is
+  resolved — one change reaching the Players page, the bench, the subs panel and
+  the pitch tokens, because all of them draw the same view.
+
+The section below still applies to the full-time summary and the live match
+screen, which is what the pass before this one was about:
 
 - **`ui/screens/match/match_summary.dart` is a route, not a sheet**, pushed by
   `play_button` after the match screen pops. It MUTATES `result['coinsEarned']`
@@ -3418,16 +3440,40 @@ already done are marked; the rest are the queue.
       written, for exactly this — pays whatever the screen last said. Every
       placement answers `unavailable` until the SDK lands, which is a real
       answer the flow has to handle anyway.
-- [ ] **A REPLAY button beside each goal in the feed**, opening the 2D passage
-      again in a popup. `clipFor` already rebuilds a clip from the event, so what
-      is missing is the chip and the dialog.
-- [ ] **No Thanks should carry the match-quest money too** — what the player
-      walks away with is the fee plus what the three quests paid.
-- [ ] **The 2× block, the quests and the verdict all want the same box** the
-      score is in, and the verdict wants its own colour.
-- [ ] **THE LEAGUE TABLE, ANIMATED, on the summary.** Where we were, then the
-      table moving: us up, down or holding, and the other clubs sliding with
-      their own results.
+- [x] **A REPLAY button beside each goal in the feed**, opening the 2D passage
+      again in a popup. `goal_replay.dart`, and the chip is offered only where
+      `clipFor` can actually build a clip — a passage is not a recording, it is
+      rebuilt from the minute, which is why asking for it again costs nothing.
+      It holds the match while it is up, the way the subs panel does. **And the
+      whistle was closing it**: full time leaves the commentary page on a timer
+      and `maybePop` pops whatever is TOPMOST, so the replay opened on the goal
+      that had just gone in was what the timer shut. The leave checks it is
+      still the page on top, and the replay asks again on its way out.
+- [x] **No Thanks should carry the match-quest money too** — what the player
+      walks away with is the fee plus what the three quests paid. Both answers
+      carry the walk-away total now, and so does the hero figure: a match quest
+      auto-pays at the whistle, so it passes through neither the offer nor
+      `applyMatchRewards`, and the screen was understating the match by whatever
+      the track was worth. Totals on both sides also make the two answers
+      comparable — the difference between them is exactly what the video pays.
+- [x] **The 2× block, the quests and the verdict all want the same box** the
+      score is in, and the verdict wants its own colour. One `GlassPanel`, ruled
+      in the result's colour between what happened and what it paid. The verdict
+      wore `accentBright`, which belongs to the CLUB — a side in red shirts was
+      told it had won in the same red the game uses for a goal against — so it
+      reads the green-amber-red scale the form dots and the HUD read. The two
+      buttons stay pinned at the foot: the yellow one is the screen's action,
+      not part of the report.
+- [x] **THE LEAGUE TABLE, ANIMATED, on the summary.**
+      `summary_league_move.dart`. It opens on the table AS IT WAS, holds long
+      enough to be read, then rearranges — every club sliding to where this
+      round left it, with an arrow and a count. Nothing there decides a
+      position: `buildLeagueTable` has stamped every row with `prevPos` and
+      `posDelta` for the next-match card all along, and this is those two
+      figures given the movement they describe. It refuses to animate rather
+      than invent one — a round the engine cannot honestly compare against (a
+      rollover, or a round nobody rendered) draws the settled table and claims
+      nothing. Off for a cup tie, which changes no standing.
 - [ ] **The commentary has very little room left.** Worth a rethink rather than a
       nudge.
 - [ ] **The Sunday League header — the timer and the progress bar — goes UNDER
@@ -3435,16 +3481,36 @@ already done are marked; the rest are the queue.
 
 ### The bid window
 
-- [ ] **The coins want a coin beside them**, and the percentage over fair value
-      wants the colour scale.
-- [ ] **"Minimise" should say "Review"** — and a minimised bid needs a way back.
-- [ ] **And it must not open over the result.** It should wait until the player
-      is back on the home screen.
+- [x] **The coins want a coin beside them**, and the percentage over fair value
+      wants the colour scale. The fee, the premium and the income lost were one
+      paragraph in one 13px grey. `transfer.market.jackpot` down to
+      `transfer.market.below` — five band names, translated ten times over with
+      nothing able to reach one of them — are the chip beside the figure, and
+      the thresholds are Colin's own so the chip and his read cannot disagree.
+- [~] **"Minimise" should say "Review"** — and a minimised bid needs a way back.
+      **The way back is built**: `transfer.pill_label` — "Transfer offer — tap
+      to review", another string with no caller — is a pill in the shell above
+      the tab bar, so a parked bid follows the player across every tab. The
+      RENAME is the half that cannot be done here: the catalogues are generated
+      from `../merge-empire-fc`'s own `en.js`, so "Review" has to start there
+      and be regenerated.
+- [x] **And it must not open over the result.** The idle roll opened the card
+      the instant the tick announced one, wherever the player was — the
+      full-time summary included. It goes through `enqueuePopup` now, which
+      already knows a match is on: `play_button` holds a blocker for the match,
+      the summary and the round trip after it. It waits rather than expires, and
+      it is re-checked at show time, because the pill is a second way to answer.
 
 ### The cards
 
-- [ ] **A player's TRAIT should show on his card** — squad, subs, bench and the
-      Players page.
+- [x] **A player's TRAIT should show on his card** — squad, subs, bench and the
+      Players page. `CardView` carries it, resolved in `cardViewFor` where every
+      other value on a card is resolved, so one change reached all four. The
+      badge is `TraitBadge` and there is one of it: the eleven draw a
+      `PitchToken` and everything else draws a `PlayerCard`, and a trait that
+      looks like one thing on the pitch and another on the bench is a trait the
+      player has to learn twice. No new copy — the emoji is the trait's own and
+      the level is a roman numeral, so it says it in every language.
 
 ### The penalty mini-game
 
