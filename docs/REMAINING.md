@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,380 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,385 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,14 +50,14 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**104 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**103 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
 what is open now came out of them.
 
 **The newest work is the PENALTY SCENE's camera, the ground it stands on and
-the keeper's arms.** Five of its eight open items went together, and the shape
+the keeper's arms.** Six of its eight open items went together, and the shape
 of the first four is the same — the scene was right about the goal and wrong
 about everything around it:
 
@@ -82,6 +82,10 @@ about everything around it:
   leg. `_keeperShoulder` displaces the joint ALONG the arm, which is the only
   offset that leaves every limb the same length, and `_armRest` stops him
   signalling a touchdown while he waits.
+- **`_settle` is the picture after the whistle, and the ball is in it.** A goal
+  pinned the ball to the cords and stopped stepping it, so it hung at head
+  height for the whole 1.9s hold. The net takes the pace and gravity does the
+  rest; the outcome is set once and nothing in the settle can reach it.
 
 **The pass before this one was the SUMMARY, the replay and the bid window.** Five
 things whoever picks this up next will want to know before reading the queue:
@@ -3658,8 +3662,22 @@ Its own list, because almost none of it is right yet.
       man signalling a touchdown, holding two full-reach limbs in a V above his
       shoulders. A keeper set for a penalty has them out to the sides and a
       little below, which is also the pose the dive leaves from.
-- [ ] **There is no physics at all**: the ball sticks in the net and the keeper
-      sticks in the air.
+- [x] **The keeper was fixed first; this is the BALL.** "No physics at all: the
+      ball sticks in the net and the keeper sticks in the air" — he stopped
+      sticking when the dive got its landing, and the ball did not. A goal pinned
+      it against the cords and left every component of its velocity untouched,
+      and then `done` stopped stepping it: the frame the word went up was the
+      frame the ball stopped, and the screen holds on the goalmouth for 1.9s
+      after that. It hung at head height for all of it.
+      `_settle` is the picture after the kick is decided, and everything that
+      stops moving in it is something the player watches not move. The net TAKES
+      the pace — a ball into a net is stopped by it and then drops — and gravity,
+      the turf and rolling friction do the rest, so a goal ends with the ball on
+      the ground inside the net. It cannot come back out through the cords and it
+      cannot roll out through the SIDE of the goal either: an angled shot carries
+      most of a metre of drift across the hold, which put it through the side
+      netting and out past the post. A ball he CAUGHT still goes down with his
+      gloves, and none of it can reach `result` — the outcome is set once.
 
 ## M0 — foundation and save bridge ✅
 
