@@ -84,6 +84,7 @@ Future<T?> showCoachCard<T>(
   List<CoachAction> actions = const [],
   Map<String, Object?> bodyParams = const {},
   List<CoachLine> extraLines = const [],
+  String? badge,
 
   /// Already-resolved body text, for a caller whose line comes out of a pool or
   /// carries a name the catalogue cannot know.
@@ -98,6 +99,7 @@ Future<T?> showCoachCard<T>(
       bodyParams: bodyParams,
       extraLines: extraLines,
       actions: actions,
+      badge: badge,
     ),
   );
 }
@@ -110,6 +112,7 @@ class _CoachCard<T> extends StatelessWidget {
     required this.bodyParams,
     required this.extraLines,
     required this.actions,
+    required this.badge,
   });
 
   final String titleKey;
@@ -118,6 +121,7 @@ class _CoachCard<T> extends StatelessWidget {
   final Map<String, Object?> bodyParams;
   final List<CoachLine> extraLines;
   final List<CoachAction> actions;
+  final String? badge;
 
   @override
   Widget build(BuildContext context) => CoachCardFrame(
@@ -125,6 +129,7 @@ class _CoachCard<T> extends StatelessWidget {
     body: body ?? t(bodyKey, bodyParams),
     extraLines: extraLines,
     actions: actions,
+    badge: badge,
   );
 }
 
@@ -143,9 +148,18 @@ class CoachCardFrame extends StatelessWidget {
     this.child,
     this.extraLines = const [],
     this.actions = const [],
+    this.badge,
   });
 
   final String title;
+
+  /// A subject badge on the card's corner, beside his head.
+  ///
+  /// **The one place an emoji is right in this app.** Everything else is drawn
+  /// in the app's own line art, but a milestone tip's badge is a hospital, a
+  /// trophy, a stadium or a pair of lungs — sixteen unrelated subjects used once
+  /// each, which is not the same trade as drawing an icon set.
+  final String? badge;
 
   /// What he says. Shown immediately.
   final String? body;
@@ -191,67 +205,78 @@ class CoachCardFrame extends StatelessWidget {
                 20,
                 14,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    t('coachtip.name').toUpperCase(),
-                    key: const ValueKey('coach-card-name'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: kit.accentBright,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      height: 1.2,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (child != null) ...[const SizedBox(height: 10), child!],
-                  if (body != null) ...[
-                    const SizedBox(height: 8),
-                    // What he says. Straight away — see the note at the top.
+              // **SCROLLS RATHER THAN OVERFLOWS.** What he says is a sentence
+              // in whichever of ten languages the player has picked — German is
+              // the measured worst case — and a card that carries a portrait, a
+              // set of terms and two answers has no slack left. A `Column` in a
+              // loose box takes its natural height and paints past the bottom of
+              // the screen; inside a scroll view it takes what there is and the
+              // rest is reachable.
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                     Text(
-                      body!,
-                      key: const ValueKey('coach-card-body'),
+                      t('coachtip.name').toUpperCase(),
+                      key: const ValueKey('coach-card-name'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: kit.textMuted,
-                        fontSize: 13.5,
-                        height: 1.5,
+                        color: kit.accentBright,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
                       ),
                     ),
-                  ],
-                  for (final line in extraLines)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        t(line.key, line.params),
-                        key: ValueKey('coach-line-${line.key}'),
+                    const SizedBox(height: 8),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        height: 1.2,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (child != null) ...[const SizedBox(height: 10), child!],
+                    if (body != null) ...[
+                      const SizedBox(height: 8),
+                      // What he says. Straight away — see the note at the top.
+                      Text(
+                        body!,
+                        key: const ValueKey('coach-card-body'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: line.strong ? kit.accentBright : kit.textMuted,
-                          fontSize: line.strong ? 15 : 12,
-                          fontWeight: line.strong
-                              ? FontWeight.w900
-                              : FontWeight.w400,
+                          color: kit.textMuted,
+                          fontSize: 13.5,
+                          height: 1.5,
                         ),
                       ),
-                    ),
-                  if (actions.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _Actions(actions: actions),
+                    ],
+                    for (final line in extraLines)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          t(line.key, line.params),
+                          key: ValueKey('coach-line-${line.key}'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: line.strong
+                                ? kit.accentBright
+                                : kit.textMuted,
+                            fontSize: line.strong ? 15 : 12,
+                            fontWeight: line.strong
+                                ? FontWeight.w900
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _Actions(actions: actions),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -281,6 +306,27 @@ class CoachCardFrame extends StatelessWidget {
               ),
             ),
           ),
+          // The milestone, beside his head and clear of it — the JS hangs it off
+          // the same top edge at `right: calc(50% - 56px)`.
+          if (badge != null)
+            Positioned(
+              top: -6,
+              left: MediaQuery.sizeOf(context).width / 2 + 4,
+              child: Text(
+                badge!,
+                key: const ValueKey('coach-card-badge'),
+                style: const TextStyle(
+                  fontSize: 28,
+                  shadows: [
+                    Shadow(
+                      color: Color(0x80000000),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/sponsors.dart';
+import 'package:merge_empire_fc/engine/coach_tip_engine.dart';
 import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -39,6 +40,16 @@ Future<bool> showSponsorOffer(
   required CardInstance player,
   required Company company,
 }) async {
+  // **His explainer is a paragraph INSIDE the offer, not a tip over it.** The
+  // JS makes that point twice: a coach tip stacked on top of the card it is
+  // about is Colin talking over Colin. `takeTipOnce` returns true once ever, so
+  // the first sponsor a player is offered comes with the lesson and no other
+  // does.
+  // Through `update`, because spending the id WRITES to the save — read the
+  // map and mutate it by hand and the ledger never reaches the disk.
+  final explain = ref
+      .read(gameProvider)
+      .update((s) => takeTipOnce(s, 'sponsor'));
   bool? accepted;
   await showDialog<void>(
     context: context,
@@ -48,6 +59,7 @@ Future<bool> showSponsorOffer(
     builder: (_) => _SponsorOfferCard(
       player: player,
       company: company,
+      explain: explain,
       onAnswer: (yes) => accepted = yes,
     ),
   );
@@ -73,11 +85,16 @@ class _SponsorOfferCard extends StatelessWidget {
   const _SponsorOfferCard({
     required this.player,
     required this.company,
+    required this.explain,
     required this.onAnswer,
   });
 
   final CardInstance player;
   final Company company;
+
+  /// Whether this is the first sponsor this save has ever been offered, and so
+  /// carries Colin's one-time explanation of what a sponsorship IS.
+  final bool explain;
 
   /// `CoachAction` closes the card itself, so the answer comes back this way
   /// rather than as the dialog's result.
@@ -98,6 +115,11 @@ class _SponsorOfferCard extends StatelessWidget {
       body: t('sponsor.want_to_sponsor', {
         'player': player.name(def?.name ?? ''),
       }),
+      // What a sponsorship is, once ever. Under the offer rather than over it.
+      extraLines: [
+        if (explain)
+          (key: 'coachtip.sponsor.body', params: const {}, strong: false),
+      ],
       // Red for no, green for yes — in a line and the same width, because they
       // are two answers to one question.
       actions: [

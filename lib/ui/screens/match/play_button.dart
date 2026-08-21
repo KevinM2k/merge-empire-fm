@@ -26,6 +26,8 @@ import 'package:merge_empire_fc/ui/screens/match/cup_sponsor_offer.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/sponsor_offer_card.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
 import 'package:merge_empire_fc/ui/popups/energy_sheet.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -56,6 +58,9 @@ class PlayMatchButton extends ConsumerWidget {
 
   final bool fast;
 
+  /// What holds the popup queue shut for the length of a match.
+  static const String _matchBlocker = 'match';
+
   Future<void> _play(BuildContext context, WidgetRef ref) async {
     final game = ref.read(gameProvider);
     // A cup tie takes precedence when one is due. Cups sit BETWEEN league games,
@@ -68,6 +73,10 @@ class PlayMatchButton extends ConsumerWidget {
     final result = game.update(beginMatch);
     if (result == null || !context.mounted) return;
 
+    // **Nothing pops over a match.** The JS suppresses coach tips on
+    // `match:open`; blocking the QUEUE covers every popup rather than only that
+    // one — the welcome-back card could land on the pitch too.
+    blockPopups(_matchBlocker);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -86,8 +95,15 @@ class PlayMatchButton extends ConsumerWidget {
     // answered would make the offer meaningless.
     game.update((s) => payMatch(s, result));
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      unblockPopups(_matchBlocker);
+      return;
+    }
     await _afterMatch(context, ref, result);
+    // The screen is gone and any bid or sponsor has been answered. **CLOSE, not
+    // complete**: a coach tip fired on the whistle would land over the result.
+    unblockPopups(_matchBlocker);
+    emit('match:close');
   }
 
   /// The same round trip for a cup tie.
@@ -101,6 +117,7 @@ class PlayMatchButton extends ConsumerWidget {
     if (tie == null || !context.mounted) return;
 
     CupSponsorDrop? drop;
+    blockPopups(_matchBlocker);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -119,6 +136,8 @@ class PlayMatchButton extends ConsumerWidget {
 
     final sponsor = drop;
     if (sponsor != null) await showCupSponsorOffer(context, ref, sponsor);
+    unblockPopups(_matchBlocker);
+    emit('match:close');
   }
 
   /// What arrives once the result screen is gone.

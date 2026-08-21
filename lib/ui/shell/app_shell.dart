@@ -30,6 +30,7 @@ import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
+import 'package:merge_empire_fc/ui/shell/coach_tip_host.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -140,97 +141,108 @@ class AppShellState extends ConsumerState<AppShell>
       if (_revealActive) setState(() => _revealActive = false);
     });
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return Scaffold(
-      body: Stack(
-        children: [
-          // FULL BLEED. The ground and anything a screen paints over it run to
-          // the top of the glass; the notch is cleared by the CONTENT (see
-          // `hudClearanceOf`) rather than by a SafeArea around the lot. Wrapped,
-          // the home screen's diorama stopped at the notch and left a bar of
-          // page colour above it.
-          Container(
-            decoration: kit.background,
-            child: SizedBox.expand(
-              child: GestureDetector(
-                onHorizontalDragEnd: _onDragEnd,
-                child: SlideTransition(
-                  key: const ValueKey('tab-slide'),
-                  position: Tween<Offset>(begin: _beginOffset, end: Offset.zero)
-                      .animate(
-                        CurvedAnimation(
-                          parent: _slide,
-                          curve: Curves.easeOutCubic,
+    // **Colin's one-time tips**, watching for a milestone. It draws nothing —
+    // when one lands it goes through `enqueuePopup` like every other popup, so a
+    // lesson can never land on top of the welcome-back card's coins. Wrapped
+    // around the whole shell rather than sat in the Stack because it needs the
+    // tab and nothing else.
+    return CoachTipHost(
+      tab: _active,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // FULL BLEED. The ground and anything a screen paints over it run to
+            // the top of the glass; the notch is cleared by the CONTENT (see
+            // `hudClearanceOf`) rather than by a SafeArea around the lot. Wrapped,
+            // the home screen's diorama stopped at the notch and left a bar of
+            // page colour above it.
+            Container(
+              decoration: kit.background,
+              child: SizedBox.expand(
+                child: GestureDetector(
+                  onHorizontalDragEnd: _onDragEnd,
+                  child: SlideTransition(
+                    key: const ValueKey('tab-slide'),
+                    position:
+                        Tween<Offset>(
+                          begin: _beginOffset,
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: _slide,
+                            curve: Curves.easeOutCubic,
+                          ),
                         ),
-                      ),
-                  child: IndexedStack(
-                    index: tabOrder.indexOf(_active),
-                    children: [
-                      for (final tab in tabOrder)
-                        TickerMode(
-                          enabled: tab == _active,
-                          // Exhaustive over ShellTab: every tab has a real
-                          // screen now, so there is no fallback left to write.
-                          child:
-                              widget.screenFor?.call(tab) ??
-                              switch (tab) {
-                                ShellTab.grid => const GridScreen(
-                                  key: ValueKey('screen-grid'),
-                                ),
-                                ShellTab.squad => const SquadScreen(
-                                  key: ValueKey('screen-squad'),
-                                ),
-                                ShellTab.home => const HomeScreen(
-                                  key: ValueKey('screen-home'),
-                                ),
-                                ShellTab.club => const ClubScreen(
-                                  key: ValueKey('screen-club'),
-                                ),
-                                ShellTab.shop => const ShopScreen(
-                                  key: ValueKey('screen-shop'),
-                                ),
-                              },
-                        ),
-                    ],
+                    child: IndexedStack(
+                      index: tabOrder.indexOf(_active),
+                      children: [
+                        for (final tab in tabOrder)
+                          TickerMode(
+                            enabled: tab == _active,
+                            // Exhaustive over ShellTab: every tab has a real
+                            // screen now, so there is no fallback left to write.
+                            child:
+                                widget.screenFor?.call(tab) ??
+                                switch (tab) {
+                                  ShellTab.grid => const GridScreen(
+                                    key: ValueKey('screen-grid'),
+                                  ),
+                                  ShellTab.squad => const SquadScreen(
+                                    key: ValueKey('screen-squad'),
+                                  ),
+                                  ShellTab.home => const HomeScreen(
+                                    key: ValueKey('screen-home'),
+                                  ),
+                                  ShellTab.club => const ClubScreen(
+                                    key: ValueKey('screen-club'),
+                                  ),
+                                  ShellTab.shop => const ShopScreen(
+                                    key: ValueKey('screen-shop'),
+                                  ),
+                                },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          // **Colin, on every tab.** Above the screens and below the HUD, inside
-          // the body's `Stack` rather than in an overlay — which is what makes a
-          // sheet or a dialog cover him by construction instead of by a
-          // ref-counted "step aside" signal from every modal in the app. See
-          // `coach_floating.dart`.
-          Positioned.fill(
-            key: const ValueKey('coach-layer'),
-            child: Visibility(
-              visible: !_revealActive,
-              maintainState: true,
-              child: CoachFloating(tab: _active),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            // NOT wrapped in a `SafeArea`: the HUD clears the notch itself, so
-            // its glass can run to the top of the screen instead of starting
-            // below it with the raw page showing above.
-            child: Visibility(
-              key: const ValueKey('hud-layer'),
-              visible: !_revealActive,
-              maintainState: true,
-              child: Hud(
-                onSettings: () =>
-                    openRoute<void>(context, const SettingsScreen()),
+            // **Colin, on every tab.** Above the screens and below the HUD, inside
+            // the body's `Stack` rather than in an overlay — which is what makes a
+            // sheet or a dialog cover him by construction instead of by a
+            // ref-counted "step aside" signal from every modal in the app. See
+            // `coach_floating.dart`.
+            Positioned.fill(
+              key: const ValueKey('coach-layer'),
+              child: Visibility(
+                visible: !_revealActive,
+                maintainState: true,
+                child: CoachFloating(tab: _active),
               ),
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: ShellTabBar(
-        active: _active,
-        onTap: (tab) => goTab(tab),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              // NOT wrapped in a `SafeArea`: the HUD clears the notch itself, so
+              // its glass can run to the top of the screen instead of starting
+              // below it with the raw page showing above.
+              child: Visibility(
+                key: const ValueKey('hud-layer'),
+                visible: !_revealActive,
+                maintainState: true,
+                child: Hud(
+                  onSettings: () =>
+                      openRoute<void>(context, const SettingsScreen()),
+                ),
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: ShellTabBar(
+          active: _active,
+          onTap: (tab) => goTab(tab),
+        ),
       ),
     );
   }
