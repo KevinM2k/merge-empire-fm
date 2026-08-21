@@ -124,7 +124,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// Which of the two the body is showing.
   bool _onQuests = false;
 
+  /// Double speed, starting from the player's own setting.
+  ///
+  /// **It is a live control, not a preference read once.** The setting decides
+  /// how a match OPENS; the button is for the moment ten minutes in when the
+  /// manager decides they have seen enough of this one. It does not skip
+  /// anything — a match that skips events is a match whose story the player did
+  /// not get — it just halves the wait.
+  late bool _fast = widget.fast;
+
   /// Test seams.
+  bool get fast => _fast;
   String get strategy => _strategy;
   bool get tacticOnCooldown => _tacticCooldown;
   int get subsUsed => _subsUsed;
@@ -174,7 +184,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // save moves under a long match.
     _coachSuggestion = ref.read(coachSuggestedTacticProvider);
     _kickoffLineup = _lineupSnapshot();
-    _timer = Timer.periodic(minuteDuration(fast: widget.fast), (_) => _tick());
+    _startClock();
     // **THE MATCH HAS ITS OWN BED, and the whistle starts it.** The sounds here
     // belong to the CLOCK rather than to the simulation: the whole ninety
     // minutes was decided before this screen opened, so an event fired when the
@@ -183,6 +193,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _sound = ref.read(soundServiceProvider);
     unawaited(_sound.setMusicTrack(MusicBed.match));
     unawaited(_sound.play('whistle'));
+  }
+
+  void _startClock() {
+    _timer?.cancel();
+    _timer = Timer.periodic(minuteDuration(fast: _fast), (_) => _tick());
+  }
+
+  /// Halve the wait, or put it back. The clock is restarted rather than
+  /// retimed, which is the only way to change a periodic timer's period.
+  void toggleSpeed() {
+    if (frame.finished) return;
+    setState(() => _fast = !_fast);
+    _startClock();
   }
 
   void _tick() {
@@ -708,9 +731,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                       )
                     : Row(
                         children: [
-                          // Subs FIRST, skip second: one is a decision and the
-                          // other is giving up on watching, and the one that
-                          // takes a thought should not be the afterthought.
+                          OutlinedButton(
+                            key: const ValueKey('match-speed'),
+                            onPressed: toggleSpeed,
+                            child: Text(_fast ? '2×' : '1×'),
+                          ),
+                          const SizedBox(width: 8),
+                          // Subs before skip: one is a decision and the other is
+                          // giving up on watching, and the one that takes a
+                          // thought should not be the afterthought.
                           OutlinedButton(
                             key: const ValueKey('match-subs'),
                             onPressed: openSubs,

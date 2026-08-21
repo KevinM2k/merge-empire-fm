@@ -1042,4 +1042,48 @@ void main() {
       await tester.pumpAndSettle();
     });
   });
+
+  group('THE SPEED BUTTON', () {
+    testWidgets('HALVES THE WAIT, live, without skipping anything', (
+      tester,
+    ) async {
+      // The setting decides how a match OPENS; the button is for the moment ten
+      // minutes in when the manager has seen enough of this one.
+      await pumpMatch(tester, matchResult());
+      final state = stateOf(tester);
+      expect(state.fast, isFalse);
+
+      await tester.pump(minuteDurationFor(10));
+      final atNormal = state.frame.minute;
+      expect(atNormal, 10);
+
+      await tester.tap(find.byKey(const ValueKey('match-speed')));
+      await tester.pump();
+      expect(state.fast, isTrue);
+
+      // The same wall-clock again, at double speed, is twice the minutes.
+      await tester.pump(minuteDurationFor(10));
+      expect(state.frame.minute, atNormal + 20);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and it says which speed it is on', (tester) async {
+      await pumpMatch(tester, matchResult());
+      expect(find.text('1×'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('match-speed')));
+      await tester.pump();
+      expect(find.text('2×'), findsOneWidget);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('it OPENS on the setting', (tester) async {
+      // Two matches in a row should not need the same tap twice.
+      await pumpMatch(tester, matchResult());
+      expect(stateOf(tester).fast, isFalse);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+  });
 }
