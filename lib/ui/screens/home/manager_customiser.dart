@@ -285,17 +285,21 @@ class _PreviewStage extends StatelessWidget {
                 // the SAME clock his legs are on — see [WalkClock] at the top of
                 // this stage — because two clocks in one box is the drift
                 // `walk_ramp.dart` exists to stop.
-                const Align(
-                  alignment: Alignment.bottomCenter,
-                  child: FractionallySizedBox(
-                    // Down, and taller. `cover` on the full box put the treeline up
-                    // near his head with a third of the frame in grass; the picture
-                    // is the trees, and the grass only has to be the ground he is
-                    // standing on.
-                    heightFactor: 0.86,
-                    child: _ScrollingBackdrop(),
-                  ),
-                ),
+                //
+                // **THE WHOLE BOX, and anchored to the TOP of the drawing.** Two
+                // faults, and both were the same mistake. At 86% of the height
+                // there was a hard horizontal edge across the stage where the
+                // picture stopped and the sheet's own sky gradient took over —
+                // two skies meeting, which reads as the image being cut off. It
+                // fills the box now, so there is nothing to meet.
+                //
+                // And anchoring it to the BOTTOM was backwards. `cover` on a
+                // square drawing in a wide box shows a horizontal slice, so
+                // bottom anchoring shows the GROUND — which puts the treeline at
+                // the top of the slice, up near his head. Anchored to the top the
+                // slice is sky and the treeline falls to the foot of it, which is
+                // where a horizon belongs.
+                const Positioned.fill(child: _ScrollingBackdrop()),
                 // A strip of grass under him rather than a whole pitch: the sheet is
                 // about the man, and a mown fan in a 190px box is a texture nobody
                 // asked for.
@@ -355,9 +359,9 @@ class _ScrollingBackdrop extends StatelessWidget {
       key: const ValueKey('customise-backdrop'),
       path: backdropPath(Backdrop.grass),
       fit: BoxFit.cover,
-      // The treeline is at the foot of the drawing and the sky above it is the
-      // part worth cropping — the same anchoring the penalty scene uses.
-      alignment: Alignment.bottomCenter,
+      // TOP, so the visible slice is sky and the treeline lands low — see the
+      // note at the call site.
+      alignment: Alignment.topCenter,
       fallback: const SizedBox.shrink(),
     );
     if (beat == null) return art;

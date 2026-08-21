@@ -159,6 +159,14 @@ void main() {
         findsNWidgets(2),
         reason: 'the preview is still flat colour behind him',
       );
+      // **AND IT FILLS THE STAGE.** At 86% of the height there was a hard edge
+      // across it where the picture stopped and the sheet's own sky took over —
+      // two skies meeting, which reads as the image being cut off.
+      final art = tester.getRect(
+        find.byKey(const ValueKey('customise-backdrop')).first,
+      );
+      expect(art.top, closeTo(stage.top, 0.5));
+      expect(art.bottom, closeTo(stage.bottom, 0.5));
       // And the stage carries the same side margins as the controls under it.
       expect(stage.left, greaterThanOrEqualTo(10));
       expect(stage.right, lessThanOrEqualTo(box.right + 0.5));
