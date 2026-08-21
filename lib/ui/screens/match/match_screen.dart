@@ -27,7 +27,12 @@ import 'package:merge_empire_fc/engine/match_orchestration.dart'
     show reSimulateRemainder;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
+import 'package:merge_empire_fc/engine/lineup_engine.dart'
+    show refillLineupFromBench;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
+import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
+    show cardById;
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
     show settingPick;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
@@ -99,9 +104,23 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// nothing decided them — so they ride alongside it and merge in by minute.
   final List<FeedLine> _notes = [];
 
+  /// How many changes have been made, and the eleven that started.
+  ///
+  /// The kickoff lineup is captured because it has to go BACK: a substitution
+  /// is a change for this match, and letting it stand would make it next week's
+  /// team by accident.
+  int _subsUsed = 0;
+  List<Map<String, dynamic>> _kickoffLineup = const [];
+  bool _lineupRestored = false;
+
+  /// The clock waits while the panel is open — choosing is not watching.
+  bool _paused = false;
+
   /// Test seams.
   String get strategy => _strategy;
   bool get tacticOnCooldown => _tacticCooldown;
+  int get subsUsed => _subsUsed;
+  bool get paused => _paused;
 
   /// Held from initState: `ref` is not usable once the widget is disposed, and
   /// handing the gates back is exactly a teardown job.
@@ -146,6 +165,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // Read ONCE, before the first minute: it is derived from the save, and the
     // save moves under a long match.
     _coachSuggestion = ref.read(coachSuggestedTacticProvider);
+    _kickoffLineup = _lineupSnapshot();
     _timer = Timer.periodic(minuteDuration(fast: widget.fast), (_) => _tick());
     // **THE MATCH HAS ITS OWN BED, and the whistle starts it.** The sounds here
     // belong to the CLOCK rather than to the simulation: the whole ninety
@@ -159,6 +179,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   void _tick() {
     if (!mounted) return;
+    // Choosing a substitution is not watching the match.
+    if (_paused) return;
     // **THE CLOCK STOPS WHILE A CHANCE IS ON THE PITCH.** It did not, and that is
     // what made the minute jump: the cutaway takes a second or two to play out
     // and the clock kept counting under it, so the passage ended three or four
@@ -275,6 +297,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _timer = null;
     if (_reported) return;
     _reported = true;
+    _restoreKickoffLineup();
     final sound = ref.read(soundServiceProvider);
     unawaited(sound.play('whistle'));
     // The result, a beat after the final whistle rather than under it.
@@ -331,6 +354,92 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // player is concerned.
     unawaited(_sound.setMusicTrack(MusicBed.menu));
     super.dispose();
+  }
+
+  /// The eleven as it stands, as plain maps.
+  List<Map<String, dynamic>> _lineupSnapshot() {
+    final lineup =
+        (ref.read(gameProvider).state?['squad']
+            as Map<String, dynamic>?)?['lineup'];
+    return [
+      for (final row in lineup is List ? lineup : const [])
+        if (row is Map<String, dynamic>)
+          {'slotId': row['slotId'], 'cardInstanceId': row['cardInstanceId']},
+    ];
+  }
+
+  /// Open the panel, holding the match while it is up.
+  Future<void> openSubs() async {
+    if (frame.finished || _paused) return;
+    setState(() => _paused = true);
+    await showSubsPanel(context, used: _subsUsed, onSub: _onSub);
+    if (mounted) setState(() => _paused = false);
+  }
+
+  /// Record a change the panel has already written to the save.
+  ///
+  /// **What the quests read is stamped here.** `subsUsed` and `subbedOnIds` are
+  /// things the MANAGER did rather than things the dice did, which is the whole
+  /// appeal of asking for them — and until there was a panel neither could move
+  /// off its kickoff value, so `match_use_subs` and `match_sub_scores` were two
+  /// quests that could not advance.
+  void _onSub(SubMade sub) {
+    _subsUsed++;
+    widget.result['subsUsed'] = _subsUsed;
+    final on = widget.result['subbedOnIds'];
+    final onList = on is List ? on : <Object?>[];
+    onList.add(sub.onId);
+    widget.result['subbedOnIds'] = onList;
+
+    final state = ref.read(gameProvider).state;
+    final onName = cardById(state, sub.onId)?.name() ?? '';
+    final offName = sub.offId == null
+        ? null
+        : cardById(state, sub.offId!)?.name();
+    setState(() {
+      _notes.add((
+        minute: _minute,
+        type: 'subs',
+        // Filling a hole — an injury, or a slot that started the match empty —
+        // has no outgoing player, so the line cannot name one.
+        key: offName == null || offName.isEmpty
+            ? 'match.subs.feed_on'
+            : 'match.subs.feed',
+        params: {'on': onName, 'off': offName ?? ''},
+        seed: 'sub-$_minute-${sub.onId}',
+      ));
+    });
+  }
+
+  /// Put the kickoff eleven back, then cover whatever hole the match left in it.
+  ///
+  /// A substitution is a change for THIS match. Leaving it standing would make
+  /// the manager's 70th-minute gamble next week's team without them asking. The
+  /// refill is the other half: carrying an injury's gap forward means kicking
+  /// off the next fixture with ten men and no warning.
+  /// **Only when a change was actually made.** The source restores at every
+  /// full time and refills the bench with it; here the screen puts back what IT
+  /// altered and nothing else, because a save write on the end of every match
+  /// that changed nothing is a write for nothing. The post-match refill of an
+  /// injury's hole belongs to whoever applies the injuries, not to the replay.
+  void _restoreKickoffLineup() {
+    if (_lineupRestored || _subsUsed == 0 || _kickoffLineup.isEmpty) return;
+    _lineupRestored = true;
+    ref.read(gameProvider).update((s) {
+      final squad = s['squad'];
+      if (squad is! Map<String, dynamic>) return;
+      final lineup = squad['lineup'];
+      if (lineup is! List) return;
+      final kickoff = {
+        for (final row in _kickoffLineup) row['slotId']: row['cardInstanceId'],
+      };
+      for (final row in lineup) {
+        if (row is! Map<String, dynamic>) continue;
+        if (!kickoff.containsKey(row['slotId'])) continue;
+        row['cardInstanceId'] = kickoff[row['slotId']];
+      }
+      refillLineupFromBench(s);
+    });
   }
 
   /// Change the tactic, and RE-DECIDE the rest of the match under it.
@@ -550,20 +659,35 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               if (f.finished) _QuestOutcomes(result: widget.result),
               Padding(
                 padding: const EdgeInsets.all(12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: f.finished
-                      ? ElevatedButton(
+                child: f.finished
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
                           key: const ValueKey('match-close'),
                           onPressed: () => Navigator.of(context).maybePop(),
                           child: Text(_verdictLabel()),
-                        )
-                      : OutlinedButton(
-                          key: const ValueKey('match-skip'),
-                          onPressed: skipToEnd,
-                          child: Text(t('common.skip')),
                         ),
-                ),
+                      )
+                    : Row(
+                        children: [
+                          // Subs FIRST, skip second: one is a decision and the
+                          // other is giving up on watching, and the one that
+                          // takes a thought should not be the afterthought.
+                          OutlinedButton(
+                            key: const ValueKey('match-subs'),
+                            onPressed: openSubs,
+                            child: Text(t('match.subs')),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              key: const ValueKey('match-skip'),
+                              onPressed: skipToEnd,
+                              child: Text(t('common.skip')),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),

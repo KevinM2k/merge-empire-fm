@@ -6,14 +6,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
+import 'package:merge_empire_fc/state/game_state.dart' show saveDebounceMs;
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
+import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Map<String, dynamic> matchResult({
@@ -32,10 +37,35 @@ Map<String, dynamic> matchResult({
   'events': events,
 };
 
+/// A save with a full squad and a bench, so the subs panel has both lists.
+Map<String, dynamic> squadSave() {
+  final state = createDefaultState();
+  final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+  final byPos = {
+    for (final pos in ['GK', 'DEF', 'MID', 'FWD'])
+      pos: players.firstWhere((p) => p.position == pos && p.tier == 1).id,
+  };
+  final order = [
+    'GK',
+    ...List.filled(5, 'DEF'),
+    ...List.filled(5, 'MID'),
+    ...List.filled(5, 'FWD'),
+  ];
+  for (var i = 0; i < 16; i++) {
+    cells[i] = {
+      'definitionId': byPos[order[i % order.length]]!,
+      'instanceId': 'c$i',
+      'variant': 0,
+    };
+  }
+  return state;
+}
+
 Future<ProviderContainer> pumpMatch(
   WidgetTester tester,
   Map<String, dynamic> result, {
   void Function(Map<String, dynamic>)? onFinished,
+  Map<String, dynamic>? save,
   // Distinct per pump, so pumping a second match into the same tester builds a
   // fresh State rather than reusing one whose clock has already run out.
   String instance = 'a',
@@ -43,7 +73,9 @@ Future<ProviderContainer> pumpMatch(
   final container = ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(
-        MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
+        MemorySaveStore({
+          saveKeyPrimary: jsonEncode(save ?? createDefaultState()),
+        }),
       ),
     ],
   );
@@ -73,6 +105,10 @@ MatchScreenState stateOf(WidgetTester tester) =>
     tester.state<MatchScreenState>(find.byType(MatchScreen));
 
 Duration minuteDurationFor(int n) => minuteDuration(fast: false) * n;
+
+/// A substitution writes the lineup, which arms the debounced save.
+Future<void> settleSave(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
 /// The score, read off the two figures either side of the gutter.
 ///
@@ -643,6 +679,246 @@ void main() {
       stateOf(tester).applyStrategy('highPress');
       await tester.pump();
       expect(result['strategyChanged'], isFalse);
+    });
+  });
+
+  group('SUBSTITUTIONS', () {
+    /// A TALL surface. The panel is an eleven, a bench and two headings; on the
+    /// default 800x600 most of it is never built, and a finder cannot reach
+    /// what the list has not made yet.
+    void tallView(WidgetTester tester) {
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+    }
+
+    /// Open the panel the way a manager does.
+    Future<void> openSubs(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey('match-subs')));
+      await tester.pumpAndSettle();
+    }
+
+    /// Take somebody off and bring the first bench player on.
+    /// [spent] is who has already been withdrawn: they are on the bench now,
+    /// and the panel will not let them back on — so a test that keeps picking
+    /// the first bench row would silently stop making changes.
+    Future<({String off, String on})> makeSub(
+      WidgetTester tester,
+      ProviderContainer container, {
+      Set<String> spent = const {},
+    }) async {
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere(
+            (s) =>
+                s.cardInstanceId != null && !spent.contains(s.cardInstanceId),
+          );
+      final bench = container
+          .read(benchProvider)
+          .firstWhere((b) => !spent.contains(b.instanceId));
+      final offRow = find.byKey(ValueKey('sub-slot-${slot.slotId}'));
+      await tester.ensureVisible(offRow);
+      await tester.pumpAndSettle();
+      await tester.tap(offRow);
+      await tester.pumpAndSettle();
+      final onRow = find.byKey(ValueKey('sub-bench-${bench.instanceId}'));
+      await tester.ensureVisible(onRow);
+      await tester.pumpAndSettle();
+      await tester.tap(onRow);
+      await tester.pumpAndSettle();
+      return (off: slot.cardInstanceId!, on: bench.instanceId);
+    }
+
+    testWidgets('THE PANEL IS REACHABLE, and it lists both', (tester) async {
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      await openSubs(tester);
+      expect(find.byKey(const ValueKey('subs-panel')), findsOneWidget);
+      expect(find.text(t('match.subs.on_pitch').toUpperCase()), findsOneWidget);
+      expect(find.text(t('match.subs.bench').toUpperCase()), findsOneWidget);
+      expect(container.read(benchProvider), isNotEmpty);
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('THE CLOCK WAITS while it is open', (tester) async {
+      // Choosing is not watching.
+      tallView(tester);
+      await pumpMatch(tester, matchResult(), save: squadSave());
+      await tester.pump(minuteDurationFor(5));
+      final state = stateOf(tester);
+      await openSubs(tester);
+      expect(state.paused, isTrue);
+      final at = state.frame.minute;
+      await tester.pump(minuteDurationFor(20));
+      expect(state.frame.minute, at, reason: 'the match ran on without us');
+
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      expect(state.paused, isFalse);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('A CHANGE SWAPS THE ELEVEN and the quests can see it', (
+      tester,
+    ) async {
+      // `subsUsed` and `subbedOnIds` are what `match_use_subs` and
+      // `match_sub_scores` read, and neither could move off its kickoff value.
+      tallView(tester);
+      final result = matchResult();
+      final container = await pumpMatch(tester, result, save: squadSave());
+      await tester.pump(minuteDurationFor(5));
+      await openSubs(tester);
+      final swap = await makeSub(tester, container);
+
+      final onNow = container
+          .read(pitchSlotsProvider)
+          .map((s) => s.cardInstanceId)
+          .toList();
+      expect(onNow, contains(swap.on));
+      expect(onNow, isNot(contains(swap.off)));
+
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      expect(result['subsUsed'], 1);
+      expect(result['subbedOnIds'], [swap.on]);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('and it SAYS SO in the feed', (tester) async {
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(5));
+      await openSubs(tester);
+      await makeSub(tester, container);
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      // One of the two lines, depending on whether anyone came off — here
+      // somebody did.
+      expect(find.textContaining(RegExp(r'off,.*on\.')), findsOneWidget);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('THE KICKOFF ELEVEN GOES BACK at full time', (tester) async {
+      // A substitution is a change for THIS match. Letting it stand would make
+      // a 70th-minute gamble next week's team without anyone asking.
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(addedTime: 0),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(5));
+      final before = container
+          .read(pitchSlotsProvider)
+          .map((s) => s.cardInstanceId)
+          .toList();
+      await openSubs(tester);
+      final swap = await makeSub(tester, container);
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      expect(
+        container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
+        contains(swap.on),
+      );
+
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      expect(
+        container
+            .read(pitchSlotsProvider)
+            .map((s) => s.cardInstanceId)
+            .toList(),
+        before,
+        reason: 'the substitution became next week\'s team',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('THE CAP IS REAL, and it says so when it bites', (
+      tester,
+    ) async {
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(5));
+      await openSubs(tester);
+      final panel = tester.state<SubsPanelState>(find.byType(SubsPanel));
+      expect(panel.left, PlayerEnergy.maxSubs);
+      final spent = <String>{};
+      for (var i = 0; i < PlayerEnergy.maxSubs; i++) {
+        spent.add((await makeSub(tester, container, spent: spent)).off);
+      }
+      expect(panel.left, 0);
+      expect(find.text(t('match.subs.none_left')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      expect(stateOf(tester).subsUsed, PlayerEnergy.maxSubs);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('NOBODY WHO HAS BEEN OFF GOES BACK ON', (tester) async {
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(5));
+      await openSubs(tester);
+      final swap = await makeSub(tester, container);
+      // He is on the bench now, and he must not be offerable.
+      expect(
+        container.read(benchProvider).map((b) => b.instanceId),
+        contains(swap.off),
+      );
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('sub-bench-${swap.off}')));
+      await tester.pumpAndSettle();
+      expect(
+        container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
+        isNot(contains(swap.off)),
+        reason: 'a withdrawn player came back on',
+      );
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('and the button is GONE at full time', (tester) async {
+      tallView(tester);
+      await pumpMatch(tester, matchResult(addedTime: 0), save: squadSave());
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('match-subs')), findsNothing);
     });
   });
 }

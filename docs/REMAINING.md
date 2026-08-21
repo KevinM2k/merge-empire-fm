@@ -1513,8 +1513,23 @@ findings were arithmetic rather than taste and one is a reversal.
       `strategiesUsed`, `finalStrategy` and `followedCoachSuggestion`, and until
       now they only ever saw the kickoff defaults — three of those achievements
       were unwinnable.
-      Still to go: SUBS (which want a substitution path of their own) and the
-      watch-ad buttons (M4).
+      **And SUBS are in.** Twenty `match.subs.*` strings translated in ten
+      catalogues with nothing able to reach one, `subsUsed` and `subbedOnIds`
+      written into every result at kickoff and never moved off zero, and
+      `match_use_subs` and `match_sub_scores` — two more quests that could not
+      advance. The panel is two lists and one rule; the clock waits while it is
+      open, because choosing is not watching; and the kickoff eleven goes BACK
+      at full time, so a 70th-minute gamble does not quietly become next week's
+      team.
+      One deliberate difference from the source: it restores the lineup at every
+      full time and refills the bench with it, while this restores only when a
+      change was actually made — a save write at the end of every match that
+      changed nothing is a write for nothing. The post-match refill of an
+      injury's hole belongs to whoever applies the injuries, not to the replay,
+      and is worth checking separately.
+      Still to go: the watch-ad buttons (M4), and the injury flow — the source
+      opens the panel by itself when somebody goes down, with the casualty
+      preselected and Colin naming the best cover.
 - [ ] **A PHYSICS pass, and it wants a real decision first.** The ask is to be
       more creative with a physics engine for the cutaway, the penalty game and
       the character drawing. The honest position:
@@ -1801,8 +1816,9 @@ Ordered by how visible each one is to somebody playing.
 **The match popup and the cutaway.**
 
 - [~] **The popup is missing its boxes, tactics, subs and watch-ad buttons** — the
-      boxes were already there and the TACTICS are in as of 21 Aug; subs and the
-      watch-ad buttons remain. See 22 Aug.
+      boxes were already there, and the TACTICS and the SUBS are both in as of
+      21 Aug. The watch-ad buttons are M4, and the injury flow that opens the
+      subs panel by itself is still to do. See 22 Aug.
 - [ ] **Continuous play between chances.** The stage is persistent and the players
       only exist during a chance; the JS runs them between chances too. The hard
       part is the one raised in the request: the ball has to arrive at each chance
