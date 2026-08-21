@@ -191,4 +191,65 @@ void main() {
       expect(find.byKey(const ValueKey('daily-claim')), findsOneWidget);
     });
   });
+
+  group('THE CYCLE FILLS UP', () {
+    testWidgets('a claimed day is ticked, and an unclaimed one is not', (
+      tester,
+    ) async {
+      // The strip picked out today and marked nothing else, so a player four
+      // days into a streak saw days one to three drawn exactly like days five to
+      // seven: seven identical tiles with one border on them. Watching it fill
+      // is the whole point of a cycle.
+      final container = await pumpSheet(tester, save(cycleDay: 3));
+      addTearDown(container.dispose);
+
+      // Claimed yesterday, so today is day 4 and one to three are banked.
+      for (final day in [1, 2, 3]) {
+        expect(
+          find.byKey(ValueKey('daily-claimed-$day')),
+          findsOneWidget,
+          reason: 'day $day is behind us and unmarked',
+        );
+      }
+      for (final day in [4, 5, 6, 7]) {
+        expect(
+          find.byKey(ValueKey('daily-claimed-$day')),
+          findsNothing,
+          reason: 'day $day has not happened yet',
+        );
+      }
+    });
+
+    testWidgets('and claiming ticks TODAY off in front of you', (tester) async {
+      final container = await pumpSheet(tester, save(cycleDay: 3));
+      addTearDown(container.dispose);
+      expect(find.byKey(const ValueKey('daily-claimed-4')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('daily-claim')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('daily-claimed-4')),
+        findsOneWidget,
+        reason: 'the day just claimed is still shown as owing',
+      );
+      await tester.pump(const Duration(milliseconds: 2100));
+    });
+
+    testWidgets('and a BROKEN streak has nothing banked', (tester) async {
+      // It resets to day one, and nothing before day one exists — which is
+      // exactly right: a streak that broke has nothing to show for itself.
+      final container = await pumpSheet(
+        tester,
+        save(lastClaimDaysAgo: 3, cycleDay: 5),
+      );
+      addTearDown(container.dispose);
+      for (var day = 1; day <= 7; day++) {
+        expect(
+          find.byKey(ValueKey('daily-claimed-$day')),
+          findsNothing,
+          reason: 'day $day is ticked on a broken streak',
+        );
+      }
+    });
+  });
 }

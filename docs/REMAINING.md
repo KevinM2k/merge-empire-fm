@@ -743,10 +743,20 @@ section. Nothing on the list below is blocked for want of art any more.
 
 ### The Play page
 
-- [ ] **The 2D cutaway does not work properly.** It should come on for a real
+- [x] **The 2D cutaway comes on for a REAL chance now.** Three reasons to show
+      nothing and the port honoured none: the two Settings switches
+      (`cutawayOurTeam`/`cutawayOpponent`) were read by nothing at all, it cut to
+      every chance rather than only a big one, and there was no pacing gap — the
+      engine makes a chance every seven minutes, so the screen was a cutaway with
+      a match happening behind it. Was: it should come on for a real
       chance and it should ANIMATE — `../merge-empire-fc` has a whole set of
       scenarios to port.
-- [ ] **The commentary keeps saying "Chance"** where it should be commentary.
+- [x] **The commentary said "Chance" because it was PRINTING THE EVENT TYPE.**
+      A corner read as "corner" and full time as "fulltime" too — three raw,
+      untranslated strings from the engine. `feedOf` is the JS's own rules, and
+      the point of them is what they leave out. And a goal is DESCRIBED now:
+      eight `commentary.goal.*` pools were unreachable while the feed printed
+      the scorer's name alone.
 - [ ] **And the styling throughout it needs sorting.**
 
 ### The squad, and the player sheet
@@ -961,8 +971,12 @@ section. Nothing on the list below is blocked for want of art any more.
 ### Two screens that want a pass
 
 - [ ] **The Fixtures screen is still not right stylistically.**
-- [ ] **The daily reward needs love**, and tapping a day should show what that
-      day pays and then tick it off.
+- [x] **The daily reward's cycle FILLS UP.** The strip picked out today and
+      marked nothing else, so a player four days into a streak saw days one to
+      three drawn exactly like days five to seven — seven identical tiles with
+      one border on them. What each day pays was already on every tile; what was
+      missing was the ticks, and watching it fill is the whole point of a cycle.
+      A broken streak has nothing banked, which is right.
 - [ ] **The scout voucher shelf is wrong** — see how `../merge-empire-fc` does
       it.
 - [x] **Every decision comes through Coach Colin now.** His card is the shape:
@@ -1202,7 +1216,7 @@ consistency sweep.
 
 ### The daily reward
 
-- [ ] **It does not tick off the days you have claimed**, which is the whole
+- [x] **It ticks off the days you have claimed.** Was: it does not, which is the whole
       point of a seven-day strip, and tapping a day does not say what that day
       pays — it just swaps the title to "Congrats". Check `../merge-empire-fc`:
       the cycle strip marks banked days and a tap previews the rung.
@@ -1742,8 +1756,8 @@ Ordered by how visible each one is to somebody playing.
 - [ ] **The keeper could use a save ANIMATION** — the ball is stopped by a reach
       test and then the clip ends. Parrying it away, or holding it, is the
       difference between a save and the ball vanishing.
-- [ ] **The daily reward** does not tick the days already claimed and does not say
-      what a day pays when you tap it — see 21 Aug.
+- [x] **The daily reward** ticks the days already claimed now — and what a day
+      pays was always on the tile. See 25 Aug.
 - [ ] **The five mini-games with no screen** — `training` aside, `keepy_uppys`,
       `through_ball`, `whack` and `pairs` are engine-only. See 21 Aug.
 - [ ] **Team Names / the pyramid editor** has no screen.
