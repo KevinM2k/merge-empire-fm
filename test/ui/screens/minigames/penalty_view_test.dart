@@ -103,6 +103,96 @@ void main() {
       );
     });
 
+    test('THE ARM HE IS DRAWN WITH IS SHORTER THAN HIS REACH', () {
+      // Reported from the couch as huge arms. `keeperHand` is the centre of the
+      // reach and the centre is his CHEST, so an arm drawn from there to the
+      // glove is the full [keeperReach] — 1.05m of limb on a figure whose whole
+      // leg is 0.88m, radiating out of his sternum. The glove has to stay on the
+      // circle, because that circle is what decides saves; where the arm STARTS
+      // does not.
+      for (final pose in poses) {
+        final rig = keeperRigFor(pose, view)!;
+        final leg = (rig.leftBoot - rig.hip).distance;
+        for (final (joint, glove) in [
+          (rig.leadJoint, rig.glove),
+          (rig.trailJoint, rig.trailGlove),
+        ]) {
+          final arm = (glove - joint).distance;
+          expect((glove - rig.shoulder).distance, greaterThan(arm));
+          expect(
+            arm,
+            lessThan(leg),
+            reason:
+                'side ${pose.side} dive ${pose.dive}: his arm is longer '
+                'than his leg',
+          );
+        }
+      }
+    });
+
+    test('and the DRAWN limb does not stretch either', () {
+      // The invariant the rig was rebuilt around, applied to the segments that
+      // are actually painted: shoulder to elbow to glove. A fixed sideways
+      // shoulder offset would have failed this — a tucked arm would leave the
+      // chest at a different angle from an outstretched one and so be drawn
+      // longer. Displacing the joint along the arm's OWN direction is what keeps
+      // every arm the same.
+      final upper = <double>{};
+      final fore = <double>{};
+      for (final pose in poses) {
+        final rig = keeperRigFor(pose, view)!;
+        for (final (joint, elbow, glove) in [
+          (rig.leadJoint, rig.leadElbow, rig.glove),
+          (rig.trailJoint, rig.trailElbow, rig.trailGlove),
+        ]) {
+          upper.add(double.parse((elbow - joint).distance.toStringAsFixed(6)));
+          fore.add(double.parse((glove - elbow).distance.toStringAsFixed(6)));
+        }
+      }
+      expect(upper, hasLength(1), reason: 'an upper arm changed: $upper');
+      expect(fore, hasLength(1), reason: 'a forearm changed: $fore');
+    });
+
+    test('the elbow is OFF the line, so the arm has a joint in it', () {
+      for (final pose in poses) {
+        final rig = keeperRigFor(pose, view)!;
+        for (final (joint, elbow, glove) in [
+          (rig.leadJoint, rig.leadElbow, rig.glove),
+          (rig.trailJoint, rig.trailElbow, rig.trailGlove),
+        ]) {
+          // How far off the straight line it sits, which is the quantity that
+          // reads: he is only about eighty pixels tall on a phone, so the arm's
+          // extra path length over a spoke is under three of them.
+          final along = glove - joint;
+          final len = along.distance;
+          final off =
+              ((elbow.dx - joint.dx) * along.dy -
+                  (elbow.dy - joint.dy) * along.dx) /
+              len;
+          expect(off.abs(), greaterThan(rig.unit * 0.05));
+        }
+      }
+    });
+
+    test('a keeper at rest has his arms OUT, not up in a V', () {
+      // Fifty-two degrees from straight up is a man signalling a touchdown, and
+      // two full-reach limbs held above the shoulders is most of what read as
+      // huge: the length was reasonable, the pose was not.
+      final rig = keeperRigFor(
+        KeeperPose(hand: Vec3(0, 0, keeperStandZ), dive: 0, side: 0),
+        view,
+      )!;
+      for (final glove in [rig.glove, rig.trailGlove]) {
+        expect(
+          glove.dy,
+          greaterThan(rig.shoulder.dy),
+          reason: 'a set keeper does not hold his gloves above his chest',
+        );
+        // And well out to the side of him, which is where a reach comes from.
+        expect((glove.dx - rig.shoulder.dx).abs(), greaterThan(rig.unit * 0.8));
+      }
+    });
+
     test('and his legs keep their length too', () {
       final thighs = <double>{};
       for (final pose in poses) {

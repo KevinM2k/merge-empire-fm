@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,376 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,380 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,15 +50,16 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**105 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**104 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
 what is open now came out of them.
 
-**The newest work is the PENALTY SCENE's camera and the ground it stands on.**
-Four of its eight open items went together, and the shape of all four is the
-same — the scene was right about the goal and wrong about everything around it:
+**The newest work is the PENALTY SCENE's camera, the ground it stands on and
+the keeper's arms.** Five of its eight open items went together, and the shape
+of the first four is the same — the scene was right about the goal and wrong
+about everything around it:
 
 - **`standBaseY` is the seam, not `goalLineY`.** The pitch runs on past the goal
   line — dead ball area, run-off — and handing that strip to the photograph is
@@ -76,6 +77,11 @@ same — the scene was right about the goal and wrong about everything around it
   crossbar, and `_focalFor` opens the lens on a view too short to hold both.
 - **A goal is a box.** `sideVertex` and `roofVertex` string the two sides and
   the roof off the rear stanchions the frame was already drawing.
+- **An arm hangs off a shoulder.** The reach circle is centred on his chest, so
+  drawing the arm from there made it `keeperReach` long — longer than his own
+  leg. `_keeperShoulder` displaces the joint ALONG the arm, which is the only
+  offset that leaves every limb the same length, and `_armRest` stops him
+  signalling a touchdown while he waits.
 
 **The pass before this one was the SUMMARY, the replay and the bid window.** Five
 things whoever picks this up next will want to know before reading the queue:
@@ -3635,7 +3641,23 @@ Its own list, because almost none of it is right yet.
       widget test's own 800×600 surface is already past that aspect, which is
       how the wide case was caught.
 - [ ] **The kicker swings his leg oddly.**
-- [ ] **The keeper's arms are huge.**
+- [x] **The keeper's arms were huge in two ways, and only one was the length.**
+      `keeperHand` is the centre of the reach and the centre is his CHEST, so an
+      arm drawn from there to the glove is the whole of `keeperReach` — 1.05m of
+      limb on a figure whose entire leg is 0.88m, radiating out of his sternum
+      with no joint in it. The glove has to stay on that circle, because the
+      circle is what decides saves; where the arm STARTS does not.
+      `_keeperShoulder` puts the joint a girdle's half width out and there is an
+      elbow between it and the glove.
+      **Displaced along the arm's own direction, not square across the chest** —
+      a fixed sideways offset leaves a tucked arm longer than an outstretched
+      one, which is exactly the stretching this rig was rebuilt to kill. Along
+      the arm, every limb is `keeperReach` less the girdle and none of them
+      moves.
+      The other half was the POSE. `_armRest` was 52 degrees from straight up: a
+      man signalling a touchdown, holding two full-reach limbs in a V above his
+      shoulders. A keeper set for a penalty has them out to the sides and a
+      little below, which is also the pose the dive leaves from.
 - [ ] **There is no physics at all**: the ball sticks in the net and the keeper
       sticks in the air.
 

@@ -418,9 +418,37 @@ const double _legSplitDive = 30 * math.pi / 180;
 
 /// Where the arms point, measured from straight up. The leading one swings out
 /// past horizontal as he reaches; the trailing one tucks in.
-const double _armRest = 52 * math.pi / 180;
+///
+/// **At rest they are OUT, not UP.** Fifty-two degrees is a man signalling a
+/// touchdown, and two full-reach limbs held in a V above the shoulders is most
+/// of what was reported as huge arms — the length was reasonable, the pose was
+/// not. A keeper set for a penalty has them out to the sides and a little below
+/// the shoulder, which is also the pose the dive leaves from.
+const double _armRest = 104 * math.pi / 180;
 const double _armLead = 96 * math.pi / 180;
 const double _armTrail = 22 * math.pi / 180;
+
+/// Half the shoulder girdle: how far out of his chest an arm actually starts.
+///
+/// **The other half of the huge arms, and it is the reach circle's fault.**
+/// `keeperHand` is the centre of the reach and the centre is his CHEST, so an
+/// arm drawn from there to the glove is [keeperReach] long — 1.05m of limb on a
+/// figure whose whole leg is 0.88m, radiating from his sternum with no shoulder
+/// to hang off. The glove has to stay on the circle; where the arm STARTS does
+/// not.
+///
+/// Displaced along the arm's own direction rather than square across the chest,
+/// which is what keeps every arm the same length. A fixed sideways offset would
+/// leave the drawn limb longer for a tucked arm than for an outstretched one,
+/// which is the stretching this rig was rebuilt to kill.
+const double _keeperShoulder = 0.19;
+
+/// How far the elbow bows out of the line between shoulder and glove.
+///
+/// Constant, because the shoulder-to-glove distance is constant: the elbow is a
+/// fixed bend rather than a second thing that can stretch. Enough to say the
+/// limb has a joint in it and not enough to make him akimbo.
+const double _keeperElbowBow = 0.14;
 
 /// The keeper's figure, solved in SCREEN space from the one point the physics
 /// actually knows.
@@ -448,6 +476,16 @@ typedef KeeperRig = ({
   /// The leading glove. On the projected hand, by construction.
   Offset glove,
   Offset trailGlove,
+
+  /// Where each arm leaves the body, and where it bends. The gloves are on the
+  /// reach circle centred on [shoulder]; these are what make the limb between
+  /// them an arm rather than a spoke. See [_keeperShoulder].
+  Offset leadJoint,
+  Offset trailJoint,
+  Offset leadElbow,
+  Offset trailElbow,
+
+  /// His CHEST, and the centre of the reach circle — see `keeperHand`.
   Offset shoulder,
   Offset hip,
   Offset head,
@@ -500,15 +538,28 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
 
   final leadAngle = _armRest + (_armLead - _armRest) * dive;
   final trailAngle = _armRest + (_armTrail - _armRest) * dive;
-  final localLead =
-      localShoulder +
-      Offset(math.sin(leadAngle) * armLen * out, -math.cos(leadAngle) * armLen);
-  final localTrail =
-      localShoulder +
-      Offset(
-        -math.sin(trailAngle) * armLen * out,
-        -math.cos(trailAngle) * armLen,
-      );
+  final leadWay = Offset(math.sin(leadAngle) * out, -math.cos(leadAngle));
+  final trailWay = Offset(-math.sin(trailAngle) * out, -math.cos(trailAngle));
+  final localLead = localShoulder + leadWay * armLen;
+  final localTrail = localShoulder + trailWay * armLen;
+
+  // Where the arm actually starts, and where it bends. The glove stays on the
+  // reach circle — the circle is centred on his chest and that is what decides
+  // saves — but the LIMB is a limb: it hangs off a shoulder a girdle's half
+  // width out, and it has an elbow in it. See [_keeperShoulder].
+  final girdle = unit * _keeperShoulder;
+  final bow = unit * _keeperElbowBow;
+  (Offset, Offset) armFrom(Offset way) {
+    final joint = localShoulder + way * girdle;
+    final glove = localShoulder + way * armLen;
+    // Square to the arm, and always toward his feet: an elbow bows down.
+    var perp = Offset(-way.dy, way.dx);
+    if (perp.dy < 0) perp = -perp;
+    return (joint, Offset.lerp(joint, glove, 0.5)! + perp * bow);
+  }
+
+  final (localLeadJoint, localLeadElbow) = armFrom(leadWay);
+  final (localTrailJoint, localTrailElbow) = armFrom(trailWay);
 
   // **`keeperHand` IS THE CENTRE OF HIS REACH, not a fingertip**, whatever its
   // name says — `_keeperGotIt` tests the ball against it and then allows another
@@ -533,6 +584,10 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   return (
     glove: at(localLead),
     trailGlove: at(localTrail),
+    leadJoint: at(localLeadJoint),
+    trailJoint: at(localTrailJoint),
+    leadElbow: at(localLeadElbow),
+    trailElbow: at(localTrailElbow),
     shoulder: at(localShoulder),
     hip: at(localHip),
     head: at(localHead),
@@ -1021,11 +1076,22 @@ class PenaltyPainter extends CustomPainter {
     canvas.drawLine(rig.hip, rig.rightBoot, limb(shortsColour, 0.17));
     // Torso.
     canvas.drawLine(rig.hip, rig.shoulder, limb(shirtColour, 0.30));
-    // Both arms out, and both exactly `keeperReach` long: the leading one swings
-    // out past horizontal as he reaches and the trailing one tucks in, which is
-    // where the reach visibly is. Neither grows.
-    canvas.drawLine(rig.shoulder, rig.glove, limb(shirtColour, 0.14));
-    canvas.drawLine(rig.shoulder, rig.trailGlove, limb(shirtColour, 0.13));
+    // Both arms out, with both gloves exactly `keeperReach` from his chest: the
+    // leading one swings out past horizontal as he reaches and the trailing one
+    // tucks in, which is where the reach visibly is. Neither grows.
+    //
+    // **Drawn from the SHOULDER, over an elbow.** Straight from the chest they
+    // were the full reach of limb radiating out of his sternum — longer than
+    // his own leg, with no joint in either — which is what a player watching
+    // called huge arms. The gloves have not moved; the arms in front of them
+    // have. Forearms are thinner than upper arms, which is most of the rest.
+    for (final (joint, elbow, glove, w) in [
+      (rig.leadJoint, rig.leadElbow, rig.glove, 0.14),
+      (rig.trailJoint, rig.trailElbow, rig.trailGlove, 0.13),
+    ]) {
+      canvas.drawLine(joint, elbow, limb(shirtColour, w));
+      canvas.drawLine(elbow, glove, limb(shirtColour, w * 0.85));
+    }
     for (final glove in [rig.glove, rig.trailGlove]) {
       canvas.drawCircle(glove, unit * 0.10, Paint()..color = gloveColour);
     }
