@@ -139,8 +139,25 @@ void main() {
       final picker = find.byKey(const ValueKey('customise-axis-picker'));
       expect(picker, findsOneWidget);
       // ONE line. Two rows of chips came to about sixty; a single control is
-      // half that, and the room goes to the wardrobe.
-      expect(tester.getRect(picker).height, lessThan(46));
+      // well under that, and the room goes to the wardrobe.
+      final box = tester.getRect(picker);
+      expect(box.height, lessThan(52));
+      // But a real tap target rather than the height of a word: `isDense`
+      // shrink-wraps a dropdown to its text.
+      expect(box.height, greaterThan(36));
+      // And clear of the stage above it, so it reads as the control under the
+      // picture rather than as part of it.
+      final stage = tester.getRect(
+        find.byKey(const ValueKey('customise-stage')),
+      );
+      expect(box.top - stage.bottom, greaterThanOrEqualTo(10));
+
+      // He stands against a drawn horizon rather than a bare wash of colour.
+      expect(
+        find.byKey(const ValueKey('customise-backdrop')),
+        findsOneWidget,
+        reason: 'the preview is still flat colour behind him',
+      );
 
       // And every part is still reachable through it.
       for (final axis in lookAxes) {

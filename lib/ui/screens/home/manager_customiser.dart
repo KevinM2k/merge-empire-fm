@@ -28,6 +28,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/cups.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -36,6 +37,7 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 Future<void> showManagerCustomiser(BuildContext context) =>
@@ -209,6 +211,9 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
         // without being read left to right, and cannot run out of room however
         // many axes the wardrobe grows. `DropdownButton` is the same idiom the
         // Player Index's filters already use.
+        // Clear of the stage above it: the picker sat hard against the grass and
+        // read as part of the picture rather than as the control under it.
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 13),
           child: _AxisPicker(
@@ -257,10 +262,25 @@ class _PreviewStage extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // **A DRAWN HORIZON, not a bare wash.** The sky gradient alone left
+            // him standing against flat colour, which reads as a swatch rather
+            // than as a place. The gradient stays underneath it so the box is
+            // never empty if the asset is missing, and so it still darkens with
+            // the theme.
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: skyGradient(brightness: brightness, tier: 1),
               ),
+            ),
+            ArtImage(
+              key: const ValueKey('customise-backdrop'),
+              path: backdropPath(Backdrop.grass),
+              fit: BoxFit.cover,
+              // The treeline is at the foot of the drawing and the sky above it
+              // is the part worth cropping — the same anchoring the penalty
+              // scene uses.
+              alignment: Alignment.bottomCenter,
+              fallback: const SizedBox.shrink(),
             ),
             // A strip of grass under him rather than a whole pitch: the sheet is
             // about the man, and a mown fan in a 190px box is a texture nobody
@@ -319,7 +339,9 @@ class _AxisPicker extends StatelessWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Container(
       key: const ValueKey('customise-axis-picker'),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      // Vertical padding as well as horizontal: `isDense` shrink-wraps a
+      // dropdown to its text, which is a tap target the height of a word.
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: kit.surface,
         borderRadius: BorderRadius.circular(10),

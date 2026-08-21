@@ -2687,6 +2687,24 @@ by a test.
       cup a surprise — the exact opposite of what keeping it on the grid was for.
       It sits over the drawing now, on a dimmed but visible preview.
 
+- [x] **A Kenney backdrop behind the preview**, and the picker given room. He was
+      standing against a bare sky gradient, which reads as a swatch rather than a
+      place; the gradient stays underneath so the box is never empty if the asset
+      goes missing and still darkens with the theme. The picker gets vertical
+      padding — `isDense` shrink-wraps a dropdown to the height of a word — and
+      12px clear of the stage, so it reads as the control under the picture
+      rather than as part of it.
+- [ ] **EVERYTHING ON HIM HAS TO SIT WHERE IT BELONGS.** A full pass over the
+      accessories, the facial hair and the clothing, checking each against the
+      skull and the torso rather than against how it looked on one build:
+      nothing floating, face paint not painted onto hair, a moustache on the
+      mouth, beards on the jaw.
+      And two garments are wrong rather than misplaced: **the suit and the coat
+      are tops only** and should be full-body — a suit needs trousers and to read
+      as a suit, a coat needs a length. `walker_figure.dart` already carries the
+      per-outfit sleeve and shin coverage the rig understands, so this is the
+      art, not the rig.
+
 ### Light mode
 
 - [ ] **The match-quest coin yellow reads ORANGE.** It should be the same yellow
