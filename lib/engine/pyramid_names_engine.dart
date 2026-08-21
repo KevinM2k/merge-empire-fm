@@ -51,6 +51,17 @@ const int teamNameMax = 24;
 const int teamNameMin = 2;
 const int maxPresets = 10;
 
+/// The AI clubs of one division, in ladder order.
+///
+/// Public because the editor lists them and the engine is the only thing that
+/// knows where the pyramid lives — a screen reaching into
+/// `progression.leaguePyramid` itself is how two readers of one structure start
+/// disagreeing about its shape.
+List<Map<String, dynamic>> pyramidTeams(
+  Map<String, dynamic>? state,
+  String divId,
+) => _teams(_pyramid(state), divId);
+
 /// Every AI team name currently in the pyramid.
 Set<String> allTeamNames(Map<String, dynamic>? state) {
   final names = <String>{};

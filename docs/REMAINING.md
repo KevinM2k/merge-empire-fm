@@ -1210,9 +1210,14 @@ consistency sweep.
       Rate Us is the one that could ship now — it is a store URL and a
       `url_launcher` dependency, nothing more. Privacy needs the consent SDK and
       Account needs auth; both are genuinely M4.
-- [ ] **Team Names is a SCREEN, not a service** — the pyramid editor, with
+- [x] **Team Names is a SCREEN, not a service** — the pyramid editor, with
       presets, import and export (`pyramid.*` has fourteen keys waiting for it).
-      It is the one of the four that is only work.
+      It is the one of the four that is only work. Built: the Settings row was a
+      `PendingControl` over five hundred ported, tested lines of
+      `pyramid_names_engine`, and twenty-five `pyramid.*` strings translated in
+      ten catalogues could not be reached. The sheet steps division by division,
+      renames a club through the engine's validation, pastes a whole division as
+      a list, and saves, applies and imports presets.
 
 ### The daily reward
 
@@ -1760,7 +1765,7 @@ Ordered by how visible each one is to somebody playing.
       pays was always on the tile. See 25 Aug.
 - [ ] **The five mini-games with no screen** — `training` aside, `keepy_uppys`,
       `through_ball`, `whack` and `pairs` are engine-only. See 21 Aug.
-- [ ] **Team Names / the pyramid editor** has no screen.
+- [x] **Team Names / the pyramid editor** has no screen. Built 21 Aug.
 - [ ] **Rate Us, Privacy and Account connection** are waiting on M4 — a store URL
       and `url_launcher`, a consent SDK, and auth respectively. They look broken
       because they are stubs; see 21 Aug.

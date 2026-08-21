@@ -27,6 +27,7 @@ import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/settings_audio_row.dart';
+import 'package:merge_empire_fc/ui/screens/settings/pyramid_editor_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -127,14 +128,14 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           onTap: () => showClubNameCard(context),
         ),
-        // The pyramid editor is a screen of its own — presets, import, export —
-        // and the port has not built it. Disabled with a reason rather than left
-        // off the list, so it reads as a feature that is coming.
-        PendingControl(
-          controlKey: 'team-names-btn',
+        // **The pyramid editor is BUILT now**, and it always could have been:
+        // `pyramid_names_engine` is five hundred ported, tested lines and this
+        // row was a `PendingControl` saying "coming soon" over the top of them.
+        SettingsAction(
+          key: const ValueKey('team-names-btn'),
           icon: 'shield',
           label: t('pyramid.title'),
-          reason: t('settings.comingSoon'),
+          onTap: () => showPyramidEditor(context),
         ),
         SettingSwitch(
           settingKey: 'lightMode',

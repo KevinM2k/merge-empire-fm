@@ -505,4 +505,21 @@ void main() {
       expect(find.byKey(ValueKey(key)), findsOne, reason: key);
     }
   });
+
+  testWidgets('TEAM NAMES OPENS THE PYRAMID EDITOR', (tester) async {
+    // The row was a `PendingControl` saying "coming soon" over five hundred
+    // ported, tested lines of `pyramid_names_engine` — the sixth engine this
+    // port has found fully built and reachable from nowhere.
+    await pumpSettings(tester, SettingsTab.general);
+    final row = find.byKey(const ValueKey('team-names-btn'));
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('pyramid-editor')),
+      findsOneWidget,
+      reason: 'Team Names still leads nowhere',
+    );
+  });
 }
