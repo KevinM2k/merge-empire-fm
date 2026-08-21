@@ -1176,12 +1176,12 @@ starts them.
 
 ### Where this queue stands
 
-**9 open.** Five mini-game screens count as one line, three controls are waiting
-on M4, one is the pyramid editor, one is the daily reward, three are designs, one
-is a copy fix that has to go through the JS first, and one is the rest of a
-consistency sweep.
+**7 open.** Three controls are waiting on M4, one is the daily reward, three are
+designs, one is a copy fix that has to go through the JS first, and one is the
+rest of a consistency sweep. The five mini-game screens and the pyramid editor
+are done.
 
-### The five mini-games that have no screen
+### The five mini-games that had no screen — built
 
 - [x] **The locked row NAMES the tier now, and the ladder is data.**
       `getUnlockedMinigames` was a stack of ifs, and the row asked
@@ -1196,12 +1196,19 @@ consistency sweep.
       unlocked, built and waiting on the clock — there is nothing to skip on a
       locked one and nothing to skip on one with no screen. Dead until AdMob
       lands, shown rather than hidden, same as the Shop's own two ad tiles.
-- [ ] **And the five screens themselves.** "Training sessions are not unlocking"
+- [x] **And the five screens themselves.** "Training sessions are not unlocking"
       was never an unlock bug: the ladder works and the provider recomputes on
-      every save change, but `playableMiniGames` holds only `penalty` and
-      `bootRoom`, so tiering up unlocks a drill that cannot be played.
-      `training`, `keepy_uppys`, `through_ball`, `whack` and `pairs` are all
-      unported, and that is what the row was reporting.
+      every save change, but `playableMiniGames` held only `penalty` and
+      `bootRoom`, so tiering up unlocked a drill that could not be played.
+      All five are built now and `playableMiniGames` holds all seven:
+      **Through Ball** (the timing bar, a shrinking zone per round),
+      **Pitch Invaders** (nine holes, one wall-clock deadline read every frame),
+      **Team Work** (the memory grid over the card art),
+      **Goalkeeper Practice** (a scheduled sixteen seconds of drills) and
+      **Keepy Uppys** (three balls of physics, pinned frame by frame against a
+      node dump of the JS's own loop). Every engine behind them had been ported
+      and tested since M1 and roughly forty translated strings across ten
+      catalogues could not be reached by anything.
 
 ### Four controls that look broken because they are waiting on M4
 
@@ -1763,8 +1770,9 @@ Ordered by how visible each one is to somebody playing.
       difference between a save and the ball vanishing.
 - [x] **The daily reward** ticks the days already claimed now — and what a day
       pays was always on the tile. See 25 Aug.
-- [ ] **The five mini-games with no screen** — `training` aside, `keepy_uppys`,
-      `through_ball`, `whack` and `pairs` are engine-only. See 21 Aug.
+- [x] **The five mini-games with no screen** — `training` aside, `keepy_uppys`,
+      `through_ball`, `whack` and `pairs` were engine-only. All five built
+      21 Aug; all seven drills are playable.
 - [x] **Team Names / the pyramid editor** has no screen. Built 21 Aug.
 - [ ] **Rate Us, Privacy and Account connection** are waiting on M4 — a store URL
       and `url_launcher`, a consent SDK, and auth respectively. They look broken
@@ -2522,9 +2530,11 @@ CUP branch is built and nothing reaches it — `wc2026`'s window closed in July,
 so it permanently reports `ended`; it is there because that engine and its tests
 are the spec for whatever reuses the slot.
 
-**Mini-games still to build**: Training Drills, Keepy Uppys, Through Ball, Whack,
-Teamwork. Penalty Training and the Boot Room are playable; the pattern for a new
-one is `lib/ui/screens/minigames/` plus a row in `playableMiniGames`.
+**Mini-games**: all seven are playable. The pattern for a new one is
+`lib/ui/screens/minigames/` plus a row in `playableMiniGames` — and the row is
+the point: a kind in the catalogue without one is shown locked with a reason
+rather than offered, which is what stopped the menu-row-to-nowhere bug coming
+back while five of them were unbuilt.
 
 **Spectacle.**
 

@@ -36,10 +36,12 @@ const Map<String, String> miniGameTitleKeys = {
   MiniGameKind.bootRoom: 'game.boot_room',
 };
 
-/// The games with a screen behind them today.
+/// The games with a screen behind them today — all seven of them.
 ///
-/// Listing one without a screen would be the menu-row-to-nowhere bug again, so
-/// the rest are shown LOCKED with a reason rather than offered.
+/// It held two for most of the port, which is why tiering the Training Ground
+/// unlocked drills that could not be played. Listing one without a screen would
+/// be the menu-row-to-nowhere bug again, so anything added to the catalogue
+/// ahead of its screen is shown LOCKED with a reason rather than offered.
 const Set<String> playableMiniGames = {
   MiniGameKind.penalty,
   MiniGameKind.bootRoom,
@@ -47,6 +49,7 @@ const Set<String> playableMiniGames = {
   MiniGameKind.whack,
   MiniGameKind.pairs,
   MiniGameKind.training,
+  MiniGameKind.keepyUppys,
 };
 
 final miniGamesProvider = savePick<List<MiniGameRow>>((s) {

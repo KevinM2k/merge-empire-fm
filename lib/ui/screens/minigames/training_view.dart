@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/goalkeeper_practice_screen.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/keepy_uppys_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/pitch_invaders_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/teamwork_screen.dart';
@@ -83,6 +84,7 @@ class _GameRow extends ConsumerWidget {
       MiniGameKind.whack => const PitchInvadersScreen(),
       MiniGameKind.pairs => const TeamworkScreen(),
       MiniGameKind.training => const GoalkeeperPracticeScreen(),
+      MiniGameKind.keepyUppys => const KeepyUppysScreen(),
       _ => const PenaltyScreen(),
     };
     Navigator.of(context).push<void>(

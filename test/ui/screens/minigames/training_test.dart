@@ -124,16 +124,20 @@ void main() {
       expect(penalty.ready, isTrue);
     });
 
-    testWidgets('a game with no screen yet says so rather than offering', (
-      tester,
-    ) async {
-      // Listing one that leads nowhere is the bug this whole tab replaced.
+    testWidgets('EVERY GAME IN THE LIST NOW LEADS SOMEWHERE', (tester) async {
+      // Listing one that leads nowhere is the bug this whole tab replaced, and
+      // for most of the port five of the seven did exactly that — the tier
+      // unlocked a drill with no screen behind it. All seven are built now, so
+      // "coming soon" must not appear at all.
       final container = await pumpTraining(tester, saveWith(trainingTier: 6));
       final unbuilt = container
           .read(miniGamesProvider)
           .where((g) => g.unlocked && !g.playable);
-      expect(unbuilt, isNotEmpty);
-      expect(find.text(t('settings.comingSoon')), findsWidgets);
+      expect(unbuilt, isEmpty, reason: 'a row still leads nowhere');
+      expect(find.text(t('settings.comingSoon')), findsNothing);
+      // And the guard stays: a kind added to the catalogue ahead of its screen
+      // is what `playable` is for, so the two lists have to agree.
+      expect(playableMiniGames, hasLength(miniGameTitleKeys.length));
     });
 
     testWidgets('a rested game says how long, not just no', (tester) async {
