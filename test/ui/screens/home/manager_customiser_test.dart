@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 
 import 'home_screen_test.dart' show pumpHome, settleSave;
@@ -29,17 +31,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// The axis strip scrolls and builds lazily, so the later tabs are not in the
-  /// tree until it has been dragged to them.
+  /// **Every axis is on screen at once now**, so this no longer has to go
+  /// looking for the far ones behind a horizontal scroll — which is the whole
+  /// complaint the wrap fixed.
   Future<void> openAxis(WidgetTester tester, String kind) async {
     final tab = find.byKey(ValueKey('customise-axis-$kind'));
-    for (var i = 0; i < 8 && tab.evaluate().isEmpty; i++) {
-      await tester.drag(
-        find.byKey(const ValueKey('customise-axes')),
-        const Offset(-200, 0),
-      );
-      await tester.pumpAndSettle();
-    }
     expect(tab, findsOneWidget, reason: 'no $kind tab');
     await tester.tap(tab);
     await tester.pumpAndSettle();
@@ -124,5 +120,83 @@ void main() {
         container.read(gameProvider).state?['club'] as Map<String, dynamic>;
     final look = club['managerAvatar'];
     expect(look is Map ? look['beard'] : null, isNot('stubble'));
+  });
+
+  group('what the sheet SHOWS', () {
+    testWidgets('EVERY AXIS IS REACHABLE WITHOUT SCROLLING', (tester) async {
+      // They were a horizontal strip, and eight tabs do not fit across a phone —
+      // so Hat and Face lived off the right-hand edge with nothing to say they
+      // were there. A row that runs out of the frame is not navigation.
+      phone(tester);
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      await openCustomiser(tester);
+
+      final strip = tester.getRect(
+        find.byKey(const ValueKey('customise-axes')),
+      );
+      for (final axis in lookAxes) {
+        final tab = find.byKey(ValueKey('customise-axis-${axis.kind}'));
+        expect(tab, findsOneWidget, reason: '${axis.kind} is not in the tree');
+        final box = tester.getRect(tab);
+        expect(
+          box.right,
+          lessThanOrEqualTo(strip.right + 0.5),
+          reason: '${axis.kind} hangs off the right-hand edge',
+        );
+      }
+      await settleSave(tester);
+    });
+
+    testWidgets('and a choice is a PICTURE of itself, not a word', (
+      tester,
+    ) async {
+      // A moustache described as "Moustache" is a list; a moustache drawn on his
+      // face is a choice.
+      phone(tester);
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      await openCustomiser(tester);
+      await openAxis(tester, 'build');
+
+      // An UNLOCKED one — a padlocked chip is a padlock, deliberately, and on a
+      // fresh save every beard but `none` is behind a Fan Zone tier.
+      final chip = find.byKey(const ValueKey('customise-chip-build-broad'));
+      await tester.ensureVisible(chip);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: chip, matching: find.byType(ManagerWalker)),
+        findsOneWidget,
+        reason: 'the build chip is still a word',
+      );
+      // The colour axes keep their swatch: a hair colour IS a colour, and a head
+      // drawn to show one is a worse look at it.
+      await openAxis(tester, 'color');
+      final swatch = find.byKey(
+        ValueKey('customise-chip-color-${hairColorIds.first}'),
+      );
+      await tester.ensureVisible(swatch);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: swatch, matching: find.byType(ManagerWalker)),
+        findsNothing,
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('and he WALKS in here, on grass', (tester) async {
+      // He used to stand still on the sheet's own surface, which is a figure in
+      // a dressing room — and the thing being judged is how a look MOVES.
+      phone(tester);
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      await openCustomiser(tester);
+      expect(find.byKey(const ValueKey('customise-stage')), findsOneWidget);
+      final preview = tester.widget<ManagerWalker>(
+        find.byKey(const ValueKey('customise-preview')),
+      );
+      expect(preview.walking, isTrue, reason: 'he is standing still again');
+      await settleSave(tester);
+    });
   });
 }

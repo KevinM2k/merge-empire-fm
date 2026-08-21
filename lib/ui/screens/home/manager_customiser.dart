@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 Future<void> showManagerCustomiser(BuildContext context) =>
     showBottomSheetPopup<void>(
@@ -179,41 +180,45 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
             ],
           ),
         ),
-        // The rig itself, standing still. `walking: false` is the whole
-        // difference between this and the touchline: a figure mid-stride is a
-        // worse look at the thing you are choosing.
-        SizedBox(
-          height: 170,
-          child: Center(
-            child: SizedBox(
-              width: walkerWidth,
-              height: walkerHeight,
-              child: ManagerWalker(
-                key: const ValueKey('customise-preview'),
-                kit: kit.accent,
-                skin: const Color(0xFFEEBB8C),
-                hair: const Color(0xFF3A2A1C),
-                look: look,
-                mood: Mood.pleased,
-                walking: false,
-              ),
-            ),
+        // **HE WALKS IN HERE, ON GRASS.**
+        //
+        // He used to stand still on the sheet's own surface, which is a figure
+        // in a dressing room rather than the man you watch on the touchline —
+        // and the thing being judged is how a look MOVES. The backdrop is the
+        // scene's own sky and turf (`theme/sky.dart`), so what you are dressing
+        // him for is the ground he will be standing on.
+        _PreviewStage(
+          child: ManagerWalker(
+            key: const ValueKey('customise-preview'),
+            kit: kit.accent,
+            skin: const Color(0xFFEEBB8C),
+            hair: const Color(0xFF3A2A1C),
+            look: look,
+            mood: Mood.pleased,
           ),
         ),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
+        // **ALL EIGHT AXES ON SCREEN AT ONCE.**
+        //
+        // They were a horizontal strip, and eight tabs do not fit across a
+        // phone — so Hat and Face lived off the right-hand edge, behind a
+        // scroll with nothing to say it was there. A row that runs out of the
+        // frame is not navigation; it is a list you have to already know the
+        // length of. Wrapped, they take two lines and cost eighteen pixels.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          child: Wrap(
             key: const ValueKey('customise-axes'),
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 13),
-            itemCount: lookAxes.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 6),
-            itemBuilder: (context, i) => _AxisTab(
-              key: ValueKey('customise-axis-${lookAxes[i].kind}'),
-              label: t(lookAxes[i].labelKey),
-              selected: i == _axis,
-              onTap: () => setState(() => _axis = i),
-            ),
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (var i = 0; i < lookAxes.length; i++)
+                _AxisTab(
+                  key: ValueKey('customise-axis-${lookAxes[i].kind}'),
+                  label: t(lookAxes[i].labelKey),
+                  selected: i == _axis,
+                  onTap: () => setState(() => _axis = i),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -231,6 +236,68 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The patch of ground he is previewed on.
+///
+/// The diorama's own sky and turf rather than a colour picked to look like
+/// them — one source for the two means a look chosen in here is judged against
+/// the light it will actually be seen in.
+class _PreviewStage extends StatelessWidget {
+  const _PreviewStage({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return ClipRRect(
+      key: const ValueKey('customise-stage'),
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        height: 190,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: skyGradient(brightness: brightness, tier: 1),
+              ),
+            ),
+            // A strip of grass under him rather than a whole pitch: the sheet is
+            // about the man, and a mown fan in a 190px box is a texture nobody
+            // asked for.
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: FractionallySizedBox(
+                heightFactor: 0.34,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: nightScene(brightness)
+                          ? const [Color(0xFF17442A), Color(0xFF2A783F)]
+                          : const [Color(0xFF2A7231), Color(0xFF48AD50)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Standing ON the grass line, not in the middle of the box.
+            Align(
+              alignment: const Alignment(0, 0.52),
+              child: SizedBox(
+                width: walkerWidth,
+                height: walkerHeight,
+                child: child,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -314,6 +381,7 @@ class _Grid extends StatelessWidget {
         return _Chip(
           axis: axis,
           id: id,
+          look: look,
           selected: id == current,
           lockedReason: locked,
           onTap: () {
@@ -336,17 +404,81 @@ class _Grid extends StatelessWidget {
   }
 }
 
+/// What part of the figure an axis actually changes, in the rig's own units.
+///
+/// **This is what makes a picture per choice work.** The first cut of this sheet
+/// argued against miniatures and it was half right: at four to a row a WHOLE
+/// manager is sixty pixels tall, and a moustache is four of them. The answer is
+/// not a word, it is a CROP — frame the head for the head axes and the body for
+/// the body ones, and the thing being chosen fills the box.
+Rect _regionFor(String kind) => switch (kind) {
+  // The skull is a circle at (62, 48.5) r12.5, and hair, hats and beards all
+  // hang off it — with room above for a tall hat and below for a full beard.
+  'hair' ||
+  'color' ||
+  'beard' ||
+  'hat' ||
+  'face' => const Rect.fromLTWH(42, 26, 40, 40),
+  // Shoulders to the hem, which is where a build and an outfit live.
+  _ => const Rect.fromLTWH(38, 54, 44, 44),
+};
+
+/// One choice, as a picture of itself.
+class _LookPreview extends StatelessWidget {
+  const _LookPreview({required this.axis, required this.look});
+
+  final LookAxis axis;
+
+  /// The player's current look with this one choice swapped in — so a beard is
+  /// previewed on HIS face, under HIS hat, in HIS colour.
+  final ManagerLook look;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final region = _regionFor(axis.kind);
+    return LayoutBuilder(
+      builder: (context, box) {
+        final k = box.maxWidth / region.width;
+        return ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            maxWidth: double.infinity,
+            maxHeight: double.infinity,
+            child: Transform.translate(
+              offset: Offset(-region.left * k, -region.top * k),
+              child: SizedBox(
+                width: walkerWidth * k,
+                height: walkerHeight * k,
+                child: ManagerWalker(
+                  kit: kit.accent,
+                  skin: const Color(0xFFEEBB8C),
+                  hair: const Color(0xFF3A2A1C),
+                  look: look,
+                  mood: Mood.neutral,
+                  // Still, and that is what keeps nineteen of these free: a
+                  // walker that is not walking starts no clock at all.
+                  walking: false,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// One choice.
 ///
-/// Deliberately a SWATCH-OR-WORD rather than a miniature of the whole figure.
-/// The JS renders a dozen full rigs in here; at four to a row on a phone a
-/// whole manager is 60px tall, at which point the thing being chosen — a
-/// moustache, a pair of specs — is a few pixels of it. The preview above is
-/// where the choice is judged.
+/// **A picture of what it is**, cropped to the part the axis changes — see
+/// [_regionFor]. The colour axes keep their swatch, because a skin tone or a
+/// hair colour IS a colour and a head drawn to show one is a worse look at it.
 class _Chip extends StatelessWidget {
   const _Chip({
     required this.axis,
     required this.id,
+    required this.look,
     required this.selected,
     required this.lockedReason,
     required this.onTap,
@@ -354,6 +486,9 @@ class _Chip extends StatelessWidget {
 
   final LookAxis axis;
   final String id;
+
+  /// The player's current look, for the preview to swap this choice into.
+  final ManagerLook? look;
   final bool selected;
   final String? lockedReason;
   final VoidCallback onTap;
@@ -373,6 +508,9 @@ class _Chip extends StatelessWidget {
     return v == null ? null : Color(0xFF000000 | v);
   }
 
+  /// **STILL THE NAME, for anyone who cannot see the picture.** The chips draw
+  /// themselves now, and a control whose entire content is a drawing has no
+  /// accessible name at all unless one is said out loud.
   String get _label {
     final named = t('customise.${axis.kind}.$id');
     // The wardrobe is ids-first and only the axes with real names carry
@@ -388,37 +526,44 @@ class _Chip extends StatelessWidget {
     final locked = lockedReason != null;
     final swatch = _swatch;
 
-    return GestureDetector(
-      key: ValueKey('customise-chip-${axis.kind}-$id'),
-      onTap: onTap,
-      child: Opacity(
-        opacity: locked ? 0.45 : 1,
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: swatch ?? kit.bg,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? kit.accentBright : kit.border,
-              width: selected ? 2 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: locked ? '$_label — $lockedReason' : _label,
+      child: GestureDetector(
+        key: ValueKey('customise-chip-${axis.kind}-$id'),
+        onTap: onTap,
+        child: Opacity(
+          opacity: locked ? 0.45 : 1,
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: swatch ?? kit.bg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: selected ? kit.accentBright : kit.border,
+                width: selected ? 2 : 1,
+              ),
             ),
-          ),
-          child: locked
-              ? Icon(Icons.lock, size: 16, color: kit.textMuted)
-              : swatch != null
-              ? const SizedBox.shrink()
-              : Text(
-                  _label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: selected ? kit.accentBright : kit.textMuted,
+            child: locked
+                ? Icon(Icons.lock, size: 16, color: kit.textMuted)
+                : swatch != null
+                ? const SizedBox.shrink()
+                : _LookPreview(
+                    axis: axis,
+                    // **`defaultManagerLook` when the save has none**, which is
+                    // every fresh one — without the fallback the whole grid was
+                    // words on exactly the saves most likely to be opening this
+                    // sheet for the first time.
+                    look: <String, dynamic>{
+                      ...(look ?? defaultManagerLook),
+                      axis.field: axis.kind == 'color'
+                          ? hairColorValue(id)
+                          : id,
+                    },
                   ),
-                ),
+          ),
         ),
       ),
     );

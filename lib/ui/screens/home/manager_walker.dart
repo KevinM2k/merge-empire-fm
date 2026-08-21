@@ -897,6 +897,10 @@ class _ManagerWalkerState extends State<ManagerWalker>
                           t: t,
                           kit: widget.kit,
                           skin: parts.skin,
+                          // **His SHAPE.** The build axis was in the customiser,
+                          // the wardrobe, the randomiser and the save, and six
+                          // choices produced one figure — nothing read it.
+                          build: buildScales(look['build'] as String?),
                           pose: pose,
                         ),
                       ),
@@ -1630,12 +1634,18 @@ class _WalkerPainter extends CustomPainter {
     required this.t,
     required this.kit,
     required this.skin,
+    required this.build,
     this.pose,
   });
 
   final double t;
   final Color kit;
   final Color skin;
+
+  /// **HIS SHAPE.** The build axis was in the customiser, the wardrobe, the
+  /// randomiser and the save, and produced one figure — nothing read it. See
+  /// `managerBuilds` in `walker_figure.dart`.
+  final ManagerBuild build;
 
   /// The gesture on top of the walk, if one is playing.
   ///
@@ -1789,15 +1799,39 @@ class _WalkerPainter extends CustomPainter {
       // thigh used to be the garment's colour, which put a run of dark red from
       // the waistband to the knee: long trousers cut off, not a kit. Shorts stop
       // less than half way down, and it is that break which says "kit".
-      paintLimb(canvas, hip, knee, 11.2, 8.4, base: flesh, far: !near);
+      paintLimb(
+        canvas,
+        hip,
+        knee,
+        11.2 * build.limb,
+        8.4 * build.limb,
+        base: flesh,
+        far: !near,
+      );
       final hem = Offset(hip.dx, hip.dy + _shortsLeg);
-      paintLimb(canvas, hip, hem, 12.4, 11, base: legs, far: !near);
+      paintLimb(
+        canvas,
+        hip,
+        hem,
+        12.4 * build.limb,
+        11 * build.limb,
+        base: legs,
+        far: !near,
+      );
       _about(canvas, knee, solved.shin, () {
         // The calf swells above the middle and tucks into the ankle, so the
         // widest point is NOT at the knee — a shin that tapers straight down
         // reads as a chair leg.
         final belly = Offset.lerp(knee, foot, 0.34)!;
-        paintLimb(canvas, knee, belly, 8.2, 8.8, base: flesh, far: !near);
+        paintLimb(
+          canvas,
+          knee,
+          belly,
+          8.2 * build.limb,
+          8.8 * build.limb,
+          base: flesh,
+          far: !near,
+        );
         paintLimb(
           canvas,
           belly,
@@ -1829,12 +1863,17 @@ class _WalkerPainter extends CustomPainter {
       posed ?? _sample(near ? _armNear : _armFar, t),
       () {
         // The sleeve, wide at the deltoid and narrowing to the elbow.
+        //
+        // **The ARM scale, not the limb one.** Shoulder width is not legible on
+        // a figure drawn in profile and depth is, so `athletic` puts its muscle
+        // here and leaves the legs near normal — which is also what sells the
+        // arms as the thing that changed.
         paintLimb(
           canvas,
           const Offset(56, 62),
           const Offset(56, 81),
-          11,
-          7.6,
+          11 * build.arm,
+          7.6 * build.arm,
           base: sleeve,
           far: !near,
         );
@@ -1852,8 +1891,8 @@ class _WalkerPainter extends CustomPainter {
               canvas,
               const Offset(56, 81),
               const Offset(56, 98.5),
-              7.4,
-              4.8,
+              7.4 * build.arm,
+              4.8 * build.arm,
               base: flesh,
               far: !near,
             );
@@ -1888,6 +1927,15 @@ class _WalkerPainter extends CustomPainter {
     // garment. The hem also has to be BELOW the hip pivot (see [_hipX]), or the
     // thigh appears to grow out of the middle of the block.
     final shortsColour = _shortsColour;
+    // **THE HIP SCALE STAYS NEAR 1**, and the JS's note says why: the shorts are
+    // already about twice the width of the leg beneath them and that flare is
+    // intended, so even 1.16 pushes the block out in front of AND behind the
+    // legs and reads as a slab. A build's width belongs in the torso; this is
+    // fine adjustment.
+    canvas.save();
+    canvas.translate(_hipCentre, 0);
+    canvas.scale(build.hip, 1);
+    canvas.translate(-_hipCentre, 0);
     canvas.drawPath(
       _shortsPath(),
       Paint()
@@ -1902,6 +1950,7 @@ class _WalkerPainter extends CustomPainter {
           [0, 0.5, 1],
         ),
     );
+    canvas.restore();
 
     // **The shirt is a SILHOUETTE now, not a 15×32 rounded rectangle.** A man the
     // same width at the shoulder as at the waist is a doll — the shape is where
@@ -1911,7 +1960,7 @@ class _WalkerPainter extends CustomPainter {
     // head used to sit straight on the shirt, which is the other half of why it
     // read as stuck on.
     paintNeck(canvas, skin);
-    paintTorso(canvas, kit);
+    paintTorso(canvas, kit, build: build.torso, bulge: build.bulge);
 
     // Where the shirt meets the shorts. A garment that ends without a shadow
     // under it reads as printed on rather than worn.
@@ -1934,5 +1983,9 @@ class _WalkerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WalkerPainter old) =>
-      old.t != t || old.kit != kit || old.skin != skin;
+      old.t != t ||
+      old.kit != kit ||
+      old.skin != skin ||
+      old.build != build ||
+      old.pose != pose;
 }

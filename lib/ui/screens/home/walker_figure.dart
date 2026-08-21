@@ -152,6 +152,77 @@ void paintLimb(
   canvas.restore();
 }
 
+/// **WHAT A BUILD IS.** Ported from `BUILDS` in
+/// `../merge-empire-fc/src/data/managerAvatar.js`.
+///
+/// The build axis was in the customiser, in the wardrobe, in the randomiser and
+/// in the save, and it **did nothing at all**: `buildScales`, `buildArmScale`
+/// and `buildOverlay` had no port, so six choices produced one figure. The
+/// renderer even carried a `build` parameter with nothing ever passing one.
+///
+/// The JS's own rules, worth keeping because each is a mistake it already made:
+///
+/// - **Keep [hip] near 1.** The shorts are already about twice the width of the
+///   leg beneath them and that flare is intended, so even 1.16 pushes the block
+///   visibly out in front of and behind the legs and reads as a slab. `broad`
+///   predates the rule and is left alone.
+/// - **Width goes in the TORSO**, taper in the torso too; the hip is fine
+///   adjustment only.
+/// - **Shoulder width is not legible on a figure drawn in profile; DEPTH is.**
+///   So `athletic` puts its muscle in [arm] — the upper arms and forearms —
+///   and leaves the legs near normal, which is also what sells the arms as the
+///   thing that changed. Two attempts at a shoulder overlay both failed, and
+///   the JS records why: a straight-topped yoke rendered as an angular slab,
+///   and a centred ellipse bulged out the front AND the back by the same amount
+///   on a figure seen side-on, so it read as a disc stuck through him.
+/// - **Put each bulge where its anatomy is.** The torso spans y 59→93, so a
+///   bust goes in the upper half and a gut in the lower, and the two must never
+///   be confusable.
+typedef ManagerBuild = ({
+  double torso,
+  double hip,
+  double limb,
+
+  /// Arm thickness. Defaults to [limb], so only a build that wants arms and
+  /// legs to differ has to say so.
+  double arm,
+
+  /// A bulge over the shirt, in the rig's own units — a gut or a bust. Null for
+  /// the scale-only builds.
+  ({double cx, double cy, double rx, double ry})? bulge,
+});
+
+const Map<String, ManagerBuild> managerBuilds = {
+  'regular': (torso: 1, hip: 1, limb: 1, arm: 1, bulge: null),
+  'lean': (torso: 0.76, hip: 0.86, limb: 0.85, arm: 0.85, bulge: null),
+  'broad': (torso: 1.28, hip: 1.16, limb: 1.18, arm: 1.18, bulge: null),
+  // Gut low and forward, hanging OVER the waistband — a bulge that stops dead
+  // at the shorts line reads as a barrel rather than a belly. It reaches y 95.5,
+  // past the shirt hem at 93.
+  'belly': (
+    torso: 1.18,
+    hip: 1.04,
+    limb: 1.04,
+    arm: 1.04,
+    bulge: (cx: 62, cy: 81, rx: 6, ry: 9.5),
+  ),
+  'athletic': (torso: 1.14, hip: 0.92, limb: 1.04, arm: 1.44, bulge: null),
+  // Chest forward over a narrow torso and a wider hip, so the waist-to-hip
+  // difference does as much work as the bust.
+  'curvy': (
+    torso: 0.84,
+    hip: 1.04,
+    limb: 0.90,
+    arm: 0.90,
+    bulge: (cx: 63.5, cy: 69, rx: 8.5, ry: 6),
+  ),
+};
+
+/// The scales for a build id. An unknown one is `regular`, so a save from a
+/// future build still draws a man.
+ManagerBuild buildScales(String? id) =>
+    managerBuilds[id] ?? managerBuilds['regular']!;
+
 /// The torso, from the base of the neck to the waistband.
 ///
 /// **The width is not a choice — the generated art already states it.** Every
@@ -190,7 +261,17 @@ Path torsoPath({double build = 1}) {
 }
 
 /// A shirt, with the light on the chest and the spine in shade.
-void paintTorso(Canvas canvas, Color kit, {double build = 1}) {
+///
+/// [bulge] is the build's own silhouette, drawn INSIDE the torso's scale — so
+/// it inherits that width for free and can never leave a seam against the body
+/// it belongs to, which is the JS's reason for filling it with the lit shirt
+/// colour rather than a shade.
+void paintTorso(
+  Canvas canvas,
+  Color kit, {
+  double build = 1,
+  ({double cx, double cy, double rx, double ry})? bulge,
+}) {
   final path = torsoPath(build: build);
   final bounds = path.getBounds();
   canvas.drawPath(
@@ -228,6 +309,25 @@ void paintTorso(Canvas canvas, Color kit, {double build = 1}) {
       ),
   );
   canvas.restore();
+
+  // The build's own silhouette, over the shirt and scaled with it. Drawn in the
+  // LIT shirt colour, which is what stops a gut leaving a seam across a body it
+  // is part of.
+  if (bulge != null) {
+    canvas.save();
+    canvas.translate(58, 0);
+    canvas.scale(build, 1);
+    canvas.translate(-58, 0);
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(bulge.cx, bulge.cy),
+        width: bulge.rx * 2,
+        height: bulge.ry * 2,
+      ),
+      Paint()..color = kit,
+    );
+    canvas.restore();
+  }
 
   // A collar that sits ON the shoulders rather than being a line across them.
   canvas.drawPath(

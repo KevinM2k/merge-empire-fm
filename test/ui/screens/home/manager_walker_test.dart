@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_art.dart';
 import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/ui/screens/home/walker_figure.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
@@ -449,6 +450,67 @@ void main() {
         moodHeadTilt(Mood.crushed) + watch,
         greaterThan(moodHeadTilt(Mood.elated) + watch),
       );
+    });
+  });
+
+  group('his BUILD', () {
+    test('six choices are six shapes, not one', () {
+      // The axis was in the customiser, the wardrobe, the randomiser and the
+      // save, and produced one figure: `buildScales`, `buildArmScale` and
+      // `buildOverlay` had no port at all, and the renderer carried a `build`
+      // parameter nothing ever passed.
+      final widths = <String, double>{};
+      for (final id in buildIds) {
+        final b = buildScales(id);
+        widths[id] = torsoPath(build: b.torso).getBounds().width;
+      }
+      expect(
+        widths.values.toSet(),
+        hasLength(buildIds.length),
+        reason: 'two builds draw the same torso: $widths',
+      );
+      expect(widths['lean'], lessThan(widths['regular']!));
+      expect(widths['broad'], greaterThan(widths['regular']!));
+    });
+
+    test('an unknown build is a man, not a crash', () {
+      // A save from a future build still has to draw someone.
+      expect(buildScales('nonesuch'), buildScales('regular'));
+      expect(buildScales(null), buildScales('regular'));
+    });
+
+    test('ATHLETIC puts its muscle in the ARMS, not the legs', () {
+      // Shoulder width is not legible on a figure drawn in profile and depth
+      // is, which is the JS's own reason — and it is also what sells the arms
+      // as the thing that changed.
+      final athletic = buildScales('athletic');
+      expect(athletic.arm, greaterThan(athletic.limb));
+      expect(athletic.limb, closeTo(1, 0.1));
+      // And nobody else separates the two.
+      for (final id in buildIds.where((i) => i != 'athletic')) {
+        final b = buildScales(id);
+        expect(b.arm, b.limb, reason: '$id splits arms from legs');
+      }
+    });
+
+    test('and the two bulges are in different halves of the torso', () {
+      // The torso spans y 59 to 93, midpoint 76: a bust goes in the UPPER half
+      // and a gut in the LOWER, and the two must never be confusable.
+      expect(buildScales('curvy').bulge!.cy, lessThan(76));
+      expect(buildScales('belly').bulge!.cy, greaterThan(76));
+      // Every other build is scale-only.
+      for (final id in buildIds.where((i) => i != 'curvy' && i != 'belly')) {
+        expect(buildScales(id).bulge, isNull, reason: id);
+      }
+    });
+
+    test('and the HIP stays near 1', () {
+      // The shorts are already about twice the width of the leg beneath them
+      // and that flare is intended, so even 1.16 pushes the block out in front
+      // of and behind the legs and reads as a slab. `broad` predates the rule.
+      for (final id in buildIds.where((i) => i != 'broad')) {
+        expect(buildScales(id).hip, lessThanOrEqualTo(1.05), reason: id);
+      }
     });
   });
 }
