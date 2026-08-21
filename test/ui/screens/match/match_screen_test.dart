@@ -1012,6 +1012,51 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('AND HE STAYS OFF ACROSS A REOPEN', (tester) async {
+      // The rule only held for as long as the panel stayed up: the withdrawn set
+      // lived on the panel while the COUNT was passed in from the screen, so
+      // closing and reopening forgot who had been taken off. Two taps and a man
+      // who had been substituted was back on the pitch.
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(5));
+      await openSubs(tester);
+      final swap = await makeSub(tester, container);
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+
+      // Back in, a fresh panel. He is on the bench and he must still be inert.
+      await openSubs(tester);
+      expect(
+        tester.state<SubsPanelState>(find.byType(SubsPanel)).left,
+        PlayerEnergy.maxSubs - 1,
+        reason: 'the panel forgot the change had been made',
+      );
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('sub-bench-${swap.off}')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('coach-card')),
+        findsNothing,
+        reason: 'a withdrawn player was offered the pitch again after a reopen',
+      );
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
     testWidgets('AN INJURY OPENS IT BY ITSELF, with the hole picked', (
       tester,
     ) async {

@@ -454,6 +454,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     await showSubsPanel(
       context,
       used: _subsUsed,
+      withdrawn: _withdrawn,
       onSub: _onSub,
       openOn: openOn,
     );
@@ -483,6 +484,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     unawaited(openSubs(openOn: holes.length == 1 ? holes.first : null));
   }
 
+  /// Everyone taken off this match.
+  ///
+  /// **On the SCREEN, not the panel**, and that is the whole of the fix: the
+  /// panel used to own this while `used` was passed in from here, so closing and
+  /// reopening it forgot who had been withdrawn and two taps put a substituted
+  /// man back on the pitch. It belongs with [_kickoffLineup] — both are facts
+  /// about the match rather than about the sheet that happens to be open.
+  final Set<String> _withdrawn = <String>{};
+
   /// Record a change the panel has already written to the save.
   ///
   /// **What the quests read is stamped here.** `subsUsed` and `subbedOnIds` are
@@ -492,6 +502,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// quests that could not advance.
   void _onSub(SubMade sub) {
     _subsUsed++;
+    // Filling a hole withdraws nobody, so there is nothing to remember.
+    if (sub.offId != null) _withdrawn.add(sub.offId!);
     widget.result['subsUsed'] = _subsUsed;
     final on = widget.result['subbedOnIds'];
     final onList = on is List ? on : <Object?>[];

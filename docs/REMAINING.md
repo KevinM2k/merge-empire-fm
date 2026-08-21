@@ -2578,11 +2578,13 @@ by a test.
       max-extent delegate fitted as many 92px cards as the width allowed, which
       is four on most phones. `benchColumns` lives with `PlayerCard` because BOTH
       benches use it and two answers to one question would read as a bug.
-- [ ] **`_spent` resets when the panel is REOPENED.** Pre-existing, and not
-      introduced by the rewrite: "nobody who has been off goes back on" holds
-      within one opening of the panel, because the set lives on the panel while
-      `used` is passed in from the screen. The withdrawn list belongs next to
-      `_kickoffLineup` on the match screen.
+- [x] **The withdrawn set reset when the panel was REOPENED.** Pre-existing, not
+      introduced by the rewrite: "nobody who has been off goes back on" held only
+      for as long as the sheet stayed up, because the set lived on the panel
+      while `used` was passed in from the screen. Two taps and a substituted man
+      was back on the pitch. It sits beside `_kickoffLineup` now — both are facts
+      about the ninety minutes rather than about whichever sheet is open — and it
+      is handed in live, so the set the panel reads is the one the screen writes.
 
 ### The player card and the sell sheet
 

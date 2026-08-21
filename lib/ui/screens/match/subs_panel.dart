@@ -48,24 +48,40 @@ typedef SubMade = ({String? offId, String onId, String slotId});
 Future<void> showSubsPanel(
   BuildContext context, {
   required int used,
+  required Set<String> withdrawn,
   required void Function(SubMade) onSub,
   String? openOn,
 }) => showBottomSheetPopup<void>(
   context,
   heightFraction: 0.92,
-  child: SubsPanel(used: used, onSub: onSub, openOn: openOn),
+  child: SubsPanel(
+    used: used,
+    withdrawn: withdrawn,
+    onSub: onSub,
+    openOn: openOn,
+  ),
 );
 
 class SubsPanel extends ConsumerStatefulWidget {
   const SubsPanel({
     super.key,
     required this.used,
+    required this.withdrawn,
     required this.onSub,
     this.openOn,
   });
 
   /// How many changes have already been made this match.
   final int used;
+
+  /// Everyone already taken off, THIS MATCH.
+  ///
+  /// The match screen's own set, handed in live rather than copied: the rule is
+  /// about the ninety minutes, not about one opening of this sheet, and holding
+  /// it here is what let a closed-and-reopened panel put a substituted man back
+  /// on. Additions land through [onSub], so the set this reads is the same one
+  /// the screen is writing.
+  final Set<String> withdrawn;
 
   final void Function(SubMade) onSub;
 
@@ -84,9 +100,6 @@ class SubsPanel extends ConsumerStatefulWidget {
 class SubsPanelState extends ConsumerState<SubsPanel> {
   /// Changes made since the panel opened, on top of [SubsPanel.used].
   int _made = 0;
-
-  /// Nobody comes off twice, and nobody who has been off comes back on.
-  final Set<String> _spent = <String>{};
 
   /// The slot whose bench is open, or was opened for it.
   String? _openFor;
@@ -116,7 +129,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
     final on = slot.cardInstanceId;
     // Somebody already withdrawn cannot be withdrawn again. An empty slot is
     // always a candidate — that is the injury case.
-    if (on != null && _spent.contains(on)) return;
+    if (on != null && widget.withdrawn.contains(on)) return;
     setState(() => _openFor = slot.slotId);
     _openBench(slot.slotId, on);
   }
@@ -130,7 +143,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
       child: _BenchSheet(
         slotId: slotId,
         offId: offId,
-        spent: _spent,
+        spent: widget.withdrawn,
         onChosen: (onId) => slotId == null
             ? Future.value(false)
             : _confirmAndApply(slotId, offId, onId),
@@ -198,10 +211,9 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
         }
       }
     });
-    setState(() {
-      _made++;
-      if (offId != null) _spent.add(offId);
-    });
+    // The screen adds him to `withdrawn` off the back of `onSub`, so nothing
+    // here has to remember it too.
+    setState(() => _made++);
     widget.onSub((offId: offId, onId: onId, slotId: slotId));
     return true;
   }
@@ -227,7 +239,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
               enabled:
                   !none &&
                   (slot.cardInstanceId == null ||
-                      !_spent.contains(slot.cardInstanceId)),
+                      !widget.withdrawn.contains(slot.cardInstanceId)),
               onTap: () => _pick(slot),
             ),
           ),
