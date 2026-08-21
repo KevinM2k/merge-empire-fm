@@ -166,9 +166,40 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
           bottom: 10,
           child: SafeArea(
             top: false,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            // **ABOVE HIM, NOT BESIDE HIM**, and the tail is why. The wedge
+            // drops out of the bubble's bottom-left toward his face — beside him
+            // it was pointing past his shoulder into the HUD, which is a bubble
+            // attributed to the coin counter. He goes at the foot of the stack
+            // and what he says goes over his head, the way the home page has it.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                if (_open != null) ...[
+                  _Bubble(
+                    key: const ValueKey('coach-floating-bubble'),
+                    text: _open!.text,
+                    accent: kit.accent,
+                    onClose: () => _dismiss(_open!),
+                  ),
+                  // **The tail, so it reads as him SAYING it.** Every screen but
+                  // the home page had a plain panel with no speaker, which is a
+                  // caption rather than a line of dialogue. Same wedge the home
+                  // page draws — see [CoachBubbleTail].
+                  Padding(
+                    // Over the middle of the head below it rather than the far
+                    // left edge, so it points at his face.
+                    padding: const EdgeInsets.only(left: 18),
+                    child: CustomPaint(
+                      key: const ValueKey('coach-floating-tail'),
+                      size: coachTailSize,
+                      painter: CoachBubbleTail(
+                        fill: kit.surface,
+                        edge: kit.accent,
+                      ),
+                    ),
+                  ),
+                ],
                 Semantics(
                   button: true,
                   label: t('coach.aria.has_message'),
@@ -182,39 +213,6 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
                     child: _head,
                   ),
                 ),
-                if (_open != null) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _Bubble(
-                          key: const ValueKey('coach-floating-bubble'),
-                          text: _open!.text,
-                          accent: kit.accent,
-                          onClose: () => _dismiss(_open!),
-                        ),
-                        // **The tail, so it reads as him SAYING it.** Every
-                        // screen but the home page had a plain panel with no
-                        // speaker, which is a caption rather than a line of
-                        // dialogue. Same wedge the home page draws — see
-                        // [CoachBubbleTail].
-                        Padding(
-                          padding: const EdgeInsets.only(left: 14),
-                          child: CustomPaint(
-                            key: const ValueKey('coach-floating-tail'),
-                            size: coachTailSize,
-                            painter: CoachBubbleTail(
-                              fill: kit.surface,
-                              edge: kit.accent,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

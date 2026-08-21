@@ -331,15 +331,48 @@ void main() {
           worstAt = t;
         }
       }
-      // What is left is the clamp: the support foot really does creep forward
-      // either side of each hand-over, and the world is not allowed to reverse.
+      // **WHAT IS LEFT IS A DELIBERATE TRADE**, and it was 15 before it was 46.
+      // The clamp on the support foot's backward creep left the curve with a
+      // genuine standstill in it, so twice a stride the whole diorama stopped
+      // dead and surged out of it — which is what was being reported as the walk
+      // stuttering. `groundEaseFloor` blends a constant rate in to kill that, and
+      // the slip is the price. Still comfortably better than the 78 a wholly
+      // constant ground was rejected for: a planted foot creeping a little is a
+      // much smaller lie than a pitch stalling under a man mid-stride.
       expect(
         worst,
-        lessThan(25),
+        lessThan(55),
         reason:
             'slip of ${worst.toStringAsFixed(1)} at t=$worstAt — a constant '
             'ground was 78 out at its worst',
       );
+    });
+
+    test('AND IT NEVER STOPS MID-STRIDE, which is what the floor is for', () {
+      // The reported stutter. Measured over a half-stride the rate used to run
+      // 0.36, 0.21, 0.06, 0.00 and then jump to 1.11 — a standstill and a surge,
+      // twice a stride, on every step he took.
+      const n = 400;
+      var slowest = double.infinity;
+      var slowestAt = 0.0;
+      var fastest = 0.0;
+      for (var i = 0; i < n; i++) {
+        // Normalised so the mean rate over the half-stride is exactly 1.
+        final rate = (groundEase((i + 1) / n) - groundEase(i / n)) * n;
+        if (rate < slowest) {
+          slowest = rate;
+          slowestAt = i / n;
+        }
+        if (rate > fastest) fastest = rate;
+      }
+      expect(
+        slowest,
+        greaterThan(0.2),
+        reason: 'the world stalls at u=$slowestAt, rate $slowest',
+      );
+      // And the surge out of it is bounded too: a rate that swings twenty to one
+      // reads as a stutter even without ever reaching zero.
+      expect(fastest / slowest, lessThan(6));
     });
 
     test('and the ease is a distance, so it never goes backwards', () {

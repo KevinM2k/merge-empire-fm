@@ -313,11 +313,28 @@ void main() {
       await pumpCoach(tester);
       await tester.tap(head);
       await tester.pumpAndSettle();
+      final tail = find.byKey(const ValueKey('coach-floating-tail'));
       expect(
-        find.byKey(const ValueKey('coach-floating-tail')),
+        tail,
         findsOneWidget,
         reason: 'nothing joins what he said to the man who said it',
       );
+      // **The wedge points DOWN, so what he says has to be above him.** Beside
+      // him it pointed past his shoulder into the HUD, which is a bubble
+      // attributed to the coin counter.
+      final saidAt = tester.getRect(bubble);
+      final headAt = tester.getRect(head);
+      final tailAt = tester.getRect(tail);
+      expect(
+        saidAt.bottom,
+        lessThanOrEqualTo(headAt.top),
+        reason: 'the bubble is not above him, so the tail points at nothing',
+      );
+      expect(tailAt.top, greaterThanOrEqualTo(saidAt.bottom - 0.5));
+      expect(tailAt.bottom, lessThanOrEqualTo(headAt.top + 0.5));
+      // And over him rather than off to one side.
+      expect(tailAt.center.dx, greaterThanOrEqualTo(headAt.left));
+      expect(tailAt.center.dx, lessThanOrEqualTo(headAt.right));
     });
 
     testWidgets('and the badge is RED rather than the club colour', (

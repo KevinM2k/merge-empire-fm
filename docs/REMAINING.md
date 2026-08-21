@@ -2668,10 +2668,24 @@ by a test.
       and a Santa hat's pom sit above the part that covers anything. And the clip
       is on the LAYER rather than the head, so the hat is not clipped by its own
       brow — a test pins that only hair ever carries it.
-- [ ] **The walk stops and starts, and it should be smoother.** The halt itself is
-      wanted; the rhythm of it is not. Either fewer gestures carry `stops`, or the
-      ease is longer, or it should slow to a stroll rather than to nothing — see
-      `walk_ramp.dart`, which already has the ramp to tune.
+- [x] **The walk stopped on EVERY STEP, and it was not the gesture halt at all.**
+      The bow stopping the whole scene is wanted and is one gesture in sixteen.
+      What was being reported was in `groundEase`: clamping the support foot's
+      backward creep to zero leaves a genuine standstill in the curve. Measured
+      over one half-stride the rate ran 0.36, 0.21, 0.06, **0.00** — and then
+      jumped to 1.11. Twice a stride the whole diorama stopped dead and surged out
+      of it.
+      `groundEaseFloor` blends a third of a constant rate in. The trade is real
+      and worth stating: the worst foot slip goes from 15 art units a cycle to 46,
+      against the 78 a wholly constant ground was rejected for — and a planted
+      foot creeping a little is a much smaller lie than a pitch stalling under a
+      man mid-stride. The blend is linear in the same 0..1, so the distance a
+      half-stride covers is untouched and the world still cannot reverse.
+      Two tests hold it: the rate never drops below 0.2, and the surge out of the
+      slow part stays under six to one — a rate swinging twenty to one reads as a
+      stutter even without ever reaching zero.
+      **Measured, not guessed:** taking whichever foot is moving forward faster
+      was tried first and is worse than a constant ground (slip 107).
 - [x] **The tab buttons stacked down the customiser.** A horizontal strip of eight
       does not fit across a phone, so wrapping them fixed the reachability and
       left two lines of little buttons under each other, which reads as a pile
@@ -2728,6 +2742,11 @@ by a test.
 - [ ] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Whatever it takes:
       it is the game talking to the player and it currently sits quietly in a
       corner.
+- [x] **And the bubble sits ABOVE him**, because the tail points down. Beside him
+      it pointed past his shoulder into the HUD, which is a bubble attributed to
+      the coin counter. He is at the foot of the stack now and what he says goes
+      over his head, the way the home page has it — with the wedge over the middle
+      of the head rather than its far edge.
 - [x] **The bubble has a TAIL now**, pointing back at him. Off the home page it
       was a plain panel with no speaker, which is a caption rather than a line of
       dialogue. `CoachBubbleTail` came out of `coach_bubble.dart` so both draw the

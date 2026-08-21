@@ -243,6 +243,27 @@ double groundSpeedPxPerSec(Mood mood) =>
 /// would judder the whole world backwards; the JS's own note calls it "the judder
 /// as he puts his foot down". A world that never reverses, with a hair of slip in
 /// that window, is the better of the two.
+/// How much of a CONSTANT rate is blended into the solved one.
+///
+/// **THE WORLD USED TO STOP DEAD ON EVERY STEP**, and that is what was being
+/// reported as a stutter — nothing to do with the gesture halt. Clamping the
+/// support foot's negative creep to zero leaves a genuine standstill in the
+/// curve: measured over a half-stride the rate ran 0.36, 0.21, 0.06, **0.00**,
+/// and then jumped straight to 1.11. Twice a stride the whole diorama came to a
+/// halt and surged out of it.
+///
+/// So a floor is blended in. It is not free and the trade is worth stating: the
+/// worst foot slip goes from 15 art units a cycle to about 46, against the 78
+/// that a wholly constant ground was rejected for. A third of the way back
+/// toward constant buys a world that never stops — and a planted foot that
+/// creeps a little is a much smaller lie than a pitch that stalls under a man
+/// mid-stride.
+///
+/// Two things fall out of the blend being LINEAR in the same 0..1: both terms
+/// start at 0 and end at 1, so the total distance a half-stride covers is
+/// untouched, and both are monotone, so the world still cannot reverse.
+const double groundEaseFloor = 0.3;
+
 final ({List<double> table, double distance}) _groundEase = () {
   const steps = 256;
   double sole(double t, bool near) =>
@@ -259,7 +280,15 @@ final ({List<double> table, double distance}) _groundEase = () {
     );
     out.add(sum);
   }
-  return (table: [for (final v in out) v / sum], distance: sum);
+  // Normalised, then blended toward a constant rate — see [groundEaseFloor].
+  return (
+    table: [
+      for (var i = 0; i < out.length; i++)
+        (1 - groundEaseFloor) * (out[i] / sum) +
+            groundEaseFloor * (i / (out.length - 1)),
+    ],
+    distance: sum,
+  );
 }();
 
 /// How far the SUPPORTING boot carries the world in one half-stride, in art
