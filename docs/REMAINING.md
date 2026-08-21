@@ -2575,10 +2575,17 @@ by a test.
       forgiving rather than the late game impossible. 0.82m at Sunday League to
       1.05m at the Champions Cup, and a corner into the top of the goal is now
       the same shot that one keeper reaches and the other does not.
-- [ ] **The net should look like a NET — see-through.** You should be able to
-      see through it to what is behind, which is most of what says "net" rather
-      than "wall". A Kenney backdrop behind it would give it something to be
-      seen against; the sheets are already bundled.
+- [x] **The net is a NET now — you see through it.** It could not be: there was
+      nothing behind the goal but a wash of flat blue, so the cords needed a dark
+      sheet behind them to read as a hole at all.
+      **Four Kenney backdrops are bundled**, 92KB of the pack's 1.6MB, on the
+      same rule the modular characters went in under — only what is used.
+      `backdropPath` resolves the four moods and `art_paths_test` walks them
+      against disk, so an enum entry without a file cannot ship. The painter
+      draws nothing above `goalLineY` now and the photograph sits behind it, so
+      the goal stands against a horizon and the net is what a net is: two passes
+      of cord, dark under light, which reads as string against a bright stand and
+      against a dark one.
 
 ### Goalkeeper Practice
 
@@ -2642,6 +2649,31 @@ by a test.
       anchored to the top).
 - [ ] **And SELL can come off the squad page**, now that it lives on the player
       page. One sale flow, in one place.
+
+### The customiser, and the walking manager — 26 Aug, later
+
+- [ ] **A hat does not hide the hair under it.** It comes through the crown. What
+      should still show is whatever escapes at the side or the back, so it is an
+      occlusion problem rather than a "hide the hair" switch — and it has to hold
+      for every hat, not the one it was tested on.
+- [ ] **The walk stops and starts, and it should be smoother.** The halt itself is
+      wanted; the rhythm of it is not. Either fewer gestures carry `stops`, or the
+      ease is longer, or it should slow to a stroll rather than to nothing — see
+      `walk_ramp.dart`, which already has the ramp to tune.
+- [ ] **The tab buttons stack down the side of the customiser.** A column of
+      little buttons, one per part. Wants a different control — a dropdown, a
+      segmented strip, something.
+- [ ] **Each option wants a LABEL under it** — "Kit", "Tracksuit", "Brown",
+      "Beanie". A grid of thumbnails does not say what any of them is.
+- [ ] **A locked option should still show its PREVIEW.** Locked means you cannot
+      select it, not that you cannot see what you are working toward.
+
+### Light mode
+
+- [ ] **The match-quest coin yellow reads ORANGE.** It should be the same yellow
+      as the coin in the top HUD — one colour for the currency, on every screen.
+- [ ] **And the reds and greens should take their dark-mode values**, which read
+      correctly in both.
 
 ### The walker
 

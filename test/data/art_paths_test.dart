@@ -36,6 +36,17 @@ void main() {
       expect(missing, isEmpty);
     });
 
+    test('and a backdrop for every mood', () {
+      // Four of the pack are bundled and the enum has four entries; a fifth
+      // added to one and not the other is exactly the kind of thing that ships.
+      final missing = <String>{};
+      for (final which in Backdrop.values) {
+        final path = backdropPath(which);
+        if (!_exists(path)) missing.add(path);
+      }
+      expect(missing, isEmpty);
+    });
+
     test('a club tile, for every category and every tier', () {
       final missing = <String>{};
       for (final category in AssetCategory.all) {

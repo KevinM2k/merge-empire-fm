@@ -40,6 +40,26 @@ String clubAssetImagePath(String category, int tier) =>
 String stadiumBackgroundPath(int tier) =>
     'assets/bg/stadium_bg_t${tier.clamp(1, maxClubArtTier)}.jpeg';
 
+/// The four Kenney backdrops, by mood.
+///
+/// **Only four of the pack are bundled**, at 92KB, rather than the 1.6MB it
+/// ships: the rest is vectors, spritesheets, a preview and the element layers,
+/// and a pubspec pointed at the raw folder would put all of it in the app. Same
+/// rule the modular characters went in under.
+///
+/// They are cartoon skies with a treeline on them, 1024 square, and what they
+/// are for is giving something a HORIZON — a penalty goal standing against a
+/// wash of flat colour has nothing behind it, which is why its net had to be a
+/// sheet to read as a hole at all.
+enum Backdrop { grass, forest, fall, desert }
+
+String backdropPath(Backdrop which) => switch (which) {
+  Backdrop.grass => 'assets/bg/kenney/backgroundColorGrass.png',
+  Backdrop.forest => 'assets/bg/kenney/backgroundColorForest.png',
+  Backdrop.fall => 'assets/bg/kenney/backgroundColorFall.png',
+  Backdrop.desert => 'assets/bg/kenney/backgroundColorDesert.png',
+};
+
 /// Trophy-room art. Two shapes, for the two things the room draws.
 ///
 /// There is a third file on disk — `event_wc2026.png` — and nothing resolves

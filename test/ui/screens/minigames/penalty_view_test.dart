@@ -144,11 +144,7 @@ void main() {
         return math.atan2(spine.dx.abs(), -spine.dy) * 180 / math.pi;
       }
 
-      final standing = KeeperPose(
-        hand: Vec3(0, 0, 0.9),
-        dive: 0,
-        side: 0,
-      );
+      final standing = KeeperPose(hand: Vec3(0, 0, 0.9), dive: 0, side: 0);
       final flat = KeeperPose(
         hand: Vec3(-keeperDiveSpan * 0.98, 0, 0.85),
         dive: 1,
@@ -170,9 +166,7 @@ void main() {
 
   group('the man taking it', () {
     /// The whole run-up and the follow-through past it.
-    final moments = [
-      for (var i = 1; i <= 24; i++) i / 12,
-    ];
+    final moments = [for (var i = 1; i <= 24; i++) i / 12];
 
     test('HIS LEGS DO NOT STRETCH EITHER', () {
       // The kicking leg ran 0.80 to 1.05 units across the strike — a 31% stretch
@@ -275,11 +269,40 @@ void main() {
       expect(full, closeTo(home, 0.01), reason: 'it does not repeat');
     });
 
-    test('a zero-length pattern draws nothing rather than looping for ever', () {
+    test(
+      'a zero-length pattern draws nothing rather than looping for ever',
+      () {
+        expect(
+          dashedPath(straight(), dash: 0, gap: 0).computeMetrics().isEmpty,
+          isTrue,
+        );
+      },
+    );
+  });
+
+  group('the stadium behind the goal', () {
+    test('the backdrop and the turf MEET AT THE GOAL LINE', () {
+      // One number, shared, or the photograph and the grass leave a seam. The
+      // widget puts the stadium above it and the painter starts the turf on it.
+      final line = goalLineY(view);
+      expect(line, project(Vec3(0, 0, 0), view)!.dy);
+      // Below the horizon and well clear of the bottom: the band it leaves for
+      // the stadium is the sky plus the strip of pitch beyond the goal.
+      expect(line, greaterThan(view.height * 0.094));
+      expect(line, lessThan(view.height));
+    });
+
+    test('and it is BELOW the crossbar, so the goal stands against it', () {
+      // The frame has to be seen against the stand rather than against grass —
+      // which is the whole reason the net can be cords now.
       expect(
-        dashedPath(straight(), dash: 0, gap: 0).computeMetrics().isEmpty,
-        isTrue,
+        goalLineY(view),
+        greaterThan(project(Vec3(0, 0, goalHeight), view)!.dy),
       );
+    });
+
+    test('a taller view moves the line with it', () {
+      expect(goalLineY(const Size(400, 900)), isNot(goalLineY(view)));
     });
   });
 }

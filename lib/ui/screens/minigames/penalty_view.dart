@@ -26,7 +26,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/engine/penalty_physics.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 
 /// Where the camera sits: behind and above the spot, looking at the goal.
 ///
@@ -74,6 +76,15 @@ double scaleAt(double y, Size view, double size) {
   if (depth < 0.4) return 0;
   return _focal * view.width * size / depth;
 }
+
+/// Where the goal line lands on screen.
+///
+/// **The seam between the stadium and the grass.** The photograph goes above it
+/// and the turf starts on it, and they have to be the same number or there is a
+/// gap — so it is one function both the widget and the painter read rather than
+/// two that agree by hand.
+double goalLineY(Size view) =>
+    project(Vec3(0, 0, 0), view)?.dy ?? view.height * _horizon;
 
 /// The net, as a grid that can be pushed.
 ///
@@ -472,9 +483,7 @@ TakerRig? takerRigFor(double t, Size view) {
   final striking = (t - 0.82).clamp(0.0, 1.0) / 0.18;
   final cycle = math.sin(run * 3.4 * math.pi);
   // Angles from straight down, so a swing is a rotation about the hip.
-  final kickAngle = striking > 0
-      ? 0.36 + striking * 0.78
-      : cycle * 0.36;
+  final kickAngle = striking > 0 ? 0.36 + striking * 0.78 : cycle * 0.36;
   final plantAngle = striking > 0 ? -0.16 : -cycle * 0.34;
 
   Offset fromHip(Offset hip, double angle) =>
@@ -501,8 +510,7 @@ TakerRig? takerRigFor(double t, Size view) {
         shoulder +
         Offset(-math.sin(swingArm) * armLen, math.cos(swingArm) * armLen),
     rightHand:
-        shoulder +
-        Offset(math.sin(other) * armLen, math.cos(other) * armLen),
+        shoulder + Offset(math.sin(other) * armLen, math.cos(other) * armLen),
     unit: unit,
     fade: fade,
   );
@@ -535,18 +543,18 @@ class PenaltyPainter extends CustomPainter {
   /// markings — the six-yard box, the penalty area, the arc and the spot. Every
   /// one of them is projected, so all of it agrees about where the camera is.
   void _paintGround(Canvas canvas, Size size) {
-    // Sky, then turf from the horizon down.
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF6DB3E8), Color(0xFFB9DCF2)],
-        ).createShader(Offset.zero & size),
+    // **NOTHING ABOVE THE GOAL LINE.** It used to paint a flat sky gradient
+    // across the whole frame and then turf from the horizon down, which left the
+    // goal standing against grass and a wash of blue — so the net had to be a
+    // sheet to read as a hole at all. The band above the line is the STADIUM's
+    // now: a photograph of the ground, behind the painter, showing through
+    // wherever this does not paint. See [goalLineY] for the seam.
+    final ground = Rect.fromLTRB(
+      0,
+      goalLineY(size) - 1,
+      size.width,
+      size.height,
     );
-    final horizonY = size.height * _horizon;
-    final ground = Rect.fromLTRB(0, horizonY - 1, size.width, size.height);
     canvas.drawRect(
       ground,
       Paint()
@@ -649,26 +657,22 @@ class PenaltyPainter extends CustomPainter {
 
   void _paintNet(Canvas canvas, Size size) {
     final mesh = frame.net;
+    // Two passes: a dark cord slightly wider, then the light one over it. A
+    // single white line at a third alpha disappears against a floodlit stand and
+    // reads as dirt against a dark one; the pair reads as string against both.
+    final shade = Paint()
+      ..color = Colors.black.withValues(alpha: 0.30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
     final cord = Paint()
-      ..color = Colors.white.withValues(alpha: 0.34)
+      ..color = Colors.white.withValues(alpha: 0.46)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
-    // The sheet behind it, so the goalmouth reads as a hole rather than as a
-    // grid floating on the grass.
-    final back = Path();
-    for (var c = 0; c <= mesh.columns; c++) {
-      final p = project(mesh.vertex(c, 0), size);
-      if (p == null) continue;
-      c == 0 ? back.moveTo(p.dx, p.dy) : back.lineTo(p.dx, p.dy);
-    }
-    for (var c = mesh.columns; c >= 0; c--) {
-      final p = project(mesh.vertex(c, mesh.rows), size);
-      if (p != null) back.lineTo(p.dx, p.dy);
-    }
-    canvas.drawPath(
-      back..close(),
-      Paint()..color = const Color(0xFF16311B).withValues(alpha: 0.55),
-    );
+    // **NO SHEET.** There was a dark quad behind the cords so the goalmouth read
+    // as a hole rather than as a grid floating on the grass — which it had to,
+    // because there was nothing behind the goal but a wash of blue. With the
+    // stadium back there the cords are enough, and a net you can see the crowd
+    // through is what a net looks like. The strung mesh is the only thing drawn.
 
     for (var r = 0; r <= mesh.rows; r++) {
       final path = Path();
@@ -679,6 +683,7 @@ class PenaltyPainter extends CustomPainter {
         started ? path.lineTo(p.dx, p.dy) : path.moveTo(p.dx, p.dy);
         started = true;
       }
+      canvas.drawPath(path, shade);
       canvas.drawPath(path, cord);
     }
     for (var c = 0; c <= mesh.columns; c++) {
@@ -690,6 +695,7 @@ class PenaltyPainter extends CustomPainter {
         started ? path.lineTo(p.dx, p.dy) : path.moveTo(p.dx, p.dy);
         started = true;
       }
+      canvas.drawPath(path, shade);
       canvas.drawPath(path, cord);
     }
   }
@@ -793,11 +799,7 @@ class PenaltyPainter extends CustomPainter {
     final sn = math.sin(rig.lean);
     for (final side in [-1.0, 1.0]) {
       final dx = side * unit * 0.045;
-      canvas.drawCircle(
-        rig.head + Offset(dx * c, dx * sn),
-        unit * 0.02,
-        eye,
-      );
+      canvas.drawCircle(rig.head + Offset(dx * c, dx * sn), unit * 0.02, eye);
     }
   }
 
@@ -1038,6 +1040,7 @@ class PenaltyView extends StatefulWidget {
     super.key,
     required this.readChance,
     this.keeperSpread = keeperReach,
+    this.backdrop = Backdrop.grass,
     required this.onResult,
     required this.turf,
     this.rng,
@@ -1049,6 +1052,15 @@ class PenaltyView extends StatefulWidget {
   /// How far this division's keeper can spread himself. See [keeperReachFor] —
   /// his read chance is one ramp and his reach is the other.
   final double keeperSpread;
+
+  /// What is behind the goal.
+  ///
+  /// **A goal standing against a wash of flat colour has nothing behind it**,
+  /// which is why the net had to be a dark sheet to read as a hole at all. With a
+  /// horizon back there the net can be what a net is — cords you see the world
+  /// through. Green treeline by default; the mood is a knob because the
+  /// customiser and the training screens want the same four.
+  final Backdrop backdrop;
 
   /// Called once per kick, with what actually happened — and with where the ball
   /// finished, because "wide" has a side and only the flight knows which.
@@ -1191,8 +1203,7 @@ class PenaltyViewState extends State<PenaltyView>
     // ticker keeps running because it is what notices the next swipe; what stops
     // is the work.
     // A drag counts as live: the dashes march while the thumb is down.
-    final live =
-        _kick != null || _hold > 0 || _net.moving || _dragFrom != null;
+    final live = _kick != null || _hold > 0 || _net.moving || _dragFrom != null;
     if (!live) {
       _ticker?.stop();
       return;
@@ -1276,38 +1287,63 @@ class PenaltyViewState extends State<PenaltyView>
           }
         }),
         onPanEnd: (_) => _shoot(view),
-        child: CustomPaint(
-          size: view,
-          painter: PenaltyPainter(
-            turf: widget.turf,
-            frame: PenaltyFrame(
-              ball: ball,
-              ballVisible: true,
-              roll: kick?.roll ?? 0,
-              keeper: KeeperPose(
-                hand: hand,
-                dive: dive,
-                side: kick?.plan.side ?? 0,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // **BEHIND the painter, and only down to the goal line.** The band
+            // above it is sky and the strip of pitch beyond the goal, neither of
+            // which the painter draws any more — see [goalLineY], which is the
+            // one number the two of them share so there is no seam.
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: goalLineY(view),
+              child: ArtImage(
+                key: const ValueKey('penalty-backdrop'),
+                path: backdropPath(widget.backdrop),
+                fit: BoxFit.cover,
+                // Anchored to the BOTTOM: the treeline is at the foot of the
+                // drawing and the sky above it is the part worth cropping.
+                alignment: Alignment.bottomCenter,
+                fallback: const ColoredBox(color: Color(0xFF6DB3E8)),
               ),
-              net: _net,
-              taker: taker,
-              aimPhase: _aimPhase,
-              aimPreview: from == null || to == null || (from - to).distance < 8
-                  ? null
-                  : (
-                      from: from,
-                      to: to,
-                      // Mirrored through the line, so the preview bends the way
-                      // the ball will rather than the way the thumb went.
-                      control: mid == null
-                          ? Offset.lerp(from, to, 0.5)!
-                          : Offset(
-                              from.dx + to.dx - mid.dx,
-                              from.dy + to.dy - mid.dy,
-                            ),
-                    ),
             ),
-          ),
+            CustomPaint(
+              size: view,
+              painter: PenaltyPainter(
+                turf: widget.turf,
+                frame: PenaltyFrame(
+                  ball: ball,
+                  ballVisible: true,
+                  roll: kick?.roll ?? 0,
+                  keeper: KeeperPose(
+                    hand: hand,
+                    dive: dive,
+                    side: kick?.plan.side ?? 0,
+                  ),
+                  net: _net,
+                  taker: taker,
+                  aimPhase: _aimPhase,
+                  aimPreview:
+                      from == null || to == null || (from - to).distance < 8
+                      ? null
+                      : (
+                          from: from,
+                          to: to,
+                          // Mirrored through the line, so the preview bends the way
+                          // the ball will rather than the way the thumb went.
+                          control: mid == null
+                              ? Offset.lerp(from, to, 0.5)!
+                              : Offset(
+                                  from.dx + to.dx - mid.dx,
+                                  from.dy + to.dy - mid.dy,
+                                ),
+                        ),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     },
