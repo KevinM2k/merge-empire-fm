@@ -102,14 +102,12 @@ enum StatTone {
   warn,
 }
 
-Color statToneColor(BuildContext context, StatTone tone) => glassAccent(
-  context,
-  switch (tone) {
-    StatTone.good => vsGreenOn(context),
-    StatTone.bad => vsRedOn(context),
-    StatTone.warn => vsAmberOn(context),
-  },
-);
+Color statToneColor(BuildContext context, StatTone tone) =>
+    glassAccent(context, switch (tone) {
+      StatTone.good => vsGreenOn(context),
+      StatTone.bad => vsRedOn(context),
+      StatTone.warn => vsAmberOn(context),
+    });
 
 /// One modifier hanging off a rating: a glyph, a signed number, what it means,
 /// and the sentence that explains it.
@@ -491,6 +489,12 @@ class _Mod extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: mod.tip,
+      // **ON A TAP.** A `Tooltip`'s default trigger on a touch screen is a LONG
+      // PRESS, so the comment above — "tapping one says the word" — was a claim
+      // the widget did not keep: the `+1` beside the club rating had an
+      // explanation nobody could reach without knowing to hold it down. It says
+      // where the number comes from, which is the Stadium's Fan Zone tier.
+      triggerMode: TooltipTriggerMode.tap,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

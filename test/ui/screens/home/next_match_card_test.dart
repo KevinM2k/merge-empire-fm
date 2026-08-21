@@ -62,6 +62,42 @@ Future<ProviderContainer> pumpCard(
 }
 
 void main() {
+  group('what the card ANSWERS', () {
+    testWidgets('THE POSITION CHIP OPENS THE TABLE', (tester) async {
+      // A position is a claim about a table, and the only route to the table was
+      // three taps away behind the burger — so the one control on the screen
+      // that names where you stand could not show you the standing.
+      final container = await pumpCard(tester);
+      addTearDown(container.dispose);
+      final chip = find.byKey(const ValueKey('nm-pos-ours'));
+      expect(chip, findsOneWidget, reason: 'no position on the card');
+      await tester.tap(chip, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('league-table')),
+        findsOneWidget,
+        reason: 'tapping the position showed no table',
+      );
+    });
+
+    testWidgets('and a modifier explains itself on a TAP', (tester) async {
+      // `Tooltip`'s default trigger on a touch screen is a LONG PRESS, so the
+      // `+1` beside the club rating had an explanation nobody could reach
+      // without knowing to hold it down.
+      final container = await pumpCard(tester);
+      addTearDown(container.dispose);
+      final tips = find.byType(Tooltip);
+      expect(tips, findsWidgets, reason: 'no modifiers on the card at all');
+      for (final tip in tester.widgetList<Tooltip>(tips)) {
+        expect(
+          tip.triggerMode,
+          TooltipTriggerMode.tap,
+          reason: 'a modifier still wants a long press',
+        );
+      }
+    });
+  });
+
   group('the next-match card', () {
     testWidgets('draws at all, without throwing', (tester) async {
       await pumpCard(tester);
@@ -84,16 +120,20 @@ void main() {
       // through the middle of the comparison they are annotating.
       for (final width in [320.0, 360.0, 400.0, 480.0]) {
         await pumpCard(tester, width: width);
-        final left = tester.getRect(find.byKey(const ValueKey('nm-figure-left')));
+        final left = tester.getRect(
+          find.byKey(const ValueKey('nm-figure-left')),
+        );
         final right = tester.getRect(
           find.byKey(const ValueKey('nm-figure-right')),
         );
         final atk = tester.getRect(find.byKey(const ValueKey('nm-stat-atk-l')));
         final rows = tester.getRect(
-          find.ancestor(
-            of: find.byKey(const ValueKey('nm-stat-atk-l')),
-            matching: find.byType(Row),
-          ).first,
+          find
+              .ancestor(
+                of: find.byKey(const ValueKey('nm-stat-atk-l')),
+                matching: find.byType(Row),
+              )
+              .first,
         );
         expect(
           left.right,
@@ -117,7 +157,9 @@ void main() {
       // of the two that is changes with the fixture. Pinning it to "ours is on
       // the left" would be testing the schedule, not the layout.
       await pumpCard(tester);
-      final ourName = tester.getRect(find.byKey(const ValueKey('nm-name-ours')));
+      final ourName = tester.getRect(
+        find.byKey(const ValueKey('nm-name-ours')),
+      );
       final theirName = tester.getRect(
         find.byKey(const ValueKey('nm-name-theirs')),
       );

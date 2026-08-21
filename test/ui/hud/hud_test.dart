@@ -74,6 +74,39 @@ void main() {
     clearBus();
   });
 
+  group('how much room it takes', () {
+    testWidgets('THE CLEARANCE IS THE BAR, MEASURED', (tester) async {
+      // The queue asked whether 56 on top of the notch is too deep. Answered by
+      // measuring rather than by eye — and it turns the number from an opinion
+      // somebody has to re-form every time the bar changes into a contract the
+      // build keeps. A clearance SHORTER than the glass slides the page under
+      // it; much longer is a band of wasted screen at the top of every tab.
+      await pumpHud(tester, (_) {}, topPadding: 44, tab: ShellTab.grid);
+      final glass = tester.getRect(find.byKey(const ValueKey('hud-glass')));
+      // The notch is inside the glass — that is what lets the blur run to the
+      // top of the screen instead of starting under it.
+      expect(glass.top, 0);
+      expect(
+        glass.height,
+        closeTo(44 + hudClearance - hudBottomMargin, 1.5),
+        reason:
+            'the glass is ${glass.height.toStringAsFixed(1)}px against a '
+            'clearance of ${(44 + hudClearance).toStringAsFixed(1)} — a page '
+            'either slides under the bar or starts a long way below it',
+      );
+    });
+
+    testWidgets('and the chips sit inside it, clear of the notch', (
+      tester,
+    ) async {
+      await pumpHud(tester, (_) {}, topPadding: 44, tab: ShellTab.grid);
+      final glass = tester.getRect(find.byKey(const ValueKey('hud-glass')));
+      final coins = tester.getRect(find.byKey(const ValueKey('hud-coins')));
+      expect(coins.top, greaterThanOrEqualTo(44));
+      expect(coins.bottom, lessThanOrEqualTo(glass.bottom + 0.5));
+    });
+  });
+
   testWidgets('shows coins, gems and energy off the save', (tester) async {
     final container = await pumpHud(tester, (s) {
       (s['resources'] as Map<String, dynamic>)['fanCoins'] = 1234;
@@ -229,7 +262,11 @@ void main() {
 
     test('and all three are vivid enough to read on the club\'s chrome', () {
       for (final c in [hudCoinInk, hudEnergyInk, hudGemInk]) {
-        expect(HSLColor.fromColor(c).saturation, greaterThan(0.6), reason: '$c');
+        expect(
+          HSLColor.fromColor(c).saturation,
+          greaterThan(0.6),
+          reason: '$c',
+        );
       }
     });
   });
@@ -306,9 +343,7 @@ void main() {
       // crest with the empty half of the bar on the right.
       await pumpHud(tester, (_) {});
       final badge = tester.getRect(find.byKey(const ValueKey('hud-badge')));
-      final cluster = tester.getRect(
-        find.byKey(const ValueKey('hud-cluster')),
-      );
+      final cluster = tester.getRect(find.byKey(const ValueKey('hud-cluster')));
       final bar = tester.getRect(find.byType(Hud));
 
       expect(badge.left - bar.left, lessThan(28), reason: 'crest on the left');

@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -326,6 +327,12 @@ class _Row extends StatelessWidget {
 /// `POS: 3rd ⌃⌃` — quiet glass, because the card already spends its colour on
 /// ATK/DEF and a red or green pill beside those read as a third opinion on the
 /// same fixture. The one coloured thing is the movement chevron.
+///
+/// **AND IT OPENS THE TABLE.** A position is a claim about a table, and the only
+/// route to the table was three taps away behind the burger — so the one control
+/// on the screen that names where you stand could not show you the standing. It
+/// works for the OPPONENT's chip too: their position is the more interesting one,
+/// and the table is the same table.
 class _PosChip extends StatelessWidget {
   const _PosChip({required this.side});
 
@@ -337,78 +344,81 @@ class _PosChip extends StatelessWidget {
     if (pos == null) return const SizedBox.shrink();
     final delta = side.posDelta ?? 0;
 
-    return Container(
+    return GestureDetector(
       key: ValueKey('nm-pos-${side.ours ? 'ours' : 'theirs'}'),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: glassInk(context).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            '${t('play.pos_label')}:',
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.55),
+      onTap: () => showLeagueTableSheet(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: glassInk(context).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              '${t('play.pos_label')}:',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
             ),
-          ),
-          const SizedBox(width: 4),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: '$pos',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.88),
-                  ),
-                ),
-                // The ordinal rides high against the numeral's cap line, so
-                // "3rd" reads as one mark rather than a digit with a letter
-                // parked after it.
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.top,
-                  child: Text(
-                    ordinalSuffix(pos),
+            const SizedBox(width: 4),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$pos',
                     style: TextStyle(
-                      fontSize: 7.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w900,
                       color: Theme.of(
                         context,
                       ).colorScheme.onSurface.withValues(alpha: 0.88),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          // A held position emits NOTHING rather than a blank the layout has to
-          // reserve — the row centres the chip on its own.
-          if (delta != 0) ...[
-            const SizedBox(width: 2),
-            // One glyph for both directions, the fall being the rise turned
-            // over, so the two can never drift apart as shapes.
-            Transform.rotate(
-              angle: delta > 0 ? 0 : 3.14159,
-              child: GameIcon(
-                'chevrons',
-                size: 11,
-                color: delta > 0 ? vsGreenOn(context) : vsRedOn(context),
+                  // The ordinal rides high against the numeral's cap line, so
+                  // "3rd" reads as one mark rather than a digit with a letter
+                  // parked after it.
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.top,
+                    child: Text(
+                      ordinalSuffix(pos),
+                      style: TextStyle(
+                        fontSize: 7.5,
+                        fontWeight: FontWeight.w800,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.88),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+            // A held position emits NOTHING rather than a blank the layout has to
+            // reserve — the row centres the chip on its own.
+            if (delta != 0) ...[
+              const SizedBox(width: 2),
+              // One glyph for both directions, the fall being the rise turned
+              // over, so the two can never drift apart as shapes.
+              Transform.rotate(
+                angle: delta > 0 ? 0 : 3.14159,
+                child: GameIcon(
+                  'chevrons',
+                  size: 11,
+                  color: delta > 0 ? vsGreenOn(context) : vsRedOn(context),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

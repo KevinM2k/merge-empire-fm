@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
+import 'package:merge_empire_fc/ui/popups/income_breakdown_card.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
@@ -89,7 +90,22 @@ final equippedBadgeProvider = savePick<String>(getEquippedBadgeId);
 /// first thing on every page sat directly against the cluster's bottom edge —
 /// legible, but reading as one block with the HUD rather than as the start of the
 /// page.
-const double hudClearance = 56 + hudBottomMargin;
+/// How tall the bar itself is: the crest's TAP TARGET, plus the row's padding.
+///
+/// **48, not the 38 the crest is DRAWN at.** An `IconButton` will not go below
+/// the platform's minimum touch size, and the crest is the tallest thing in the
+/// row — the chips come out at 31 — so it is what sets the bar's height.
+const double hudBarHeight = 48 + 6 * 2;
+
+/// The bar, plus the gap under it.
+///
+/// **56 WAS FOUR PIXELS SHORT**, and the answer came from measuring rather than
+/// from looking: the queue asked whether this was too DEEP, and with the bar at
+/// 60 a page starting at `56 + 10` began six pixels UNDER the glass instead of
+/// ten clear of it. `hud_test.dart` measures the rendered band against this, so
+/// the next thing that changes the bar's height fails the build rather than
+/// quietly sliding every page under it.
+const double hudClearance = hudBarHeight + hudBottomMargin;
 
 /// The gap between the bar and whatever the page starts with.
 const double hudBottomMargin = 10;
@@ -209,6 +225,15 @@ class Hud extends ConsumerWidget {
                     iconColor: hudCoinInk,
                     icon: Icons.monetization_on,
                     semanticLabel: t('hud.aria.income_breakdown'),
+                    // **The FIGURE opens the books; the + buys coins.** That is
+                    // the JS's own split, and this chip has carried the aria
+                    // label for the breakdown since it was written with nothing
+                    // behind it — so the one screen that says where the idle
+                    // rate comes from, and why a loan is eating it, had no door.
+                    onTap: () => showIncomeBreakdown(
+                      context,
+                      state: ref.read(gameProvider).state,
+                    ),
                     trailing: HudPlus(
                       key: const ValueKey('hud-coins-plus'),
                       label: t('nav.shop'),

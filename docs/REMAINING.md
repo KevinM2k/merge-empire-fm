@@ -1358,16 +1358,16 @@ findings were arithmetic rather than taste and one is a reversal.
 
 ### Still open from this session
 
-- [ ] **A football on the diorama.** The JS runs a small SIM: `.ps-ball` with an
+- [x] **A football on the diorama.** See 25 Aug. `pitch_ball.dart`. The JS runs a small SIM: `.ps-ball` with an
       x-position and a hop, `.ps-ball-spin` for the roll, a shadow that separates
       as it rises, and a `.ps-hold-arm` pose for when the manager picks it up —
       driven every frame and frozen by the same scene-pause gate as everything
       else. There is no ball at all in the port. It is the last thing on the
       diorama that moves and does not exist.
-- [ ] **More perspective on the manager's turf**, so he reads as further from the
+- [x] **More perspective on the manager's turf**, so he reads as further from the
       crowd than he does. The mowing fan already converges; what is missing is
       that HE does not scale with depth and the tuft bands' size ratio is gentle.
-- [ ] **The manager wants LIFE: a blink, and a tap.** He should blink on his own
+- [x] **The manager wants LIFE: a blink, and a tap.** Both in — see 25 Aug. He should blink on his own
       every few seconds, and tapping him should play one of the celebrations the
       save has UNLOCKED — chosen by mood, so an elated gaffer and a crushed one
       reach for different ones. `manager_looks.dart` has the unlock tables and
@@ -1612,7 +1612,15 @@ Ordered by how visible each one is to somebody playing.
       See 24 Aug. `CoachTips.js` (448 lines) is still not: that is the OTHER
       Colin, the one-time educational popups keyed on `state.seenTips`, and it is
       a separate system from the floating head.
-- [ ] **`CoachTips.js` — the one-time milestone tips.** Twenty-odd educational
+- [x] **`CoachTips.js` — the one-time milestone tips.** DONE — `engine/coach_tip_engine.dart`
+      and `ui/shell/coach_tip_host.dart`. Sixteen of them, `takeTipOnce` with the
+      sponsor offer as its first caller, and `seenTips` finally a ledger with
+      something in it. Three things fell out of it: **nothing blocked popups
+      during a match** (the welcome-back card could land on the pitch), the coach
+      card's `Column` **overflowed** in a loose box and now scrolls, and
+      `baselineCoachTips` has no caller because this port has no onboarding
+      tutorial — which is stated on it rather than left to be rediscovered.
+      Twenty-odd educational
       popups that fire the first time a player hits something (first injury,
       first mergeable pair, no energy, hard mode's fitness bars) and then never
       again: the id goes into `state.seenTips` and stays there until a full
@@ -1627,13 +1635,19 @@ Ordered by how visible each one is to somebody playing.
 
 **The diorama, still.**
 
-- [ ] **The football.** The last thing on that screen that moves in the JS and does
+- [x] **The football.** DONE — `pitch_ball.dart`, and the fixture is two
+      forty-second runs of the real JS with the draws themselves in the file. It
+      caught three things: a free ball's velocity has to absorb every change in
+      the turf's pace (the JS needs that only at the halt; here the ground
+      follows his boot, so it is always on), the JS's countdown lands a hair
+      above zero at 48 frames so the first ball arrives on the 49th, and Dart's
+      `%` is always positive where the JS's keeps the sign. The last thing on that screen that moves in the JS and does
       not exist here. `pitchBallSim.js` is 791 lines: a ball arrives at his feet,
       and what he does with it is a mood-weighted roll — pass, chip, clear, pick up
       or ignore (`ballPlays` and `_ballPlayWeight` are already ported, with
       nothing rolling them). A carry poses the arm and suppresses gestures; an
       ignore plays a snub gesture as it rolls past.
-- [ ] **Gestures — the data is all ported and nothing plays it.** `manager_mood.dart`
+- [x] **Gestures — the data is all ported and nothing plays it.** Done, 25 Aug. `manager_mood.dart`
       carries all 16 (`fistpump`, `applaud`, `point`, `checkwatch`, `armsfolded`,
       `handsonhips`, `handsonhead`, plus nine look-pack emotes), their weights per
       mood, `gestureGapMs`, `nextGestureDelay`, `pickGesture` with its
@@ -1642,8 +1656,9 @@ Ordered by how visible each one is to somebody playing.
       gesture, plus head tilts for checkwatch, handsonhead and bow, a body fold for
       bow and a hard-stepped body for robot. What is missing is the scheduler, the
       poses on the rig, and the tap that plays one.
-- [ ] **The blink.** He never does.
-- [ ] **More turf perspective**, so the diorama reads as further from the crowd.
+- [x] **The blink.** Done, 25 Aug.
+- [x] **More turf perspective**, so the diorama reads as further from the crowd.
+      Done, 25 Aug — `_mowApex` -0.95 to -0.58.
 
 **The match popup and the cutaway.**
 
@@ -1771,7 +1786,9 @@ The weather, drawn. Everything else on this list was in the way of that.
 
 ### Still open from this session
 
-- [ ] **`windAccelFor` still has nothing reading it**, and cannot until the stray
+- [x] **`windAccelFor` HAS A READER NOW.** The stray ball is it — a gale
+      visibly carries a clearance or a throw and leaves a rolling ball alone,
+      which is the JS's own rule and not a simplification. Was: nothing reading it, and cannot until the stray
       ball exists — see the diorama's football, below. The wind is on screen; what
       it would push is not there yet.
 - [x] **He is visibly suffering now, which is the other half of the weather.**
@@ -2154,7 +2171,15 @@ running at last.
       a widget test: the button's bevel and three-tier shadow, the stand's surge on
       a celebration, and the ear as a thin unfilled C. Worth one pass through the
       Play tab with an eye on each.
-- [ ] **The gesture halt is a hard stop, not a ramp.** The JS eases the walk, the
+- [x] **The gesture halt is a hard stop, not a ramp.** DONE — `walk_ramp.dart`.
+      **And the halt never ENDED**: the scene read `_cue.gesture.stops`, the cue
+      is never cleared, so the world stopped for the bow and stayed stopped until
+      the next gesture happened along — up to sixteen seconds of a man standing
+      on a pitch that was not moving, his own clock stopped with it because
+      nothing called `_sync` when the gesture finished. **And there is one clock
+      now**: his legs and the ground each owned a ticker, kept together only by
+      both starting in the same frame and every stop restarting both from zero,
+      which an ease cannot survive. Was: The JS eases the walk, the
       strips and the ball down to zero over ~0.4s (`_rampWalk`) because
       `animation-play-state` cannot express anything between running and stopped.
       Here the walk clock and the turf simply stop together. One gesture in
