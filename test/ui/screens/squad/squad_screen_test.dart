@@ -893,6 +893,63 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('AN INJURED MAN READS ZERO, because that is what he is worth', (
+      tester,
+    ) async {
+      // The engine has always scored him nothing — `computeSquadRating` zeroes
+      // an injured or unavailable player in the lineup outright — and the token
+      // went on showing his card rating. So the side the manager could see was
+      // not the side the sim was playing, and the one number that would have
+      // told them to make a change was the number saying not to.
+      // He is hurt AFTER he is in the side, which is the only way it happens:
+      // the default lineup will not pick an injured man in the first place, so
+      // injuring one in the save just leaves him out and proves nothing.
+      final container = await pumpSquad(tester);
+      final picked = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null)
+          .cardInstanceId!;
+      container.read(gameProvider).update((s) {
+        for (final cell in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
+          if (cell is Map<String, dynamic> && cell['instanceId'] == picked) {
+            cell['injured'] = true;
+          }
+        }
+      });
+      await tester.pumpAndSettle();
+
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId == picked);
+      expect(slot.card!.injured, isTrue, reason: 'he is not hurt at all');
+      expect(slot.effRating, 0);
+      await settleSave(tester);
+    });
+
+    testWidgets('and he wears a RED CROSS, not three letters', (tester) async {
+      // A hospital cross reads at a glance and in every language; `INJ` is
+      // neither. The label stays on the token for the screen reader — losing a
+      // translated string to an icon would be a step back — but what the eye
+      // gets is the cross.
+      final container = await pumpSquad(tester);
+      final picked = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null)
+          .cardInstanceId!;
+      expect(find.byKey(const ValueKey('injury-cross')), findsNothing);
+
+      container.read(gameProvider).update((s) {
+        for (final cell in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
+          if (cell is Map<String, dynamic> && cell['instanceId'] == picked) {
+            cell['injured'] = true;
+          }
+        }
+      });
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('injury-cross')), findsOneWidget);
+      await settleSave(tester);
+    });
+
     testWidgets('and the picker rates everyone FOR THAT SLOT', (tester) async {
       // Ordered by what a man is worth there, not by his card rating: a 78
       // striker does not improve left back.

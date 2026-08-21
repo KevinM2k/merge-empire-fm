@@ -140,7 +140,17 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
           // Named rather than punished here: the penalty is the engine's, and
           // the screen's job is to say WHY a rating looks low.
           outOfPosition: view != null && view.position != slot.slotPosition,
-          effRating: stats.rating,
+          // **ZERO IF HE CANNOT PLAY**, because that is what the sim scores him.
+          // `computeSquadRating` zeroes an injured or unavailable man in the
+          // lineup outright, and the token went on showing his card rating — so
+          // the side the manager could see was not the side being played, and
+          // the one number that should have said "change this" said the
+          // opposite. `getCardStats` is right not to know: it rates a CARD, and
+          // whether he can take the field is the lineup's question.
+          effRating: instance != null &&
+                  (instance.injured || instance.isUnavailable)
+              ? 0
+              : stats.rating,
           penalty: view == null
               ? 0.0
               : computePositionPenalty(view.position, slot.slotPosition),

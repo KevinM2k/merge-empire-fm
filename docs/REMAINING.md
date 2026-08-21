@@ -2440,6 +2440,93 @@ running at last.
       offset as required, so the next strip somebody adds cannot repeat this.
 
 
+## From playtesting — 26 Aug
+
+Reported from the couch, in the order they were noticed. Nothing here was found
+by a test.
+
+### The Play Match screen
+
+- [ ] **The top card should be the NEXT MATCH CARD from the home page.** It is
+      the same fixture, described twice in two different shapes — and the home
+      page's version is the one that got the design work.
+      `lib/ui/screens/home/next_match_card.dart` against whatever the match
+      screen puts up now.
+- [ ] **The commentary needs to look better, and it should carry the
+      GOALSCORER'S FACE.** A goal line naming a player, next to the art of the
+      player it names — the portraits are already bundled and already resolved
+      by `playerImagePath`, so this is a feed row that knows who it is about
+      rather than a string.
+- [ ] **The dugout camera is missing.** In `../merge-empire-fc` — read it before
+      building anything, it is the spec.
+- [ ] **THE GOAL LANDS ON THE SCOREBOARD BEFORE THE 2D PITCH SHOWS THE MOVE.**
+      Wrong way round, and it spoils the only suspense the match has: the pitch
+      should play the chance, and THEN the score changes if it went in. As it
+      stands the number tells you the answer and the animation explains what you
+      already know.
+- [ ] **Ghost hits — the ball moves with nobody in the position.** A move played
+      through a slot that has no player in it. Related to the injured-slot hole
+      and to `effRating` reading zero: an empty slot is a hole, and the pitch is
+      animating it as if somebody were standing there.
+
+### The squad page — rolling a trait
+
+- [ ] **The STATS DO NOT CHANGE when the trait rolls.** A trait carries
+      directional ATK/DEF bonuses (`getTraitBonus`, folded into the rating by
+      `getCardStats`), so the numbers on the card have to move when the trait
+      does. If they do not, either the roll is not writing or the sheet is not
+      re-reading.
+- [ ] **The text above the spinner GIVES THE ANSWER AWAY** before the spinner
+      has finished. Whatever it is reading is the settled result, not the
+      animation — so the reveal reveals nothing.
+- [ ] **And the spinner is too quick.** It needs longer to be worth watching.
+
+### The penalty shootout
+
+- [ ] **THE KEEPER'S AND THE TAKER'S LIMBS STRETCH like the Fantastic Four.**
+      Confirmed from the source, not just on screen: the drawn glove sits
+      **1.3 to 2.4 metres** from where the reach test says his hand is
+      (measured at four dive angles), because the figure is positioned at
+      `hand.x * 0.42` and the arm is then drawn to a body-relative offset
+      instead of to the hand. So the arm has to span whatever gap is left, and a
+      gathered ball — which is pinned to `keeperHand` — floats in open air
+      beside the gloves that supposedly caught it.
+      **The fix is to draw the figure FROM the hand**, which is the one point
+      the physics actually knows: `keeperReach` is 1.05m and the hands travel
+      2.6m, so the shoulder travels the difference. Same file's own stated
+      principle — the net's vertices, the keeper's hands and the ball are all
+      projected by one function so nothing can drift against anything else.
+- [ ] **And the hand FREEZES at full stretch.** `_moveKeeper` clamps its
+      extension, so for the whole save follow-through the arm is a statue while
+      the ball loops away — and a GATHERED ball hangs motionless in mid-air for
+      0.35s, which is the same "ball vanishing" defect the parry was written to
+      kill, moved from the ball to the hands. He should land, and the ball he
+      caught should come down with him. Measured: catch at t=1.15, and ball and
+      hand both sit at exactly (0, 0, 1.00) until the clip ends.
+- [ ] **The net should look like a NET — see-through.** You should be able to
+      see through it to what is behind, which is most of what says "net" rather
+      than "wall". A Kenney backdrop behind it would give it something to be
+      seen against; the sheets are already bundled.
+
+### Goalkeeper Practice
+
+- [ ] **It is meant to be the ball coming AT you, with no time to react.** The
+      drill exists and plays; the pressure does not. Check the timing against
+      the source before retuning it.
+
+### The walker
+
+- [ ] **Lottie for the walking man.** No MCP needed — `lottie` is a Flutter
+      package and the format is open; what is actually missing is the FILE. The
+      current walker is not an SVG played back either, it is a solved rig
+      (`walker_figure.dart` + `groundEase`), which is why the planted foot does
+      not slip and why the ground and his legs share one clock. A Lottie clip is
+      a recorded animation: it would look smoother and it would give up the
+      solved contact, so the ground would have to be driven off the clip's own
+      timeline instead. Worth doing only with a clip in hand — and worth
+      knowing that "better than the SVG we have" is comparing it to something
+      the port does not do.
+
 ## M0 — foundation and save bridge ✅
 
 - [x] Scaffold, lints, architecture test
