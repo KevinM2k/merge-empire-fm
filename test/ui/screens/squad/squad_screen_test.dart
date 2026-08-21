@@ -56,6 +56,7 @@ List<Map<String, dynamic>> _squad(int n) {
 Future<ProviderContainer> pumpSquad(
   WidgetTester tester, {
   int cards = 14,
+  void Function(Map<String, dynamic> state)? mutate,
 }) async {
   final state = createDefaultState();
   final cells =
@@ -64,6 +65,7 @@ Future<ProviderContainer> pumpSquad(
   for (var i = 0; i < squad.length; i++) {
     cells[i] = squad[i];
   }
+  mutate?.call(state);
 
   final container = ProviderContainer(
     overrides: [
@@ -1041,6 +1043,61 @@ void main() {
         tester.getRect(find.byKey(const ValueKey('squad-drop-gk'))).height,
         moreOrLessEquals(pitchTokenHeight, epsilon: 0.5),
       );
+    });
+  });
+
+  group('the sheet gives him room', () {
+    testWidgets('THE PORTRAIT RUNS BEHIND THE BUTTONS', (tester) async {
+      // It was a 200px crop with the controls stacked underneath, which spent
+      // the top third of the sheet on a head-and-shoulders of a figure drawn
+      // full length.
+      final container = await pumpSquad(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+
+      final rating = tester.getRect(
+        find.byKey(const ValueKey('detail-rating')),
+      );
+      final swap = tester.getRect(find.byKey(const ValueKey('detail-swap')));
+      // The rating badge sits on the portrait's top-left, so the artwork spans
+      // from above it to below the buttons floating on its lower edge.
+      expect(
+        swap.bottom,
+        greaterThan(rating.bottom),
+        reason: 'the buttons are not over the picture',
+      );
+      expect(
+        swap.top - rating.top,
+        greaterThan(150),
+        reason: 'the portrait is still a crop — he has no room to render',
+      );
+    });
+
+    testWidgets('and a trait says what it DOES', (tester) async {
+      // It was a grey box with a grey heading and a line of text: the most
+      // interesting thing on the sheet drawn as the least, and naming a trait
+      // without saying what it gives you is half the information.
+      final container = await pumpSquad(
+        tester,
+        mutate: (s) {
+          final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+          final first =
+              cells.firstWhere((c) => c != null) as Map<String, dynamic>;
+          first['trait'] = <String, dynamic>{'id': 'finisher', 'level': 2};
+        },
+      );
+      await openDetailOfFirst(tester, container);
+      await tester.ensureVisible(find.byKey(const ValueKey('detail-trait')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('detail-trait-desc')),
+        findsOneWidget,
+        reason: 'the trait names itself and explains nothing',
+      );
+      expect(find.text(t('trait.desc.finisher')), findsOneWidget);
     });
   });
 }

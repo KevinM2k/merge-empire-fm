@@ -48,6 +48,7 @@ import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_deal_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -864,7 +865,9 @@ class DeadlineListingCard extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                '⚡ ${trait.name}',
+                                // Through the catalogue — the record's `name`
+                                // is an English literal. See `trait_copy.dart`.
+                                '⚡ ${traitName(trait)}',
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,

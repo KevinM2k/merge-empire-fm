@@ -108,15 +108,20 @@ class PlayerCard extends StatelessWidget {
             children: [
               if (view.variant != null)
                 Positioned.fill(
-                  // `contain`, not `cover`: the art is drawn to fill a portrait
-                  // frame and cropping it takes the head off.
+                  // **AS WIDE AS THE CARD, AND STARTING AT ITS TOP.** `contain`
+                  // fits the whole drawing inside the frame and centres the
+                  // slack, which on art squarer than the card left a band of
+                  // nothing above his head and shrank him to pay for it. Wider
+                  // is fine — what is cropped off the bottom is his boots, and
+                  // the name band is over them anyway.
                   child: ArtImage(
                     path: playerImagePath(
                       view.position,
                       view.tier,
                       view.variant!,
                     ),
-                    fit: BoxFit.contain,
+                    fit: BoxFit.fitWidth,
+                    alignment: Alignment.topCenter,
                     fallback: PlayerPortrait(
                       variantIndex: view.variant!,
                       kitColor: kitColor ?? accent,

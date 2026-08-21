@@ -46,6 +46,7 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -143,54 +144,35 @@ class _PlayerDetail extends ConsumerWidget {
       key: ValueKey('player-detail-$instanceId'),
       padding: const EdgeInsets.all(16),
       children: [
-        _Header(
-          card: card,
-          def: def,
-          onLoanToUs: onLoanToUs,
-          outOnLoan: outOnLoan,
+        // **HE RUNS BEHIND THE BUTTONS.** The portrait was a 200px crop with
+        // the controls stacked underneath it, which spent the top third of the
+        // sheet on a head-and-shoulders of a figure drawn full length. The
+        // artwork gets the room now and Replace/Bench float on its lower edge,
+        // over a scrim so they stay readable against whatever he is wearing.
+        Stack(
+          children: [
+            _Header(
+              card: card,
+              def: def,
+              onLoanToUs: onLoanToUs,
+              outOnLoan: outOnLoan,
+            ),
+            // Replace and Bench are both about a SLOT, so they only appear for
+            // a man who is in the eleven. From the bench the one thing wanted
+            // is the opposite, and it is a single button.
+            if (!outOnLoan)
+              Positioned(
+                left: 10,
+                right: 10,
+                bottom: 10,
+                child: _SlotActions(
+                  slotId: slotId,
+                  selectable: card.isSelectable,
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
-
-        // Replace and Bench are both about a SLOT, so they only appear for a
-        // man who is in the eleven. From the bench the one thing wanted is the
-        // opposite, and it is a single button.
-        if (!outOnLoan) ...[
-          if (slotId != null)
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    key: const ValueKey('detail-swap'),
-                    onPressed: () =>
-                        Navigator.of(context).pop(PlayerDetailAction.swap),
-                    child: Text('⇄  ${t('squad.detail.replace')}'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    key: const ValueKey('detail-bench'),
-                    onPressed: () =>
-                        Navigator.of(context).pop(PlayerDetailAction.bench),
-                    child: Text('↩  ${t('squad.detail.to_bench')}'),
-                  ),
-                ),
-              ],
-            )
-          // Nobody unavailable can be sent on: the match engine rates a loaned
-          // or listed player zero, so putting one in the side fields a hole.
-          else if (card.isSelectable)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                key: const ValueKey('detail-send-on'),
-                onPressed: () =>
-                    Navigator.of(context).pop(PlayerDetailAction.sendOn),
-                child: Text('⇡  ${t('squad.detail.send_on')}'),
-              ),
-            ),
-          const SizedBox(height: 12),
-        ],
 
         _Attributes(card: card, def: def),
         if (proMode) ...[const SizedBox(height: 10), _Fitness(card: card)],
@@ -390,7 +372,10 @@ class _Header extends StatelessWidget {
       child: Stack(
         children: [
           SizedBox(
-            height: 200,
+            // **260, not 200.** The artwork is a full-length figure and 200 was
+            // a head-and-shoulders crop of it; the extra sixty is where the
+            // buttons now float, so it costs the sheet nothing.
+            height: 260,
             width: double.infinity,
             child: ArtImage(
               path: playerImagePath(def.position, def.tier, card.variant),
@@ -543,6 +528,74 @@ class _Header extends StatelessWidget {
 }
 
 /// Rating, income and injury risk.
+/// Replace / Bench, or Send On — floated over the bottom of the portrait.
+///
+/// **Over a scrim, not on the bare artwork.** The player's kit is the club's
+/// colour and so is the button, so on half the kits in the game a Replace button
+/// on a shirt was the same green on green.
+class _SlotActions extends StatelessWidget {
+  const _SlotActions({required this.slotId, required this.selectable});
+
+  final String? slotId;
+  final bool selectable;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget row;
+    if (slotId != null) {
+      row = Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              key: const ValueKey('detail-swap'),
+              onPressed: () =>
+                  Navigator.of(context).pop(PlayerDetailAction.swap),
+              child: Text('⇄  ${t('squad.detail.replace')}'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.tonal(
+              key: const ValueKey('detail-bench'),
+              onPressed: () =>
+                  Navigator.of(context).pop(PlayerDetailAction.bench),
+              child: Text('↩  ${t('squad.detail.to_bench')}'),
+            ),
+          ),
+        ],
+      );
+    } else if (selectable) {
+      // Nobody unavailable can be sent on: the match engine rates a loaned or
+      // listed player zero, so putting one in the side fields a hole.
+      row = SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          key: const ValueKey('detail-send-on'),
+          onPressed: () => Navigator.of(context).pop(PlayerDetailAction.sendOn),
+          child: Text('⇡  ${t('squad.detail.send_on')}'),
+        ),
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x00000000), Color(0x8A000000)],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(6, 14, 6, 6),
+        child: row,
+      ),
+    );
+  }
+}
+
 class _Attributes extends StatelessWidget {
   const _Attributes({required this.card, required this.def});
 
@@ -1091,13 +1144,24 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
     );
     final trait = _map(card?.raw['trait']);
 
+    final held = getTrait(trait?['id'] as String?);
+
     return Container(
       key: const ValueKey('detail-trait'),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: kit.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kit.border),
+        // **A TRAIT IS A POSSESSION, SO THE BLOCK LOOKS LIKE ONE.** It was a
+        // grey box with a grey heading and a line of text, sitting under a
+        // portrait and a set of stats — the most interesting thing on the sheet
+        // drawn as the least. A card that HAS one wears the accent on its
+        // border and a tint behind it; one that does not stays quiet, which is
+        // what makes the difference legible at a glance.
+        border: Border.all(
+          color: held == null ? kit.border : kit.accent,
+          width: held == null ? 1 : 1.6,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1112,18 +1176,21 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
             ),
           ),
           const SizedBox(height: 6),
-          // What he has, in words, above the reels — the reels are the SPIN and
-          // this is the answer, and a player who has not rolled anything yet
-          // needs to be told which of the two they are looking at.
-          Text(
-            trait == null ? t('trait.name.none') : traitLabel(trait),
-            key: const ValueKey('detail-trait-label'),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-              color: trait == null ? kit.textMuted : kit.accentBright,
-            ),
-          ),
+          // What he has, above the reels — the reels are the SPIN and this is
+          // the ANSWER, and a player who has not rolled anything yet needs to be
+          // told which of the two they are looking at.
+          if (held == null)
+            Text(
+              t('trait.name.none'),
+              key: const ValueKey('detail-trait-label'),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                color: kit.textMuted,
+              ),
+            )
+          else
+            _TraitBadge(trait: held, instance: trait!),
           const SizedBox(height: 8),
           SizedBox(
             height: _rowHeight * 3,
@@ -1138,7 +1205,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                     children: [
                       for (final trait in pool)
                         Text(
-                          '${trait.icon} ${trait.name}',
+                          '${trait.icon} ${traitName(trait)}',
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
@@ -1181,6 +1248,71 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The trait a card is actually carrying, drawn as a thing he HAS.
+///
+/// Its glyph big enough to read, its name and level beside it, and — the part
+/// that was missing entirely — **what it DOES**. A player looking at "Finisher
+/// II" has been told a name and nothing else; the sentence under it is the
+/// reason to have spent the coins.
+class _TraitBadge extends StatelessWidget {
+  const _TraitBadge({required this.trait, required this.instance});
+
+  final Trait trait;
+  final Map<String, dynamic> instance;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Row(
+      key: const ValueKey('detail-trait-label'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // The glyph on its own disc, so it reads as a badge rather than as an
+        // emoji that happens to start the line.
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: kit.accent.withValues(alpha: 0.18),
+            border: Border.all(color: kit.accent.withValues(alpha: 0.5)),
+          ),
+          child: Text(trait.icon, style: const TextStyle(fontSize: 20)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                // Through the CATALOGUE. The record's `name` is an English
+                // literal — see `trait_copy.dart`.
+                traitTitle(instance),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: kit.accentBright,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                traitDesc(trait),
+                key: const ValueKey('detail-trait-desc'),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.35,
+                  color: kit.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

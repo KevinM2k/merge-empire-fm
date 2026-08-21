@@ -40,6 +40,7 @@ class ArtImage extends StatelessWidget {
   const ArtImage({
     required this.path,
     required this.fallback,
+    this.alignment = Alignment.center,
     this.fit = BoxFit.cover,
     this.width,
     this.height,
@@ -57,6 +58,11 @@ class ArtImage extends StatelessWidget {
   final Widget fallback;
 
   final BoxFit fit;
+
+  /// Where the art sits when the fit leaves room. Top-centre for a portrait
+  /// that is wider than its frame: the head is at the top of the drawing, so
+  /// centring the slack puts a gap above it and crops his boots twice over.
+  final Alignment alignment;
   final double? width;
   final double? height;
 
@@ -72,6 +78,7 @@ class ArtImage extends StatelessWidget {
     Widget image = Image.asset(
       path,
       fit: fit,
+      alignment: alignment,
       width: width,
       height: height,
       // Decoding a 512px trophy at 110px costs the same memory as showing it at
