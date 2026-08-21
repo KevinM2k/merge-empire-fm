@@ -29,13 +29,17 @@ import 'package:merge_empire_fc/util/time.dart';
 
 import '../support/js_math_random.dart';
 
-final Map<String, dynamic> ref = jsonDecode(
-  File('test/fixtures/deadline_day_reference.json').readAsStringSync(),
-) as Map<String, dynamic>;
+final Map<String, dynamic> ref =
+    jsonDecode(
+          File('test/fixtures/deadline_day_reference.json').readAsStringSync(),
+        )
+        as Map<String, dynamic>;
 
-final Map<String, dynamic> refSave = jsonDecode(
-  File('test/fixtures/quest_engine_reference.json').readAsStringSync(),
-) as Map<String, dynamic>;
+final Map<String, dynamic> refSave =
+    jsonDecode(
+          File('test/fixtures/quest_engine_reference.json').readAsStringSync(),
+        )
+        as Map<String, dynamic>;
 
 final int fixedNow = ref['fixedNow'] as int;
 final int windowStart = ref['windowStart'] as int;
@@ -45,7 +49,8 @@ Object? _json(Object? v) => jsonDecode(jsonEncode(v));
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
 
-Map<String, dynamic> _scenario(String name) => ref[name] as Map<String, dynamic>;
+Map<String, dynamic> _scenario(String name) =>
+    ref[name] as Map<String, dynamic>;
 
 /// The instance id embeds a module counter reflecting how many cards each runtime
 /// happened to have built — nothing about the deal. Stripped everywhere, with the
@@ -238,20 +243,34 @@ void main() {
           final at = windowStart + (want['offset'] as int);
           tickSession(state, at);
           final why = '${entry.key} @ ${want['offset']}';
-          expect(sessionRemainingMs(state, at), want['remainingMs'], reason: why);
-          expect(sessionStatus(state, windowStart, at), want['status'], reason: why);
+          expect(
+            sessionRemainingMs(state, at),
+            want['remainingMs'],
+            reason: why,
+          );
+          expect(
+            sessionStatus(state, windowStart, at),
+            want['status'],
+            reason: why,
+          );
           expect(
             [for (final l in liveListings(state, at)) l['listingId']],
             want['live'],
             reason: '$why — board order',
           );
           expect(
-            [for (final l in liveListingsBySide(state, 'buy', at)) l['listingId']],
+            [
+              for (final l in liveListingsBySide(state, 'buy', at))
+                l['listingId'],
+            ],
             want['liveBuy'],
             reason: '$why — buy side',
           );
           expect(
-            [for (final l in liveListingsBySide(state, 'sell', at)) l['listingId']],
+            [
+              for (final l in liveListingsBySide(state, 'sell', at))
+                l['listingId'],
+            ],
             want['liveSell'],
             reason: '$why — sell side',
           );
@@ -271,7 +290,12 @@ void main() {
       final scenario = _scenario('punctual');
       _seedBoth(scenario['seed'] as int, scenario['mathSeed'] as int);
       final state = _baseState();
-      startSession(state, windowStart, nowMs: windowStart, windowEnd: windowEnd);
+      startSession(
+        state,
+        windowStart,
+        nowMs: windowStart,
+        windowEnd: windowEnd,
+      );
       const at = 1200000;
       tickSession(state, windowStart + at);
 
@@ -292,13 +316,14 @@ void main() {
           want['remainingMs'],
           reason: why,
         );
-        expect(listingExpired(l, windowStart + at), want['expired'], reason: why);
+        expect(
+          listingExpired(l, windowStart + at),
+          want['expired'],
+          reason: why,
+        );
       }
       // The last row is the null listing.
-      expect(
-        listingBlockedReason(state, null),
-        (rows.last as Map)['blocked'],
-      );
+      expect(listingBlockedReason(state, null), (rows.last as Map)['blocked']);
     });
   });
 
@@ -311,7 +336,12 @@ void main() {
         final state = _baseState(
           fanCoins: name == 'cannotAfford' ? 1 : 5000000,
         );
-        startSession(state, windowStart, nowMs: windowStart, windowEnd: windowEnd);
+        startSession(
+          state,
+          windowStart,
+          nowMs: windowStart,
+          windowEnd: windowEnd,
+        );
 
         final wantWhen = _wantWhen(name);
         // Advance until a listing of the kind this plan is about is actually live.
@@ -342,13 +372,13 @@ void main() {
           final target = reuse
               ? _find(state, last)
               : _listings(state).cast<Listing?>().firstWhere(
-                    (l) =>
-                        l!['status'] == 'live' &&
-                        !listingExpired(l, at) &&
-                        (kind == null || l['kind'] == kind) &&
-                        (kind == null || wantWhen(l)),
-                    orElse: () => null,
-                  );
+                  (l) =>
+                      l!['status'] == 'live' &&
+                      !listingExpired(l, at) &&
+                      (kind == null || l['kind'] == kind) &&
+                      (kind == null || wantWhen(l)),
+                  orElse: () => null,
+                );
           final why = '$name / ${step['action']}';
           if (target == null) {
             expect(step['skipped'], 'none_live', reason: why);
@@ -363,8 +393,12 @@ void main() {
           final result = switch (step['action']) {
             'accept' => acceptListing(state, last, at),
             'dismiss' => dismissListing(state, last),
-            'askForMore' =>
-              askForMore(state, last, (price * mult!).round(), at),
+            'askForMore' => askForMore(
+              state,
+              last,
+              (price * mult!).round(),
+              at,
+            ),
             'submitOffer' => submitOffer(state, last, {
               'cash': (price * mult!).round(),
               'players': <Object?>[],
@@ -375,7 +409,41 @@ void main() {
             _ => throw ArgumentError('${step['action']}'),
           };
 
-          expect(_json(_stripIds(result)), step['result'], reason: why);
+          // **ONE DELIBERATE DIVERGENCE, and this is all of it.**
+          //
+          // The JS rolls a FRESH instance when a signing is accepted and
+          // carries only the name across, so the variant, the trait and the
+          // ATK/DEF split the feed showed are not what lands — which
+          // contradicts the reason it pre-rolls the card at listing time. The
+          // port delivers the card that was offered. Everything else about the
+          // deal, and every draw the rest of the session takes, still matches
+          // the JS exactly: the roll is still spent, its result is simply
+          // thrown away.
+          //
+          // So the delivered card is checked against the LISTING's, and the
+          // rest of the result against the JS's with its own rolled card put
+          // back in place — which keeps the divergence one field wide and would
+          // fail loudly if it ever grew.
+          final signed = _map(result);
+          // Every route into `_acceptSigning` counts, not just the plain
+          // accept: taking a counter and having an offer accepted both end up
+          // there and both deliver a card.
+          if (signed?['kind'] == 'signing' && _map(target['card']) != null) {
+            expect(
+              _json(_stripIds(signed!['card'])),
+              _json(_stripIds(target['card'])),
+              reason: '$why — the card delivered is not the card offered',
+            );
+            expect(
+              _json(
+                _stripIds({...signed, 'card': _map(step['result'])?['card']}),
+              ),
+              step['result'],
+              reason: why,
+            );
+          } else {
+            expect(_json(_stripIds(result)), step['result'], reason: why);
+          }
           expect(
             _json(_stripIds(_find(state, last))),
             step['listing'],
@@ -388,7 +456,11 @@ void main() {
           scenario['summary'],
           reason: '$name — summary',
         );
-        expect(_json(_digest(state)), scenario['state'], reason: '$name — save');
+        expect(
+          _json(_digest(state)),
+          scenario['state'],
+          reason: '$name — save',
+        );
       });
     }
   });
@@ -477,10 +549,9 @@ void main() {
       }
       final history = _map(state['deadlineDay'])!['history'] as List;
       expect(history.length, want['length']);
-      expect(
-        [for (final h in history) _map(h)?['windowStart']],
-        want['windowStarts'],
-      );
+      expect([
+        for (final h in history) _map(h)?['windowStart'],
+      ], want['windowStarts']);
     });
   });
 
@@ -502,8 +573,8 @@ void main() {
 }
 
 List<Listing> _listings(Map<String, dynamic> state) => [
-  for (final l in (_map(_map(state['deadlineDay'])!['session'])!['listings']
-      as List))
+  for (final l
+      in (_map(_map(state['deadlineDay'])!['session'])!['listings'] as List))
     l as Listing,
 ];
 

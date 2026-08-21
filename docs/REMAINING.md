@@ -836,10 +836,29 @@ section. Nothing on the list below is blocked for want of art any more.
       definition's own `nameKey`, `event.deadline.name`. The lookup missed, so
       `tName` fell back to the id and the banner shouted it. `eventName` and
       `eventFlavour` resolve it properly, and all three call sites use them.
-- [ ] **Renaming a player is missing**, and a name that IS set has to carry
-      through to Deadline Day. It did not in the original either.
-- [ ] **Buying a player on Deadline Day must deliver THAT player.** Suspected
-      bug in the original too.
+- [x] **Renaming a player is missing**, and a name that IS set has to carry
+      through to Deadline Day. It did not in the original either. Built:
+      `util/player_name.dart` was a ported, tested sanitiser and screener with
+      no caller anywhere in `lib/`, eight `rename.*` strings were unreachable in
+      ten catalogues, and `season_rename` and `season_rename_many` counted
+      renamed cards so were quests that could never advance. The pencil sits
+      beside the name on the detail sheet, and not on a loan in either
+      direction. The name carries: every listing already names our players
+      through `card.name()`, which reads the custom one first.
+      Also fixed a real collision that came out of building it — the name bar
+      and the floated Replace/Bench buttons shared the artwork's bottom edge,
+      and the buttons are drawn second, so anything at the end of the name row
+      was untappable.
+- [x] **Buying a player on Deadline Day must deliver THAT player.** Suspected
+      bug in the original too — and it is one: `_acceptSigning` rolled a fresh
+      instance and copied only the name, so the variant, the trait and the
+      ATK/DEF split the feed showed were not what landed. Fixed, with the roll
+      still SPENT and thrown away: the JS's position in the merge RNG stream is
+      part of the spec and every later card depends on it, so skipping the draw
+      would have turned a one-card fix into a divergence everywhere after it.
+      The parity fixture now checks the delivered card against the listing's and
+      the rest of the result against the JS's, which keeps the divergence one
+      field wide.
 
 ### Settings, sound and graphics
 
@@ -2576,8 +2595,9 @@ Found while porting, reproduced faithfully rather than fixed, because each one i
 gameplay or economy decision rather than a mechanical slip. All are pinned by a test
 so the current behaviour is visible and a deliberate change is a one-line edit.
 
-- [ ] **A Deadline Day signing hands over a different card from the one the feed
-      showed.** `_acceptSigning` rolls a FRESH instance and copies only the name,
+- [x] **A Deadline Day signing hands over a different card from the one the feed
+      showed.** FIXED — see 21 Aug; the roll is still spent so nothing else in
+      the session moves. `_acceptSigning` rolled a FRESH instance and copied only the name,
       so the variant, the trait and the ATK/DEF split you were shown are not what
       lands on the grid. The feed reads `listing.card` (EventScreen.js:1316) and
       the pre-roll exists precisely so "the portrait, the rating and the stat split

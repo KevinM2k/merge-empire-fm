@@ -49,6 +49,18 @@ Toast? toastFor(String event, Object? args) {
       }
       return (text: cup, good: true);
 
+    // A rename says so, both ways round. It is the only confirmation there is:
+    // the card closes on success, and the name it changed is behind it.
+    case 'player:renamed':
+      final name = '${data?['name'] ?? ''}';
+      if (name.isEmpty) return null;
+      return (
+        text: data?['reset'] == true
+            ? t('rename.toast_reset', {'name': name})
+            : t('rename.toast_done', {'name': name}),
+        good: data?['reset'] != true,
+      );
+
     case 'quest:completed':
       // Match quests finish constantly; only a SEASON one is worth saying.
       if (data?['scope'] != 'season') return null;
@@ -144,6 +156,7 @@ Toast? toastFor(String event, Object? args) {
 /// Every event the layer listens to.
 const List<String> toastEvents = [
   'toast:info',
+  'player:renamed',
   'cup:won',
   'quest:completed',
   'quests:swept',

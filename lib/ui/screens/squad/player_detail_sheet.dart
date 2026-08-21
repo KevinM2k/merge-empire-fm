@@ -45,6 +45,7 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/popups/player_name_card.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -156,6 +157,7 @@ class _PlayerDetail extends ConsumerWidget {
               def: def,
               onLoanToUs: onLoanToUs,
               outOnLoan: outOnLoan,
+              actionsBelow: !outOnLoan,
             ),
             // Replace and Bench are both about a SLOT, so they only appear for
             // a man who is in the eleven. From the bench the one thing wanted
@@ -353,12 +355,20 @@ class _Header extends StatelessWidget {
     required this.def,
     required this.onLoanToUs,
     required this.outOnLoan,
+    required this.actionsBelow,
   });
 
   final CardInstance card;
   final PlayerDef def;
   final bool onLoanToUs;
   final bool outOnLoan;
+
+  /// Whether Replace/Bench/Send On is floating over the artwork's lower edge.
+  ///
+  /// They share that edge with the name bar, and the buttons are drawn after
+  /// it — so without this the pencil at the end of the name sat UNDER the Bench
+  /// button and could not be tapped at all. The name bar lifts to clear them.
+  final bool actionsBelow;
 
   @override
   Widget build(BuildContext context) {
@@ -456,7 +466,7 @@ class _Header extends StatelessWidget {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(14, 24, 14, 10),
+              padding: EdgeInsets.fromLTRB(14, 24, 14, actionsBelow ? 58 : 10),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
@@ -507,6 +517,14 @@ class _Header extends StatelessWidget {
                           ),
                         ),
                       ),
+                      // **Not offered on a loan, either direction.** Renaming
+                      // somebody else's player is not ours to do, and renaming
+                      // one of ours who is away puts a name on a card the
+                      // player cannot see. The JS draws the same line.
+                      if (!onLoanToUs && !outOnLoan) ...[
+                        const SizedBox(width: 8),
+                        _RenameButton(instanceId: card.instanceId),
+                      ],
                     ],
                   ),
                   Text(
@@ -525,6 +543,40 @@ class _Header extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The pencil beside the name.
+///
+/// A round, dark, blurred-edge affordance over the artwork rather than a text
+/// button, because it sits on the player's own kit — which is the club's
+/// colour, and on half the kits in the game a coloured button on a shirt is the
+/// same colour twice.
+class _RenameButton extends StatelessWidget {
+  const _RenameButton({required this.instanceId});
+
+  final String instanceId;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: t('rename.title'),
+    child: InkWell(
+      key: const ValueKey('detail-rename'),
+      customBorder: const CircleBorder(),
+      onTap: () => showPlayerNameCard(context, instanceId: instanceId),
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black.withValues(alpha: 0.42),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: const Text('✏️', style: TextStyle(fontSize: 14, height: 1)),
+      ),
+    ),
+  );
 }
 
 /// Rating, income and injury risk.

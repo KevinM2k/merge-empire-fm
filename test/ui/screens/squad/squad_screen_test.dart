@@ -481,6 +481,73 @@ void main() {
       );
     });
 
+    testWidgets('THE NAME CAN BE CHANGED, from the sheet the name is on', (
+      tester,
+    ) async {
+      // Nothing in the port could rename a card: `util/player_name.dart` had no
+      // caller, eight `rename.*` strings could not be reached, and two season
+      // quests counted renamed cards so could never advance.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await tester.tap(find.byKey(const ValueKey('detail-rename')));
+      await tester.pumpAndSettle();
+      expect(find.text(t('rename.title')), findsOneWidget);
+      expect(find.byKey(const ValueKey('player-name-field')), findsOneWidget);
+    });
+
+    /// A loan, in one direction or the other. Both make the card
+    /// unavailable, so it sits on the bench rather than in the eleven.
+    Future<void> expectNoRename(WidgetTester tester, String field) async {
+      final container = await pumpSquad(
+        tester,
+        mutate: (state) {
+          final cells =
+              (state['grid'] as Map<String, dynamic>)['cells'] as List;
+          (cells[0] as Map<String, dynamic>)[field] = field == 'loanedOut'
+              ? 'Some Rovers'
+              : 3;
+        },
+      );
+      final id =
+          ((container.read(gameProvider).state!['grid']
+                      as Map<String, dynamic>)['cells']
+                  as List)
+              .whereType<Map<String, dynamic>>()
+              .firstWhere((c) => c[field] != null)['instanceId'];
+      // The two loans land in different places: one OUT is unavailable and
+      // goes to the bench, while one IN is a player who can be picked and is
+      // in the eleven. So the sheet is opened from wherever the card actually
+      // is, rather than from an assumption about it.
+      final slot = container
+          .read(pitchSlotsProvider)
+          .where((s) => s.cardInstanceId == id);
+      if (slot.isNotEmpty) {
+        await tester.tap(
+          find.byKey(ValueKey('squad-slot-${slot.first.slotId}')),
+        );
+      } else {
+        await openBench(tester);
+        await tester.tap(find.byKey(ValueKey('squad-bench-$id')));
+      }
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('player-detail-$id')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-rename')), findsNothing);
+    }
+
+    testWidgets('but NOT on a player who is out on loan', (tester) async {
+      // Renaming one of ours who is away puts a name on a card the player
+      // cannot see.
+      await expectNoRename(tester, 'loanedOut');
+    });
+
+    testWidgets('and NOT on somebody else\'s player, on loan to us', (
+      tester,
+    ) async {
+      // Renaming another club's player is not ours to do — the JS draws the
+      // same line, in the same place.
+      await expectNoRename(tester, 'loanMatchesLeft');
+    });
+
     testWidgets('an XI player is offered the swap and the bench', (
       tester,
     ) async {

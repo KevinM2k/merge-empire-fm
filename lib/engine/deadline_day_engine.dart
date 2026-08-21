@@ -33,6 +33,7 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/deadline_day.dart';
@@ -1170,18 +1171,38 @@ DealResult _acceptSigning(Map<String, dynamic> state, Listing l, int nowMs) {
 
   final cells = (_map(state['grid'])!['cells'] as List);
   final slot = findFirstEmpty(cells);
-  // NOTE: this rolls a FRESH instance rather than placing `l['card']`, the card
-  // the feed has been showing all along — only the name is carried across. So the
-  // variant, the trait and the ATK/DEF split you were shown are not the ones you
-  // receive. That contradicts the reason the card is pre-rolled at listing time,
-  // and it is a bug in the JS, faithfully reproduced here: using `l['card']`
-  // instead would change which card lands AND consume fewer draws, shifting every
-  // later listing in the window. Worth fixing deliberately, not as a side effect
-  // of the port. See docs/REMAINING.md.
-  final card = createInstance(
+
+  // **THE CARD THE FEED SHOWED IS THE CARD THAT ARRIVES.**
+  //
+  // This used to roll a FRESH instance and carry only the name across, so the
+  // variant, the trait and the ATK/DEF split on the offer were not the ones
+  // delivered — which contradicts the reason the card is pre-rolled at listing
+  // time in the first place: "the portrait, the rating and the stat split on
+  // the offer are exactly what lands on your grid". It is a bug in the JS,
+  // reproduced faithfully through the port and fixed here deliberately.
+  //
+  // **THE ROLL STILL HAPPENS.** Its result is thrown away, and that is the
+  // point: the JS's position in the merge RNG stream is part of the spec, and
+  // every card the rest of the session rolls depends on it. Skipping the draw
+  // would silently change the whole remainder of the feed, turning a fix to one
+  // signing into a divergence from the source everywhere after it. So the draw
+  // is spent exactly as before and only the card handed over changes — which
+  // keeps this a one-line behaviour difference rather than a fork.
+  //
+  // The grid gets a COPY. The listing keeps its own record of what was offered,
+  // and a shared map would let the grid rewrite the history of the deal — the
+  // signed player levelling up would retro-edit the offer that was made.
+  //
+  // The discarded roll is also the FALLBACK, for a listing with no pre-rolled
+  // card: that is what a save written before signings carried one looks like.
+  final rolled = createInstance(
     '${l['definitionId']}',
     preferredFemale: l['female'] as bool?,
   );
+  final offered = _map(l['card']);
+  final card = offered == null
+      ? rolled
+      : CardInstance(jsonDecode(jsonEncode(offered)) as Map<String, dynamic>);
   if (l['playerName'] != null) card.raw['displayName'] = l['playerName'];
   cells[slot] = card.raw;
   final resources = state['resources'] as Map<String, dynamic>;

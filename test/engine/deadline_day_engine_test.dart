@@ -24,9 +24,11 @@ const int _now = 1700000000000;
 const int _windowStart = _now;
 const int _windowEnd = _now + sessionMs;
 
-final Map<String, dynamic> _refSave = jsonDecode(
-  File('test/fixtures/quest_engine_reference.json').readAsStringSync(),
-) as Map<String, dynamic>;
+final Map<String, dynamic> _refSave =
+    jsonDecode(
+          File('test/fixtures/quest_engine_reference.json').readAsStringSync(),
+        )
+        as Map<String, dynamic>;
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
@@ -44,8 +46,8 @@ Map<String, dynamic> _state({int fanCoins = 5000000}) {
 }
 
 List<Listing> _listings(Map<String, dynamic> state) => [
-  for (final l in (_map(_map(state['deadlineDay'])!['session'])!['listings']
-      as List))
+  for (final l
+      in (_map(_map(state['deadlineDay'])!['session'])!['listings'] as List))
     l as Listing,
 ];
 
@@ -173,9 +175,11 @@ void main() {
       for (var seed = 0; seed < 20; seed++) {
         // The board is only ever exactly full at particular instants — a
         // five-minute fuse holds four ninety-second slots — so walk to one.
-        for (var offset = listingIntervalMs * 4;
-            offset < sessionMs ~/ 2;
-            offset += listingIntervalMs) {
+        for (
+          var offset = listingIntervalMs * 4;
+          offset < sessionMs ~/ 2;
+          offset += listingIntervalMs
+        ) {
           final state = _openAndRun(seed, offset);
           var at = _windowStart + offset;
           final live = liveListings(state, at);
@@ -279,7 +283,8 @@ void main() {
       // A negotiation that ran past closing time hands back time that no longer
       // exists.
       final state = _openAndRun(11, 300000);
-      final id = '${liveListings(state, _windowStart + 300000).first['listingId']}';
+      final id =
+          '${liveListings(state, _windowStart + 300000).first['listingId']}';
       expect(pauseListing(state, id, _windowStart + 300000), isTrue);
       expect(resumeListing(state, id, _windowEnd + sessionMs), isTrue);
       final l = _listings(state).firstWhere((x) => x['listingId'] == id);
@@ -382,9 +387,9 @@ void main() {
         final state = _openAndRun(seed, 400000);
         var at = _windowStart + 400000;
         final bid = _allLive(state, at).cast<Listing?>().firstWhere(
-              (l) => l!['kind'] == 'bid',
-              orElse: () => null,
-            );
+          (l) => l!['kind'] == 'bid',
+          orElse: () => null,
+        );
         if (bid == null) continue;
 
         // Sold on the Squad screen, or merged away.
@@ -412,28 +417,44 @@ void main() {
           for (final l in _listings(state))
             if (l['marquee'] == true) l,
         ];
-        expect(marquees.length, lessThanOrEqualTo(maxMarquee), reason: 'seed $seed');
+        expect(
+          marquees.length,
+          lessThanOrEqualTo(maxMarquee),
+          reason: 'seed $seed',
+        );
         for (final m in marquees) {
           final index =
-              ((_num(m['spawnAt'])! - _windowStart) / listingIntervalMs).round();
-          expect(index, greaterThanOrEqualTo(marqueeMinIndex), reason: 'seed $seed');
-          expect(index, lessThanOrEqualTo(marqueeMaxIndex), reason: 'seed $seed');
-        }
-      }
-    });
-
-    test('is the only route above the division ceiling, and never reaches T9', () {
-      for (var seed = 0; seed < 25; seed++) {
-        final state = _openAndRun(seed, sessionMs);
-        for (final l in _listings(state)) {
+              ((_num(m['spawnAt'])! - _windowStart) / listingIntervalMs)
+                  .round();
           expect(
-            _num(l['tier']),
-            lessThanOrEqualTo(maxMarketTier),
-            reason: 'seed $seed — T9 is scout-only',
+            index,
+            greaterThanOrEqualTo(marqueeMinIndex),
+            reason: 'seed $seed',
+          );
+          expect(
+            index,
+            lessThanOrEqualTo(marqueeMaxIndex),
+            reason: 'seed $seed',
           );
         }
       }
     });
+
+    test(
+      'is the only route above the division ceiling, and never reaches T9',
+      () {
+        for (var seed = 0; seed < 25; seed++) {
+          final state = _openAndRun(seed, sessionMs);
+          for (final l in _listings(state)) {
+            expect(
+              _num(l['tier']),
+              lessThanOrEqualTo(maxMarketTier),
+              reason: 'seed $seed — T9 is scout-only',
+            );
+          }
+        }
+      },
+    );
   });
 
   group('everything here is save state', () {
@@ -478,7 +499,12 @@ void main() {
     test('a broke club cannot buy, but can still be bid at', () {
       _seed(11);
       final state = _state(fanCoins: 0);
-      startSession(state, _windowStart, nowMs: _windowStart, windowEnd: _windowEnd);
+      startSession(
+        state,
+        _windowStart,
+        nowMs: _windowStart,
+        windowEnd: _windowEnd,
+      );
       tickSession(state, _windowStart + 900000);
       for (final l in _allLive(state, _windowStart + 900000)) {
         final blocked = listingBlockedReason(state, l);
@@ -494,10 +520,9 @@ void main() {
       // `not_signing`, a reason with no string behind it.
       for (var seed = 0; seed < 30; seed++) {
         final state = _openAndRun(seed, 600000);
-        final out = _allLive(state, _windowStart + 600000).cast<Listing?>().firstWhere(
-              (l) => l!['kind'] == 'loanOut',
-              orElse: () => null,
-            );
+        final out = _allLive(state, _windowStart + 600000)
+            .cast<Listing?>()
+            .firstWhere((l) => l!['kind'] == 'loanOut', orElse: () => null);
         if (out == null) continue;
         expect(listingBlockedReason(state, out), isNot('not_signing'));
         return;
@@ -510,9 +535,15 @@ void main() {
       final at = _windowStart + 600000;
       expect(acceptListing(state, 'nope', at)['reason'], 'unknown_listing');
       expect(askForMore(state, 'nope', 1, at)['reason'], 'unknown_listing');
-      expect(submitOffer(state, 'nope', {'cash': 1}, at)['reason'], 'unknown_listing');
+      expect(
+        submitOffer(state, 'nope', {'cash': 1}, at)['reason'],
+        'unknown_listing',
+      );
       expect(dismissListing(state, 'nope')['reason'], 'unknown_listing');
-      expect(acceptSellerCounter(state, 'nope', at)['reason'], 'unknown_listing');
+      expect(
+        acceptSellerCounter(state, 'nope', at)['reason'],
+        'unknown_listing',
+      );
 
       final id = '${liveListings(state, at).first['listingId']}';
       dismissListing(state, id);
@@ -537,7 +568,10 @@ void main() {
       expect(resumeListing(state, id), isTrue);
       expect(acceptListing(state, 'nope')['reason'], 'unknown_listing');
       expect(askForMore(state, 'nope', 1)['reason'], 'unknown_listing');
-      expect(submitOffer(state, 'nope', {'cash': 1})['reason'], 'unknown_listing');
+      expect(
+        submitOffer(state, 'nope', {'cash': 1})['reason'],
+        'unknown_listing',
+      );
       expect(acceptSellerCounter(state, 'nope')['reason'], 'unknown_listing');
       setClock(() => _windowEnd);
       expect(endSession(state), isNotNull);
@@ -547,7 +581,12 @@ void main() {
       final state = _state();
       expect(sessionStatus(state, _windowStart), 'idle');
       _seed(11);
-      startSession(state, _windowStart, nowMs: _windowStart, windowEnd: _windowEnd);
+      startSession(
+        state,
+        _windowStart,
+        nowMs: _windowStart,
+        windowEnd: _windowEnd,
+      );
       endSession(state, _windowEnd);
       expect(sessionStatus(state, _windowStart), 'done');
       // A different occurrence is still untouched.
@@ -562,9 +601,9 @@ void main() {
         final at = _windowStart + 300000;
         final wantKind = action == 'askForMore' ? 'bid' : 'signing';
         final target = _allLive(state, at).cast<Listing?>().firstWhere(
-              (l) => l!['kind'] == wantKind,
-              orElse: () => null,
-            );
+          (l) => l!['kind'] == wantKind,
+          orElse: () => null,
+        );
         if (target == null) continue;
         final id = '${target['listingId']}';
         // Past its fuse, but before the window shuts, so the session is still live.
@@ -575,7 +614,10 @@ void main() {
           'askForMore' => askForMore(state, id, 1, late),
           'submitOffer' => submitOffer(state, id, {'cash': 1}, late),
           _ => (() {
-            target['sellerCounter'] = {'price': 1, 'offer': <String, dynamic>{}};
+            target['sellerCounter'] = {
+              'price': 1,
+              'offer': <String, dynamic>{},
+            };
             return acceptSellerCounter(state, id, late);
           })(),
         };
@@ -596,9 +638,9 @@ void main() {
         final state = _openAndRun(seed, 600000);
         final at = _windowStart + 600000;
         final target = _allLive(state, at).cast<Listing?>().firstWhere(
-              (l) => l!['kind'] == 'signing' && (_num(l['haggleRounds']) ?? 0) > 0,
-              orElse: () => null,
-            );
+          (l) => l!['kind'] == 'signing' && (_num(l['haggleRounds']) ?? 0) > 0,
+          orElse: () => null,
+        );
         if (target == null) continue;
         final id = '${target['listingId']}';
         final res = submitOffer(state, id, {
@@ -625,11 +667,11 @@ void main() {
         final state = _openAndRun(seed, 600000);
         final at = _windowStart + 600000;
         final bid = _allLive(state, at).cast<Listing?>().firstWhere(
-              (l) =>
-                  l!['kind'] == 'bid' &&
-                  ((_map(l['offer'])?['incoming'] as List?)?.isNotEmpty ?? false),
-              orElse: () => null,
-            );
+          (l) =>
+              l!['kind'] == 'bid' &&
+              ((_map(l['offer'])?['incoming'] as List?)?.isNotEmpty ?? false),
+          orElse: () => null,
+        );
         if (bid == null) continue;
 
         final coinsBefore = _num(_map(state['resources'])!['fanCoins'])!;
@@ -665,9 +707,9 @@ void main() {
         final state = _openAndRun(seed, 600000);
         final at = _windowStart + 600000;
         final loan = _allLive(state, at).cast<Listing?>().firstWhere(
-              (l) => l!['kind'] == 'loan',
-              orElse: () => null,
-            );
+          (l) => l!['kind'] == 'loan',
+          orElse: () => null,
+        );
         if (loan == null) continue;
         final res = submitOffer(state, '${loan['listingId']}', {
           // Over the asking price, so no seller has a reason to refuse.
@@ -687,15 +729,16 @@ void main() {
         final state = _openAndRun(seed, 400000);
         final at = _windowStart + 400000;
         final bid = _allLive(state, at).cast<Listing?>().firstWhere(
-              (l) => l!['kind'] == 'bid',
-              orElse: () => null,
-            );
+          (l) => l!['kind'] == 'bid',
+          orElse: () => null,
+        );
         if (bid == null) continue;
         // Gone without a tick in between, so the accept path is what notices.
         final cells = (state['grid'] as Map)['cells'] as List;
         cells[cells.indexWhere(
-          (c) => _map(c)?['instanceId'] == bid['cardInstanceId'],
-        )] = null;
+              (c) => _map(c)?['instanceId'] == bid['cardInstanceId'],
+            )] =
+            null;
         final res = acceptListing(state, '${bid['listingId']}', at);
         expect(res['reason'], 'card_gone', reason: 'seed $seed');
         expect(bid['status'], 'void', reason: 'seed $seed');
@@ -721,9 +764,9 @@ void main() {
           );
           tickSession(state, _windowStart + 900000);
           final bid = _listings(state).cast<Listing?>().firstWhere(
-                (l) => l!['kind'] == 'bid',
-                orElse: () => null,
-              );
+            (l) => l!['kind'] == 'bid',
+            orElse: () => null,
+          );
           if (bid != null) return _num(bid['price'])!.toInt();
         }
         fail('no bid at $seasons seasons');
@@ -738,11 +781,110 @@ void main() {
       for (final l in _allLive(state, at)) {
         final id = '${l['listingId']}';
         if (l['kind'] == 'bid') {
-          expect(submitOffer(state, id, {'cash': 1}, at)['reason'], 'not_negotiable');
+          expect(
+            submitOffer(state, id, {'cash': 1}, at)['reason'],
+            'not_negotiable',
+          );
         } else if (l['kind'] == 'signing' || l['kind'] == 'loan') {
           expect(askForMore(state, id, 1, at)['reason'], 'not_negotiable');
         }
       }
+    });
+  });
+
+  group('the card that arrives', () {
+    /// Sign the first signing on the board, and hand back the listing and the
+    /// card that landed on the grid.
+    ({Listing listing, Map<String, dynamic> card})? signOne(int seed) {
+      final state = _openAndRun(seed, 600000);
+      final at = _windowStart + 600000;
+      for (final l in _allLive(state, at)) {
+        if (l['kind'] != 'signing') continue;
+        if (_map(l['card']) == null) continue;
+        final res = acceptListing(state, '${l['listingId']}', at);
+        if (res['ok'] != true) continue;
+        final cells = _map(state['grid'])!['cells'] as List;
+        final landed = cells.whereType<Map<String, dynamic>>().firstWhere(
+          (c) => c['instanceId'] == l['signedInstanceId'],
+        );
+        return (listing: l, card: landed);
+      }
+      // Not every seed's feed puts a signable signing on the board — the
+      // squad fills up, or the window runs to bids and loans. Skipped rather
+      // than failed, with the caller insisting on a quorum.
+      return null;
+    }
+
+    test('IS THE CARD THE FEED SHOWED, not a fresh roll of the same name', () {
+      // The pre-roll exists precisely so "the portrait, the rating and the stat
+      // split on the offer are exactly what lands on your grid" — and the JS
+      // then rolled a new instance and copied only the name across, which is
+      // the JS contradicting its own comment. Fixed deliberately; see the note
+      // in `_acceptSigning`.
+      var checked = 0;
+      for (var seed = 0; seed < 12; seed++) {
+        final signed = signOne(seed);
+        if (signed == null) continue;
+        checked++;
+        final offered = _map(signed.listing['card'])!;
+        for (final key in [
+          'definitionId',
+          'variant',
+          'ratingBonus',
+          'attackRatio',
+          'displayName',
+        ]) {
+          expect(signed.card[key], offered[key], reason: 'seed \$seed: \$key');
+        }
+        // The trait is the one a fresh roll dropped entirely: a card advertised
+        // with one arrived without it.
+        expect(
+          jsonEncode(signed.card['trait']),
+          jsonEncode(offered['trait']),
+          reason: 'seed \$seed: trait',
+        );
+      }
+      expect(checked, greaterThan(2), reason: 'nothing was actually signed');
+    });
+
+    test('and it is a COPY, so the grid cannot rewrite the deal', () {
+      // The listing is the record of what was offered. Sharing one map would
+      // let the signed player levelling up retro-edit the offer that was made.
+      final signed = [
+        for (var seed = 0; seed < 12; seed++) signOne(seed),
+      ].nonNulls.first;
+      expect(identical(signed.card, signed.listing['card']), isFalse);
+      signed.card['ratingBonus'] = 99;
+      expect(_map(signed.listing['card'])!['ratingBonus'], isNot(99));
+    });
+
+    test('THE ROLL IS STILL SPENT, so the rest of the session is unchanged', () {
+      // The JS's position in the merge RNG stream is part of the spec and every
+      // later card depends on it. Skipping the draw would quietly change the
+      // whole remainder of the feed — so it is taken and thrown away. Two runs
+      // of the same seed, one signing and one dismissing, must leave the stream
+      // in the same place.
+      List<String> tailAfter(bool sign) {
+        final state = _openAndRun(5, 600000);
+        final at = _windowStart + 600000;
+        for (final l in _allLive(state, at)) {
+          if (l['kind'] != 'signing' || _map(l['card']) == null) continue;
+          if (sign) {
+            acceptListing(state, '${l['listingId']}', at);
+          }
+          break;
+        }
+        // Whatever the feed rolls next is what the stream position decides.
+        tickSession(state, _windowStart + 900000);
+        return [
+          for (final l in _listings(state))
+            if (_map(l['card']) != null)
+              '${_map(l['card'])!['definitionId']}'
+                  '/${_map(l['card'])!['variant']}',
+        ];
+      }
+
+      expect(tailAfter(true), tailAfter(false));
     });
   });
 }
