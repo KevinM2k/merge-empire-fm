@@ -11,9 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # **PINNED, and the pin is the point.** Nothing else in the repo said
+      # which SDK this builds against: `pubspec.lock` is not committed, there
+      # was no `.fvmrc`, and this job named a version older than the one the
+      # port is actually developed on — so a fresh clone and this job could
+      # disagree with each other and with the machine the tests were last run
+      # on. The framework's own assertions move between minors: the same suite
+      # that passes here fails 34 tests on 3.47, which is how a green local run
+      # and a red CI happened at once. `.fvmrc` carries the same number for
+      # anyone using fvm; keep the two together.
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.3'
+          flutter-version: '3.44.9'
           channel: stable
       - run: flutter pub get
       - run: flutter analyze
