@@ -38,17 +38,49 @@ typedef CutawayClip = ({
   int seed,
 });
 
+/// The smallest chance worth cutting to, as the JS's own threshold.
+const double cutawayBigXg = 0.22;
+
+/// Game-minutes between chance cutaways. **Goals are exempt** — they are always
+/// worth showing.
+///
+/// The JS's `CUTAWAY_GAP_MINS`, and the pacing matters more here than it reads:
+/// the engine generates a chance about every SEVEN minutes, so without a gap the
+/// screen is a cutaway with a match happening somewhere behind it.
+const int cutawayGapMinutes = 12;
+
 /// Build the clip for an event, or null when there is nothing to show.
 ///
 /// [ourSideLeft] is which end we defend, and [ours] whether this chance is
 /// ours — together they decide which way the attack runs, so one sequence table
 /// serves all four combinations.
+///
+/// **THREE REASONS TO SHOW NOTHING, and the port honoured none of them.**
+///
+/// 1. **The player switched it off.** `cutawayOurTeam` and `cutawayOpponent`
+///    are in the schema, in the migration and on the Settings screen as two
+///    independent flags — and nothing here read either, so both switches did
+///    nothing at all.
+/// 2. **It was not a big chance.** The engine marks one at [cutawayBigXg]; the
+///    rest are a statistic, not a passage of play worth watching.
+/// 3. **The last one was too recent.** See [cutawayGapMinutes].
 CutawayClip? clipFor(
   TimelineEvent event, {
   required bool ourSideLeft,
   required bool ours,
   required int seed,
+  bool ourTeamOn = true,
+  bool opponentOn = true,
+  int? lastCutawayMinute,
 }) {
+  if (!(ours ? ourTeamOn : opponentOn)) return null;
+  if (event.type == 'chance') {
+    if (!event.big && event.xg < cutawayBigXg) return null;
+    if (lastCutawayMinute != null &&
+        event.minute - lastCutawayMinute < cutawayGapMinutes) {
+      return null;
+    }
+  }
   final outcome = outcomeForEvent(event);
   if (outcome == null) return null;
   final roll = ((seed * 2654435761) % 100000) / 100000;

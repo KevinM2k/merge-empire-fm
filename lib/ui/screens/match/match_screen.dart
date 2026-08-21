@@ -24,6 +24,8 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
+    show settingPick;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
@@ -184,6 +186,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     }
   }
 
+  /// When the last CHANCE cutaway played, for the pacing gap. Goals do not set
+  /// it: they bypass the gap, and letting one push the next chance out would
+  /// hide a passage of play because something better happened.
+  int? _lastChanceCutMinute;
+
   /// Put the newest event on the pitch, when it is one you can watch.
   void _cutIfWorthWatching() {
     for (final event in _timeline) {
@@ -198,9 +205,18 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ours: ours,
         // Seeded off the minute so the same match replays the same chances.
         seed: (widget.result['seed'] as num?)?.toInt() ?? 0 + event.minute,
+        // **The two switches on the Settings screen**, which nothing read: they
+        // are independent, so the cutaway can be on for both sides, one, or
+        // neither.
+        ourTeamOn: ref.read(settingPick<bool>('cutawayOurTeam', true)),
+        opponentOn: ref.read(settingPick<bool>('cutawayOpponent', true)),
+        // The pacing gap. A goal is exempt and does not set it either — it is
+        // always worth showing, and it must not push the next chance out.
+        lastCutawayMinute: _lastChanceCutMinute,
       );
       if (clip == null) continue;
       _clippedMinute = event.minute;
+      if (event.type == 'chance') _lastChanceCutMinute = event.minute;
       _clip = clip;
       return;
     }

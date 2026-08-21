@@ -16,15 +16,21 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 /// **The real shape, not a stub.** It was declared locally so this file did not
 /// need a whole match result to test one mapping — and then the timeline grew a
 /// field and the two silently stopped being the same thing.
-TimelineEvent _event(String type, {String? shotResult}) => (
-  minute: 10,
+TimelineEvent _event(
+  String type, {
+  String? shotResult,
+  int minute = 10,
+  bool big = false,
+  double xg = 0,
+}) => (
+  minute: minute,
   type: type,
   team: 'home',
   scorer: null,
   textKey: null,
   shotResult: shotResult,
-  big: false,
-  xg: 0,
+  big: big,
+  xg: xg,
   player: null,
 );
 
@@ -194,6 +200,53 @@ void main() {
       expect(outcomeForEvent(_event('halftime')), isNull);
       expect(outcomeForEvent(_event('fulltime')), isNull);
       expect(outcomeForEvent(_event('commentary')), isNull);
+    });
+  });
+
+  group('WHEN THE PITCH COMES ON, and when it does not', () {
+    CutawayClip? cut(
+      TimelineEvent e, {
+      bool ours = true,
+      bool ourTeamOn = true,
+      bool opponentOn = true,
+      int? last,
+    }) => clipFor(
+      e,
+      ourSideLeft: true,
+      ours: ours,
+      seed: 7,
+      ourTeamOn: ourTeamOn,
+      opponentOn: opponentOn,
+      lastCutawayMinute: last,
+    );
+
+    test('THE TWO SWITCHES ON THE SETTINGS SCREEN DID NOTHING', () {
+      // `cutawayOurTeam` and `cutawayOpponent` are in the schema, in the
+      // migration and on Settings as two INDEPENDENT flags — the cutaway can be
+      // on for both sides, one, or neither — and nothing here read either.
+      expect(cut(_event('goal'), ourTeamOn: false), isNull);
+      expect(cut(_event('goal'), ours: false, opponentOn: false), isNull);
+      // Independent: our side off does not silence theirs.
+      expect(cut(_event('goal'), ours: false, ourTeamOn: false), isNotNull);
+    });
+
+    test('and a SMALL chance is a statistic, not a passage of play', () {
+      // The engine makes one about every seven minutes. Cutting to all of them
+      // is a cutaway with a match happening somewhere behind it.
+      expect(cut(_event('chance', xg: 0.1, shotResult: 'on_target')), isNull);
+      expect(
+        cut(_event('chance', xg: 0.25, shotResult: 'on_target')),
+        isNotNull,
+      );
+      expect(cut(_event('chance', big: true, shotResult: 'off')), isNotNull);
+    });
+
+    test('and there is a GAP between chances, which a goal is exempt from', () {
+      final big = _event('chance', minute: 20, big: true);
+      expect(cut(big, last: 12), isNull, reason: 'eight minutes is too soon');
+      expect(cut(big, last: 8), isNotNull, reason: 'twelve minutes is enough');
+      // A goal is always worth showing.
+      expect(cut(_event('goal', minute: 20), last: 19), isNotNull);
     });
   });
 }
