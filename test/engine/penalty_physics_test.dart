@@ -238,8 +238,7 @@ void main() {
   });
 
   group('HE SPREADS HIMSELF BETTER FURTHER UP', () {
-    test('the reach RAMPS with the division, and tops out at the documented one',
-        () {
+    test('the reach RAMPS with the division, and tops out at the documented one', () {
       // The read chance was the only ramp, so a Champions Cup keeper guessed as
       // badly as a Sunday League one and simply guessed right more often. A
       // better keeper also covers more of the goal once he gets there.
@@ -397,6 +396,140 @@ void main() {
       final k = saved();
       expect(k.done, isTrue);
       expect(k.elapsed, lessThan(k.flightTime + 1.2));
+    });
+  });
+
+  group('AND HE COMES DOWN — the hand is not a statue', () {
+    /// Past [PenaltyKick.done] and on through the hold.
+    ///
+    /// The screen keeps the goalmouth up for the best part of two seconds after
+    /// the word goes up, and the renderer keeps advancing him through it. A kick
+    /// that stops being stepped the instant it is decided is the whole defect.
+    PenaltyKick settled(PenaltyAim aim, {KeeperPlan? plan}) {
+      final k = kick(aim, plan: plan);
+      for (var i = 0; i < 150; i++) {
+        k.advance(1 / 120);
+      }
+      return k;
+    }
+
+    test('THE ARM WAS FROZEN FOR THE WHOLE FOLLOW-THROUGH', () {
+      // `_moveKeeper` clamped its extension and that was the end of him: the ball
+      // looped away from the parry while the hands that had just pushed it there
+      // held their pose exactly.
+      final k = settled((across: 0, lift: 0.25, power: 1, curl: 0));
+      expect(k.result, PenaltyResult.saved);
+      final peak = 0.55 + k.plan.height * 1.5;
+      expect(k.keeperHand.z, lessThan(peak - 0.25), reason: 'he never moved');
+      expect(k.keeperLand, 1);
+    });
+
+    test('and a GATHERED ball comes down with him', () {
+      // Measured from the couch: catch at t=1.15, and ball and hand both sat at
+      // exactly (0, 0, 1.00) until the clip ended — which is the same "ball
+      // vanishing" defect the parry was written to kill, moved to the hands.
+      final k = settled((across: 0, lift: 0.25, power: 0.02, curl: 0));
+      expect(k.held, isTrue);
+      // Pinned to the gloves, and the gloves are on the turf.
+      expect(k.position.z, closeTo(k.keeperHand.z, 1e-9));
+      expect(k.position.z, closeTo(keeperGroundZ, 0.01));
+      // A keeper who has caught one smothers it; he does not stand there holding
+      // it up.
+      expect(k.position.z, lessThan(k.keeperHand.z + 1e-9));
+    });
+
+    test('HOW FAR HE FALLS IS HOW FAR HE WENT', () {
+      // A keeper who dived full length is lying on the turf. One who simply put
+      // his hands up is still on his feet, and dropping him to the ground would
+      // be a man collapsing rather than a save.
+      const aim = (across: -0.74, lift: 0.62, power: 0.95, curl: 0.0);
+      final dived = settled(
+        aim,
+        plan: (side: 0.98, height: 0.9, commitAt: 0.05),
+      );
+      final stood = settled(
+        aim,
+        plan: (side: 0.0, height: 0.9, commitAt: 0.05),
+      );
+      // Never QUITE flat, because he never dives QUITE the whole way — see the
+      // keeper plan.
+      expect(dived.keeperHand.z, closeTo(keeperGroundZ, 0.02));
+      expect(stood.keeperHand.z, closeTo(keeperStandZ, 0.01));
+    });
+
+    test('and he STAYS UP while the ball is still live', () {
+      // **The landing is timed from the decision, not from full extension**, and
+      // it is a deliberate trade: letting gravity have him mid-flight is truer
+      // and it changes the balance the whole file is tuned around — a read keeper
+      // is a third of the way to the turf when a soft corner arrives and no
+      // longer reaches it. What a player watched was the follow-through.
+      final k = PenaltyKick(
+        aim: (across: -0.6, lift: 0.7, power: 0.1, curl: 0),
+        plan: (side: -0.8, height: 0.7, commitAt: 0.03),
+      );
+      var checked = 0;
+      while (!k.done && k.elapsed < 6) {
+        k.advance(1 / 240);
+        if (k.decidedAt != null) break;
+        if (k.elapsed <= k.plan.commitAt) continue;
+        expect(k.keeperLand, 0);
+        // The extension, and nothing taken off it.
+        expect(
+          k.keeperHand.z,
+          closeTo(0.55 + k.plan.height * 1.5 * k.keeperDive, 1e-9),
+          reason: 'he sank at ${k.elapsed}s with the ball still in the air',
+        );
+        checked++;
+      }
+      expect(k.decidedAt, isNotNull);
+      // A floated one: he is up there a long time, which is the cost of the
+      // trade and is what the follow-through is being bought with.
+      expect(checked, greaterThan(100));
+    });
+
+    test('the dive he is DRAWN at is the dive that moved his hand', () {
+      // The renderer worked it out again from the clock on a straight ramp, so
+      // the limbs were on a different curve from the glove they hang off — and
+      // neither of them knew about the landing.
+      final k = PenaltyKick(
+        aim: (across: -0.74, lift: 0.62, power: 0.9, curl: 0),
+        plan: (side: -0.98, height: 0.6, commitAt: 0.05),
+      );
+      expect(k.keeperDive, 0);
+      while (k.elapsed < 0.05) {
+        k.advance(1 / 240);
+      }
+      k.advance(keeperDiveTime);
+      expect(k.keeperDive, closeTo(1, 1e-9));
+      expect(
+        k.keeperHand.x,
+        closeTo(k.plan.side * keeperDiveSpan * k.keeperDive, 1e-9),
+      );
+    });
+
+    test('and the landing STOPS, rather than sinking through the turf', () {
+      final k = settled((across: 0, lift: 0.25, power: 1, curl: 0));
+      final z = k.keeperHand.z;
+      k.advance(2);
+      expect(k.keeperHand.z, closeTo(z, 1e-9));
+      expect(k.keeperLand, 1);
+    });
+
+    test('THE OUTCOME IS UNCHANGED — none of this decides anything', () {
+      // The landing runs after `decidedAt` by construction, so it cannot reach
+      // back into `_keeperGotIt`.
+      for (final power in [0.02, 0.4, 1.0]) {
+        final k = settled((across: 0, lift: 0.25, power: power, curl: 0));
+        expect(k.result, PenaltyResult.saved, reason: '$power');
+      }
+      expect(
+        settled(_corner, plan: guessesWrong(_corner)).result,
+        PenaltyResult.goal,
+      );
+      expect(
+        settled(_corner, plan: reads(_corner)).result,
+        PenaltyResult.saved,
+      );
     });
   });
 }

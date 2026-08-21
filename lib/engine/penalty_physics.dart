@@ -175,7 +175,8 @@ const double keeperReach = 1.05;
 /// direction a difficulty ramp should run anyway — it makes the early game
 /// forgiving rather than the late game impossible.
 double keeperReachFor(int divisionIndex) {
-  final t = (divisionIndex < 0 ? 0 : (divisionIndex > 6 ? 6 : divisionIndex)) / 6;
+  final t =
+      (divisionIndex < 0 ? 0 : (divisionIndex > 6 ? 6 : divisionIndex)) / 6;
   return keeperReach * (0.78 + 0.22 * t);
 }
 
@@ -189,6 +190,23 @@ const double keeperDiveSpan = 2.6;
 
 /// How long a full dive takes to extend.
 const double keeperDiveTime = 0.42;
+
+/// How long he hangs at full stretch before he comes down.
+///
+/// A beat, not a pause: it is the top of the jump, and without it the landing
+/// starts on the same frame the ball is decided, which reads as him being pulled
+/// down rather than falling.
+const double keeperHangTime = 0.10;
+
+/// How long the landing takes.
+const double keeperLandTime = 0.34;
+
+/// Where his shoulders finish, in metres — the two ends of a landing.
+///
+/// [keeperGroundZ] is a keeper lying on the turf; [keeperStandZ] is one who
+/// never left his feet, and is the same number he starts the kick at.
+const double keeperGroundZ = 0.34;
+const double keeperStandZ = 0.9;
 
 /// One penalty, stepped.
 class PenaltyKick {
@@ -237,7 +255,23 @@ class PenaltyKick {
 
   /// Where the keeper's hands are, so the renderer does not have to work it out
   /// twice.
-  final Vec3 keeperHand = Vec3(0, 0, 0.9);
+  final Vec3 keeperHand = Vec3(0, 0, keeperStandZ);
+
+  /// How far through the dive he is, 0 standing to 1 at full stretch — EASED,
+  /// which is the curve the hand is actually on.
+  ///
+  /// Published because the renderer needs it to pose the figure, and it used to
+  /// work it out again from [elapsed] and [KeeperPlan.commitAt] with a straight
+  /// ramp. Two curves for one dive is the disagreement this file keeps having to
+  /// fix: the limbs were on a different clock from the glove they hang off.
+  double keeperDive = 0;
+
+  /// How far through the LANDING, 0 still up to 1 down.
+  double keeperLand = 0;
+
+  /// When the kick was decided — the ball's story is over at this instant, and
+  /// it is what the landing is timed from. Null while it is still live.
+  double? decidedAt;
 
   /// He clung on to it, rather than pushing it away.
   bool held = false;
@@ -305,12 +339,36 @@ class PenaltyKick {
   }
 
   /// Push the simulation forward by [dt] of real time.
+  ///
+  /// **IT KEEPS RUNNING AFTER THE BALL IS [done].** The kick being decided is not
+  /// the end of the picture — the screen holds on it for the best part of two
+  /// seconds — and a keeper frozen at full stretch in the middle of that is the
+  /// same "ball vanishing" defect the parry was written to kill, moved from the
+  /// ball to the hands. So a finished kick still settles: he comes down, and a
+  /// ball in his gloves comes down with him. Only the KEEPER moves; the ball is
+  /// where it finished, in the net or gathered or out of the picture.
   void advance(double dt) {
     var left = dt;
-    while (left > 0 && !done) {
+    while (left > 0) {
       final step = math.min(timeStep, left);
-      _step(step);
+      if (done) {
+        _settle(step);
+      } else {
+        _step(step);
+      }
       left -= step;
+    }
+  }
+
+  /// One step of a kick that is over: the landing, and nothing else.
+  void _settle(double dt) {
+    elapsed += dt;
+    _moveKeeper();
+    if (held) {
+      position
+        ..x = keeperHand.x
+        ..y = keeperHand.y
+        ..z = keeperHand.z;
     }
   }
 
@@ -352,6 +410,7 @@ class PenaltyKick {
     if (savedAt == null && _keeperGotIt()) {
       result = PenaltyResult.saved;
       savedAt = elapsed;
+      decidedAt = elapsed;
       _parry(speed);
       return;
     }
@@ -388,6 +447,7 @@ class PenaltyKick {
     if (elapsed > 4) {
       result ??= _missedBy();
     }
+    if (result != null) decidedAt ??= elapsed;
   }
 
   /// Which parts of the frame have already been struck.
@@ -488,27 +548,63 @@ class PenaltyKick {
         : PenaltyResult.over;
   }
 
-  /// The dive.
+  /// The dive, and the landing.
   ///
   /// He commits at [KeeperPlan.commitAt] and extends over [keeperDiveTime] — so a
   /// keeper who goes early is further across when the ball arrives and one who
   /// waits is still travelling. That trade is the whole of the difficulty: at the
   /// top divisions he reads it AND goes early.
+  ///
+  /// **AND THEN HE COMES DOWN.** The extension used to be clamped and that was
+  /// the end of him: for the whole follow-through the arm was a statue while the
+  /// ball looped away, and a GATHERED ball hung motionless in mid-air for 0.35s,
+  /// which is the ball-vanishing defect the parry exists to prevent wearing a
+  /// different hat.
+  ///
+  /// **The landing is timed from [decidedAt], not from full extension**, and that
+  /// is a deliberate trade rather than an oversight. He is airborne for as long as
+  /// the ball is live. Letting gravity have him mid-flight is physically truer and
+  /// it is a BALANCE CHANGE: measured, a keeper who read a corner struck at 0.28
+  /// power is a third of the way to the turf when it arrives and no longer reaches
+  /// it, so "a read keeper saves a soft corner" — the balance this file is tuned
+  /// around — stops holding. What a player actually watched was the follow-through,
+  /// and that is what this moves.
   void _moveKeeper() {
     final since = elapsed - plan.commitAt;
     if (since <= 0) {
+      keeperDive = 0;
+      keeperLand = 0;
       keeperHand
         ..x = 0
-        ..z = 0.9;
+        ..z = keeperStandZ;
       return;
     }
-    final extend = math.min(1, since / keeperDiveTime);
+    final extend = math.min(1.0, since / keeperDiveTime);
     // Eased, because a dive accelerates off the line and then travels.
-    final travel = extend * extend * (3 - 2 * extend);
-    keeperHand
-      ..x = plan.side * keeperDiveSpan * travel
-      // Low dives stay near the ground; a high one gets up.
-      ..z = 0.55 + plan.height * 1.5 * travel;
+    keeperDive = extend * extend * (3 - 2 * extend);
+    // Low dives stay near the ground; a high one gets up.
+    final peak = 0.55 + plan.height * 1.5 * keeperDive;
+    keeperHand.x = plan.side * keeperDiveSpan * keeperDive;
+
+    final at = decidedAt;
+    final falling = at == null ? 0.0 : elapsed - at - keeperHangTime;
+    keeperLand = falling <= 0 ? 0 : math.min(1.0, falling / keeperLandTime);
+    // Gravity: the distance goes with the square of the time.
+    final drop = keeperLand * keeperLand;
+    keeperHand.z = peak + (_restZ - peak) * drop;
+  }
+
+  /// Where his shoulders come to rest.
+  ///
+  /// **How far he falls is how far he went.** A keeper who dived full length is
+  /// lying on the turf; one who simply put his hands up is still on his feet, and
+  /// dropping him to the ground would be a man collapsing rather than a save. A
+  /// ball he GATHERED takes him down whatever he did to reach it, because a keeper
+  /// who has caught one smothers it rather than standing there holding it up.
+  double get _restZ {
+    if (held) return keeperGroundZ;
+    final committed = plan.side.abs().clamp(0.0, 1.0);
+    return keeperStandZ + (keeperGroundZ - keeperStandZ) * committed;
   }
 
   /// Has he got a hand to it?

@@ -1189,6 +1189,12 @@ class PenaltyViewState extends State<PenaltyView>
         widget.onResult(kick.result!, kick.hitFrame, kick.position.x);
       }
     } else if (_hold > 0) {
+      // **THE PICTURE HOLDS; THE KEEPER DOES NOT.** The word goes up and the
+      // screen stays on the goalmouth for the best part of two seconds, and he
+      // was suspended at full stretch for every frame of it. The kick is decided
+      // and the ball is where it finished — what is still happening is that he
+      // is coming down out of the dive, with anything he caught in his gloves.
+      kick?.advance(dt);
       _hold -= dt;
       if (_hold <= 0) {
         _kick = null;
@@ -1251,13 +1257,12 @@ class PenaltyViewState extends State<PenaltyView>
           : _runUp > 0
           ? 1 - _runUp / _runUpSeconds
           : 1 + kick.elapsed * 1.4;
-      final hand = kick?.keeperHand ?? Vec3(0, -0.3, 0.9);
-      final dive = kick == null
-          ? 0.0
-          : ((kick.elapsed - kick.plan.commitAt) / keeperDiveTime).clamp(
-              0.0,
-              1.0,
-            );
+      final hand = kick?.keeperHand ?? Vec3(0, -0.3, keeperStandZ);
+      // **HIS OWN NUMBER, not a second copy of the curve.** This was the dive
+      // worked out again from the clock, on a straight ramp — so the limbs were
+      // on a different curve from the glove they hang off, and neither knew about
+      // the landing. `keeperDive` is what moved the hand.
+      final dive = kick?.keeperDive ?? 0.0;
 
       final from = _dragFrom;
       final to = _dragTo;
