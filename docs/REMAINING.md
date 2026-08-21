@@ -2546,6 +2546,22 @@ by a test.
       and tested — path arithmetic is easy to get subtly wrong and impossible to
       see — and the ticker now counts a drag as live, since it is the one thing
       on that screen that moves while the ball is still on the spot.
+- [x] **OFF THE FRAME AND IN.** Both frame contacts reversed the ball's FORWARD
+      velocity outright and parked it back outside the line, so anything that
+      touched the frame came out — while the one thing everybody knows about a
+      crossbar is that a ball can come down off it and go in.
+      A bounce is a REFLECTION about the surface that was hit, and the same three
+      lines give both answers: rising into the underside of the bar reverses the
+      CLIMB and keeps the forward pace, so it drops in; clipping the top reverses
+      it upward and it goes over. Inside half of a post sends it into the net,
+      outside half sends it away. Measured bands, for anyone retuning it: bar in
+      at lift 0.74–0.79 and out from 0.80; post in at across −0.80 to −0.77 and
+      out at −0.83 to −0.81.
+      Each part can be struck ONCE — the reflection leaves the ball moving away,
+      but a ball re-crossing the line at bar height every step would hammer the
+      same upright until the clock ran out. And the belt-and-braces "anything
+      behind the goal is a goal" now asks whether it was ever INSIDE, because a
+      ball off the top of the bar is behind the net without having been in it.
 - [ ] **The net should look like a NET — see-through.** You should be able to
       see through it to what is behind, which is most of what says "net" rather
       than "wall". A Kenney backdrop behind it would give it something to be

@@ -129,7 +129,11 @@ void main() {
     test('and the post is a POST, because the ball hit one', () {
       // The ball's centre has to be within a post-plus-ball of the upright. It
       // is a real collision rather than a band of the aim range labelled "post".
-      final k = kick((across: -0.79, lift: 0.35, power: 0.9, curl: 0));
+      //
+      // Aimed at the OUTSIDE half of it: the inside half sends the ball into the
+      // net now, which is the whole point of reflecting rather than reversing —
+      // see 'OFF THE FRAME AND IN'.
+      final k = kick((across: -0.83, lift: 0.35, power: 0.9, curl: 0));
       expect(k.hitFrame, FramePart.leftPost);
       expect(k.result, PenaltyResult.frame);
     });
@@ -137,6 +141,66 @@ void main() {
     test('and the bar is the BAR', () {
       final k = kick((across: 0, lift: 0.745, power: 0.9, curl: 0));
       expect(k.hitFrame, FramePart.crossbar);
+    });
+  });
+
+  group('OFF THE FRAME AND IN, or off the frame and out', () {
+    /// A keeper who is nowhere near it, so the frame is the only thing the ball
+    /// can meet.
+    const away = (side: 0.98, height: 0.0, commitAt: 0.02);
+
+    PenaltyKick struck(PenaltyAim aim) => kick(aim, plan: away);
+
+    test('THE UNDERSIDE OF THE BAR PUTS IT IN', () {
+      // It could not, ever. Both frame contacts reversed the ball's forward
+      // velocity outright and parked it back outside the line, so anything that
+      // touched the frame came out — while the one thing everybody knows about a
+      // crossbar is that a ball can come down off it and go in.
+      //
+      // A bounce is a REFLECTION about the surface it hit. A ball rising into
+      // the underside of the bar meets a normal pointing down, so what reverses
+      // is its climb: it keeps going forward and drops, which is in.
+      final under = struck((across: 0, lift: 0.76, power: 0.85, curl: 0));
+      expect(under.hitFrame, FramePart.crossbar);
+      expect(under.result, PenaltyResult.goal);
+
+      // And higher up the same bar is the top of it, where the normal points up
+      // and the ball goes over. One rule, both answers.
+      final over = struck((across: 0, lift: 0.82, power: 0.85, curl: 0));
+      expect(over.hitFrame, FramePart.crossbar);
+      expect(over.result, PenaltyResult.frame);
+    });
+
+    test('AND THE INSIDE OF A POST CAN TOO', () {
+      // Inside half of the upright: the normal points into the goal, so the ball
+      // carries on inward.
+      final inside = struck((across: -0.78, lift: 0.3, power: 0.85, curl: 0));
+      expect(inside.hitFrame, FramePart.leftPost);
+      expect(inside.result, PenaltyResult.goal);
+
+      // Outside half, and it goes away. Same rule again.
+      final outside = struck((across: -0.82, lift: 0.3, power: 0.85, curl: 0));
+      expect(outside.hitFrame, FramePart.leftPost);
+      expect(outside.result, PenaltyResult.frame);
+    });
+
+    test('and it still ENDS — a frame cannot be struck for ever', () {
+      // The reflection leaves the ball moving away from what it hit, but a ball
+      // that re-crossed the line at bar height every step would hammer the same
+      // upright until the clock ran out. Each part can be struck once.
+      for (var lift = 0.60; lift <= 0.80; lift += 0.005) {
+        final k = struck((across: 0, lift: lift, power: 1, curl: 0));
+        expect(k.done, isTrue, reason: 'lift \$lift never resolved');
+        expect(k.result, isNotNull, reason: 'lift \$lift ended undecided');
+      }
+    });
+
+    test('a ball off the OUTSIDE of a post stays out', () {
+      // The normal points away from the goal there, so the reflection sends it
+      // away. Which is the same rule, not a special case.
+      final k = struck((across: -0.87, lift: 0.3, power: 0.85, curl: 0));
+      if (k.hitFrame == null) return;
+      expect(k.result, isNot(PenaltyResult.goal));
     });
   });
 

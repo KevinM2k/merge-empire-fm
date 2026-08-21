@@ -347,9 +347,11 @@ class PenaltyKick {
       netContact ??= position.clone();
       result ??= PenaltyResult.goal;
     }
-    // A ball that somehow got behind without crossing inside — belt and braces.
+    // Behind the goal, one way or the other. It used to call anything back there
+    // a goal, which a reflecting bar makes wrong: a ball that came off the top
+    // of it and flew on is behind the net without ever having been inside it.
     if (position.y > goalDepth + 1.5) {
-      result ??= PenaltyResult.goal;
+      result ??= crossedInside ? PenaltyResult.goal : _missedBy();
     }
     if (hitFrame != null && position.y < -2.5) {
       result ??= PenaltyResult.frame;
@@ -359,30 +361,73 @@ class PenaltyKick {
     }
   }
 
+  /// Which parts of the frame have already been struck.
+  ///
+  /// Once each. The reflection leaves the ball travelling away from what it hit,
+  /// but a ball that re-crossed the line at bar height every step would hammer
+  /// the same upright until the clock ran out — and a real ball off the bar has
+  /// finished with the bar.
+  final Set<FramePart> _struck = <FramePart>{};
+
+  /// Bounce off a surface whose outward normal is [normal].
+  ///
+  /// **A BOUNCE IS A REFLECTION**, and that is the whole change: both frame
+  /// contacts used to flip the ball's FORWARD velocity outright and park it back
+  /// outside the line, so anything that touched the frame came out. The one
+  /// thing everybody knows about a crossbar is that a ball can come down off it
+  /// and go in.
+  ///
+  /// Only the component going INTO the surface is reversed, which is what makes
+  /// the same three lines give both answers: a ball rising into the underside of
+  /// the bar loses its climb and keeps its forward pace, and one clipping the
+  /// outer face of a post is already travelling away and is barely touched.
+  void _reflect(Vec3 normal) {
+    final length = normal.length;
+    if (length < 1e-9) return;
+    final nx = normal.x / length;
+    final ny = normal.y / length;
+    final nz = normal.z / length;
+    final into = velocity.x * nx + velocity.y * ny + velocity.z * nz;
+    // Already moving away from it: a graze, not a bounce.
+    if (into >= 0) return;
+    velocity
+      ..x = (velocity.x - 2 * into * nx) * frameRestitution
+      ..y = (velocity.y - 2 * into * ny) * frameRestitution
+      ..z = (velocity.z - 2 * into * nz) * frameRestitution;
+  }
+
   /// What the ball did at the line.
   void _crossLine() {
     final x = position.x;
     final z = position.z;
+    // Inside the mouth AT the line, which is what decides whether a frame
+    // contact leaves the ball in play or takes it out of the picture.
+    final insideMouth = x.abs() < goalHalfWidth && z < goalHeight;
 
     // The bar, then the posts. Order matters at the corners: a ball into the
     // angle hits the bar's underside first because it is coming down.
-    if ((z - goalHeight).abs() < postRadius + ballRadius &&
+    if (!_struck.contains(FramePart.crossbar) &&
+        (z - goalHeight).abs() < postRadius + ballRadius &&
         x.abs() < goalHalfWidth) {
       hitFrame = FramePart.crossbar;
-      velocity.z = -velocity.z.abs() * frameRestitution;
-      velocity.y = -velocity.y * frameRestitution;
-      position.y = -0.01;
+      _struck.add(FramePart.crossbar);
+      // The bar runs along x, so its normal lies in the y-z plane: from the
+      // bar's own axis out to the ball. Under it, that points down.
+      _reflect(Vec3(0, position.y, z - goalHeight));
+      if (insideMouth) crossedInside = true;
       return;
     }
     for (final side in [-1, 1]) {
-      if ((x - side * goalHalfWidth).abs() < postRadius + ballRadius &&
+      final part = side < 0 ? FramePart.leftPost : FramePart.rightPost;
+      if (!_struck.contains(part) &&
+          (x - side * goalHalfWidth).abs() < postRadius + ballRadius &&
           z < goalHeight) {
-        hitFrame = side < 0 ? FramePart.leftPost : FramePart.rightPost;
-        // AWAY from the post it hit. Signed the other way it drove the ball
-        // further into the post and the rebound came out at 17 metres across.
-        velocity.x = -side * velocity.x.abs() * frameRestitution;
-        velocity.y = -velocity.y * frameRestitution;
-        position.y = -0.01;
+        hitFrame = part;
+        _struck.add(part);
+        // A post is vertical, so its normal lies in the x-y plane. Struck on the
+        // INSIDE it points into the goal, and the ball carries on inward.
+        _reflect(Vec3(x - side * goalHalfWidth, position.y, 0));
+        if (insideMouth) crossedInside = true;
         return;
       }
     }
