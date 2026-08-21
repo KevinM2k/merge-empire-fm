@@ -155,22 +155,25 @@ void main() {
     expect(container.read(tickGatesProvider).matchOpen, isFalse);
   });
 
-  testWidgets('the score only moves when its goal is shown', (tester) async {
+  testWidgets('the score is counted from what has been SHOWN, not the result', (
+    tester,
+  ) async {
+    // The whole ninety minutes is decided before this screen opens, so the
+    // tally has to be built from the events the player has actually seen — take
+    // it off the result and the board opens at full time.
+    //
+    // WHEN a shown goal reaches the board is a separate contract, and the
+    // cutaway owns it: see 'THE SCORE WAITS FOR THE CUTAWAY TO PLAY IT'.
     await pumpMatch(
       tester,
       matchResult(
         events: [
-          {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
           {'minute': 80, 'type': 'goal', 'team': 'away', 'scorer': 'Them'},
         ],
       ),
     );
-    // Nine minutes in, nothing yet.
-    await tester.pump(minuteDurationFor(9));
+    await tester.pump(minuteDurationFor(40));
     expect(scoreOn(tester), '0 – 0');
-
-    await tester.pump(minuteDurationFor(2));
-    expect(scoreOn(tester), '1 – 0');
   });
 
   testWidgets('runs to full time and says so', (tester) async {
@@ -390,6 +393,48 @@ void main() {
         atKickoff,
         reason: 'the band moved or resized mid-match',
       );
+    });
+
+    testWidgets('THE SCORE WAITS FOR THE CUTAWAY TO PLAY IT', (tester) async {
+      // It did not, and it spoiled the only suspense the match has: the minute
+      // ticked, the goal landed on the board and in the feed, and THEN the 2D
+      // pitch played out the move whose ending you had already been told. The
+      // number explained the animation instead of the animation explaining the
+      // number.
+      //
+      // The clock still shows the minute — a chance IS happening at 22 — but
+      // what has been TOLD is a separate question from where the match is.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+      );
+      final state = stateOf(tester);
+      expect(state.frame.ourGoals, 0, reason: 'a goal before kickoff');
+
+      // Run the clock to the goal's own minute. The clip is up now and the
+      // clock has stopped under it.
+      await tester.pump(minuteDurationFor(22));
+      await tester.pump();
+      expect(state.clipPlaying, isTrue, reason: 'the goal was never shown');
+      expect(state.frame.minute, 22, reason: 'the clock lost the minute');
+      expect(
+        state.frame.ourGoals,
+        0,
+        reason: 'the scoreboard gave the goal away while it was still playing',
+      );
+
+      // And it is only ever HELD, never lost: with no clip on the pitch the
+      // goal is counted. `skipToEnd` is the real path that clears one — a clip
+      // cannot be driven to its own end in a widget test, because the stage is
+      // a Flame loop and a Flame loop never settles.
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expect(state.clipPlaying, isFalse);
+      expect(state.frame.ourGoals, 1, reason: 'the goal never landed at all');
     });
 
     testWidgets('shows the STATS at rest', (tester) async {

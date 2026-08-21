@@ -167,7 +167,42 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _cues.add(timer);
   }
 
-  MatchFrame get frame => frameAt(widget.result, _minute, timeline: _timeline);
+  /// Test seam: a passage is on the pitch right now.
+  bool get clipPlaying => _clip != null;
+
+  /// The match as the player has been TOLD it, which is not the same question as
+  /// where the clock is.
+  ///
+  /// **The scoreboard used to give the goal away before the 2D pitch played
+  /// it.** The minute ticked, `frameAt` counted the goal into the tally and the
+  /// feed, and the cutaway then acted out a move whose ending had already been
+  /// printed above it — so the number explained the animation instead of the
+  /// animation explaining the number, and the one moment of suspense the match
+  /// has was spent before it started.
+  ///
+  /// A cutaway is a RETELLING of a minute, and until it has been told, its
+  /// events have not happened as far as the screen is concerned. So the tally
+  /// and the feed are counted to the minute BEFORE the one being retold, while
+  /// [MatchFrame.minute] and [MatchFrame.finished] stay on the clock: a chance
+  /// genuinely is happening at 22, and a clock that ran backwards under a clip
+  /// would be a second bug.
+  ///
+  /// It holds for a chance and an injury too, and it should: "forces a save" is
+  /// no better read before you watch the save than after.
+  MatchFrame get frame {
+    final told = frameAt(
+      widget.result,
+      _clip == null ? _minute : _minute - 1,
+      timeline: _timeline,
+    );
+    return (
+      minute: _minute,
+      ourGoals: told.ourGoals,
+      theirGoals: told.theirGoals,
+      shown: told.shown,
+      finished: _minute >= _end,
+    );
+  }
 
   @override
   void initState() {

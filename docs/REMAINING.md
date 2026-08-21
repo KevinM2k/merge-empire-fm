@@ -2459,11 +2459,19 @@ by a test.
       rather than a string.
 - [ ] **The dugout camera is missing.** In `../merge-empire-fc` — read it before
       building anything, it is the spec.
-- [ ] **THE GOAL LANDS ON THE SCOREBOARD BEFORE THE 2D PITCH SHOWS THE MOVE.**
-      Wrong way round, and it spoils the only suspense the match has: the pitch
-      should play the chance, and THEN the score changes if it went in. As it
-      stands the number tells you the answer and the animation explains what you
-      already know.
+- [x] **THE GOAL LANDED ON THE SCOREBOARD BEFORE THE 2D PITCH SHOWED THE MOVE.**
+      The number told you the answer and the animation then explained what you
+      already knew. The score and the feed were in lockstep with each other —
+      `frameAt` counts goals from events already SHOWN, which was the point —
+      but both ran ahead of the cutaway.
+      **Where the clock is and what has been TOLD are two questions**, and
+      `frame` answers them separately now: the minute and `finished` stay on the
+      clock, while the tally and the feed are counted to the minute before the
+      one being retold. It holds for a chance and an injury too, and it should —
+      "forces a save" is no better read before you watch the save.
+      Note for anyone testing near this: a clip cannot be driven to its own end
+      in a widget test, because the stage is a Flame loop and a Flame loop never
+      settles. `skipToEnd` is the path that clears one.
 - [ ] **Ghost hits — the ball moves with nobody in the position.** A move played
       through a slot that has no player in it. Related to the injured-slot hole
       and to `effRating` reading zero: an empty slot is a hole, and the pitch is
