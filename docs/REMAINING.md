@@ -2719,21 +2719,27 @@ by a test.
 
 ### Coach Colin — 26 Aug, later
 
-- [ ] **The exclamation on his popup is a circular exclamation, and should be
-      RED.** It reads as neutral where it is the one thing asking to be pressed.
+- [x] **The badge is RED.** It was the kit accent, which reads as decoration on a
+      screen already wearing that colour — and it is the one thing in the corner
+      asking to be pressed. `coachAlert` sits with the card, so the home page and
+      the dock can take the same red.
 - [ ] **And that circle design should be used on the home page too**, and for the
       MENU button — one shape for the round controls rather than three.
 - [ ] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Whatever it takes:
       it is the game talking to the player and it currently sits quietly in a
       corner.
-- [ ] **The bubble should look like he is SAYING it** — a little tail pointing at
-      him, the way the home page's does. Off the home page it is a plain panel
-      with no speaker.
-- [ ] **And the home page should take the font size the others use.** The others
-      are right; the home one is the odd size out.
-- [ ] **Changing screen should CLOSE an open Colin popup.** What he said was about
-      the page you were on, so carrying it to the next one is a caption for the
-      wrong picture.
+- [x] **The bubble has a TAIL now**, pointing back at him. Off the home page it
+      was a plain panel with no speaker, which is a caption rather than a line of
+      dialogue. `CoachBubbleTail` came out of `coach_bubble.dart` so both draw the
+      same wedge — a shape that differs between two bubbles reads as two
+      different kinds of thing.
+- [x] **The home page takes the font size the others use** — 13, not 12.
+- [x] **Changing screen CLOSES an open bubble.** What he said was about the page
+      you were on, and the pool it came from is per-tab — so carrying it across
+      would leave a sentence on screen the new tab does not even have to offer.
+      CLOSED rather than dismissed: the player never said they were finished with
+      it, so it must not be muted for ten minutes. A test pins that the ledger is
+      untouched.
 
 ### Light mode
 

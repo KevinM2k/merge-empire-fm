@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
@@ -48,13 +49,14 @@ void main() {
   }
 
   late GameState game;
+  late ProviderContainer container;
 
   Future<void> pumpCoach(
     WidgetTester tester, {
     ShellTab tab = ShellTab.squad,
     Map<String, dynamic>? save,
   }) async {
-    final container = ProviderContainer(
+    container = ProviderContainer(
       overrides: [
         saveStoreProvider.overrideWithValue(
           MemorySaveStore({saveKeyPrimary: jsonEncode(save ?? squadSave())}),
@@ -301,6 +303,105 @@ void main() {
         cooldown: coachDismissCooldown,
       ), fixedNow + coachDismissCooldown.inMilliseconds + 1);
       expect((ui['coachDismissals'] as Map), isEmpty);
+    });
+  });
+
+  group('he looks like somebody talking', () {
+    testWidgets('THE BUBBLE HAS A TAIL, pointing back at him', (tester) async {
+      // Every screen but the home page was a plain panel with no speaker, which
+      // is a caption rather than a line of dialogue.
+      await pumpCoach(tester);
+      await tester.tap(head);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('coach-floating-tail')),
+        findsOneWidget,
+        reason: 'nothing joins what he said to the man who said it',
+      );
+    });
+
+    testWidgets('and the badge is RED rather than the club colour', (
+      tester,
+    ) async {
+      // A badge in the kit's own colour reads as decoration on a screen already
+      // wearing it, and this is the one thing in the corner asking to be
+      // pressed.
+      await pumpCoach(tester);
+      final reds = tester
+          .widgetList<Container>(
+            find.descendant(of: head, matching: find.byType(Container)),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .where((d) => d.color == coachAlert);
+      expect(reds, isNotEmpty, reason: 'the badge is not the alert red');
+    });
+  });
+
+  group('leaving the screen', () {
+    testWidgets('CLOSES AN OPEN BUBBLE, because it was about that page', (
+      tester,
+    ) async {
+      // The pool it came from is per-tab, so carrying it across would leave a
+      // sentence on screen this tab does not even have to offer.
+      await pumpCoach(tester);
+      await tester.tap(head);
+      await tester.pumpAndSettle();
+      expect(bubble, findsOneWidget);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: const MediaQuery(
+                data: MediaQueryData(disableAnimations: true),
+                child: Scaffold(body: CoachFloating(tab: ShellTab.club)),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        bubble,
+        findsNothing,
+        reason: 'what he said followed the player to the next screen',
+      );
+    });
+
+    testWidgets('and it is CLOSED rather than dismissed, so it is not muted', (
+      tester,
+    ) async {
+      // The player never said they were finished with it. Muting it for ten
+      // minutes on a tab change would swallow a tip nobody read.
+      await pumpCoach(tester);
+      await tester.tap(head);
+      await tester.pumpAndSettle();
+      // Read RAW: the ledger branch is deliberately not created by looking at
+      // it, so on a save where nothing has been dismissed there is nothing
+      // there — and that is exactly the state this has to leave alone.
+      Object? raw() =>
+          (game.state!['ui'] as Map<String, dynamic>?)?['coachDismissals'];
+      final before = raw();
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: const MediaQuery(
+                data: MediaQueryData(disableAnimations: true),
+                child: Scaffold(body: CoachFloating(tab: ShellTab.club)),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(raw(), before, reason: 'a tab change muted the tip');
     });
   });
 }

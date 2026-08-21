@@ -16,6 +16,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -242,7 +243,9 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
                       tip.text,
                       key: ValueKey('coach-tip-${tip.id}'),
                       style: TextStyle(
-                        fontSize: 12,
+                        // The size every OTHER screen's bubble uses. This one
+                        // was the odd one out.
+                        fontSize: 13,
                         height: 1.5,
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).colorScheme.onSurface,
@@ -318,7 +321,7 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
                 bottom: -10,
                 child: CustomPaint(
                   size: const Size(18, 11),
-                  painter: _BubbleTail(
+                  painter: CoachBubbleTail(
                     fill: kit.surface.withValues(alpha: 0.94),
                     edge: kit.accent,
                   ),
@@ -395,42 +398,4 @@ class _CoachLabel extends ConsumerWidget {
       ],
     );
   }
-}
-
-/// The bubble's tail: a wedge dropping out of its bottom-left corner toward
-/// Colin's face, drawn with the bubble's own fill and stroke so the two read as
-/// one shape rather than a box and a triangle.
-class _BubbleTail extends CustomPainter {
-  const _BubbleTail({required this.fill, required this.edge});
-
-  final Color fill;
-  final Color edge;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      // Down and to the LEFT: the orb is below and behind the bubble's corner,
-      // so a tail dropping straight down would point at the grass beside him.
-      ..lineTo(1.5, size.height)
-      ..close();
-    canvas.drawPath(path, Paint()..color = fill);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = edge
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-    // The bubble's own bottom stroke runs across the top of this wedge; cover
-    // the span the tail opens into it so the join is not a seam.
-    canvas.drawRect(
-      Rect.fromLTWH(0.5, -1, size.width - 1, 2),
-      Paint()..color = fill,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BubbleTail old) => old.fill != fill || old.edge != edge;
 }

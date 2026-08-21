@@ -37,6 +37,61 @@ const String coachPortrait = 'assets/ui/manager_hint.png';
 /// How far the portrait hangs above the card's top edge.
 const double _portrait = 68;
 
+/// The red on an unread nudge.
+///
+/// **Not the kit accent.** A badge in the club's own colour reads as decoration
+/// on a screen already wearing it, and this is the one thing in the corner asking
+/// to be pressed — red is what an unread thing looks like everywhere else on a
+/// phone.
+const Color coachAlert = Color(0xFFE23B3B);
+
+/// A speech bubble's tail: a wedge dropping out of its bottom-left corner
+/// toward Colin's face, drawn with the bubble's own fill and stroke so the two
+/// read as one shape rather than a box and a triangle.
+///
+/// **Shared, because a bubble with no tail is not somebody SAYING something.**
+/// The home page's had one and the floating one — every other screen in the game
+/// — was a plain panel with no speaker, which is a caption rather than a line of
+/// dialogue.
+class CoachBubbleTail extends CustomPainter {
+  const CoachBubbleTail({required this.fill, required this.edge});
+
+  final Color fill;
+  final Color edge;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      // Down and to the LEFT: the head is below and behind the bubble's corner,
+      // so a tail dropping straight down would point at the grass beside him.
+      ..lineTo(1.5, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = fill);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = edge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    // The bubble's own bottom stroke runs across the top of this wedge; cover
+    // the span the tail opens into it so the join is not a seam.
+    canvas.drawRect(
+      Rect.fromLTWH(0.5, -1, size.width - 1, 2),
+      Paint()..color = fill,
+    );
+  }
+
+  @override
+  bool shouldRepaint(CoachBubbleTail old) =>
+      old.fill != fill || old.edge != edge;
+}
+
+/// The size that wedge is drawn at, so every bubble's tail is the same tail.
+const Size coachTailSize = Size(18, 12);
+
 /// What kind of answer a button is, which is the whole of its colour.
 enum CoachTone {
   /// Go ahead. Green.

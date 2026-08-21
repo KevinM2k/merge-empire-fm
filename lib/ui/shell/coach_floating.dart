@@ -40,7 +40,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachPortrait;
+import 'package:merge_empire_fc/ui/popups/coach_card.dart'
+    show CoachBubbleTail, coachAlert, coachPortrait, coachTailSize;
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -115,6 +116,19 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
   /// animation, because it is a loop.
   late final Widget _head = const _CoachHead();
 
+  @override
+  void didUpdateWidget(CoachFloating old) {
+    super.didUpdateWidget(old);
+    // **WHAT HE SAID WAS ABOUT THE PAGE YOU WERE ON.** Carrying an open bubble
+    // to the next screen is a caption for the wrong picture — and the pool it
+    // came from is per-tab, so the sentence on screen would not even be one this
+    // tab has to offer. Closed rather than dismissed: the player has not said
+    // they are finished with it, so it must not be muted for ten minutes.
+    if (old.tab != widget.tab && _open != null) {
+      setState(() => _open = null);
+    }
+  }
+
   void _dismiss(FloatingTip tip) {
     dismissCoachTip(ref.read(gameProvider).state, tip, now());
     ref.read(gameProvider).scheduleSave();
@@ -171,11 +185,33 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
                 if (_open != null) ...[
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _Bubble(
-                      key: const ValueKey('coach-floating-bubble'),
-                      text: _open!.text,
-                      accent: kit.accent,
-                      onClose: () => _dismiss(_open!),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _Bubble(
+                          key: const ValueKey('coach-floating-bubble'),
+                          text: _open!.text,
+                          accent: kit.accent,
+                          onClose: () => _dismiss(_open!),
+                        ),
+                        // **The tail, so it reads as him SAYING it.** Every
+                        // screen but the home page had a plain panel with no
+                        // speaker, which is a caption rather than a line of
+                        // dialogue. Same wedge the home page draws — see
+                        // [CoachBubbleTail].
+                        Padding(
+                          padding: const EdgeInsets.only(left: 14),
+                          child: CustomPaint(
+                            key: const ValueKey('coach-floating-tail'),
+                            size: coachTailSize,
+                            painter: CoachBubbleTail(
+                              fill: kit.surface,
+                              edge: kit.accent,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -293,14 +329,19 @@ class _CoachHeadState extends State<_CoachHead>
                   width: 18,
                   height: 18,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(
+                  // **RED, not the kit accent.** A badge in the club's own
+                  // colour reads as decoration on a screen already wearing it —
+                  // and this is the one thing in the corner asking to be
+                  // pressed. Red is what an unread thing looks like everywhere
+                  // else on a phone.
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: kit.accent,
+                    color: coachAlert,
                   ),
-                  child: Text(
+                  child: const Text(
                     '!',
                     style: TextStyle(
-                      color: kit.accentInk,
+                      color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.w900,
                       height: 1,
