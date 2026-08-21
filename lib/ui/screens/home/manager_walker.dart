@@ -901,6 +901,10 @@ class _ManagerWalkerState extends State<ManagerWalker>
                           // the wardrobe, the randomiser and the save, and six
                           // choices produced one figure — nothing read it.
                           build: buildScales(look['build'] as String?),
+                          outfit: outfitPalette(look['outfit'] as String?),
+                          sleevesAreKit: outfitSleevesAreKit(
+                            look['outfit'] as String?,
+                          ),
                           pose: pose,
                         ),
                       ),
@@ -1635,6 +1639,8 @@ class _WalkerPainter extends CustomPainter {
     required this.kit,
     required this.skin,
     required this.build,
+    required this.outfit,
+    required this.sleevesAreKit,
     this.pose,
   });
 
@@ -1646,6 +1652,16 @@ class _WalkerPainter extends CustomPainter {
   /// randomiser and the save, and produced one figure — nothing read it. See
   /// `managerBuilds` in `walker_figure.dart`.
   final ManagerBuild build;
+
+  /// **WHAT HE IS WEARING, as paint.** An outfit is mostly a palette in the JS —
+  /// the forearm, the shin, the boot — with geometry only for a coat's skirt and
+  /// a suit's lapels. The port had the geometry and none of the paint, which is
+  /// why the tracksuit arrived as a curve across his throat and nothing else.
+  final ManagerOutfit outfit;
+
+  /// The tracksuit's sleeves are club-coloured cloth rather than a fixed colour,
+  /// so on a striped kit the stripes run down the whole arm.
+  final bool sleevesAreKit;
 
   /// The gesture on top of the walk, if one is playing.
   ///
@@ -1746,7 +1762,8 @@ class _WalkerPainter extends CustomPainter {
   /// The shorts, and the legs of them over the thigh — a good deal darker
   /// than the shirt. At 22% the shirt, the seat and both thighs were one red
   /// mass from the collar to the knee, which is a romper suit and not a kit.
-  Color get _shortsColour => Color.lerp(kit, Colors.black, 0.36)!;
+  Color get _shortsColour =>
+      outfit.legs ?? Color.lerp(kit, Colors.black, 0.36)!;
 
   /// One leg, and the fold it may be standing inside.
   ///
@@ -1767,8 +1784,12 @@ class _WalkerPainter extends CustomPainter {
 
   void _legInner(Canvas canvas, {required bool near}) {
     final legs = near ? _shortsColour : _shade(_shortsColour);
-    final flesh = near ? skin : _shade(skin);
-    final boot = near ? const Color(0xFF141414) : const Color(0xFF0B0B0B);
+    // **TROUSERS REACH THE SHOE.** Bare shins are the kit's, and every other
+    // outfit covers them — which, with the sleeve, is most of what makes a
+    // tracksuit a tracksuit rather than a collar line.
+    final shin = outfit.shin ?? skin;
+    final flesh = near ? shin : _shade(shin);
+    final boot = near ? outfit.boot : _shade(outfit.boot);
 
     // **PLAYED, not solved** — the JS's own thigh and shin tracks. The far leg is
     // the same tracks half a cycle on, which is the whole of what makes it a walk.
@@ -1799,25 +1820,46 @@ class _WalkerPainter extends CustomPainter {
       // thigh used to be the garment's colour, which put a run of dark red from
       // the waistband to the knee: long trousers cut off, not a kit. Shorts stop
       // less than half way down, and it is that break which says "kit".
+      // **A KIT'S THIGH IS BARE; TROUSERS COVER IT.** The break where the
+      // shorts stop is exactly what says "kit", and there is no such break on a
+      // tracksuit or a suit — a bare thigh under full-length bottoms is shorts
+      // with long socks.
+      final bare = outfit.shin == null;
       paintLimb(
         canvas,
         hip,
         knee,
         11.2 * build.limb,
         8.4 * build.limb,
-        base: flesh,
+        base: bare ? flesh : legs,
         far: !near,
       );
-      final hem = Offset(hip.dx, hip.dy + _shortsLeg);
-      paintLimb(
-        canvas,
-        hip,
-        hem,
-        12.4 * build.limb,
-        11 * build.limb,
-        base: legs,
-        far: !near,
-      );
+      if (bare) {
+        final hem = Offset(hip.dx, hip.dy + _shortsLeg);
+        paintLimb(
+          canvas,
+          hip,
+          hem,
+          12.4 * build.limb,
+          11 * build.limb,
+          base: legs,
+          far: !near,
+        );
+      }
+      // The stripe down the outside of the leg. One line, the length of the
+      // thigh — the tracksuit is the only outfit that has one, and it is the
+      // mark that tells it from a plain pair of dark trousers.
+      final stripe = outfit.legStripe;
+      if (stripe != null) {
+        canvas.drawLine(
+          Offset(hip.dx + 4.4 * build.limb, hip.dy + 3),
+          Offset(knee.dx + 3.2 * build.limb, knee.dy),
+          Paint()
+            ..color = near ? stripe : _shade(stripe)
+            ..strokeWidth = 1.6
+            ..strokeCap = StrokeCap.round,
+        );
+      }
       _about(canvas, knee, solved.shin, () {
         // The calf swells above the middle and tucks into the ankle, so the
         // widest point is NOT at the knee — a shin that tapers straight down
@@ -1854,6 +1896,15 @@ class _WalkerPainter extends CustomPainter {
 
   void _arm(Canvas canvas, {required bool near}) {
     final sleeve = near ? kit : _shade(kit);
+    // **THE SLEEVE REACHES THE WRIST** on everything but the playing kit: bare
+    // arms are the kit's zero point and every other outfit covers them. The
+    // tracksuit's is club-coloured CLOTH rather than a fixed colour, so on a
+    // striped kit the stripes run down the whole arm.
+    final cuff = sleevesAreKit ? kit : (outfit.fore ?? skin);
+    final fore = near ? cuff : _shade(cuff);
+    // **THE HAND STAYS SKIN, whatever he is wearing.** The JS never overrides
+    // `--hand` on any outfit, and a coat that paints the hand charcoal ends the
+    // arm in a stump.
     final flesh = near ? skin : _shade(skin);
     final posed = near ? pose?.armNear : pose?.armFar;
     final posedFore = near ? pose?.foreNear : pose?.foreFar;
@@ -1893,7 +1944,7 @@ class _WalkerPainter extends CustomPainter {
               const Offset(56, 98.5),
               7.4 * build.arm,
               4.8 * build.arm,
-              base: flesh,
+              base: fore,
               far: !near,
             );
             // The watch goes on the NEAR wrist, which is the arm every pointing
@@ -1987,5 +2038,7 @@ class _WalkerPainter extends CustomPainter {
       old.kit != kit ||
       old.skin != skin ||
       old.build != build ||
+      old.outfit != outfit ||
+      old.sleevesAreKit != sleevesAreKit ||
       old.pose != pose;
 }

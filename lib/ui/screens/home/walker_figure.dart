@@ -152,6 +152,89 @@ void paintLimb(
   canvas.restore();
 }
 
+/// **WHAT AN OUTFIT IS.** Ported from `.ps-vec[data-outfit="…"]` in
+/// `../merge-empire-fc/src/ui/styles/league-scene.css`.
+///
+/// **An outfit is mostly a PALETTE, and the port had none.** The JS paints every
+/// garment from a semantic variable — the forearm, the shin, the boot, the
+/// waistband — and swaps the palette per outfit, keeping geometry for only the
+/// two pieces a colour cannot express: a coat's skirt and a suit's lapels. Those
+/// two are in `manager_art.g.dart` and drew fine; the tracksuit's entire
+/// existence is the palette, so all that reached the screen was its collar
+/// swoosh — a curve across his throat, reported exactly as "something like a
+/// necklace".
+///
+/// Null means "leave it as it is": the kit's forearms and shins are BARE, and
+/// that is the zero point everything else is measured against.
+typedef ManagerOutfit = ({
+  /// The sleeve below the elbow. Null is bare arms.
+  Color? fore,
+
+  /// Below the knee. Null is bare legs.
+  Color? shin,
+
+  /// The waistband and the shorts. Null keeps the kit's own dark.
+  Color? legs,
+
+  Color boot,
+
+  /// A stripe down the outside of the leg, or none.
+  Color? legStripe,
+});
+
+/// The four, in the CSS's own colours. **`outfitPalettes`, not `managerOutfits`**
+/// — that name is the generated ART map in `manager_art.g.dart`, which holds the
+/// coat's skirt and the suit's lapels. Palette and geometry are two halves of
+/// one outfit and they are keyed the same way.
+const Map<String, ManagerOutfit> outfitPalettes = {
+  // The playing kit: bare arms, bare shins, black boots. The zero point.
+  'kit': (
+    fore: null,
+    shin: null,
+    legs: null,
+    boot: Color(0xFF141414),
+    legStripe: null,
+  ),
+  // **The only outfit that keeps the club's colour on the body**, so he still
+  // reads as club staff: a club-coloured training top with LONG sleeves — which
+  // is why the forearm takes the kit's own paint rather than skin — over dark
+  // bottoms with a side stripe, and white trainers.
+  'tracksuit': (
+    fore: null, // the kit colour, resolved by the painter
+    shin: Color(0xFF2C313A),
+    legs: Color(0xFF2C313A),
+    boot: Color(0xFFEDEDED),
+    legStripe: Color(0x80FFFFFF),
+  ),
+  // The wet-Tuesday-night touchline look. Deliberately drab — the only colour
+  // on it is the club scarf at the throat, which the overlay draws.
+  'coat': (
+    fore: Color(0xFF2A3140),
+    shin: Color(0xFF23262C),
+    legs: Color(0xFF23262C),
+    boot: Color(0xFF14161A),
+    legStripe: null,
+  ),
+  // Charcoal jacket, and trousers to the shoe.
+  'suit': (
+    fore: Color(0xFF333846),
+    shin: Color(0xFF333846),
+    legs: Color(0xFF333846),
+    boot: Color(0xFF1B1512),
+    legStripe: null,
+  ),
+};
+
+ManagerOutfit outfitPalette(String? id) =>
+    outfitPalettes[id] ?? outfitPalettes['kit']!;
+
+/// Whether this outfit's sleeves reach the wrist in the CLUB's colour.
+///
+/// The tracksuit is the one that does, and it is why its `fore` is null rather
+/// than a colour: the top is club-coloured cloth, so on a striped kit the
+/// stripes run down the whole arm instead of stopping at the shoulder.
+bool outfitSleevesAreKit(String? id) => id == 'tracksuit';
+
 /// **WHAT A BUILD IS.** Ported from `BUILDS` in
 /// `../merge-empire-fc/src/data/managerAvatar.js`.
 ///

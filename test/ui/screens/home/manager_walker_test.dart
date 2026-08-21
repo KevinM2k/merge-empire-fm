@@ -513,4 +513,64 @@ void main() {
       }
     });
   });
+
+  group('what he is WEARING', () {
+    test('AN OUTFIT IS MOSTLY A PALETTE, and the port had none', () {
+      // The JS paints every garment from a semantic variable and swaps the
+      // palette per outfit, keeping geometry only for a coat's skirt and a
+      // suit's lapels. Those two are generated art and drew fine; the
+      // tracksuit's entire existence is the palette, so all that reached the
+      // screen was its collar swoosh — a curve across his throat, reported
+      // exactly as "something like a necklace".
+      for (final id in outfitIds) {
+        expect(
+          outfitPalettes,
+          contains(id),
+          reason: '$id has no palette, so it is a collar line and nothing else',
+        );
+      }
+    });
+
+    test('the KIT is the zero point: bare arms, bare shins', () {
+      final kit = outfitPalette('kit');
+      expect(kit.fore, isNull);
+      expect(kit.shin, isNull);
+      expect(kit.legStripe, isNull);
+    });
+
+    test('and every other outfit COVERS him', () {
+      for (final id in outfitIds.where((i) => i != 'kit')) {
+        final o = outfitPalette(id);
+        expect(o.shin, isNotNull, reason: '$id leaves his shins bare');
+        expect(
+          o.fore != null || outfitSleevesAreKit(id),
+          isTrue,
+          reason: '$id leaves his forearms bare',
+        );
+      }
+    });
+
+    test('THE TRACKSUIT is the one that keeps the club on his back', () {
+      // Which is why its sleeve is club-coloured CLOTH rather than a fixed
+      // colour: on a striped kit the stripes run down the whole arm instead of
+      // stopping at the shoulder. And it is the only one with a leg stripe —
+      // the mark that tells it from plain dark trousers.
+      expect(outfitSleevesAreKit('tracksuit'), isTrue);
+      expect(outfitPalette('tracksuit').legStripe, isNotNull);
+      for (final id in outfitIds.where((i) => i != 'tracksuit')) {
+        expect(outfitSleevesAreKit(id), isFalse, reason: id);
+        expect(outfitPalette(id).legStripe, isNull, reason: id);
+      }
+      // White trainers, not black boots.
+      expect(
+        outfitPalette('tracksuit').boot.computeLuminance(),
+        greaterThan(outfitPalette('kit').boot.computeLuminance()),
+      );
+    });
+
+    test('and an unknown outfit is the kit, not a hole', () {
+      expect(outfitPalette('nonesuch'), outfitPalette('kit'));
+      expect(outfitPalette(null), outfitPalette('kit'));
+    });
+  });
 }
