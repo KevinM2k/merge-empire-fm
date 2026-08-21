@@ -814,149 +814,179 @@ class _ManagerWalkerState extends State<ManagerWalker>
 
     return AspectRatio(
       aspectRatio: walkerWidth / walkerHeight,
-      child: AnimatedBuilder(
-        // EVERY clock he is on: the walk (the scene's, or his own off it), the
-        // gesture, and the blink. The figure is whatever they say together.
-        animation: Listenable.merge([
-          _beat ?? _clock,
-          _gestureClock,
-          _blinkClock,
-          _carryClock,
-        ]),
-        builder: (context, _) {
-          final t = _phase;
-          final pose = _carryOver(_pose, t);
-          // **ONE angle for every head layer.** Hair, skull and hat are three
-          // widgets and one head; give them separate numbers and the face slides
-          // out from under its own hat.
-          final headTilt = _headAngle(pose);
-          // The hips, and the same number the leg solver uses — see
-          // [walkerHipRise]. It is not decoration: the bob is what lets the foot
-          // reach the ends of the step, so the figure's rise and its stride are
-          // one calculation and cannot drift apart.
-          final rise = walkerHipRise(t);
-
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              // The shadow does NOT bob: it is on the ground, and it tightens as
-              // he leaves it, which is the whole of the depth in the figure.
-              //
-              // It also SPANS THE FEET rather than sitting at a fixed width —
-              // see [_shadowPad]. The near foot's track is one leg's; the far
-              // one is half a cycle behind it, and the two together are the
-              // stride's full extent at this instant.
-              Align(
-                // At his FEET, not at the bottom of his box. Derived from the
-                // two fractions rather than typed, so it cannot go stale if
-                // either moves: for a child of height fH inside a box of height
-                // H, `Align` puts its centre at H/2 + a(H - fH)/2, and we want
-                // that centre on the footline.
-                alignment: Alignment(
-                  // Off-centre with the feet, so a trailing leg pulls the shadow
-                  // back with it — but HALF the offset, and biased left.
-                  //
-                  // At the full offset it slid about as far as the boots do and
-                  // read as a separate object being dragged along; half of it
-                  // reads as the shadow of a body whose weight is moving. The
-                  // bias is because the figure is drawn side-on facing right, so
-                  // its mass sits left of the box's centre while the leading boot
-                  // reaches right of it — centring on the feet alone put the
-                  // shadow ahead of him.
-                  (_footSpan(t).centre * 0.5 - _shadowBias) / (walkerWidth / 2),
-                  _shadowAlignment.y,
-                ),
-                child: FractionallySizedBox(
-                  widthFactor:
-                      (_footSpan(t).width + _shadowPad * 2) / walkerWidth -
-                      rise / walkerHeight,
-                  heightFactor: _shadowBand,
-                  child: const _GroundShadow(),
-                ),
-              ),
-              // The body's own fold, about the HIP rather than the boots — a bow
-              // bends at the waist, and turning about his feet would topple him.
-              // Wrapped OUTSIDE the walk's offsets so the fold composes with the
-              // stride instead of replacing it.
-              _Fold(
-                degrees: pose?.body,
-                child: Transform.translate(
-                  offset:
-                      Offset(
-                        math.sin(t * 2 * math.pi) * _sway,
-                        _sink - rise + (pose?.bodyLift ?? 0),
-                      ) +
-                      _shiver(context, t),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // The rig: everything that turns.
-                      CustomPaint(
-                        key: const ValueKey('manager-walker'),
-                        painter: _WalkerPainter(
-                          t: t,
-                          kit: widget.kit,
-                          skin: parts.skin,
-                          // **His SHAPE.** The build axis was in the customiser,
-                          // the wardrobe, the randomiser and the save, and six
-                          // choices produced one figure — nothing read it.
-                          build: buildScales(look['build'] as String?),
-                          outfit: outfitPalette(look['outfit'] as String?),
-                          sleevesAreKit: outfitSleevesAreKit(
-                            look['outfit'] as String?,
-                          ),
-                          pose: pose,
-                        ),
-                      ),
-                      // Then the look, in the JS's own layering: what goes over the
-                      // torso, then the head's own furniture. Hair is TWO layers
-                      // with the skull between them, which is what stops a mohawk's
-                      // fin coming out of the face.
-                      for (final svg in parts.overTorso) SvgArt(svg: svg),
-                      // The head and everything it wears, as ONE group — see
-                      // [_headSetBack]. `FractionalTranslation` shifts by a
-                      // fraction of the CHILD's size, and each child fills the
-                      // walker's box, so an art-unit offset is that offset over
-                      // [walkerWidth] at any scale.
-                      // **The head is a SIBLING of the arms, not a parent**, so a
-                      // tilt is its own transform — and it has to take the hair,
-                      // the beard, the glasses and the hat with it, for the same
-                      // reason [_headSetBack] does: the art is all drawn against a
-                      // skull at 62, so turning the painted head alone slides the
-                      // face out from under its own hat.
-                      for (final svg in parts.behindHead)
-                        _Tilt(
-                          degrees: headTilt,
-                          child: _SetBack(child: SvgArt(svg: svg)),
-                        ),
-                      _Tilt(
-                        degrees: headTilt,
-                        child: _SetBack(
-                          child: CustomPaint(
-                            painter: _HeadPainter(
-                              skin: parts.skin,
-                              blink: _blink,
-                            ),
-                          ),
-                        ),
-                      ),
-                      for (final svg in parts.overHead)
-                        _Tilt(
-                          degrees: headTilt,
-                          child: _SetBack(child: SvgArt(svg: svg)),
-                        ),
-                      // How he is coping, over the head AND over the hat — the
-                      // pallor and the flush belong on the face, and a beanie must
-                      // not be able to cover his breath.
-                      _SetBack(child: _Comfort(comfort: widget.comfort)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
+      // **THE SIZE HE IS ACTUALLY DRAWN AT.**
+      //
+      // Everything inside the painter is in art units and the painter scales
+      // them; everything OUTSIDE it — the sink, the bob, the sway, the shiver,
+      // a gesture's body lift — was written in art units too and applied as
+      // logical pixels. So the figure's vertical offsets stayed put while the
+      // shadow, which is laid out in fractions, grew and shrank with the box:
+      // at any size but the one they were tuned at, he floated over it. That is
+      // the "floats above its shadow AGAIN" — it comes back on every device
+      // with a different diorama height.
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // One art unit, in pixels. `AspectRatio` fixes the ratio, so height
+          // alone is enough and the width follows.
+          final unit = box.maxHeight / walkerHeight;
+          return _buildFigure(context, parts, look, unit);
         },
       ),
+    );
+  }
+
+  Widget _buildFigure(
+    BuildContext context,
+    ManagerParts parts,
+    Map<String, dynamic> look,
+    double unit,
+  ) {
+    return AnimatedBuilder(
+      // EVERY clock he is on: the walk (the scene's, or his own off it), the
+      // gesture, and the blink. The figure is whatever they say together.
+      animation: Listenable.merge([
+        _beat ?? _clock,
+        _gestureClock,
+        _blinkClock,
+        _carryClock,
+      ]),
+      builder: (context, _) {
+        final t = _phase;
+        final pose = _carryOver(_pose, t);
+        // **ONE angle for every head layer.** Hair, skull and hat are three
+        // widgets and one head; give them separate numbers and the face slides
+        // out from under its own hat.
+        final headTilt = _headAngle(pose);
+        // The hips, and the same number the leg solver uses — see
+        // [walkerHipRise]. It is not decoration: the bob is what lets the foot
+        // reach the ends of the step, so the figure's rise and its stride are
+        // one calculation and cannot drift apart.
+        final rise = walkerHipRise(t);
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // The shadow does NOT bob: it is on the ground, and it tightens as
+            // he leaves it, which is the whole of the depth in the figure.
+            //
+            // It also SPANS THE FEET rather than sitting at a fixed width —
+            // see [_shadowPad]. The near foot's track is one leg's; the far
+            // one is half a cycle behind it, and the two together are the
+            // stride's full extent at this instant.
+            Align(
+              // At his FEET, not at the bottom of his box. Derived from the
+              // two fractions rather than typed, so it cannot go stale if
+              // either moves: for a child of height fH inside a box of height
+              // H, `Align` puts its centre at H/2 + a(H - fH)/2, and we want
+              // that centre on the footline.
+              alignment: Alignment(
+                // Off-centre with the feet, so a trailing leg pulls the shadow
+                // back with it — but HALF the offset, and biased left.
+                //
+                // At the full offset it slid about as far as the boots do and
+                // read as a separate object being dragged along; half of it
+                // reads as the shadow of a body whose weight is moving. The
+                // bias is because the figure is drawn side-on facing right, so
+                // its mass sits left of the box's centre while the leading boot
+                // reaches right of it — centring on the feet alone put the
+                // shadow ahead of him.
+                (_footSpan(t).centre * 0.5 - _shadowBias) / (walkerWidth / 2),
+                _shadowAlignment.y,
+              ),
+              child: FractionallySizedBox(
+                widthFactor:
+                    (_footSpan(t).width + _shadowPad * 2) / walkerWidth -
+                    rise / walkerHeight,
+                heightFactor: _shadowBand,
+                child: const _GroundShadow(),
+              ),
+            ),
+            // The body's own fold, about the HIP rather than the boots — a bow
+            // bends at the waist, and turning about his feet would topple him.
+            // Wrapped OUTSIDE the walk's offsets so the fold composes with the
+            // stride instead of replacing it.
+            _Fold(
+              degrees: pose?.body,
+              child: Transform.translate(
+                // Art units × [unit]. See the note on the `LayoutBuilder`:
+                // these are the offsets that were pixels while the shadow was
+                // fractions, which is what put him above it.
+                offset:
+                    (Offset(
+                          math.sin(t * 2 * math.pi) * _sway,
+                          _sink - rise + (pose?.bodyLift ?? 0),
+                        ) +
+                        _shiver(context, t)) *
+                    unit,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // The rig: everything that turns.
+                    CustomPaint(
+                      key: const ValueKey('manager-walker'),
+                      painter: _WalkerPainter(
+                        t: t,
+                        kit: widget.kit,
+                        skin: parts.skin,
+                        // **His SHAPE.** The build axis was in the customiser,
+                        // the wardrobe, the randomiser and the save, and six
+                        // choices produced one figure — nothing read it.
+                        build: buildScales(look['build'] as String?),
+                        outfit: outfitPalette(look['outfit'] as String?),
+                        sleevesAreKit: outfitSleevesAreKit(
+                          look['outfit'] as String?,
+                        ),
+                        pose: pose,
+                      ),
+                    ),
+                    // Then the look, in the JS's own layering: what goes over the
+                    // torso, then the head's own furniture. Hair is TWO layers
+                    // with the skull between them, which is what stops a mohawk's
+                    // fin coming out of the face.
+                    for (final svg in parts.overTorso) SvgArt(svg: svg),
+                    // The head and everything it wears, as ONE group — see
+                    // [_headSetBack]. `FractionalTranslation` shifts by a
+                    // fraction of the CHILD's size, and each child fills the
+                    // walker's box, so an art-unit offset is that offset over
+                    // [walkerWidth] at any scale.
+                    // **The head is a SIBLING of the arms, not a parent**, so a
+                    // tilt is its own transform — and it has to take the hair,
+                    // the beard, the glasses and the hat with it, for the same
+                    // reason [_headSetBack] does: the art is all drawn against a
+                    // skull at 62, so turning the painted head alone slides the
+                    // face out from under its own hat.
+                    for (final svg in parts.behindHead)
+                      _Tilt(
+                        degrees: headTilt,
+                        child: _SetBack(child: SvgArt(svg: svg)),
+                      ),
+                    _Tilt(
+                      degrees: headTilt,
+                      child: _SetBack(
+                        child: CustomPaint(
+                          painter: _HeadPainter(
+                            skin: parts.skin,
+                            blink: _blink,
+                          ),
+                        ),
+                      ),
+                    ),
+                    for (final svg in parts.overHead)
+                      _Tilt(
+                        degrees: headTilt,
+                        child: _SetBack(child: SvgArt(svg: svg)),
+                      ),
+                    // How he is coping, over the head AND over the hat — the
+                    // pallor and the flush belong on the face, and a beanie must
+                    // not be able to cover his breath.
+                    _SetBack(child: _Comfort(comfort: widget.comfort)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

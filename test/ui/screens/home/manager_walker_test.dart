@@ -27,6 +27,7 @@ Future<void> pumpWalker(
   ManagerLook? look,
   Mood mood = Mood.neutral,
   bool reduceMotion = true,
+  double height = walkerHeight,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: buildAppTheme(kitId: '#4caf50', light: false),
@@ -35,8 +36,8 @@ Future<void> pumpWalker(
       child: Scaffold(
         body: Center(
           child: SizedBox(
-            width: 120,
-            height: 170,
+            width: height * walkerWidth / walkerHeight,
+            height: height,
             child: ManagerWalker(
               kit: _kit,
               skin: const Color(0xFFEEBB8C),
@@ -571,6 +572,46 @@ void main() {
     test('and an unknown outfit is the kit, not a hole', () {
       expect(outfitPalette('nonesuch'), outfitPalette('kit'));
       expect(outfitPalette(null), outfitPalette('kit'));
+    });
+  });
+
+  group('the figure stands ON its shadow', () {
+    /// Where the rig sits inside its own box, as a fraction of that box.
+    ///
+    /// The shadow is laid out in FRACTIONS of the box and the figure's vertical
+    /// offsets — the sink, the bob, the sway, the shiver — were art-unit numbers
+    /// applied as logical pixels. So this fraction moved with the box's size
+    /// while the shadow's did not, and at any height but the one they were tuned
+    /// at he stood above his own shadow.
+    double rigFraction(WidgetTester tester) {
+      final box = tester.getRect(find.byType(ManagerWalker));
+      final rig = tester.getRect(find.byKey(const ValueKey('manager-walker')));
+      return (rig.top - box.top) / box.height;
+    }
+
+    testWidgets('AT EVERY SIZE, not just the one it was tuned at', (
+      tester,
+    ) async {
+      await pumpWalker(tester, height: walkerHeight);
+      final small = rigFraction(tester);
+      await pumpWalker(tester, height: walkerHeight * 2.5);
+      final large = rigFraction(tester);
+      expect(
+        large,
+        closeTo(small, 0.0005),
+        reason: 'the rig sits at a different place in a bigger box',
+      );
+    });
+
+    testWidgets('and he is SUNK into it rather than perched on it', (
+      tester,
+    ) async {
+      // The boot art carries its own sole below the footline, so the contact
+      // has to be the ground line through the middle of the shadow rather than
+      // its top edge. A zero offset would put the rig's box exactly on the
+      // box's top.
+      await pumpWalker(tester, height: walkerHeight * 2);
+      expect(rigFraction(tester), greaterThan(0));
     });
   });
 }

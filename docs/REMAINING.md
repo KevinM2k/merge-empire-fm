@@ -802,7 +802,15 @@ section. Nothing on the list below is blocked for want of art any more.
       they are planted in runs at the farthest tuft band's ratio — so the pitch
       swept past and the boards crawled. Derived the same way the tufts are, so
       the boards and the grass at their feet can only ever agree.
-- [ ] **The walking rig floats above its shadow again.**
+- [x] **The walking rig floats above its shadow again.** Found it, and it is why
+      it kept coming back: everything INSIDE the painter is in art units and the
+      painter scales them, while everything outside it — the sink, the hip bob,
+      the sway, the shiver, a gesture's body lift — was written in art units too
+      and applied as logical pixels. The shadow is laid out in FRACTIONS of the
+      box, so it grew and shrank with the diorama and the figure's offsets did
+      not: they agreed at exactly one rendered height and nowhere else. Scaled by
+      the laid-out size now, with a test that measures the rig's place in its own
+      box at two sizes and fails on the old behaviour.
 - [x] **BOTH HALVES OF THIS WERE THE SAME KIND OF GAP.**
       **Body shape did nothing**: the axis was in the customiser, the wardrobe,
       the randomiser and the save, and six choices produced one figure —
