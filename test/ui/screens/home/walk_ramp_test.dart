@@ -99,7 +99,13 @@ void main() {
       }
     }
 
-    Future<void> pumpScene(WidgetTester tester, {required bool frozen}) =>
+    Future<void> pumpScene(
+      WidgetTester tester, {
+      required bool frozen,
+      // A pylon is BUILT rather than switched on, so the floodlight strip only
+      // exists from tier 4 up — a tier-1 scene has none to hold still.
+      int tier = 1,
+    }) =>
         tester.pumpWidget(
           MaterialApp(
             home: MediaQuery(
@@ -107,7 +113,7 @@ void main() {
               child: Scaffold(
                 body: PitchScene(
                   mood: Mood.neutral,
-                  tier: 1,
+                  tier: tier,
                   frozen: frozen,
                   walkerBottom: 150 + walkerBottomClearance,
                   // The walker is handed in from the screen above, so this is
@@ -229,6 +235,87 @@ void main() {
       );
       await pumpFrames(tester, 496);
       expect(beat!.value, 0, reason: 'he walked with reduced motion on');
+    });
+    /// Where a strip has slid to, in pixels. `_Scroller` translates its `Row` of
+    /// segments, so the Row's own left edge IS the offset — read off the render
+    /// tree rather than off a number the scene keeps, because the whole question
+    /// is whether the picture moved.
+    double stripAt(WidgetTester tester, String key) => tester
+        .getTopLeft(
+          find
+              .descendant(
+                of: find.byKey(ValueKey(key)),
+                matching: find.byType(Row),
+              )
+              .first,
+        )
+        .dx;
+
+    test('and it travels at the speed the controller did', () {
+      // The point of converting rather than re-timing: a strip that stops with
+      // him but crawls is a second bug. One second of full-pace walking has to
+      // move it exactly one period's worth of its own segment — which is what
+      // `repeat()` over that duration was doing.
+      const period = Duration(milliseconds: 16500);
+      final halfStride = walkDurationFor(Mood.neutral).inMicroseconds / 2e6;
+      final worldXPerSecond = halfStridePx() / halfStride;
+      expect(
+        parallaxOffset(
+          worldXPerSecond,
+          segmentWidth: farSegmentWidth,
+          period: period,
+          mood: Mood.neutral,
+        ),
+        closeTo(farSegmentWidth / 16.5, 1e-9),
+      );
+      // And nothing moves at all when the world has not, which is the halt.
+      expect(
+        parallaxOffset(
+          0,
+          segmentWidth: farSegmentWidth,
+          period: period,
+          mood: Mood.neutral,
+        ),
+        0,
+      );
+    });
+
+    testWidgets('THE BACKGROUND COMES TO REST WITH HIM', (tester) async {
+      // He stopped and the stand, the floodlights and the advertising kept
+      // sliding past him — a man standing still on a world that is still
+      // travelling, which is the one thing a parallax scene cannot get away
+      // with. Only the turf was ever on his clock; everything behind the
+      // horizon free-ran on a controller of its own, and a controller has no
+      // rate to vary.
+      beat = null;
+      await pumpScene(tester, frozen: false, tier: 7);
+      await pumpFrames(tester, 304);
+      const strips = ['pitch-stand', 'pitch-floodlights', 'pitch-hoardings'];
+      final walking = {for (final s in strips) s: stripAt(tester, s)};
+
+      // Well past the ramp, so the world has genuinely stopped rather than
+      // being mid-ease.
+      await pumpScene(tester, frozen: true, tier: 7);
+      await pumpFrames(tester, 800);
+      expect(beat!.value, greaterThan(0), reason: 'he never set off');
+      final stopped = {for (final s in strips) s: stripAt(tester, s)};
+      for (final s in strips) {
+        expect(
+          stopped[s],
+          isNot(walking[s]),
+          reason: '$s never moved at all, so this proves nothing',
+        );
+      }
+
+      await pumpFrames(tester, 800);
+      for (final s in strips) {
+        expect(
+          stripAt(tester, s),
+          stopped[s],
+          reason: '$s kept travelling past a man standing still',
+        );
+      }
+      addTearDown(() => tester.pumpWidget(const SizedBox()));
     });
   });
 }

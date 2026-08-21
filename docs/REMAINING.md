@@ -2424,6 +2424,20 @@ running at last.
       `animation-play-state` cannot express anything between running and stopped.
       Here the walk clock and the turf simply stop together. One gesture in
       sixteen has `stops`, so it is one abrupt halt on one celebration.
+- [x] **And the BACKGROUND never stopped with him.** The halt above reached his
+      legs and the turf, and stopped there: the stand, the floodlight pylons and
+      the advertising boards each ran an `AnimationController.repeat()` of their
+      own, so a man came to rest in front of a stadium that was still sliding
+      past him. The comment on the strip said as much and thought it was a
+      reason — "they are not ground and have no foot to agree with" — but a
+      terrace is not self-propelled either; it moves because HE does. What a
+      free-running controller cannot do is vary its rate, which is the whole
+      requirement once the world can ease to a stop.
+      `parallaxOffset` converts each strip's old loop period into a distance off
+      the walk clock, so **every speed on the scene is unchanged and all of it
+      stops together** — pinned by a test, because a strip that halts and then
+      crawls is the next bug. `_Scroller` owns no clock at all now and takes its
+      offset as required, so the next strip somebody adds cannot repeat this.
 
 
 ## M0 — foundation and save bridge ✅

@@ -285,6 +285,32 @@ double groundEase(double u) {
 double halfStridePx() =>
     groundSpeedTrim * groundHalfStrideArtUnits * walkerScale;
 
+/// A parallax strip's travel, off the WALK's clock instead of its own.
+///
+/// **Everything behind the horizon moves because HE is moving**, and none of it
+/// used to know that. The stand, the pylons and the advertising each ran an
+/// `AnimationController.repeat()` — which is all a fixed speed needs and the
+/// wrong thing entirely once the world can stop, because a controller has no
+/// rate to vary. So he planted his feet, his legs and the turf eased down, and
+/// the whole background kept sliding past a man standing still.
+///
+/// Given the [period] the strip used to loop on, this is the SAME SPEED restated
+/// as a distance: the picture is unchanged while he walks, and it comes to rest
+/// with him. Their periods stay their own — a terrace is further away than the
+/// grass and moves slower for it — so this converts rather than flattening.
+double parallaxOffset(
+  double worldX, {
+  required double segmentWidth,
+  required Duration period,
+  required Mood mood,
+}) {
+  final halfStrideSeconds = walkDurationFor(mood).inMicroseconds / 2e6;
+  final contact = halfStridePx() / halfStrideSeconds;
+  final seconds = period.inMicroseconds / 1e6;
+  if (contact <= 0 || seconds <= 0) return 0;
+  return worldX * (segmentWidth / seconds) / contact;
+}
+
 /// One clock for everything that is GROUND, handing out how far the world has
 /// travelled, in pixels at his row.
 ///
@@ -662,11 +688,18 @@ class PitchScene extends StatelessWidget {
                       standHeight * _pylonStands,
                       math.max(0, (horizon - hoardingHeight) * 0.92),
                     ),
-                    child: _Scroller(
-                      key: const ValueKey('pitch-floodlights'),
-                      duration: const Duration(milliseconds: 16500),
-                      segmentWidth: farSegmentWidth,
-                      child: _FloodlightSegment(count: pylons, lit: night),
+                    child: _GroundDrive(
+                      builder: (worldX) => _Scroller(
+                        key: const ValueKey('pitch-floodlights'),
+                        offsetPx: parallaxOffset(
+                          worldX,
+                          segmentWidth: farSegmentWidth,
+                          period: const Duration(milliseconds: 16500),
+                          mood: mood,
+                        ),
+                        segmentWidth: farSegmentWidth,
+                        child: _FloodlightSegment(count: pylons, lit: night),
+                      ),
                     ),
                   ),
                 // The far strip: the stand and its crowd, at 16.5s — slow, because
@@ -687,15 +720,22 @@ class PitchScene extends StatelessWidget {
                   // tap with a crowd rather than with a menu.
                   child: _Crowd(
                     celebration: celebration,
-                    builder: (beat, excitement) => _Scroller(
-                      key: const ValueKey('pitch-stand'),
-                      duration: const Duration(milliseconds: 16500),
-                      segmentWidth: farSegmentWidth,
-                      child: _StandSegment(
-                        kitColor: kitColor,
-                        haze: haze,
-                        beat: beat,
-                        excitement: excitement,
+                    builder: (beat, excitement) => _GroundDrive(
+                      builder: (worldX) => _Scroller(
+                        key: const ValueKey('pitch-stand'),
+                        offsetPx: parallaxOffset(
+                          worldX,
+                          segmentWidth: farSegmentWidth,
+                          period: const Duration(milliseconds: 16500),
+                          mood: mood,
+                        ),
+                        segmentWidth: farSegmentWidth,
+                        child: _StandSegment(
+                          kitColor: kitColor,
+                          haze: haze,
+                          beat: beat,
+                          excitement: excitement,
+                        ),
                       ),
                     ),
                   ),
@@ -716,19 +756,31 @@ class PitchScene extends StatelessWidget {
                   right: 0,
                   top: horizon - hoardingHeight,
                   height: hoardingHeight,
-                  child: _Scroller(
-                    // The boards are planted ON the horizon, so their row is the far
-                    // edge of the pitch — fraction 1. Same solve as the tufts, so the
-                    // advertising and the grass at its feet can only agree.
-                    duration: turfScroll(
-                      segmentWidth: hoardingSegmentWidth,
-                      fraction: 1,
-                      turfHeight: h - horizon,
-                      contactBelowHorizon: feet - horizon,
-                      mood: mood,
-                    ),
-                    segmentWidth: hoardingSegmentWidth,
-                    child: _HoardingSegment(kitColor: kitColor),
+                  child: _GroundDrive(
+                    builder: (worldX) {
+                      // The boards are planted ON the horizon, so their row is the
+                      // far edge of the pitch — fraction 1. Same solve as the
+                      // tufts, so the advertising and the grass at its feet can
+                      // only agree.
+                      final period = turfScroll(
+                        segmentWidth: hoardingSegmentWidth,
+                        fraction: 1,
+                        turfHeight: h - horizon,
+                        contactBelowHorizon: feet - horizon,
+                        mood: mood,
+                      );
+                      return _Scroller(
+                        key: const ValueKey('pitch-hoardings'),
+                        offsetPx: parallaxOffset(
+                          worldX,
+                          segmentWidth: hoardingSegmentWidth,
+                          period: period,
+                          mood: mood,
+                        ),
+                        segmentWidth: hoardingSegmentWidth,
+                        child: _HoardingSegment(kitColor: kitColor),
+                      );
+                    },
                   ),
                 ),
                 Positioned(
@@ -1551,7 +1603,6 @@ class _Turf extends StatelessWidget {
                       Positioned.fill(
                         child: _Scroller(
                           offsetPx: atRow(tuftBandFraction(band)),
-                          duration: const Duration(seconds: 1),
                           segmentWidth: groundSegmentWidth,
                           child: _TuftSegment(band: band),
                         ),
@@ -1761,122 +1812,56 @@ class _TuftPainter extends CustomPainter {
 
 /// Tiles [child] across the width and translates by exactly one segment per
 /// loop, so the wrap is seamless.
-class _Scroller extends StatefulWidget {
+///
+/// **It owns no clock.** Every strip on this scene is a window onto a position
+/// somebody else holds — see [parallaxOffset] and `_GroundDrive` — because that
+/// is the only way layers can share a rate that VARIES. Each used to run its own
+/// `AnimationController.repeat()`, which is all a fixed speed needs and exactly
+/// what left the background sliding past a man who had stopped walking: a
+/// controller has no rate to vary. There is nothing to switch off here now, and
+/// nothing to forget to switch off.
+class _Scroller extends StatelessWidget {
   const _Scroller({
     super.key,
-    required this.duration,
+    required this.offsetPx,
     required this.segmentWidth,
     required this.child,
-    this.offsetPx,
   });
 
-  final Duration duration;
+  /// How far the world has travelled, in pixels at THIS strip's row.
+  final double offsetPx;
+
   final double segmentWidth;
   final Widget child;
 
-  /// How far the world has travelled, in pixels at THIS strip's row.
-  ///
-  /// Given it, the strip has no clock of its own — it is a window onto a position
-  /// somebody else owns, which is the only way layers can share one VARYING rate.
-  /// The parallax strips behind the pitch keep [duration]: they are not ground and
-  /// have no foot to agree with.
-  final double? offsetPx;
-
   @override
-  State<_Scroller> createState() => _ScrollerState();
-}
-
-class _ScrollerState extends State<_Scroller>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: widget.duration);
-  }
-
-  /// Honours the platform's reduce-motion setting. The scene is decoration on
-  /// the screen the app OPENS on, which is exactly the kind of perpetual
-  /// movement that setting exists to stop — and it is also what lets a widget
-  /// test settle, because a looping animation never does.
-  void _sync() {
-    // A DRIVEN strip has no clock to run, and freezes because the position it
-    // reads stops moving — which is the whole advantage of one position.
-    final still =
-        widget.offsetPx != null || MediaQuery.of(context).disableAnimations;
-    if (still) {
-      if (_c.isAnimating) _c.stop();
-      return;
-    }
-    if (!_c.isAnimating) _c.repeat();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(_Scroller old) {
-    super.didUpdateWidget(old);
-    // A mood change retimes the surface mid-walk, and it restarts from the top
-    // for the same reason his stride does — see `ManagerWalker._sync`.
-    if (old.duration != widget.duration) {
-      final running = _c.isAnimating;
-      _c.stop();
-      _c.duration = widget.duration;
-      if (running) _c.repeat();
-    }
-    _sync();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRect(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // One spare segment so the leading edge is always covered.
-          final count = (constraints.maxWidth / widget.segmentWidth).ceil() + 2;
-          final driven = widget.offsetPx;
-          return AnimatedBuilder(
-            animation: _c,
-            builder: (context, _) => Transform.translate(
-              // Right to left: the world moves past him, he walks in place.
-              offset: Offset(
-                driven != null
-                    ? -(driven % widget.segmentWidth)
-                    : -_c.value * widget.segmentWidth,
-                0,
-              ),
-              child: OverflowBox(
-                alignment: Alignment.centerLeft,
-                maxWidth: count * widget.segmentWidth,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  // STRETCH, not the default centre. A centred child gets LOOSE
-                  // height constraints, so a segment that does not name its own
-                  // height collapses to nothing — which is exactly what happened
-                  // to the turf. Every segment now names `double.infinity` as
-                  // well, because this alignment being right was not enough on
-                  // its own: the mown lanes had a `Row` of their own inside, and
-                  // THAT one handed its `ColoredBox`es loose heights and
-                  // collapsed them one level deeper than anyone was looking.
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [for (var i = 0; i < count; i++) widget.child],
-                ),
-              ),
+  Widget build(BuildContext context) => ClipRect(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        // One spare segment so the leading edge is always covered.
+        final count = (constraints.maxWidth / segmentWidth).ceil() + 2;
+        return Transform.translate(
+          // Right to left: the world moves past him, he walks in place.
+          offset: Offset(-(offsetPx % segmentWidth), 0),
+          child: OverflowBox(
+            alignment: Alignment.centerLeft,
+            maxWidth: count * segmentWidth,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              // STRETCH, not the default centre. A centred child gets LOOSE
+              // height constraints, so a segment that does not name its own
+              // height collapses to nothing — which is exactly what happened
+              // to the turf. Every segment now names `double.infinity` as
+              // well, because this alignment being right was not enough on
+              // its own: the mown lanes had a `Row` of their own inside, and
+              // THAT one handed its `ColoredBox`es loose heights and
+              // collapsed them one level deeper than anyone was looking.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (var i = 0; i < count; i++) child],
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
 }
