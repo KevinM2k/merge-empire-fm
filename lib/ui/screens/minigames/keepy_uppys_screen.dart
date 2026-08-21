@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/keepy_uppys_sim.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -199,7 +200,7 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
     return Scaffold(
       key: const ValueKey('keepy-uppys-screen'),
       backgroundColor: kit.bg,
-      appBar: AppBar(title: Text(t('game.keepy_uppys'))),
+      appBar: const MiniGameHeader(titleKey: 'game.keepy_uppys'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(18),

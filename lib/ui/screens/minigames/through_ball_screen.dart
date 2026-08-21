@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart'
     show divisionIndexOf;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -260,7 +261,7 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
     return Scaffold(
       key: const ValueKey('through-ball-screen'),
       backgroundColor: kit.bg,
-      appBar: AppBar(title: Text(t('game.through_ball'))),
+      appBar: const MiniGameHeader(titleKey: 'game.through_ball'),
       // Tapping ANYWHERE registers the hit. The track is a 34px band on a
       // phone and asking for a precise tap on it felt finicky in the JS too.
       body: GestureDetector(

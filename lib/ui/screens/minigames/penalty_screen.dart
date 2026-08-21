@@ -35,6 +35,7 @@ import 'package:merge_empire_fc/engine/penalty_game_engine.dart'
     show keeperSmartChanceFor;
 import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -132,7 +133,7 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
     return Scaffold(
       key: const ValueKey('penalty-screen'),
       backgroundColor: kit.bg,
-      appBar: AppBar(title: Text(t('game.penalty'))),
+      appBar: const MiniGameHeader(titleKey: 'game.penalty'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),

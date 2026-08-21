@@ -9,6 +9,7 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart';
@@ -26,22 +27,20 @@ class TrainingView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final games = ref.watch(miniGamesProvider);
 
     return ListView(
       key: const ValueKey('training-view'),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       children: [
-        Text(
-          // `mg.drills` is the in-game counter — "Drills: {hit} / {total}" —
-          // and asking for it with no parameters rendered those braces to the
-          // player. `training.title` is the section heading, and it was shipped
-          // in all ten catalogues with nothing able to reach it.
-          t('training.title'),
-          style: TextStyle(color: kit.textMuted, fontSize: 13),
+        // `mg.drills` is the in-game counter — "Drills: {hit} / {total}" — and
+        // asking for it with no parameters rendered those braces to the player.
+        // `training.title` is the sheet's name, and it was shipped in all ten
+        // catalogues with nothing able to reach it.
+        SheetHeader(
+          title: t('training.title'),
+          padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
         ),
-        const SizedBox(height: 8),
         for (final game in games) _GameRow(game: game),
       ],
     );

@@ -7,6 +7,10 @@
 /// for it, and never mentioned the coins it paid. A reward that arrives in the
 /// place errors arrive is not a reward.
 ///
+/// **A stated exception to `SheetHeader`.** It is a celebration rather than a
+/// heading — the title is the achievement's own name, in its own gold, on art
+/// drawn for it.
+///
 /// So: the JS's own banner. Image-dominant, at the TOP of the screen, sliding
 /// down with an overshoot, art popping in behind it, a gold rim that breathes
 /// and one pass of a diagonal sheen. Four and a bit seconds, then it leaves the

@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -62,22 +63,19 @@ Future<void> showSellSheet(
         final kit = Theme.of(sheetContext).extension<KitTheme>()!;
         return ListView(
           key: const ValueKey('sell-sheet'),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
+            // The PLAYER's name is the sheet's title — this sheet is about one
+            // card and nothing else, so a separate "Sell" heading over his own
+            // name would be a heading about the button. See `sheet_header.dart`.
+            SheetHeader(
+              title: view.name,
+              padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
+            ),
             SizedBox(
               height: 96,
               child: Center(
                 child: SizedBox(width: 72, child: PlayerCard(view: view)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                view.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ),
             const SizedBox(height: 16),

@@ -7,6 +7,10 @@
 /// him, because a game that has a manager to talk to should not also have a
 /// system voice.
 ///
+/// **A stated exception to `SheetHeader`.** Its title is him speaking and sits
+/// under his own name plate, so the sheet rule's caps and club accent would put
+/// the game's voice in the middle of his.
+///
 /// Four things the shape does, and each was a fault in what it replaced:
 ///
 /// 1. **His portrait sits ON the border**, half above the card. A face inside a

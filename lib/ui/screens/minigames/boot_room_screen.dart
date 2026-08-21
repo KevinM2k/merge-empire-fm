@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -189,7 +190,7 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen> {
     return Scaffold(
       key: const ValueKey('boot-room-screen'),
       backgroundColor: kit.bg,
-      appBar: AppBar(title: Text(t('game.boot_room'))),
+      appBar: const MiniGameHeader(titleKey: 'game.boot_room'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),

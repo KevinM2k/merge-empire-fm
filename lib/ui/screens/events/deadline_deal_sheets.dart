@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -204,15 +205,11 @@ class _NegotiateSheetState extends ConsumerState<_NegotiateSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                isBid
+              SheetHeader(
+                title: isBid
                     ? t('event.deadline.ask_more_title')
                     : t('event.deadline.offer_title'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
+                padding: EdgeInsets.zero,
               ),
               const SizedBox(height: 4),
               Text(

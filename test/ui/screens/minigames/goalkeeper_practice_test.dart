@@ -328,7 +328,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text(t('training.title')), findsOneWidget);
+    // Upper-cased by `SheetHeader`, which is the one rule for a sheet's title.
+    expect(find.text(t('training.title').toUpperCase()), findsOneWidget);
     expect(find.text(t('settings.comingSoon')), findsNothing);
   });
 }

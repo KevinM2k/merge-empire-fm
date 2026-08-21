@@ -34,6 +34,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart'
     show divisionIndexOf;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -274,7 +275,7 @@ class GoalkeeperPracticeScreenState
     return Scaffold(
       key: const ValueKey('goalkeeper-practice-screen'),
       backgroundColor: kit.bg,
-      appBar: AppBar(title: Text(t('game.training'))),
+      appBar: const MiniGameHeader(titleKey: 'game.training'),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(18),

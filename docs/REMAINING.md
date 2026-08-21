@@ -1338,10 +1338,19 @@ has a trap in it that is worth stating before the first line is written.
       16 left-aligned, the Trophy Room's caps, Coach Colin's plain w900 at 17,
       the quick nav's accent at 18. Each defensible alone; the set of them reads
       as five different apps.
-- [ ] **The sweep is not finished.** Energy, Quests, Auto-Sell, Daily Reward, the
-      league table and the asset ladder are converted. Still to go: the currency
-      sheet, the player sheet, the sell sheet, the deadline sheets, the training
-      sheet, the leaderboard's own header and the boot-room and penalty screens.
+- [x] **The sweep is finished.** Energy, Quests, Auto-Sell, Daily Reward, the
+      league table and the asset ladder were converted first; the currency sheet,
+      the sell sheet, the deadline negotiation sheet, the training list and the
+      leaderboard's own header followed, and all SEVEN mini-game screens now wear
+      one `MiniGameHeader` instead of a Material `AppBar` — sentence-case ink at
+      the left with a back arrow is the chrome of somewhere you navigated to, and
+      a drill is a takeover. `test/ui/popups/sheet_header_test.dart` sweeps the
+      tree so a new sheet cannot quietly grow a sixth style.
+      The player sheet is a THIRD stated exception rather than a conversion: its
+      title is the player's name written across his own portrait, which is the
+      source's design and a header the artwork is part of. A bar above it would
+      say his name twice and push the picture down to do it. All three exceptions
+      now say in their own headers that they are exceptions.
       Two are deliberate exceptions and should stay that way — Coach Colin's card
       (his title is him speaking, under his own name plate) and the achievement
       banner (a celebration, not a heading).
@@ -1799,10 +1808,9 @@ Ordered by how visible each one is to somebody playing.
 - [ ] **Kenney smoke, backdrops and more icons** — the merge burst and the
       celebrations should use the particle sheets, and the customiser, training and
       match popups could use the backdrops. See 22 Aug.
-- [ ] **The rest of the `SheetHeader` sweep** — the currency, player, sell,
-      deadline and training sheets, the leaderboard header, the boot-room and
-      penalty screens. Coach Colin's card and the achievement banner stay
-      exceptions on purpose.
+- [x] **The rest of the `SheetHeader` sweep** — done 21 Aug, including all seven
+      mini-game screens. Coach Colin's card, the achievement banner and the player
+      sheet stay exceptions on purpose, and each says so.
 
 ## From playtesting — 24 Aug
 

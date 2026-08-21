@@ -34,6 +34,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart'
     show divisionIndexOf;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -346,7 +347,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
     return Scaffold(
       key: const ValueKey('pitch-invaders-screen'),
       backgroundColor: kit.bg,
-      appBar: AppBar(title: Text(t('game.whack'))),
+      appBar: const MiniGameHeader(titleKey: 'game.whack'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),

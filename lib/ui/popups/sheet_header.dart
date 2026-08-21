@@ -23,9 +23,12 @@
 /// - **A subtitle is MUTED and sentence-case**, because it is a sentence.
 ///
 /// Anything with a genuine reason to differ states it at the call site. There are
-/// two so far: Coach Colin's card, whose title is him speaking and sits under his
-/// own name plate, and the achievement banner, which is a celebration rather than
-/// a heading.
+/// three: Coach Colin's card, whose title is him speaking and sits under his own
+/// name plate; the achievement banner, which is a celebration rather than a
+/// heading; and the player detail sheet, whose title is the player's name
+/// written across his own portrait — a header the artwork is part of, and the
+/// source's design rather than an oversight. A bar above it would say his name
+/// twice and push the picture down to do it.
 library;
 
 import 'package:flutter/material.dart';
@@ -75,11 +78,7 @@ class SheetHeader extends StatelessWidget {
           Text(
             subtitle!,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: kit.textMuted,
-              fontSize: 12,
-              height: 1.45,
-            ),
+            style: TextStyle(color: kit.textMuted, fontSize: 12, height: 1.45),
           ),
         ],
       ],

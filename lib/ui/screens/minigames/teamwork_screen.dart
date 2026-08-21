@@ -31,6 +31,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart'
     show divisionIndexOf;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
@@ -308,7 +309,7 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
     return Scaffold(
       key: const ValueKey('teamwork-screen'),
       backgroundColor: kit.bg,
-      appBar: AppBar(title: Text(t('game.teamwork'))),
+      appBar: const MiniGameHeader(titleKey: 'game.teamwork'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(14),

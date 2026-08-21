@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -65,20 +66,17 @@ class LeaderboardView extends ConsumerWidget {
 
     return Padding(
       key: const ValueKey('leaderboard'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            t('leaderboard.title').toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-              color: kit.accentBright,
-            ),
+          // 11px w800 was a GROUP LABEL, not a sheet title — the size the
+          // fixture caption and the tactic line use, on the one line that is
+          // the sheet's name. See `sheet_header.dart`.
+          SheetHeader(
+            title: t('leaderboard.title'),
+            padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
           ),
-          const SizedBox(height: 12),
 
           // Your own standing, which is local and therefore always knowable.
           // The JS shows it signed in or out for the same reason.

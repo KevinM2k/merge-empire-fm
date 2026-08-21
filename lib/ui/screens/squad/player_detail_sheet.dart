@@ -18,6 +18,12 @@
 ///   would go back with them at the end of the spell. Sending them back early
 ///   is the only lever.
 ///
+/// **It is the third stated exception to `SheetHeader`.** The title is the
+/// player's name written across his own portrait, which is the source's design
+/// and a header the artwork is part of; a bar above it would say his name twice
+/// and push the picture down to do it. The other two are Coach Colin's card and
+/// the achievement banner.
+///
 /// The sell price is rolled ONCE, when the sheet opens, and the sale takes that
 /// same number — the same rule `sell_sheet.dart` follows, and for the same
 /// reason: rolling again on confirm pays out something other than the figure
