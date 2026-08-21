@@ -34,6 +34,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
+import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
     show reSimulateRemainder;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
@@ -768,9 +769,21 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // the payoff is on the summary. Long enough for the whistle and the sting to
     // land first. `maybePop` rather than `pop`, because in a test this screen is
     // the root route and there is nothing under it to go back to.
-    _cue(const Duration(milliseconds: 1400), () {
-      if (mounted) Navigator.of(context).maybePop();
-    });
+    _cue(const Duration(milliseconds: 1400), _leaveFullTime);
+  }
+
+  /// Leave the commentary page — but only if it is still the page on top.
+  ///
+  /// **`maybePop` pops whatever is topmost**, and at full time that need not be
+  /// this screen: a replay opened on the goal that had just gone in is a route
+  /// the PLAYER put there, and the whistle's own timer would close it and leave
+  /// the finished match sitting behind it. The replay asks again on its way
+  /// out, so the screen still leaves — a beat later, when the player is done.
+  void _leaveFullTime() {
+    if (!mounted) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
+    Navigator.of(context).maybePop();
   }
 
   @override
@@ -1357,14 +1370,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                             ),
                                           );
                                         }
-                                        return _FeedLine(
-                                          line: lines[lines.length - i],
-                                          state: ref.read(gameProvider).state,
+                                        return _feedLine(
+                                          lines[lines.length - i],
+                                          them,
                                         );
                                       }
-                                      return _FeedLine(
-                                        line: lines[lines.length - 1 - i],
-                                        state: ref.read(gameProvider).state,
+                                      return _feedLine(
+                                        lines[lines.length - 1 - i],
+                                        them,
                                       );
                                     },
                                   ),
@@ -1432,11 +1445,40 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     );
   }
 
+  /// One row of the feed, with a replay on it when there is one to play.
+  ///
+  /// The chip is offered only where a clip can actually be built — the same
+  /// question `clipFor` answers for the live cut — so a goal the cutaway has no
+  /// passage for shows no control rather than a control that does nothing.
+  Widget _feedLine(FeedLine line, String them) {
+    final goal = line.goal;
+    final canReplay =
+        goal != null && _replayClip(line.minute, ours: goal.ours) != null;
+    return _FeedLine(
+      line: line,
+      state: ref.read(gameProvider).state,
+      onReplay: !canReplay
+          ? null
+          : () => unawaited(
+              replayGoal(
+                line.minute,
+                ours: goal.ours,
+                // The head the card carries: the word for one of ours, their
+                // name for one of theirs.
+                title: goal.ours ? t('match.goal_card.title') : them,
+              ),
+            ),
+    );
+  }
+
   /// The scorer's face for the clip on the pitch, or null when there is nobody
   /// to name.
-  Widget? _scorerBadge() {
-    final id = _clipScorerId;
-    if (id == null) return null;
+  Widget? _scorerBadge() => _scorerBadgeFor(_clipScorerId, _clippedMinute);
+
+  /// The same badge for any goal, which is what a replay needs: it plays a
+  /// minute the clock left behind, so the caption cannot come off the live one.
+  Widget? _scorerBadgeFor(String? id, int? minute) {
+    if (id == null || minute == null) return null;
     final card = cardById(ref.read(gameProvider).state, id);
     final def = getPlayerDef(card?.definitionId);
     if (card == null || def == null) return null;
@@ -1451,8 +1493,73 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       ),
       // The SURNAME, as a broadcast caption gives it, and the minute it went
       // in. His full name would not fit under a 72px circle.
-      caption: "${card.name(def.name).split(' ').last} $_clippedMinute'",
+      caption: "${card.name(def.name).split(' ').last} $minute'",
     );
+  }
+
+  /// The goal that happened in [minute], ours or theirs, or null when the
+  /// timeline has no such thing.
+  TimelineEvent? _goalAt(int minute, {required bool ours}) {
+    for (final event in _timeline) {
+      if (event.type != 'goal' || event.minute != minute) continue;
+      if ((event.team == 'home') != ours) continue;
+      return event;
+    }
+    return null;
+  }
+
+  /// The clip a replay would play, or null when there is none to play.
+  ///
+  /// **The switches are not consulted, and neither is the gap.** Both exist to
+  /// keep the screen from cutting away on its own; this is the player asking,
+  /// and a control that refuses the thing it offers is worse than no control.
+  CutawayClip? _replayClip(int minute, {required bool ours}) {
+    final event = _goalAt(minute, ours: ours);
+    if (event == null) return null;
+    return clipFor(
+      event,
+      ourSideLeft: widget.result['isHome'] == true,
+      ours: ours,
+      // The same seed the live cut used, so the replay is the passage that was
+      // watched rather than another one from the same table.
+      seed: ((widget.result['seed'] as num?)?.toInt() ?? 0) + minute,
+    );
+  }
+
+  /// What a replay of that goal would play. **A test seam**, and the same
+  /// question the chip asks before it offers itself.
+  CutawayClip? replayClipFor(int minute, {required bool ours}) =>
+      _replayClip(minute, ours: ours);
+
+  /// Play it again, holding the match while it is up.
+  ///
+  /// The same bargain the subs panel strikes: the clock stops, because coming
+  /// back to a match that had run on without you is what a popup over a live
+  /// game does if it does not.
+  Future<void> replayGoal(
+    int minute, {
+    required bool ours,
+    String title = '',
+  }) async {
+    if (_paused) return;
+    final clip = _replayClip(minute, ours: ours);
+    if (clip == null) return;
+    final event = _goalAt(minute, ours: ours);
+    setState(() => _paused = true);
+    await showGoalReplay(
+      context,
+      clip: clip,
+      minute: minute,
+      title: title,
+      ours: ours,
+      scorer: ours ? _scorerBadgeFor(event?.scorerId, minute) : null,
+      scorerFromLeft: widget.result['isHome'] == true,
+    );
+    if (!mounted) return;
+    setState(() => _paused = false);
+    // The whistle asked to leave while this was up and was refused. It is the
+    // same screen with nothing left to say, so it goes now.
+    if (frame.finished) _leaveFullTime();
   }
 
   /// The shot, wrapped in the two things it must never be: interactive, or
@@ -2195,16 +2302,14 @@ class _Scoreboard extends StatelessWidget {
   }
 }
 
-/// A goal against, and anything else that has gone their way.
-///
-/// **Not the kit.** Green is what this game uses for a thing going well for us,
-/// on every screen, so an opponent's goal wearing it read as one of ours.
-const Color conceded = Color(0xFFE05A4A);
-
 class _FeedLine extends StatelessWidget {
-  const _FeedLine({required this.line, required this.state});
+  const _FeedLine({required this.line, required this.state, this.onReplay});
 
   final FeedLine line;
+
+  /// Play this goal again, or null when there is no passage to play — a line
+  /// that is not a goal, or a goal the cutaway cannot build a clip for.
+  final VoidCallback? onReplay;
 
   /// The save, for resolving [FeedLine.aboutId] into a face. Handed in rather
   /// than watched: the feed rebuilds on every tick of the clock, and a hundred
@@ -2403,9 +2508,39 @@ class _FeedLine extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 7),
-              Text(
-                text,
-                style: TextStyle(fontSize: 12.5, color: kit.textMuted),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: TextStyle(fontSize: 12.5, color: kit.textMuted),
+                    ),
+                  ),
+                  // **THE ONE THING WORTH SEEING TWICE.** A goal goes past
+                  // while the manager is reading the line above it, and the
+                  // passage is rebuilt from the minute rather than recorded —
+                  // so asking for it again costs nothing but the chip.
+                  //
+                  // No label on it, and that is deliberate: the catalogues are
+                  // generated from the JS's own `en.js`, which has never had a
+                  // word for this, and inventing a key would print English in
+                  // ten languages. The glyph is the control.
+                  if (onReplay case final replay?)
+                    SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: IconButton(
+                        key: ValueKey('feed-replay-${line.minute}'),
+                        padding: EdgeInsets.zero,
+                        iconSize: 17,
+                        visualDensity: VisualDensity.compact,
+                        color: goal.ours ? kit.accentBright : conceded,
+                        icon: const Icon(Icons.replay),
+                        onPressed: replay,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
