@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,366 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,376 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,14 +50,35 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**109 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**105 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
 what is open now came out of them.
 
-**The newest work is the SUMMARY, the replay and the bid window.** Five things
-whoever picks this up next will want to know before reading the queue:
+**The newest work is the PENALTY SCENE's camera and the ground it stands on.**
+Four of its eight open items went together, and the shape of all four is the
+same — the scene was right about the goal and wrong about everything around it:
+
+- **`standBaseY` is the seam, not `goalLineY`.** The pitch runs on past the goal
+  line — dead ball area, run-off — and handing that strip to the photograph is
+  what stood the backdrop's own flat green field up behind the crossbar. With
+  the seam moved back and `backdropRect` SIZING the art so its ground line falls
+  on it, the goal stands in a ground instead of on a lawn.
+- **The spot never moved: `_eyeZ` did.** Eleven metres is regulation and the
+  physics is balanced around it. A 2.62m camera was what made eleven metres look
+  like three, and the ball-to-line gap scales with the camera's HEIGHT alone —
+  the focal length and the camera's distance are both pinned by the goal having
+  to fill three quarters of the width.
+- **The framing is derived, so it survives a view it did not choose.** The
+  horizon was a fraction of the HEIGHT while every projected offset is a
+  fraction of the WIDTH. It anchors on the ball now, gives way only to the
+  crossbar, and `_focalFor` opens the lens on a view too short to hold both.
+- **A goal is a box.** `sideVertex` and `roofVertex` string the two sides and
+  the roof off the rear stanchions the frame was already drawing.
+
+**The pass before this one was the SUMMARY, the replay and the bid window.** Five
+things whoever picks this up next will want to know before reading the queue:
 
 - **`summary_league_move.dart` is the table moving**, and it invents nothing:
   `buildLeagueTable` stamps `prevPos` and `posDelta` on every row for the
@@ -3562,11 +3583,57 @@ already done are marked; the rest are the queue.
 Its own list, because almost none of it is right yet.
 
 - [ ] **The figures and the net still do not read as real.**
-- [ ] **The background is at the wrong height** — it is all grass, as though
-      there were a mountain behind them.
-- [ ] **The turf's horizontal lines are barely visible.**
-- [ ] **The goal has no SIDE netting.**
-- [ ] **The penalty spot is too close to the goal** — move it back.
+- [x] **The background was at the wrong height, and the goal line was why.**
+      The seam between the painter's turf and the photograph behind it was
+      `goalLineY`, so the band handed to the art started ON the line — and the
+      Kenney backdrops are a square drawing with a flat green field filling
+      their bottom third, cropped to exactly that band. What stood behind the
+      crossbar was the ART's grass, at the art's own scale, which is the
+      mountain. **Ground does not stop at the goal line**: there is the dead
+      ball area and the run-off first, and all of it is the painter's turf in
+      the painter's perspective. `standBaseY` is the seam now, 7.5m past the
+      line.
+      **And the art is PLACED rather than fitted**, which is the half that a
+      new seam alone would not have fixed. `BoxFit.cover` shows whichever slice
+      the alignment picks, and on a tall view the band is nearly as tall as the
+      drawing — so no alignment exists that shows only what is above its ground
+      line, and asking for one gets a clamp and the field back. `backdropRect`
+      SIZES it so the drawing's own ground line lands on the seam. The treeline
+      stands on the grass.
+- [x] **The turf's horizontal lines are barely visible** — they were one shade,
+      on every other band. Five per cent white on the odd bands and nothing on
+      the even ones is a single faint edge rather than a stripe; a mown pitch is
+      light against DARK. Both cuts now, and the ground pass is CLIPPED to the
+      seam — a band laid beyond the run-off projects above it, which at five per
+      cent nobody could see and at ten is grass painted in the sky.
+- [x] **The goal has SIDE netting, and a roof.** It had a back and nothing else,
+      so a ball along the inside of a post passed through open air and the goal
+      had no depth in it — the side panels are the only surface in the picture
+      running away from the camera. `sideVertex` and `roofVertex` hang off the
+      rear stanchions the frame has been drawing all along. Static rather than
+      sprung, which is honest: taut between post and stanchion is why side
+      netting is the part of a net that does not billow, and the back plane
+      still takes the shot.
+- [x] **The penalty spot is ELEVEN METRES and did not move — the camera did.**
+      `spotDistance` is regulation and every number the physics is balanced
+      around rests on it. What was too close was the PICTURE: from a 2.62m
+      camera the gap between the ball and the goal line was barely a third of
+      the goal's own width, with the bottom half of the frame empty grass, so
+      eleven metres read as three. The separation is
+      `f · h · (1/back − 1/(back + spotDistance))` — it scales with the camera's
+      HEIGHT and with nothing else that is free, because the focal length and
+      the camera's distance are both pinned by the goal filling three quarters
+      of the width. Up to 3.9m opens it by half again and costs the scene
+      nothing: same goal, same shape, same run-up depth.
+      **And the framing is derived now rather than solved for one window.** The
+      horizon was a constant fraction of the HEIGHT while every offset the
+      projection produces is a fraction of the WIDTH, so the whole picture slid
+      up and down the frame as the aspect changed — and the view is an
+      `Expanded` in a column of score lines, so its shape is whatever is left
+      over. It anchors on the ball, gives way only to the crossbar, and
+      `_focalFor` opens the lens when the view is too short to hold both. A
+      widget test's own 800×600 surface is already past that aspect, which is
+      how the wide case was caught.
 - [ ] **The kicker swings his leg oddly.**
 - [ ] **The keeper's arms are huge.**
 - [ ] **There is no physics at all**: the ball sticks in the net and the keeper

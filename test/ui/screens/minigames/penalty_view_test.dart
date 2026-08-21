@@ -281,28 +281,234 @@ void main() {
   });
 
   group('the stadium behind the goal', () {
-    test('the backdrop and the turf MEET AT THE GOAL LINE', () {
+    test('the backdrop and the turf MEET PAST THE GOAL LINE', () {
       // One number, shared, or the photograph and the grass leave a seam. The
       // widget puts the stadium above it and the painter starts the turf on it.
+      final seam = standBaseY(view);
+      expect(seam, project(Vec3(0, _runOff, 0), view)!.dy);
+      expect(seam, greaterThan(view.height * 0.094));
+      expect(seam, lessThan(view.height));
+    });
+
+    test('THE PITCH RUNS ON PAST THE GOAL rather than stopping on the line', () {
+      // The reported fault: it was all grass above the crossbar, as though
+      // there were a mountain behind them. The seam was the goal LINE, so the
+      // band handed to the photograph started there — and the photograph's own
+      // flat green field, cropped to it, stood up behind the goal.
+      //
+      // Ground does not stop at the line. The turf the painter draws now
+      // covers the run-off too, which puts the seam ABOVE the goal line on
+      // screen: further away is higher up.
+      expect(standBaseY(view), lessThan(goalLineY(view)));
+      // And it is a strip, not a wall — a couple of dozen pixels at this size.
+      expect(goalLineY(view) - standBaseY(view), greaterThan(4));
+      expect(goalLineY(view) - standBaseY(view), lessThan(view.height * 0.1));
+    });
+
+    test(
+      'and the seam is BELOW the crossbar, so the goal stands against it',
+      () {
+        // The frame has to be seen against the stand rather than against grass —
+        // which is the whole reason the net can be cords now.
+        expect(
+          standBaseY(view),
+          greaterThan(project(Vec3(0, 0, goalHeight), view)!.dy),
+        );
+      },
+    );
+
+    test('a taller view moves the seam with it', () {
+      expect(standBaseY(const Size(400, 900)), isNot(standBaseY(view)));
+    });
+
+    test('THE ART IS SHOWN FROM ITS HORIZON UP, not from its field', () {
+      // Fitting a square drawing into the band shows whichever slice the
+      // alignment picks, and which slice was the fault: anchored to the bottom
+      // it was the art's own grass, standing up behind the goal like a hill. The
+      // drawing has to be PLACED so its ground line falls on the seam — sized to
+      // reach it — because on a tall view the band is nearly as tall as the
+      // drawing and no alignment can show only what is above that line.
+      const artHorizon = 0.62;
+      for (final size in [
+        const Size(400, 800),
+        const Size(356, 520),
+        const Size(360, 640),
+        const Size(820, 1180),
+      ]) {
+        final band = standBaseY(size);
+        final rect = backdropRect(size);
+        expect(
+          rect.top + artHorizon * rect.height,
+          closeTo(band, 0.001),
+          reason:
+              "$size puts the art's ground line at "
+              '${rect.top + artHorizon * rect.height}, not on the seam at $band',
+        );
+        // Square, covering the width, and never so short that the band runs off
+        // the bottom of it into nothing.
+        expect(rect.width, closeTo(rect.height, 1e-9));
+        expect(rect.width, greaterThanOrEqualTo(size.width));
+        expect(rect.bottom, greaterThanOrEqualTo(band));
+        expect(rect.left, closeTo((size.width - rect.width) / 2, 1e-9));
+      }
+    });
+  });
+
+  group('the framing', () {
+    test('ELEVEN METRES LOOKS LIKE ELEVEN METRES', () {
+      // Reported from the couch as "the penalty spot is too close to the goal".
+      // The spot is regulation and did not move — [spotDistance] is 11 and every
+      // number the physics is balanced around rests on it. What moved is the
+      // CAMERA: from 2.62m the gap between the ball and the goal line was barely
+      // a third of the goal's own width, so eleven metres read as three.
+      final ball = project(Vec3(0, -spotDistance, ballRadius), view)!.dy;
       final line = goalLineY(view);
-      expect(line, project(Vec3(0, 0, 0), view)!.dy);
-      // Below the horizon and well clear of the bottom: the band it leaves for
-      // the stadium is the sky plus the strip of pitch beyond the goal.
-      expect(line, greaterThan(view.height * 0.094));
-      expect(line, lessThan(view.height));
+      final post = project(Vec3(goalHalfWidth, 0, 0), view)!.dx;
+      final width = 2 * (post - view.width / 2);
+      expect(ball - line, greaterThan(width * 0.5));
     });
 
-    test('and it is BELOW the crossbar, so the goal stands against it', () {
-      // The frame has to be seen against the stand rather than against grass —
-      // which is the whole reason the net can be cords now.
-      expect(
-        goalLineY(view),
-        greaterThan(project(Vec3(0, 0, goalHeight), view)!.dy),
-      );
+    test('and the goal still fills about three quarters of the frame', () {
+      // The other constraint, which the height is not allowed to cost: the gap
+      // was opened by raising the camera precisely because the focal length and
+      // the camera's distance are both pinned by this.
+      final post = project(Vec3(goalHalfWidth, 0, 0), view)!.dx;
+      final width = 2 * (post - view.width / 2);
+      expect(width / view.width, closeTo(0.75, 0.03));
     });
 
-    test('a taller view moves the line with it', () {
-      expect(goalLineY(const Size(400, 900)), isNot(goalLineY(view)));
+    test('the ball is FRAMED, whatever shape the view is', () {
+      // The horizon used to be a constant fraction of the HEIGHT while every
+      // offset in the projection is a fraction of the WIDTH, so the whole scene
+      // slid up or down the frame as the aspect changed — and the camera had
+      // been solved for one shape of window. It is derived from the ball now.
+      for (final size in [
+        const Size(400, 800),
+        const Size(356, 520),
+        const Size(300, 700),
+        const Size(430, 560),
+      ]) {
+        final ball = project(Vec3(0, -spotDistance, ballRadius), size)!.dy;
+        expect(
+          ball / size.height,
+          closeTo(0.70, 1e-6),
+          reason: '$size puts the ball at ${ball / size.height} of the frame',
+        );
+        // And the goal is above it with room to spare, on every one of them.
+        expect(goalLineY(size), lessThan(ball));
+        expect(project(Vec3(0, 0, goalHeight), size)!.dy, greaterThan(0));
+      }
+    });
+
+    test('A SHORT, WIDE VIEW OPENS THE LENS rather than losing the goal', () {
+      // The view is an `Expanded` in a column of score lines, so on a short
+      // screen it gets whatever is left — and the scene is a fixed multiple of
+      // the WIDTH tall, so past a certain aspect no framing puts the crossbar
+      // and the ball in the same picture. Anchoring on the ball alone pushed
+      // the whole goal off the top; a widget test's own 800×600 surface is
+      // already past that aspect, which is how it was caught.
+      for (final size in [
+        const Size(776, 300),
+        const Size(700, 240),
+        const Size(500, 400),
+      ]) {
+        final bar = project(Vec3(0, 0, goalHeight), size)!.dy;
+        final ball = project(Vec3(0, -spotDistance, ballRadius), size)!.dy;
+        expect(
+          bar,
+          greaterThan(0),
+          reason: '$size puts the crossbar at $bar, off the top',
+        );
+        expect(
+          ball,
+          lessThan(size.height),
+          reason: '$size puts the ball at $ball, off the bottom',
+        );
+        // The goal gives up width for it, which is the right thing to lose: it
+        // is still most of a third of the frame and it can still be aimed at.
+        final post = project(Vec3(goalHalfWidth, 0, 0), size)!.dx;
+        expect(2 * (post - size.width / 2) / size.width, greaterThan(0.25));
+      }
+    });
+  });
+
+  group('the goal is a box', () {
+    final mesh = NetMesh();
+
+    test('THE SIDES ARE STRUNG, from the post back to the stanchion', () {
+      // It had a back and nothing else, so from behind the spot the goal was a
+      // flat grid on the grass — no side netting, and therefore nothing in the
+      // picture running away from the camera to say the goal has depth.
+      for (final side in [-1, 1]) {
+        // Every vertex sits ON its post's plane, spans the frame's full height,
+        // and travels the goal's full depth.
+        for (var r = 0; r <= mesh.rows; r++) {
+          for (var c = 0; c <= NetMesh.depthCells; c++) {
+            final v = mesh.sideVertex(side, c, r);
+            expect(v.x, closeTo(side * goalHalfWidth, 1e-9));
+            expect(v.y, inInclusiveRange(0, goalDepth));
+            expect(v.z, inInclusiveRange(0, goalHeight));
+          }
+        }
+        expect(mesh.sideVertex(side, 0, 0).y, 0);
+        expect(
+          mesh.sideVertex(side, NetMesh.depthCells, 0).y,
+          closeTo(goalDepth, 1e-9),
+        );
+        expect(mesh.sideVertex(side, 0, 0).z, closeTo(goalHeight, 1e-9));
+        expect(mesh.sideVertex(side, 0, mesh.rows).z, 0);
+      }
+    });
+
+    test('and the roof runs from the crossbar to the back', () {
+      for (var r = 0; r <= NetMesh.depthCells; r++) {
+        for (var c = 0; c <= mesh.columns; c++) {
+          final v = mesh.roofVertex(c, r);
+          expect(v.z, closeTo(goalHeight, 1e-9));
+          expect(v.x.abs(), lessThanOrEqualTo(goalHalfWidth + 1e-9));
+          expect(v.y, inInclusiveRange(0, goalDepth));
+        }
+      }
+    });
+
+    test('the three panels MEET THE BACK PLANE they hang off', () {
+      // The seams have to be exact or the goal is three sheets near each other.
+      // The side's back edge is the back plane's outermost column; the roof's
+      // back edge is its top row.
+      for (final side in [-1, 1]) {
+        final c = side < 0 ? 0 : mesh.columns;
+        for (var r = 0; r <= mesh.rows; r++) {
+          final onSide = mesh.sideVertex(side, NetMesh.depthCells, r);
+          final onBack = mesh.vertex(c, r);
+          expect(onSide.x, closeTo(onBack.x, 1e-9));
+          expect(onSide.y, closeTo(onBack.y, 1e-9));
+          expect(onSide.z, closeTo(onBack.z, 1e-9));
+        }
+      }
+      for (var c = 0; c <= mesh.columns; c++) {
+        final onRoof = mesh.roofVertex(c, NetMesh.depthCells);
+        final onBack = mesh.vertex(c, 0);
+        expect(onRoof.x, closeTo(onBack.x, 1e-9));
+        expect(onRoof.y, closeTo(onBack.y, 1e-9));
+        expect(onRoof.z, closeTo(onBack.z, 1e-9));
+      }
+    });
+
+    test('and the sides do not move when the back takes a shot', () {
+      // Taut between the post and the stanchion is why the side netting is the
+      // part of a goal that does not billow. The back plane is what the bulge
+      // is for, and it still has it.
+      final before = mesh.sideVertex(1, 2, 3);
+      mesh.strike(Vec3(1, goalDepth, 1), 28);
+      expect(mesh.vertex(7, 4).y, greaterThan(goalDepth));
+      final after = mesh.sideVertex(1, 2, 3);
+      expect(after.x, before.x);
+      expect(after.y, before.y);
+      expect(after.z, before.z);
+      mesh.reset();
     });
   });
 }
+
+/// The run-off behind the goal, mirroring the view's own `_beyondGoal`.
+const double _runOff = 7.5;

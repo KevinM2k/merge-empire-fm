@@ -37,23 +37,98 @@ import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 /// lens wide enough to fill the frame with the goal throws the ball off the
 /// bottom of it — which is exactly what the first set of numbers did.
 ///
-/// Two constraints pin all four values: the goal has to be about three quarters
-/// of the width, and the ball at the spot has to sit near the bottom of the frame
-/// rather than under it. Writing both out and solving gives a camera 10m behind
-/// the spot at 2.6m — a cameraman standing behind the taker, which is where the
-/// shot comes from on television — and a horizon near the top, because a 2.6m
-/// camera twenty-one metres from a 2.44m crossbar genuinely does see the bar just
-/// below eye level.
+/// THREE constraints pin them, and the third is the one that was missing. The
+/// goal has to fill about three quarters of the width; the ball at the spot has
+/// to sit near the bottom of the frame rather than under it; and **eleven metres
+/// has to LOOK like eleven metres.** The first two were solved for and gave a
+/// camera 10m back at 2.6m — and the third was not asked, which is how a
+/// regulation spot came to be reported from the couch as too close to the goal.
 ///
-/// Move any of them and the other three have to be re-solved. They are not taste.
-const double _eyeY = -spotDistance - 10;
-const double _eyeZ = 2.62;
+/// Only the height is free once the first constraint is met, and the height is
+/// exactly what the third one wants: see [_eyeZ].
+///
+/// Move any of them and the others have to be re-solved. They are not taste.
+/// How far behind the spot the camera stands.
+const double _cameraBack = 10;
+const double _eyeY = -spotDistance - _cameraBack;
+
+/// How high it stands.
+///
+/// **RAISED, and that is what answers "the spot is too close to the goal".**
+/// The spot is eleven metres out and always was — it is regulation, and moving
+/// it would move every number [PenaltyKick] is balanced around. What was too
+/// close was the PICTURE: from 2.62m the ball sat barely a goal's-height above
+/// the line with the bottom half of the frame empty grass, so eleven metres
+/// read as three.
+///
+/// The separation between the ball and the line is
+/// `f · h · (1/back − 1/(back + spotDistance))`, so it scales with the camera's
+/// HEIGHT and with nothing else that is free — the focal length and the camera's
+/// distance are both pinned by the goal having to fill about three quarters of
+/// the width. Going up to 3.9m opens that gap by half again, and it costs
+/// nothing else in the scene: the goal is the same size, the frame is the same
+/// shape, and the run-up is at the same depth. A gantry four metres up behind
+/// the goal is also where the shot comes from on television.
+const double _eyeZ = 3.9;
 
 /// Focal length, as a fraction of the view's width.
+///
+/// Pinned by the goal filling about three quarters of the frame at
+/// [spotDistance] plus [_cameraBack]. Not taste — but see [_focalFor], which is
+/// allowed to open the lens when the view is too short to hold the shot.
 const double _focal = 2.15;
 
-/// Where eye level lands, as a fraction of the height.
-const double _horizon = 0.094;
+/// How tall the scene is, per unit of focal length: the crossbar down to the
+/// ball on the spot.
+///
+/// Every offset the projection produces is a multiple of `f · width`, so this is
+/// the one number that says whether the shot FITS — and it is derived from the
+/// camera rather than measured off a screenshot, so moving the camera moves it.
+const double _sceneSpan =
+    (_eyeZ - ballRadius) / _cameraBack -
+    (_eyeZ - goalHeight) / (_cameraBack + spotDistance);
+
+/// The most of the view's height the scene may take, and the air above it.
+const double _maxSpan = 0.72;
+const double _topMargin = 0.06;
+
+/// Where the ball on the spot sits, as a fraction of the height.
+const double _ballHeight = 0.70;
+
+/// The lens this view can afford.
+///
+/// **A short, wide view cannot hold a long lens**, and that is not a taste
+/// judgement: the scene is [_sceneSpan] · `f` · `width` tall whatever the height
+/// is, so past a certain aspect the crossbar is simply above the top edge. It is
+/// reachable — the view is an `Expanded` in a column of score lines, so on a
+/// short screen it gets whatever is left. Opening the lens is the only answer
+/// that keeps the goal and the ball in the same picture; it costs the goal some
+/// width, which is the right thing to give up.
+double _focalFor(Size view) =>
+    math.min(_focal, _maxSpan * view.height / (_sceneSpan * view.width));
+
+/// Where eye level lands.
+///
+/// **Derived from the BALL rather than fixed, because the scene has to frame
+/// itself on a view whose shape it does not choose.** It used to be a constant
+/// fraction of the height, and every offset in the projection is a fraction of
+/// the WIDTH — so the whole picture slid up or down the frame as the aspect
+/// changed, and the four camera numbers had been solved for one shape of window.
+///
+/// Anchoring on the ball fixes the one thing that must not move: it is what the
+/// player aims from, it is the lowest thing in the scene that matters, and
+/// everything else is placed relative to it by the projection anyway. The ball
+/// gives way only to the CROSSBAR — it drops no lower than the point that keeps
+/// the bar [_topMargin] inside the top edge, which with [_focalFor] holding the
+/// span down is a limit a portrait view never reaches.
+double _horizonY(Size view) {
+  final f = _focalFor(view) * view.width;
+  final ball = math.max(
+    _ballHeight * view.height,
+    _topMargin * view.height + _sceneSpan * f,
+  );
+  return ball - f * (_eyeZ - ballRadius) / _cameraBack;
+}
 
 /// The projection.
 ///
@@ -63,10 +138,10 @@ const double _horizon = 0.094;
 Offset? project(Vec3 point, Size view) {
   final depth = point.y - _eyeY;
   if (depth < 0.4) return null;
-  final f = _focal * view.width;
+  final f = _focalFor(view) * view.width;
   return Offset(
     view.width / 2 + f * point.x / depth,
-    view.height * _horizon - f * (point.z - _eyeZ) / depth,
+    _horizonY(view) - f * (point.z - _eyeZ) / depth,
   );
 }
 
@@ -74,7 +149,7 @@ Offset? project(Vec3 point, Size view) {
 double scaleAt(double y, Size view, double size) {
   final depth = y - _eyeY;
   if (depth < 0.4) return 0;
-  return _focal * view.width * size / depth;
+  return _focalFor(view) * view.width * size / depth;
 }
 
 /// Where the goal line lands on screen.
@@ -84,7 +159,65 @@ double scaleAt(double y, Size view, double size) {
 /// gap — so it is one function both the widget and the painter read rather than
 /// two that agree by hand.
 double goalLineY(Size view) =>
-    project(Vec3(0, 0, 0), view)?.dy ?? view.height * _horizon;
+    project(Vec3(0, 0, 0), view)?.dy ?? _horizonY(view);
+
+/// How far past the goal line the pitch runs before whatever is behind it
+/// starts, in metres.
+///
+/// **The goal line is not the horizon**, and treating it as one is what put a
+/// wall of green above the crossbar. The seam used to be [goalLineY], so the
+/// photograph — whose own field fills its bottom third — was cropped to the band
+/// directly above the line and the pitch appeared to RISE behind the goal like a
+/// hill. Ground does not stop at the line: there is the dead ball area, the
+/// run-off and the hoardings before anything vertical begins, and all of that is
+/// the painter's turf in the painter's perspective.
+///
+/// Seven and a half metres is the run-off behind a goal at this level. It is
+/// small on screen — the band above the line is a couple of dozen pixels on a
+/// phone — and that is the point: the goal stands on a pitch that carries on
+/// past it rather than against a backdrop propped up on the line.
+const double _beyondGoal = 7.5;
+
+/// Where the ground gives way to what is behind it.
+///
+/// The photograph goes above it and the turf starts on it, and they have to be
+/// the same number or there is a gap — so it is one function both the widget and
+/// the painter read rather than two that agree by hand.
+double standBaseY(Size view) =>
+    project(Vec3(0, _beyondGoal, 0), view)?.dy ?? _horizonY(view);
+
+/// Where the backdrop art's own ground line sits, as a fraction of its height.
+///
+/// All four Kenney backdrops are the same square layout: sky and cloud above, a
+/// treeline, then a flat field filling the bottom. That field is the part that
+/// must NOT be seen — the painter draws the ground, and a second ground behind
+/// it at a different perspective is the hill the couch reported.
+const double _artHorizon = 0.62;
+
+/// Where the square backdrop art is laid inside its band.
+///
+/// **The art is PLACED, not fitted**, and that is the difference between the
+/// treeline landing on the seam and the art's own field standing up behind the
+/// goal. `BoxFit.cover` shows whichever slice the alignment picks, and on a tall
+/// view the band is nearly as tall as the drawing — so no alignment exists that
+/// shows only the part above the ground line, and asking for one gets you a
+/// clamp and the field back.
+///
+/// Sizing it is what solves it. The drawing goes down far enough that its own
+/// ground line, at [_artHorizon], is exactly the foot of the band; if that would
+/// make it narrower than the view it is scaled up to fit the width instead and
+/// the surplus goes off the top, which is sky. Either way the seam is a treeline
+/// standing on grass rather than a green edge.
+Rect backdropRect(Size view) {
+  final band = math.max(0.0, standBaseY(view));
+  final drawn = math.max(view.width, band / _artHorizon);
+  return Rect.fromLTWH(
+    (view.width - drawn) / 2,
+    band - _artHorizon * drawn,
+    drawn,
+    drawn,
+  );
+}
 
 /// The net, as a grid that can be pushed.
 ///
@@ -115,6 +248,39 @@ class NetMesh {
     -goalHalfWidth + goalWidth * c / columns,
     goalDepth + _bulge[_index(c, r)],
     goalHeight * (1 - r / rows),
+  );
+
+  /// How many cells the side and roof panels are strung across their depth.
+  ///
+  /// Fewer than [columns], because they run AWAY from the camera: seven and a
+  /// half metres of goal mouth gets fifteen cords and one metre eighty-five of
+  /// depth does not need them.
+  static const int depthCells = 4;
+
+  /// A vertex of one side panel, [side] being −1 for the left post and +1 for
+  /// the right.
+  ///
+  /// **A goal is a box and it had only a back.** The mouth was strung and
+  /// nothing else, so a ball rolled along the inside of a post passed through
+  /// open air where the side netting is — and from behind the spot the side
+  /// panels are most of what says the goal has DEPTH, because they are the only
+  /// surface in the picture running away from the camera.
+  ///
+  /// Static rather than sprung, and that is honest: the panels are pulled taut
+  /// between the post and the stanchion, which is why they are the part of a net
+  /// that does not billow. The back plane takes the shot and the back plane is
+  /// what moves — see [strike].
+  Vec3 sideVertex(int side, int c, int r) => Vec3(
+    side * goalHalfWidth,
+    goalDepth * c / depthCells,
+    goalHeight * (1 - r / rows),
+  );
+
+  /// A vertex of the roof panel, from the crossbar back to the rear stanchion.
+  Vec3 roofVertex(int c, int r) => Vec3(
+    -goalHalfWidth + goalWidth * c / columns,
+    goalDepth * r / depthCells,
+    goalHeight,
   );
 
   /// A ball into the net at [at], carrying [speed].
@@ -543,18 +709,27 @@ class PenaltyPainter extends CustomPainter {
   /// markings — the six-yard box, the penalty area, the arc and the spot. Every
   /// one of them is projected, so all of it agrees about where the camera is.
   void _paintGround(Canvas canvas, Size size) {
-    // **NOTHING ABOVE THE GOAL LINE.** It used to paint a flat sky gradient
-    // across the whole frame and then turf from the horizon down, which left the
-    // goal standing against grass and a wash of blue — so the net had to be a
-    // sheet to read as a hole at all. The band above the line is the STADIUM's
-    // now: a photograph of the ground, behind the painter, showing through
-    // wherever this does not paint. See [goalLineY] for the seam.
+    // **NOTHING ABOVE THE RUN-OFF.** It used to paint a flat sky gradient across
+    // the whole frame and then turf from the horizon down, which left the goal
+    // standing against grass and a wash of blue — so the net had to be a sheet
+    // to read as a hole at all. The band above the seam is the STADIUM's now: a
+    // photograph, behind the painter, showing through wherever this does not
+    // paint. See [standBaseY] for the seam, and [_beyondGoal] for why it is not
+    // the goal line: the pitch runs on past the goal, and stopping it on the
+    // line stood the photograph's own field up behind the crossbar.
     final ground = Rect.fromLTRB(
       0,
-      goalLineY(size) - 1,
+      standBaseY(size) - 1,
       size.width,
       size.height,
     );
+    // **CLIPPED, because the markings run past the seam.** Bands and chalk are
+    // projected quads, and a band laid beyond the run-off projects ABOVE it —
+    // which, painted over the photograph, is grass in the sky. It did not show
+    // while the stripes were at five per cent alpha; it is exactly what would
+    // show now they can be seen.
+    canvas.save();
+    canvas.clipRect(ground);
     canvas.drawRect(
       ground,
       Paint()
@@ -572,8 +747,16 @@ class PenaltyPainter extends CustomPainter {
 
     // Mown bands, 5m wide, running away from the camera. They converge because
     // they are projected, which is the single cheapest depth cue there is.
-    final band = Paint()..color = Colors.white.withValues(alpha: 0.05);
-    for (var i = -6; i <= 6; i += 2) {
+    //
+    // **BOTH shades, and every band.** Every other band got a five per cent
+    // white wash and the ones between it got nothing, so the stripe was one
+    // barely-there edge rather than a pattern — from the couch the pitch read as
+    // flat green. A mown pitch is light against DARK, so the alternate bands are
+    // cut the other way and both are strong enough to survive the turf gradient
+    // over them.
+    final light = Paint()..color = Colors.white.withValues(alpha: 0.10);
+    final dark = Paint()..color = Colors.black.withValues(alpha: 0.07);
+    for (var i = -6; i <= 6; i++) {
       final quad = _quad(
         size,
         Vec3(-30, -spotDistance - 12 + i * 5, 0),
@@ -581,7 +764,7 @@ class PenaltyPainter extends CustomPainter {
         Vec3(30, -spotDistance - 12 + (i + 1) * 5, 0),
         Vec3(-30, -spotDistance - 12 + (i + 1) * 5, 0),
       );
-      if (quad != null) canvas.drawPath(quad, band);
+      if (quad != null) canvas.drawPath(quad, i.isEven ? light : dark);
     }
 
     // Tufts. Seeded, so the pitch is the same pitch every kick — a lawn that
@@ -642,6 +825,7 @@ class PenaltyPainter extends CustomPainter {
         Paint()..color = Colors.white.withValues(alpha: 0.85),
       );
     }
+    canvas.restore();
   }
 
   /// A projected quad, or null if any corner is behind the camera.
@@ -674,29 +858,83 @@ class PenaltyPainter extends CustomPainter {
     // stadium back there the cords are enough, and a net you can see the crowd
     // through is what a net looks like. The strung mesh is the only thing drawn.
 
-    for (var r = 0; r <= mesh.rows; r++) {
+    // One strand, projected. Every cord in the goal is drawn through this, so
+    // the back plane, the two sides and the roof cannot end up strung in
+    // different weights by hand.
+    void strand(Iterable<Vec3> points, Paint under, Paint over) {
       final path = Path();
       var started = false;
-      for (var c = 0; c <= mesh.columns; c++) {
-        final p = project(mesh.vertex(c, r), size);
+      for (final v in points) {
+        final p = project(v, size);
         if (p == null) continue;
         started ? path.lineTo(p.dx, p.dy) : path.moveTo(p.dx, p.dy);
         started = true;
       }
-      canvas.drawPath(path, shade);
-      canvas.drawPath(path, cord);
+      if (!started) return;
+      canvas.drawPath(path, under);
+      canvas.drawPath(path, over);
+    }
+
+    // **The sides and the roof first, and DIMMER.** They are behind the mouth's
+    // own cords from this camera and they run away from it, so at the back
+    // plane's weight they crowd the picture instead of describing it. Knocked
+    // back, they read as what they are: the depth the goal has.
+    final sideShade = Paint()
+      ..color = Colors.black.withValues(alpha: 0.22)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    final sideCord = Paint()
+      ..color = Colors.white.withValues(alpha: 0.30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (final side in [-1, 1]) {
+      for (var r = 0; r <= mesh.rows; r++) {
+        strand(
+          [
+            for (var c = 0; c <= NetMesh.depthCells; c++)
+              mesh.sideVertex(side, c, r),
+          ],
+          sideShade,
+          sideCord,
+        );
+      }
+      for (var c = 0; c <= NetMesh.depthCells; c++) {
+        strand(
+          [for (var r = 0; r <= mesh.rows; r++) mesh.sideVertex(side, c, r)],
+          sideShade,
+          sideCord,
+        );
+      }
+    }
+    for (var r = 0; r <= NetMesh.depthCells; r++) {
+      strand(
+        [for (var c = 0; c <= mesh.columns; c++) mesh.roofVertex(c, r)],
+        sideShade,
+        sideCord,
+      );
     }
     for (var c = 0; c <= mesh.columns; c++) {
-      final path = Path();
-      var started = false;
-      for (var r = 0; r <= mesh.rows; r++) {
-        final p = project(mesh.vertex(c, r), size);
-        if (p == null) continue;
-        started ? path.lineTo(p.dx, p.dy) : path.moveTo(p.dx, p.dy);
-        started = true;
-      }
-      canvas.drawPath(path, shade);
-      canvas.drawPath(path, cord);
+      strand(
+        [for (var r = 0; r <= NetMesh.depthCells; r++) mesh.roofVertex(c, r)],
+        sideShade,
+        sideCord,
+      );
+    }
+
+    for (var r = 0; r <= mesh.rows; r++) {
+      strand(
+        [for (var c = 0; c <= mesh.columns; c++) mesh.vertex(c, r)],
+        shade,
+        cord,
+      );
+    }
+    for (var c = 0; c <= mesh.columns; c++) {
+      strand(
+        [for (var r = 0; r <= mesh.rows; r++) mesh.vertex(c, r)],
+        shade,
+        cord,
+      );
     }
   }
 
@@ -1295,23 +1533,34 @@ class PenaltyViewState extends State<PenaltyView>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // **BEHIND the painter, and only down to the goal line.** The band
-            // above it is sky and the strip of pitch beyond the goal, neither of
-            // which the painter draws any more — see [goalLineY], which is the
-            // one number the two of them share so there is no seam.
+            // **BEHIND the painter, and only down to the run-off.** The band
+            // above it is what stands behind the ground; the strip of pitch
+            // beyond the goal is the PAINTER's turf, in the painter's
+            // perspective — see [standBaseY], the one number the two of them
+            // share so there is no seam, and [_beyondGoal] for why it is not the
+            // goal line.
             Positioned(
               left: 0,
               right: 0,
               top: 0,
-              height: goalLineY(view),
-              child: ArtImage(
-                key: const ValueKey('penalty-backdrop'),
-                path: backdropPath(widget.backdrop),
-                fit: BoxFit.cover,
-                // Anchored to the BOTTOM: the treeline is at the foot of the
-                // drawing and the sky above it is the part worth cropping.
-                alignment: Alignment.bottomCenter,
-                fallback: const ColoredBox(color: Color(0xFF6DB3E8)),
+              height: standBaseY(view),
+              // Laid so the art's own ground line falls on the seam, and clipped
+              // to the band by the Stack. Fitted to the band instead — which is
+              // what it did — the band was the art's flat green field and
+              // nothing else, standing up behind the crossbar like a hill. See
+              // [backdropRect].
+              child: Stack(
+                children: [
+                  Positioned.fromRect(
+                    rect: backdropRect(view),
+                    child: ArtImage(
+                      key: const ValueKey('penalty-backdrop'),
+                      path: backdropPath(widget.backdrop),
+                      fit: BoxFit.fill,
+                      fallback: const ColoredBox(color: Color(0xFF6DB3E8)),
+                    ),
+                  ),
+                ],
               ),
             ),
             CustomPaint(
