@@ -19,6 +19,11 @@ Two queues, and they are different lists:
 
 ## Commands
 
+**Flutter 3.44.9 / Dart 3.12.2**, in `.fvmrc` and in CI. Not a suggestion: the
+framework's own assertions move between minors, and the same suite that is green
+here fails 34 tests on 3.47. A clone that picks up whatever `flutter` is on the
+path will disagree with CI about whether the port works.
+
 ```bash
 flutter analyze                      # must be clean before any commit
 flutter test                         # ~4,200 tests
@@ -110,6 +115,12 @@ layer run under plain `dart test` with no widget binding.
   (`player_card.dart`) are the full-length figure and the bench's column count;
   `CoachBubbleTail` and `coachAlert` (`coach_card.dart`) are the speech tail and
   the unread red.
+- **A planted manager is `standing`, not `walking: false`.** `ManagerWalker`
+  distinguishes them: `walking: false` is a scene nobody is watching and stops
+  him dead, blink and all; `standing` stops only the STRIDE, and `idle` gives
+  him a base pose that a playing gesture outruns joint by joint
+  (`poseOverIdle`). The dugout cam is what they were added for; anything else
+  wanting a living, planted gaffer wants them too rather than a second rig.
 - **`PlayerCard.light` is null by default and resolves from the theme.** It was a
   `bool` defaulting to false, so seven callers each had to remember and the squad,
   the bench and the pickers were dark on a light page. Pass it only for a card

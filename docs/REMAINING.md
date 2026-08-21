@@ -30,13 +30,32 @@ too late:
 
 ## Where we are
 
-**4,235 tests, `flutter analyze` clean** — both of which had stopped being
-true. Twenty-seven of those tests were failing at HEAD and analyze had an
-`info`; see `Found while clearing this queue — 27 Aug`. Neither was anything
-the failing tests were about.
+**4,282 tests, `flutter analyze` clean — and ON A NAMED SDK**, which is the
+part that had never been true. Flutter **3.44.9** / Dart **3.12.2**,
+now in `.fvmrc` and in CI, where the job had been naming a version *below* what
+the lock file asks for. See `The SDK the port builds against` below.
 
-**73 items are open**, plus five carrying a `[~]` — answered, but with a decision
+**71 items are open**, plus five carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code.
+
+**The newest work is the DUGOUT CAMERA** — the last unported thing on the Play
+Match screen, and the first time the manager's wardrobe and his bought emotes
+are legible anywhere. It is written up in full under `From playtesting —
+26 Aug`; two notes for whoever picks the queue up next, because neither is
+where you would look for it:
+
+- **`ManagerWalker` has two new seams**, `standing` and `idle`, and they are
+  general rather than cam-specific. `standing` stops the STRIDE and nothing
+  else — it is not `walking: false`, which is a scene nobody is watching and
+  stops him dead. `idle` is a base pose that a playing gesture outruns joint by
+  joint (`poseOverIdle`), which is the stylesheet's own specificity written
+  out. Anything that wants a planted, living manager now has one.
+- **`pumpMatch` runs under reduced motion by default.** The cam is the one
+  thing on the match screen that runs forever, so a live one makes
+  `pumpAndSettle` never return — and the policy refuses the shot outright
+  under reduced motion, so that default is also the honest behaviour. The
+  tests that are ABOUT the camera pass `reduceMotion: false` and pump by
+  hand.
 
 **The newest section is `From playtesting — 26 Aug`, and it is the one to read
 first.** It is a different shape from everything above it: those were things
@@ -2532,8 +2551,69 @@ by a test.
       and a rule down the leading edge. That is as far as "needs to look better"
       went: the run-of-play lines are still a transcript, which is what they
       should be, but the feed has had no other design pass.
-- [ ] **The dugout camera is missing.** In `../merge-empire-fc` — read it before
-      building anything, it is the spec.
+- [x] **The dugout camera is missing.** A broadcast cut-in on the MANAGER,
+      reacting to what just happened — the same rig the diorama walks, cropped
+      chest-up at roughly twice the size, which is the first time a hat, a
+      haircut or a bought emote has been legible at all. Ten axes of
+      customisation and fifteen touchline emotes rendered in exactly one place
+      until now, at ~40px in a wide shot.
+      **The policy is pure and pinned**: `data/dugout_cam_policy.dart` against
+      `dugout_cam_reference.json`, 900 rows of `shouldCutIn` alone. The ORDER
+      of its five refusals is the load-bearing part — reduced motion beats the
+      settings, the settings beat the full-time exemption, the budget beats the
+      gap — and a policy with every rule right and the order wrong agrees on
+      most inputs and then drops the one shot the whole feature exists for.
+      **It has NO SETTING OF ITS OWN**, deliberately: somebody who turned the
+      2D cutaways off wants a quicker, quieter match, and a third switch in
+      that menu is a worse answer than reading the two that already say what
+      they want. Full time is exempt from that and from everything else — the
+      gap, the three-cut budget, Skip, and a clip on the pitch.
+      **The figure is the walker, planted.** `ManagerWalker` gained two seams
+      rather than a second rig: `standing`, which stops the STRIDE and nothing
+      else — it is not `walking: false`, which is a scene nobody is watching
+      and stops him dead, blink and all — and `idle`, a base pose a playing
+      gesture outruns JOINT BY JOINT, which is what the stylesheet's `:where()`
+      specificity does. A fist pump is one arm and the far one should still be
+      drifting. `poseOverIdle` is that rule, pure and tested.
+      The legs go to their untransformed REST, both straight and together,
+      because there is no frame of the cycle that gives it: the two thighs only
+      ever meet at -3 degrees, and there with one shin folded to 60 to swing
+      the foot through. The bob, the sway and the shadow's stride span go with
+      them — all three are the walk.
+      **Between gestures he is not still**, which is the half that took the
+      work. A planted walker with nothing else running is a photograph, and at
+      full time that is most of what anybody watches. Four loops — breath,
+      weight, arms, head — on four periods that share no common multiple, so
+      the combination never visibly repeats; four separate clocks rather than
+      one shared one, because one clock read four ways re-aligns at every wrap,
+      which is exactly the repeat this avoids. `camIdleAt` is the arithmetic,
+      pure: a pixel and a half of movement that is meant to be noticed only
+      when it stops.
+      **Where it MOUNTS is the one place the port diverges, and on purpose.**
+      The JS lays the full-time shot into a summary card that fills the view;
+      this screen has no such card. It goes at the head of the FEED instead —
+      above the newest line, which is where a broadcast cuts to the bench
+      before the graphic. Two reasons: at the whistle the band above is the
+      final statistics, which is the one thing on the page a manager actually
+      reads, and a shot in the feed SCROLLS, so it costs a short screen no
+      permanent height. A goal cut-in still floats over the pitch.
+      **And his reaction waits for the move that caused it.** A goal behind a
+      cutaway has not been TOLD yet, so the cam hangs off the clip's own
+      `onDone` — the same reason the scoreboard holds the number.
+      Two things worth knowing for anyone testing near this. The gap rule
+      cannot be seen from the UI side at any live pace: a minute is 120ms, so a
+      three-second window spans twenty-five game minutes on its own and the
+      "he is already on screen" refusal always gets there first. And
+      `pumpMatch` now runs under REDUCED MOTION by default, which is what
+      refuses the shot — the cam is the one thing on this screen that runs
+      forever, so a live one makes `pumpAndSettle` never return.
+- [ ] **The mood's body LEAN is cam-only.** `--lean` is a whole-body pitch —
+      chest out on a good night, head down on a bad one — and the diorama has
+      never had it: the port renders mood as a head tilt, a stride tempo and a
+      gesture pool. The cam applies it because a reaction shot is the whole
+      reason the lean exists, so the two now disagree about what `crushed`
+      looks like. Either the walker takes it for everybody or the cam gives it
+      up; it is a five-line change and it is a LOOK decision, not a bug.
 - [x] **THE GOAL LANDED ON THE SCOREBOARD BEFORE THE 2D PITCH SHOWED THE MOVE.**
       The number told you the answer and the animation then explained what you
       already knew. The score and the feed were in lockstep with each other —
@@ -3031,12 +3111,17 @@ by a test.
       `TickerMode.of` has been deprecated since 3.35 and `pubspec.lock` pins
       `flutter >=3.44.0`, so it was showing on the project's own SDK.
       `valuesOf(...).enabled` is the replacement and exists throughout that band.
-- [ ] **The SDK the port builds against is worth writing down.** `pubspec.lock`
-      says `dart >=3.12.0` and `flutter >=3.44.0` and nothing else does — no
-      `.fvmrc`, no CI pin — so a fresh clone picks up whatever `flutter` is on
-      the path. On 3.47 the same suite fails 34 rather than 27, because the
-      newer framework adds assertions. Both numbers were one bug; the next one
-      might not be.
+- [x] **The SDK the port builds against is worth writing down.** Written down:
+      **Flutter 3.44.9, Dart 3.12.2**, which is where `flutter analyze` is
+      clean and the whole suite is green. `.fvmrc` carries it and
+      `.github/workflows/ci.yml` now names the same number.
+      It was worse than "nothing said": CI named **3.38.3**, which is BELOW the
+      `flutter >=3.44.0` the lock file asks for, so the one place that did name
+      a version named the wrong one — and `pubspec.lock` is not committed, so
+      nothing reconciled the two. A fresh clone, this job, and the machine the
+      tests were last run on could all disagree. On 3.47 the same suite failed
+      34 rather than 27, because the newer framework adds assertions; both
+      numbers were one bug, and the next one might not be.
 
 ### The walker
 

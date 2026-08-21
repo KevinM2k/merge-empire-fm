@@ -449,6 +449,19 @@ double? _at(GestureTrack? track, double phase, Curve curve) {
   return track.last.$2;
 }
 
+/// One keyframe track, read at [phase] and eased per SEGMENT — the way CSS
+/// eases a keyframe list, rather than once across the whole run.
+///
+/// Public because the dugout cam's idle is four keyframe tracks on four clocks
+/// of its own, and wants exactly this reading. A second sampler is how the idle
+/// and the gestures would end up disagreeing about what `ease-in-out` means on
+/// the same rig.
+double? trackAt(
+  GestureTrack? track,
+  double phase, [
+  Curve curve = Curves.easeInOut,
+]) => _at(track, phase, curve);
+
 /// Where every joint is, [progress] of the way through gesture [id].
 ///
 /// Returns the rest pose — every field null, so the walk owns everything — for

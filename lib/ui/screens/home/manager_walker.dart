@@ -425,6 +425,14 @@ final Alignment _shadowAlignment = Alignment(
   return (centre: (near + far) / 2, width: (near - far).abs());
 }
 
+/// And where they are when he is STANDING — both legs straight down, so both
+/// ankles are directly under their own hip and the pair spans nothing.
+///
+/// Not a typed zero: it is what [walkerAnkle] gives for the angles a planted
+/// figure holds, and writing it out is how it stays true if the rig's rest
+/// angles ever move.
+const ({double centre, double width}) _standSpan = (centre: 0, width: 0);
+
 /// How far the figure is SUNK into its own shadow, in art units.
 ///
 /// The shadow's centre is at [walkerFootline] by construction, so in principle
@@ -520,8 +528,10 @@ class ManagerWalker extends StatefulWidget {
     this.look,
     this.mood = Mood.neutral,
     this.walking = true,
+    this.standing = false,
     this.comfort = 'ok',
     this.gesture,
+    this.idle,
     this.carrying = false,
     super.key,
   });
@@ -542,6 +552,25 @@ class ManagerWalker extends StatefulWidget {
   /// Stopped is a real state: the scene freezes when it is not being watched.
   final bool walking;
 
+  /// He is PLANTED — his legs stop and the rest of him does not.
+  ///
+  /// **Not a synonym for `walking: false`, which is a different thing
+  /// entirely**: that is a scene nobody is looking at, and it stops him dead,
+  /// blink and all. This is a man standing on a touchline being filmed, and the
+  /// dugout cam is what it is for.
+  ///
+  /// The legs go to their untransformed REST — both straight, together — rather
+  /// than to a frame of the cycle, which is what `animation: none` on the four
+  /// leg tracks leaves behind in `league-scene.css`. There is no [t] that gives
+  /// that pose: the two thighs only ever meet at -3 degrees, and there with one
+  /// shin folded to 60 to swing the foot through. The bob, the sway and the
+  /// stride's shadow span go with them — all three are the walk.
+  ///
+  /// What he does INSTEAD of walking is [idle]'s business, not this flag's: a
+  /// planted man with no idle is a photograph, which is the defect the
+  /// stylesheet's "Standing still, not stood still" block was written to kill.
+  final bool standing;
+
   /// How he is coping in what the player put him in: `cold`, `hot`, or `ok`.
   /// `weather_engine.dart`'s `comfortFor` decides, off the temperature and
   /// [garmentWarmth].
@@ -559,6 +588,21 @@ class ManagerWalker extends StatefulWidget {
   /// `manager_mood.dart` decides WHICH and how often; `gesture_poses.dart` knows
   /// what each one looks like. Both were ported with nothing calling them.
   final GestureCue? gesture;
+
+  /// Where his joints sit when nothing else is driving them — a base pose, and
+  /// a PLAYING GESTURE OUTRUNS IT JOINT BY JOINT.
+  ///
+  /// That is the stylesheet's own arrangement rather than a convenience: the
+  /// idle loops are written with `:where()` so they weigh nothing, and every
+  /// `.is-gest-*` rule beats them on the limb it drives while the others carry
+  /// on. A fist pump is one arm, and the far one should still be drifting.
+  ///
+  /// Who decides WHAT an idle looks like is deliberately not this widget:
+  /// standing on a touchline in front of a camera and standing in a shop window
+  /// are different idles, and the one that exists is the cam's — see
+  /// `dugout_cam.dart`. Handing a pose in keeps that where the tempo, the
+  /// amplitudes and the four periods already live.
+  final GesturePose? idle;
 
   /// He has picked the stray ball up and is carrying it — `pitch_ball.dart`
   /// says when, because the sim owns the ball and this owns the man.
@@ -613,6 +657,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
   bool _shouldWalk(BuildContext context) =>
       _beat == null &&
       widget.walking &&
+      !widget.standing &&
       !_planted &&
       !MediaQuery.of(context).disableAnimations;
 
@@ -687,7 +732,8 @@ class _ManagerWalkerState extends State<ManagerWalker>
   /// man who has planted his feet to bow is still a man: he blinks, and he still
   /// shivers if the player dressed him for the wrong weather.
   bool _animating(BuildContext context) =>
-      widget.walking && !MediaQuery.of(context).disableAnimations;
+      (widget.walking || widget.standing) &&
+      !MediaQuery.of(context).disableAnimations;
 
   void _syncBlink() {
     // Stops with everything else: it is a repeating animation like any other.
@@ -770,8 +816,21 @@ class _ManagerWalkerState extends State<ManagerWalker>
   /// `isAnimating` is the whole question.
   GesturePose? get _pose {
     final g = _playing;
+    final playing = g != null && _gestureClock.isAnimating
+        ? gesturePose(g.id, _gestureClock.value, gestureMs: g.ms)
+        : null;
+    return _overIdle(playing);
+  }
+
+  GesturePose? _overIdle(GesturePose? playing) =>
+      poseOverIdle(playing, widget.idle);
+
+  /// The head angle the playing GESTURE is asking for, or null when the idle
+  /// still owns the joint. [_pose] has already composed the two by then.
+  double? get _playingHead {
+    final g = _playing;
     if (g == null || !_gestureClock.isAnimating) return null;
-    return gesturePose(g.id, _gestureClock.value, gestureMs: g.ms);
+    return gesturePose(g.id, _gestureClock.value, gestureMs: g.ms).head;
   }
 
   /// He plants his feet for some of them, and the world has to stop with him:
@@ -895,17 +954,32 @@ class _ManagerWalkerState extends State<ManagerWalker>
         _carryClock,
       ]),
       builder: (context, _) {
+        // **STANDING IS NOT A FRAME OF THE WALK**, so the stride's own
+        // quantities go to nothing rather than to a value of [t]: the bob, the
+        // sway and the span the shadow is drawn across are all the walk, and
+        // the legs below hold their rest angles. See [ManagerWalker.standing].
+        final standing = widget.standing;
         final t = _phase;
         final pose = _carryOver(_pose, t);
         // **ONE angle for every head layer.** Hair, skull and hat are three
         // widgets and one head; give them separate numbers and the face slides
         // out from under its own hat.
-        final headTilt = _headAngle(pose);
+        // **A GESTURE goes through the lift clamp; the IDLE's scan does not.**
+        // That rule is about a gesture not raising a head that is already up —
+        // a manager pointing at something should not end up addressing the sky
+        // — and a one-degree scan is not a lift. Composed here rather than in
+        // [_overIdle] because the two want different arithmetic on the same
+        // field.
+        final scanning = _pose == null || _playingHead == null;
+        final headTilt = scanning
+            ? _headAngle(null) + (widget.idle?.head ?? 0)
+            : _headAngle(pose);
         // The hips, and the same number the leg solver uses — see
         // [walkerHipRise]. It is not decoration: the bob is what lets the foot
         // reach the ends of the step, so the figure's rise and its stride are
         // one calculation and cannot drift apart.
-        final rise = walkerHipRise(t);
+        final rise = standing ? 0.0 : walkerHipRise(t);
+        final span = standing ? _standSpan : _footSpan(t);
 
         return Stack(
           fit: StackFit.expand,
@@ -934,12 +1008,12 @@ class _ManagerWalkerState extends State<ManagerWalker>
                 // its mass sits left of the box's centre while the leading boot
                 // reaches right of it — centring on the feet alone put the
                 // shadow ahead of him.
-                (_footSpan(t).centre * 0.5 - _shadowBias) / (walkerWidth / 2),
+                (span.centre * 0.5 - _shadowBias) / (walkerWidth / 2),
                 _shadowAlignment.y,
               ),
               child: FractionallySizedBox(
                 widthFactor:
-                    (_footSpan(t).width + _shadowPad * 2) / walkerWidth -
+                    (span.width + _shadowPad * 2) / walkerWidth -
                     rise / walkerHeight,
                 heightFactor: _shadowBand,
                 child: const _GroundShadow(),
@@ -957,7 +1031,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                 // fractions, which is what put him above it.
                 offset:
                     (Offset(
-                          math.sin(t * 2 * math.pi) * _sway,
+                          standing ? 0 : math.sin(t * 2 * math.pi) * _sway,
                           _sink - rise + (pose?.bodyLift ?? 0),
                         ) +
                         _shiver(context, t)) *
@@ -980,6 +1054,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                         sleevesAreKit: outfitSleevesAreKit(
                           look['outfit'] as String?,
                         ),
+                        standing: standing,
                         pose: pose,
                       ),
                     ),
@@ -1266,6 +1341,38 @@ class _ComfortPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ComfortPainter old) =>
       old.comfort != comfort || old.seconds != seconds;
+}
+
+/// A gesture laid OVER an idle, joint by joint — `??` per field.
+///
+/// **That is the stylesheet's specificity, written out.** The idle loops are
+/// declared with `:where()` so they weigh nothing, and every `.is-gest-*` rule
+/// beats them on the limb it names while the others carry on: a fist pump is
+/// one arm, and the far one should still be drifting. Replacing the whole pose
+/// would stop the other three joints dead for the length of every gesture.
+///
+/// [playing] wins field by field where it has an opinion — null means the
+/// gesture is not this joint's business, which is what every track that does
+/// not exist already means everywhere else in `gesture_poses.dart`. The FINGER
+/// is the gesture's alone: it is an appearance rather than a joint, and an idle
+/// has no reason to put one out.
+///
+/// Returns [playing] unchanged when there is no idle, which is every caller but
+/// the dugout cam.
+GesturePose? poseOverIdle(GesturePose? playing, GesturePose? idle) {
+  if (idle == null) return playing;
+  if (playing == null) return idle;
+  return (
+    armNear: playing.armNear ?? idle.armNear,
+    armFar: playing.armFar ?? idle.armFar,
+    foreNear: playing.foreNear ?? idle.foreNear,
+    foreFar: playing.foreFar ?? idle.foreFar,
+    head: playing.head ?? idle.head,
+    body: playing.body ?? idle.body,
+    bodyLift: playing.bodyLift ?? idle.bodyLift,
+    legs: playing.legs ?? idle.legs,
+    finger: playing.finger,
+  );
 }
 
 /// A head tilt, about the base of the neck.
@@ -1728,6 +1835,7 @@ class _WalkerPainter extends CustomPainter {
     required this.build,
     required this.outfit,
     required this.sleevesAreKit,
+    this.standing = false,
     this.pose,
   });
 
@@ -1749,6 +1857,10 @@ class _WalkerPainter extends CustomPainter {
   /// The tracksuit's sleeves are club-coloured cloth rather than a fixed colour,
   /// so on a striped kit the stripes run down the whole arm.
   final bool sleevesAreKit;
+
+  /// His legs are PLANTED — see [ManagerWalker.standing]. The four leg tracks
+  /// are not read at all, and the limbs hold the rest they are drawn at.
+  final bool standing;
 
   /// The gesture on top of the walk, if one is playing.
   ///
@@ -1882,10 +1994,15 @@ class _WalkerPainter extends CustomPainter {
     // the same tracks half a cycle on, which is the whole of what makes it a walk.
     final phase = t % 1;
     final x = _hipX(near);
-    final solved = (
-      thigh: walkerThighAngle(phase, near: near),
-      shin: walkerShinAngle(phase, near: near),
-    );
+    // A planted figure holds the angles the art is DRAWN at, which is what the
+    // stylesheet's `animation: none` leaves on the four leg elements — and it
+    // is nowhere on the cycle, so there is no phase to read it off.
+    final solved = standing
+        ? (thigh: 0.0, shin: 0.0)
+        : (
+            thigh: walkerThighAngle(phase, near: near),
+            shin: walkerShinAngle(phase, near: near),
+          );
     // **No rotation of its own.** The boot is drawn inside the shin's frame, so
     // zero is the JS's arrangement exactly: it points where the lower leg points,
     // and there is no toe left pointing at the end of the step.
@@ -2127,5 +2244,6 @@ class _WalkerPainter extends CustomPainter {
       old.build != build ||
       old.outfit != outfit ||
       old.sleevesAreKit != sleevesAreKit ||
+      old.standing != standing ||
       old.pose != pose;
 }

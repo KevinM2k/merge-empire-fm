@@ -14,6 +14,11 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/game_state.dart' show saveDebounceMs;
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
+    show CutawayOutcome;
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
+import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -75,6 +80,13 @@ Future<ProviderContainer> pumpMatch(
   // Distinct per pump, so pumping a second match into the same tester builds a
   // fresh State rather than reusing one whose clock has already run out.
   String instance = 'a',
+  // **REDUCED MOTION BY DEFAULT, as the walker's own harness is.** The dugout
+  // cam is gated on it — `shouldCutIn` refuses the whole shot — and the shot
+  // is the one thing on this screen that runs FOREVER: the idle loops and the
+  // REC dot have no end, so `pumpAndSettle` under a live one never returns.
+  // Every test below settles, and none of them is about the camera; the ones
+  // that are pass `reduceMotion: false` and pump by hand.
+  bool reduceMotion = true,
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -94,10 +106,21 @@ Future<ProviderContainer> pumpMatch(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
-          home: MatchScreen(
-            key: ValueKey('match-$instance'),
-            result: result,
-            onFinished: onFinished,
+          // COPIED from the ambient data, not replaced: a bare
+          // `MediaQueryData` has no SIZE, and the pitch band is a fraction of
+          // the screen's height — so the stage, and everything measured
+          // against it, silently collapses to nothing.
+          home: Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(disableAnimations: reduceMotion),
+              child: MatchScreen(
+                key: ValueKey('match-$instance'),
+                result: result,
+                onFinished: onFinished,
+              ),
+            ),
           ),
         ),
       ),
@@ -129,6 +152,235 @@ String scoreOn(WidgetTester tester) {
 
 void main() {
   tearDown(resetLocale);
+
+  // ── The dugout cam ────────────────────────────────────────────────────────
+  //
+  // Every test in this group asks for motion, because the whole feature is
+  // gated on it: `shouldCutIn` refuses the shot outright under reduced motion,
+  // which is what lets every other test on this screen settle. See `pumpMatch`.
+
+  /// End the clip on the pitch, the way the stage does when its clip runs out.
+  ///
+  /// A Flame loop never settles, so a clip cannot be driven to its own end in a
+  /// widget test — but its `onDone` is the same seam the running stage calls,
+  /// and it is the one the cam actually hangs off.
+  Future<void> endClip(WidgetTester tester) async {
+    tester.widget<CutawayStage>(find.byType(CutawayStage)).onDone!(
+      CutawayOutcome.goal,
+    );
+    await tester.pump();
+  }
+
+  group('THE DUGOUT CAM', () {
+    testWidgets('A GOAL PUTS HIM ON SCREEN — but not before the move that '
+        'scored it', (tester) async {
+      // His reaction to a goal must not arrive ahead of the cutaway retelling
+      // it, for exactly the reason the scoreboard's does not: the number would
+      // explain the animation instead of the animation explaining the number.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+        reduceMotion: false,
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(22));
+      await tester.pump();
+      expect(state.clipPlaying, isTrue);
+      expect(
+        state.camUp,
+        isFalse,
+        reason: 'he reacted to a goal nobody had been shown yet',
+      );
+
+      await endClip(tester);
+      expect(state.camUp, isTrue);
+      expect(find.byType(DugoutCam), findsOneWidget);
+      // Over the pitch, which is where a broadcast puts a cut-in.
+      final cam = tester.getRect(find.byType(DugoutCam));
+      final stage = tester.getRect(find.byKey(const ValueKey('match-stage')));
+      expect(stage.contains(cam.center), isTrue);
+    });
+
+    testWidgets('and he is gone again on his own', (tester) async {
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+        reduceMotion: false,
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(22));
+      await tester.pump();
+      await endClip(tester);
+      expect(state.camUp, isTrue);
+
+      // The window's whole life, plus a frame for the callback. The clock is
+      // still running underneath, which is the point: the match does not stop
+      // for his face.
+      await tester.pump(camIn);
+      await tester.pump(camHold + const Duration(seconds: 3));
+      await tester.pump(camOut);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(state.camUp, isFalse);
+    });
+
+    testWidgets('THE WHISTLE ALWAYS CUTS TO HIM, and he stays', (tester) async {
+      // The payoff the whole feature is for, and the one shot exempt from
+      // every rule that could drop it — the gap, the budget, Skip, and a clip
+      // on the pitch.
+      await pumpMatch(tester, matchResult(), reduceMotion: false);
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pump();
+      await tester.pump();
+      expect(state.camUp, isTrue);
+      expect(find.byType(DugoutCam), findsOneWidget);
+      // Laid INTO the feed rather than floated over the pitch: at the whistle
+      // the band above is the final statistics, which is the one thing on this
+      // page a manager actually reads.
+      final cam = tester.getRect(find.byType(DugoutCam));
+      final stage = tester.getRect(find.byKey(const ValueKey('match-stage')));
+      expect(cam.top, greaterThan(stage.bottom));
+      expect(
+        tester.widget<DugoutCam>(find.byType(DugoutCam)).variant,
+        CamVariant.inline,
+      );
+
+      // And he does not leave. One reaction followed by a frozen man read as
+      // him having got over it already, so there is a rota instead.
+      await tester.pump(camWindow(const Duration(seconds: 3)));
+      expect(state.camUp, isTrue);
+    });
+
+    testWidgets('and Skip does not cost you it', (tester) async {
+      // Skipping ahead is asking for the result, and his reaction to it is
+      // part of the result.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+        reduceMotion: false,
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pump();
+      await tester.pump();
+      expect(state.camUp, isTrue);
+      expect(state.camGoalCuts, 0, reason: 'no goal cut-in was ever shown');
+    });
+
+    testWidgets('THREE GOAL CUT-INS AND NO MORE', (tester) async {
+      // A reaction shot on every goal of a 6-3 would be nine of them, and a
+      // reaction that happens nine times stops being a reaction and becomes
+      // furniture. Six goals here, and he may be on camera for three.
+      //
+      // The GAP is pinned in `dugout_cam_policy_test.dart` rather than here,
+      // and it is worth saying why it cannot be seen from this side: a minute
+      // is 120ms of real time, so a window that is up for about three seconds
+      // spans twenty-five game minutes on its own — twice the gap. The
+      // "he is already on screen" refusal gets there first at every live pace.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            for (final m in [10, 15, 30, 50, 70, 85])
+              {'minute': m, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+        reduceMotion: false,
+      );
+      final state = stateOf(tester);
+      for (var minute = 1; minute <= 88; minute++) {
+        await tester.pump(minuteDurationFor(1));
+        await tester.pump();
+        if (state.clipPlaying) await endClip(tester);
+      }
+      expect(state.camGoalCuts, lessThanOrEqualTo(camMaxGoalCuts));
+      expect(
+        state.camGoalCuts,
+        greaterThan(0),
+        reason: 'six goals and he was never once on camera',
+      );
+    });
+
+    testWidgets('THE 2D SWITCH GOVERNS IT TOO — there is no third switch', (
+      tester,
+    ) async {
+      // Somebody who turned the cutaways off wants a quicker, quieter match,
+      // and a third toggle in that menu is a worse answer than reading the two
+      // that already say what they want.
+      final save = createDefaultState();
+      (save['settings'] as Map<String, dynamic>)['cutawayOurTeam'] = false;
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+        save: save,
+        reduceMotion: false,
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(24));
+      await tester.pump();
+      expect(state.clipPlaying, isFalse, reason: 'the switch is off');
+      expect(state.camUp, isFalse);
+
+      // Full time is exempt: it is one shot, at the end, and it is the payoff.
+      state.skipToEnd();
+      await tester.pump();
+      await tester.pump();
+      expect(state.camUp, isTrue);
+    });
+
+    testWidgets('A GOAL IN STOPPAGE TIME GIVES UP THE CAMERA', (tester) async {
+      // The window the whistle would cut in half, against a full-time shot
+      // about the same goal that is seconds away and is the better picture.
+      // And it must not spend one of the three on the way past.
+      await pumpMatch(
+        tester,
+        matchResult(
+          addedTime: 0,
+          events: [
+            {'minute': 90, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+          ],
+        ),
+        reduceMotion: false,
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(90));
+      await tester.pump();
+      if (state.clipPlaying) await endClip(tester);
+      expect(state.camGoalCuts, 0);
+      expect(
+        state.camUp,
+        isFalse,
+        reason: 'two of him at once, over the result',
+      );
+    });
+
+    testWidgets('REDUCED MOTION NEVER SEES HIM AT ALL', (tester) async {
+      // The gate is in the policy rather than in the widget, so the shot is
+      // refused before anything mounts.
+      await pumpMatch(tester, matchResult());
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expect(state.camUp, isFalse);
+      expect(find.byType(DugoutCam), findsNothing);
+    });
+  });
 
   testWidgets('opens goalless, on the clock', (tester) async {
     await pumpMatch(

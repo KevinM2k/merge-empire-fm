@@ -33,7 +33,7 @@ import 'package:merge_empire_fc/engine/match_orchestration.dart'
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
-    show leagueTableProvider;
+    show leagueTableProvider, managerLookProvider;
 import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show PosChip, PosStanding;
@@ -49,6 +49,9 @@ import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
     show settingPick;
+import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
+import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
+import 'package:merge_empire_fc/data/manager_mood.dart' show Gesture, Mood;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
@@ -57,6 +60,16 @@ import 'package:merge_empire_fc/ui/widgets/player_card.dart' show PlayerFace;
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
+
+/// One dugout-cam shot, as the screen has decided it. Everything the widget
+/// needs and nothing it can work out for itself.
+typedef _CamShot = ({
+  Mood mood,
+  Gesture? gesture,
+  CamTone tone,
+  String? minute,
+  CamVariant variant,
+});
 
 class MatchScreen extends ConsumerStatefulWidget {
   const MatchScreen({
@@ -299,6 +312,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       _cutIfWorthWatching();
     });
     _soundFor(_minute);
+    // A goal the pitch is retelling has not been TOLD yet — the cutaway's own
+    // `onDone` cuts to him instead, so his reaction lands after the move
+    // rather than over it.
+    if (_clip == null) _dugoutCamFor(_minute);
   }
 
   /// Whatever landed on this minute, in sound.
@@ -357,6 +374,41 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// hide a passage of play because something better happened.
   int? _lastChanceCutMinute;
 
+  // ── The dugout cam ───────────────────────────────────────────────────────
+  //
+  // A broadcast cut-in on the MANAGER, reacting to what just happened. When it
+  // may fire lives in `data/dugout_cam_policy.dart` and what it looks like in
+  // `dugout_cam.dart`; everything here is about whether the screen is free to
+  // show it.
+  //
+  // **The clock does NOT stop for it.** A cutaway is a retelling and holds the
+  // minute; this is a reaction to a minute already told, and a match that
+  // paused for the manager's face would be a match watching him instead of
+  // itself.
+
+  /// The shot currently up, or null.
+  _CamShot? _cam;
+
+  /// The minute the last cut-in went up, and how many GOAL cut-ins have been
+  /// spent. Full time is exempt from both.
+  int? _lastCamMinute;
+  int _camGoalCuts = 0;
+
+  /// Set by the goal that wins it late, and it has to be captured AS IT
+  /// HAPPENS: by full time a 1-0 is just a 1-0, and the whistle is where the
+  /// rush actually lands.
+  bool _lateWinner = false;
+
+  /// The shot when it is the full-time one, which is the only variant the
+  /// feed carries. The float lives over the pitch, and mounting the same
+  /// record in both places would put two of him on screen at once.
+  _CamShot? get _inlineCam =>
+      _cam?.variant == CamVariant.inline ? _cam : null;
+
+  /// Test seams.
+  bool get camUp => _cam != null;
+  int get camGoalCuts => _camGoalCuts;
+
   /// Put the newest event on the pitch, when it is one you can watch.
   void _cutIfWorthWatching() {
     for (final event in _timeline) {
@@ -389,6 +441,164 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     }
   }
 
+  /// Cut to the manager, if the screen and the rules both allow it.
+  ///
+  /// [minute] is the minute being reacted TO, which for a goal shown behind a
+  /// cutaway is the clip's minute rather than wherever the clock has got to.
+  void _maybeDugoutCam(CamTrigger trigger, int minute) {
+    // The whistle always takes the camera back. A goal in the 90th leaves its
+    // floating window on screen into full time, where it would hang over the
+    // result while the full-time shot is printed inside the feed — two of him
+    // at once, and the second is the one that matters.
+    if (trigger == CamTrigger.fullTime) _closeDugoutCam();
+    if (_cam != null) return;
+    // Full time is exempt, as it is from the gap and the budget alike. A goal
+    // cut-in must not land on top of a 2D clip, but the full-time shot is laid
+    // INTO the feed rather than over the pitch, so a clip cannot be in its way.
+    // Left un-exempted this is the one rule that could silently drop the shot
+    // the whole feature exists for.
+    if (trigger != CamTrigger.fullTime && _clip != null) return;
+    if (!shouldCutIn(
+      trigger: trigger,
+      minute: minute,
+      lastCutMinute: _lastCamMinute,
+      goalCuts: _camGoalCuts,
+      settings: {
+        'cutawayOurTeam': ref.read(settingPick<bool>('cutawayOurTeam', true)),
+        'cutawayOpponent': ref.read(
+          settingPick<bool>('cutawayOpponent', true),
+        ),
+      },
+      reducedFx: MediaQuery.of(context).disableAnimations,
+    )) {
+      return;
+    }
+
+    final fullTime = trigger == CamTrigger.fullTime;
+    final f = frame;
+    final swing = _swing();
+    // Null on the fixtures the engine does not rate, and `?? 0` would quietly
+    // turn a missing opponent into a fifty-point mismatch.
+    final ours = (widget.result['squadRating'] as num?)?.toDouble();
+    final theirs = (widget.result['opponentRating'] as num?)?.toDouble();
+    final mood = camMood(
+      trigger: trigger,
+      ourGoals: f.ourGoals,
+      theirGoals: f.theirGoals,
+      trophiesEarned: (widget.result['trophiesEarned'] as num?) ?? 0,
+      lateWinner: _lateWinner,
+      ratingGap: ours != null && theirs != null ? theirs - ours : 0,
+      // A cup tie is always at home, so "at home" carries none of the meaning
+      // it does in the league — better to say nothing.
+      isHome: widget.result['isCup'] == true
+          ? null
+          : widget.result['isHome'] == true,
+      led: swing.led,
+      trailed: swing.trailed,
+    );
+    final gesture = camGesture(
+      mood,
+      null,
+      ref.read(gameProvider).state,
+      fullTime,
+    );
+
+    // A goal deep in stoppage time starts a window the whistle would cut in
+    // half, and the full-time shot — about the same goal, and the better
+    // picture — is seconds away. So the late goal gives up the camera rather
+    // than sharing it. REAL milliseconds off the live tick rate: the same 88th
+    // minute is twice as close at 2×. Checked BEFORE the counters below,
+    // because a cut-in that never happened must not spend one of the three or
+    // start the gap.
+    if (!fullTime) {
+      final left = minuteDuration(fast: _fast) * (_end - minute).clamp(0, _end);
+      if (!camFitsBeforeFullTime(
+        Duration(milliseconds: gesture?.ms ?? 0),
+        left,
+      )) {
+        return;
+      }
+    }
+
+    final margin = f.ourGoals - f.theirGoals;
+    setState(() {
+      _lastCamMinute = minute;
+      if (!fullTime) _camGoalCuts++;
+      _cam = (
+        mood: mood,
+        gesture: gesture,
+        tone: margin > 0
+            ? CamTone.good
+            : margin < 0
+            ? CamTone.bad
+            : CamTone.flat,
+        // Full time is a reaction to the whole match, not to a minute of it.
+        minute: fullTime ? null : "$minute'",
+        variant: fullTime ? CamVariant.inline : CamVariant.float,
+      );
+    });
+  }
+
+  void _closeDugoutCam() {
+    if (_cam == null) return;
+    setState(() => _cam = null);
+  }
+
+  /// Whether the match has been in front and behind, off the events already
+  /// SHOWN.
+  ///
+  /// A point is only worth what it was taken against, so a full-time draw needs
+  /// to know which way the night swung — otherwise every 2-2 gets the same
+  /// shrug. Folded over the shown list rather than tracked as the clock runs,
+  /// so a tactic change that re-simulates the remainder cannot leave a stale
+  /// flag behind.
+  ({bool led, bool trailed}) _swing() {
+    var ours = 0;
+    var theirs = 0;
+    var led = false;
+    var trailed = false;
+    for (final event in frame.shown) {
+      if (event.type != 'goal') continue;
+      if (event.team != 'away') {
+        ours++;
+      } else {
+        theirs++;
+      }
+      if (ours > theirs) led = true;
+      if (theirs > ours) trailed = true;
+    }
+    return (led: led, trailed: trailed);
+  }
+
+  /// The goals landing on [minute], as the camera sees them: ours or theirs.
+  ///
+  /// Called when the minute has been TOLD, which for a goal behind a cutaway is
+  /// when the clip ends — his reaction to a goal must not arrive before the
+  /// move that scored it, for the same reason the scoreboard's does not.
+  void _dugoutCamFor(int minute) {
+    for (final event in _timeline) {
+      if (event.minute != minute || event.type != 'goal') continue;
+      final ours = event.team != 'away';
+      if (ours) {
+        // Captured as it happens: by full time a 1-0 is just a 1-0.
+        final f = frame;
+        if (isLateWinner(
+          minute: minute,
+          duration: _end,
+          ourGoals: f.ourGoals,
+          theirGoals: f.theirGoals,
+        )) {
+          _lateWinner = true;
+        }
+      }
+      _maybeDugoutCam(
+        ours ? CamTrigger.goalFor : CamTrigger.goalAgainst,
+        minute,
+      );
+      return;
+    }
+  }
+
   /// Jump to full time. The result was decided before the first whistle, so
   /// skipping costs the player the story and nothing else.
   void skipToEnd() {
@@ -407,6 +617,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (_reported) return;
     _reported = true;
     _restoreKickoffLineup();
+    // **The payoff the whole feature is for**, and the one shot exempt from
+    // every rule that could drop it: the gap, the budget, Skip, and a clip on
+    // the pitch. Scheduled for after this frame because it reads `frame`, and
+    // at the moment `_finish` runs `_minute` has only just reached the end.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _maybeDugoutCam(CamTrigger.fullTime, _end);
+    });
     final sound = ref.read(soundServiceProvider);
     unawaited(sound.play('whistle'));
     // The result, a beat after the final whistle rather than under it.
@@ -788,8 +1005,38 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                           CutawayStage(
                             clip: _clip,
                             onDone: (_) {
-                              if (mounted) setState(() => _clip = null);
+                              if (!mounted) return;
+                              final told = _clippedMinute;
+                              setState(() => _clip = null);
+                              // Now it has been told, he can react to it.
+                              _dugoutCamFor(told);
                             },
+                          ),
+                        // **OVER THE PITCH, bottom right**, which is where a
+                        // broadcast puts a cut-in and the one corner of this
+                        // band that carries no statistic. A cutaway owns the
+                        // stage while it plays and the rules above keep the
+                        // two off it at once.
+                        if (_cam case final shot?
+                            when shot.variant == CamVariant.float)
+                          Positioned.fill(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Align(
+                                alignment: Alignment.bottomRight,
+                                child: LayoutBuilder(
+                                  builder: (context, box) => SizedBox(
+                                    width: (box.maxWidth * camFloatFraction)
+                                        .clamp(
+                                          camFloatMinWidth,
+                                          camFloatMaxWidth,
+                                        )
+                                        .clamp(0.0, box.maxWidth),
+                                    child: _dugoutCam(shot),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -842,11 +1089,47 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     // worth reading was off the bottom of a long match. A line should
                     // arrive from ABOVE and push the rest down, which is the
                     // direction the feed actually grows.
-                    itemCount: lines.length,
-                    itemBuilder: (context, i) => _FeedLine(
-                      line: lines[lines.length - 1 - i],
-                      state: ref.read(gameProvider).state,
-                    ),
+                    // **THE FULL-TIME SHOT IS THE HEAD OF THE FEED**, above
+                    // the newest line, which is where a broadcast cuts to the
+                    // bench before the graphic. It goes here rather than in
+                    // the corner of the pitch for two reasons: at the whistle
+                    // the band above is the final statistics, which is the one
+                    // thing on the page a manager actually reads; and this is
+                    // the better shot anyway — a reaction still printed beside
+                    // the result. It also SCROLLS, so it costs the feed no
+                    // permanent height on a short screen.
+                    itemCount: lines.length + (_inlineCam == null ? 0 : 1),
+                    itemBuilder: (context, i) {
+                      final shot = _inlineCam;
+                      if (shot != null) {
+                        if (i == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Center(
+                              child: LayoutBuilder(
+                                builder: (context, box) => SizedBox(
+                                  width: (box.maxWidth * camInlineFraction)
+                                      .clamp(
+                                        camInlineMinWidth,
+                                        camInlineMaxWidth,
+                                      )
+                                      .clamp(0.0, box.maxWidth),
+                                  child: _dugoutCam(shot),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return _FeedLine(
+                          line: lines[lines.length - i],
+                          state: ref.read(gameProvider).state,
+                        );
+                      }
+                      return _FeedLine(
+                        line: lines[lines.length - 1 - i],
+                        state: ref.read(gameProvider).state,
+                      );
+                    },
                   ),
                 ),
               if (f.finished) _QuestOutcomes(result: widget.result),
@@ -890,6 +1173,44 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// The shot, wrapped in the two things it must never be: interactive, or
+  /// something a screen reader reads out. It is a picture of a man's face — it
+  /// carries no information the score and the feed do not already give in
+  /// words, and its caption bar is decoration.
+  Widget _dugoutCam(_CamShot shot) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: DugoutCam(
+          // The shot is keyed on the minute it is about, so a second goal
+          // genuinely replaces the first rather than reusing its clocks.
+          key: ValueKey('dugout-cam-${shot.variant.name}-$_lastCamMinute'),
+          mood: shot.mood,
+          kit: kit.accent,
+          skin: const Color(0xFFEEBB8C),
+          hair: const Color(0xFF3A2A1C),
+          look: ref.read(managerLookProvider),
+          gesture: shot.gesture,
+          minute: shot.minute,
+          tone: shot.tone,
+          variant: shot.variant,
+          // Only the full-time shot keeps going: it is still there thirty
+          // seconds later, and one reaction followed by a frozen man read as
+          // him having got over it already.
+          rota: shot.variant == CamVariant.inline
+              ? (recent) => camRotaBeat(
+                  shot.mood,
+                  null,
+                  ref.read(gameProvider).state,
+                  recent,
+                )
+              : null,
+          onDone: _closeDugoutCam,
         ),
       ),
     );
