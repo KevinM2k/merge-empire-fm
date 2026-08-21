@@ -1196,6 +1196,21 @@ now uses the app's own line art and the coin bundles get real pictures.
       works in. The rig turns JOINTS, so giving it real parts to turn is a swap
       rather than a rewrite. **This is what unblocks the whole manager cluster
       above**, previews included.
+- [x] **`assets/whack/board_bg.png` was bundled and reached by nothing.** A mown
+      pitch with markings on it, drawn for the Pitch Invaders board, while the
+      board was a gradient. It is behind the holes now, knocked back to 55% —
+      the mouths and what comes out of them are the thing being looked at.
+- [ ] **Three more bundled assets have no caller**, found the same way. Worth a
+      decision each rather than a guess:
+      **`assets/penalty/goal.png`** (50KB) is the flat goalmouth photograph the
+      penalty rebuild replaced with real geometry — dead weight, and the obvious
+      delete.
+      **`assets/ui/player_walk.png`** (295KB, 1216×151) and
+      **`assets/ui/player_run8.png`** (7KB, 512×64, eight 64px frames) are
+      player sprite sheets, and they are what the 2D cutaway would want if it
+      ever stops drawing its players by hand.
+      Note also that `goal.png` and `board_bg.png` are JPEGs wearing a `.png`
+      extension. Flutter sniffs the format so both decode, but the names lie.
 - [ ] **`kenney_background-elements-remastered` (1.6MB) is the next candidate** —
       for the customiser's backdrop, and possibly the diorama.
 - [ ] **`kenney_sports-pack` is already half-extracted** into `assets/pitch/`.

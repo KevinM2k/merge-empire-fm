@@ -39,6 +39,10 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
+/// The board's own backdrop — a mown pitch with markings, drawn for exactly
+/// this and shipped in the bundle with nothing referencing it.
+const String whackBoardArt = 'assets/whack/board_bg.png';
+
 /// What can be in a hole, and what tapping it is worth.
 enum Invader {
   invader('🏃', 1),
@@ -398,6 +402,12 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                 ),
               ),
               const SizedBox(height: 12),
+              // **THE BOARD IS DRAWN GRASS**, not a gradient.
+              // `assets/whack/board_bg.png` ships in the bundle and nothing
+              // referenced it — a mown pitch with markings, drawn for exactly
+              // this and never reached. The gradient stays behind it as the
+              // fallback, so a missing asset is a plain green board rather than
+              // an error box over the game.
               DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
@@ -405,6 +415,14 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [Color(0xFF0D4A1C), Color(0xFF0A3614)],
+                  ),
+                  image: const DecorationImage(
+                    image: AssetImage(whackBoardArt),
+                    fit: BoxFit.cover,
+                    // Knocked back: the holes and what comes out of them are
+                    // the thing being looked at, and full-strength turf under
+                    // nine dark mouths is a busy picture.
+                    opacity: 0.55,
                   ),
                 ),
                 child: Padding(

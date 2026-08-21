@@ -137,6 +137,23 @@ void main() {
     expect(playableMiniGames, contains(MiniGameKind.whack));
   });
 
+  testWidgets('AND SO IS ITS ARTWORK', (tester) async {
+    // `assets/whack/board_bg.png` ships in the bundle — a mown pitch with
+    // markings, drawn for exactly this board — and nothing referenced it. The
+    // board was a gradient.
+    await pumpGame(tester);
+    final decorated = tester
+        .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+        .map((d) => d.decoration)
+        .whereType<BoxDecoration>()
+        .where((d) => d.image != null);
+    expect(
+      decorated.map((d) => (d.image!.image as AssetImage).assetName),
+      contains(whackBoardArt),
+    );
+    await closeGame(tester);
+  });
+
   testWidgets('THE LEAD-IN COMES FIRST, and nothing pops before it', (
     tester,
   ) async {
