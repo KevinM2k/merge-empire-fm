@@ -43,6 +43,7 @@ const Map<String, String> miniGameTitleKeys = {
 const Set<String> playableMiniGames = {
   MiniGameKind.penalty,
   MiniGameKind.bootRoom,
+  MiniGameKind.throughBall,
 };
 
 final miniGamesProvider = savePick<List<MiniGameRow>>((s) {
