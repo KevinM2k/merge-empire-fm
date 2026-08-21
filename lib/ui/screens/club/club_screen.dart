@@ -253,18 +253,27 @@ class _AssetPanel extends ConsumerWidget {
 
   final AssetTile tile;
 
-  /// Build it or invest in it, and then SAY SO.
+  /// Build it or invest in it, and then SAY SO — **once per tier.**
   ///
-  /// The port took the coins, ticked the bar up and said nothing — so the one
+  /// The port took the coins, ticked the bar up and said nothing, so the one
   /// moment on this screen a player is paying for looked exactly like a number
   /// changing. `showFeatureUnlock` is the JS's payoff beat, and a tier-up gets it
   /// as well as a first build: the two are the same kind of event.
+  ///
+  /// **But an INVEST is a tap, not a tier.** Filling tier one takes ten of them
+  /// and tier seven takes forty, and the splash fired on every single one — a
+  /// full-screen celebration standing between the player and the button they are
+  /// trying to press again. It goes up when the bar actually FILLS.
+  ///
+  /// `tieredUp` comes off the engine rather than being worked out here: it
+  /// already knows, because it is the thing that decides.
   Future<void> _buy(BuildContext context, WidgetRef ref, GameState game) async {
     final wasOwned = tile.owned;
-    game.update(
+    final purchase = game.update(
       (s) => wasOwned ? investInAsset(s, tile.key) : buildAsset(s, tile.key),
     );
     if (!context.mounted) return;
+    if (!purchase.ok || !purchase.tieredUp) return;
 
     // Read the tier AFTER the purchase — the splash names what the club has now,
     // not what it had a moment ago.

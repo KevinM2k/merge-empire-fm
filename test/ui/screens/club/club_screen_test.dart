@@ -303,18 +303,47 @@ void main() {
       await settleSave(tester);
     });
 
-    testWidgets('and an upgrade says TIER UP instead', (tester) async {
-      // The same card with a different eyebrow, deliberately: they are the same
-      // kind of event, and a different shape would make the smaller one read as
-      // a lesser thing rather than the next step of the same thing.
+    testWidgets('BUT NOT ON EVERY TAP — only when the bar fills', (
+      tester,
+    ) async {
+      // Filling tier one takes TEN taps and tier seven takes forty, and the
+      // splash went up on every one of them: a full-screen celebration standing
+      // between the player and the button they are trying to press again.
       await pumpClub(tester, coins: 10000000);
-      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      final action = find.byKey(const ValueKey('club-action-$_key'));
+      await tester.tap(action);
       await tester.pump();
       await tester.pump(featureUnlockHold);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      // One tap into tier one, which needs ten of them. Nothing to celebrate.
+      await tester.tap(action);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        find.byKey(const ValueKey('feature-unlock')),
+        findsNothing,
+        reason: 'a single tap of a ten-tap tier threw a party',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('and the tap that FILLS it says TIER UP', (tester) async {
+      // The same card with a different eyebrow, deliberately: they are the same
+      // kind of event, and a different shape would make the smaller one read as
+      // a lesser thing rather than the next step of the same thing.
+      await pumpClub(tester, coins: 10000000);
+      final action = find.byKey(const ValueKey('club-action-$_key'));
+      await tester.tap(action);
+      await tester.pump();
+      await tester.pump(featureUnlockHold);
+      await tester.pumpAndSettle();
+
+      // Tier one takes `tapsForTier(1)` taps. The last one is the event.
+      for (var i = 0; i < tapsForTier(1); i++) {
+        await tester.tap(action);
+        await tester.pump();
+      }
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.textContaining(t('feature.tier_up')), findsOneWidget);
 

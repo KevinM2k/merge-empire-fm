@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -157,9 +158,50 @@ Future<void> showSellSheet(
               const SizedBox(height: 14),
               ElevatedButton(
                 key: const ValueKey('sell-confirm'),
-                onPressed: () {
+                // **IT ASKS FIRST.** Selling is irreversible and the button sits
+                // under the thumb at the foot of a sheet, so a mis-tap costs a
+                // player. This confirmation used to guard the squad sheet's own
+                // Sell; that button has gone, and the guard belongs with the one
+                // that remains rather than with the one that left.
+                //
+                // And it asks as COLIN, on a screen whose premise is that there
+                // is a manager to talk to — the copy is already shipped and
+                // translated, including what the sale COSTS in its own right:
+                // the bonuses go with him, and burying that inside the offer is
+                // how somebody agrees to something they did not read.
+                onPressed: () async {
+                  final confirmed = await showCoachCard<bool>(
+                    sheetContext,
+                    titleKey: 'sell.title',
+                    bodyKey: 'sell.receive',
+                    bodyParams: {'name': view.name},
+                    body: '${t('sell.receive')}: ${formatCoins(price)}',
+                    extraLines: [
+                      (
+                        key: 'sell.lose_bonuses',
+                        params: const {},
+                        strong: false,
+                      ),
+                    ],
+                    actions: [
+                      CoachAction(
+                        labelKey: 'common.cancel',
+                        tone: CoachTone.decline,
+                        onTap: () {},
+                      ),
+                      CoachAction(
+                        labelKey: 'common.sell',
+                        tone: CoachTone.confirm,
+                        onTap: () {},
+                        result: true,
+                      ),
+                    ],
+                  );
+                  if (confirmed != true || !sheetContext.mounted) return;
                   game.update((s) => sellCard(s, instanceId, mult));
-                  Navigator.of(sheetContext).pop();
+                  if (sheetContext.mounted) {
+                    Navigator.of(sheetContext).pop();
+                  }
                 },
                 child: Text(t('common.sell')),
               ),

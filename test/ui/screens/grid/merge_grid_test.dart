@@ -628,6 +628,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('sell-confirm')));
       await tester.pumpAndSettle();
+      // **AND IT ASKS FIRST.** Selling is irreversible and the button sits under
+      // the thumb at the foot of a sheet, so a mis-tap costs a player.
+      expect(find.byKey(const ValueKey('coach-card')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('coach-action-common.sell')));
+      await tester.pumpAndSettle();
       await settleSave(tester);
 
       expect(filledCells(container), 0, reason: 'the card is gone');

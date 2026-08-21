@@ -128,7 +128,7 @@ class PlayerCard extends StatelessWidget {
   const PlayerCard({
     super.key,
     required this.view,
-    this.light = false,
+    this.light,
     this.onTap,
     this.selected = false,
     this.kitColor,
@@ -138,7 +138,17 @@ class PlayerCard extends StatelessWidget {
 
   /// Light mode swaps the BODY for a pale tint of the same rarity. The chips
   /// stay dark so their bright rarity text stays readable on top.
-  final bool light;
+  /// Whether to wear the light palette, or null to take it from the theme.
+  ///
+  /// **NULL IS THE ANSWER ALMOST EVERYWHERE.** It was a `bool` defaulting to
+  /// false, so a card was dark unless its caller remembered — and seven callers
+  /// each remembering is seven chances to forget, which is how the squad, the
+  /// bench and the pickers ended up with dark cards on a light page. Resolved
+  /// here, from the theme the card is actually being drawn in.
+  ///
+  /// It stays overridable for the one case that is not about the theme: a card
+  /// lifted onto a drag overlay or laid on a dark scrim decides for itself.
+  final bool? light;
 
   final VoidCallback? onTap;
   final bool selected;
@@ -154,7 +164,13 @@ class PlayerCard extends StatelessWidget {
     final theme = _theme;
     final accent = cssColor(theme.accent);
     final accentLight = cssColor(theme.accentLight);
+    final light =
+        this.light ?? Theme.of(context).brightness == Brightness.light;
     final body = light ? theme.bgLight : theme.bg;
+    // What sits ON the caption scrim — see the note where it is drawn. Dark ink
+    // over a white scrim, light ink over a black one; the bars' tracks follow.
+    final captionInk = light ? const Color(0xFF1A1F26) : Colors.white;
+    final captionTrack = light ? Colors.black26 : Colors.white24;
 
     return RepaintBoundary(
       child: GestureDetector(
@@ -170,198 +186,223 @@ class PlayerCard extends StatelessWidget {
             ),
           ),
           clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              if (view.variant != null)
-                Positioned.fill(
-                  // **AS WIDE AS THE CARD, AND STARTING AT ITS TOP.** `contain`
-                  // fits the whole drawing inside the frame and centres the
-                  // slack, which on art squarer than the card left a band of
-                  // nothing above his head and shrank him to pay for it. Wider
-                  // is fine — what is cropped off the bottom is his boots, and
-                  // the name band is over them anyway.
-                  child: ArtImage(
-                    path: playerImagePath(
-                      view.position,
-                      view.tier,
-                      view.variant!,
-                    ),
-                    fit: BoxFit.fitWidth,
-                    alignment: Alignment.topCenter,
-                    fallback: PlayerPortrait(
-                      variantIndex: view.variant!,
-                      kitColor: kitColor ?? accent,
-                    ),
-                  ),
-                ),
-              // THREE BANDS, and the middle one is the picture.
-              //
-              // Everything used to be one `spaceBetween` column over the art:
-              // six items spread evenly down the card, so the tier chip, the
-              // status icons and the name landed wherever the count of them put
-              // them and the portrait was whatever was left behind. Chips at the
-              // top, art in the middle with nothing on it, and every word in one
-              // legible block at the foot.
-              Positioned(
-                top: 5,
-                left: 5,
-                right: 5,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Flexible(
-                      child: _Chip(
-                        label: '${view.rating}',
-                        background: cssColor(theme.labelBg),
-                        foreground: accentLight,
-                        bold: true,
+          // **CLIPPED TO THE INSIDE OF THE BORDER, not the outside.**
+          // `Container.clipBehavior` clips to the decoration's OUTER path, so a
+          // child that fills the box paints over the border's own curve at every
+          // corner — the portrait at the top, the caption scrim at the bottom.
+          // That was invisible while the scrim was black on a dark card; a white
+          // one in light mode showed the border going missing at all four
+          // corners.
+          //
+          // The child's box is already inset by the border, so what it needs is
+          // the border's own radius LESS its width, which is the curve of the
+          // hole it is sitting in.
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(
+              Radius.circular(10 - (selected ? 3 : 2)),
+            ),
+            child: Stack(
+              children: [
+                if (view.variant != null)
+                  Positioned.fill(
+                    // **AS WIDE AS THE CARD, AND STARTING AT ITS TOP.** `contain`
+                    // fits the whole drawing inside the frame and centres the
+                    // slack, which on art squarer than the card left a band of
+                    // nothing above his head and shrank him to pay for it. Wider
+                    // is fine — what is cropped off the bottom is his boots, and
+                    // the name band is over them anyway.
+                    child: ArtImage(
+                      path: playerImagePath(
+                        view.position,
+                        view.tier,
+                        view.variant!,
+                      ),
+                      fit: BoxFit.fitWidth,
+                      alignment: Alignment.topCenter,
+                      fallback: PlayerPortrait(
+                        variantIndex: view.variant!,
+                        kitColor: kitColor ?? accent,
                       ),
                     ),
-                    const SizedBox(width: 2),
-                    Flexible(
-                      child: _Chip(
-                        label: positionLabel[view.position] ?? view.position,
-                        background: cssColor(theme.labelBg),
-                        foreground: accentLight,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: DecoratedBox(
-                  // The band the words sit on. The portrait behind them is a
-                  // photograph with no say in what colour it is under a caption,
-                  // so the caption brings its own.
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0x00000000), Color(0xC7000000)],
-                      stops: [0, 0.55],
-                    ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(5, 14, 5, 5),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            // WHICH CARDS PAIR UP. Two cards with the same
-                            // definition merge whatever portrait or name they
-                            // happen to carry, so without the tier on the face
-                            // there is no way to tell by looking — the grid's
-                            // whole mechanic had no visual cue.
-                            Flexible(
-                              child: _Chip(
-                                key: ValueKey('card-tier-${view.tier}'),
-                                label: view.injured
-                                    ? t('card.inj_short')
-                                    : (tierLabel[view.tier] ?? 'T${view.tier}'),
-                                background: cssColor(theme.labelBg),
-                                foreground: view.injured
-                                    ? Colors.redAccent
-                                    : accentLight,
-                                bold: true,
-                              ),
-                            ),
-                            // Status beside the tier rather than on a line of
-                            // its own: an injury is what a player scanning a
-                            // full grid is looking for, and it belongs with the
-                            // thing it disqualifies him from.
-                            if (view.injured || view.onLoan) ...[
-                              const SizedBox(width: 3),
-                              if (view.injured)
-                                const Icon(
-                                  Icons.healing,
-                                  size: 12,
-                                  color: Colors.redAccent,
-                                ),
-                              if (view.onLoan)
-                                const Icon(
-                                  Icons.swap_horiz,
-                                  size: 12,
-                                  color: Colors.lightBlueAccent,
-                                ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          view.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        if (view.fitness != null) ...[
-                          const SizedBox(height: 3),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              key: const ValueKey('card-fitness'),
-                              value: view.fitness!.clamp(0.0, 1.0),
-                              minHeight: 3,
-                              backgroundColor: Colors.white24,
-                              valueColor: AlwaysStoppedAnimation(
-                                view.fitness! < 0.34
-                                    ? Colors.redAccent
-                                    : accentLight,
-                              ),
-                            ),
-                          ),
-                        ],
-                        // THE MONEY. What this player actually pays per second,
-                        // and a bar whose cycle is one payout of it — so a
-                        // faster bar is literally a richer player, and a sponsor
-                        // or an injury visibly changes the speed.
-                        if (view.incomePerSec != null) ...[
-                          const SizedBox(height: 3),
-                          _Income(
-                            ratePerSec: view.incomePerSec!,
-                            ink: accentLight,
-                            track: Colors.white24,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              // Across the corner, because at bench size a pip cannot carry a
-              // word and every corner is already spoken for.
-              if (view.maxed || view.atCap)
+                // THREE BANDS, and the middle one is the picture.
+                //
+                // Everything used to be one `spaceBetween` column over the art:
+                // six items spread evenly down the card, so the tier chip, the
+                // status icons and the name landed wherever the count of them put
+                // them and the portrait was whatever was left behind. Chips at the
+                // top, art in the middle with nothing on it, and every word in one
+                // legible block at the foot.
                 Positioned(
-                  // UNDER the rating chips, not over them. At the very top it
-                  // landed on the position chip, which is the one thing on the
-                  // card a player is comparing across a grid.
-                  top: 24,
-                  right: 0,
-                  child: _Ribbon(
-                    label: view.maxed
-                        ? t('card.max_ribbon')
-                        : t('card.tier_locked', {'tier': view.tier}),
-                    // Gold for the top of the game, and a flat warning colour
-                    // for the top of this division — one is an achievement and
-                    // the other is a reason to get promoted.
-                    background: view.maxed
-                        ? const Color(0xFFF9A825)
-                        : const Color(0xFF37474F),
-                    foreground: view.maxed
-                        ? const Color(0xFF241C00)
-                        : Colors.white,
+                  top: 5,
+                  left: 5,
+                  right: 5,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: _Chip(
+                          label: '${view.rating}',
+                          background: cssColor(theme.labelBg),
+                          foreground: accentLight,
+                          bold: true,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: _Chip(
+                          label: positionLabel[view.position] ?? view.position,
+                          background: cssColor(theme.labelBg),
+                          foreground: accentLight,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: DecoratedBox(
+                    // The band the words sit on. The portrait behind them is a
+                    // photograph with no say in what colour it is under a caption,
+                    // so the caption brings its own.
+                    //
+                    // **AND IT FOLLOWS THE THEME.** It was a black scrim in both,
+                    // so a light-mode grid was a page of pale cards with dark feet
+                    // — the one part of the card that had not been told which
+                    // theme it was in. A scrim's job is contrast, and white does
+                    // that for dark ink exactly as well as black does for light.
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: light
+                            ? const [Color(0x00FFFFFF), Color(0xE6FFFFFF)]
+                            : const [Color(0x00000000), Color(0xC7000000)],
+                        stops: const [0, 0.55],
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(5, 14, 5, 5),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              // WHICH CARDS PAIR UP. Two cards with the same
+                              // definition merge whatever portrait or name they
+                              // happen to carry, so without the tier on the face
+                              // there is no way to tell by looking — the grid's
+                              // whole mechanic had no visual cue.
+                              Flexible(
+                                child: _Chip(
+                                  key: ValueKey('card-tier-${view.tier}'),
+                                  label: view.injured
+                                      ? t('card.inj_short')
+                                      : (tierLabel[view.tier] ??
+                                            'T${view.tier}'),
+                                  background: cssColor(theme.labelBg),
+                                  foreground: view.injured
+                                      ? Colors.redAccent
+                                      : accentLight,
+                                  bold: true,
+                                ),
+                              ),
+                              // Status beside the tier rather than on a line of
+                              // its own: an injury is what a player scanning a
+                              // full grid is looking for, and it belongs with the
+                              // thing it disqualifies him from.
+                              if (view.injured || view.onLoan) ...[
+                                const SizedBox(width: 3),
+                                if (view.injured)
+                                  const Icon(
+                                    Icons.healing,
+                                    size: 12,
+                                    color: Colors.redAccent,
+                                  ),
+                                if (view.onLoan)
+                                  const Icon(
+                                    Icons.swap_horiz,
+                                    size: 12,
+                                    color: Colors.lightBlueAccent,
+                                  ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            view.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: captionInk,
+                            ),
+                          ),
+                          if (view.fitness != null) ...[
+                            const SizedBox(height: 3),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: LinearProgressIndicator(
+                                key: const ValueKey('card-fitness'),
+                                value: view.fitness!.clamp(0.0, 1.0),
+                                minHeight: 3,
+                                backgroundColor: captionTrack,
+                                valueColor: AlwaysStoppedAnimation(
+                                  view.fitness! < 0.34
+                                      ? Colors.redAccent
+                                      : accentLight,
+                                ),
+                              ),
+                            ),
+                          ],
+                          // THE MONEY. What this player actually pays per second,
+                          // and a bar whose cycle is one payout of it — so a
+                          // faster bar is literally a richer player, and a sponsor
+                          // or an injury visibly changes the speed.
+                          if (view.incomePerSec != null) ...[
+                            const SizedBox(height: 3),
+                            _Income(
+                              ratePerSec: view.incomePerSec!,
+                              ink: accentLight,
+                              track: captionTrack,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Across the corner, because at bench size a pip cannot carry a
+                // word and every corner is already spoken for.
+                if (view.maxed || view.atCap)
+                  Positioned(
+                    // UNDER the rating chips, not over them. At the very top it
+                    // landed on the position chip, which is the one thing on the
+                    // card a player is comparing across a grid.
+                    top: 24,
+                    right: 0,
+                    child: _Ribbon(
+                      label: view.maxed
+                          ? t('card.max_ribbon')
+                          : t('card.tier_locked', {'tier': view.tier}),
+                      // Gold for the top of the game, and a flat warning colour
+                      // for the top of this division — one is an achievement and
+                      // the other is a reason to get promoted.
+                      background: view.maxed
+                          ? const Color(0xFFF9A825)
+                          : const Color(0xFF37474F),
+                      foreground: view.maxed
+                          ? const Color(0xFF241C00)
+                          : Colors.white,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

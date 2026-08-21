@@ -2814,17 +2814,45 @@ by a test.
       Three ways out, and it is a design call: retime it on a real clock and add
       the timer; own the reroll and make it the mechanic; or change the line to
       say what actually decides the price, which is his form.
+- [x] **The sell button asks first.** It is irreversible and it sits under the
+      thumb at the foot of a sheet. The confirmation used to guard the squad
+      sheet's Sell; that button has gone, so the guard moved to the one that
+      remains — as Colin, with the shipped copy, including what the sale COSTS in
+      its own right: the bonuses go with him.
 - [ ] **A coach tip on whether to accept**, and whether the flow should be SELL at
       all rather than RELEASE for nothing. Both are design decisions rather than
       bugs — see the note to the manager.
 
 ### The club
 
-- [ ] **The upgrade popup fires on EVERY upgrade.** It should come up at the end
-      of a TIER, not on each tap — a celebration that happens every time is a
-      dialog in the way of a button.
+- [x] **The upgrade popup fired on EVERY tap.** Filling tier one takes TEN taps
+      and tier seven takes forty, and the full-screen splash went up on each one —
+      a celebration standing between the player and the button they are trying to
+      press again. It goes up when the bar actually FILLS.
+      `tieredUp` comes off the engine rather than being worked out in the screen:
+      `investInAsset` already knows, because it is the thing that decides. The UI
+      was throwing the return value away.
 
 ### Light mode
+
+- [x] **The player cards had dark bottoms in light mode.** The caption band under
+      the name was a black scrim in both themes — the one part of the card that
+      had not been told which theme it was in. A scrim's job is contrast, and
+      white does that for dark ink exactly as well as black does for light, so it
+      follows the theme now and the name and the two bar tracks follow it.
+- [x] **And the border went missing at the corners.** Not a new fault, a newly
+      VISIBLE one: `Container.clipBehavior` clips to the decoration's OUTER path,
+      so a child filling the box paints over the border's own curve — the portrait
+      at the top, the scrim at the bottom. Invisible while the scrim was black on
+      a dark card. Clipped to the border's radius LESS its width now, which is the
+      curve of the hole the child is sitting in.
+- [x] **And it carries to every card.** `light` was a `bool` defaulting to false,
+      so a card was dark unless its caller remembered — seven callers, seven
+      chances to forget, which is how the squad, the bench and the pickers ended
+      up with dark cards on a light page. It is nullable now and resolves from the
+      theme the card is drawn in; the override stays for the one case that is not
+      about the theme, a card lifted onto a drag overlay.
+
 
 - [x] **The match-quest coin yellow read ORANGE.** It was an amber, `#E8A100`,
       picked to clear 4.5:1 on white — while the coin GLYPH beside it is a filled
