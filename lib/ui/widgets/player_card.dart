@@ -176,6 +176,16 @@ typedef CardView = ({
   /// Top of THIS DIVISION. Different from [maxed] and it has to look different,
   /// because one is an achievement and the other is a reason to get promoted.
   bool atCap,
+
+  /// The trait he carries, or null for a card that has never rolled one.
+  ///
+  /// **The glyph and the level, not the name.** A trait is the one thing on a
+  /// card that is neither the position nor the rating, and it was visible only
+  /// on the sheet a tap opens — so picking an eleven, or choosing who comes on,
+  /// was done blind to the half of a player's worth the game asks him to roll
+  /// for. The emoji is the trait's own and needs no translating; [title] is the
+  /// localised `⚽ Finisher III` and it is what a screen reader is given.
+  ({String icon, String level, String title})? trait,
 });
 
 class PlayerCard extends StatelessWidget {
@@ -431,6 +441,21 @@ class PlayerCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // **UNDER THE RATING, opposite the ribbon.** The caption band
+                // is full at bench width — tier, status, name and two bars —
+                // and the art is where a card has room. Top left is the side
+                // the rating already owns, so the two things that say how good
+                // he is read as one column.
+                if (view.trait case final trait?)
+                  Positioned(
+                    top: 24,
+                    left: 5,
+                    child: TraitBadge(
+                      icon: trait.icon,
+                      level: trait.level,
+                      title: trait.title,
+                    ),
+                  ),
                 // Across the corner, because at bench size a pip cannot carry a
                 // word and every corner is already spoken for.
                 if (view.maxed || view.atCap)
@@ -462,6 +487,58 @@ class PlayerCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The trait a card carries, as its own glyph and its level.
+///
+/// **One badge, drawn the same everywhere.** The bench and the pickers draw a
+/// [PlayerCard] and the eleven draw a [PitchToken]; two badges would drift, and
+/// a trait that looks like one thing on the pitch and another on the bench is a
+/// trait the player has to learn twice.
+class TraitBadge extends StatelessWidget {
+  const TraitBadge({
+    required this.icon,
+    required this.level,
+    required this.title,
+    this.size = 9,
+    super.key,
+  });
+
+  /// The trait's own emoji — no language in it, which is why it can go on a
+  /// badge this small.
+  final String icon;
+
+  /// `I`, `II` or `III`.
+  final String level;
+
+  /// The localised `⚽ Finisher III`, for anything that reads rather than looks.
+  final String title;
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: title,
+    child: Container(
+      key: const ValueKey('card-trait'),
+      padding: EdgeInsets.symmetric(horizontal: size * 0.44, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: const Color(0xC7000000),
+        borderRadius: BorderRadius.circular(size * 0.7),
+        border: Border.all(color: const Color(0x38FFFFFF)),
+      ),
+      child: Text(
+        level.isEmpty ? icon : '$icon $level',
+        // Emoji come off the platform's own font; the level is the app's.
+        style: TextStyle(
+          fontSize: size,
+          height: 1.2,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    ),
+  );
 }
 
 class _Chip extends StatelessWidget {

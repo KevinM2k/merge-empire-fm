@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/ui/hud/hud.dart' show hudClearance;
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
@@ -22,6 +23,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
@@ -340,6 +342,36 @@ void main() {
     expect(view.position, def.position);
     expect(view.injured, isFalse);
     expect(view.onLoan, isFalse);
+  });
+
+  group('THE TRAIT REACHES THE CARD', () {
+    // The badge is only worth drawing if a real save can fill it: the trait
+    // lives on the card instance as `{id, level}`, and the view is where every
+    // other value on a card is resolved.
+    test('a card carrying one hands the view its glyph, level and title', () {
+      final view = cardViewFor({
+        ..._card(_baseDefId, 'a'),
+        'trait': {'id': 'finisher', 'level': 3},
+      })!;
+      expect(view.trait?.icon, traits['finisher']!.icon);
+      expect(view.trait?.level, 'III');
+      // The localised title, which is what the badge gives a screen reader.
+      expect(view.trait?.title, traitTitle({'id': 'finisher', 'level': 3}));
+    });
+
+    test(
+      'and a card with none, or one the data has never heard of, has none',
+      () {
+        expect(cardViewFor(_card(_baseDefId, 'a'))!.trait, isNull);
+        expect(
+          cardViewFor({
+            ..._card(_baseDefId, 'a'),
+            'trait': {'id': 'no-such-trait', 'level': 1},
+          })!.trait,
+          isNull,
+        );
+      },
+    );
   });
 
   test('an unknown definition yields no card rather than throwing', () {

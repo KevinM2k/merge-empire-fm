@@ -19,6 +19,7 @@ const CardView _view = (
   incomePerSec: null,
   maxed: false,
   atCap: false,
+  trait: null,
 );
 
 Future<void> pumpCard(
@@ -120,6 +121,7 @@ void main() {
         incomePerSec: null,
         maxed: false,
         atCap: false,
+        trait: null,
       ));
       final border = decorationOf(tester).border! as Border;
       expect(
@@ -147,6 +149,7 @@ void main() {
       incomePerSec: null,
       maxed: false,
       atCap: false,
+      trait: null,
     ));
     expect(find.text('X'), findsOneWidget);
   });
@@ -173,6 +176,7 @@ void main() {
       incomePerSec: null,
       maxed: false,
       atCap: false,
+      trait: null,
     ));
     expect(find.byIcon(Icons.healing), findsOneWidget);
     expect(find.byIcon(Icons.swap_horiz), findsOneWidget);
@@ -207,6 +211,7 @@ void main() {
       incomePerSec: null,
       maxed: false,
       atCap: false,
+      trait: null,
     ));
     expect(tester.takeException(), isNull);
     final text = tester.widget<Text>(find.textContaining('Wojciech'));
@@ -236,6 +241,7 @@ void main() {
         incomePerSec: null,
         maxed: false,
         atCap: false,
+        trait: null,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -256,6 +262,7 @@ void main() {
         incomePerSec: null,
         maxed: false,
         atCap: false,
+        trait: null,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -279,9 +286,54 @@ void main() {
           incomePerSec: null,
           maxed: false,
           atCap: false,
+          trait: null,
         ));
         expect(tester.takeException(), isNull, reason: '$value');
       }
+    });
+  });
+  group('THE TRAIT IS ON THE CARD', () {
+    // It was visible only on the sheet a tap opens, so picking an eleven — or
+    // choosing who comes on — was done blind to half of what a player is
+    // worth, on the one attribute the game asks him to roll for.
+    testWidgets('the glyph and the level, on the art', (tester) async {
+      await pumpCard(tester, (
+        name: 'Bobby Charlton',
+        tier: 5,
+        rating: 72,
+        position: 'FWD',
+        injured: false,
+        onLoan: false,
+        variant: 0,
+        fitness: null,
+        incomePerSec: null,
+        maxed: false,
+        atCap: false,
+        trait: (icon: '⚽', level: 'III', title: '⚽ Finisher III'),
+      ));
+      expect(find.byKey(const ValueKey('card-trait')), findsOneWidget);
+      expect(find.text('⚽ III'), findsOneWidget);
+      // What anything that READS rather than looks is given: the emoji and a
+      // roman numeral are not a sentence.
+      expect(
+        tester
+            .widget<Semantics>(
+              find
+                  .ancestor(
+                    of: find.byKey(const ValueKey('card-trait')),
+                    matching: find.byType(Semantics),
+                  )
+                  .first,
+            )
+            .properties
+            .label,
+        '⚽ Finisher III',
+      );
+    });
+
+    testWidgets('and a card with none draws none', (tester) async {
+      await pumpCard(tester, _view);
+      expect(find.byKey(const ValueKey('card-trait')), findsNothing);
     });
   });
 }
