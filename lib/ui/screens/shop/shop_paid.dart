@@ -50,15 +50,23 @@ List<Widget> paidTilesFor(WidgetRef ref, Set<String> categories) => [
 ];
 
 class _PaidShelf extends ConsumerWidget {
-  const _PaidShelf({required this.id, required this.categories});
+  const _PaidShelf({
+    required this.id,
+    required this.categories,
+    this.columns = 2,
+  });
 
   final ShopSectionId id;
   final Set<String> categories;
 
+  /// How many tiles to a row. One is a shelf whose items are each worth the
+  /// whole width.
+  final int columns;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) => ShopSectionFrame(
     id: id,
-    child: ShopGrid(children: paidTilesFor(ref, categories)),
+    child: ShopGrid(columns: columns, children: paidTilesFor(ref, categories)),
   );
 }
 
@@ -101,8 +109,15 @@ class OffersSection extends StatelessWidget {
   const OffersSection({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const _PaidShelf(id: ShopSectionId.offers, categories: {'bundle', 'vip'});
+  Widget build(BuildContext context) => const _PaidShelf(
+    id: ShopSectionId.offers,
+    categories: {'bundle', 'vip'},
+    // **ONE PER ROW.** There are three of them and they are the shelf the shop
+    // opens on: two up made the highest-converting slot in the game the same
+    // size as a consumable, with the third sitting alone in a half-width tile
+    // beside a gap.
+    columns: 1,
+  );
 }
 
 /// Hard currency, and the only way to buy it — there is deliberately no

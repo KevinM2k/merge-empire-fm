@@ -8,7 +8,10 @@ import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/engine/gem_engine.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_looks.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 
 import 'shop_helpers.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -28,9 +31,13 @@ void main() {
     );
   });
 
-  testWidgets('a pack tile reports progress and offers no purchase', (
+  testWidgets('a pack tile reports progress, and the TILE is the control', (
     tester,
   ) async {
+    // The price was a figure the player could read and not act on: what spent
+    // the gems was a sheet the port did not have. The tile itself is the
+    // control now — no `StoreButton` on it, because a pack is small and the
+    // whole tile is the tap target.
     await pumpShopWidget(tester, (_) {}, LooksSection.new);
     for (final pack in lookPacks) {
       expect(
@@ -38,13 +45,90 @@ void main() {
         findsOneWidget,
         reason: pack.id,
       );
-      // No buy control on a pack: nothing here is bought with gems.
       expect(
         find.byKey(ValueKey('shop-buy-pack-${pack.id}'), skipOffstage: false),
         findsNothing,
         reason: pack.id,
       );
     }
+  });
+
+  group('BUYING A PACK', () {
+    Future<void> tapFirstPack(WidgetTester tester) async {
+      final tile = find.byKey(
+        ValueKey('shop-tile-pack-${lookPacks.first.id}'),
+        skipOffstage: false,
+      );
+      await tester.scrollUntilVisible(tile, 80);
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('ASKS FIRST, then spends the gems', (tester) async {
+      final container = await pumpShopWidget(
+        tester,
+        (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 50,
+        LooksSection.new,
+      );
+      await tapFirstPack(tester);
+      expect(
+        find.byKey(ValueKey('spend-confirm-pack-${lookPacks.first.id}')),
+        findsOneWidget,
+        reason: 'the pack was bought without asking',
+      );
+
+      await tester.tap(
+        find.byKey(ValueKey('spend-confirm-yes-pack-${lookPacks.first.id}')),
+      );
+      await tester.pumpAndSettle();
+      final save = container.read(gameProvider).state!;
+      expect(isPackComplete(save, lookPacks.first.id), isTrue);
+      expect(getGems(save), 50 - packGemCost());
+      await settleSave(tester);
+    });
+
+    testWidgets('and a player who cannot afford it is shown the gems', (
+      tester,
+    ) async {
+      // "Not enough gems" is never said: the answer to wanting the thing is a
+      // way to afford it.
+      await pumpShopWidget(
+        tester,
+        (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 0,
+        LooksSection.new,
+      );
+      await tapFirstPack(tester);
+      await tester.tap(
+        find.byKey(ValueKey('spend-confirm-yes-pack-${lookPacks.first.id}')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('currency-sheet-gems')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('THE PRICE IS A BLUE BUTTON WITH A WHITE GEM', (tester) async {
+      // It was a near-black pill with a blue gem and blue digits at 11px, which
+      // reads as a disabled chip rather than as the control that buys the pack.
+      await pumpShopWidget(tester, (_) {}, LooksSection.new);
+      final pill = tester.widget<Container>(
+        find.byKey(const ValueKey('pack-pill-buy'), skipOffstage: false).first,
+      );
+      expect((pill.decoration! as BoxDecoration).color, ShopSectionId.gems.ink);
+      final gem = tester.widget<Icon>(
+        find
+            .descendant(
+              of: find.byKey(
+                const ValueKey('pack-pill-buy'),
+                skipOffstage: false,
+              ),
+              matching: find.byIcon(Icons.diamond),
+            )
+            .first,
+      );
+      expect(gem.color, Colors.white);
+    });
   });
 
   testWidgets('the section note counts the packs owned', (tester) async {

@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,356 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,363 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -42,7 +42,7 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
-**113 items are open**, plus six carrying a `[~]` — answered, but with a decision
+**110 items are open**, plus six carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3293,17 +3293,28 @@ is wrong in six places.
       `lib/data/ad_units.dart` holds the placements and nothing can show one.
       That is M4's AdMob work: a package, two app ids, a consent gate. Every
       "coming soon" below is downstream of it.
-- [ ] **The three special offers should be full width**, one per row, not two up.
+- [x] **The three special offers should be full width**, one per row, not two up.
+      They are the shelf the shop opens on, and two up made the
+      highest-converting slot in the game the same size as a consumable — with
+      the third alone in a half-width tile beside a gap.
 - [ ] **And they should WORK** rather than say coming soon.
 - [ ] **Quick-fire matches and the free lucky boot say both "already ready" and
       "coming soon".** They should be playable, and they should trigger an
       advert.
 - [ ] **The gems look wrong** — one gem per image, whatever the pack. Look at
       `../merge-empire-match-day`'s shop.
-- [ ] **The manager-customisation packs have tiny grey buttons with a blue gem in
-      them.** They are meant to be a blue button with a WHITE gem.
-- [ ] **And every pack should be tappable** — a confirm ("spend these gems?"),
-      and if they cannot afford it, the gem-buy sheet on top of that.
+- [x] **The manager-customisation packs have tiny grey buttons with a blue gem in
+      them.** They are meant to be a blue button with a WHITE gem. It was a
+      near-black pill with the gem's own colour on it at 11px, which reads as a
+      disabled chip rather than as the control that buys the pack.
+- [x] **And every pack should be tappable** — a confirm ("spend these gems?"),
+      and if they cannot afford it, the gem-buy sheet on top of that. All three
+      beats already existed in `purchase_flow.dart`; what was missing was the
+      engine underneath. `grantLookPack` had never been called from anywhere but
+      a test, so a five-gem price sat on ten tiles with nothing able to spend
+      it — `buyLookPack` is the debit and the grant, and it refuses in the same
+      vocabulary `gemItemBlocked` uses so the Shop reads a refusal the same way
+      whatever sold it. A pack completed item by item is not sold again.
 
 ### Everywhere else
 

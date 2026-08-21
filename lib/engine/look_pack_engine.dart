@@ -58,3 +58,38 @@ LookTile? lookTileState(Map<String, dynamic>? state, String? packId) {
   // wait for something waiting never delivers.
   return (status: 'gems', waitMs: 0, cost: cost, owned: owned, total: total);
 }
+
+/// The outcome of buying a whole pack.
+typedef LookPackPurchase = ({bool ok, String? reason});
+
+/// Why a tap on a pack cannot go through, or null when it can.
+///
+/// One of `unknown_pack`, `already_owned`, `insufficient_gems` — the same
+/// vocabulary `gemItemBlocked` uses, because the Shop's purchase flow reads a
+/// refusal the same way whatever sold it.
+String? lookPackBlocked(Map<String, dynamic>? state, String? packId) {
+  if (getLookPack(packId) == null) return 'unknown_pack';
+  if (isPackComplete(state, packId)) return 'already_owned';
+  if (getGems(state) < packGemCost()) return 'insufficient_gems';
+  return null;
+}
+
+/// Buy the pack outright: debit the gems, grant it.
+///
+/// **The tile was a price with nothing behind it.** `grantLookPack` was written
+/// and never called from anywhere but a test, so a pack could only ever be
+/// assembled item by item off videos — the five-gem price on every tile in the
+/// Shop was a figure the player could read and not act on.
+///
+/// A pack the player has already COMPLETED item by item is not sold again: it
+/// is already theirs by the only measure that matters, which is what
+/// `isPackComplete` answers.
+LookPackPurchase buyLookPack(Map<String, dynamic> state, String? packId) {
+  final blocked = lookPackBlocked(state, packId);
+  if (blocked != null) return (ok: false, reason: blocked);
+  if (!spendGems(state, packGemCost(), 'look_pack:$packId')) {
+    return (ok: false, reason: 'insufficient_gems');
+  }
+  grantLookPack(state, packId);
+  return (ok: true, reason: null);
+}

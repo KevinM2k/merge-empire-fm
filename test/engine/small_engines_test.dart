@@ -16,6 +16,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/gem_engine.dart';
+import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
@@ -370,6 +372,54 @@ void main() {
         )?.status,
         (lookPack['nullState'] as Map)['status'],
       );
+    });
+
+    group('BUYING ONE', () {
+      // The tile was a price with nothing behind it: `grantLookPack` was
+      // written and never called from anywhere but a test, so a pack could
+      // only ever be assembled item by item off videos.
+      Map<String, dynamic> saveWithGems(int gems) {
+        final s = createDefaultState();
+        (s['resources'] as Map<String, dynamic>)['gems'] = gems;
+        return s;
+      }
+
+      test('spends the gems and grants the pack', () {
+        final s = saveWithGems(50);
+        final pack = lookPacks.first;
+        expect(buyLookPack(s, pack.id).ok, isTrue);
+        expect(getGems(s), 50 - packGemCost());
+        expect(isPackComplete(s, pack.id), isTrue);
+      });
+
+      test('and refuses for a reason the Shop already understands', () {
+        expect(
+          buyLookPack(saveWithGems(50), 'pack_nonsense').reason,
+          'unknown_pack',
+        );
+        expect(
+          buyLookPack(saveWithGems(0), lookPacks.first.id).reason,
+          'insufficient_gems',
+        );
+        final owned = saveWithGems(50);
+        buyLookPack(owned, lookPacks.first.id);
+        expect(
+          buyLookPack(owned, lookPacks.first.id).reason,
+          'already_owned',
+          reason: 'it sold the same pack twice',
+        );
+        // And a refusal never costs anything.
+        expect(getGems(owned), 50 - packGemCost());
+      });
+
+      test('a pack completed item by item is not sold again', () {
+        // Owning a pack and owning all of its contents are different facts
+        // that look the same from outside, which is the point.
+        final s = saveWithGems(50);
+        final pack = lookPacks.first;
+        (s['club'] as Map<String, dynamic>)['lookItems'] = [...pack.items];
+        expect(lookPackBlocked(s, pack.id), 'already_owned');
+      });
     });
 
     test('a tile shows a price and nothing else', () {
