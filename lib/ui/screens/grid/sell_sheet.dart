@@ -173,15 +173,32 @@ Future<void> showSellSheet(
                   final confirmed = await showCoachCard<bool>(
                     sheetContext,
                     titleKey: 'sell.title',
+                    // `sell.title` is `Sell {name}?` and there was no way to
+                    // fill it, so the card asked with the braces showing.
+                    titleParams: {'name': view.name},
                     bodyKey: 'sell.receive',
-                    bodyParams: {'name': view.name},
-                    body: '${t('sell.receive')}: ${formatCoins(price)}',
+                    // The figure gets a COIN beside it rather than sitting in
+                    // the middle of a sentence: money on a card should look
+                    // like money.
+                    coins: price,
+                    // **WHAT THE SALE ACTUALLY COSTS, in the club's own terms.**
+                    // "You'll lose its bonuses permanently" names a category
+                    // rather than a consequence, and what a player weighing an
+                    // offer wants is the number they are giving up — the income
+                    // he pays every second. Null on a view with no rate to show,
+                    // and then the old line is the honest one.
+                    extraTexts: [
+                      if (view.incomePerSec != null)
+                        '${t('squad.detail.income')}: '
+                            '−${view.incomePerSec!.toStringAsFixed(2)}/s',
+                    ],
                     extraLines: [
-                      (
-                        key: 'sell.lose_bonuses',
-                        params: const {},
-                        strong: false,
-                      ),
+                      if (view.incomePerSec == null)
+                        (
+                          key: 'sell.lose_bonuses',
+                          params: const {},
+                          strong: false,
+                        ),
                     ],
                     actions: [
                       CoachAction(

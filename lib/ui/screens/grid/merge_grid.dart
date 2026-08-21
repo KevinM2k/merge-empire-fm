@@ -235,7 +235,17 @@ class MergeGridState extends ConsumerState<MergeGrid>
   /// phone.
   void _autoScroll(Offset globalPosition) {
     if (!_scroll.hasClients) return;
-    final box = context.findRenderObject() as RenderBox?;
+    // **THE BAND IS MEASURED AGAINST WHAT SCROLLS**, not against the screen. It
+    // was taken off this widget's own box, which starts at the top of the phone —
+    // behind the HUD and above the action bar — so a card had to be dragged
+    // under the glass and most of the way off the top before the grid moved.
+    //
+    // Off the scroll position rather than a second key: the `Scrollable` already
+    // has a context and it is by definition the thing that scrolls, so the two
+    // cannot disagree about which box is meant.
+    final box =
+        _scroll.position.context.notificationContext?.findRenderObject()
+            as RenderBox?;
     if (box == null) return;
     final local = box.globalToLocal(globalPosition);
     const band = 72.0;
@@ -384,6 +394,15 @@ class MergeGridState extends ConsumerState<MergeGrid>
                 child: SingleChildScrollView(
                   key: const ValueKey('merge-grid'),
                   controller: _scroll,
+                  // **THE PLATFORM'S OWN BOUNCE, on both of them.** The default
+                  // is per-platform — Android clamps dead at each end — and a
+                  // list that stops without giving reads as having hit a wall
+                  // rather than as having reached the bottom. The rest of the app
+                  // takes the default; this is the longest scroll in the game and
+                  // the one a thumb lives in.
+                  physics: const BouncingScrollPhysics(
+                    parent: RangeMaintainingScrollPhysics(),
+                  ),
                   padding: const EdgeInsets.fromLTRB(_pad, _pad, _pad, 12),
                   child: LayoutBuilder(
                     builder: (context, constraints) {

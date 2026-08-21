@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart' show hudClearance;
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -1318,6 +1319,36 @@ void main() {
         reason: 'and arrives where the dragged card came from',
       );
       await settleSave(tester);
+    });
+  });
+
+  group('dragging near an edge', () {
+    testWidgets('THE BAND IS INSIDE THE LIST, not the top of the phone', (
+      tester,
+    ) async {
+      // It was measured off the screen's own box, which starts behind the HUD and
+      // above the action bar — so a card had to be dragged under the glass and
+      // most of the way off the top before the grid moved.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      final viewport = tester.getRect(find.byKey(const ValueKey('merge-grid')));
+      // The list starts well below the top of the screen, which is the whole
+      // point: anything measured from zero is measuring the wrong thing.
+      expect(
+        viewport.top,
+        greaterThan(hudClearance),
+        reason:
+            'the list is not clear of the HUD, so the band cannot be either',
+      );
+    });
+
+    testWidgets('and the list BOUNCES at each end', (tester) async {
+      // A list that stops dead reads as having hit a wall rather than as having
+      // reached the bottom. The default is per-platform and Android clamps.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      final view = tester.widget<SingleChildScrollView>(
+        find.byKey(const ValueKey('merge-grid')),
+      );
+      expect(view.physics, isA<BouncingScrollPhysics>());
     });
   });
 }

@@ -2823,6 +2823,38 @@ by a test.
       all rather than RELEASE for nothing. Both are design decisions rather than
       bugs — see the note to the manager.
 
+### The players page
+
+- [x] **The drag's edge band was measured against the SCREEN.** It came off the
+      widget's own box, which starts at the top of the phone — behind the HUD and
+      above the action bar — so a card had to be dragged under the glass and most
+      of the way off the top before the grid moved. It comes off the scroll
+      POSITION now rather than a second key: the `Scrollable` already has a
+      context and it is by definition the thing that scrolls, so the two cannot
+      disagree about which box is meant.
+- [x] **And the list bounces at each end.** The default is per-platform and
+      Android clamps dead; a list that stops without giving reads as a wall rather
+      than as the bottom. Only this one, deliberately — it is the longest scroll
+      in the game and the one a thumb lives in.
+- [x] **`Sell {name}?` showed its braces.** The card had no way to fill a TITLE —
+      only a body — so the one place a name was asked for could not have one.
+      `titleParams` now.
+- [x] **The money on the card looks like money**, with a coin beside it rather
+      than a figure in the middle of a sentence.
+- [x] **And it says what the sale actually COSTS.** "You'll lose its bonuses
+      permanently" names a category rather than a consequence; what somebody
+      weighing an offer wants is the number they are giving up, which is the
+      income he pays every second. The old line survives for a view with no rate
+      to show, because then there is nothing honest to put in its place.
+- [ ] **The market REROLLS on reopen.** Kept as SELL rather than release, so this
+      matters: `rollMarketMult` runs on every open, so closing and reopening the
+      sheet shops for a better price. Either the roll wants pinning per player
+      per period, or the reroll should be the mechanic and said out loud.
+- [ ] **MERGE ALL should still be watchable.** The animation of one player
+      becoming another should play — in unison across every pair — and the sort
+      should still slide the survivors into the gaps. Right now the grid simply
+      arrives at its answer.
+
 ### The club
 
 - [x] **The upgrade popup fired on EVERY tap.** Filling tier one takes TEN taps

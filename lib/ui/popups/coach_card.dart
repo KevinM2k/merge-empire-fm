@@ -27,6 +27,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -154,9 +156,12 @@ Future<T?> showCoachCard<T>(
   BuildContext context, {
   required String titleKey,
   required String bodyKey,
+  Map<String, Object?> titleParams = const {},
   List<CoachAction> actions = const [],
   Map<String, Object?> bodyParams = const {},
   List<CoachLine> extraLines = const [],
+  List<String> extraTexts = const [],
+  int? coins,
   String? badge,
 
   /// Already-resolved body text, for a caller whose line comes out of a pool or
@@ -167,10 +172,13 @@ Future<T?> showCoachCard<T>(
     context: context,
     builder: (dialogContext) => _CoachCard<T>(
       titleKey: titleKey,
+      titleParams: titleParams,
       bodyKey: bodyKey,
       body: body,
       bodyParams: bodyParams,
       extraLines: extraLines,
+      extraTexts: extraTexts,
+      coins: coins,
       actions: actions,
       badge: badge,
     ),
@@ -180,27 +188,38 @@ Future<T?> showCoachCard<T>(
 class _CoachCard<T> extends StatelessWidget {
   const _CoachCard({
     required this.titleKey,
+    required this.titleParams,
     required this.bodyKey,
     required this.body,
     required this.bodyParams,
     required this.extraLines,
+    required this.extraTexts,
+    required this.coins,
     required this.actions,
     required this.badge,
   });
 
   final String titleKey;
+
+  /// **A TITLE CAN CARRY A NAME.** `sell.title` is `Sell {name}?` and there was
+  /// no way to fill it, so the card asked "Sell {name}?" with the braces showing.
+  final Map<String, Object?> titleParams;
   final String bodyKey;
   final String? body;
   final Map<String, Object?> bodyParams;
   final List<CoachLine> extraLines;
+  final List<String> extraTexts;
+  final int? coins;
   final List<CoachAction> actions;
   final String? badge;
 
   @override
   Widget build(BuildContext context) => CoachCardFrame(
-    title: t(titleKey),
+    title: t(titleKey, titleParams),
     body: body ?? t(bodyKey, bodyParams),
     extraLines: extraLines,
+    extraTexts: extraTexts,
+    coins: coins,
     actions: actions,
     badge: badge,
   );
@@ -220,6 +239,8 @@ class CoachCardFrame extends StatelessWidget {
     this.body,
     this.child,
     this.extraLines = const [],
+    this.extraTexts = const [],
+    this.coins,
     this.actions = const [],
     this.badge,
   });
@@ -241,6 +262,22 @@ class CoachCardFrame extends StatelessWidget {
   final Widget? child;
 
   final List<CoachLine> extraLines;
+
+  /// Already-resolved lines, for what the catalogue cannot know.
+  ///
+  /// The same escape hatch [body] is, and for the same reason: a figure the
+  /// engine works out — what a sale costs the club per second — is not a
+  /// catalogue string with a parameter in it, it is a sentence assembled from
+  /// one.
+  final List<String> extraTexts;
+
+  /// A figure to show with a COIN beside it.
+  ///
+  /// **Money on a card should look like money.** It was a number in the middle of
+  /// a sentence, which on a card whose whole subject is a price reads as a
+  /// quantity of nothing in particular.
+  final int? coins;
+
   final List<CoachAction> actions;
 
   @override
@@ -341,6 +378,38 @@ class CoachCardFrame extends StatelessWidget {
                               ),
                             ),
                           ],
+                          if (coins != null) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const CoinIcon(size: 18, solid: true),
+                                const SizedBox(width: 6),
+                                Text(
+                                  formatCoins(coins!),
+                                  key: const ValueKey('coach-card-coins'),
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: coinFigureInk(context),
+                                    shadows: coinFigureShadows(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          for (final text in extraTexts)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                text,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: kit.textMuted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                           for (final line in extraLines)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
