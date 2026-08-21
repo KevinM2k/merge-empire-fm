@@ -2465,6 +2465,25 @@ running at last.
 Reported from the couch, in the order they were noticed. Nothing here was found
 by a test.
 
+### Seen only in a test — 26 Aug
+
+- [ ] **MOST OF WHAT CHANGED THIS PASS IS VISUAL, and a widget test cannot say
+      whether it reads right.** The suite proves the geometry and the rules; it
+      says nothing about whether a thing looks like the thing. Three to put in
+      front of an eye, in order:
+      **The penalty scene.** Both figures were re-rigged from the joints out and
+      the whole picture changed behind them — a stadium above the goal line, a net
+      of two-pass cord with the crowd showing through it, a dashed aim line that
+      marches. Every number is pinned; none of it has been watched.
+      **The customiser stage.** A scrolling backdrop on a shared clock, a lower
+      horizon, a shallower strip of grass, and the hair now clipped under
+      eighteen different hats. The clip is tested per hat; what it LOOKS like
+      under each one is not.
+      **The light-mode cards.** The caption scrim flipped to white with dark ink,
+      the corners are clipped to the inside of the border, and `light` now
+      resolves from the theme everywhere rather than per caller — so every card in
+      the game changed at once, on the theme nobody plays in by default.
+
 ### The Play Match screen
 
 - [ ] **The top card should be the NEXT MATCH CARD from the home page.** It is
