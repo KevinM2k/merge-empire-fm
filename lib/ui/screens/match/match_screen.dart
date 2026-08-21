@@ -152,9 +152,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     final sound = ref.read(soundServiceProvider);
     for (final event in _timeline) {
       if (event.minute != minute) continue;
-      final ours = event.team == 'home'
-          ? widget.result['isHome'] == true
-          : widget.result['isHome'] != true;
+      // `home` is US on an event, whichever ground we are on — see
+      // `MatchFrame`. Reading it through `isHome` played the crowd's
+      // disappointment for our own goals in every away fixture.
+      final ours = event.team != 'away';
       switch (event.type) {
         case 'goal':
           // The kick is what makes a goal an event rather than a chime: the ball
@@ -195,9 +196,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void _cutIfWorthWatching() {
     for (final event in _timeline) {
       if (event.minute != _minute || event.minute == _clippedMinute) continue;
-      final ours = event.team == 'home'
-          ? widget.result['isHome'] == true
-          : widget.result['isHome'] != true;
+      // `home` is US on an event, whichever ground we are on — see
+      // `MatchFrame`. Reading it through `isHome` played the crowd's
+      // disappointment for our own goals in every away fixture.
+      final ours = event.team != 'away';
       final clip = clipFor(
         event,
         // We defend the left end, so our attacks run right.
@@ -243,8 +245,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     unawaited(sound.play('whistle'));
     // The result, a beat after the final whistle rather than under it.
     final f = frame;
-    final ours = widget.result['isHome'] == true ? f.homeGoals : f.awayGoals;
-    final theirs = widget.result['isHome'] == true ? f.awayGoals : f.homeGoals;
+    // Ours and theirs already — see `MatchFrame`. Flipping on `isHome` here
+    // played the defeat sting for an away WIN.
+    final ours = f.ourGoals;
+    final theirs = f.theirGoals;
     _cue(
       const Duration(milliseconds: 450),
       () => unawaited(
@@ -327,8 +331,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                 key: const ValueKey('match-scoreboard'),
                 left: home ? us : them,
                 right: home ? them : us,
-                leftGoals: f.homeGoals,
-                rightGoals: f.awayGoals,
+                // The board is laid out HOME SIDE LEFT and the tally is ours
+                // and theirs — see `MatchFrame`. Handing it the tally straight
+                // put our score under their name for every away fixture.
+                leftGoals: home ? f.ourGoals : f.theirGoals,
+                rightGoals: home ? f.theirGoals : f.ourGoals,
                 minute: f.minute,
                 finished: f.finished,
                 result: widget.result,

@@ -1820,6 +1820,20 @@ Ordered by how visible each one is to somebody playing.
       mini-game screens. Coach Colin's card, the achievement banner and the player
       sheet stay exceptions on purpose, and each says so.
 
+## Found while porting — 21 Aug
+
+- [x] **Every AWAY fixture showed the score the wrong way round.** `team: 'home'`
+      on a match event means US, whichever ground we are on: the engine builds
+      the goal list from the result's own `homeGoals`/`awayGoals` — which are
+      ours and theirs, since `won` is `homeGoals > awayGoals` with no reference
+      to `isHome` — and it picks the scorer from OUR squad whenever the team is
+      `home`. The scoreboard, by contrast, is laid out home-side-left, and it was
+      handed that tally straight. Three places read it through `isHome` and all
+      three were wrong away from home: our score sat under the opponent's name,
+      our goals played the crowd's disappointment, and an away WIN played the
+      defeat sting at the final whistle. `MatchFrame` names the two fields
+      `ourGoals`/`theirGoals` now, which is what stops it coming back.
+
 ## From playtesting — 24 Aug
 
 The weather, drawn. Everything else on this list was in the way of that.

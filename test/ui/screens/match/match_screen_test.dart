@@ -20,11 +20,12 @@ Map<String, dynamic> matchResult({
   bool won = true,
   bool drawn = false,
   int addedTime = 2,
+  bool isHome = true,
   List<Map<String, dynamic>> events = const [],
 }) => {
   'clubName': 'Testville',
   'opponentName': 'Ayton',
-  'isHome': true,
+  'isHome': isHome,
   'won': won,
   'drawn': drawn,
   'addedTime': addedTime,
@@ -324,7 +325,12 @@ void main() {
     /// A match with something in it, so the board has counts to show.
     Map<String, dynamic> played() => matchResult(
       events: [
-        {'minute': 10, 'type': 'chance', 'team': 'home', 'shotResult': 'on_target'},
+        {
+          'minute': 10,
+          'type': 'chance',
+          'team': 'home',
+          'shotResult': 'on_target',
+        },
         {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
         {'minute': 40, 'type': 'corner', 'team': 'away'},
         {'minute': 61, 'type': 'chance', 'team': 'away', 'shotResult': 'off'},
@@ -388,6 +394,74 @@ void main() {
       expect(corners.away, 1);
       // A share of one quantity, so the two halves are the whole of it.
       expect(stats.possHome + stats.possAway, 100);
+    });
+  });
+
+  group('an AWAY fixture', () {
+    /// `team: 'home'` on an event means US, whichever ground we are on: the
+    /// engine builds the goal list from the result's own `homeGoals`/
+    /// `awayGoals`, which are ours and theirs, and picks the scorer from OUR
+    /// squad whenever the team is `home`. The board, by contrast, is laid out
+    /// home-side-left. Handing the tally straight to it put our score under the
+    /// opponent's name on every away fixture.
+    testWidgets('PUTS OUR SCORE UNDER OUR OWN NAME', (tester) async {
+      await pumpMatch(
+        tester,
+        matchResult(
+          isHome: false,
+          events: [
+            {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+            {'minute': 20, 'type': 'goal', 'team': 'home', 'scorer': 'Ada'},
+            {'minute': 30, 'type': 'goal', 'team': 'away'},
+          ],
+        ),
+      );
+      // Straight to full time: a goal cuts a clip and the clock waits for it,
+      // so walking the clock forward stops at the first one.
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      // Away: the opponent is the home side, so they are on the LEFT — with
+      // their one goal, not our two.
+      expect(scoreOn(tester), '1 – 2');
+    });
+
+    testWidgets('and the SAME fixture at home reads the other way round', (
+      tester,
+    ) async {
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+            {'minute': 20, 'type': 'goal', 'team': 'home', 'scorer': 'Ada'},
+            {'minute': 30, 'type': 'goal', 'team': 'away'},
+          ],
+        ),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      expect(scoreOn(tester), '2 – 1');
+    });
+
+    testWidgets('AN AWAY WIN IS A WIN, not a defeat', (tester) async {
+      // The final whistle's sting was picked by flipping the tally on
+      // `isHome`, so an away win played the defeat cue. What the screen calls
+      // it at full time is the same number, so the label pins it.
+      await pumpMatch(
+        tester,
+        matchResult(
+          isHome: false,
+          addedTime: 0,
+          events: [
+            {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+          ],
+        ),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expect(state.frame.ourGoals, 1);
+      expect(state.frame.theirGoals, 0);
     });
   });
 }

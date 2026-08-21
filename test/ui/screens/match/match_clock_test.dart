@@ -53,18 +53,18 @@ void main() {
       final result = resultWith(events: [goal(12, 'home')]);
       final frame = frameAt(result, 0);
       expect(frame.shown, isEmpty);
-      expect(frame.homeGoals, 0);
-      expect(frame.awayGoals, 0);
+      expect(frame.ourGoals, 0);
+      expect(frame.theirGoals, 0);
     });
 
     test('counts the score from the goals SHOWN, not the result', () {
       // The number on screen must never run ahead of the commentary that
       // explains it.
       final result = resultWith(events: [goal(12, 'home'), goal(80, 'home')]);
-      expect(frameAt(result, 11).homeGoals, 0);
-      expect(frameAt(result, 12).homeGoals, 1);
-      expect(frameAt(result, 79).homeGoals, 1);
-      expect(frameAt(result, 80).homeGoals, 2);
+      expect(frameAt(result, 11).ourGoals, 0);
+      expect(frameAt(result, 12).ourGoals, 1);
+      expect(frameAt(result, 79).ourGoals, 1);
+      expect(frameAt(result, 80).ourGoals, 2);
     });
 
     test('keeps the two sides apart', () {
@@ -72,8 +72,8 @@ void main() {
         events: [goal(10, 'home'), goal(20, 'away'), goal(30, 'away')],
       );
       final frame = frameAt(result, 90);
-      expect(frame.homeGoals, 1);
-      expect(frame.awayGoals, 2);
+      expect(frame.ourGoals, 1);
+      expect(frame.theirGoals, 2);
     });
 
     test('a goal with no team is ours', () {
@@ -84,8 +84,8 @@ void main() {
           {'minute': 10, 'type': 'goal', 'scorer': 'X'},
         ],
       );
-      expect(frameAt(result, 90).homeGoals, 1);
-      expect(frameAt(result, 90).awayGoals, 0);
+      expect(frameAt(result, 90).ourGoals, 1);
+      expect(frameAt(result, 90).theirGoals, 0);
     });
 
     test('non-goal events never move the score', () {
@@ -98,8 +98,8 @@ void main() {
       );
       final frame = frameAt(result, 90);
       expect(frame.shown.length, 3);
-      expect(frame.homeGoals, 0);
-      expect(frame.awayGoals, 0);
+      expect(frame.ourGoals, 0);
+      expect(frame.theirGoals, 0);
     });
 
     test('finishes at ninety plus added time, not at ninety', () {

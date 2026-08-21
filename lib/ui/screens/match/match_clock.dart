@@ -34,10 +34,18 @@ typedef TimelineEvent = ({
 });
 
 /// The state of a match at some point through it.
+///
+/// **`team: 'home'` on an event means US, not the home side.** The engine builds
+/// the goal list from the result's own `homeGoals`/`awayGoals`, which are ours
+/// and theirs — `won` is `homeGoals > awayGoals` with no reference to `isHome`
+/// — and it picks the scorer from OUR squad whenever the team is `home`. So the
+/// tally here is ours and theirs, and it is named that way: calling it
+/// home/away is what put our score under the opponent's name on every away
+/// fixture, and played the crowd's disappointment for our goals.
 typedef MatchFrame = ({
   int minute,
-  int homeGoals,
-  int awayGoals,
+  int ourGoals,
+  int theirGoals,
   List<TimelineEvent> shown,
   bool finished,
 });
@@ -80,21 +88,21 @@ MatchFrame frameAt(
     for (final e in events)
       if (e.minute <= minute) e,
   ];
-  var home = 0;
-  var away = 0;
+  var ours = 0;
+  var theirs = 0;
   for (final e in shown) {
     if (e.type != 'goal') continue;
     if (e.team == 'away') {
-      away++;
+      theirs++;
     } else {
-      home++;
+      ours++;
     }
   }
   final end = fullTime((result['addedTime'] as num?)?.toInt() ?? 0);
   return (
     minute: minute,
-    homeGoals: home,
-    awayGoals: away,
+    ourGoals: ours,
+    theirGoals: theirs,
     shown: shown,
     finished: minute >= end,
   );
