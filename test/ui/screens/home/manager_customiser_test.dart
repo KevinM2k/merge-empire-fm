@@ -153,11 +153,15 @@ void main() {
       expect(box.top - stage.bottom, greaterThanOrEqualTo(10));
 
       // He stands against a drawn horizon rather than a bare wash of colour.
+      // Two copies of it, because it travels past him.
       expect(
         find.byKey(const ValueKey('customise-backdrop')),
-        findsOneWidget,
+        findsNWidgets(2),
         reason: 'the preview is still flat colour behind him',
       );
+      // And the stage carries the same side margins as the controls under it.
+      expect(stage.left, greaterThanOrEqualTo(10));
+      expect(stage.right, lessThanOrEqualTo(box.right + 0.5));
 
       // And every part is still reachable through it.
       for (final axis in lookAxes) {

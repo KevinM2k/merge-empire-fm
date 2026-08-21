@@ -36,6 +36,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
+import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
@@ -254,64 +256,136 @@ class _PreviewStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    return ClipRRect(
-      key: const ValueKey('customise-stage'),
-      borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
-        height: 190,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // **A DRAWN HORIZON, not a bare wash.** The sky gradient alone left
-            // him standing against flat colour, which reads as a swatch rather
-            // than as a place. The gradient stays underneath it so the box is
-            // never empty if the asset is missing, and so it still darkens with
-            // the theme.
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: skyGradient(brightness: brightness, tier: 1),
-              ),
-            ),
-            ArtImage(
-              key: const ValueKey('customise-backdrop'),
-              path: backdropPath(Backdrop.grass),
-              fit: BoxFit.cover,
-              // The treeline is at the foot of the drawing and the sky above it
-              // is the part worth cropping — the same anchoring the penalty
-              // scene uses.
-              alignment: Alignment.bottomCenter,
-              fallback: const SizedBox.shrink(),
-            ),
-            // A strip of grass under him rather than a whole pitch: the sheet is
-            // about the man, and a mown fan in a 190px box is a texture nobody
-            // asked for.
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: FractionallySizedBox(
-                heightFactor: 0.34,
-                child: DecoratedBox(
+    return Padding(
+      // The same 13 either side as the picker and the grid, so the sheet has one
+      // margin rather than a full-bleed picture over inset controls.
+      padding: const EdgeInsets.symmetric(horizontal: 13),
+      child: ClipRRect(
+        key: const ValueKey('customise-stage'),
+        borderRadius: BorderRadius.circular(14),
+        child: WalkClock(
+          stride: walkDurationFor(Mood.pleased),
+          child: SizedBox(
+            height: 190,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // **A DRAWN HORIZON, not a bare wash.** The sky gradient alone left
+                // him standing against flat colour, which reads as a swatch rather
+                // than as a place. The gradient stays underneath it so the box is
+                // never empty if the asset is missing, and so it still darkens with
+                // the theme.
+                DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: nightScene(brightness)
-                          ? const [Color(0xFF17442A), Color(0xFF2A783F)]
-                          : const [Color(0xFF2A7231), Color(0xFF48AD50)],
+                    gradient: skyGradient(brightness: brightness, tier: 1),
+                  ),
+                ),
+                // **AND IT TRAVELS PAST HIM.** He walks in place and the world
+                // moves, so a backdrop holding still is a man on a treadmill. Off
+                // the SAME clock his legs are on — see [WalkClock] at the top of
+                // this stage — because two clocks in one box is the drift
+                // `walk_ramp.dart` exists to stop.
+                const Align(
+                  alignment: Alignment.bottomCenter,
+                  child: FractionallySizedBox(
+                    // Down, and taller. `cover` on the full box put the treeline up
+                    // near his head with a third of the frame in grass; the picture
+                    // is the trees, and the grass only has to be the ground he is
+                    // standing on.
+                    heightFactor: 0.86,
+                    child: _ScrollingBackdrop(),
+                  ),
+                ),
+                // A strip of grass under him rather than a whole pitch: the sheet is
+                // about the man, and a mown fan in a 190px box is a texture nobody
+                // asked for.
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: FractionallySizedBox(
+                    // A shallower strip than it was: too much of the box was grass
+                    // and not enough of it was the world behind him.
+                    heightFactor: 0.2,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: nightScene(brightness)
+                              ? const [Color(0xFF17442A), Color(0xFF2A783F)]
+                              : const [Color(0xFF2A7231), Color(0xFF48AD50)],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                // Standing ON the grass line, not in the middle of the box.
+                Align(
+                  alignment: const Alignment(0, 0.52),
+                  child: SizedBox(
+                    width: walkerWidth,
+                    height: walkerHeight,
+                    child: child,
+                  ),
+                ),
+              ],
             ),
-            // Standing ON the grass line, not in the middle of the box.
-            Align(
-              alignment: const Alignment(0, 0.52),
-              child: SizedBox(
-                width: walkerWidth,
-                height: walkerHeight,
-                child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The backdrop, travelling past him.
+///
+/// Two copies side by side and the pair slid by how far the world has gone, which
+/// is the same trick the diorama's strips use — a window onto a position rather
+/// than a clock of its own. Slow: a treeline twenty metres back barely moves, and
+/// anything faster reads as him sprinting.
+class _ScrollingBackdrop extends StatelessWidget {
+  const _ScrollingBackdrop();
+
+  /// How far the world travels before the drawing repeats, in pixels at his row.
+  static const double _period = 620;
+
+  @override
+  Widget build(BuildContext context) {
+    final beat = WalkBeat.maybeOf(context);
+    final art = ArtImage(
+      key: const ValueKey('customise-backdrop'),
+      path: backdropPath(Backdrop.grass),
+      fit: BoxFit.cover,
+      // The treeline is at the foot of the drawing and the sky above it is the
+      // part worth cropping — the same anchoring the penalty scene uses.
+      alignment: Alignment.bottomCenter,
+      fallback: const SizedBox.shrink(),
+    );
+    if (beat == null) return art;
+    return LayoutBuilder(
+      builder: (context, constraints) => ClipRect(
+        child: ValueListenableBuilder<double>(
+          valueListenable: beat,
+          builder: (context, halfStrides, _) {
+            final world = halfStrides * halfStridePx();
+            return Transform.translate(
+              // Right to left: the world moves past him, he walks in place.
+              offset: Offset(
+                -(world % _period) / _period * constraints.maxWidth,
+                0,
               ),
-            ),
-          ],
+              child: OverflowBox(
+                alignment: Alignment.centerLeft,
+                maxWidth: constraints.maxWidth * 2,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(width: constraints.maxWidth, child: art),
+                    SizedBox(width: constraints.maxWidth, child: art),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

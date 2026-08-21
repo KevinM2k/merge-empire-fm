@@ -105,31 +105,30 @@ void main() {
       // A pylon is BUILT rather than switched on, so the floodlight strip only
       // exists from tier 4 up — a tier-1 scene has none to hold still.
       int tier = 1,
-    }) =>
-        tester.pumpWidget(
-          MaterialApp(
-            home: MediaQuery(
-              data: const MediaQueryData(size: Size(400, 800)),
-              child: Scaffold(
-                body: PitchScene(
-                  mood: Mood.neutral,
-                  tier: tier,
-                  frozen: frozen,
-                  walkerBottom: 150 + walkerBottomClearance,
-                  // The walker is handed in from the screen above, so this is
-                  // also the proof that he can SEE the scene's clock — he is
-                  // inside its subtree.
-                  walker: Builder(
-                    builder: (context) {
-                      beat = WalkBeat.maybeOf(context);
-                      return const SizedBox(width: 120, height: 170);
-                    },
-                  ),
-                ),
+    }) => tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(400, 800)),
+          child: Scaffold(
+            body: PitchScene(
+              mood: Mood.neutral,
+              tier: tier,
+              frozen: frozen,
+              walkerBottom: 150 + walkerBottomClearance,
+              // The walker is handed in from the screen above, so this is
+              // also the proof that he can SEE the scene's clock — he is
+              // inside its subtree.
+              walker: Builder(
+                builder: (context) {
+                  beat = WalkBeat.maybeOf(context);
+                  return const SizedBox(width: 120, height: 170);
+                },
               ),
             ),
           ),
-        );
+        ),
+      ),
+    );
 
     testWidgets('the walker and the ground read ONE clock', (tester) async {
       beat = null;
@@ -236,6 +235,7 @@ void main() {
       await pumpFrames(tester, 496);
       expect(beat!.value, 0, reason: 'he walked with reduced motion on');
     });
+
     /// Where a strip has slid to, in pixels. `_Scroller` translates its `Row` of
     /// segments, so the Row's own left edge IS the offset — read off the render
     /// tree rather than off a number the scene keeps, because the whole question
@@ -316,6 +316,63 @@ void main() {
         );
       }
       addTearDown(() => tester.pumpWidget(const SizedBox()));
+    });
+  });
+
+  group('a preview clock, for a walker with no diorama', () {
+    Future<double> beatAfter(
+      WidgetTester tester,
+      int ms, {
+      bool reduceMotion = false,
+    }) async {
+      double? seen;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(disableAnimations: reduceMotion),
+            child: WalkClock(
+              stride: walkDurationFor(Mood.pleased),
+              child: Builder(
+                builder: (context) {
+                  final beat = WalkBeat.maybeOf(context);
+                  return ValueListenableBuilder<double>(
+                    valueListenable: beat!,
+                    builder: (context, value, _) {
+                      seen = value;
+                      return const SizedBox();
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      for (var left = ms; left > 0; left -= 16) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      addTearDown(() => tester.pumpWidget(const SizedBox()));
+      return seen ?? 0;
+    }
+
+    testWidgets('IT PUBLISHES A BEAT, so a preview and its backdrop agree', (
+      tester,
+    ) async {
+      // The customiser's walker used to fall back to a clock of its own, which
+      // is fine until something ELSE in the same box has to agree with him — the
+      // backdrop does, because he walks in place and the world moves past him.
+      expect(await beatAfter(tester, 320), greaterThan(0));
+    });
+
+    testWidgets('and reduce-motion holds it, like the diorama', (tester) async {
+      expect(await beatAfter(tester, 320, reduceMotion: true), 0);
+    });
+
+    testWidgets('it advances at the STRIDE it was given', (tester) async {
+      // Half-strides, so 320ms of a 725ms stride is a little under one.
+      final beat = await beatAfter(tester, 320);
+      final halfStride = walkDurationFor(Mood.pleased).inMicroseconds / 2e6;
+      expect(beat, closeTo(0.32 / halfStride, 0.12));
     });
   });
 }

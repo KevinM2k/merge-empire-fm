@@ -22,6 +22,9 @@
 /// the clock is shared instead of merely synchronised.
 library;
 
+import 'dart:math' as math;
+
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// How long he takes to come to a stop, and to get going again.
@@ -139,4 +142,69 @@ class WalkBeat extends InheritedNotifier<ValueNotifier<double>> {
   /// falls back to a clock of his own there.
   static ValueNotifier<double>? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<WalkBeat>()?.notifier;
+}
+
+/// A walk clock for a walker with no diorama around it.
+///
+/// **The customiser's preview is exactly that**, and it falls back to a clock of
+/// its own — which is fine until something ELSE in the same box has to agree with
+/// him. The backdrop behind him does: he walks in place and the world moves past
+/// him, so a backdrop that holds still is a man on a treadmill.
+///
+/// No ramp, because nothing in a preview halts him: he is being dressed, not
+/// managing. What it publishes is the same [WalkBeat] the diorama publishes, so
+/// [ManagerWalker] picks it up without knowing which of the two it is in.
+class WalkClock extends StatefulWidget {
+  const WalkClock({required this.stride, required this.child, super.key});
+
+  /// How long one full stride takes. The mood's own, from `walkDurationFor`.
+  final Duration stride;
+
+  final Widget child;
+
+  @override
+  State<WalkClock> createState() => _WalkClockState();
+}
+
+class _WalkClockState extends State<WalkClock>
+    with SingleTickerProviderStateMixin {
+  final ValueNotifier<double> _halfStrides = ValueNotifier<double>(0);
+  late final Ticker _ticker = createTicker(_onTick);
+  double _last = 0;
+
+  void _onTick(Duration elapsed) {
+    final now = elapsed.inMicroseconds / 1e6;
+    // **Clamped, like the diorama's own.** A ticker muted by `TickerMode` still
+    // counts the time it spent muted, so a sheet reopened after a minute
+    // elsewhere would hand the world a minute of travel in one frame.
+    final step = math.min(now - _last, 0.05);
+    _last = now;
+    final halfStrideSeconds = widget.stride.inMicroseconds / 2e6;
+    if (halfStrideSeconds > 0) _halfStrides.value += step / halfStrideSeconds;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Perpetual movement is exactly what reduce-motion exists to stop.
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_ticker.isActive) _ticker.stop();
+      return;
+    }
+    if (!_ticker.isActive) {
+      _last = 0;
+      _ticker.start();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _halfStrides.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      WalkBeat(notifier: _halfStrides, child: widget.child);
 }

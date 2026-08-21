@@ -2687,6 +2687,18 @@ by a test.
       cup a surprise — the exact opposite of what keeping it on the grid was for.
       It sits over the drawing now, on a dimmed but visible preview.
 
+- [x] **The backdrop TRAVELS PAST HIM**, off the same clock his legs are on. He
+      walks in place and the world moves, so a backdrop holding still is a man on
+      a treadmill — and two clocks in one box is the drift `walk_ramp.dart` exists
+      to stop, so `WalkClock` publishes the diorama's own `WalkBeat` for a walker
+      that has no diorama around it. Two copies of the drawing, slid by how far
+      the world has gone, which is the trick the diorama's strips use.
+      It sits LOWER and taller as well — `cover` on the full box put the treeline
+      up near his head with a third of the frame in grass. The picture is the
+      trees; the grass only has to be the ground he is standing on.
+      And the stage takes the same 13 either side as the picker and the grid, so
+      the sheet has one margin rather than a full-bleed picture over inset
+      controls.
 - [x] **A Kenney backdrop behind the preview**, and the picker given room. He was
       standing against a bare sky gradient, which reads as a swatch rather than a
       place; the gradient stays underneath so the box is never empty if the asset
@@ -2704,6 +2716,24 @@ by a test.
       as a suit, a coat needs a length. `walker_figure.dart` already carries the
       per-outfit sleeve and shin coverage the rig understands, so this is the
       art, not the rig.
+
+### Coach Colin — 26 Aug, later
+
+- [ ] **The exclamation on his popup is a circular exclamation, and should be
+      RED.** It reads as neutral where it is the one thing asking to be pressed.
+- [ ] **And that circle design should be used on the home page too**, and for the
+      MENU button — one shape for the round controls rather than three.
+- [ ] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Whatever it takes:
+      it is the game talking to the player and it currently sits quietly in a
+      corner.
+- [ ] **The bubble should look like he is SAYING it** — a little tail pointing at
+      him, the way the home page's does. Off the home page it is a plain panel
+      with no speaker.
+- [ ] **And the home page should take the font size the others use.** The others
+      are right; the home one is the odd size out.
+- [ ] **Changing screen should CLOSE an open Colin popup.** What he said was about
+      the page you were on, so carrying it to the next one is a caption for the
+      wrong picture.
 
 ### Light mode
 
