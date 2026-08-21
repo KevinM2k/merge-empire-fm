@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
+import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
@@ -192,6 +193,93 @@ void main() {
       expect(find.text(t('shop.voucher.one_at_a_time')), findsOneWidget);
     });
 
+    testWidgets('THE TIER IS THE NAME, not "Scout Vouchers" eight times', (
+      tester,
+    ) async {
+      // The section heading has already said it, so repeating it on every tile
+      // spends the widest line on each of them saying the same thing.
+      final container = await pumpShopWidget(
+        tester,
+        (_) {},
+        VouchersSection.new,
+      );
+      final tiles = container.read(voucherTilesProvider);
+      expect(tiles, isNotEmpty);
+      for (final tile in tiles) {
+        expect(
+          find.text(tierLabel[tile.floor] ?? 'T${tile.floor}'),
+          findsWidgets,
+          reason: 'rung ${tile.floor}',
+        );
+      }
+      expect(
+        find.textContaining('${t('shop.section.vouchers')} '),
+        findsNothing,
+      );
+    });
+
+    testWidgets('"OR BETTER" IS ON THE TILE, with the odds it replaces', (
+      tester,
+    ) async {
+      // A voucher sets a FLOOR. A tile reading just "GOLD★" is the exact-tier
+      // misreading the whole design was chosen to avoid, and it had no sub at
+      // all — `shop.voucher.sub` was translated in ten catalogues and
+      // unreachable.
+      final container = await pumpShopWidget(
+        tester,
+        (_) {},
+        VouchersSection.new,
+      );
+      final offered = container
+          .read(voucherTilesProvider)
+          .firstWhere((t) => t.offered);
+      expect(offered.odds, greaterThan(0));
+      final pct = (offered.odds * 100).toStringAsFixed(
+        offered.odds * 100 < 10 ? 1 : 0,
+      );
+      expect(
+        find.text(t('shop.voucher.sub', {'pct': pct})),
+        findsWidgets,
+        reason: 'the floor rule and its odds are not on the tile',
+      );
+    });
+
+    testWidgets('EVERY RUNG IS SHOWN, and a locked one names its division', (
+      tester,
+    ) async {
+      // The shelf listed only the tiers this division can buy, so the top of
+      // the ladder was not there at all — and a ladder with its top hidden is a
+      // shelf, which takes the reason to climb with it.
+      final container = await pumpShopWidget(
+        tester,
+        (_) {},
+        VouchersSection.new,
+      );
+      final tiles = container.read(voucherTilesProvider);
+      expect(tiles, hasLength(voucherTiers.length));
+      final locked = tiles.where((t) => !t.offered);
+      expect(locked, isNotEmpty, reason: 'a fresh save can buy every rung');
+      for (final tile in locked) {
+        expect(
+          find.text(
+            t('shop.voucher.unlocks_in', {
+              'division': tName('division', tile.unlocksIn),
+            }),
+          ),
+          findsWidgets,
+          reason: 'rung ${tile.floor}',
+        );
+      }
+    });
+
+    testWidgets('and THE GAMBLE RUNG IS ON THE SHELF', (tester) async {
+      // The cheapest of them, and the only one that can hand over an Icon.
+      await pumpShopWidget(tester, (_) {}, VouchersSection.new);
+      expect(find.byKey(const ValueKey('shop-tile-voucher-random')), findsOne);
+      expect(find.text(t('shop.voucher.random')), findsOneWidget);
+      expect(find.text(t('shop.voucher.random_sub')), findsOneWidget);
+    });
+
     testWidgets('buying a voucher debits the gems and arms the floor', (
       tester,
     ) async {
@@ -235,12 +323,24 @@ void main() {
       await tester.pumpAndSettle();
       await settleSave(tester);
 
+      // Every rung this division can BUY is blocked by the armed one. The
+      // rungs above it stay `notOffered`, which is a different no and the
+      // reason the tile names a division instead of a price.
+      final after = container.read(voucherTilesProvider);
       expect(
-        container
-            .read(voucherTilesProvider)
+        after
+            .where((t) => t.offered)
             .every((t) => t.blocked == VoucherBlock.alreadyHeld),
         isTrue,
       );
+      expect(
+        after
+            .where((t) => !t.offered)
+            .every((t) => t.blocked == VoucherBlock.notOffered),
+        isTrue,
+      );
+      // And exactly ONE says it is the one being held.
+      expect(after.where((t) => t.holding), hasLength(1));
     });
   });
 }

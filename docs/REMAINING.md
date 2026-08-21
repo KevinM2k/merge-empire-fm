@@ -1004,8 +1004,19 @@ section. Nothing on the list below is blocked for want of art any more.
       one border on them. What each day pays was already on every tile; what was
       missing was the ticks, and watching it fill is the whole point of a cycle.
       A broken streak has nothing banked, which is right.
-- [ ] **The scout voucher shelf is wrong** — see how `../merge-empire-fc` does
-      it.
+- [x] **The scout voucher shelf is wrong** — five things, and four of them were
+      copy nothing could reach. Every tile read "Scout Vouchers 5", which spends
+      the widest line on each of eight tiles saying what the section heading has
+      already said; the TIER is the name. The floor rule — "or better · normally
+      4%" — was missing entirely, and it is load-bearing rather than a footnote:
+      a tile reading just "GOLD★" is the exact-tier misreading the whole design
+      was chosen to avoid. Only the rungs this division can BUY were listed, so
+      the top of the ladder was not there and `shop.voucher.unlocks_in` had
+      nothing able to reach it — a ladder with its top hidden is a shelf, and it
+      takes the reason to climb with it. The rung being held did not say so
+      (reading "am I holding this" off the block had every tile claiming to be
+      the one). And the 🎲 gamble rung — the cheapest, and the only one that can
+      hand over an Icon — was not on the shelf at all.
 - [x] **Every decision comes through Coach Colin now.** His card is the shape:
       his portrait floating ON the top border rather than an avatar in a title
       row, `COACH COLIN` under it, what he says shown immediately — these are

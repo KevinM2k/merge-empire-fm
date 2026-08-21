@@ -12,6 +12,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
@@ -140,42 +141,122 @@ class BoostsSection extends ConsumerWidget {
 /// The one-at-a-time rule is stated once, at section level: it is the answer to
 /// "why can't I buy this one" for all eight rungs at once, and saying it eight
 /// times is worse rather than clearer.
+/// The gamble rung of the ladder — the catalogue's own one-gem item, drawn in
+/// the voucher section rather than among the gem items because that is where a
+/// player looking for a scout goes.
+const String _scoutVoucherGemId = 'scout_voucher_gem';
+
+/// The voucher ladder.
+///
+/// **A voucher sets a FLOOR, and the tile has to say so.** "or better · normally
+/// 4%" is load-bearing, not a footnote: a tile reading just "GOLD★" is the
+/// exact-tier misreading the whole design was chosen to avoid. The port left it
+/// off entirely, along with the odds it is argued against — so eight tiles all
+/// read "Scout Vouchers 5", which spends the widest line on each of them saying
+/// what the section heading has already said.
+///
+/// **Every rung is shown, locked or not.** The shelf listed only the tiers this
+/// division can buy, so the top of the ladder simply was not there and
+/// `shop.voucher.unlocks_in` had nothing able to reach it. A ladder with its top
+/// hidden is a shelf, and it takes the reason to climb with it.
+///
+/// The 🎲 rung is the catalogue's own one-gem item rather than a tier: the
+/// cheapest of them, and the only one that can hand over an Icon.
 class VouchersSection extends ConsumerWidget {
   const VouchersSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tiles = ref.watch(voucherTilesProvider);
+    final gamble = ref
+        .watch(gemItemTilesProvider)
+        .where((g) => g.item.id == _scoutVoucherGemId);
     final game = ref.read(gameProvider);
 
     return ShopSectionFrame(
       id: ShopSectionId.vouchers,
+      // Said once, up here, rather than eight times on eight tiles: the rule is
+      // about the SECTION, and it answers "why can't I buy this one" for every
+      // rung at once.
       note: t('shop.voucher.one_at_a_time'),
       child: ShopGrid(
         children: [
-          for (final tile in tiles)
+          for (final item in gamble)
             ShopTile(
-              tileKey: 'voucher-${tile.floor}',
-              title: '${t('shop.section.vouchers')} ${tile.floor}',
-              glyph: _icon('ticket', hudGemInk),
-              price: '${tile.cost ?? 0}',
+              tileKey: 'voucher-random',
+              title: t('shop.voucher.random'),
+              subtitle: t('shop.voucher.random_sub'),
+              glyph: Text(
+                t('shop.voucher.random_icon'),
+                style: const TextStyle(fontSize: 22),
+              ),
+              price: '${item.item.cost}',
               tone: StoreTone.gem,
-              disabledReason: blockedCopy(tile.blocked?.name),
-              onBuy: blockedCopy(tile.blocked?.name) != null
+              // Never locked: every division can scout a random player.
+              disabledReason: blockedCopy(item.blocked),
+              onBuy: blockedCopy(item.blocked) != null
                   ? null
                   : () => offerToBuy(context, ref, (
-                      key: 'voucher-${tile.floor}',
-                      title: '${t('shop.section.vouchers')} ${tile.floor}',
-                      subtitle: t('shop.voucher.one_at_a_time'),
+                      key: 'voucher-random',
+                      title: t('shop.voucher.random'),
+                      subtitle: t('shop.voucher.random_sub'),
                       glyph: 'ticket',
                       currency: SpendCurrency.gems,
-                      cost: tile.cost ?? 0,
+                      cost: item.item.cost,
                       buy: () => game
-                          .update((s) => buyScoutVoucher(s, tile.floor))
-                          .reason
-                          ?.name,
+                          .update((s) => buyGemItem(s, item.item.id))
+                          .reason,
                     )),
             ),
+          for (final tile in tiles)
+            () {
+              // The TIER is the name. The section heading already said "Scout
+              // Vouchers".
+              final name = tierLabel[tile.floor] ?? 'T${tile.floor}';
+              final reason = tile.holding
+                  ? t('shop.already_active')
+                  : blockedCopy(tile.blocked?.name);
+              return ShopTile(
+                tileKey: 'voucher-${tile.floor}',
+                title: name,
+                subtitle: tile.offered
+                    ? t('shop.voucher.sub', {
+                        'pct': (tile.odds * 100).toStringAsFixed(
+                          tile.odds * 100 < 10 ? 1 : 0,
+                        ),
+                      })
+                    // A locked rung has no odds worth quoting yet, so it names
+                    // the division instead.
+                    : t('shop.voucher.unlocks_in', {
+                        'division': tName('division', tile.unlocksIn),
+                      }),
+                glyph: Text(
+                  tierEmoji[tile.floor] ?? '',
+                  style: const TextStyle(fontSize: 22),
+                ),
+                price: '${tile.cost ?? 0}',
+                tone: StoreTone.gem,
+                disabledReason: reason,
+                onBuy: reason != null
+                    ? null
+                    : () => offerToBuy(context, ref, (
+                        key: 'voucher-${tile.floor}',
+                        title: name,
+                        subtitle: t('shop.voucher.sub', {
+                          'pct': (tile.odds * 100).toStringAsFixed(
+                            tile.odds * 100 < 10 ? 1 : 0,
+                          ),
+                        }),
+                        glyph: 'ticket',
+                        currency: SpendCurrency.gems,
+                        cost: tile.cost ?? 0,
+                        buy: () => game
+                            .update((s) => buyScoutVoucher(s, tile.floor))
+                            .reason
+                            ?.name,
+                      )),
+              );
+            }(),
         ],
       ),
     );

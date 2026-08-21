@@ -54,7 +54,28 @@ final consumableTilesProvider = savePick<List<ConsumableTile>>(
 
 typedef GemItemTile = ({GemItem item, String? blocked});
 
-typedef VoucherTile = ({int floor, int? cost, VoucherBlock? blocked});
+typedef VoucherTile = ({
+  int floor,
+  int? cost,
+  VoucherBlock? blocked,
+
+  /// Buyable at this division. A rung that is not is still SHOWN — the ladder
+  /// is the section's whole shape, and hiding the rungs above you turns a
+  /// ladder into a shelf and takes the reason to climb with it.
+  bool offered,
+
+  /// The one currently armed. Distinct from `blocked`: an armed floor blocks
+  /// every OTHER rung too, so reading "am I holding this" off the block had
+  /// every tile in the section claiming to be the one.
+  bool holding,
+
+  /// What an ordinary scout at this division clears this floor at — the number
+  /// the voucher is worth arguing against. 0..1.
+  double odds,
+
+  /// The first division that can buy it, for a rung that is still locked.
+  String unlocksIn,
+});
 
 typedef LookPackTile = ({String packId, LookTile tile});
 
@@ -104,18 +125,31 @@ final gemItemTilesProvider = savePick<List<GemItemTile>>(
   ],
 );
 
+/// **EVERY rung, not just the ones this division can buy.**
+///
+/// The shelf listed `voucherTiersFor` alone, so the top of the ladder simply
+/// was not there — and the copy that explains when it arrives
+/// (`shop.voucher.unlocks_in`) had nothing able to reach it.
 final voucherTilesProvider = savePick<List<VoucherTile>>((s) {
   final progression = s['progression'];
   final division = progression is Map<String, dynamic>
       ? progression['currentDivision'] as String?
       : null;
+  final held = heldVoucherTier(s);
   return [
-    for (final floor in voucherTiersFor(division))
-      (
-        floor: floor,
-        cost: voucherCost(floor),
-        blocked: voucherBlocked(s, floor),
-      ),
+    for (final floor in voucherTiers)
+      () {
+        final offered = voucherOffered(division, floor);
+        return (
+          floor: floor,
+          cost: voucherCost(floor),
+          blocked: offered ? voucherBlocked(s, floor) : VoucherBlock.notOffered,
+          offered: offered,
+          holding: held == floor,
+          odds: voucherOdds(division, floor),
+          unlocksIn: voucherUnlockDivision(floor),
+        );
+      }(),
   ];
 });
 
