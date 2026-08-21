@@ -1527,8 +1527,18 @@ findings were arithmetic rather than taste and one is a reversal.
       changed nothing is a write for nothing. The post-match refill of an
       injury's hole belongs to whoever applies the injuries, not to the replay,
       and is worth checking separately.
+      **And the LIVE QUEST TRACKER is in**, behind a Commentary/Quests tab pair
+      under the pitch. `partialMatchResult` and `liveMatchQuestStatus` are
+      ported, documented and tested and had no caller, so the three quests a
+      match is being played FOR were invisible until the whistle told the player
+      how they went. The tracker reads only the events the CLOCK has shown, so
+      it cannot tick a quest off for a goal nobody has watched yet, and it gives
+      only the two answers that can honestly be given early: something that
+      happened cannot un-happen, and something that can no longer happen is
+      gone. Everything else stays undecided — "win by two" is not missed at 0-0
+      in the 89th.
       Still to go: the watch-ad buttons (M4), and the injury flow — the source
-      opens the panel by itself when somebody goes down, with the casualty
+      opens the subs panel by itself when somebody goes down, with the casualty
       preselected and Colin naming the best cover.
 - [ ] **A PHYSICS pass, and it wants a real decision first.** The ask is to be
       more creative with a physics engine for the cutaway, the penalty game and
@@ -1817,8 +1827,9 @@ Ordered by how visible each one is to somebody playing.
 
 - [~] **The popup is missing its boxes, tactics, subs and watch-ad buttons** — the
       boxes were already there, and the TACTICS and the SUBS are both in as of
-      21 Aug. The watch-ad buttons are M4, and the injury flow that opens the
-      subs panel by itself is still to do. See 22 Aug.
+      21 Aug, along with the live QUEST TRACKER behind a tab pair. The watch-ad
+      buttons are M4, and the injury flow that opens the subs panel by itself is
+      still to do. See 22 Aug.
 - [ ] **Continuous play between chances.** The stage is persistent and the players
       only exist during a chance; the JS runs them between chances too. The hard
       part is the one raised in the request: the ball has to arrive at each chance

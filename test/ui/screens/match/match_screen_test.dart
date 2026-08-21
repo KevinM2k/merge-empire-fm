@@ -921,4 +921,125 @@ void main() {
       expect(find.byKey(const ValueKey('match-subs')), findsNothing);
     });
   });
+
+  group('THE LIVE QUEST TRACKER', () {
+    /// A save carrying the three quests this match is being played for.
+    Map<String, dynamic> withQuests(List<String> ids) {
+      final state = squadSave();
+      state['quests'] = {
+        'match': {
+          'active': [
+            for (final id in ids)
+              {'id': id, 'target': 1, 'progress': 0, 'completed': false},
+          ],
+        },
+        'season': <Object?>[],
+      };
+      return state;
+    }
+
+    Future<void> openQuests(WidgetTester tester) async {
+      await tester.tap(find.byKey(const ValueKey('tab-quests')));
+      await tester.pumpAndSettle();
+    }
+
+    String markFor(WidgetTester tester, String id) =>
+        tester.widget<Text>(find.byKey(ValueKey('live-quest-mark-$id'))).data!;
+
+    testWidgets('IS REACHABLE — a tab, not a full-time surprise', (
+      tester,
+    ) async {
+      // `partialMatchResult` and `liveMatchQuestStatus` are ported, documented
+      // and tested, and had no caller: the three quests a match is being played
+      // FOR were invisible until the whistle said how they went.
+      await pumpMatch(
+        tester,
+        matchResult(),
+        save: withQuests(['match_score_2', 'match_clean_sheet']),
+      );
+      expect(find.byKey(const ValueKey('match-tabs')), findsOneWidget);
+      await openQuests(tester);
+      expect(find.byKey(const ValueKey('match-live-quests')), findsOneWidget);
+      expect(find.byKey(const ValueKey('live-quest-match_score_2')), findsOne);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a quest that has HAPPENED cannot un-happen', (tester) async {
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+          ],
+        ),
+        save: withQuests(['match_score_2']),
+      );
+      await openQuests(tester);
+      expect(markFor(tester, 'match_score_2'), '·');
+
+      await tester.pump(minuteDurationFor(11));
+      await tester.pumpAndSettle();
+      expect(markFor(tester, 'match_score_2'), '✓');
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and one that can NO LONGER happen is gone', (tester) async {
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 10, 'type': 'goal', 'team': 'away'},
+          ],
+        ),
+        save: withQuests(['match_clean_sheet']),
+      );
+      await openQuests(tester);
+      expect(markFor(tester, 'match_clean_sheet'), '·');
+
+      await tester.pump(minuteDurationFor(11));
+      await tester.pumpAndSettle();
+      expect(
+        markFor(tester, 'match_clean_sheet'),
+        '✕',
+        reason: 'the clean sheet survived a goal',
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('THE TRACKER CANNOT RUN AHEAD OF THE CLOCK', (tester) async {
+      // The sim writes all ninety minutes up front, so a tracker reading the
+      // result would tick a quest off for a goal nobody has watched yet.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 80, 'type': 'goal', 'team': 'home', 'scorer': 'Late'},
+          ],
+        ),
+        save: withQuests(['match_score_2']),
+      );
+      await openQuests(tester);
+      await tester.pump(minuteDurationFor(20));
+      await tester.pumpAndSettle();
+      expect(
+        markFor(tester, 'match_score_2'),
+        '·',
+        reason: 'a goal that has not been played yet was counted',
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('with NO quests there is no tab strip at all', (tester) async {
+      // A tab that opens an empty panel is a control for nothing.
+      await pumpMatch(tester, matchResult(), save: withQuests([]));
+      expect(find.byKey(const ValueKey('match-tabs')), findsNothing);
+      expect(find.byKey(const ValueKey('match-feed')), findsOneWidget);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+  });
 }

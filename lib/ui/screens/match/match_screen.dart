@@ -14,7 +14,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/quests.dart' show questBank;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/engine/quest_match.dart'
+    show QuestLive, liveMatchQuestStatus, partialMatchResult;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
@@ -31,6 +34,8 @@ import 'package:merge_empire_fc/engine/lineup_engine.dart'
     show refillLineupFromBench;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
+import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart'
+    show QuestRow, matchQuestsProvider;
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
@@ -115,6 +120,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// The clock waits while the panel is open — choosing is not watching.
   bool _paused = false;
+
+  /// Which of the two the body is showing.
+  bool _onQuests = false;
 
   /// Test seams.
   String get strategy => _strategy;
@@ -532,6 +540,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // Only what has been SHOWN, so the feed can never run ahead of the clock —
     // and built off the whole shown list, because whether a chance earns a line
     // depends on how long it has been since the last one did.
+    final questRows = ref.watch(matchQuestsProvider);
+    final raw = widget.result['events'];
     final events = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
     // The tactic changes, merged in by minute. A stable merge rather than a
     // sort: `_notes` is already in order, and a note belongs AFTER the events
@@ -642,20 +652,48 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   onPick: applyStrategy,
                   cooldown: _tacticCooldown,
                 ),
-              Expanded(
-                child: ListView.builder(
-                  key: const ValueKey('match-feed'),
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
-                  // newest line arrived at the foot of the list and everything
-                  // worth reading was off the bottom of a long match. A line should
-                  // arrive from ABOVE and push the rest down, which is the
-                  // direction the feed actually grows.
-                  itemCount: lines.length,
-                  itemBuilder: (context, i) =>
-                      _FeedLine(line: lines[lines.length - 1 - i]),
+              // **THE LIVE QUEST TRACKER.** `partialMatchResult` and
+              // `liveMatchQuestStatus` are ported, documented and tested, and
+              // had no caller — so the three quests a match is being played FOR
+              // were invisible until the whistle told the player how they did.
+              if (questRows.isNotEmpty)
+                _BodyTabs(
+                  onQuests: _onQuests,
+                  onPick: (q) => setState(() => _onQuests = q),
                 ),
-              ),
+              if (_onQuests && questRows.isNotEmpty)
+                Expanded(
+                  child: _LiveQuests(
+                    rows: questRows,
+                    partial: partialMatchResult(
+                      widget.result,
+                      [
+                        for (final e in raw is List ? raw : const [])
+                          if (e is Map<String, dynamic> &&
+                              ((e['minute'] as num?) ?? 0) <= f.minute)
+                            e,
+                      ],
+                      f.minute,
+                      _end,
+                    ),
+                    state: ref.read(gameProvider).state,
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    key: const ValueKey('match-feed'),
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
+                    // newest line arrived at the foot of the list and everything
+                    // worth reading was off the bottom of a long match. A line should
+                    // arrive from ABOVE and push the rest down, which is the
+                    // direction the feed actually grows.
+                    itemCount: lines.length,
+                    itemBuilder: (context, i) =>
+                        _FeedLine(line: lines[lines.length - 1 - i]),
+                  ),
+                ),
               if (f.finished) _QuestOutcomes(result: widget.result),
               Padding(
                 padding: const EdgeInsets.all(12),
@@ -700,6 +738,138 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (widget.result['won'] == true) return t('match.victory');
     if (widget.result['drawn'] == true) return t('match.draw');
     return t('match.defeat');
+  }
+}
+
+/// Commentary, or the three quests this match is being played for.
+class _BodyTabs extends StatelessWidget {
+  const _BodyTabs({required this.onQuests, required this.onPick});
+
+  final bool onQuests;
+  final void Function(bool) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    Widget tab(String label, bool quests, Key key) => Expanded(
+      child: GestureDetector(
+        key: key,
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onPick(quests),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: onQuests == quests ? kit.accentBright : kit.border,
+                width: onQuests == quests ? 2 : 1,
+              ),
+            ),
+          ),
+          child: Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w800,
+              color: onQuests == quests ? kit.accentBright : kit.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Padding(
+      key: const ValueKey('match-tabs'),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          tab(t('match.tab.commentary'), false, const ValueKey('tab-feed')),
+          tab(t('quests.title'), true, const ValueKey('tab-quests')),
+        ],
+      ),
+    );
+  }
+}
+
+/// The three quests, as they stand right now.
+///
+/// **Only two answers can be given early**, and that is `liveMatchQuestStatus`'s
+/// whole design: something that HAPPENED cannot un-happen, and something that
+/// can no longer happen is gone. Everything else is undecided — "win by two" is
+/// not missed at 0-0 in the 89th — and putting a cross against a quest the
+/// player then goes on to win is worse than saying nothing.
+class _LiveQuests extends StatelessWidget {
+  const _LiveQuests({
+    required this.rows,
+    required this.partial,
+    required this.state,
+  });
+
+  final List<QuestRow> rows;
+  final Map<String, dynamic> partial;
+  final Map<String, dynamic>? state;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return ListView(
+      key: const ValueKey('match-live-quests'),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+      children: [
+        for (final row in rows)
+          () {
+            final def = questBank.where((q) => q.id == row.id).firstOrNull;
+            final status = liveMatchQuestStatus(
+              state,
+              def,
+              row.target.toInt(),
+              partial,
+            );
+            final (mark, colour) = switch (status) {
+              QuestLive.done => ('✓', kit.accentBright),
+              QuestLive.missed => ('✕', Colors.redAccent),
+              QuestLive.pending => ('·', kit.textMuted),
+            };
+            return Padding(
+              key: ValueKey('live-quest-${row.id}'),
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    child: Text(
+                      mark,
+                      key: ValueKey('live-quest-mark-${row.id}'),
+                      style: TextStyle(
+                        color: colour,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      row.text,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: status == QuestLive.missed
+                            ? kit.textMuted
+                            : null,
+                        decoration: status == QuestLive.missed
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }(),
+      ],
+    );
   }
 }
 
