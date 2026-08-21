@@ -1,0 +1,334 @@
+/// Goalkeeper Practice.
+///
+/// `recordTrainingComplete` and `trainingDifficulty` have been ported and
+/// tested since M1, energy clamp and all, and there was no session to play.
+/// `game.training.intro`, `.session_complete`, `.drills_hit`, `.coins`,
+/// `.energy`, `mg.warming_up` and `mg.keep_going` sat translated in ten
+/// catalogues with nothing able to reach one.
+library;
+
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/club_assets.dart';
+import 'package:merge_empire_fc/data/mini_games.dart';
+import 'package:merge_empire_fc/engine/mini_games_engine.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
+import 'package:merge_empire_fc/state/save_slots.dart';
+import 'package:merge_empire_fc/state/save_store.dart';
+import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/goalkeeper_practice_screen.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/util/time.dart';
+
+Map<String, dynamic> saveWith() {
+  final s = createDefaultState();
+  // Tier 1 Training Ground, the rung Goalkeeper Practice sits on.
+  (s['clubAssets'] as Map<String, dynamic>)[AssetCategory.training] = {
+    'owned': true,
+    'tier': 1,
+    'invested': 0,
+    'tapCount': 0,
+  };
+  return s;
+}
+
+late int fakeNow;
+
+Future<ProviderContainer> pumpGame(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(420 * 3, 900 * 3);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+
+  fakeNow = DateTime.utc(2026, 3, 1).millisecondsSinceEpoch;
+  setClock(() => fakeNow);
+  addTearDown(resetClock);
+
+  final container = ProviderContainer(
+    overrides: [
+      saveStoreProvider.overrideWithValue(
+        MemorySaveStore({saveKeyPrimary: jsonEncode(saveWith())}),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(gameProvider).load();
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: Consumer(
+        builder: (context, ref, _) => MaterialApp(
+          theme: ref.watch(appThemeProvider),
+          home: const GoalkeeperPracticeScreen(),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  return container;
+}
+
+/// Advance the fake clock and the tick timer together. The session reads
+/// `now()` for its own elapsed time, so a pump that moves one and not the other
+/// is a session that never progresses.
+Future<void> advance(WidgetTester tester, int ms) async {
+  for (var moved = 0; moved < ms; moved += trainingTickMs) {
+    fakeNow += trainingTickMs;
+    await tester.pump(const Duration(milliseconds: trainingTickMs));
+  }
+}
+
+GoalkeeperPracticeScreenState stateOf(WidgetTester tester) =>
+    tester.state<GoalkeeperPracticeScreenState>(
+      find.byType(GoalkeeperPracticeScreen),
+    );
+
+Future<void> closeGame(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+}
+
+void main() {
+  tearDown(resetLocale);
+
+  group('the schedule', () {
+    test('LEADS IN, spreads out, and COOLS DOWN', () {
+      for (final count in [4, 8, 12]) {
+        final times = drillTimes(count);
+        expect(times, hasLength(count));
+        expect(
+          times.first,
+          greaterThanOrEqualTo(Training.leadInMs),
+          reason: 'a drill landed before the player was looking',
+        );
+        // The last one's window has to close inside the session, which is what
+        // the final tenth is reserved for.
+        expect(
+          times.last,
+          lessThanOrEqualTo((Training.durationMs * 0.9).round()),
+        );
+        for (var i = 1; i < times.length; i++) {
+          expect(times[i], greaterThan(times[i - 1]));
+        }
+      }
+    });
+
+    test('and it is EVENLY spread, not front-loaded', () {
+      final times = drillTimes(8);
+      final gaps = [
+        for (var i = 1; i < times.length; i++) times[i] - times[i - 1],
+      ];
+      for (final gap in gaps) {
+        expect(gap, closeTo(gaps.first, 1));
+      }
+    });
+
+    test('more drills and a tighter window as you climb', () {
+      expect(
+        trainingDifficulty(6).drills,
+        greaterThan(trainingDifficulty(0).drills),
+      );
+      expect(
+        trainingDifficulty(6).windowMs,
+        lessThan(trainingDifficulty(0).windowMs),
+      );
+    });
+  });
+
+  testWidgets('the drill is REACHABLE — it is in the playable set', (
+    tester,
+  ) async {
+    expect(playableMiniGames, contains(MiniGameKind.training));
+  });
+
+  testWidgets('THE HEADING IS A HEADING, not the drill counter', (
+    tester,
+  ) async {
+    // `mg.drills` is "Drills: {hit} / {total}", and the list asked for it with
+    // no parameters — so the section header rendered its own braces.
+    expect(t('mg.drills'), contains('{hit}'));
+    expect(t('training.title'), isNot(contains('{')));
+  });
+
+  testWidgets('entering starts the cooldown, not finishing', (tester) async {
+    final container = await pumpGame(tester);
+    await tester.pump();
+    expect(
+      miniGameReady(container.read(gameProvider).state!, MiniGameKind.training),
+      isFalse,
+    );
+    await closeGame(tester);
+  });
+
+  testWidgets('NOTHING SPAWNS during the lead-in', (tester) async {
+    await pumpGame(tester);
+    await advance(tester, Training.leadInMs - trainingTickMs * 2);
+    expect(stateOf(tester).drillsAppeared, 0);
+    expect(find.text(t('mg.warming_up')), findsOneWidget);
+    await closeGame(tester);
+  });
+
+  testWidgets('A DRILL APPEARS, and tapping it counts', (tester) async {
+    await pumpGame(tester);
+    final s = stateOf(tester);
+    // Far enough in for the first drill to be due.
+    await advance(tester, drillTimes(s.drillCount).first + trainingTickMs * 2);
+    expect(s.drillUp, isTrue, reason: 'no drill ever appeared');
+
+    await tester.tap(find.byKey(const ValueKey('train-bubble')));
+    await tester.pump();
+    expect(s.drillsHit, 1);
+    expect(s.drillUp, isFalse);
+    expect(find.byKey(const ValueKey('train-flash')), findsOneWidget);
+    await closeGame(tester);
+  });
+
+  testWidgets('and one LEFT ALONE expires rather than waiting forever', (
+    tester,
+  ) async {
+    await pumpGame(tester);
+    final s = stateOf(tester);
+    await advance(tester, drillTimes(s.drillCount).first + trainingTickMs * 2);
+    expect(s.drillUp, isTrue);
+
+    await advance(tester, trainingDifficulty(0).windowMs + trainingTickMs * 2);
+    expect(s.drillUp, isFalse, reason: 'the window never closed');
+    expect(s.drillsHit, 0);
+    await closeGame(tester);
+  });
+
+  testWidgets('EVERY DRILL PROMISED ACTUALLY APPEARS', (tester) async {
+    // `game.training.intro` tells the player how many are coming. A schedule
+    // that does not deliver them all makes that line a lie.
+    await pumpGame(tester);
+    final s = stateOf(tester);
+    await advance(tester, Training.durationMs + trainingTickMs * 2);
+    expect(s.drillsAppeared, s.drillCount);
+    await closeGame(tester);
+  });
+
+  testWidgets('full time replaces the session with the summary', (
+    tester,
+  ) async {
+    final container = await pumpGame(tester);
+    final s = stateOf(tester);
+    await advance(tester, Training.durationMs + trainingTickMs * 2);
+    await tester.pumpAndSettle();
+
+    expect(s.done, isTrue);
+    expect(find.byKey(const ValueKey('train-summary')), findsOneWidget);
+    // The bar and the stage are GONE, not merely scrolled past — the JS hides
+    // them so the collect button lands where the drills were.
+    expect(find.byKey(const ValueKey('train-stage')), findsNothing);
+    expect(find.byKey(const ValueKey('train-bar-fill')), findsNothing);
+    // Energy is zero today, so its block is hidden rather than showing "+0⚡".
+    expect(find.byKey(const ValueKey('train-energy')), findsNothing);
+
+    final before =
+        (container.read(gameProvider).state!['resources']
+                as Map<String, dynamic>)['fanCoins']
+            as num;
+    await tester.tap(find.byKey(const ValueKey('train-collect')));
+    await tester.pump();
+    final after =
+        (container.read(gameProvider).state!['resources']
+                as Map<String, dynamic>)['fanCoins']
+            as num;
+    expect(after - before, s.coinsWon);
+    await tester.pumpAndSettle();
+    await closeGame(tester);
+  });
+
+  testWidgets('a PERFECT session pays more than a missed one', (tester) async {
+    // The payout scales with how many were hit, which is the whole reason to
+    // tap them.
+    final container = await pumpGame(tester);
+    final s = stateOf(tester);
+    final due = drillTimes(s.drillCount);
+    for (final at in due) {
+      while (fakeNow - DateTime.utc(2026, 3, 1).millisecondsSinceEpoch < at) {
+        await advance(tester, trainingTickMs);
+      }
+      await advance(tester, trainingTickMs);
+      if (s.drillUp) {
+        await tester.tap(find.byKey(const ValueKey('train-bubble')));
+        await tester.pump();
+      }
+    }
+    expect(s.drillsHit, s.drillCount, reason: 'a drill was unreachable');
+
+    await advance(tester, Training.durationMs);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('train-collect')));
+    await tester.pump();
+
+    final missed = recordTrainingComplete(
+      jsonDecode(jsonEncode(saveWith())) as Map<String, dynamic>,
+      drillsHit: 0,
+      drillTotal: s.drillCount,
+    );
+    expect(s.coinsWon, greaterThan(missed.coins));
+    await tester.pumpAndSettle();
+    await closeGame(tester);
+    // The whole state is untouched by the reference call above.
+    expect(container.read(gameProvider).state, isNotNull);
+  });
+
+  testWidgets('LEAVING MID-SESSION banks it, once', (tester) async {
+    final container = await pumpGame(tester);
+    final s = stateOf(tester);
+    await advance(tester, drillTimes(s.drillCount).first + trainingTickMs * 2);
+    await tester.tap(find.byKey(const ValueKey('train-bubble')));
+    await tester.pump();
+    expect(s.drillsHit, 1);
+
+    final before =
+        (container.read(gameProvider).state!['resources']
+                as Map<String, dynamic>)['fanCoins']
+            as num;
+    await closeGame(tester);
+    final after =
+        (container.read(gameProvider).state!['resources']
+                as Map<String, dynamic>)['fanCoins']
+            as num;
+    expect(after, greaterThan(before));
+  });
+
+  testWidgets('the Training list still builds with every game playable', (
+    tester,
+  ) async {
+    // The list's job was to say WHY a row could not be tapped. With all seven
+    // built, the only remaining noes are the tier and the cooldown.
+    final container = ProviderContainer(
+      overrides: [
+        saveStoreProvider.overrideWithValue(
+          MemorySaveStore({saveKeyPrimary: jsonEncode(saveWith())}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(gameProvider).load();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: const Scaffold(body: TrainingView()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(t('training.title')), findsOneWidget);
+    expect(find.text(t('settings.comingSoon')), findsNothing);
+  });
+}

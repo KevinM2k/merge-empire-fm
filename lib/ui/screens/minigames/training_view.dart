@@ -12,6 +12,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/goalkeeper_practice_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/pitch_invaders_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/teamwork_screen.dart';
@@ -32,7 +33,11 @@ class TrainingView extends ConsumerWidget {
       padding: const EdgeInsets.all(12),
       children: [
         Text(
-          t('mg.drills'),
+          // `mg.drills` is the in-game counter — "Drills: {hit} / {total}" —
+          // and asking for it with no parameters rendered those braces to the
+          // player. `training.title` is the section heading, and it was shipped
+          // in all ten catalogues with nothing able to reach it.
+          t('training.title'),
           style: TextStyle(color: kit.textMuted, fontSize: 13),
         ),
         const SizedBox(height: 8),
@@ -77,6 +82,7 @@ class _GameRow extends ConsumerWidget {
       MiniGameKind.throughBall => const ThroughBallScreen(),
       MiniGameKind.whack => const PitchInvadersScreen(),
       MiniGameKind.pairs => const TeamworkScreen(),
+      MiniGameKind.training => const GoalkeeperPracticeScreen(),
       _ => const PenaltyScreen(),
     };
     Navigator.of(context).push<void>(
