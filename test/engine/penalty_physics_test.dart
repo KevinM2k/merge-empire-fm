@@ -237,6 +237,58 @@ void main() {
     });
   });
 
+  group('HE SPREADS HIMSELF BETTER FURTHER UP', () {
+    test('the reach RAMPS with the division, and tops out at the documented one',
+        () {
+      // The read chance was the only ramp, so a Champions Cup keeper guessed as
+      // badly as a Sunday League one and simply guessed right more often. A
+      // better keeper also covers more of the goal once he gets there.
+      //
+      // Ramped DOWNWARD from the top rather than upward from it, deliberately:
+      // `keeperReach` plus `keeperDiveSpan` is the post to the centimetre, and
+      // that is the number the whole balance rests on. Growing it past the top
+      // division would leave nowhere to shoot; the ramp instead makes the LOWER
+      // divisions easier, which is the direction a difficulty ramp should run.
+      expect(keeperReachFor(6), closeTo(keeperReach, 1e-9));
+      expect(keeperReachFor(0), lessThan(keeperReach));
+      for (var d = 1; d <= 6; d++) {
+        expect(
+          keeperReachFor(d),
+          greaterThan(keeperReachFor(d - 1)),
+          reason: 'division \$d is no better than the one below it',
+        );
+      }
+      // The invariant, still true at the top: a full dive plus the arm is the
+      // post.
+      expect(keeperDiveSpan + keeperReachFor(6), closeTo(goalHalfWidth, 0.01));
+      // And out of range either way rather than throwing.
+      expect(keeperReachFor(-3), keeperReachFor(0));
+      expect(keeperReachFor(99), keeperReachFor(6));
+    });
+
+    test('so the SAME shot beats a Sunday League keeper and not a top one', () {
+      // Same aim, same read, same dive — only the spread differs, which is what
+      // makes it a ramp on ability rather than on luck.
+      // A corner into the top of the goal: inside the top division's reach and
+      // 20cm outside Sunday League's.
+      const aim = (across: -0.73, lift: 0.65, power: 0.86, curl: 0.0);
+      PenaltyKick at(int division) {
+        final k = PenaltyKick(
+          aim: aim,
+          plan: reads(aim),
+          reach: keeperReachFor(division),
+        );
+        while (!k.done && k.elapsed < 6) {
+          k.advance(1 / 120);
+        }
+        return k;
+      }
+
+      expect(at(6).result, PenaltyResult.saved);
+      expect(at(0).result, PenaltyResult.goal);
+    });
+  });
+
   group('spin', () {
     test('curl moves the ball most of a metre across its line', () {
       // The figure the coefficient is TUNED to, pinned here because it is the

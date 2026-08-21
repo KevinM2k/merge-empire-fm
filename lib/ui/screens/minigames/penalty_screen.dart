@@ -32,7 +32,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/engine/penalty_game_engine.dart'
-    show keeperSmartChanceFor;
+    show keeperDivisionIndex, keeperSmartChanceFor;
 import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
@@ -184,6 +184,9 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
                       key: const ValueKey('penalty-view'),
                       readChance: keeperSmartChanceFor(
                         ref.read(gameProvider).state,
+                      ),
+                      keeperSpread: keeperReachFor(
+                        keeperDivisionIndex(ref.read(gameProvider).state),
                       ),
                       turf: const Color(0xFF3A8C41),
                       onResult: _onResult,

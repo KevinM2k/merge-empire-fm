@@ -1037,6 +1037,7 @@ class PenaltyView extends StatefulWidget {
   const PenaltyView({
     super.key,
     required this.readChance,
+    this.keeperSpread = keeperReach,
     required this.onResult,
     required this.turf,
     this.rng,
@@ -1044,6 +1045,10 @@ class PenaltyView extends StatefulWidget {
 
   /// The division's own ramp — how often the keeper goes the right way.
   final double readChance;
+
+  /// How far this division's keeper can spread himself. See [keeperReachFor] —
+  /// his read chance is one ramp and his reach is the other.
+  final double keeperSpread;
 
   /// Called once per kick, with what actually happened — and with where the ball
   /// finished, because "wide" has a side and only the flight knows which.
@@ -1212,6 +1217,7 @@ class PenaltyViewState extends State<PenaltyView>
       _kick = PenaltyKick(
         aim: aim,
         plan: planKeeper(readChance: widget.readChance, aim: aim, rng: _rng),
+        reach: widget.keeperSpread,
       );
       _dragFrom = null;
       _dragTo = null;

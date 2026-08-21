@@ -40,13 +40,19 @@ void resetPenaltyRandom() => _rng = math.Random();
 /// Five per cent at Sunday League, thirty at Champions Cup — which is why the
 /// quest bank counts penalties SCORED rather than perfect rounds: a clean sweep
 /// is a lottery that lengthens the higher you climb.
-double keeperSmartChanceFor(Map<String, dynamic>? state) {
+double keeperSmartChanceFor(Map<String, dynamic>? state) =>
+    penaltyKeeperSmartChance(keeperDivisionIndex(state));
+
+/// Which division's keeper the player is facing.
+///
+/// Shared, because his READ chance and his REACH are two ramps off the same
+/// index and two ways of resolving it would be two ways of disagreeing.
+int keeperDivisionIndex(Map<String, dynamic>? state) {
   final progression = state?['progression'];
   final id = progression is Map<String, dynamic>
       ? progression['currentDivision']
       : null;
-  final idx = divisions.indexWhere((d) => d.id == id);
-  return penaltyKeeperSmartChance(math.max(0, idx));
+  return math.max(0, divisions.indexWhere((d) => d.id == id));
 }
 
 /// Take one penalty at [aimed].

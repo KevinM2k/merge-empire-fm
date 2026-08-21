@@ -161,6 +161,24 @@ typedef KeeperPlan = ({
 /// The arm, from his shoulders.
 const double keeperReach = 1.05;
 
+/// How far he can spread himself, by division index.
+///
+/// **The read chance was the only ramp**, so a Champions Cup keeper guessed as
+/// badly as a Sunday League one and simply guessed right more often. A better
+/// keeper also covers more of the goal once he has gone the right way — he
+/// spreads himself — so the arm grows with the division.
+///
+/// **It ramps DOWN from the top, not up from it.** [keeperDiveSpan] plus
+/// [keeperReach] is the post to the centimetre, and that is the number the whole
+/// balance rests on: longer and there is nowhere to shoot. So the top division
+/// keeps the documented reach and the ones below it get less, which is the
+/// direction a difficulty ramp should run anyway — it makes the early game
+/// forgiving rather than the late game impossible.
+double keeperReachFor(int divisionIndex) {
+  final t = (divisionIndex < 0 ? 0 : (divisionIndex > 6 ? 6 : divisionIndex)) / 6;
+  return keeperReach * (0.78 + 0.22 * t);
+}
+
 /// How far his hands travel on a full dive.
 ///
 /// 2.6m plus the arm is 3.65 — which is the post, to the centimetre, and that is
@@ -174,15 +192,26 @@ const double keeperDiveTime = 0.42;
 
 /// One penalty, stepped.
 class PenaltyKick {
-  PenaltyKick({required this.aim, required this.plan, this.timeStep = 1 / 240})
-    : position = Vec3(0, -spotDistance, ballRadius),
-      velocity = Vec3.zero(),
-      spin = Vec3.zero() {
+  PenaltyKick({
+    required this.aim,
+    required this.plan,
+    this.reach = keeperReach,
+    this.timeStep = 1 / 240,
+  }) : position = Vec3(0, -spotDistance, ballRadius),
+       velocity = Vec3.zero(),
+       spin = Vec3.zero() {
     _launch();
   }
 
   final PenaltyAim aim;
   final KeeperPlan plan;
+
+  /// How far he can get a glove, from the centre of his reach.
+  ///
+  /// Separate from [plan] because they are different things: the plan is his
+  /// DECISION — which way and how early — and this is his ABILITY. Only the
+  /// second one improves with the division; see [keeperReachFor].
+  final double reach;
 
   /// The integrator's own step, independent of the frame rate.
   ///
@@ -528,8 +557,8 @@ class PenaltyKick {
     if (position.y < -0.6 || position.y > 0.35) return false;
     final dx = position.x - keeperHand.x;
     final dz = position.z - keeperHand.z;
-    final reach = keeperReach + ballRadius;
-    return dx * dx + dz * dz < reach * reach;
+    final sweep = reach + ballRadius;
+    return dx * dx + dz * dz < sweep * sweep;
   }
 }
 

@@ -2562,6 +2562,19 @@ by a test.
       same upright until the clock ran out. And the belt-and-braces "anything
       behind the goal is a goal" now asks whether it was ever INSIDE, because a
       ball off the top of the bar is behind the net without having been in it.
+- [x] **He spreads himself better further up.** The read chance was the ONLY
+      ramp, so a Champions Cup keeper guessed as badly as a Sunday League one and
+      simply guessed right more often. `keeperReachFor` is the second ramp, and
+      the plan/reach split is the point: the plan is his DECISION (which way, how
+      early) and the reach is his ABILITY.
+      **It ramps DOWN from the top rather than up from it.** `keeperDiveSpan`
+      plus `keeperReach` is the post to the centimetre and that is the number the
+      whole balance rests on — longer and there is nowhere to shoot. So the top
+      division keeps the documented reach and the ones below get less, which is
+      also the direction a difficulty ramp should run: it makes the early game
+      forgiving rather than the late game impossible. 0.82m at Sunday League to
+      1.05m at the Champions Cup, and a corner into the top of the goal is now
+      the same shot that one keeper reaches and the other does not.
 - [ ] **The net should look like a NET — see-through.** You should be able to
       see through it to what is behind, which is most of what says "net" rather
       than "wall". A Kenney backdrop behind it would give it something to be
