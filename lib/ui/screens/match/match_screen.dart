@@ -284,6 +284,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     final home = widget.result['isHome'] == true;
     final us = '${widget.result['clubName'] ?? ''}';
     final them = '${widget.result['opponentName'] ?? ''}';
+    // Only what has been SHOWN, so the feed can never run ahead of the clock —
+    // and built off the whole shown list, because whether a chance earns a line
+    // depends on how long it has been since the last one did.
+    final lines = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
 
     return Scaffold(
       key: const ValueKey('match-screen'),
@@ -374,9 +378,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // worth reading was off the bottom of a long match. A line should
                   // arrive from ABOVE and push the rest down, which is the
                   // direction the feed actually grows.
-                  itemCount: f.shown.length,
+                  itemCount: lines.length,
                   itemBuilder: (context, i) =>
-                      _FeedLine(event: f.shown[f.shown.length - 1 - i]),
+                      _FeedLine(line: lines[lines.length - 1 - i]),
                 ),
               ),
               if (f.finished) _QuestOutcomes(result: widget.result),
@@ -721,22 +725,24 @@ class _TeamRow extends StatelessWidget {
 }
 
 class _FeedLine extends StatelessWidget {
-  const _FeedLine({required this.event});
+  const _FeedLine({required this.line});
 
-  final TimelineEvent event;
+  final FeedLine line;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final isGoal = event.type == 'goal';
-    // A commentary line is a translation KEY the engine emitted, which is why
-    // the i18n layer had to land before any of this.
-    final text = switch (event.type) {
-      'goal' => event.scorer ?? t('match.goal_card.title'),
-      'halftime' => t('match.half_time'),
-      'commentary' => event.textKey == null ? '' : t(event.textKey!),
-      _ => event.type,
-    };
+    final isGoal = line.type == 'goal';
+    // **WHICH events earn a line, and what each says, is `feedOf`.** This used
+    // to fall through to printing `event.type` — so a corner read as the word
+    // "corner", a chance as "chance" and full time as "fulltime": three raw,
+    // untranslated strings from the engine on the one screen a player watches
+    // for ninety minutes.
+    //
+    // `tPoolStable` rather than `tPool`: a goal has nine ways of being
+    // described and the feed rebuilds on every tick of the clock, so an
+    // unseeded pick would reroll the sentence under the reader.
+    final text = tPoolStable(line.key, line.seed, line.params);
     if (text.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -747,7 +753,7 @@ class _FeedLine extends StatelessWidget {
           SizedBox(
             width: 30,
             child: Text(
-              "${event.minute}'",
+              "${line.minute}'",
               style: TextStyle(color: kit.textMuted, fontSize: 11),
             ),
           ),

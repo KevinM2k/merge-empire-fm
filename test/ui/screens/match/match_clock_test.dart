@@ -134,4 +134,111 @@ void main() {
       expect(normal * 93, lessThan(const Duration(seconds: 20)));
     });
   });
+
+  group('THE FEED', () {
+    TimelineEvent ev(
+      String type, {
+      int minute = 10,
+      String team = 'home',
+      String? shotResult,
+      bool big = false,
+      double xg = 0,
+      String? scorer,
+      String? player,
+      String? textKey,
+    }) => (
+      minute: minute,
+      type: type,
+      team: team,
+      scorer: scorer,
+      textKey: textKey,
+      shotResult: shotResult,
+      big: big,
+      xg: xg,
+      player: player,
+    );
+
+    List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
+        feedOf(events, ourName: 'Us', theirName: 'Them', isHome: isHome);
+
+    test('A CORNER SAYS NOTHING, and neither does full time', () {
+      // The port fell through to printing `event.type`, so a corner read as the
+      // word "corner" and full time as "fulltime" — raw, untranslated strings
+      // from the engine on the one screen a player watches for ninety minutes.
+      // A corner is a momentum nudge; it is not news.
+      expect(feed([ev('corner'), ev('fulltime', minute: 90)]), isEmpty);
+    });
+
+    test('and a chance only earns a line if it was BIG and ON TARGET', () {
+      // There is a chance about every seven minutes. Without both filters the
+      // feed is nothing else.
+      expect(feed([ev('chance', xg: 0.1, shotResult: 'on_target')]), isEmpty);
+      expect(feed([ev('chance', big: true, shotResult: 'off')]), isEmpty);
+      final one = feed([ev('chance', big: true, shotResult: 'on_target')]);
+      expect(one, hasLength(1));
+      expect(one.single.key, 'commentary.forces_save');
+      expect(one.single.params['who'], 'Us');
+    });
+
+    test('and the second one inside ten minutes is held back', () {
+      final lines = feed([
+        ev('chance', minute: 10, big: true, shotResult: 'on_target'),
+        ev('chance', minute: 15, big: true, shotResult: 'on_target'),
+        ev('chance', minute: 22, big: true, shotResult: 'on_target'),
+      ]);
+      expect([for (final l in lines) l.minute], [10, 22]);
+    });
+
+    test('THE SIDE IS NAMED FROM THE PLAYER\'S POINT OF VIEW', () {
+      final away = feed([
+        ev('chance', team: 'away', big: true, shotResult: 'on_target'),
+      ], isHome: true);
+      expect(away.single.params['who'], 'Them');
+      final ours = feed([
+        ev('chance', team: 'away', big: true, shotResult: 'on_target'),
+      ], isHome: false);
+      expect(ours.single.params['who'], 'Us');
+    });
+
+    test('A GOAL IS DESCRIBED BY WHAT IT DID TO THE SCORE', () {
+      // Eight `commentary.goal.*` pools sat translated in ten catalogues with
+      // nothing able to reach one: the feed printed the scorer's name alone. But
+      // equalising, pulling one back, going ahead and stretching a lead are four
+      // different moments and the feed should not read the same for all four.
+      final lines = feed([
+        ev('goal', minute: 5, team: 'away'),
+        ev('goal', minute: 20, team: 'home', scorer: 'Ada'),
+        ev('goal', minute: 30, team: 'home', scorer: 'Ada'),
+        ev('goal', minute: 40, team: 'home', scorer: 'Ada'),
+      ]);
+      expect(lines[0].key, 'commentary.opp_goal');
+      expect(lines[0].params['them'], 'Them');
+      expect(lines[1].key, 'commentary.goal.equalise.with_scorer');
+      expect(lines[2].key, 'commentary.goal.lead.with_scorer');
+      expect(lines[3].key, 'commentary.goal.extend.with_scorer');
+    });
+
+    test('and pulling one back is not the same as equalising', () {
+      final lines = feed([
+        ev('goal', minute: 5, team: 'away'),
+        ev('goal', minute: 6, team: 'away'),
+        ev('goal', minute: 20, team: 'home'),
+      ]);
+      expect(lines.last.key, 'commentary.goal.pullback.no_scorer');
+    });
+
+    test('and the POOL PICK IS STABLE, because the feed rebuilds', () {
+      // Every tick of the clock rebuilds it, and a sentence that rerolls under
+      // the reader is worse than one sentence.
+      final a = feed([ev('goal', minute: 20, scorer: 'Ada')]).single;
+      final b = feed([ev('goal', minute: 20, scorer: 'Ada')]).single;
+      expect(a.seed, b.seed);
+    });
+
+    test('an injury names who went down', () {
+      final line = feed([ev('injury', player: 'Ada')]).single;
+      expect(line.key, 'commentary.injury');
+      expect(line.params['player'], 'Ada');
+    });
+  });
 }

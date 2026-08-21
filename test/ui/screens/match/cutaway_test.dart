@@ -9,28 +9,24 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_sequences.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 
-TimelineEventStub _event(String type, {String? shotResult}) => (
+/// **The real shape, not a stub.** It was declared locally so this file did not
+/// need a whole match result to test one mapping — and then the timeline grew a
+/// field and the two silently stopped being the same thing.
+TimelineEvent _event(String type, {String? shotResult}) => (
   minute: 10,
   type: type,
   team: 'home',
   scorer: null,
   textKey: null,
   shotResult: shotResult,
+  big: false,
+  xg: 0,
+  player: null,
 );
-
-/// The shape `match_clock` hands out. Declared here so this file does not need
-/// a whole match result to test one mapping.
-typedef TimelineEventStub = ({
-  int minute,
-  String type,
-  String? team,
-  String? scorer,
-  String? textKey,
-  String? shotResult,
-});
 
 void main() {
   group('attack space', () {
