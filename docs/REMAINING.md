@@ -30,16 +30,31 @@ too late:
 
 ## Where we are
 
-**3,920 tests, `flutter analyze` clean.**
+**3,991 tests, `flutter analyze` clean.**
 
-**The live queue is "From playtesting — 24 Aug", and what is left of it is 3
-items** — on top of 23 August's remaining 13, 22 August's 4, 21 August's 9 and 20
-August's 28. **Both of the missing layers are in**: the weather is drawn, and
-Coach Colin follows the player across every tab. What is biggest now is the
-diorama's football — `pitchBallSim.js`, 791 lines, and the last thing on that
-screen that moves in the JS and does not exist here. Each section carries its own
-status block: the count, the clusters, what is blocked on a decision and what is
-blocked on artwork.
+**84 items are open**, down from 108. What went in the last pass, and every one
+of them turned out to be the same shape — a thing that was fully ported, fully
+tested and never called, or a piece of shipped copy nothing could reach:
+
+- **The football is on the diorama.** `PitchBallSim.js`, pinned frame by frame
+  against the JS with the random draws in the fixture. `windAccelFor` has a
+  reader at last.
+- **The gesture halt EASES, and it ends.** It never ended: the world stopped for
+  a bow and stayed stopped until the next gesture, up to sixteen seconds later.
+  And there is one clock now for his legs and the ground.
+- **`CoachTips.js`.** `seenTips` was a ledger with no ledger in it — sixteen
+  tips and forty-four strings unreachable.
+- **The income breakdown.** Eighteen more unreachable strings, behind a chip
+  that already carried its accessibility label.
+- **Every trait was untranslatable.** Forty-two more.
+- **Six builds instead of one**, and an outfit palette, without which a
+  tracksuit was a collar line and nothing else.
+- **Every decision goes through Colin now, actually** — four still arrived as
+  `AlertDialog`s.
+
+What is biggest now is the match cutaway and the mini-games with no screen. Each
+section carries its own status block: the count, the clusters, what is blocked on
+a decision and what is blocked on artwork.
 
 `docs/PARITY.md` is the OTHER queue — a control-by-control and layout-by-layout
 diff of the JS against the port, taken from the source. It is the longer list and
@@ -688,17 +703,30 @@ section. Nothing on the list below is blocked for want of art any more.
       one hue apart. A dark ring outside the white one means something between
       the button and the pitch differs sharply on ANY kit, and the accent glow is
       what makes it read as lit rather than painted on.
-- [ ] **The position badge over the club name should open the table.**
-- [ ] **The `+1` home icon under the club rating should explain itself** on a
+- [x] **The position badge over the club name opens the table.** A position is
+      a claim about a table, and the only route to it was three taps behind the
+      burger.
+- [x] **The `+1` home icon explains itself ON A TAP.** It always carried the
+      right sentence — "Home advantage — your Fan Zone" — behind a `Tooltip`,
+      whose default trigger on a touch screen is a LONG PRESS. The comment above
+      it said "tapping one says the word", which the widget did not keep. Was: on a
       tap — where the number comes from, which is the Stadium's Fan Zone tier.
 - [ ] **Coach Colin talks about himself in the third person** — "Coach Colin
       suggests Balanced". He is the one speaking and he has the whole state to
       hand; he should sound like it. **Every decision should come through him**:
       he is who the player talks to, so a confirmation is his card.
-- [ ] **The income per second has to be on screen somewhere.** It matters most
+- [x] **THE INCOME BREAKDOWN.** `_showIncomeBreakdown` from the JS's HUD, on
+      Colin's card: where the rate comes from, what the multipliers are doing,
+      and what a loaned-in player is costing every second. Eighteen
+      `hud.income.*` strings were unreachable and the coin chip had carried
+      `hud.aria.income_breakdown` as its label since it was written with nothing
+      behind it. Was: has to be on screen somewhere. It matters most
       when it is NEGATIVE: a loaned-in player costs money, and the only sign of
       it today is the idle bar quietly running backwards.
-- [ ] **Is the top safe area too deep?** `hudClearance` is 56 on top of the
+- [x] **IT WAS FOUR PIXELS TOO SHALLOW, not too deep.** Measured: the crest's
+      tap target is 48 rather than the 38 it is drawn at, so the bar is 60 and a
+      page starting at `56 + 10` began six pixels UNDER the glass. Derived from
+      the bar now, with a test that measures the rendered band. Was: `hudClearance` is 56 on top of the
       notch; check it against the bar's real height.
 
 ### Quick nav and menus
@@ -723,14 +751,32 @@ section. Nothing on the list below is blocked for want of art any more.
 
 ### The squad, and the player sheet
 
-- [ ] **The player's image should run over the swap/bench buttons**, so he has
+- [x] **The player's image runs over the swap/bench buttons.** 200px of
+      head-and-shoulders of a figure drawn full length; 260 now, with the
+      buttons floating on its lower edge over a scrim — the scrim because the
+      kit is the club's colour and so is the button. Was: should run over them, so he has
       room to render.
-- [ ] **Drop the sell section and its 30s timer.** One RELEASE button that
+- [x] **THE SELL ASKS AS COLIN**, and so do the send-back and the recall. All
+      three were `AlertDialog`s — the app's own voice asking about the squad, on
+      a screen whose premise is that you have a manager to talk to. **No 30s
+      timer exists anywhere in the port**, so there was none to drop. Was: drop the sell section and its 30s timer. One RELEASE button that
       deletes him, behind a Coach Colin confirmation.
-- [ ] **The trait section is nearly invisible.** Make it visual and obvious.
-- [ ] **A tier-maxed player should NOT be highlighted for merging** — he cannot
+- [x] **The trait section is a BADGE now**, with its glyph on a disc, the name
+      and level beside it, the sentence saying what it does, and the accent on
+      the border when a card has one.
+      **And every trait in the game was untranslatable**: the sheet rendered
+      `Trait.name`/`Trait.desc`, the English literals on the record, while all
+      forty-two `trait.name.*` and `trait.desc.*` strings sat generated in ten
+      catalogues with nothing able to reach one — the same tell that found the
+      Shop's product names. `trait_copy.dart`, beside `shop_copy.dart`.
+- [x] **A tier-maxed player is NOT highlighted for merging** — already done and
+      already tested, including the ring: `mergeTargetsFor` checks
+      `maxPlayerTier`. Was: should not be — he cannot
       be, until the next tier unlocks.
-- [ ] **The player card's portrait should run to the TOP of the card.** Wider is
+- [x] **The card's art starts at its TOP.** `contain` centres the slack, so art
+      squarer than the card left a band of nothing above his head and shrank him
+      to pay for it. As wide as the card and top-aligned; what is cropped is his
+      boots, and the name band is over them anyway. Was: should run to the top. Wider is
       fine; the gap above it is not needed.
 
 ### The manager, and the customiser
@@ -747,11 +793,30 @@ section. Nothing on the list below is blocked for want of art any more.
       swept past and the boards crawled. Derived the same way the tufts are, so
       the boards and the grass at their feet can only ever agree.
 - [ ] **The walking rig floats above its shadow again.**
-- [ ] **Body shape does nothing**, and the tracksuit renders as something like a
+- [x] **BOTH HALVES OF THIS WERE THE SAME KIND OF GAP.**
+      **Body shape did nothing**: the axis was in the customiser, the wardrobe,
+      the randomiser and the save, and six choices produced one figure —
+      `buildScales`, `buildArmScale` and `buildOverlay` had no port, and the
+      renderer carried a `build` parameter nothing passed.
+      **And the tracksuit was a necklace because it was only a collar.** An
+      outfit is mostly a PALETTE in the JS — forearm, shin, boot, waistband —
+      with geometry only for a coat's skirt and a suit's lapels. Those two are
+      generated art and drew fine, which is why a coat made him read as a
+      person; the tracksuit's whole existence is the palette, so all that
+      reached the screen was its collar swoosh. Was: body shape does nothing, and the tracksuit renders as something like a
       necklace. `../merge-empire-fc` is nearly right; this should be better.
-- [ ] **He should be WALKING in the customiser**, against a backdrop.
-- [ ] **Every style box needs a picture of what it is.**
-- [ ] **Left-to-right button rows are the wrong navigation here** — the far ones
+- [x] **He WALKS in the customiser, on grass.** He stood still on the sheet's
+      own surface, which is a figure in a dressing room — and what is being
+      judged is how a look MOVES. The backdrop is the scene's own sky and turf.
+- [x] **Every style box is a picture of itself.** The first cut argued against
+      miniatures and was half right — at four to a row a whole manager is sixty
+      pixels tall and a moustache is four of them. The answer is not a word, it
+      is a CROP: the head axes frame the head, the body axes the body. Previewed
+      on HIS face, under HIS hat, in HIS colour; the colour axes keep their
+      swatch, because a hair colour IS a colour.
+- [x] **All eight axes are on screen at once.** They were a horizontal strip and
+      eight tabs do not fit across a phone, so Hat and Face lived off the
+      right-hand edge with nothing to say they were there. Was: the wrong navigation — the far ones
       are easy to miss behind a scroll.
 
 ### Deadline Day, and names
@@ -1973,9 +2038,14 @@ running at last.
 
 ### Still open from the session
 
-- [ ] **THE INCOMING BIDS NEED WORK.** Raised from playing; the specific fault is
-      not written down yet, so this is a placeholder with the surfaces named
-      rather than a diagnosis. What exists: `maybeGenerateOffer` in the transfer
+- [x] **THE INCOMING BIDS — here is the fault, and it is fixed.** The card FAKED
+      Colin's chrome: an emoji, his name, a title, no portrait and three
+      uncoloured buttons — exactly the fault the sponsor offer had before it was
+      fixed, and the JS's own note says both render in his card. It is his frame
+      now, with Park / Decline / Accept coloured for what each does, and it takes
+      its one-time explainer through `takeTipOnce` like the sponsor does. Was:
+      the specific fault is not written down yet, so this was a placeholder with
+      the surfaces named rather than a diagnosis. What exists: `maybeGenerateOffer` in the transfer
       engine, `transfer_offer_card.dart` for a rival's bid on one of ours,
       `sponsor_offer_card.dart` beside it, and the incoming list Deadline Day
       reads at `deadline_day_view.dart`. The 19 Aug notes already record that the
