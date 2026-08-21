@@ -17,6 +17,11 @@ typedef TimelineEvent = ({
   String type,
   String? team,
   String? scorer,
+
+  /// WHICH card scored, by instance id. The name is what gets printed; this is
+  /// what a face can be resolved from, and the engine has always written it —
+  /// `finalizeMatchOutcome` attributes career goals by it.
+  String? scorerId,
   String? textKey,
 
   /// `on_target` or `off`, on a chance. The 2D cutaway needs it — it is the
@@ -64,6 +69,7 @@ List<TimelineEvent> timelineOf(Map<String, dynamic> result) {
           type: e['type'] as String? ?? '',
           team: e['team'] as String?,
           scorer: e['scorer'] as String?,
+          scorerId: e['scorerInstanceId'] as String?,
           textKey: e['textKey'] as String?,
           shotResult: e['shotResult'] as String?,
           big: e['big'] == true,
@@ -130,6 +136,16 @@ typedef FeedLine = ({
   /// clock and a sentence that rerolls under the reader is worse than one
   /// sentence.
   String seed,
+
+  /// Who the line is ABOUT, by card instance id, when it is about one of ours.
+  ///
+  /// A goal naming a player, next to the art of the player it names — the
+  /// portraits are bundled and `playerImagePath` already resolves them, so what
+  /// was missing was the row knowing who it was about rather than holding a
+  /// string with his name in it. Null on everything else, including an opponent
+  /// goal: the engine picks scorers from OUR squad, and a face for a man the
+  /// save has never heard of cannot be drawn.
+  String? aboutId,
 });
 
 /// How long the feed waits before mentioning another chance, in minutes.
@@ -208,6 +224,7 @@ List<FeedLine> feedOf(
                 '${scorer == null || scorer.isEmpty ? 'no_scorer' : 'with_scorer'}',
             params: {'us': ourName, 'scorer': scorer ?? ''},
             seed: '${e.minute}-${scorer ?? ''}',
+            aboutId: e.scorerId,
           ));
         } else {
           out.add((
@@ -216,6 +233,7 @@ List<FeedLine> feedOf(
             key: 'commentary.opp_goal',
             params: {'them': theirName},
             seed: '${e.minute}-opp',
+            aboutId: null,
           ));
         }
       case 'halftime':
@@ -225,6 +243,7 @@ List<FeedLine> feedOf(
           key: 'match.half_time',
           params: const {},
           seed: 'ht',
+          aboutId: null,
         ));
       case 'injury':
         out.add((
@@ -233,6 +252,7 @@ List<FeedLine> feedOf(
           key: 'commentary.injury',
           params: {'player': e.player ?? ''},
           seed: '${e.minute}-inj',
+          aboutId: null,
         ));
       case 'commentary':
         if (e.textKey != null) {
@@ -242,6 +262,7 @@ List<FeedLine> feedOf(
             key: e.textKey!,
             params: const {},
             seed: '${e.minute}-c',
+            aboutId: null,
           ));
         }
       case 'chance':
@@ -257,6 +278,7 @@ List<FeedLine> feedOf(
           key: 'commentary.forces_save',
           params: {'who': mine ? ourName : theirName},
           seed: '${e.minute}-ch',
+          aboutId: null,
         ));
       // A corner is a momentum nudge and full time is the screen's own.
       default:

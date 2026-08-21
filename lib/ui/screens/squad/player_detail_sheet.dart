@@ -124,7 +124,30 @@ Future<PlayerDetailAction?> showPlayerDetail(
   );
 }
 
-class _PlayerDetail extends ConsumerWidget {
+/// What the sheet is SHOWING while a trait roll is in flight.
+///
+/// A box rather than a bare map, and that is the whole of it: `trait` being null
+/// means he had NOTHING before the reels moved, which is what most first rolls
+/// start from — so a bare null would have to mean both "he had none" and "no
+/// roll is running", and the second reading is the one that would win.
+typedef TraitHold = ({Map<String, dynamic>? trait});
+
+/// [card] as he was before the reels started turning.
+///
+/// A COPY of the map, never written back: the save's key order is pinned against
+/// the fixture, and this exists for a second and a half so a spin has something
+/// left to reveal.
+CardInstance _asHeld(CardInstance card, TraitHold hold) {
+  final raw = Map<String, dynamic>.of(card.raw);
+  if (hold.trait == null) {
+    raw.remove('trait');
+  } else {
+    raw['trait'] = hold.trait;
+  }
+  return CardInstance(raw);
+}
+
+class _PlayerDetail extends ConsumerStatefulWidget {
   const _PlayerDetail({
     required this.instanceId,
     required this.slotId,
@@ -136,14 +159,39 @@ class _PlayerDetail extends ConsumerWidget {
   final ({double mult, int price}) offer;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PlayerDetail> createState() => _PlayerDetailState();
+}
+
+class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
+  /// **THE WHOLE SHEET HOLDS, not just the badge over the reels.**
+  ///
+  /// The roll writes the save BEFORE the wheel moves — deliberately, because a
+  /// spin that decided at the end would have to be unwound when the debit was
+  /// refused — and every number on this sheet reads the save. So holding the
+  /// trait's NAME back fixed half of it and left the rating, ATK and DEF
+  /// announcing the answer over a wheel still pretending to decide it.
+  ///
+  /// It lives here rather than in [TraitBlock] because it is a fact about what
+  /// the SHEET is showing, and two answers to that would be exactly the drift
+  /// the badge already had.
+  TraitHold? _hold;
+
+  @override
+  Widget build(BuildContext context) {
+    final instanceId = widget.instanceId;
+    final slotId = widget.slotId;
+    final offer = widget.offer;
     ref.watch(saveRevisionProvider);
     final kit = Theme.of(context).extension<KitTheme>()!;
     final game = ref.read(gameProvider);
     final state = game.state;
-    final card = cardById(state, instanceId);
-    final def = getPlayerDef(card?.definitionId);
-    if (card == null || def == null) return const SizedBox.shrink();
+    final saved = cardById(state, instanceId);
+    final def = getPlayerDef(saved?.definitionId);
+    if (saved == null || def == null) return const SizedBox.shrink();
+    // Everything on the sheet is drawn from the man he is being SHOWN as, which
+    // is the man he was until the reels stop.
+    final hold = _hold;
+    final card = hold == null ? saved : _asHeld(saved, hold);
 
     final onLoanToUs = isLoan(card);
     final outOnLoan = isLoanedOut(card);
@@ -249,7 +297,12 @@ class _PlayerDetail extends ConsumerWidget {
             style: TextStyle(fontSize: 11, color: kit.textMuted),
           )
         else
-          TraitBlock(instanceId: instanceId, def: def),
+          TraitBlock(
+            instanceId: instanceId,
+            def: def,
+            hold: hold,
+            onHold: (h) => setState(() => _hold = h),
+          ),
       ],
     );
   }
@@ -1117,10 +1170,23 @@ class _RecallBlock extends StatelessWidget {
 /// **The cost is on the control**, because a roll is a gamble with the player's
 /// coins and "how much was that?" must not be a question they ask afterwards.
 class TraitBlock extends ConsumerStatefulWidget {
-  const TraitBlock({super.key, required this.instanceId, required this.def});
+  const TraitBlock({
+    super.key,
+    required this.instanceId,
+    required this.def,
+    required this.hold,
+    required this.onHold,
+  });
 
   final String instanceId;
   final PlayerDef def;
+
+  /// What the sheet is showing him as while the reels turn, or null when they
+  /// are still. Owned by the sheet, because the rating and the trait's name are
+  /// two readings of one question.
+  final TraitHold? hold;
+
+  final ValueChanged<TraitHold?> onHold;
 
   @override
   ConsumerState<TraitBlock> createState() => TraitBlockState();
@@ -1149,19 +1215,6 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
 
   bool _spinning = false;
 
-  /// What he had when the spin started, shown for as long as it runs.
-  ///
-  /// **The outcome is written to the save BEFORE the reels move** — deliberately,
-  /// because a spin that decided at the end would have to be unwound when the
-  /// debit was refused. But the badge above the reels reads the save, so the
-  /// answer was printed over a wheel still pretending to decide it. This is the
-  /// old trait, held back so the reveal has something to reveal.
-  ///
-  /// `null` is not "he had nothing": [_holding] says whether this is in force at
-  /// all, because "nothing" is exactly what most first rolls start from.
-  Map<String, dynamic>? _heldBefore;
-  bool _holding = false;
-
   /// Test seam.
   bool get spinning => _spinning;
 
@@ -1186,11 +1239,12 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
 
     final landing = pool.indexWhere((t) => t.id == roll.id);
     if (landing < 0) return;
-    setState(() {
-      _spinning = true;
-      _heldBefore = was;
-      _holding = true;
-    });
+    setState(() => _spinning = true);
+    // **The outcome is written to the save BEFORE the reels move** — deliberately,
+    // because a spin that decided at the end would have to be unwound when the
+    // debit was refused. So the sheet is told to keep showing the man he was
+    // until they stop; every number on it reads the save.
+    widget.onHold((trait: was));
 
     // Both reels animate at once; the level lands a beat later, which is the
     // order the player reads them in.
@@ -1207,11 +1261,8 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       ),
     ]);
     if (mounted) {
-      setState(() {
-        _spinning = false;
-        _holding = false;
-        _heldBefore = null;
-      });
+      setState(() => _spinning = false);
+      widget.onHold(null);
     }
   }
 
@@ -1225,8 +1276,10 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       widget.def.position,
       hardMode: ref.watch(proModeProvider),
     );
-    // Mid-spin this is what he had, not what he just won — see [_heldBefore].
-    final trait = _holding ? _heldBefore : _map(card?.raw['trait']);
+    // Mid-spin this is what he had, not what he just won — see [TraitHold].
+    final trait = widget.hold != null
+        ? widget.hold!.trait
+        : _map(card?.raw['trait']);
 
     final held = getTrait(trait?['id'] as String?);
 

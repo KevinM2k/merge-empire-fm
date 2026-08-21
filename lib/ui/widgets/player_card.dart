@@ -72,6 +72,60 @@ class PlayerHeroArt extends StatelessWidget {
   }
 }
 
+/// A player's face — round, small, and cropped to the head.
+///
+/// **The art is a FULL-LENGTH figure**, so the crop is `cover` anchored to the
+/// TOP: centred, a square box of a standing man is a torso. That is the same
+/// rule the squad sheet's [PlayerHeroArt] and the pitch token already follow —
+/// what differs here is only the size and the shape, which is exactly why it
+/// lives beside them rather than being written a third time.
+///
+/// Built for the match feed, where a goal names a player and the art of the
+/// player it names belongs beside it.
+class PlayerFace extends StatelessWidget {
+  const PlayerFace({
+    required this.position,
+    required this.tier,
+    required this.variant,
+    this.size = 26,
+    this.ring,
+    super.key,
+  });
+
+  final String position;
+  final int tier;
+  final int variant;
+  final double size;
+
+  /// A rim, for a face that has to read against a busy row. Null for none.
+  final Color? ring;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final rim = ring;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: kit.surface,
+        border: rim == null ? null : Border.all(color: rim, width: 1.4),
+      ),
+      // Clipped INSIDE the rim: a child filling the box paints over the
+      // border's own curve otherwise — the same fault the cards' scrim had.
+      child: ClipOval(
+        child: ArtImage(
+          path: playerImagePath(position, tier, variant),
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+          fallback: PlayerPortrait(variantIndex: variant, kitColor: kit.accent),
+        ),
+      ),
+    );
+  }
+}
+
 /// How many of these fit across a bench grid of [width].
 ///
 /// **Three is the FLOOR, not the answer.** A max-extent delegate fits as many

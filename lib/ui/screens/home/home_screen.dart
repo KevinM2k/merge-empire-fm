@@ -232,7 +232,10 @@ class _SceneState extends ConsumerState<_Scene> {
   /// but a `Timer` is not an animation, so the rota has to ask for itself.
   bool get _live =>
       mounted &&
-      TickerMode.of(context) &&
+      // `valuesOf(...).enabled`, not `of(...)`: the latter has been deprecated
+      // since 3.35 and this is the SDK band the lockfile pins, so it was the one
+      // thing standing between the project and a clean analyze.
+      TickerMode.valuesOf(context).enabled &&
       !MediaQuery.of(context).disableAnimations;
 
   @override

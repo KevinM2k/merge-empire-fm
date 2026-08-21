@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -774,6 +775,84 @@ void main() {
         find.text(t('trait.name.none')),
         findsNothing,
         reason: 'the wheel stopped and never said what it landed on',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('AND THE NUMBERS DO NOT GIVE IT AWAY EITHER', (tester) async {
+      // Holding the trait's NAME back fixed half of it. Every OTHER number on
+      // the sheet reads the save, and the roll writes the save before the reels
+      // move — so the rating, ATK and DEF still announced the answer over a
+      // wheel pretending to decide it. A roll is bought to move exactly those
+      // numbers, which is what makes them the tell.
+      //
+      // Tall enough that the rating and the wheel are on screen together, which
+      // is the whole complaint: the player was watching both.
+      tester.view.physicalSize = const Size(1200, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await tester.pumpAndSettle();
+
+      List<String?> numbers() => tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('detail-attributes')),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((w) => w.data)
+          .toList();
+
+      final before = numbers();
+      final ratingBefore = tester
+          .widget<Text>(find.byKey(const ValueKey('detail-rating')))
+          .data;
+
+      await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
+      await tester.pump();
+      expect(
+        numbers(),
+        before,
+        reason: 'the stats moved while the reels were still turning',
+      );
+      // A third of the way in, and still nothing.
+      await tester.pump(TraitBlockState.spin ~/ 3);
+      expect(numbers(), before);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('detail-rating'))).data,
+        ratingBefore,
+        reason: 'the headline rating gave it away',
+      );
+
+      await tester.pump(
+        TraitBlockState.spin + const Duration(milliseconds: 400),
+      );
+      await tester.pumpAndSettle();
+
+      // And when they stop, the sheet is telling the truth again — the numbers
+      // the engine's single source of truth gives for the card as SAVED.
+      final card = cardById(
+        container.read(gameProvider).state,
+        container
+            .read(pitchSlotsProvider)
+            .firstWhere((s) => s.cardInstanceId != null)
+            .cardInstanceId!,
+      )!;
+      final stats = getCardStats(
+        card,
+        definitionRatios:
+            (container.read(gameProvider).state?['definitionRatios']
+                as Map<String, dynamic>?) ??
+            const {},
+      );
+      expect(find.text('${stats.attack}'), findsWidgets);
+      expect(find.text('${stats.defence}'), findsWidgets);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('detail-rating'))).data,
+        '${stats.rating}',
       );
       await settleSave(tester);
     });
