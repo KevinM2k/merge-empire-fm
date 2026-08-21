@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/pitch_invaders_screen.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/teamwork_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/through_ball_screen.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -75,6 +76,7 @@ class _GameRow extends ConsumerWidget {
       MiniGameKind.bootRoom => const BootRoomScreen(),
       MiniGameKind.throughBall => const ThroughBallScreen(),
       MiniGameKind.whack => const PitchInvadersScreen(),
+      MiniGameKind.pairs => const TeamworkScreen(),
       _ => const PenaltyScreen(),
     };
     Navigator.of(context).push<void>(
