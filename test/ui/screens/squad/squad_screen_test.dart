@@ -615,9 +615,15 @@ void main() {
       expect(wasThere, isNotNull);
     });
 
-    testWidgets('selling asks first', (tester) async {
-      // It is irreversible and the button sits under the thumb at the bottom
-      // of a scrolling sheet.
+    testWidgets('SELLING IS NOT ON THIS SHEET — one flow, one place', (
+      tester,
+    ) async {
+      // There were two: this one and the Players tab's own sheet, which is what
+      // a tap on a card opens and which shows him full length. Two buttons that
+      // take the same money differently is a bug waiting to be found.
+      //
+      // The market VALUE stays, because it is information: what he is worth
+      // belongs on the sheet about him whether or not you can sell him here.
       final container = await pumpSquad(tester);
       final slot = container
           .read(pitchSlotsProvider)
@@ -625,21 +631,14 @@ void main() {
       await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
       await tester.pumpAndSettle();
 
-      await scrollSheetTo(tester, 'detail-sell');
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('detail-sell')));
-      await tester.pumpAndSettle();
-
-      // **AND IT ASKS AS COLIN.** It was an `AlertDialog` — the app's own voice
-      // asking about the squad, on a screen whose premise is that you have a
-      // manager to talk to.
-      expect(find.byKey(const ValueKey('coach-card')), findsOneWidget);
-      // Cancelling leaves the squad alone.
-      await tester.tap(
-        find.byKey(const ValueKey('coach-action-common.cancel')),
+      await scrollSheetTo(tester, 'detail-market');
+      expect(find.byKey(const ValueKey('detail-price')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('detail-sell')),
+        findsNothing,
+        reason: 'two ways to sell one player',
       );
-      await tester.pumpAndSettle();
-      expect(container.read(benchProvider).length + 11, greaterThan(11));
+      await settleSave(tester);
     });
 
     testWidgets('the trait wheel is on it, priced, with two reels', (
@@ -692,7 +691,9 @@ void main() {
       // the direction is his own — a trait he cannot hold would prove nothing.
       final fwd = container
           .read(pitchSlotsProvider)
-          .firstWhere((s) => s.slotPosition == 'FWD' && s.cardInstanceId != null)
+          .firstWhere(
+            (s) => s.slotPosition == 'FWD' && s.cardInstanceId != null,
+          )
           .cardInstanceId!;
 
       await tester.tap(
@@ -717,7 +718,8 @@ void main() {
           .toList();
 
       container.read(gameProvider).update((s) {
-        for (final cell in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
+        for (final cell
+            in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
           if (cell is Map<String, dynamic> && cell['instanceId'] == fwd) {
             cell['trait'] = {'id': 'finisher', 'level': 3};
           }
@@ -778,10 +780,7 @@ void main() {
 
     test('and the spin is long enough to be worth watching', () {
       // 900ms was a flick. A reel the player has just paid for should turn.
-      expect(
-        TraitBlockState.spin.inMilliseconds,
-        greaterThanOrEqualTo(1600),
-      );
+      expect(TraitBlockState.spin.inMilliseconds, greaterThanOrEqualTo(1600));
     });
 
     testWidgets('rolling charges, spins, and lands a trait', (tester) async {
@@ -1031,7 +1030,8 @@ void main() {
           .firstWhere((s) => s.cardInstanceId != null)
           .cardInstanceId!;
       container.read(gameProvider).update((s) {
-        for (final cell in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
+        for (final cell
+            in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
           if (cell is Map<String, dynamic> && cell['instanceId'] == picked) {
             cell['injured'] = true;
           }
@@ -1060,7 +1060,8 @@ void main() {
       expect(find.byKey(const ValueKey('injury-cross')), findsNothing);
 
       container.read(gameProvider).update((s) {
-        for (final cell in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
+        for (final cell
+            in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
           if (cell is Map<String, dynamic> && cell['instanceId'] == picked) {
             cell['injured'] = true;
           }

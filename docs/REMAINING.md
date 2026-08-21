@@ -2642,13 +2642,20 @@ by a test.
       card still shows the rating alone: `CardView` carries `rating` and no
       split, so putting it there means widening the record and every builder of
       it, and finding room on a card an inch wide. Not done, on purpose.
-- [ ] **The sell sheet on the players tab needs styling, and the full picture.**
-      Tapping a player there opens the sell popup — which works and is the right
-      shape — but it is plain next to the squad sheet, and it should carry the
-      full-length artwork the squad sheet does (`_Header`, 260px, `BoxFit.cover`
-      anchored to the top).
-- [ ] **And SELL can come off the squad page**, now that it lives on the player
-      page. One sale flow, in one place.
+- [x] **The sell sheet shows the PLAYER now.** It was a 72px thumbnail of his
+      merge card in a 96px box — the same man the squad sheet gives 260px of
+      full-length figure to, described here as an inventory item. What is being
+      decided is whether to sell a person. `PlayerHeroArt` came out of the squad
+      sheet so the two cannot drift, and the offer is a panel rather than three
+      centred lines under a picture: the figure IS the decision, so it gets a
+      surface, the market's own word over it and the small print under it. The
+      sheet is taller to match — a confirm button below the fold looks broken.
+- [x] **And SELL is off the squad page.** Two flows took the same money by
+      different routes; the one that stays is the sheet a player reaches by
+      tapping the thing they want to sell. The market VALUE stays there, because
+      what he is worth is information about him either way — routed through
+      `coinFigureInk` now, so the money on that sheet is the same money as
+      everywhere else.
 
 ### The customiser, and the walking manager — 26 Aug, later
 

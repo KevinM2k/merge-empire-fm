@@ -619,7 +619,12 @@ void main() {
           .widget<Text>(find.byKey(const ValueKey('sell-price')))
           .data!;
 
-      await tester.ensureVisible(find.byKey(const ValueKey('sell-confirm')));
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('sell-confirm')),
+        240,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('sell-confirm')));
       await tester.pumpAndSettle();
@@ -639,7 +644,12 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('grid-card-0')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('sell-cancel')));
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('sell-cancel')),
+        240,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('sell-cancel')));
       await tester.pumpAndSettle();

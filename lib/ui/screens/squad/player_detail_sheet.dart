@@ -51,6 +51,7 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/player_name_card.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
@@ -215,7 +216,6 @@ class _PlayerDetail extends ConsumerWidget {
             def: def,
             offer: offer,
             blocked: sellBlocked(state, instanceId),
-            onSell: () => _sell(context, ref, card, def),
           ),
           if (outOnLoan) ...[
             const SizedBox(height: 10),
@@ -263,44 +263,6 @@ class _PlayerDetail extends ConsumerWidget {
   /// question is readable before the words are.
   ///
   /// It is irreversible and the button sits under the thumb at the bottom of a
-  /// scrolling sheet, so nothing leaves the squad without being asked.
-  Future<void> _sell(
-    BuildContext context,
-    WidgetRef ref,
-    CardInstance card,
-    PlayerDef def,
-  ) async {
-    final confirmed = await showCoachCard<bool>(
-      context,
-      titleKey: 'sell.title',
-      bodyKey: 'sell.receive',
-      bodyParams: {'name': card.name(def.name)},
-      body: '${t('sell.receive')}: ${formatCoins(offer.price)}',
-      // What the sale COSTS, in its own right: the bonuses go with him, and
-      // burying that inside the offer is how somebody agrees to something they
-      // did not read.
-      extraLines: [(key: 'sell.lose_bonuses', params: const {}, strong: false)],
-      actions: [
-        CoachAction(
-          labelKey: 'common.cancel',
-          tone: CoachTone.decline,
-          onTap: () {},
-        ),
-        CoachAction(
-          labelKey: 'common.sell',
-          tone: CoachTone.confirm,
-          onTap: () {},
-          result: true,
-        ),
-      ],
-    );
-    if (confirmed != true || !context.mounted) return;
-    ref
-        .read(gameProvider)
-        .update((s) => sellCard(s, card.instanceId, offer.mult));
-    if (context.mounted) Navigator.of(context).pop();
-  }
-
   /// Sending a loanee back early leaves the club that lent them a season short
   /// of what they planned, so it is asked rather than done.
   Future<void> _sendBack(
@@ -945,14 +907,12 @@ class _MarketBlock extends StatelessWidget {
     required this.def,
     required this.offer,
     required this.blocked,
-    required this.onSell,
   });
 
   final CardInstance card;
   final PlayerDef def;
   final ({double mult, int price}) offer;
   final String? blocked;
-  final VoidCallback onSell;
 
   @override
   Widget build(BuildContext context) {
@@ -987,20 +947,26 @@ class _MarketBlock extends StatelessWidget {
               Text(
                 formatCoins(offer.price),
                 key: const ValueKey('detail-price'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFFFFD700),
+                  // Through the helpers, so the money on this sheet is the same
+                  // money as everywhere else — see `coinFigureInk`.
+                  color: coinFigureInk(context),
+                  shadows: coinFigureShadows(context),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            key: const ValueKey('detail-sell'),
-            onPressed: blocked == null ? onSell : null,
-            child: Text(t('common.sell')),
-          ),
+          // **NO SELL BUTTON.** There were two sale flows for one card — this
+          // one and the Players tab's own sheet, which is the one a tap on a card
+          // opens and the one that shows him full length. Two buttons that take
+          // the same money differently is a bug waiting to be found; one of them
+          // had to go, and the sheet the player reaches by tapping the thing they
+          // want to sell is the one that stays.
+          //
+          // The market VALUE stays, because it is information: what he is worth
+          // belongs on the sheet about him whether or not you can sell him here.
           if (blocked != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),

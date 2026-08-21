@@ -21,8 +21,56 @@ import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
+
+/// A player's full-length artwork, as a sheet's hero.
+///
+/// **Shared, because two sheets about one player should show the same player.**
+/// The squad sheet gave him 260px of full-length figure and the sell sheet a
+/// 72px thumbnail of his merge card — the same man, described twice, once as a
+/// person and once as an inventory item. What you are deciding about is the
+/// player, so it is the player you look at.
+///
+/// `cover` anchored to the TOP: this is a portrait crop and centring the slack
+/// cuts the head off.
+class PlayerHeroArt extends StatelessWidget {
+  const PlayerHeroArt({
+    required this.position,
+    required this.tier,
+    required this.variant,
+    this.height = 260,
+    this.dimmed = false,
+    super.key,
+  });
+
+  final String position;
+  final int tier;
+  final int variant;
+
+  /// 260 is the squad sheet's, and the number the crop was chosen against.
+  final double height;
+
+  /// Greyed, for a player who cannot take the field.
+  final bool dimmed;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: ArtImage(
+        path: playerImagePath(position, tier, variant),
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+        dimmed: dimmed,
+        fallback: PlayerPortrait(variantIndex: variant, kitColor: kit.accent),
+      ),
+    );
+  }
+}
 
 /// How many of these fit across a bench grid of [width].
 ///
