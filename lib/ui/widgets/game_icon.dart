@@ -31,28 +31,33 @@ const gameGoldLight = Color(0xFF96571B);
 Color goldFor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.light ? gameGoldLight : gameGold;
 
-/// A coin FIGURE — the number, not the glyph — and it stays YELLOW on a light
-/// surface.
+/// A coin FIGURE — the number, not the glyph — and it is the COIN'S OWN GOLD in
+/// both themes.
 ///
 /// **THE HONEST PROBLEM: yellow and 4.5:1-on-white cannot both hold.** To clear
-/// the contrast a gold has to come down to about `#96571B`, which is what
-/// [gameGoldLight] is and which reads as BRONZE — and a bronze number beside a
-/// gold coin is two currencies. The way out is the one every game uses: keep the
-/// hue and buy the separation with a dark halo instead of with lightness. This
-/// amber is as yellow as a number can be and still be read, and the shadow is
-/// what makes it legible rather than the value.
-const Color _coinFigureLight = Color(0xFFE8A100);
+/// the contrast on lightness alone a gold has to come down to about `#96571B`,
+/// which is what [gameGoldLight] is and which reads as BRONZE. So the separation
+/// is bought with a dark HALO instead — see [coinFigureShadows] — and the hue
+/// does not have to give anything up.
+///
+/// It used to stop half way there, at an amber, and that was the bug: the coin
+/// GLYPH beside it is a filled disc and stays actual gold because its black rim
+/// carries its own contrast, so the amber figure read as ORANGE next to it. Two
+/// currencies in one pair. One colour for the money, on every screen and in
+/// either theme — and the halo does the work the value was doing.
+Color coinFigureInk(BuildContext context) => gameGold;
 
-Color coinFigureInk(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.light
-    ? _coinFigureLight
-    : gameGold;
-
-/// The halo under a coin figure. Empty in dark mode, where bright gold on a dark
-/// pane needs nothing.
+/// The halo under a coin figure, and it is what makes gold legible on white.
+///
+/// Empty in dark mode, where bright gold on a dark pane needs nothing. Heavier
+/// than it was in light mode, because it is now carrying the full separation
+/// rather than topping up an already-darkened value.
 List<Shadow> coinFigureShadows(BuildContext context) =>
     Theme.of(context).brightness == Brightness.light
-    ? const [Shadow(color: Color(0x8A3A2400), blurRadius: 2.4)]
+    ? const [
+        Shadow(color: Color(0xB03A2400), blurRadius: 2.6),
+        Shadow(color: Color(0x593A2400), blurRadius: 5),
+      ]
     : const [];
 
 /// The set. Keys are the JS's own names so a screen can be diffed against it.

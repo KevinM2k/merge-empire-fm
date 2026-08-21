@@ -2707,10 +2707,19 @@ by a test.
 
 ### Light mode
 
-- [ ] **The match-quest coin yellow reads ORANGE.** It should be the same yellow
-      as the coin in the top HUD — one colour for the currency, on every screen.
-- [ ] **And the reds and greens should take their dark-mode values**, which read
-      correctly in both.
+- [x] **The match-quest coin yellow read ORANGE.** It was an amber, `#E8A100`,
+      picked to clear 4.5:1 on white — while the coin GLYPH beside it is a filled
+      disc and stays actual gold, because its black rim carries its own contrast.
+      An amber figure next to a gold coin is two currencies in one pair.
+      The way out was already half-built: buy the separation with a dark HALO
+      rather than with lightness, and the hue gives up nothing. It stopped half
+      way, at a darkened value AND a light shadow. One gold now, in both themes,
+      with the halo carrying all of it.
+- [~] **The reds and greens** — every one I can find is already a single fixed
+      value used in both themes (`#4ADE80` and `#F87171`, the dark-mode pair):
+      the pitch token's fit colours, the league zones, the form letters, the club
+      stats, the cutaway's verdict. So either this is already what was wanted, or
+      it is a pair I have not found — worth naming the screen.
 
 ### The walker
 
