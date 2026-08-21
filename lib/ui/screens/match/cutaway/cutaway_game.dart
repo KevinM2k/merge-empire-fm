@@ -57,14 +57,6 @@ List<String> cutawaySpritePaths() => [
   'ball.png',
 ];
 
-/// Kenney's white smoke puff, eight frames.
-///
-/// Its own cache because it is its own directory — the pitch sprites are under
-/// `assets/pitch/` and a `flame` `Images` carries one prefix.
-final Images fxImages = Images(prefix: 'assets/fx/');
-
-List<String> puffPaths() => [for (var i = 0; i < 8; i++) 'puff_$i.png'];
-
 /// ONE cache, for the whole match rather than for each chance.
 ///
 /// A `FlameGame` owns its own `Images` by default, so every clip decoded all
@@ -82,31 +74,6 @@ final Images cutawayImages = Images(prefix: 'assets/pitch/');
 /// frame costs is the players arriving a beat late, not a green flash.
 Future<void> preloadCutawaySprites() async {
   await cutawayImages.loadAll(cutawaySpritePaths());
-  await fxImages.loadAll(puffPaths());
-}
-
-/// A puff of smoke where something happened.
-///
-/// **Kenney's frames rather than a procedural burst**, and the split is worth
-/// keeping straight: the merge burst stays procedural because it has to draw in
-/// whatever colour the tier is at whatever size the card is, which a sprite sheet
-/// cannot do. This is the other case — a fixed white puff at a fixed size, where
-/// eight hand-painted frames beat anything drawn from primitives and the whole
-/// eight cost 140KB.
-class Puff extends SpriteAnimationComponent {
-  Puff({required Vector2 at, required double diameter, double speed = 0.055})
-    : super(
-        position: at.clone(),
-        size: Vector2.all(diameter),
-        anchor: Anchor.center,
-        removeOnFinish: true,
-        priority: 50,
-        animation: SpriteAnimation.spriteList(
-          [for (final path in puffPaths()) Sprite(fxImages.fromCache(path))],
-          stepTime: speed,
-          loop: false,
-        ),
-      );
 }
 
 double _easeOut(double t) => 1 - math.pow(1 - t, 3).toDouble();
@@ -369,11 +336,7 @@ AttackCast castFor(CutawaySequence sequence) {
     // pass was received by whoever was already nearest the end of the list.
     receiverAt[i] = starts.length;
     starts.add(
-      beat.run ??
-          (
-            p: (beat.to.p - _receiverLag).clamp(0.0, 1.0),
-            q: beat.to.q,
-          ),
+      beat.run ?? (p: (beat.to.p - _receiverLag).clamp(0.0, 1.0), q: beat.to.q),
     );
   }
 
@@ -567,10 +530,6 @@ class CutawayGame extends FlameGame {
       keeper.target = attackers[carrier].position.clone();
     }
 
-    // The strike itself. Small and quick — it is the puff off the turf as the
-    // boot goes through the ball, not an explosion.
-    world.add(Puff(at: ball.position.clone(), diameter: 7, speed: 0.04));
-
     _flight = _Flight(
       from: ball.position.clone(),
       to: target,
@@ -652,8 +611,6 @@ class CutawayGame extends FlameGame {
       return;
     }
 
-    // A puff where it ended — the keeper's gloves, or the turf past the post.
-    world.add(Puff(at: ball.position.clone(), diameter: 11));
     for (final m in [...attackers, ...defenders, keeper]) {
       m.frozen = true;
     }
@@ -670,9 +627,6 @@ class CutawayGame extends FlameGame {
   /// crowd rather than as a celebration.
   void _celebrate() {
     final scorer = attackers[carrier];
-    // Two puffs at the net: the ball hitting it, then the net settling.
-    world.add(Puff(at: ball.position.clone(), diameter: 14));
-
     final cornerX = attackingRight ? pitchWidth - 4.0 : 4.0;
     // Whichever corner he finished nearer, so he does not cross the goalmouth.
     final cornerY = scorer.position.y < pitchHeight / 2 ? 4.0 : pitchHeight - 4;

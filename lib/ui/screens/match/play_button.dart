@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_button.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_sponsor_offer.dart';
@@ -90,9 +91,12 @@ class PlayMatchButton extends ConsumerWidget {
       ),
     );
 
-    // Dismissed. The coins land now rather than at full time, because the
-    // doubling offer lives on the closing screen and paying before it is
-    // answered would make the offer meaningless.
+    // **THE SUMMARY, and only then the money.** `payMatch` has always been
+    // deferred to here on purpose — the doubling offer lives on the closing
+    // screen — and until the summary existed there was no offer to defer for.
+    // It doubles `coinsEarned` on the result in place when the video is
+    // watched, so what lands is what the screen last said.
+    if (context.mounted) await showMatchSummary(context, result);
     game.update((s) => payMatch(s, result));
 
     if (!context.mounted) {

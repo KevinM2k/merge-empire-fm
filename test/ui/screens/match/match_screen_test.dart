@@ -231,37 +231,13 @@ void main() {
       expect(state.camUp, isFalse);
     });
 
-    testWidgets('THE WHISTLE ALWAYS CUTS TO HIM, and he stays', (tester) async {
-      // The payoff the whole feature is for, and the one shot exempt from
-      // every rule that could drop it — the gap, the budget, Skip, and a clip
-      // on the pitch.
-      await pumpMatch(tester, matchResult(), reduceMotion: false);
-      final state = stateOf(tester);
-      state.skipToEnd();
-      await tester.pump();
-      await tester.pump();
-      expect(state.camUp, isTrue);
-      expect(find.byType(DugoutCam), findsOneWidget);
-      // Laid INTO the feed rather than floated over the pitch: at the whistle
-      // the band above is the final statistics, which is the one thing on this
-      // page a manager actually reads.
-      final cam = tester.getRect(find.byType(DugoutCam));
-      final stage = tester.getRect(find.byKey(const ValueKey('match-stage')));
-      expect(cam.top, greaterThan(stage.bottom));
-      expect(
-        tester.widget<DugoutCam>(find.byType(DugoutCam)).variant,
-        CamVariant.inline,
-      );
-
-      // And he does not leave. One reaction followed by a frozen man read as
-      // him having got over it already, so there is a rota instead.
-      await tester.pump(camWindow(const Duration(seconds: 3)));
-      expect(state.camUp, isTrue);
-    });
-
-    testWidgets('and Skip does not cost you it', (tester) async {
-      // Skipping ahead is asking for the result, and his reaction to it is
-      // part of the result.
+    testWidgets('THE WHISTLE TAKES THE CAMERA AWAY, not to him', (
+      tester,
+    ) async {
+      // The full-time shot was the payoff the whole feature is for, laid into
+      // the head of the feed. It has MOVED: this screen leaves at the whistle
+      // and the summary opens on him, with the room for it. Two of him a second
+      // apart is one too many.
       await pumpMatch(
         tester,
         matchResult(
@@ -275,8 +251,8 @@ void main() {
       state.skipToEnd();
       await tester.pump();
       await tester.pump();
-      expect(state.camUp, isTrue);
-      expect(state.camGoalCuts, 0, reason: 'no goal cut-in was ever shown');
+      expect(state.camUp, isFalse);
+      expect(find.byType(DugoutCam), findsNothing);
     });
 
     testWidgets('THREE GOAL CUT-INS AND NO MORE', (tester) async {
@@ -337,11 +313,12 @@ void main() {
       expect(state.clipPlaying, isFalse, reason: 'the switch is off');
       expect(state.camUp, isFalse);
 
-      // Full time is exempt: it is one shot, at the end, and it is the payoff.
+      // Full time takes the camera away rather than giving it to him — the
+      // shot lives on the summary now.
       state.skipToEnd();
       await tester.pump();
       await tester.pump();
-      expect(state.camUp, isTrue);
+      expect(state.camUp, isFalse);
     });
 
     testWidgets('A GOAL IN STOPPAGE TIME GIVES UP THE CAMERA', (tester) async {
@@ -520,79 +497,28 @@ void main() {
     expect(find.text('commentary.halftime_level'), findsNothing);
   });
 
-  group('the match quests at full time', () {
-    /// The shape `settleMatch` writes onto the result once the track is judged.
-    List<Map<String, dynamic>> outcomes() => [
-      {
-        'id': 'match_clean_sheet',
-        'icon': '🧱',
-        'target': 1,
-        'passed': true,
-        'coins': 120,
-      },
-      {
-        'id': 'match_win_margin',
-        'icon': '💪',
-        'target': 2,
-        'passed': false,
-        'coins': 0,
-      },
-    ];
-
-    testWidgets('are not shown while the match is still running', (
-      tester,
-    ) async {
-      await pumpMatch(tester, {...matchResult(), 'questResults': outcomes()});
-      expect(find.byKey(const ValueKey('match-quests')), findsNothing);
+  testWidgets('THE QUEST OUTCOMES ARE NOT ON THIS SCREEN ANY MORE', (
+    tester,
+  ) async {
+    // They were appended under a ninety-minute commentary feed, on a page still
+    // showing a tactic strip and a Skip button — the payoff for the match below
+    // the fold of the thing you had just watched. They are the summary screen's
+    // now; what stays here is the COUNT, on the quests tab.
+    await pumpMatch(tester, {
+      ...matchResult(),
+      'questResults': [
+        {
+          'id': 'match_clean_sheet',
+          'icon': '🧱',
+          'target': 1,
+          'passed': true,
+          'coins': 120,
+        },
+      ],
     });
-
-    testWidgets('list what was won AND what was missed', (tester) async {
-      // The misses are the point of showing all three: they are what makes the
-      // next set worth reading.
-      await pumpMatch(tester, {...matchResult(), 'questResults': outcomes()});
-      stateOf(tester).skipToEnd();
-      await tester.pump();
-
-      expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('match-quest-match_clean_sheet')),
-        findsOneWidget,
-      );
-      expect(find.text(t('quests.missed')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('match-quests-total')),
-        findsOneWidget,
-        reason: 'one of them paid',
-      );
-    });
-
-    testWidgets('and a match with no track shows nothing at all', (
-      tester,
-    ) async {
-      await pumpMatch(tester, matchResult());
-      stateOf(tester).skipToEnd();
-      await tester.pump();
-      expect(find.byKey(const ValueKey('match-quests')), findsNothing);
-    });
-
-    testWidgets('a track where nothing came off has no total', (tester) async {
-      await pumpMatch(tester, {
-        ...matchResult(),
-        'questResults': [
-          {
-            'id': 'match_clean_sheet',
-            'icon': '🧱',
-            'target': 1,
-            'passed': false,
-            'coins': 0,
-          },
-        ],
-      });
-      stateOf(tester).skipToEnd();
-      await tester.pump();
-      expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
-      expect(find.byKey(const ValueKey('match-quests-total')), findsNothing);
-    });
+    stateOf(tester).skipToEnd();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('match-quests')), findsNothing);
   });
 
   testWidgets('half time is named rather than shown as a type', (tester) async {
@@ -695,11 +621,28 @@ void main() {
       expect(state.frame.ourGoals, 1, reason: 'the goal never landed at all');
     });
 
-    testWidgets('shows the STATS at rest', (tester) async {
-      // What the band is for when nothing is happening — the numbers the
-      // commentary underneath is describing.
+    testWidgets('SHOWS THE PITCH at rest, not a table of numbers', (
+      tester,
+    ) async {
+      // The band never moved, but what was IN it flipped between a football
+      // pitch and the statistics every few minutes, which is what read as the
+      // pitch coming and going. It is one pitch for the whole match now, with
+      // an arrow for which way the game is running; the numbers are a tab.
       await pumpMatch(tester, played());
+      expect(find.byType(CutawayStage), findsOneWidget);
+      expect(find.byKey(const ValueKey('match-momentum')), findsOneWidget);
+      expect(find.byKey(const ValueKey('match-statboard')), findsNothing);
+    });
+
+    testWidgets('and the numbers are one tab away', (tester) async {
+      // `match.tab.stats` was in all ten catalogues with nothing able to reach
+      // it.
+      await pumpMatch(tester, played());
+      await tester.tap(find.byKey(const ValueKey('tab-stats')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('match-statboard')), findsOneWidget);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
     });
 
     test('and the board counts off the same events as the feed', () {
@@ -835,6 +778,102 @@ void main() {
         findsOneWidget,
         reason: 'the goal line named a player and drew nobody',
       );
+    });
+
+    testWidgets('A GOAL IS A CARD — the score it made, and his tally', (
+      tester,
+    ) async {
+      // Every other line in the feed is one row of text and a goal was too:
+      // the single most important thing that happens in a match, drawn exactly
+      // like "nerves jangling all around the ground". `match.goal_card.title`,
+      // `match.career_goal` and `match.career_goals` were translated ten times
+      // over with nothing able to reach one of them.
+      final save = squadSave();
+      final cells = (save['grid'] as Map<String, dynamic>)['cells'] as List;
+      (cells[0] as Map<String, dynamic>)['stats'] = {'goals': 4};
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {
+              'minute': 10,
+              'type': 'goal',
+              'team': 'home',
+              'scorer': 'Bobby',
+              'scorerInstanceId': 'c0',
+            },
+          ],
+        ),
+        save: save,
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+
+      final feed = find.byKey(const ValueKey('match-feed'));
+      expect(
+        find.descendant(
+          of: feed,
+          matching: find.text(t('match.goal_card.title')),
+        ),
+        findsOneWidget,
+      );
+      // The score the goal MADE, home side left.
+      expect(
+        find.descendant(of: feed, matching: find.text('1–0')),
+        findsOneWidget,
+      );
+      // Four in the book plus the one he just scored — the save is not written
+      // until the whistle, so the stored figure is a match behind.
+      expect(
+        find.descendant(
+          of: feed,
+          matching: find.text(t('match.career_goals', {'n': 5})),
+        ),
+        findsOneWidget,
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('and a brace counts BOTH before the save hears about it', (
+      tester,
+    ) async {
+      final save = squadSave();
+      final cells = (save['grid'] as Map<String, dynamic>)['cells'] as List;
+      (cells[0] as Map<String, dynamic>)['stats'] = {'goals': 0};
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            for (final minute in [10, 40])
+              {
+                'minute': minute,
+                'type': 'goal',
+                'team': 'home',
+                'scorer': 'Bobby',
+                'scorerInstanceId': 'c0',
+              },
+          ],
+        ),
+        save: save,
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      final feed = find.byKey(const ValueKey('match-feed'));
+      expect(
+        find.descendant(
+          of: feed,
+          matching: find.text(t('match.career_goal', {'n': 1})),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: feed,
+          matching: find.text(t('match.career_goals', {'n': 2})),
+        ),
+        findsOneWidget,
+      );
+      await settleSave(tester);
     });
 
     testWidgets('and a scorer who has LEFT still gets his line', (
@@ -1666,10 +1705,13 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('with NO quests there is no tab strip at all', (tester) async {
-      // A tab that opens an empty panel is a control for nothing.
+    testWidgets('with NO quests there is no QUESTS tab', (tester) async {
+      // A tab that opens an empty panel is a control for nothing. The strip
+      // itself stays: the statistics live on it now, and every match has those.
       await pumpMatch(tester, matchResult(), save: withQuests([]));
-      expect(find.byKey(const ValueKey('match-tabs')), findsNothing);
+      expect(find.byKey(const ValueKey('match-tabs')), findsOneWidget);
+      expect(find.byKey(const ValueKey('tab-quests')), findsNothing);
+      expect(find.byKey(const ValueKey('tab-stats')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-feed')), findsOneWidget);
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
@@ -1717,6 +1759,49 @@ void main() {
       expect(stateOf(tester).fast, isFalse);
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+    });
+  });
+
+  group('COACH COLIN HAS A VOICE for the ninety minutes', () {
+    // Twenty-four pooled `coach.match.*` strings were translated into ten
+    // catalogues and not one of them had a caller: the screen a player watches
+    // for ninety minutes was the one screen he said nothing on.
+    testWidgets('and the whistle at the break is when he uses it', (
+      tester,
+    ) async {
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 45, 'type': 'halftime'},
+          ],
+        ),
+        save: squadSave(),
+      );
+      expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
+      await tester.pump(minuteDurationFor(46));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
+    });
+
+    testWidgets('and PRO MODE buys the numbers and gives up the advice', (
+      tester,
+    ) async {
+      // The same bargain the subs panel strikes — the JS's `_coachHelpOn`.
+      final save = squadSave();
+      (save['settings'] as Map<String, dynamic>)['hardMode'] = true;
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 45, 'type': 'halftime'},
+          ],
+        ),
+        save: save,
+      );
+      await tester.pump(minuteDurationFor(46));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
     });
   });
 }

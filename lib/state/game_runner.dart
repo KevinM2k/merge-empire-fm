@@ -153,6 +153,14 @@ class GameRunner {
       if (at - _lastCoinEmitAt >= coinEmitIntervalMs ||
           report.coinsEarned >= 1) {
         _lastCoinEmitAt = at;
+        // **THE TRICKLE SAYS SO FIRST.** Coins earned by doing something fly to
+        // the counter and swell it; the players' own idle income is a trickle
+        // and must not, or the HUD is pulsing every second of the game. The bus
+        // is synchronous and ordered, so the pair is exact: the flight layer
+        // reads this as "the very next `coins:updated` is passive". Inside the
+        // throttle with it, or a skipped update would leave the flag set and
+        // swallow the next real reward.
+        emit('coins:idle', report.coinsEarned);
         emit('coins:updated', _map(state['resources'])?['fanCoins']);
       }
     }

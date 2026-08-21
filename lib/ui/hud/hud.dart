@@ -14,6 +14,8 @@ import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
+import 'package:merge_empire_fc/ui/hud/coin_flight.dart'
+    show coinChipKey, coinRewardProvider;
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/popups/income_breakdown_card.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
@@ -244,8 +246,12 @@ class Hud extends ConsumerWidget {
                           showCurrencySheet(context, ShopSection.coins),
                     ),
                     child: CoinCounter(
+                      key: coinChipKey,
                       value: ref.watch(coinsProvider),
                       style: valueStyle,
+                      // Swells when a REWARD lands and not when the players'
+                      // own trickle does — see `coin_flight.dart`.
+                      reward: ref.watch(coinRewardProvider),
                     ),
                   ),
                   HudChip(

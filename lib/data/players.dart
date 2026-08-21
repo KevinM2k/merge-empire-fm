@@ -19,47 +19,103 @@ import 'package:merge_empire_fc/util/random.dart' show WeightedEntry;
 // footballer-style nickname, so the name reads first-name-first the way a real
 // name would. Varied first names so no single nationality dominates.
 const List<String> _fwdNames = [
-  'Rodrigo Flash', 'Hiro Blitz', 'Lucas Rocket', 'Emeka Turbo',
-  'Antoine Swift', 'Kofi Bolt', 'Diego Ace', 'Ivan Strike',
-  'Piotr Dash', 'Ibrahim Arrow',
+  'Rodrigo Flash',
+  'Hiro Blitz',
+  'Lucas Rocket',
+  'Emeka Turbo',
+  'Antoine Swift',
+  'Kofi Bolt',
+  'Diego Ace',
+  'Ivan Strike',
+  'Piotr Dash',
+  'Ibrahim Arrow',
 ];
 const List<String> _midNames = [
-  'Sung-ho Vision', 'Mateo Thread', 'Giacomo Maestro', 'Kenji Dynamo',
-  'Lars Pulse', 'Chidi Engine', 'Klaus Ticker', 'Paulo Link',
-  'Viktor Craft', 'Kwame Flow',
+  'Sung-ho Vision',
+  'Mateo Thread',
+  'Giacomo Maestro',
+  'Kenji Dynamo',
+  'Lars Pulse',
+  'Chidi Engine',
+  'Klaus Ticker',
+  'Paulo Link',
+  'Viktor Craft',
+  'Kwame Flow',
 ];
 const List<String> _defNames = [
-  'Imran Iron', 'Hans Stone', 'Obinna Fortress', 'Dmitri Shield',
-  'Rafael Bulwark', 'Erik Rock', 'Tunde Titan', 'Pierre Bastion',
-  'Hiroshi Wall', 'Jonas Slab',
+  'Imran Iron',
+  'Hans Stone',
+  'Obinna Fortress',
+  'Dmitri Shield',
+  'Rafael Bulwark',
+  'Erik Rock',
+  'Tunde Titan',
+  'Pierre Bastion',
+  'Hiroshi Wall',
+  'Jonas Slab',
 ];
 const List<String> _gkNames = [
-  'Miguel Hands', 'Peter Vault', 'Laurent Safe', 'Diego Block',
-  'Akio Cat', 'Emeka Glove', 'Novak Wall', 'Anders Reach',
-  'Rodrigo Stops', 'Femi Reflex',
+  'Miguel Hands',
+  'Peter Vault',
+  'Laurent Safe',
+  'Diego Block',
+  'Akio Cat',
+  'Emeka Glove',
+  'Novak Wall',
+  'Anders Reach',
+  'Rodrigo Stops',
+  'Femi Reflex',
 ];
 
 // Female player names — same first-name-then-nickname style. Pulled when an
 // instance is created with a female variant.
 const List<String> _fwdFemaleNames = [
-  'Sofia Lightning', 'Yuki Ember', 'Adaeze Bolt', 'Natalia Star',
-  'Ingrid Blaze', 'Priya Dart', 'Layla Comet', 'Elena Rush',
-  'Chioma Spark', 'Min-ji Zip',
+  'Sofia Lightning',
+  'Yuki Ember',
+  'Adaeze Bolt',
+  'Natalia Star',
+  'Ingrid Blaze',
+  'Priya Dart',
+  'Layla Comet',
+  'Elena Rush',
+  'Chioma Spark',
+  'Min-ji Zip',
 ];
 const List<String> _midFemaleNames = [
-  'Amara Vision', 'Giulia Pulse', 'Haruka Weaver', 'Beatriz Tempo',
-  'Valentina Conductor', 'Freja Quill', 'Aissatou Rhythm', 'Camille Pivot',
-  'Carmen Thread', 'Anya Keys',
+  'Amara Vision',
+  'Giulia Pulse',
+  'Haruka Weaver',
+  'Beatriz Tempo',
+  'Valentina Conductor',
+  'Freja Quill',
+  'Aissatou Rhythm',
+  'Camille Pivot',
+  'Carmen Thread',
+  'Anya Keys',
 ];
 const List<String> _defFemaleNames = [
-  'Mei Ironheart', 'Milena Granite', 'Lucia Bastion', 'Abeni Shield',
-  'Adèle Fortress', 'Sakura Anchor', 'Ngozi Keep', 'Astrid Gate',
-  'Fatima Wall', 'Zara Rampart',
+  'Mei Ironheart',
+  'Milena Granite',
+  'Lucia Bastion',
+  'Abeni Shield',
+  'Adèle Fortress',
+  'Sakura Anchor',
+  'Ngozi Keep',
+  'Astrid Gate',
+  'Fatima Wall',
+  'Zara Rampart',
 ];
 const List<String> _gkFemaleNames = [
-  'Isabela Catlike', 'Freya Vault', 'Nomvula Safe', 'Hinata Reflex',
-  'Chiara Saves', 'Folake Wall', 'Yuna Hands', 'Catalina Glove',
-  'Svetlana Block', 'Amélie Reach',
+  'Isabela Catlike',
+  'Freya Vault',
+  'Nomvula Safe',
+  'Hinata Reflex',
+  'Chiara Saves',
+  'Folake Wall',
+  'Yuna Hands',
+  'Catalina Glove',
+  'Svetlana Block',
+  'Amélie Reach',
 ];
 
 const Map<String, List<String>> _namePools = {
@@ -80,6 +136,34 @@ String pickDisplayName(String position, int tierIdx, {required bool female}) {
   final pools = female ? _femaleNamePools : _namePools;
   final pool = pools[position] ?? pools['FWD']!;
   return pool[tierIdx % pool.length];
+}
+
+/// ANOTHER name from the same pool, for the Randomise button on the rename
+/// card.
+///
+/// [pickDisplayName] is `pool[tier % 10]`, which is deterministic on purpose —
+/// and which is also why a squad ends up with two of the same man: every card of
+/// one position, tier and gender is born with the same name. Renaming is the way
+/// out and typing is the annoying part.
+///
+/// [notThis] is what he is called now, so the roll always changes something. A
+/// pool of one would loop forever, so it is a filtered pick rather than a retry.
+///
+/// `dart:math`, not the seeded generator: this is a player pressing a button,
+/// not part of the deterministic gameplay stream.
+String randomDisplayName(
+  String position, {
+  required bool female,
+  String? notThis,
+}) {
+  final pools = female ? _femaleNamePools : _namePools;
+  final pool = pools[position] ?? pools['FWD']!;
+  final options = [
+    for (final name in pool)
+      if (name != notThis) name,
+  ];
+  if (options.isEmpty) return pool.first;
+  return options[math.Random().nextInt(options.length)];
 }
 
 /// A tier's shared shape before position variance is applied.
@@ -107,8 +191,12 @@ class _Tier {
 
 const List<_Tier> _tiers = [
   _Tier(
-    tier: 1, tierName: 'Bronze Rookie', idleIncomePerSec: 0.05,
-    rating: 18, maxRating: 26, sellValue: 10,
+    tier: 1,
+    tierName: 'Bronze Rookie',
+    idleIncomePerSec: 0.05,
+    rating: 18,
+    maxRating: 26,
+    sellValue: 10,
     flavour: [
       'Raw pace, zero fear.',
       'Nothing to lose, everything to prove.',
@@ -121,8 +209,12 @@ const List<_Tier> _tiers = [
     ],
   ),
   _Tier(
-    tier: 2, tierName: 'Bronze Pro', idleIncomePerSec: 0.15,
-    rating: 27, maxRating: 35, sellValue: 25,
+    tier: 2,
+    tierName: 'Bronze Pro',
+    idleIncomePerSec: 0.15,
+    rating: 27,
+    maxRating: 35,
+    sellValue: 25,
     flavour: [
       'Solid on the ball.',
       'Starting to turn heads.',
@@ -135,8 +227,12 @@ const List<_Tier> _tiers = [
     ],
   ),
   _Tier(
-    tier: 3, tierName: 'Silver Rising', idleIncomePerSec: 0.40,
-    rating: 36, maxRating: 44, sellValue: 60,
+    tier: 3,
+    tierName: 'Silver Rising',
+    idleIncomePerSec: 0.40,
+    rating: 36,
+    maxRating: 44,
+    sellValue: 60,
     flavour: [
       'The scouts are watching.',
       'A name to remember.',
@@ -149,8 +245,12 @@ const List<_Tier> _tiers = [
     ],
   ),
   _Tier(
-    tier: 4, tierName: 'Silver Star', idleIncomePerSec: 1.00,
-    rating: 45, maxRating: 54, sellValue: 150,
+    tier: 4,
+    tierName: 'Silver Star',
+    idleIncomePerSec: 1.00,
+    rating: 45,
+    maxRating: 54,
+    sellValue: 150,
     flavour: [
       'Crowd favourite.',
       'The fans sing the name.',
@@ -163,8 +263,12 @@ const List<_Tier> _tiers = [
     ],
   ),
   _Tier(
-    tier: 5, tierName: 'Gold Elite', idleIncomePerSec: 2.50,
-    rating: 55, maxRating: 64, sellValue: 400,
+    tier: 5,
+    tierName: 'Gold Elite',
+    idleIncomePerSec: 2.50,
+    rating: 55,
+    maxRating: 64,
+    sellValue: 400,
     flavour: [
       'Worth every penny.',
       'Elite at every level.',
@@ -177,8 +281,12 @@ const List<_Tier> _tiers = [
     ],
   ),
   _Tier(
-    tier: 6, tierName: 'Gold Superstar', idleIncomePerSec: 6.00,
-    rating: 65, maxRating: 75, sellValue: 1000,
+    tier: 6,
+    tierName: 'Gold Superstar',
+    idleIncomePerSec: 6.00,
+    rating: 65,
+    maxRating: 75,
+    sellValue: 1000,
     flavour: [
       'Highlights reel every match.',
       'Creates magic from nothing.',
@@ -191,8 +299,12 @@ const List<_Tier> _tiers = [
     ],
   ),
   _Tier(
-    tier: 7, tierName: 'Legendary Icon', idleIncomePerSec: 15.0,
-    rating: 76, maxRating: 85, sellValue: 3000,
+    tier: 7,
+    tierName: 'Legendary Icon',
+    idleIncomePerSec: 15.0,
+    rating: 76,
+    maxRating: 85,
+    sellValue: 3000,
     flavour: [
       'A living legend.',
       'Defined an era.',
@@ -205,8 +317,12 @@ const List<_Tier> _tiers = [
     ],
   ),
   _Tier(
-    tier: 8, tierName: 'World Legend', idleIncomePerSec: 40.0,
-    rating: 86, maxRating: 95, sellValue: 8000,
+    tier: 8,
+    tierName: 'World Legend',
+    idleIncomePerSec: 40.0,
+    rating: 86,
+    maxRating: 95,
+    sellValue: 8000,
     flavour: [
       'Football immortal.',
       'The game is different because of them.',
@@ -220,8 +336,12 @@ const List<_Tier> _tiers = [
   ),
   // T9 is scout-only (1% weight in the Champions Cup odds) and cannot be merged.
   _Tier(
-    tier: 9, tierName: 'Football Icon', idleIncomePerSec: 120.0,
-    rating: 100, maxRating: 100, sellValue: 100000,
+    tier: 9,
+    tierName: 'Football Icon',
+    idleIncomePerSec: 120.0,
+    rating: 100,
+    maxRating: 100,
+    sellValue: 100000,
     flavour: [
       'Transcends the game itself.',
       'Not a player — a phenomenon.',
@@ -251,14 +371,39 @@ const Map<String, double> _posVariance = {
 /// position, so a T5 MID (holding) is more defensive than a T6 MID (playmaker)
 /// despite the lower overall rating. Male and female variants share the ratio.
 const Map<String, double> _attackRatio = {
-  'FWD_1': 0.75, 'FWD_2': 0.88, 'FWD_3': 0.80, 'FWD_4': 0.92,
-  'FWD_5': 0.72, 'FWD_6': 0.90, 'FWD_7': 0.85, 'FWD_8': 0.95, 'FWD_9': 0.90,
-  'MID_1': 0.30, 'MID_2': 0.65, 'MID_3': 0.35, 'MID_4': 0.60,
-  'MID_5': 0.28, 'MID_6': 0.70, 'MID_7': 0.45, 'MID_8': 0.55,
-  'DEF_1': 0.10, 'DEF_2': 0.20, 'DEF_3': 0.12, 'DEF_4': 0.22,
-  'DEF_5': 0.14, 'DEF_6': 0.18, 'DEF_7': 0.20, 'DEF_8': 0.15,
-  'GK_1': 0.00, 'GK_2': 0.00, 'GK_3': 0.00, 'GK_4': 0.00,
-  'GK_5': 0.00, 'GK_6': 0.00, 'GK_7': 0.00, 'GK_8': 0.00,
+  'FWD_1': 0.75,
+  'FWD_2': 0.88,
+  'FWD_3': 0.80,
+  'FWD_4': 0.92,
+  'FWD_5': 0.72,
+  'FWD_6': 0.90,
+  'FWD_7': 0.85,
+  'FWD_8': 0.95,
+  'FWD_9': 0.90,
+  'MID_1': 0.30,
+  'MID_2': 0.65,
+  'MID_3': 0.35,
+  'MID_4': 0.60,
+  'MID_5': 0.28,
+  'MID_6': 0.70,
+  'MID_7': 0.45,
+  'MID_8': 0.55,
+  'DEF_1': 0.10,
+  'DEF_2': 0.20,
+  'DEF_3': 0.12,
+  'DEF_4': 0.22,
+  'DEF_5': 0.14,
+  'DEF_6': 0.18,
+  'DEF_7': 0.20,
+  'DEF_8': 0.15,
+  'GK_1': 0.00,
+  'GK_2': 0.00,
+  'GK_3': 0.00,
+  'GK_4': 0.00,
+  'GK_5': 0.00,
+  'GK_6': 0.00,
+  'GK_7': 0.00,
+  'GK_8': 0.00,
 };
 
 /// A static player card definition.
@@ -334,8 +479,7 @@ List<PlayerDef> _buildPlayers() {
               ? 100
               : math.min(t.maxRating, _jsRound(t.rating * variance)),
           maxRating: t.tier == 9 ? 100 : t.maxRating,
-          idleIncomePerSec:
-              _jsRound(t.idleIncomePerSec * variance * 100) / 100,
+          idleIncomePerSec: _jsRound(t.idleIncomePerSec * variance * 100) / 100,
           art: 'cards/${pos.toLowerCase()}_t${t.tier}',
           mergesInto: _buildMergesInto(t.tier, pos),
           sellValue: t.sellValue,
@@ -454,8 +598,15 @@ const Map<String, List<(int, double)>> divisionScoutOdds = {
   'elite_league': [(1, 28), (2, 30), (3, 20), (4, 12), (5, 7), (6, 3)],
   'continental': [(1, 20), (2, 28), (3, 22), (4, 15), (5, 9), (6, 4), (7, 2)],
   'champions_cup': [
-    (1, 15), (2, 22), (3, 20), (4, 16), (5, 12),
-    (6, 8), (7, 4.5), (8, 1.5), (9, 1),
+    (1, 15),
+    (2, 22),
+    (3, 20),
+    (4, 16),
+    (5, 12),
+    (6, 8),
+    (7, 4.5),
+    (8, 1.5),
+    (9, 1),
   ],
 };
 

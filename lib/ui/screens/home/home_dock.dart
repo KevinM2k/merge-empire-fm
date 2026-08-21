@@ -175,9 +175,18 @@ class CoachDock extends ConsumerWidget {
       label: t('scene.dock.coach'),
       dot: unread,
       onTap: () => showCoachBubble(context, ref),
-      child: const ArtImage(
-        path: 'assets/ui/manager_hint.png',
-        fallback: Center(child: Text('🧢', style: TextStyle(fontSize: 26))),
+      // **HE FILLS THE DISC.** The orb centres its child, and a bare `ArtImage`
+      // under loose constraints sizes to its own aspect — so his portrait sat in
+      // the middle of the circle with a band of dark glass above and below it.
+      // Expanded and cropped from the TOP, because the head is at the top of the
+      // drawing.
+      child: const SizedBox.expand(
+        child: ArtImage(
+          path: 'assets/ui/manager_hint.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+          fallback: Center(child: Text('🧢', style: TextStyle(fontSize: 26))),
+        ),
       ),
     );
   }

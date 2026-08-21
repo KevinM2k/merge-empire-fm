@@ -125,6 +125,22 @@ Duration minuteDuration({required bool fast}) =>
 // ── The feed ────────────────────────────────────────────────────────────────
 
 /// One line of commentary, ready for `t()`.
+/// What a GOAL line carries beyond its sentence.
+///
+/// A goal in the feed is a CARD, not a row: the minute, the word GOAL, the score
+/// it made, the scorer with his face and his tally, and the commentary line
+/// under it as the caption it always was. `match.goal_card.title`,
+/// `match.career_goal` and `match.career_goals` were translated into all ten
+/// catalogues with nothing able to reach one of them.
+///
+/// [left] and [right] are the score AS THE BOARD SHOWS IT — home side left —
+/// so the widget never has to know which way round the fixture is.
+///
+/// [tallyInMatch] is how many this man has scored TODAY, including this one.
+/// The season's total is on his card and the two are added at the point of
+/// drawing, because the save is not written until the whistle.
+typedef GoalCard = ({int left, int right, int tallyInMatch, bool ours});
+
 typedef FeedLine = ({
   int minute,
   String type,
@@ -136,6 +152,9 @@ typedef FeedLine = ({
   /// clock and a sentence that rerolls under the reader is worse than one
   /// sentence.
   String seed,
+
+  /// The extras a GOAL is drawn with, or null on every other line.
+  GoalCard? goal,
 
   /// Who the line is ABOUT, by card instance id, when it is about one of ours.
   ///
@@ -189,6 +208,10 @@ List<FeedLine> feedOf(
   // equalised or extended a lead.
   var ours = 0;
   var theirs = 0;
+  // How many each man has scored in THIS match so far — the JS's
+  // `_matchGoalsByPlayer`, and the reason the tally can be right before the
+  // save has heard about the game.
+  final today = <String, int>{};
   for (final e in events) {
     switch (e.type) {
       case 'goal':
@@ -216,6 +239,8 @@ List<FeedLine> feedOf(
               ? 'lead'
               : 'pullback';
           final scorer = e.scorer;
+          final id = e.scorerId;
+          if (id != null) today[id] = (today[id] ?? 0) + 1;
           out.add((
             minute: e.minute,
             type: e.type,
@@ -224,6 +249,12 @@ List<FeedLine> feedOf(
                 '${scorer == null || scorer.isEmpty ? 'no_scorer' : 'with_scorer'}',
             params: {'us': ourName, 'scorer': scorer ?? ''},
             seed: '${e.minute}-${scorer ?? ''}',
+            goal: (
+              left: isHome ? ours : theirs,
+              right: isHome ? theirs : ours,
+              tallyInMatch: id == null ? 0 : today[id]!,
+              ours: true,
+            ),
             aboutId: e.scorerId,
           ));
         } else {
@@ -233,6 +264,12 @@ List<FeedLine> feedOf(
             key: 'commentary.opp_goal',
             params: {'them': theirName},
             seed: '${e.minute}-opp',
+            goal: (
+              left: isHome ? ours : theirs,
+              right: isHome ? theirs : ours,
+              tallyInMatch: 0,
+              ours: false,
+            ),
             aboutId: null,
           ));
         }
@@ -243,6 +280,7 @@ List<FeedLine> feedOf(
           key: 'match.half_time',
           params: const {},
           seed: 'ht',
+          goal: null,
           aboutId: null,
         ));
       case 'injury':
@@ -252,6 +290,7 @@ List<FeedLine> feedOf(
           key: 'commentary.injury',
           params: {'player': e.player ?? ''},
           seed: '${e.minute}-inj',
+          goal: null,
           aboutId: null,
         ));
       case 'commentary':
@@ -262,6 +301,7 @@ List<FeedLine> feedOf(
             key: e.textKey!,
             params: const {},
             seed: '${e.minute}-c',
+            goal: null,
             aboutId: null,
           ));
         }
@@ -278,6 +318,7 @@ List<FeedLine> feedOf(
           key: 'commentary.forces_save',
           params: {'who': mine ? ourName : theirName},
           seed: '${e.minute}-ch',
+          goal: null,
           aboutId: null,
         ));
       // A corner is a momentum nudge and full time is the screen's own.

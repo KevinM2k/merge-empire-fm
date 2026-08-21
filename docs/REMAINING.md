@@ -30,19 +30,43 @@ too late:
 
 ## Where we are
 
-**4,282 tests, `flutter analyze` clean — and ON A NAMED SDK**, which is the
-part that had never been true. Flutter **3.44.9** / Dart **3.12.2**,
-now in `.fvmrc` and in CI, where the job had been naming a version *below* what
-the lock file asks for. See `The SDK the port builds against` below.
+**4,325 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
-**71 items are open**, plus five carrying a `[~]` — answered, but with a decision
-left for the manager rather than a line of code.
+**AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
+`TickerMode.valuesOf`, which does not exist before 3.44, so a clone on anything
+earlier failed to BUILD rather than failing to lint — every test file that loads
+the home screen died at compile. It is `TickerMode.of` with the ignore the
+framework's own doc prints for it: deprecated on the pinned SDK, present on both,
+and analyze stays clean. 3.44.9 is still the number CI runs and the number to
+develop against; this only means a machine that has not got it yet can still run
+the app.
 
-**The newest work is the DUGOUT CAMERA** — the last unported thing on the Play
-Match screen, and the first time the manager's wardrobe and his bought emotes
-are legible anywhere. It is written up in full under `From playtesting —
-26 Aug`; two notes for whoever picks the queue up next, because neither is
-where you would look for it:
+**123 items are open**, plus five carrying a `[~]` — answered, but with a decision
+left for the manager rather than a line of code. The two newest sections,
+`From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
+ones to read first: they are a single sitting's worth of playtesting and most of
+what is open now came out of them.
+
+**The newest work is the FULL-TIME SUMMARY and the live match screen it came
+off.** Four things whoever picks this up next will want to know before reading
+the queue, because none of them is where you would look for it:
+
+- **`ui/screens/match/match_summary.dart` is a route, not a sheet**, pushed by
+  `play_button` after the match screen pops. It MUTATES `result['coinsEarned']`
+  when the doubling video is watched, and the caller pays afterwards — that
+  ordering is the whole reason `applyMatchRewards` has always been deferred.
+- **`services/rewarded_ads.dart` is the only ad seam.** Every placement answers
+  `AdOutcome.unavailable` today; when AdMob lands, one override in
+  `rewardedAdsProvider` turns the shop's free shelf, the quick-fire matches, the
+  lucky boot and the double-or-nothing on together. Nothing else needs touching.
+- **`engine/match_coach.dart` is Colin's in-match voice**, and it is pure Dart:
+  the read, the cadence and the tactic ask are all testable without a widget.
+- **`marketQuote` in `sell_card_engine.dart` is the market's clock.** One roll
+  per card per `marketWindow`, so reopening a sheet cannot reroll a price.
+
+The section below still applies to the dugout camera, which is what the pass
+before this one was about:
 
 - **`ManagerWalker` has two new seams**, `standing` and `idle`, and they are
   general rather than cam-specific. `standing` stops the STRIDE and nothing
@@ -3115,6 +3139,15 @@ by a test.
       **Flutter 3.44.9, Dart 3.12.2**, which is where `flutter analyze` is
       clean and the whole suite is green. `.fvmrc` carries it and
       `.github/workflows/ci.yml` now names the same number.
+      **And nothing in `lib/` may need it to COMPILE.** `TickerMode.valuesOf`
+      did — it does not exist before 3.44 — so a machine on an older Flutter
+      could not build the app at all, and every test file that loads
+      `home_screen.dart` died at compile rather than at lint. Pinning the SDK is
+      about agreeing with CI on what green means; it is not a licence to use an
+      API a clone cannot build. `fvm` is not installed on the author's machine,
+      so `.fvmrc` resolves to nothing and whatever `flutter` is on the path is
+      what runs — either install it, or keep a 3.44.9 checkout and call its
+      `bin/flutter` directly.
       It was worse than "nothing said": CI named **3.38.3**, which is BELOW the
       `flutter >=3.44.0` the lock file asks for, so the one place that did name
       a version named the wrong one — and `pubspec.lock` is not committed, so
@@ -3135,6 +3168,298 @@ by a test.
       timeline instead. Worth doing only with a clip in hand — and worth
       knowing that "better than the SVG we have" is comparing it to something
       the port does not do.
+
+## From playtesting — 27 Aug
+
+Reported from the couch in one sitting, in the order they were noticed. Nothing
+here was found by a test. The pass before this one was mostly things that were
+never CALLED; this one is almost entirely things that are called and look wrong.
+
+**Three done already**, at the top of the session:
+
+- [x] **The market is a CLOCK now, not a reroll.** `rollMarketMult` ran on every
+      open, so closing and reopening the sell sheet shopped for a better price.
+      `marketQuote` in `sell_card_engine.dart` holds ONE roll for
+      `marketWindow` — 15s — and `MarketOffer` (`ui/widgets/market_offer.dart`)
+      ticks the countdown down to it and rerolls under a player who is still
+      looking. `squad.refresh_in` had been translated into all ten catalogues
+      with nothing able to reach it, which was the tell. The JS refreshed on the
+      wall clock's 30s boundaries; this is a window per card so whoever just
+      opened the sheet gets the whole of it — which is also what makes a native
+      ad at the foot of the sheet worth the space.
+- [x] **The market value box is off the squad sheet.** Selling is not on that
+      sheet, so a price with no button under it is a figure the player cannot
+      act on. It lives with the Sell, on the Players tab.
+- [x] **The coin figure had a BORDER round it in light mode**, and the money is
+      YELLOW. The halo that made gold legible on white — two dark shadows under
+      the digits — reads as an outline at 26px. The JS's bronze `#a86523` is
+      legible and is not what money looks like. So the figure keeps its gold in
+      both themes, bare, and the contrast is bought with the SURFACE: the sell
+      sheet's offer panel is a dark plate now, the way a scoreboard does it.
+- [x] **And Sell and Cancel are one row.** Stacked full-width buttons read as
+      two steps of the same flow; it is one decision with two answers.
+- [x] **The squad sheet's numbers live on the player now.** The ruled box under
+      the picture is gone; rating, ATK and DEF are a glass plate top left,
+      seasons and income are one top right, and `BRONZE PRO · DEF` lifts clear
+      of Replace and Bench. The trait block was the least interesting-looking
+      thing on a card it is the point of: it wears an accent wash and a level
+      chip when he has one, the reels land in a lit window rather than a grey
+      box, and the roll button carries its own cost.
+- [x] **×2 and ×4 floated on nothing in light mode.** The chip inverts to an
+      `accentInk` fill, which IS near-white on a light theme, and the hairline
+      meant to save it was a BACKGROUND decoration behind an opaque `Material`
+      the full size of the box — drawn, then painted over.
+      `DecorationPosition.foreground`.
+
+### Coach Colin
+
+- [x] **The card is anchored to Colin everywhere except the Play page** — fixed.
+      It hung off his RIGHT SHOULDER (`left: anchor.right - 10`), so on that one
+      page it went up and across instead of up, and the wedge pointed back at a
+      corner of him rather than at his face. It stacks over the dock now, with
+      the tail over the middle of the disc, which is what the floating coach on
+      every other tab does.
+- [ ] **The tick has no top border on the home page** and has one everywhere
+      else. *Which tick?* There is no checkmark on the home page in the port —
+      the nearest thing to a "tick" in the coach popup is the bubble's TAIL
+      wedge, and its top edge is covered by the painter on one surface and not
+      the other. Worth a screenshot before guessing.
+- [ ] **Keep the scrim.** The slight overlay behind the card while it is up is
+      right — it should survive whatever the anchor fix touches.
+
+### The squad sheet, redesigned
+
+The card a tap on a player opens. Not a list of fixes so much as one layout that
+is wrong in six places.
+
+- [ ] **Get rid of the stats box.** Rating, ATK, DEF, income and seasons in a
+      ruled panel is an inventory readout on a card about a person.
+- [ ] **ATK and DEF go under the rating, top left of the card.**
+- [ ] **Income goes under seasons, or top right.**
+- [ ] **`BRONZE PRO · DEF` is too close to the buttons** — lift it.
+- [ ] **The trait box is the point of this card and looks the least like it.**
+      It is the thing the sheet is FOR; make it look like it.
+
+### Light and dark
+
+- [ ] **The card bottoms are still dark in light mode** on the squad page.
+- [ ] **Anywhere the top has a background, both themes have to work.** Not by
+      recolouring the icons — by finding the opacity that holds against whatever
+      is behind it. Dark mode is already right.
+- [ ] **The index cards should be light in light mode**, with a smaller border —
+      the player screen's card, without the progress bar or the income.
+
+### The home screen
+
+- [x] **Colin's head is circular and the image fills it now.** The orb centres
+      its child, and a bare `ArtImage` under loose constraints sizes to its own
+      aspect — so his portrait sat in the middle of the disc with a band of dark
+      glass above and below.
+- [ ] **The customise button comes up laggy.**
+- [x] **The manager was walking in the sky, and the grass was the reason.** The
+      strip under him was a `FractionallySizedBox` with a `heightFactor` and no
+      `widthFactor` — which passes the incoming width constraint straight
+      through, and under an `Align` that constraint is LOOSE, so an empty
+      `DecoratedBox` sized itself to ZERO. It was in the widget tree and painted
+      nothing, which left the backdrop's own cropped-off hedges as the only
+      thing under his feet. Positioned by its edges now, which cannot collapse.
+
+### The shop
+
+- [ ] **THE ADS ARE THE BLOCKER for most of the shop.** "Should actually work"
+      means a rewarded video, and there is no ad SDK in the project at all —
+      `lib/data/ad_units.dart` holds the placements and nothing can show one.
+      That is M4's AdMob work: a package, two app ids, a consent gate. Every
+      "coming soon" below is downstream of it.
+- [ ] **The three special offers should be full width**, one per row, not two up.
+- [ ] **And they should WORK** rather than say coming soon.
+- [ ] **Quick-fire matches and the free lucky boot say both "already ready" and
+      "coming soon".** They should be playable, and they should trigger an
+      advert.
+- [ ] **The gems look wrong** — one gem per image, whatever the pack. Look at
+      `../merge-empire-match-day`'s shop.
+- [ ] **The manager-customisation packs have tiny grey buttons with a blue gem in
+      them.** They are meant to be a blue button with a WHITE gem.
+- [ ] **And every pack should be tappable** — a confirm ("spend these gems?"),
+      and if they cannot afford it, the gem-buy sheet on top of that.
+
+### Everywhere else
+
+- [ ] **Fixtures: the design is not right.**
+- [ ] **Season quests do not look good, and do not show the reward** — neither
+      for one of them nor for all of them.
+- [ ] **The training popup has no images and is boring.**
+- [ ] **Daily: the boxes should be equal**, there is much more room than it uses,
+      and the tick should cross the WHOLE box rather than sit in a corner where
+      it does not read as done.
+- [ ] **Trophies: the bottom-left and bottom-right corners are wrong** — a radius
+      plus something else that loses the borders.
+- [ ] **The energy popup's "up to +3 energy" is greyed out and says coming
+      soon.** It wants to be boxes side by side, with graphics.
+
+### The Play Match screen
+
+- [x] **THE PITCH IS ALWAYS THERE NOW, with the arrow.** The band never moved;
+      what was IN it flipped between a football pitch and a table of numbers
+      every few minutes, because the statistics were the stage's resting state
+      and `CutawayStage` — which has drawn the idle markings all along — was
+      mounted only for a chance. It is one pitch for the whole match, a clip
+      cuts in on the same grass, and between chances `MomentumArrow` shows which
+      way the game is running: it points at the goal being attacked and drifts
+      toward it as the pressure builds, off the same possession figure the board
+      prints. The statistics moved to a TAB — `match.tab.stats` was in all ten
+      catalogues with nothing able to reach it.
+- [ ] **And the full game is still the one you want.** The arrow is the reading;
+      a continuous twenty-two-body sim that flows into the chances is the other
+      half, and it is a build rather than a fix — `CutawayGame` would need an
+      idle mode driven off the same momentum.
+- [x] **A GOAL IS A CARD now.** It was one row of text — the single most
+      important thing that happens in a match drawn exactly like "nerves
+      jangling all around the ground". It has a head (the minute, the word
+      GOAL, the score it made), the scorer with his face and his career tally,
+      and the commentary line under it as the caption it always was.
+      `match.goal_card.title`, `match.career_goal` and `match.career_goals` were
+      translated ten times over with nothing able to reach one of them, which
+      was the tell. The tally counts today's goals too, because the save is not
+      written until the whistle.
+- [x] **And the scorer stands on his own touchline** while the clip plays — an
+      88px circle sliding in from the edge he then rests against, with his
+      surname and the minute. It arrives with the VERDICT rather than with the
+      clip: shown from the first beat it gives away that the ball is going in.
+- [x] **Every chance drew the SAME passage.** `?? ` binds looser than `+`, so
+      `seed ?? 0 + event.minute` added the minute only when the result carried
+      no seed at all.
+- [ ] **The dugout cam still wants watching on a goal.** The wiring is there —
+      `_dugoutCamFor` off the clip's `onDone` — so if it is not landing it is
+      the policy gate (three goal cuts, the gap, reduced motion), not the
+      absence of a caller.
+- [x] **Colin had NOTHING to say for ninety minutes.** Twenty-four pooled
+      `coach.match.*` strings — his read at every scoreline, his half-time word,
+      his per-tactic ask — translated into ten catalogues with not one caller.
+      `engine/match_coach.dart` is the voice: `suggestTactic` for what he would
+      play, the JS's own cadence (25 game-minutes of floor, 40 before he repeats
+      himself, nothing before the fifth), and the half-time whistle jumping the
+      queue. He floats over the footer with the SHARED bubble tail rather than
+      taking a band of his own — a strip that appears and disappears shoves the
+      feed about, which is the fault the pitch had. **Casual only**: pro mode
+      buys the numbers and gives up the advice, which is the same bargain the
+      subs panel strikes.
+- [ ] **The play card should be the home page's card** — see the 26 Aug entry
+      that says it already is; whatever is on screen is not it.
+- [x] **Commentary and quests are in a box.** They sat loose on the sky
+      gradient — the one band on the screen with no surface under it, on a page
+      where the scoreboard, the stage and the tactic strip are all panels.
+- [ ] **The end-of-match reward is an AD OFFER, and it has a shape.** "You have
+      won X", the figure struck through with DOUBLE beside it — but only if the
+      ad is watched. Yellow button for the ad; under it a "No thanks" TEXT link,
+      which is the continue button without the emphasis. `../merge-empire-fc` has
+      it built.
+- [x] **A stat going up PULSES rather than grows.** `Transform.scale` out to
+      1.35 and back shoves the row about, on a board whose whole job is holding
+      still while the commentary moves. The kit colour says the same thing and
+      costs the layout nothing.
+- [x] **No more Kenney smoke on the pitch.** A cartoon puff off the turf as the
+      boot goes through the ball does not read as football.
+
+### Coins should FLY
+
+- [x] **Coins fly to the counter, and the counter swells when they land.**
+      `ui/hud/coin_flight.dart`, above the HUD in the shell's own Stack so a coin
+      passes over the glass rather than under it. The trickle is excused by the
+      LOOP rather than guessed at: `game_runner` emits `coins:idle` immediately
+      before the throttled `coins:updated`, inside the same throttle, and the bus
+      is synchronous — so the pair is exact and a skipped update can never leave
+      the flag set and swallow a real reward.
+
+### Naming a player
+
+- [x] **The rename card has a Randomise button.** And the reason the squad ends
+      up with two of the same man is worth writing down: `pickDisplayName` is
+      `pool[tier % 10]`, deliberately deterministic, so every card of one
+      position, tier and gender is BORN with the same name. `randomDisplayName`
+      rolls another from the same pool and never hands back the one he has; it
+      fills the field rather than committing, because the roll is a suggestion
+      and the confirm is still what renames him.
+
+### From the whistle back — 27 Aug, later
+
+The match screen and the new summary, in the order they were noticed. The ones
+already done are marked; the rest are the queue.
+
+- [x] **Full time leaves the commentary page.** It has nothing left to say — the
+      tactic strip has gone, the clock has stopped and the payoff is elsewhere.
+- [x] **And the full-time dugout shot went with it.** The summary opens on him,
+      with the room for it; two of him a second apart is one too many.
+- [x] **The quest outcomes are off the bottom of the play page.** The count
+      `(1/3)` rides the Quests tab instead, and it is still one tap to see which
+      three.
+- [x] **AT HOME WE ATTACK RIGHT, AWAY WE ATTACK LEFT** — the 2D pitch and the
+      arrow both. `ourSideLeft` was pinned true for every fixture, so on the road
+      our chances ran the opposite way from the scoreboard, which reads home side
+      left.
+- [x] **A goal against is RED.** Green is what this game uses for a thing going
+      well for us, on every screen.
+- [x] **The arrow is bigger and SOLID.** At 30–75% alpha the mown stripes ran
+      through it and it read as a smear; it is one flat shade of the turf now —
+      ours a stripe lighter, theirs a shadow darker.
+- [x] **Colin's bubble stands out from the commentary.** Same surface and same
+      hairline as the box it floats over is a paragraph, not an interruption.
+- [x] **The tactic strip has the page's own margin**, and the rule between the
+      card and the pitch has gone.
+- [x] **The stats tab fills the space it has.**
+- [x] **The dugout cam has air above it in the feed.**
+- [x] **The scoreboard is a CARD.** It shared the next-match card's rows and drew
+      them loose on the sky, so the fixture you accepted and the fixture you are
+      watching did not look like the same object. Same `GlassPanel`, same
+      density.
+- [x] **The 2× offer exists.** `services/rewarded_ads.dart` is the seam; the
+      summary shows a yellow watch-to-double with No Thanks as a text link under
+      it, and `applyMatchRewards` — deferred to the closing screen since it was
+      written, for exactly this — pays whatever the screen last said. Every
+      placement answers `unavailable` until the SDK lands, which is a real
+      answer the flow has to handle anyway.
+- [ ] **A REPLAY button beside each goal in the feed**, opening the 2D passage
+      again in a popup. `clipFor` already rebuilds a clip from the event, so what
+      is missing is the chip and the dialog.
+- [ ] **No Thanks should carry the match-quest money too** — what the player
+      walks away with is the fee plus what the three quests paid.
+- [ ] **The 2× block, the quests and the verdict all want the same box** the
+      score is in, and the verdict wants its own colour.
+- [ ] **THE LEAGUE TABLE, ANIMATED, on the summary.** Where we were, then the
+      table moving: us up, down or holding, and the other clubs sliding with
+      their own results.
+- [ ] **The commentary has very little room left.** Worth a rethink rather than a
+      nudge.
+- [ ] **The Sunday League header — the timer and the progress bar — goes UNDER
+      the score card on the Play screen**, as a card of its own.
+
+### The bid window
+
+- [ ] **The coins want a coin beside them**, and the percentage over fair value
+      wants the colour scale.
+- [ ] **"Minimise" should say "Review"** — and a minimised bid needs a way back.
+- [ ] **And it must not open over the result.** It should wait until the player
+      is back on the home screen.
+
+### The cards
+
+- [ ] **A player's TRAIT should show on his card** — squad, subs, bench and the
+      Players page.
+
+### The penalty mini-game
+
+Its own list, because almost none of it is right yet.
+
+- [ ] **The figures and the net still do not read as real.**
+- [ ] **The background is at the wrong height** — it is all grass, as though
+      there were a mountain behind them.
+- [ ] **The turf's horizontal lines are barely visible.**
+- [ ] **The goal has no SIDE netting.**
+- [ ] **The penalty spot is too close to the goal** — move it back.
+- [ ] **The kicker swings his leg oddly.**
+- [ ] **The keeper's arms are huge.**
+- [ ] **There is no physics at all**: the ball sticks in the net and the keeper
+      sticks in the air.
 
 ## M0 — foundation and save bridge ✅
 

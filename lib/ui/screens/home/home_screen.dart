@@ -232,10 +232,13 @@ class _SceneState extends ConsumerState<_Scene> {
   /// but a `Timer` is not an animation, so the rota has to ask for itself.
   bool get _live =>
       mounted &&
-      // `valuesOf(...).enabled`, not `of(...)`: the latter has been deprecated
-      // since 3.35 and this is the SDK band the lockfile pins, so it was the one
-      // thing standing between the project and a clean analyze.
-      TickerMode.valuesOf(context).enabled &&
+      // `of`, with the ignore the framework's own doc prints for it. It is
+      // deprecated in favour of `valuesOf` — but `valuesOf` does not exist
+      // before 3.44, so it is also the one line in the port that will not
+      // COMPILE on an older SDK, and a clean analyze is not worth a build
+      // nobody outside CI can run.
+      // ignore: deprecated_member_use
+      TickerMode.of(context) &&
       !MediaQuery.of(context).disableAnimations;
 
   @override

@@ -245,6 +245,10 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
 
 /// The patch of ground he is previewed on.
 ///
+/// How tall the preview box is. Named because the grass strip is a fraction of
+/// it and the two must not be able to disagree.
+const double _stageHeight = 190;
+
 /// The diorama's own sky and turf rather than a colour picked to look like
 /// them — one source for the two means a look chosen in here is judged against
 /// the light it will actually be seen in.
@@ -266,7 +270,7 @@ class _PreviewStage extends StatelessWidget {
         child: WalkClock(
           stride: walkDurationFor(Mood.pleased),
           child: SizedBox(
-            height: 190,
+            height: _stageHeight,
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -300,24 +304,30 @@ class _PreviewStage extends StatelessWidget {
                 // slice is sky and the treeline falls to the foot of it, which is
                 // where a horizon belongs.
                 const Positioned.fill(child: _ScrollingBackdrop()),
-                // A strip of grass under him rather than a whole pitch: the sheet is
-                // about the man, and a mown fan in a 190px box is a texture nobody
-                // asked for.
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: FractionallySizedBox(
-                    // A shallower strip than it was: too much of the box was grass
-                    // and not enough of it was the world behind him.
-                    heightFactor: 0.2,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: nightScene(brightness)
-                              ? const [Color(0xFF17442A), Color(0xFF2A783F)]
-                              : const [Color(0xFF2A7231), Color(0xFF48AD50)],
-                        ),
+                // **THE GRASS HAD NO WIDTH, so he was walking in the sky.**
+                // `FractionallySizedBox` with a `heightFactor` and no
+                // `widthFactor` passes the incoming width constraint through
+                // unchanged — and under an `Align` that constraint is LOOSE, so a
+                // bare `DecoratedBox` with nothing in it sized itself to zero.
+                // The strip was in the tree and painted nothing, which left the
+                // backdrop's own cropped-off hedges as the only thing under his
+                // feet. Positioned by its edges, which cannot collapse.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  // A shallower strip than it was: too much of the box was grass
+                  // and not enough of it was the world behind him.
+                  height: _stageHeight * 0.2,
+                  child: DecoratedBox(
+                    key: const ValueKey('customise-grass'),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: nightScene(brightness)
+                            ? const [Color(0xFF17442A), Color(0xFF2A783F)]
+                            : const [Color(0xFF2A7231), Color(0xFF48AD50)],
                       ),
                     ),
                   ),

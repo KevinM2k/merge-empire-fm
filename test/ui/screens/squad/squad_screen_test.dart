@@ -632,13 +632,15 @@ void main() {
       await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
       await tester.pumpAndSettle();
 
-      await scrollSheetTo(tester, 'detail-market');
-      expect(find.byKey(const ValueKey('detail-price')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('detail-sell')),
         findsNothing,
         reason: 'two ways to sell one player',
       );
+      // And the VALUE went with it: a price with no button under it is a figure
+      // the player cannot act on.
+      expect(find.byKey(const ValueKey('detail-market')), findsNothing);
+      expect(find.byKey(const ValueKey('detail-price')), findsNothing);
       await settleSave(tester);
     });
 

@@ -283,5 +283,34 @@ void main() {
       expect(preview.walking, isTrue, reason: 'he is standing still again');
       await settleSave(tester);
     });
+
+    testWidgets('AND THE GRASS IS ACTUALLY THERE', (tester) async {
+      // It was in the tree and painted nothing: `FractionallySizedBox` with a
+      // height factor and no width factor passes the incoming width constraint
+      // through, and under an `Align` that is LOOSE — so an empty
+      // `DecoratedBox` sized itself to zero and he walked in the sky.
+      phone(tester);
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      await openCustomiser(tester);
+
+      final stage = tester.getRect(
+        find.byKey(const ValueKey('customise-stage')),
+      );
+      final walker = tester.getRect(
+        find.byKey(const ValueKey('customise-preview')),
+      );
+      final grass = tester.getRect(
+        find.byKey(const ValueKey('customise-grass')),
+      );
+      expect(grass.width, stage.width, reason: 'a strip with no width');
+      expect(grass.bottom, stage.bottom);
+      expect(
+        walker.bottom,
+        greaterThan(grass.top),
+        reason: 'his feet are above the ground',
+      );
+      await settleSave(tester);
+    });
   });
 }

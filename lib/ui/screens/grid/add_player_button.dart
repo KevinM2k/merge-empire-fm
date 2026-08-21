@@ -484,6 +484,12 @@ class _Segment extends StatelessWidget {
     return DecoratedBox(
       // Inside the segment rather than round the group: the group already has a
       // border, and this one has to separate ONE segment from the page.
+      //
+      // **IN FRONT OF THE FILL.** A background decoration is painted UNDER the
+      // child, and the child here is an opaque `Material` the full size of the
+      // box — so the hairline was drawn and then covered over, which is why ×2
+      // and ×4 still floated on nothing in light mode.
+      position: DecorationPosition.foreground,
       decoration: BoxDecoration(border: Border.all(color: outline!)),
       child: body,
     );

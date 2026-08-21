@@ -26,6 +26,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/player_art.dart' show isVariantFemale;
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -62,6 +63,11 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
   /// rolled when the instance was created, or the definition's own.
   late final String _defaultName;
   late final bool _hasCustom;
+
+  /// What the Randomise button rolls from — his position, and whether the art
+  /// is of a woman.
+  late final String _position;
+  late final bool _female;
   String? _error;
 
   @override
@@ -71,7 +77,31 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
     final def = getPlayerDef(card?.definitionId);
     _defaultName = card?.displayName ?? def?.name ?? '';
     _hasCustom = (card?.customName ?? '').isNotEmpty;
+    _position = def?.position ?? 'FWD';
+    _female = isVariantFemale(card?.variant ?? 0);
     _field = TextEditingController(text: card?.name(_defaultName) ?? '');
+  }
+
+  /// Roll another name into the field.
+  ///
+  /// **A squad ends up with two of the same man.** `pickDisplayName` is
+  /// `pool[tier % 10]`, deliberately deterministic — so every card of one
+  /// position, tier and gender is born with the same name. Renaming is the way
+  /// out of that and typing was the annoying part.
+  ///
+  /// It fills the FIELD rather than committing: the roll is a suggestion, and
+  /// the confirm is still the thing that renames him.
+  void _randomise() {
+    final rolled = randomDisplayName(
+      _position,
+      female: _female,
+      notThis: _field.text.trim(),
+    );
+    setState(() {
+      _error = null;
+      _field.text = rolled;
+      _field.selection = TextSelection.collapsed(offset: rolled.length);
+    });
   }
 
   @override
@@ -185,6 +215,21 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: kit.border),
               ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('player-name-randomise'),
+              onPressed: _randomise,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                visualDensity: VisualDensity.compact,
+                foregroundColor: kit.accentBright,
+              ),
+              icon: const Text('🎲', style: TextStyle(fontSize: 14)),
+              label: Text(t('customise.randomise')),
             ),
           ),
           if (_error != null) ...[

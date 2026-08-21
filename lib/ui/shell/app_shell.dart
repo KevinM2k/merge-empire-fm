@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/providers/bus_providers.dart';
 import 'package:merge_empire_fc/ui/popups/energy_sheet.dart';
+import 'package:merge_empire_fc/ui/hud/coin_flight.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
@@ -236,6 +237,14 @@ class AppShellState extends ConsumerState<AppShell>
                       openRoute<void>(context, const SettingsScreen()),
                 ),
               ),
+            ),
+            // **ABOVE THE GLASS.** A coin flying to the counter that passes
+            // UNDER the HUD disappears a third of the way through the throw,
+            // which reads as the animation being broken rather than as money
+            // arriving.
+            const Positioned.fill(
+              key: ValueKey('coin-flight-layer'),
+              child: CoinFlight(),
             ),
           ],
         ),

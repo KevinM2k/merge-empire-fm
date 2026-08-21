@@ -196,20 +196,26 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
     final screen = MediaQuery.sizeOf(context);
     final anchor = widget.anchor;
 
-    // OUT OF HIM, not above him.
+    // **DIRECTLY ABOVE HIM**, which is where it is on every other screen.
     //
-    // It was bottom-aligned to the whole dock button — disc, caption and all —
-    // so the bubble's foot sat under the CAPTION and the body of it floated
-    // clear above his head with nothing joining the two. There was no tail
-    // either, only a comment describing one. It hangs off his face now: the
-    // bubble's foot sits level with the middle of the disc and a tail drops out
-    // of its bottom-left corner onto him.
-    const discSize = 54.0;
-    final left = anchor == null ? 15.0 : anchor.right - 10;
+    // It hung off his RIGHT SHOULDER — `left: anchor.right - 10` — so on this one
+    // page the bubble went up and across instead of up, and the tail pointed
+    // back at a corner of him rather than at his face. The floating coach every
+    // other tab uses stacks the bubble on top of the head and drops the wedge
+    // onto it; this now does the same thing with the dock as its anchor.
+    final left = anchor == null ? 15.0 : math.max(10.0, anchor.left);
     final bottom = anchor == null
         ? 96.0
-        : math.max(8.0, screen.height - anchor.top - discSize * 0.55);
+        : math.max(8.0, screen.height - anchor.top + 12);
     final maxWidth = math.max(160.0, screen.width - left - 14);
+    // The wedge sits over the middle of the disc below it. Clamped, so a dock
+    // near the edge of a narrow screen cannot push it off the bubble.
+    final double tailLeft = anchor == null
+        ? 12.0
+        : (anchor.center.dx - left - 9).clamp(
+            10.0,
+            math.max(10.0, maxWidth - 30),
+          );
 
     final bubble = Material(
       color: Colors.transparent,
@@ -317,7 +323,7 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
               // The tail, pointing down and back at him. Same fill and same
               // stroke as the bubble, so the two are one shape.
               Positioned(
-                left: 12,
+                left: tailLeft,
                 bottom: -10,
                 child: CustomPaint(
                   size: const Size(18, 11),

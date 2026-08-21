@@ -383,7 +383,13 @@ class CoachCardFrame extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const CoinIcon(size: 18, solid: true),
+                                // One currency in the pair: the disc takes the
+                                // figure's ink — see `coinFigureInk`.
+                                CoinIcon(
+                                  size: 18,
+                                  solid: true,
+                                  color: coinFigureInk(context),
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   formatCoins(coins!),

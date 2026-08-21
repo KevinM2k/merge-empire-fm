@@ -15,8 +15,9 @@
 ///
 /// **Nothing here animates on its own.** A shape sliding about under its own
 /// steam reads as a simulation, which is exactly what the pitch is not running.
-/// The one movement is a figure BUMPING when it goes up, which is how a chance
-/// that produced no cutaway still registers.
+/// The one movement is a figure PULSING in the kit colour when it goes up, which
+/// is how a chance that produced no cutaway still registers. It used to SWELL,
+/// and a number that changes size shoves the row it sits in about.
 library;
 
 import 'dart:math' as math;
@@ -272,7 +273,8 @@ class _TeamLabel extends StatelessWidget {
 }
 
 /// One row: a figure each side of a centred label. A figure that has gone UP
-/// since the last paint bumps, which is the whole of the movement on this board.
+/// since the last paint pulses, which is the whole of the movement on this
+/// board.
 class _StatRow extends StatelessWidget {
   const _StatRow({required this.label, required this.home, required this.away});
 
@@ -283,22 +285,8 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final ink = Theme.of(context).colorScheme.onSurface;
     Widget figure(String v, TextAlign align) => Expanded(
-      child: _Bumping(
-        value: v,
-        child: Text(
-          v,
-          textAlign: align,
-          style: TextStyle(
-            fontSize: 13,
-            height: 1.1,
-            fontWeight: FontWeight.w900,
-            color: ink,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ),
+      child: _Pulsing(value: v, align: align),
     );
 
     return Row(
@@ -324,26 +312,31 @@ class _StatRow extends StatelessWidget {
   }
 }
 
-/// A quick swell when the figure changes.
-class _Bumping extends StatefulWidget {
-  const _Bumping({required this.value, required this.child});
+/// A quick PULSE in the kit colour when the figure changes.
+///
+/// It used to swell — `Transform.scale` out to 1.35 and back — and a number that
+/// changes size shoves its neighbours about, on a board whose whole job is
+/// holding still while the commentary moves. The colour carries the same "this
+/// one just went up" and costs the layout nothing.
+class _Pulsing extends StatefulWidget {
+  const _Pulsing({required this.value, required this.align});
 
   final String value;
-  final Widget child;
+  final TextAlign align;
 
   @override
-  State<_Bumping> createState() => _BumpingState();
+  State<_Pulsing> createState() => _PulsingState();
 }
 
-class _BumpingState extends State<_Bumping>
+class _PulsingState extends State<_Pulsing>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 260),
+    duration: const Duration(milliseconds: 620),
   );
 
   @override
-  void didUpdateWidget(_Bumping old) {
+  void didUpdateWidget(_Pulsing old) {
     super.didUpdateWidget(old);
     if (old.value != widget.value &&
         !MediaQuery.of(context).disableAnimations) {
@@ -358,15 +351,28 @@ class _BumpingState extends State<_Bumping>
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _c,
-    // Out and BACK on one pass — a tween to 1.35 swells and then holds big until
-    // the next change, which leaves the last figure that moved permanently
-    // larger than the rest of the column.
-    builder: (context, child) => Transform.scale(
-      scale: 1 + 0.35 * math.sin(_c.value * math.pi),
-      child: child,
-    ),
-    child: widget.child,
-  );
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = Theme.of(context).colorScheme.onSurface;
+    return AnimatedBuilder(
+      animation: _c,
+      // Up and BACK on one pass. A tween that only went out would leave the last
+      // figure that moved lit for the rest of the match.
+      builder: (context, _) => Text(
+        widget.value,
+        textAlign: widget.align,
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.1,
+          fontWeight: FontWeight.w900,
+          color: Color.lerp(
+            ink,
+            kit.accentBright,
+            math.sin(_c.value * math.pi),
+          ),
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
 }

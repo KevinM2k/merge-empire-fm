@@ -24,10 +24,9 @@
 /// and push the picture down to do it. The other two are Coach Colin's card and
 /// the achievement banner.
 ///
-/// The sell price is rolled ONCE, when the sheet opens, and the sale takes that
-/// same number — the same rule `sell_sheet.dart` follows, and for the same
-/// reason: rolling again on confirm pays out something other than the figure
-/// the player just agreed to.
+/// The market value is a standing offer on a clock — see `market_offer.dart`.
+/// It was rolled fresh on every open, so closing and reopening the sheet shopped
+/// for a better price; now it holds for its window and moves while you watch.
 library;
 
 import 'dart:async';
@@ -39,9 +38,6 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
-import 'package:merge_empire_fc/engine/sell_card_engine.dart';
-import 'package:merge_empire_fc/engine/match_tactics.dart';
-import 'package:merge_empire_fc/engine/sell_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -51,7 +47,6 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
-import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/player_name_card.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
@@ -111,16 +106,10 @@ Future<PlayerDetailAction?> showPlayerDetail(
   final card = cardById(state, instanceId);
   if (card == null) return Future.value(null);
 
-  // Rolled here, ONCE — the sheet quotes this figure and the sale takes it.
-  // Rolling again on confirm would pay out something other than what the player
-  // just agreed to.
-  final mult = rollMarketMult(card);
-  final offer = (mult: mult, price: sellPriceAt(state, instanceId, mult));
-
   return showBottomSheetPopup<PlayerDetailAction>(
     context,
     heightFraction: 0.92,
-    child: _PlayerDetail(instanceId: instanceId, slotId: slotId, offer: offer),
+    child: _PlayerDetail(instanceId: instanceId, slotId: slotId),
   );
 }
 
@@ -148,15 +137,10 @@ CardInstance _asHeld(CardInstance card, TraitHold hold) {
 }
 
 class _PlayerDetail extends ConsumerStatefulWidget {
-  const _PlayerDetail({
-    required this.instanceId,
-    required this.slotId,
-    required this.offer,
-  });
+  const _PlayerDetail({required this.instanceId, required this.slotId});
 
   final String instanceId;
   final String? slotId;
-  final ({double mult, int price}) offer;
 
   @override
   ConsumerState<_PlayerDetail> createState() => _PlayerDetailState();
@@ -180,7 +164,6 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
   Widget build(BuildContext context) {
     final instanceId = widget.instanceId;
     final slotId = widget.slotId;
-    final offer = widget.offer;
     ref.watch(saveRevisionProvider);
     final kit = Theme.of(context).extension<KitTheme>()!;
     final game = ref.read(gameProvider);
@@ -243,7 +226,6 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
         ),
         const SizedBox(height: 12),
 
-        _Attributes(card: card, def: def, stats: stats),
         if (proMode) ...[const SizedBox(height: 10), _Fitness(card: card)],
         _CareerStats(card: card, def: def),
 
@@ -253,26 +235,16 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
         ],
 
         const SizedBox(height: 10),
+        // **NO MARKET VALUE BOX.** Selling is not on this sheet, so a price with
+        // no button under it is a figure the player cannot act on — it belongs
+        // with the Sell, on the Players tab's own sheet.
         if (onLoanToUs)
           _LoaneeBlock(
             card: card,
             onSendBack: () => _sendBack(context, ref, card),
           )
-        else ...[
-          _MarketBlock(
-            card: card,
-            def: def,
-            offer: offer,
-            blocked: sellBlocked(state, instanceId),
-          ),
-          if (outOnLoan) ...[
-            const SizedBox(height: 10),
-            _RecallBlock(
-              card: card,
-              onRecall: () => _recall(context, ref, card),
-            ),
-          ],
-        ],
+        else if (outOnLoan)
+          _RecallBlock(card: card, onRecall: () => _recall(context, ref, card)),
         const SizedBox(height: 10),
         // The trait block, which is the third thing this sheet is FOR and was
         // missing entirely: `rollTrait`, `applyTrait` and `traitRollCost` were
@@ -411,6 +383,8 @@ class _Header extends StatelessWidget {
     final rating = stats.rating;
     final seasons = card.seasonsPlayed;
     final gamesLeft = _num(card.raw['loanMatchesLeft']).toInt();
+    final sponsorMult = _num(_map(card.sponsor)?['multiplier']);
+    final income = def.idleIncomePerSec * (sponsorMult > 0 ? sponsorMult : 1);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -434,66 +408,54 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
+          // **THE NUMBERS LIVE ON HIM.** They were a ruled box UNDER the
+          // picture — five label/value rows, an inventory readout on a card
+          // about a person. What he is as a footballer goes top left, what he
+          // has cost and what he pays goes top right, and the artwork keeps the
+          // room the box was taking.
           Positioned(
             top: 10,
             left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.42),
-                borderRadius: BorderRadius.circular(12),
+            child: _HeaderPlate(
+              key: const ValueKey('detail-attributes'),
+              value: '$rating',
+              valueKey: const ValueKey('detail-rating'),
+              label: t('squad.stat.rating'),
+              // **ATK and DEF, because that is where a trait LANDS.** The
+              // bonuses are directional and get folded back into the overall,
+              // so on the rating alone a Finisher III reads as three points
+              // from nowhere. These are the two numbers it actually moved.
+              //
+              // Not through `t()`, and that is the port rather than an
+              // oversight: the source hardcodes these two abbreviations
+              // everywhere it shows them (`SquadScreen.js:372`, `Card.js:34`)
+              // and has no key for either.
+              rows: [
+                (label: 'ATK', value: '${stats.attack}'),
+                (label: 'DEF', value: '${stats.defence}'),
+              ],
+            ),
+          ),
+          Positioned(
+            top: 10,
+            right: 12,
+            child: _HeaderPlate(
+              key: const ValueKey('detail-career'),
+              // A loanee arrives fresh, so their seasons count is always zero —
+              // a stat with one possible value is a dead slot. What actually
+              // runs down on a loan is the GAMES, so that takes its place.
+              value: '${onLoanToUs ? gamesLeft : seasons}',
+              valueKey: const ValueKey('detail-seasons'),
+              valueColour: onLoanToUs ? const Color(0xFF7FE3D9) : null,
+              label: t(
+                onLoanToUs ? 'squad.stat.games_left' : 'squad.stat.seasons',
               ),
-              child: Column(
-                children: [
-                  Text(
-                    '$rating',
-                    key: const ValueKey('detail-rating'),
-                    style: const TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    t('squad.stat.rating').toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: Color(0xFFD8D8D8),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // A loanee arrives fresh, so their seasons count is always
-                  // zero — a stat with one possible value is a dead slot. What
-                  // actually runs down on a loan is the GAMES, so that takes
-                  // its place.
-                  Text(
-                    '${onLoanToUs ? gamesLeft : seasons}',
-                    key: const ValueKey('detail-seasons'),
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      color: onLoanToUs
-                          ? const Color(0xFF7FE3D9)
-                          : Colors.white,
-                    ),
-                  ),
-                  Text(
-                    t(
-                      onLoanToUs
-                          ? 'squad.stat.games_left'
-                          : 'squad.stat.seasons',
-                    ).toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                      color: Color(0xFFD8D8D8),
-                    ),
-                  ),
-                ],
-              ),
+              rows: [
+                (
+                  label: t('squad.detail.income'),
+                  value: '+${income.toStringAsFixed(2)}/s',
+                ),
+              ],
             ),
           ),
           Positioned(
@@ -501,7 +463,9 @@ class _Header extends StatelessWidget {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: EdgeInsets.fromLTRB(14, 24, 14, actionsBelow ? 58 : 10),
+              // 72, not 58: `BRONZE PRO · DEF` was all but touching the tops
+              // of Replace and Bench.
+              padding: EdgeInsets.fromLTRB(14, 24, 14, actionsBelow ? 72 : 10),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
@@ -578,6 +542,114 @@ class _Header extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One of the two glass plates over the artwork.
+///
+/// A headline number with its word under it, then the rows that qualify it.
+/// Both plates are the same object so the two corners cannot drift into
+/// different type sizes, which is what happened to every pair before them.
+class _HeaderPlate extends StatelessWidget {
+  const _HeaderPlate({
+    super.key,
+    required this.value,
+    required this.label,
+    required this.rows,
+    this.valueKey,
+    this.valueColour,
+  });
+
+  final String value;
+  final String label;
+  final List<({String label, String value})> rows;
+  final Key? valueKey;
+  final Color? valueColour;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+    // Capped, because the two plates face each other across the artwork and a
+    // long localised label — `Einnahmen`, `Temporadas` — would walk one into
+    // the other.
+    constraints: BoxConstraints(
+      maxWidth: MediaQuery.sizeOf(context).width * 0.42,
+    ),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.42),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    // The rows set the width and the headline centres over them; without this
+    // the stretch below has nothing finite to stretch to.
+    child: IntrinsicWidth(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            value,
+            key: valueKey,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+              color: valueColour ?? Colors.white,
+            ),
+          ),
+          Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: Color(0xFFD8D8D8),
+            ),
+          ),
+          if (rows.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: SizedBox(
+                height: 1,
+                child: ColoredBox(color: Color(0x33FFFFFF)),
+              ),
+            ),
+            for (final row in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        row.label.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: Color(0xFFBFBFBF),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      row.value,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
 
 /// The pencil beside the name.
@@ -678,87 +750,6 @@ class _SlotActions extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(6, 14, 6, 6),
         child: row,
-      ),
-    );
-  }
-}
-
-class _Attributes extends StatelessWidget {
-  const _Attributes({
-    required this.card,
-    required this.def,
-    required this.stats,
-  });
-
-  final CardInstance card;
-  final PlayerDef def;
-  final CardStats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final sponsorMult = _num(_map(card.sponsor)?['multiplier']);
-    final income = def.idleIncomePerSec * (sponsorMult > 0 ? sponsorMult : 1);
-
-    return Container(
-      key: const ValueKey('detail-attributes'),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: kit.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kit.border),
-      ),
-      child: Column(
-        children: [
-          _StatRow(label: t('squad.detail.rating'), value: '${stats.rating}'),
-          // **ATK and DEF, because that is where a trait LANDS.** The bonuses are
-          // directional and get folded back into the overall, so on the rating
-          // alone a Finisher III reads as three points from nowhere. These are
-          // the two numbers it actually moved.
-          //
-          // Not through `t()`, and that is the port rather than an oversight:
-          // the source hardcodes these two abbreviations everywhere it shows
-          // them (`SquadScreen.js:372`, `Card.js:34`) and has no key for either.
-          _StatRow(label: 'ATK', value: '${stats.attack}'),
-          _StatRow(label: 'DEF', value: '${stats.defence}'),
-          _StatRow(
-            label: t('squad.detail.income'),
-            value: '+${income.toStringAsFixed(2)}/s',
-          ),
-          _StatRow(
-            label: t('squad.detail.seasons'),
-            value: '${card.seasonsPlayed}',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 11, color: kit.textMuted),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-          ),
-        ],
       ),
     );
   }
@@ -951,96 +942,6 @@ class _SponsorLine extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Market value and Sell — ours, and here.
-class _MarketBlock extends StatelessWidget {
-  const _MarketBlock({
-    required this.card,
-    required this.def,
-    required this.offer,
-    required this.blocked,
-  });
-
-  final CardInstance card;
-  final PlayerDef def;
-  final ({double mult, int price}) offer;
-  final String? blocked;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final outOnLoan = isLoanedOut(card);
-    final team = _map(card.loanedOut)?['toTeam'] as String? ?? '';
-
-    return Container(
-      key: const ValueKey('detail-market'),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: kit.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kit.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  t('squad.detail.market_value').toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                    color: kit.textMuted,
-                  ),
-                ),
-              ),
-              Text(
-                formatCoins(offer.price),
-                key: const ValueKey('detail-price'),
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w900,
-                  // Through the helpers, so the money on this sheet is the same
-                  // money as everywhere else — see `coinFigureInk`.
-                  color: coinFigureInk(context),
-                  shadows: coinFigureShadows(context),
-                ),
-              ),
-            ],
-          ),
-          // **NO SELL BUTTON.** There were two sale flows for one card — this
-          // one and the Players tab's own sheet, which is the one a tap on a card
-          // opens and the one that shows him full length. Two buttons that take
-          // the same money differently is a bug waiting to be found; one of them
-          // had to go, and the sheet the player reaches by tapping the thing they
-          // want to sell is the one that stays.
-          //
-          // The market VALUE stays, because it is information: what he is worth
-          // belongs on the sheet about him whether or not you can sell him here.
-          if (blocked != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                outOnLoan
-                    ? t('squad.detail.cannot_sell_out_on_loan', {
-                        'team': team,
-                        'name': card.name(def.name),
-                      })
-                    : t('squad.detail.cannot_sell_last', {
-                        'n': minSquadPlayers,
-                      }),
-                key: const ValueKey('detail-sell-blocked'),
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: kit.textMuted),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Theirs, on loan to us. The only lever is sending them back.
@@ -1283,18 +1184,33 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
 
     final held = getTrait(trait?['id'] as String?);
 
+    final level = _num(trait?['level']).toInt();
+
     return Container(
       key: const ValueKey('detail-trait'),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        color: kit.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         // **A TRAIT IS A POSSESSION, SO THE BLOCK LOOKS LIKE ONE.** It was a
         // grey box with a grey heading and a line of text, sitting under a
         // portrait and a set of stats — the most interesting thing on the sheet
-        // drawn as the least. A card that HAS one wears the accent on its
-        // border and a tint behind it; one that does not stays quiet, which is
-        // what makes the difference legible at a glance.
+        // drawn as the least. A card that HAS one wears the accent: a wash
+        // behind it, a heavier edge, and a level chip in the corner. One that
+        // does not stays quiet, which is what makes the difference legible
+        // before either is read.
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: held == null
+              ? [kit.surface, kit.surface]
+              : [
+                  Color.alphaBlend(
+                    kit.accent.withValues(alpha: 0.16),
+                    kit.surface,
+                  ),
+                  kit.surface,
+                ],
+        ),
         border: Border.all(
           color: held == null ? kit.border : kit.accent,
           width: held == null ? 1 : 1.6,
@@ -1303,32 +1219,74 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            t('squad.trait').toUpperCase(),
-            style: TextStyle(
-              color: kit.textMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t('squad.trait').toUpperCase(),
+                  style: TextStyle(
+                    color: held == null ? kit.textMuted : kit.accentBright,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              // The level as a chip rather than a numeral inside the title: it
+              // is the part that changes on a reroll of the same trait, and the
+              // one thing a player is looking for when they roll again.
+              if (held != null && level > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kit.accent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _roman[level.clamp(1, 3) - 1],
+                    key: const ValueKey('detail-trait-level'),
+                    style: TextStyle(
+                      color: kit.accentInk,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           // What he has, above the reels — the reels are the SPIN and this is
           // the ANSWER, and a player who has not rolled anything yet needs to be
           // told which of the two they are looking at.
           if (held == null)
-            Text(
-              t('trait.name.none'),
+            Row(
               key: const ValueKey('detail-trait-label'),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: kit.textMuted,
-              ),
+              children: [
+                _TraitDisc(
+                  glyph: '?',
+                  colour: kit.textMuted,
+                  fill: kit.surface2,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    t('trait.name.none'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                ),
+              ],
             )
           else
             _TraitBadge(trait: held, instance: trait!),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           SizedBox(
             height: _rowHeight * 3,
             child: Row(
@@ -1358,28 +1316,46 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                     reelKey: 'trait-reel-level',
                     controller: _levels,
                     rowHeight: _rowHeight,
-                    children: const [
-                      Text('I', textAlign: TextAlign.center),
-                      Text('II', textAlign: TextAlign.center),
-                      Text('III', textAlign: TextAlign.center),
+                    children: [
+                      for (final numeral in _roman)
+                        Text(
+                          numeral,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          // The cost rides on the button with the coin beside it — this is the
+          // only gamble on the sheet, so the thing you press says what it takes.
           ElevatedButton(
             key: const ValueKey('detail-trait-roll'),
             onPressed: _spinning || coins < cost ? null : () => _roll(pool),
-            child: Text(t('game.trait.cost', {'cost': formatCoins(cost)})),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('🎲', style: TextStyle(fontSize: 15)),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    t('game.trait.cost', {'cost': formatCoins(cost)}),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (coins < cost)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: 6),
               child: Text(
                 t('game.trait.need_coins', {'cost': formatCoins(cost)}),
                 key: const ValueKey('detail-trait-blocked'),
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 11, color: kit.textMuted),
               ),
             ),
@@ -1387,6 +1363,43 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       ),
     );
   }
+}
+
+/// I, II, III — the levels, in the one place they are written.
+const List<String> _roman = ['I', 'II', 'III'];
+
+/// The glyph on its own disc, so it reads as a badge rather than as an emoji
+/// that happens to start the line.
+class _TraitDisc extends StatelessWidget {
+  const _TraitDisc({
+    required this.glyph,
+    required this.colour,
+    required this.fill,
+  });
+
+  final String glyph;
+  final Color colour;
+  final Color fill;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 46,
+    height: 46,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: fill,
+      border: Border.all(color: colour.withValues(alpha: 0.55), width: 1.4),
+    ),
+    child: Text(
+      glyph,
+      style: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        color: colour,
+      ),
+    ),
+  );
 }
 
 /// The trait a card is actually carrying, drawn as a thing he HAS.
@@ -1408,18 +1421,10 @@ class _TraitBadge extends StatelessWidget {
       key: const ValueKey('detail-trait-label'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The glyph on its own disc, so it reads as a badge rather than as an
-        // emoji that happens to start the line.
-        Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: kit.accent.withValues(alpha: 0.18),
-            border: Border.all(color: kit.accent.withValues(alpha: 0.5)),
-          ),
-          child: Text(trait.icon, style: const TextStyle(fontSize: 20)),
+        _TraitDisc(
+          glyph: trait.icon,
+          colour: kit.accent,
+          fill: kit.accent.withValues(alpha: 0.18),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -1431,8 +1436,9 @@ class _TraitBadge extends StatelessWidget {
                 // literal — see `trait_copy.dart`.
                 traitTitle(instance),
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 17,
                   fontWeight: FontWeight.w900,
+                  height: 1.15,
                   color: kit.accentBright,
                 ),
               ),
@@ -1478,28 +1484,51 @@ class _Reel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: kit.surface2,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: kit.border),
       ),
-      child: ListWheelScrollView.useDelegate(
-        key: ValueKey(reelKey),
-        controller: controller,
-        itemExtent: rowHeight,
-        // A reel the player cannot flick: the roll is bought, not spun by hand.
-        physics: const NeverScrollableScrollPhysics(),
-        perspective: 0.004,
-        diameterRatio: 1.6,
-        childDelegate: ListWheelChildLoopingListDelegate(
-          children: [
-            for (final child in children)
-              Center(
-                child: DefaultTextStyle.merge(
-                  style: TextStyle(color: kit.accentBright),
-                  child: child,
+      // **THE BAND IS WHAT MAKES IT A REEL.** Three rows in a box is a list;
+      // one row lit between two rules is the window a slot machine lands in,
+      // and it is the difference between watching a spin and watching a scroll.
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: Center(
+              child: Container(
+                height: rowHeight,
+                decoration: BoxDecoration(
+                  color: kit.accent.withValues(alpha: 0.14),
+                  border: Border.symmetric(
+                    horizontal: BorderSide(
+                      color: kit.accent.withValues(alpha: 0.55),
+                    ),
+                  ),
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+          ListWheelScrollView.useDelegate(
+            key: ValueKey(reelKey),
+            controller: controller,
+            itemExtent: rowHeight,
+            // A reel the player cannot flick: the roll is bought, not spun by hand.
+            physics: const NeverScrollableScrollPhysics(),
+            perspective: 0.004,
+            diameterRatio: 1.6,
+            childDelegate: ListWheelChildLoopingListDelegate(
+              children: [
+                for (final child in children)
+                  Center(
+                    child: DefaultTextStyle.merge(
+                      style: TextStyle(color: kit.accentBright),
+                      child: child,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -486,9 +486,15 @@ const double _headLift = 7;
 ///
 /// Small numbers on purpose: twelve degrees is a beaten man, and much past that he
 /// is inspecting his own boots.
+///
+/// **The UP end came down.** Seven degrees of chin-up read as a man addressing
+/// the stand rather than watching a match, and the two moods it applies to are
+/// the two the dugout cam and the full-time screen spend most of their time in.
+/// The DOWN end is untouched: nobody has ever said a beaten manager looks too
+/// beaten.
 double moodHeadTilt(Mood mood) => switch (mood) {
-  Mood.elated => -7,
-  Mood.pleased => -3.5,
+  Mood.elated => -2,
+  Mood.pleased => -1,
   Mood.neutral => 0,
   Mood.glum => 6,
   Mood.crushed => 12,

@@ -134,29 +134,36 @@ const GestureTrack _fingerOut = [(0, 0), (0.12, 1), (0.88, 1), (1, 0)];
 ///
 /// It returns to zero at both ends, and the mood baseline is added underneath, so
 /// this LIFTS him from wherever he was carrying his head and hands him back to it.
-/// Nine degrees is enough: any more and a cheerful manager is looking at the sky.
-const GestureTrack _chinUp = [(0, 0), (0.2, -9), (0.8, -9), (1, 0)];
+/// Six degrees is enough: any more and a cheerful manager is looking at the sky —
+/// which is the same reason `moodHeadTilt`'s up end came down.
+const GestureTrack _chinUp = [(0, 0), (0.2, -6), (0.8, -6), (1, 0)];
 
 final Map<String, GestureAnimation> _animations = {
   // ── FIST PUMP. Three pumps, and the only gesture whose track does not return
   // to rest in the middle: it is a repeated motion, not a pose held.
+  // **THE FIST STAYS OUT IN FRONT OF HIM.** `foreNear` is the forearm's angle
+  // relative to the upper arm, so the ELBOW angle is `180 + foreNear` — and at
+  // -116 that is a 64° elbow, which folds the fist back past his own chin. It
+  // pumps between a 90° elbow and a 120° one now and never closes past ninety,
+  // with the upper arm held around eighty degrees off the body, which is where
+  // a fist pump actually happens.
   'fistpump': const GestureAnimation(
     armNear: [
       (0, armNearRest),
-      (0.16, -78),
-      (0.34, -58),
-      (0.50, -80),
-      (0.66, -60),
-      (0.82, -76),
+      (0.16, -84),
+      (0.34, -74),
+      (0.50, -84),
+      (0.66, -74),
+      (0.82, -82),
       (1, armNearRest),
     ],
     foreNear: [
       (0, foreRest),
-      (0.16, -116),
-      (0.34, -86),
-      (0.50, -118),
-      (0.66, -88),
-      (0.82, -114),
+      (0.16, -90),
+      (0.34, -62),
+      (0.50, -90),
+      (0.66, -62),
+      (0.82, -88),
       (1, foreRest),
     ],
     head: _chinUp,

@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
+import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -603,6 +604,44 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('sell-sheet')), findsOneWidget);
       expect(find.byKey(const ValueKey('sell-price')), findsOneWidget);
+    });
+
+    testWidgets('the quote holds across a reopen, and says when it moves', (
+      tester,
+    ) async {
+      // The roll used to happen on every open, so closing and reopening the
+      // sheet shopped for a better price — a slot machine the player pulls
+      // rather than a market that moves. One offer stands per window, and the
+      // countdown is what makes "time your sale" a thing the game does.
+      resetMarketQuotes();
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+      final quoted = tester
+          .widget<Text>(find.byKey(const ValueKey('sell-price')))
+          .data!;
+      final countdown = tester
+          .widget<Text>(find.byKey(const ValueKey('sell-refresh')))
+          .data!;
+      expect(
+        int.parse(RegExp(r'(\d+)').firstMatch(countdown)!.group(1)!),
+        inInclusiveRange(1, marketWindow.inSeconds),
+      );
+
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('sell-cancel')),
+        240,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.tap(find.byKey(const ValueKey('sell-cancel')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('sell-price'))).data,
+        quoted,
+      );
     });
 
     testWidgets('confirming sells at the price on screen', (tester) async {

@@ -31,34 +31,23 @@ const gameGoldLight = Color(0xFF96571B);
 Color goldFor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.light ? gameGoldLight : gameGold;
 
-/// A coin FIGURE — the number, not the glyph — and it is the COIN'S OWN GOLD in
-/// both themes.
+/// A coin FIGURE — the number, not the glyph. **Gold in both themes, and bare.**
 ///
-/// **THE HONEST PROBLEM: yellow and 4.5:1-on-white cannot both hold.** To clear
-/// the contrast on lightness alone a gold has to come down to about `#96571B`,
-/// which is what [gameGoldLight] is and which reads as BRONZE. So the separation
-/// is bought with a dark HALO instead — see [coinFigureShadows] — and the hue
-/// does not have to give anything up.
+/// Two answers have been tried and both were worse than the problem. A dark
+/// HALO under the digits reads as a BORDER at any size worth putting money in —
+/// an outlined number rather than a bright one. Retinting to the JS's bronze
+/// `#a86523` on a light page is legible and is not what money looks like: the
+/// coin is yellow, so the figure beside it is yellow.
 ///
-/// It used to stop half way there, at an amber, and that was the bug: the coin
-/// GLYPH beside it is a filled disc and stays actual gold because its black rim
-/// carries its own contrast, so the amber figure read as ORANGE next to it. Two
-/// currencies in one pair. One colour for the money, on every screen and in
-/// either theme — and the halo does the work the value was doing.
+/// So the contrast is bought where it belongs, with the SURFACE under it, and
+/// the money keeps its one colour on every screen and in either theme. Pass
+/// `color: coinFigureInk(context)` to a [CoinIcon] sitting beside a figure so
+/// the pair can never split into two currencies.
 Color coinFigureInk(BuildContext context) => gameGold;
 
-/// The halo under a coin figure, and it is what makes gold legible on white.
-///
-/// Empty in dark mode, where bright gold on a dark pane needs nothing. Heavier
-/// than it was in light mode, because it is now carrying the full separation
-/// rather than topping up an already-darkened value.
-List<Shadow> coinFigureShadows(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.light
-    ? const [
-        Shadow(color: Color(0xB03A2400), blurRadius: 2.6),
-        Shadow(color: Color(0x593A2400), blurRadius: 5),
-      ]
-    : const [];
+/// Nothing, in either theme. Kept as the seam every money figure already calls
+/// through, so the halo cannot creep back one caller at a time.
+List<Shadow> coinFigureShadows(BuildContext context) => const [];
 
 /// The set. Keys are the JS's own names so a screen can be diffed against it.
 const Map<String, String> gameIcons = {

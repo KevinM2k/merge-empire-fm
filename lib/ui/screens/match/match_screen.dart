@@ -17,6 +17,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart' show PlayerEnergy;
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
 import 'package:merge_empire_fc/data/quests.dart' show questBank;
+import 'package:merge_empire_fc/engine/match_coach.dart';
+import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
+    show isProMode;
+import 'package:merge_empire_fc/engine/tactic_coach.dart'
+    show baselineInjuryRisk, injuryCostPoints;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/quest_match.dart'
     show QuestLive, liveMatchQuestStatus, partialMatchResult;
@@ -24,6 +29,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/services/sound_service.dart';
+import 'package:merge_empire_fc/state/card_instance.dart' show CardInstance;
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
@@ -40,6 +46,7 @@ import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
 import 'package:merge_empire_fc/engine/lineup_engine.dart'
     show refillLineupFromBench;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart'
     show QuestRow, matchQuestsProvider;
@@ -54,8 +61,12 @@ import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart' show Gesture, Mood;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart'
+    show CoachBubbleTail, coachPortrait, coachTailSize;
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart' show PlayerFace;
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
@@ -114,6 +125,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// The last minute a clip was cut for, so a rebuild does not restart one.
   int _clippedMinute = -1;
 
+  /// What Colin is saying, and when he last said anything.
+  ///
+  /// **He had NOTHING to say for the whole match.** Twenty-four pooled
+  /// `coach.match.*` strings, translated ten times over, and not one caller —
+  /// see `engine/match_coach.dart`.
+  String? _coachLine;
+  int _lastCoachMinute = -1;
+  String? _lastCoachSuggestion;
+  Timer? _coachTimer;
+
+  /// Whose goal the clip on the pitch is, when it is one of ours and the save
+  /// still holds him. Null for everything else.
+  String? _clipScorerId;
+
   /// What the side is playing right now.
   late String _strategy = '${widget.result['strategyId'] ?? defaultStrategy}';
 
@@ -145,7 +170,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   bool _paused = false;
 
   /// Which of the two the body is showing.
-  bool _onQuests = false;
+  /// Which of the three the body is showing.
+  ///
+  /// The STATISTICS used to be the stage's resting state, which is what made
+  /// the pitch flip in and out; they are a tab now. `match.tab.stats` was in
+  /// all ten catalogues with nothing able to reach it.
+  MatchTab _tab = MatchTab.commentary;
 
   /// Double speed, starting from the player's own setting.
   ///
@@ -316,6 +346,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // `onDone` cuts to him instead, so his reaction lands after the move
     // rather than over it.
     if (_clip == null) _dugoutCamFor(_minute);
+    // Half time is a TEAM TALK, so it jumps the cadence; everything else waits
+    // its turn.
+    _maybeCoach(
+      force: _timeline.any((e) => e.minute == _minute && e.type == 'halftime'),
+    );
   }
 
   /// Whatever landed on this minute, in sound.
@@ -402,8 +437,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// The shot when it is the full-time one, which is the only variant the
   /// feed carries. The float lives over the pitch, and mounting the same
   /// record in both places would put two of him on screen at once.
-  _CamShot? get _inlineCam =>
-      _cam?.variant == CamVariant.inline ? _cam : null;
+  _CamShot? get _inlineCam => _cam?.variant == CamVariant.inline ? _cam : null;
 
   /// Test seams.
   bool get camUp => _cam != null;
@@ -419,11 +453,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       final ours = event.team != 'away';
       final clip = clipFor(
         event,
-        // We defend the left end, so our attacks run right.
-        ourSideLeft: true,
+        // **AT HOME WE ATTACK RIGHT, AWAY WE ATTACK LEFT.** It was pinned to
+        // "we defend the left end" for every fixture, so on the road the 2D
+        // pitch played our chances running the opposite way from the arrow and
+        // from the scoreboard, which reads home side left.
+        ourSideLeft: widget.result['isHome'] == true,
         ours: ours,
-        // Seeded off the minute so the same match replays the same chances.
-        seed: (widget.result['seed'] as num?)?.toInt() ?? 0 + event.minute,
+        // Seeded off the minute so the same match replays the same chances —
+        // and BRACKETED, because `??` binds looser than `+`: without them the
+        // minute was only added when the result carried no seed at all, so
+        // every chance in a match drew the same sequence.
+        seed: ((widget.result['seed'] as num?)?.toInt() ?? 0) + event.minute,
         // **The two switches on the Settings screen**, which nothing read: they
         // are independent, so the cutaway can be on for both sides, one, or
         // neither.
@@ -437,8 +477,90 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       _clippedMinute = event.minute;
       if (event.type == 'chance') _lastChanceCutMinute = event.minute;
       _clip = clip;
+      // Ours only: the engine picks scorers from OUR squad, so a face for one
+      // of theirs cannot be drawn.
+      _clipScorerId = event.type == 'goal' && ours ? event.scorerId : null;
       return;
     }
+  }
+
+  /// How long a bubble stays up, in real time. The JS's 11 seconds.
+  static const Duration _coachDwell = Duration(seconds: 11);
+
+  /// Let Colin have his say, if he has one and the cadence allows it.
+  ///
+  /// **Casual only.** Pro mode buys the numbers and gives up the advice, which
+  /// is the same bargain the subs panel strikes — see `_coachHelpOn` in the JS.
+  void _maybeCoach({bool force = false}) {
+    final state = ref.read(gameProvider).state;
+    if (state == null || isProMode(state)) return;
+    final f = frame;
+    if (f.finished) return;
+    final margin = f.ourGoals - f.theirGoals;
+    num asNum(Object? v) => v is num ? v : 50;
+    final healthy = _healthyCards(state);
+    final theirAtk = asNum(widget.result['effOppAttackRating']).toDouble();
+    final theirDef = asNum(widget.result['effOppDefenceRating']).toDouble();
+    final suggestion = matchCoachSuggestion(
+      ourAttack: asNum(widget.result['ourAttackRating']).toDouble(),
+      ourDefence: asNum(widget.result['ourDefenceRating']).toDouble(),
+      theirAttack: theirAtk,
+      theirDefence: theirDef,
+      activeStrategy: _strategy,
+      minute: _minute,
+      duration: _end,
+      margin: margin,
+      benchCover: (healthy - 11).toDouble(),
+      injuryRisk: baselineInjuryRisk(state),
+      injuryCost: injuryCostPoints(state, theirAtk, theirDef),
+      oppAttackRatio: (widget.result['oppAttackRatio'] as num?)?.toDouble(),
+    );
+    if (!coachShouldSpeak(
+      minute: _minute,
+      lastSpokeMinute: _lastCoachMinute,
+      activeStrategy: _strategy,
+      suggestion: suggestion,
+      lastSuggestion: _lastCoachSuggestion,
+      force: force,
+    )) {
+      _lastCoachSuggestion = suggestion;
+      return;
+    }
+    _lastCoachSuggestion = suggestion;
+    _lastCoachMinute = _minute;
+    _say(
+      matchCoachOpinion(
+        halftime: force,
+        margin: margin,
+        minute: _minute,
+        activeStrategy: _strategy,
+        // The minute he said it, so the pooled picks hold while it is up.
+        seed: 'coach-$_minute',
+        suggestion: suggestion,
+      ),
+    );
+  }
+
+  /// Bodies who could actually take the field.
+  int _healthyCards(Map<String, dynamic> state) {
+    final cells = (state['grid'] as Map<String, dynamic>?)?['cells'];
+    if (cells is! List) return 0;
+    var n = 0;
+    for (final raw in cells) {
+      final card = CardInstance.from(raw);
+      if (card == null || card.injured || !card.isSelectable) continue;
+      n++;
+    }
+    return n;
+  }
+
+  /// Put a line in his mouth, and take it away again after [_coachDwell].
+  void _say(String line) {
+    _coachTimer?.cancel();
+    setState(() => _coachLine = line);
+    _coachTimer = Timer(_coachDwell, () {
+      if (mounted) setState(() => _coachLine = null);
+    });
   }
 
   /// Cut to the manager, if the screen and the rules both allow it.
@@ -465,9 +587,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       goalCuts: _camGoalCuts,
       settings: {
         'cutawayOurTeam': ref.read(settingPick<bool>('cutawayOurTeam', true)),
-        'cutawayOpponent': ref.read(
-          settingPick<bool>('cutawayOpponent', true),
-        ),
+        'cutawayOpponent': ref.read(settingPick<bool>('cutawayOpponent', true)),
       },
       reducedFx: MediaQuery.of(context).disableAnimations,
     )) {
@@ -617,13 +737,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (_reported) return;
     _reported = true;
     _restoreKickoffLineup();
-    // **The payoff the whole feature is for**, and the one shot exempt from
-    // every rule that could drop it: the gap, the budget, Skip, and a clip on
-    // the pitch. Scheduled for after this frame because it reads `frame`, and
-    // at the moment `_finish` runs `_minute` has only just reached the end.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _maybeDugoutCam(CamTrigger.fullTime, _end);
-    });
+    // **NO FULL-TIME SHOT HERE ANY MORE.** It was the payoff the whole feature
+    // was for, laid into the head of the feed — and this screen now leaves at
+    // the whistle for the summary, which opens ON him. Two of him a second
+    // apart is one too many, and the second is the one with the room.
+    _closeDugoutCam();
     final sound = ref.read(soundServiceProvider);
     unawaited(sound.play('whistle'));
     // The result, a beat after the final whistle rather than under it.
@@ -645,6 +763,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       ),
     );
     widget.onFinished?.call(widget.result);
+    // **AND THEN IT LEAVES.** Full time on the commentary page is a screen with
+    // nothing left to say: the tactic strip has gone, the clock has stopped and
+    // the payoff is on the summary. Long enough for the whistle and the sting to
+    // land first. `maybePop` rather than `pop`, because in a test this screen is
+    // the root route and there is nothing under it to go back to.
+    _cue(const Duration(milliseconds: 1400), () {
+      if (mounted) Navigator.of(context).maybePop();
+    });
   }
 
   @override
@@ -671,6 +797,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void dispose() {
     _timer?.cancel();
     _cooldownTimer?.cancel();
+    _coachTimer?.cancel();
     for (final cue in _cues) {
       cue.cancel();
     }
@@ -776,6 +903,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
             : 'match.subs.feed',
         params: {'on': onName, 'off': offName ?? ''},
         seed: 'sub-$_minute-${sub.onId}',
+        goal: null,
         // The man coming ON is who the line is about, and the row can draw him.
         aboutId: sub.onId,
       ));
@@ -885,6 +1013,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           'hint': t('strategy.$id.hint'),
         },
         seed: 'tactic-$at-$id',
+        goal: null,
         aboutId: null,
       ));
       _tacticCooldown = true;
@@ -897,6 +1026,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
     final f = frame;
     final home = widget.result['isHome'] == true;
     final us = '${widget.result['clubName'] ?? ''}';
@@ -905,8 +1035,47 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // and built off the whole shown list, because whether a chance earns a line
     // depends on how long it has been since the last one did.
     final questRows = ref.watch(matchQuestsProvider);
+    // Read once and used twice — by the arrow on the pitch and by the Stats
+    // tab, which must not be able to disagree about the same match.
+    final stats = liveStatsFor(
+      frame: f,
+      result: widget.result,
+      isHome: home,
+      // The tactic the side went out in. The sim has already run, so it cannot
+      // change mid-replay — which is why it is read once off the result rather
+      // than watched.
+      strategyId: '${widget.result['strategyId'] ?? 'balanced'}',
+    );
     final raw = widget.result['events'];
     final events = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
+    // The quests as they stand right now, read once: the TAB carries the count
+    // and the panel behind it carries the three, and two readings of the same
+    // question would be able to disagree.
+    final partial = partialMatchResult(
+      widget.result,
+      [
+        for (final e in raw is List ? raw : const [])
+          if (e is Map<String, dynamic> &&
+              ((e['minute'] as num?) ?? 0) <= f.minute)
+            e,
+      ],
+      f.minute,
+      _end,
+    );
+    final save = ref.read(gameProvider).state;
+    final questsDone = questRows
+        .where(
+          (row) =>
+              liveMatchQuestStatus(
+                save,
+                questBank.where((q) => q.id == row.id).firstOrNull,
+                row.target.toInt(),
+                partial,
+              ) ==
+              QuestLive.done,
+        )
+        .length;
+
     // The tactic changes, merged in by minute. A stable merge rather than a
     // sort: `_notes` is already in order, and a note belongs AFTER the events
     // of the minute it was made in — the switch answers what just happened.
@@ -940,241 +1109,349 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
+          child: Stack(
             children: [
-              _Scoreboard(
-                key: const ValueKey('match-scoreboard'),
-                left: home ? us : them,
-                right: home ? them : us,
-                // The board is laid out HOME SIDE LEFT and the tally is ours
-                // and theirs — see `MatchFrame`. Handing it the tally straight
-                // put our score under their name for every away fixture.
-                leftGoals: home ? f.ourGoals : f.theirGoals,
-                rightGoals: home ? f.theirGoals : f.ourGoals,
-                minute: f.minute,
-                finished: f.finished,
-                result: widget.result,
-                isHome: home,
-                standings: _standings,
-              ),
-              const Divider(height: 1),
-              // THE STAGE: one band, fixed for the whole match, holding the
-              // pitch's aspect. At rest it shows the stat board; a chance cuts in
-              // ON TOP of it at the same inset and radius. The port mounted the
-              // pitch only for a chance and took it away after, so the band itself
-              // appeared and vanished — which is what made the pitch look like it
-              // was flickering and jumping about.
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: ConstrainedBox(
-                  // Capped: the pitch is landscape and at its natural aspect would
-                  // take a third of a tall phone and all of a short one.
-                  //
-                  // 0.28 rather than 0.3 since the board took a standings band:
-                  // at full time on a 600pt screen the feed is down to single
-                  // figures, and the pitch is the one band here that is a
-                  // fraction of the screen rather than a thing being read.
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.sizeOf(context).height * 0.28,
+              Column(
+                children: [
+                  _Scoreboard(
+                    key: const ValueKey('match-scoreboard'),
+                    left: home ? us : them,
+                    right: home ? them : us,
+                    // The board is laid out HOME SIDE LEFT and the tally is ours
+                    // and theirs — see `MatchFrame`. Handing it the tally straight
+                    // put our score under their name for every away fixture.
+                    leftGoals: home ? f.ourGoals : f.theirGoals,
+                    rightGoals: home ? f.theirGoals : f.ourGoals,
+                    minute: f.minute,
+                    finished: f.finished,
+                    result: widget.result,
+                    isHome: home,
+                    standings: _standings,
                   ),
-                  child: AspectRatio(
-                    aspectRatio: pitchAspect,
-                    child: Stack(
-                      key: const ValueKey('match-stage'),
-                      fit: StackFit.expand,
-                      children: [
-                        MatchStatboard(
-                          stats: liveStatsFor(
-                            frame: f,
-                            result: widget.result,
-                            isHome: home,
-                            // The tactic the side went out in. The sim has already
-                            // run, so it cannot change mid-replay — which is why
-                            // it is read once off the result rather than watched.
-                            strategyId:
-                                '${widget.result['strategyId'] ?? 'balanced'}',
-                          ),
-                          isHome: home,
-                        ),
-                        // Only while a chance is running, and opaque, so it covers
-                        // the board whole rather than sitting beside it.
-                        if (_clip != null)
-                          CutawayStage(
-                            clip: _clip,
-                            onDone: (_) {
-                              if (!mounted) return;
-                              final told = _clippedMinute;
-                              setState(() => _clip = null);
-                              // Now it has been told, he can react to it.
-                              _dugoutCamFor(told);
-                            },
-                          ),
-                        // **OVER THE PITCH, bottom right**, which is where a
-                        // broadcast puts a cut-in and the one corner of this
-                        // band that carries no statistic. A cutaway owns the
-                        // stage while it plays and the rules above keep the
-                        // two off it at once.
-                        if (_cam case final shot?
-                            when shot.variant == CamVariant.float)
-                          Positioned.fill(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Align(
-                                alignment: Alignment.bottomRight,
-                                child: LayoutBuilder(
-                                  builder: (context, box) => SizedBox(
-                                    width: (box.maxWidth * camFloatFraction)
-                                        .clamp(
-                                          camFloatMinWidth,
-                                          camFloatMaxWidth,
-                                        )
-                                        .clamp(0.0, box.maxWidth),
-                                    child: _dugoutCam(shot),
+                  // THE STAGE: one band, fixed for the whole match, holding the
+                  // pitch's aspect. At rest it shows the stat board; a chance cuts in
+                  // ON TOP of it at the same inset and radius. The port mounted the
+                  // pitch only for a chance and took it away after, so the band itself
+                  // appeared and vanished — which is what made the pitch look like it
+                  // was flickering and jumping about.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: ConstrainedBox(
+                      // Capped: the pitch is landscape and at its natural aspect would
+                      // take a third of a tall phone and all of a short one.
+                      //
+                      // 0.28 rather than 0.3 since the board took a standings band:
+                      // at full time on a 600pt screen the feed is down to single
+                      // figures, and the pitch is the one band here that is a
+                      // fraction of the screen rather than a thing being read.
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.28,
+                      ),
+                      child: AspectRatio(
+                        aspectRatio: pitchAspect,
+                        child: Stack(
+                          key: const ValueKey('match-stage'),
+                          fit: StackFit.expand,
+                          children: [
+                            // **THE PITCH IS ALWAYS THERE.** The band never
+                            // moved, but what was IN it flipped between a
+                            // football pitch and a table of numbers every few
+                            // minutes, which is the jarring bit: the stage was
+                            // the statistics at rest and the pitch only for a
+                            // chance. It is one pitch for the whole match now,
+                            // a clip cuts in on the same grass, and the
+                            // statistics have a tab of their own. `CutawayStage`
+                            // has drawn the idle markings all along — nothing
+                            // was mounting it.
+                            CutawayStage(
+                              clip: _clip,
+                              // **THE SCORER, ON HIS OWN TOUCHLINE.** He arrives
+                              // with the VERDICT, not with the clip — shown from
+                              // the first beat he would give away that the ball
+                              // was going in.
+                              scorer: _scorerBadge(),
+                              scorerFromLeft: home,
+                              onDone: (_) {
+                                if (!mounted) return;
+                                final told = _clippedMinute;
+                                setState(() => _clip = null);
+                                // Now it has been told, he can react to it.
+                                _dugoutCamFor(told);
+                              },
+                            ),
+                            // Between chances: which way the game is going, on
+                            // the pitch it is going on. Off while a clip runs —
+                            // there is a real move on the grass to watch.
+                            if (_clip == null)
+                              MomentumArrow(
+                                bias: momentumBias(
+                                  possHome: stats.possHome,
+                                  isHome: home,
+                                ),
+                                attackingRight: home,
+                                // Shades of the TURF, not of the kit: a solid
+                                // mark on the grass rather than a tint over it.
+                                ours: momentumOurs,
+                                theirs: momentumTheirs,
+                              ),
+                            // **OVER THE PITCH, bottom right**, which is where a
+                            // broadcast puts a cut-in and the one corner of this
+                            // band that carries no statistic. A cutaway owns the
+                            // stage while it plays and the rules above keep the
+                            // two off it at once.
+                            if (_cam case final shot?
+                                when shot.variant == CamVariant.float)
+                              Positioned.fill(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: LayoutBuilder(
+                                      builder: (context, box) => SizedBox(
+                                        width: (box.maxWidth * camFloatFraction)
+                                            .clamp(
+                                              camFloatMinWidth,
+                                              camFloatMaxWidth,
+                                            )
+                                            .clamp(0.0, box.maxWidth),
+                                        child: _dugoutCam(shot),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // **DIRECTLY UNDER THE PITCH IT ACTS ON** — the JS's own band
+                  // order, and the reason for it: a control for the thing above it
+                  // reads as belonging to it.
+                  if (!f.finished)
+                    _TacticStrip(
+                      active: _strategy,
+                      onPick: applyStrategy,
+                      cooldown: _tacticCooldown,
+                    ),
+                  // **THE COMMENTARY IS IN A BOX.** The tabs and the feed sat
+                  // loose on the sky gradient — the one band on the screen with no
+                  // surface under it, on a page where the scoreboard, the stage and
+                  // the tactic strip are all panels. It read as the background
+                  // having text on it rather than as a thing being read.
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: kit.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: kit.border),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: Column(
+                            children: [
+                              // **THE LIVE QUEST TRACKER.** `partialMatchResult` and
+                              // `liveMatchQuestStatus` are ported, documented and tested, and
+                              // had no caller — so the three quests a match is being played FOR
+                              // were invisible until the whistle told the player how they did.
+                              _BodyTabs(
+                                tab: _tab,
+                                withQuests: questRows.isNotEmpty,
+                                done: questsDone,
+                                total: questRows.length,
+                                onPick: (tab) => setState(() => _tab = tab),
+                              ),
+                              if (_tab == MatchTab.stats)
+                                Expanded(
+                                  // Scrolls, because the board was built for a
+                                  // band of the pitch's aspect and this is
+                                  // whatever height the body has left.
+                                  child: SingleChildScrollView(
+                                    // The board was built for a band of the
+                                    // pitch's aspect and this is a whole tab —
+                                    // it should fill it rather than sit in the
+                                    // top inch of it.
+                                    padding: const EdgeInsets.fromLTRB(
+                                      18,
+                                      16,
+                                      18,
+                                      18,
+                                    ),
+                                    child: MatchStatboard(
+                                      stats: stats,
+                                      isHome: home,
+                                    ),
+                                  ),
+                                )
+                              else if (_tab == MatchTab.quests &&
+                                  questRows.isNotEmpty)
+                                Expanded(
+                                  child: _LiveQuests(
+                                    rows: questRows,
+                                    partial: partial,
+                                    state: ref.read(gameProvider).state,
+                                  ),
+                                )
+                              else
+                                Expanded(
+                                  child: ListView.builder(
+                                    key: const ValueKey('match-feed'),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      0,
+                                      12,
+                                      12,
+                                    ),
+                                    // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
+                                    // newest line arrived at the foot of the list and everything
+                                    // worth reading was off the bottom of a long match. A line should
+                                    // arrive from ABOVE and push the rest down, which is the
+                                    // direction the feed actually grows.
+                                    // **THE FULL-TIME SHOT IS THE HEAD OF THE FEED**, above
+                                    // the newest line, which is where a broadcast cuts to the
+                                    // bench before the graphic. It goes here rather than in
+                                    // the corner of the pitch for two reasons: at the whistle
+                                    // the band above is the final statistics, which is the one
+                                    // thing on the page a manager actually reads; and this is
+                                    // the better shot anyway — a reaction still printed beside
+                                    // the result. It also SCROLLS, so it costs the feed no
+                                    // permanent height on a short screen.
+                                    itemCount:
+                                        lines.length +
+                                        (_inlineCam == null ? 0 : 1),
+                                    itemBuilder: (context, i) {
+                                      final shot = _inlineCam;
+                                      if (shot != null) {
+                                        if (i == 0) {
+                                          return Padding(
+                                            // Air above it: the shot sat flush
+                                            // against the top of the feed with
+                                            // the tab strip's rule cutting into
+                                            // its frame.
+                                            padding: const EdgeInsets.only(
+                                              top: 12,
+                                              bottom: 10,
+                                            ),
+                                            child: Center(
+                                              child: LayoutBuilder(
+                                                builder: (context, box) => SizedBox(
+                                                  width:
+                                                      (box.maxWidth *
+                                                              camInlineFraction)
+                                                          .clamp(
+                                                            camInlineMinWidth,
+                                                            camInlineMaxWidth,
+                                                          )
+                                                          .clamp(
+                                                            0.0,
+                                                            box.maxWidth,
+                                                          ),
+                                                  child: _dugoutCam(shot),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                        return _FeedLine(
+                                          line: lines[lines.length - i],
+                                          state: ref.read(gameProvider).state,
+                                        );
+                                      }
+                                      return _FeedLine(
+                                        line: lines[lines.length - 1 - i],
+                                        state: ref.read(gameProvider).state,
+                                      );
+                                    },
+                                  ),
+                                ),
+                            ],
                           ),
-                      ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              // **DIRECTLY UNDER THE PITCH IT ACTS ON** — the JS's own band
-              // order, and the reason for it: a control for the thing above it
-              // reads as belonging to it.
-              if (!f.finished)
-                _TacticStrip(
-                  active: _strategy,
-                  onPick: applyStrategy,
-                  cooldown: _tacticCooldown,
-                ),
-              // **THE LIVE QUEST TRACKER.** `partialMatchResult` and
-              // `liveMatchQuestStatus` are ported, documented and tested, and
-              // had no caller — so the three quests a match is being played FOR
-              // were invisible until the whistle told the player how they did.
-              if (questRows.isNotEmpty)
-                _BodyTabs(
-                  onQuests: _onQuests,
-                  onPick: (q) => setState(() => _onQuests = q),
-                ),
-              if (_onQuests && questRows.isNotEmpty)
-                Expanded(
-                  child: _LiveQuests(
-                    rows: questRows,
-                    partial: partialMatchResult(
-                      widget.result,
-                      [
-                        for (final e in raw is List ? raw : const [])
-                          if (e is Map<String, dynamic> &&
-                              ((e['minute'] as num?) ?? 0) <= f.minute)
-                            e,
-                      ],
-                      f.minute,
-                      _end,
-                    ),
-                    state: ref.read(gameProvider).state,
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.builder(
-                    key: const ValueKey('match-feed'),
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
-                    // newest line arrived at the foot of the list and everything
-                    // worth reading was off the bottom of a long match. A line should
-                    // arrive from ABOVE and push the rest down, which is the
-                    // direction the feed actually grows.
-                    // **THE FULL-TIME SHOT IS THE HEAD OF THE FEED**, above
-                    // the newest line, which is where a broadcast cuts to the
-                    // bench before the graphic. It goes here rather than in
-                    // the corner of the pitch for two reasons: at the whistle
-                    // the band above is the final statistics, which is the one
-                    // thing on the page a manager actually reads; and this is
-                    // the better shot anyway — a reaction still printed beside
-                    // the result. It also SCROLLS, so it costs the feed no
-                    // permanent height on a short screen.
-                    itemCount: lines.length + (_inlineCam == null ? 0 : 1),
-                    itemBuilder: (context, i) {
-                      final shot = _inlineCam;
-                      if (shot != null) {
-                        if (i == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Center(
-                              child: LayoutBuilder(
-                                builder: (context, box) => SizedBox(
-                                  width: (box.maxWidth * camInlineFraction)
-                                      .clamp(
-                                        camInlineMinWidth,
-                                        camInlineMaxWidth,
-                                      )
-                                      .clamp(0.0, box.maxWidth),
-                                  child: _dugoutCam(shot),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: f.finished
+                        ? SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              key: const ValueKey('match-close'),
+                              onPressed: () => Navigator.of(context).maybePop(),
+                              child: Text(_verdictLabel()),
+                            ),
+                          )
+                        : Row(
+                            children: [
+                              OutlinedButton(
+                                key: const ValueKey('match-speed'),
+                                onPressed: toggleSpeed,
+                                child: Text(_fast ? '2×' : '1×'),
+                              ),
+                              const SizedBox(width: 8),
+                              // Subs before skip: one is a decision and the other is
+                              // giving up on watching, and the one that takes a
+                              // thought should not be the afterthought.
+                              OutlinedButton(
+                                key: const ValueKey('match-subs'),
+                                onPressed: openSubs,
+                                child: Text(t('match.subs')),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton(
+                                  key: const ValueKey('match-skip'),
+                                  onPressed: skipToEnd,
+                                  child: Text(t('common.skip')),
                                 ),
                               ),
-                            ),
-                          );
-                        }
-                        return _FeedLine(
-                          line: lines[lines.length - i],
-                          state: ref.read(gameProvider).state,
-                        );
-                      }
-                      return _FeedLine(
-                        line: lines[lines.length - 1 - i],
-                        state: ref.read(gameProvider).state,
-                      );
-                    },
+                            ],
+                          ),
                   ),
-                ),
-              if (f.finished) _QuestOutcomes(result: widget.result),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: f.finished
-                    ? SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          key: const ValueKey('match-close'),
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          child: Text(_verdictLabel()),
-                        ),
-                      )
-                    : Row(
-                        children: [
-                          OutlinedButton(
-                            key: const ValueKey('match-speed'),
-                            onPressed: toggleSpeed,
-                            child: Text(_fast ? '2×' : '1×'),
-                          ),
-                          const SizedBox(width: 8),
-                          // Subs before skip: one is a decision and the other is
-                          // giving up on watching, and the one that takes a
-                          // thought should not be the afterthought.
-                          OutlinedButton(
-                            key: const ValueKey('match-subs'),
-                            onPressed: openSubs,
-                            child: Text(t('match.subs')),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              key: const ValueKey('match-skip'),
-                              onPressed: skipToEnd,
-                              child: Text(t('common.skip')),
-                            ),
-                          ),
-                        ],
-                      ),
+                ],
               ),
+              // **COLIN, ON THE TOUCHLINE.** Floating rather than a band of his
+              // own: a strip that appears and disappears shoves the feed about,
+              // which is the same fault the pitch had.
+              if (_coachLine case final line?)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 66,
+                  child: _CoachSay(key: ValueKey(line), text: line),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// The scorer's face for the clip on the pitch, or null when there is nobody
+  /// to name.
+  Widget? _scorerBadge() {
+    final id = _clipScorerId;
+    if (id == null) return null;
+    final card = cardById(ref.read(gameProvider).state, id);
+    final def = getPlayerDef(card?.definitionId);
+    if (card == null || def == null) return null;
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return _ScorerBadge(
+      face: PlayerFace(
+        position: def.position,
+        tier: def.tier,
+        variant: card.variant,
+        size: 72,
+        ring: kit.accentBright,
+      ),
+      // The SURNAME, as a broadcast caption gives it, and the minute it went
+      // in. His full name would not fit under a 72px circle.
+      caption: "${card.name(def.name).split(' ').last} $_clippedMinute'",
     );
   }
 
@@ -1223,52 +1500,238 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   }
 }
 
-/// Commentary, or the three quests this match is being played for.
-class _BodyTabs extends StatelessWidget {
-  const _BodyTabs({required this.onQuests, required this.onPick});
+/// Colin, saying one thing, from the touchline.
+///
+/// **His head and the SHARED tail**, not a plain panel: a bubble with no tail is
+/// a caption rather than somebody speaking, which is what every screen but the
+/// home page used to get — see `CoachBubbleTail`.
+class _CoachSay extends StatelessWidget {
+  const _CoachSay({required this.text, super.key});
 
-  final bool onQuests;
-  final void Function(bool) onPick;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    Widget tab(String label, bool quests, Key key) => Expanded(
-      child: GestureDetector(
-        key: key,
-        behavior: HitTestBehavior.opaque,
-        onTap: () => onPick(quests),
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: onQuests == quests ? kit.accentBright : kit.border,
-                width: onQuests == quests ? 2 : 1,
+    return IgnorePointer(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+        builder: (context, t, child) => Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - t)),
+            child: child,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kit.surface2,
+                border: Border.all(color: kit.accentBright, width: 1.6),
+              ),
+              child: const ClipOval(
+                child: ArtImage(
+                  path: coachPortrait,
+                  fit: BoxFit.cover,
+                  fallback: Center(child: Text('🧢')),
+                ),
               ),
             ),
-          ),
-          child: Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w800,
-              color: onQuests == quests ? kit.accentBright : kit.textMuted,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // **IT HAS TO WIN AGAINST THE COMMENTARY UNDER IT.** Same
+                  // `surface` and same hairline as the box it floats over, and
+                  // it disappeared into it — a bubble the same colour as the
+                  // page is a paragraph. It gets the accent edge, a raised
+                  // surface and a real shadow: the point of him is that he is
+                  // interrupting.
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Color.alphaBlend(
+                        kit.accent.withValues(alpha: 0.14),
+                        kit.surface2,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: kit.accentBright, width: 1.4),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x66000000),
+                          blurRadius: 14,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      text,
+                      key: const ValueKey('match-coach-line'),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  // The wedge hangs off the bubble's bottom-left, pointing back
+                  // down at his face.
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: CustomPaint(
+                      size: coachTailSize,
+                      painter: CoachBubbleTail(
+                        fill: Color.alphaBlend(
+                          kit.accent.withValues(alpha: 0.14),
+                          kit.surface2,
+                        ),
+                        edge: kit.accentBright,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
+  }
+}
+
+/// The scorer's face and caption, as a broadcast puts them on the touchline.
+class _ScorerBadge extends StatelessWidget {
+  const _ScorerBadge({required this.face, required this.caption});
+
+  final Widget face;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      face,
+      const SizedBox(height: 4),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Text(
+          caption,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.3,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+/// What the body of the screen is showing.
+enum MatchTab { commentary, quests, stats }
+
+/// The commentary, the three quests this match is being played for, or the
+/// numbers.
+class _BodyTabs extends StatelessWidget {
+  const _BodyTabs({
+    required this.tab,
+    required this.withQuests,
+    required this.done,
+    required this.total,
+    required this.onPick,
+  });
+
+  final MatchTab tab;
+
+  /// Quests only earns a tab when there are some.
+  final bool withQuests;
+
+  /// How many of this match's three have landed, and how many there are.
+  final int done;
+  final int total;
+  final void Function(MatchTab) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    Widget one(String label, MatchTab mine, Key key) {
+      final on = tab == mine;
+      return Expanded(
+        child: GestureDetector(
+          key: key,
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onPick(mine),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: on ? kit.accentBright : kit.border,
+                  width: on ? 2 : 1,
+                ),
+              ),
+            ),
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w800,
+                color: on ? kit.accentBright : kit.textMuted,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Padding(
       key: const ValueKey('match-tabs'),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          tab(t('match.tab.commentary'), false, const ValueKey('tab-feed')),
-          tab(t('quests.title'), true, const ValueKey('tab-quests')),
+          one(
+            t('match.tab.commentary'),
+            MatchTab.commentary,
+            const ValueKey('tab-feed'),
+          ),
+          if (withQuests)
+            one(
+              // **THE COUNT IS THE POINT OF THE TAB.** The three outcomes used
+              // to be listed at the foot of the screen at full time, under the
+              // feed, where they were a block nobody scrolled to. On the tab it
+              // is one figure that moves during the match — and it is still one
+              // tap to see which three.
+              '${t('quests.title')} ($done/$total)',
+              MatchTab.quests,
+              const ValueKey('tab-quests'),
+            ),
+          one(
+            t('match.tab.stats'),
+            MatchTab.stats,
+            const ValueKey('tab-stats'),
+          ),
         ],
       ),
     );
@@ -1396,48 +1859,54 @@ class _TacticStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return Column(
-      key: const ValueKey('match-tactics'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 46,
-          child: Row(
-            children: [
-              for (final id in strategyStrip)
-                Expanded(
-                  child: _TacticButton(
-                    id: id,
-                    active: id == active,
-                    last: id == strategyStrip.last,
-                    enabled: !cooldown,
-                    onTap: () => onPick(id),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        // Only while it is shut. A bar that is always there, empty, is a
-        // control the player has to learn to ignore.
-        SizedBox(
-          height: 2,
-          child: cooldown
-              ? TweenAnimationBuilder<double>(
-                  key: const ValueKey('match-tactic-cooldown'),
-                  tween: Tween<double>(begin: 0, end: 1),
-                  duration: tacticCooldown,
-                  curve: Curves.linear,
-                  builder: (context, t, _) => Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: t,
-                      child: ColoredBox(color: kit.accentBright),
+    return Padding(
+      // The page's own 13 either side. The strip ran edge to edge while every
+      // other band on the screen was inset, so the one control that is ABOUT
+      // the pitch above it was the one thing not lined up with it.
+      padding: const EdgeInsets.symmetric(horizontal: 13),
+      child: Column(
+        key: const ValueKey('match-tactics'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 46,
+            child: Row(
+              children: [
+                for (final id in strategyStrip)
+                  Expanded(
+                    child: _TacticButton(
+                      id: id,
+                      active: id == active,
+                      last: id == strategyStrip.last,
+                      enabled: !cooldown,
+                      onTap: () => onPick(id),
                     ),
                   ),
-                )
-              : null,
-        ),
-      ],
+              ],
+            ),
+          ),
+          // Only while it is shut. A bar that is always there, empty, is a
+          // control the player has to learn to ignore.
+          SizedBox(
+            height: 2,
+            child: cooldown
+                ? TweenAnimationBuilder<double>(
+                    key: const ValueKey('match-tactic-cooldown'),
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration: tacticCooldown,
+                    curve: Curves.linear,
+                    builder: (context, t, _) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: t,
+                        child: ColoredBox(color: kit.accentBright),
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1493,97 +1962,6 @@ class _TacticButton extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// What the match's three quests came to.
-///
-/// All three, not just the winners: the player is being shown what they MISSED
-/// as much as what they won, which is what makes the next set worth reading. The
-/// coins have already been paid — a match quest auto-pays at full time — so this
-/// is a report, not a claim.
-class _QuestOutcomes extends StatelessWidget {
-  const _QuestOutcomes({required this.result});
-
-  final Map<String, dynamic> result;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final raw = result['questResults'];
-    if (raw is! List || raw.isEmpty) return const SizedBox.shrink();
-
-    final rows = [
-      for (final entry in raw)
-        if (entry is Map<String, dynamic>) entry,
-    ];
-    if (rows.isEmpty) return const SizedBox.shrink();
-    final total = rows.fold<num>(
-      0,
-      (sum, r) => sum + ((r['coins'] as num?) ?? 0),
-    );
-
-    return Padding(
-      key: const ValueKey('match-quests'),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final row in rows)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      // Per-division text, interpolated off the target the quest
-                      // was set at rather than today's — a quest is judged on
-                      // what it asked for when it was drawn.
-                      t('quest.${row['id']}', {'n': row['target'] ?? 0}),
-                      style: TextStyle(
-                        color: row['passed'] == true
-                            ? kit.accentBright
-                            : kit.textMuted,
-                        fontSize: 12,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    row['passed'] == true
-                        ? t('quests.reward_coins', {'n': row['coins'] ?? 0})
-                        : t('quests.missed'),
-                    key: ValueKey('match-quest-${row['id']}'),
-                    style: TextStyle(
-                      color: row['passed'] == true
-                          ? kit.accentBright
-                          : kit.textMuted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (total > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${t('quests.total_reward')}: '
-                '${t('quests.reward_coins', {'n': total.toInt()})}',
-                key: const ValueKey('match-quests-total'),
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: kit.accentBright,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -1673,140 +2051,155 @@ class _Scoreboard extends StatelessWidget {
       // worth its height and the screen is not: at full time on a short phone
       // the feed is already down to a few pixels, so the row pays for itself out
       // of the board's own padding and the gap it replaced.
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 7),
-      child: Column(
-        children: [
-          // What this is, and how far in.
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${result['divisionName'] ?? ''} · '
-                '${t(isHome ? 'play.home' : 'play.away')}',
+      padding: const EdgeInsets.fromLTRB(13, 6, 13, 7),
+      // **THE CARD, not just the contents of one.** The board shares the
+      // next-match card's rows — `MatchRow`, `PosChip`, the mirrored split — but
+      // it was drawing them loose on the sky with no pane behind them, so the
+      // fixture you accepted and the fixture you are watching did not look like
+      // the same object. Same `GlassPanel`, same density, same insets.
+      child: GlassPanel(
+        density: GlassDensity.deep,
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+        child: Column(
+          children: [
+            // What this is, and how far in.
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${result['divisionName'] ?? ''} · '
+                  '${t(isHome ? 'play.home' : 'play.away')}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: kit.textMuted,
+                  ),
+                ),
+                Text(
+                  finished ? t('match.full_time') : "$minute'",
+                  key: const ValueKey('match-clock'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: kit.accentBright,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            // The clock as a bar, so how far through the match is readable without
+            // doing arithmetic on the minute.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: SizedBox(
+                height: 3,
+                child: LinearProgressIndicator(
+                  value: (minute / 90).clamp(0.0, 1.0),
+                  backgroundColor: kit.border,
+                  valueColor: AlwaysStoppedAnimation(kit.accentBright),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            // **THE SAME BAND THE NEXT-MATCH CARD OPENS WITH.** It is the same
+            // fixture ten seconds later and the home page's version is the one
+            // that got the design work — so the standings come with it, on their
+            // own row, through the same chip.
+            MatchRow(
+              left: PosChip(
+                position: leftStanding.position,
+                delta: leftStanding.delta,
+                ours: isHome,
+              ),
+              right: PosChip(
+                position: rightStanding.position,
+                delta: rightStanding.delta,
+                ours: !isHome,
+              ),
+              gutter: const SizedBox.shrink(),
+              bottomSpacing: 4,
+            ),
+            MatchRow(
+              left: Text(
+                left,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
+                  fontSize: 15,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  color: isHome ? kit.accentBright : ink,
+                ),
+              ),
+              gutter: const SizedBox.shrink(),
+              right: Text(
+                right,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  color: isHome ? ink : kit.accentBright,
+                ),
+              ),
+            ),
+            MatchRow(
+              left: Text(
+                '$leftGoals',
+                key: const ValueKey('match-score-left'),
+                style: TextStyle(
+                  fontSize: 34,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              gutter: Text(
+                t('common.vs').toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
                   color: kit.textMuted,
                 ),
               ),
-              Text(
-                finished ? t('match.full_time') : "$minute'",
-                key: const ValueKey('match-clock'),
+              right: Text(
+                '$rightGoals',
+                key: const ValueKey('match-score-right'),
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 34,
+                  height: 1,
                   fontWeight: FontWeight.w900,
-                  color: kit.accentBright,
+                  color: ink,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          // The clock as a bar, so how far through the match is readable without
-          // doing arithmetic on the minute.
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: SizedBox(
-              height: 3,
-              child: LinearProgressIndicator(
-                value: (minute / 90).clamp(0.0, 1.0),
-                backgroundColor: kit.border,
-                valueColor: AlwaysStoppedAnimation(kit.accentBright),
+            ),
+            // Only when the result carries the split. A cup tie or an older save
+            // may not, and four zeroes would be worse than nothing.
+            if (hasSplit)
+              MatchStatRows(
+                left: isHome ? ourSplit : theirSplit,
+                right: isHome ? theirSplit : ourSplit,
+                leftRating: isHome ? ourRating : theirRating,
+                rightRating: isHome ? theirRating : ourRating,
               ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // **THE SAME BAND THE NEXT-MATCH CARD OPENS WITH.** It is the same
-          // fixture ten seconds later and the home page's version is the one
-          // that got the design work — so the standings come with it, on their
-          // own row, through the same chip.
-          MatchRow(
-            left: PosChip(
-              position: leftStanding.position,
-              delta: leftStanding.delta,
-              ours: isHome,
-            ),
-            right: PosChip(
-              position: rightStanding.position,
-              delta: rightStanding.delta,
-              ours: !isHome,
-            ),
-            gutter: const SizedBox.shrink(),
-            bottomSpacing: 4,
-          ),
-          MatchRow(
-            left: Text(
-              left,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.12,
-                fontWeight: FontWeight.w900,
-                color: isHome ? kit.accentBright : ink,
-              ),
-            ),
-            gutter: const SizedBox.shrink(),
-            right: Text(
-              right,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.12,
-                fontWeight: FontWeight.w900,
-                color: isHome ? ink : kit.accentBright,
-              ),
-            ),
-          ),
-          MatchRow(
-            left: Text(
-              '$leftGoals',
-              key: const ValueKey('match-score-left'),
-              style: TextStyle(
-                fontSize: 34,
-                height: 1,
-                fontWeight: FontWeight.w900,
-                color: ink,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            gutter: Text(
-              t('common.vs').toUpperCase(),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                color: kit.textMuted,
-              ),
-            ),
-            right: Text(
-              '$rightGoals',
-              key: const ValueKey('match-score-right'),
-              style: TextStyle(
-                fontSize: 34,
-                height: 1,
-                fontWeight: FontWeight.w900,
-                color: ink,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          // Only when the result carries the split. A cup tie or an older save
-          // may not, and four zeroes would be worse than nothing.
-          if (hasSplit)
-            MatchStatRows(
-              left: isHome ? ourSplit : theirSplit,
-              right: isHome ? theirSplit : ourSplit,
-              leftRating: isHome ? ourRating : theirRating,
-              rightRating: isHome ? theirRating : ourRating,
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
+/// A goal against, and anything else that has gone their way.
+///
+/// **Not the kit.** Green is what this game uses for a thing going well for us,
+/// on every screen, so an opponent's goal wearing it read as one of ours.
+const Color conceded = Color(0xFFE05A4A);
 
 class _FeedLine extends StatelessWidget {
   const _FeedLine({required this.line, required this.state});
@@ -1863,14 +2256,10 @@ class _FeedLine extends StatelessWidget {
           ),
         ),
         // The face stands IN FOR the ball glyph rather than beside it: two marks
-        // in front of one sentence is a row with two subjects.
+        // in front of one sentence is a row with two subjects. A GOAL never
+        // reaches this row — it is a card, and its head carries both.
         if (face != null)
-          Padding(padding: const EdgeInsets.only(right: 8), child: face)
-        else if (isGoal)
-          const Padding(
-            padding: EdgeInsets.only(right: 4),
-            child: Icon(Icons.sports_soccer, size: 14),
-          ),
+          Padding(padding: const EdgeInsets.only(right: 8), child: face),
         Expanded(
           child: Text(
             text,
@@ -1884,29 +2273,164 @@ class _FeedLine extends StatelessWidget {
       ],
     );
 
-    // **A GOAL IS THE HEADLINE OF THE FEED, so it gets a surface.** Every line
-    // was the same shape in the same column, which is a transcript — and the one
-    // thing a manager looks up for is the goal. A tint and a rule down the
-    // leading edge, the way a quoted block reads, so it is legible as the thing
-    // that happened without the row growing.
+    // **A GOAL IS A CARD, not a row.** Every line was the same shape in the
+    // same column — a transcript — and the single most important thing that
+    // happens in a match read exactly like "nerves jangling all around the
+    // ground". It gets a head (the minute, the word GOAL, the score it made),
+    // the scorer with his face and his tally, and the sentence underneath as
+    // the caption it always was. `match.goal_card.title`, `match.career_goal`
+    // and `match.career_goals` were translated ten times over with nothing able
+    // to reach one of them.
+    final goal = line.goal;
+    if (goal != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+          // **THEIRS IS RED.** The kit's green is what the game uses for a thing
+          // going well for US; a goal against wearing it read as a goal for.
+          decoration: BoxDecoration(
+            color: (goal.ours ? kit.accent : conceded).withValues(
+              alpha: goal.ours ? 0.13 : 0.12,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border(
+              left: BorderSide(
+                color: goal.ours ? kit.accentBright : conceded,
+                width: 3,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    "${line.minute}'",
+                    style: TextStyle(
+                      color: kit.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // The ball marks OUR goal in the head. Theirs is headed by
+                  // their name, which is mark enough for a goal that is not
+                  // being celebrated.
+                  if (goal.ours) ...[
+                    Icon(
+                      Icons.sports_soccer,
+                      size: 14,
+                      color: kit.accentBright,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Expanded(
+                    child: Text(
+                      // Theirs carries their NAME instead of the word — we
+                      // hold no card for their players, so the head is the
+                      // only place left to say whose goal it was.
+                      goal.ours
+                          ? t('match.goal_card.title')
+                          : '${line.params['them'] ?? ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                        color: goal.ours ? kit.accentBright : conceded,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${goal.left}–${goal.right}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+              // No scorer row for theirs, and none for one of ours whose card
+              // has since gone: a face for a man the save has never heard of
+              // cannot be drawn, and inventing a name is worse than the gap.
+              if (about != null && def != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    PlayerFace(
+                      position: def.position,
+                      tier: def.tier,
+                      variant: about.variant,
+                      size: 34,
+                      ring: kit.accentBright,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            about.name(def.name),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          if (_careerGoals(about, goal.tallyInMatch)
+                              case final total?)
+                            Text(
+                              t(
+                                total == 1
+                                    ? 'match.career_goal'
+                                    : 'match.career_goals',
+                                {'n': total},
+                              ),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: kit.textMuted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 7),
+              Text(
+                text,
+                style: TextStyle(fontSize: 12.5, color: kit.textMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-      child: isGoal
-          ? Container(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-              decoration: BoxDecoration(
-                color: kit.accent.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
-                border: Border(
-                  left: BorderSide(color: kit.accentBright, width: 3),
-                ),
-              ),
-              child: row,
-            )
-          : Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: row,
-            ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: row,
+      ),
     );
   }
+}
+
+/// His goals in the book plus the ones he has scored today, or null for a card
+/// that keeps no record.
+///
+/// The save is not written until the whistle, so the stored figure is always one
+/// match behind what the player just watched.
+int? _careerGoals(CardInstance card, int today) {
+  final stats = card.raw['stats'];
+  if (stats is! Map<String, dynamic>) return null;
+  final scored = stats['goals'];
+  return (scored is num ? scored.toInt() : 0) + today;
 }

@@ -103,12 +103,29 @@ CutawayClip? clipFor(
 /// a second and reloaded its sprites doing it. That is the judder, and it is
 /// also most of the flashing.
 class CutawayStage extends StatefulWidget {
-  const CutawayStage({required this.clip, this.onDone, super.key});
+  const CutawayStage({
+    required this.clip,
+    this.onDone,
+    this.scorer,
+    this.scorerFromLeft = true,
+    super.key,
+  });
 
   /// Null shows the idle pitch — which is most of a match.
   final CutawayClip? clip;
 
   final void Function(CutawayOutcome outcome)? onDone;
+
+  /// Who to stand on the touchline the moment the ball goes in, or null when
+  /// there is nobody to name — theirs, or one of ours the save has lost.
+  ///
+  /// It arrives with the VERDICT rather than with the clip: shown from the
+  /// start it would tell the player the ball was going in before it did.
+  final Widget? scorer;
+
+  /// Which touchline he comes on from — ours, so he enters from the edge he
+  /// then rests against rather than out of nothing in the middle of the grass.
+  final bool scorerFromLeft;
 
   @override
   State<CutawayStage> createState() => _CutawayStageState();
@@ -200,12 +217,63 @@ class _CutawayStageState extends State<CutawayStage> {
                         ),
                       ),
                     ),
+                    if (widget.scorer case final scorer?)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ValueListenableBuilder<CutawayOutcome?>(
+                            valueListenable: game.verdict,
+                            builder: (context, outcome, _) => _ScorerSlide(
+                              shown: outcome == CutawayOutcome.goal,
+                              fromLeft: widget.scorerFromLeft,
+                              child: scorer,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
         ),
       ),
     );
   }
+}
+
+/// The scorer, arriving from his own touchline.
+///
+/// Slides in and fades up — 420ms on an exponential ease-out with no overshoot,
+/// because it is a player arriving rather than a springy UI chip. Transform and
+/// opacity only, so it composes over a clip that is already animating.
+///
+/// No exit: the pitch is torn down under him the moment the clip resolves, so he
+/// goes with the grass he is standing on.
+class _ScorerSlide extends StatelessWidget {
+  const _ScorerSlide({
+    required this.shown,
+    required this.fromLeft,
+    required this.child,
+  });
+
+  final bool shown;
+  final bool fromLeft;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: fromLeft ? Alignment.bottomLeft : Alignment.bottomRight,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+      child: AnimatedSlide(
+        offset: shown ? Offset.zero : Offset(fromLeft ? -1.4 : 1.4, 0),
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutExpo,
+        child: AnimatedOpacity(
+          opacity: shown ? 1 : 0,
+          duration: const Duration(milliseconds: 420),
+          child: child,
+        ),
+      ),
+    ),
+  );
 }
 
 /// The empty pitch between chances.

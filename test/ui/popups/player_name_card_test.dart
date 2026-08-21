@@ -236,6 +236,46 @@ void main() {
     expect(lastResult, 'Rolled Name', reason: 'the caller was told nothing');
   });
 
+  testWidgets('RANDOMISE rolls another name into the field', (tester) async {
+    // A squad ends up with two of the same man: `pickDisplayName` is
+    // `pool[tier % 10]`, so every card of one position, tier and gender is born
+    // with the same name. Renaming is the way out and typing was the annoying
+    // part.
+    final container = await pumpCard(tester);
+    addTearDown(container.dispose);
+    final before = tester
+        .widget<TextField>(find.byKey(const ValueKey('player-name-field')))
+        .controller!
+        .text;
+
+    await tester.tap(find.byKey(const ValueKey('player-name-randomise')));
+    await tester.pumpAndSettle();
+    final after = tester
+        .widget<TextField>(find.byKey(const ValueKey('player-name-field')))
+        .controller!
+        .text;
+
+    expect(after, isNot(before), reason: 'the roll changed nothing');
+    expect(after, isNotEmpty);
+    // It fills the FIELD. The roll is a suggestion; the confirm is still what
+    // renames him.
+    expect(storedName(container), isNull);
+  });
+
+  test('and the roll never hands back the name it was given', () {
+    for (final position in ['GK', 'DEF', 'MID', 'FWD']) {
+      for (final female in [true, false]) {
+        final held = pickDisplayName(position, 3, female: female);
+        for (var i = 0; i < 40; i++) {
+          expect(
+            randomDisplayName(position, female: female, notThis: held),
+            isNot(held),
+          );
+        }
+      }
+    }
+  });
+
   testWidgets('CANCEL changes nothing', (tester) async {
     final container = await pumpCard(tester, customName: 'Ada Rovers');
     await type(tester, 'Somebody Else');

@@ -60,46 +60,56 @@ void main() {
   });
 
   group('the currency is ONE colour', () {
-    Future<Color> figureInk(WidgetTester tester, {required bool light}) async {
-      late Color ink;
+    /// Both themes in ONE tree. Pumping twice and reading a captured variable
+    /// each time reads the theme MID-LERP — `MaterialApp` animates a theme
+    /// change, so the second pump's first frame is still the first theme.
+    Future<({Color light, Color dark})> figureInks(WidgetTester tester) async {
+      late Color light;
+      late Color dark;
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData(
-            brightness: light ? Brightness.light : Brightness.dark,
-          ),
-          home: Builder(
-            builder: (context) {
-              ink = coinFigureInk(context);
-              return const SizedBox();
-            },
+          home: Column(
+            children: [
+              Theme(
+                data: ThemeData(brightness: Brightness.light),
+                child: Builder(
+                  builder: (context) {
+                    light = coinFigureInk(context);
+                    return const SizedBox();
+                  },
+                ),
+              ),
+              Theme(
+                data: ThemeData(brightness: Brightness.dark),
+                child: Builder(
+                  builder: (context) {
+                    dark = coinFigureInk(context);
+                    return const SizedBox();
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       );
-      return ink;
+      return (light: light, dark: dark);
     }
 
-    testWidgets('THE COIN FIGURE IS THE COIN\'S OWN GOLD, in both themes', (
-      tester,
-    ) async {
-      // In light mode the figure was an amber — #E8A100 — chosen to clear
-      // contrast on white. Beside the coin GLYPH, which is a filled disc and
-      // stays actual gold because its black rim carries its own contrast, the
-      // amber read as orange: two currencies in one pair.
-      //
-      // The way out was already half-built. The separation is bought with a dark
-      // HALO rather than with lightness, so the hue does not have to give
-      // anything up — see the shadow below.
-      expect(await figureInk(tester, light: false), gameGold);
-      expect(await figureInk(tester, light: true), gameGold);
+    testWidgets('THE MONEY IS GOLD, in both themes and bare', (tester) async {
+      // Two answers have been tried under this test and both were worse than
+      // the problem. A dark halo under the digits reads as a BORDER at any size
+      // worth putting money in; the JS's bronze `#a86523` is legible on a white
+      // page and is not what money looks like. The contrast belongs to the
+      // surface under the figure, not to the figure.
+      final ink = await figureInks(tester);
+      expect(ink.dark, gameGold);
+      expect(ink.light, gameGold);
     });
 
-    testWidgets('and the halo is what makes it legible on white', (
-      tester,
-    ) async {
-      // Without it, gold on a white page is unreadable — which is the whole
-      // reason the amber existed. Both themes read in ONE tree: pumping twice
-      // and reading a captured variable each time is how you end up asserting
-      // the first theme against itself.
+    testWidgets('and there is no halo, in either theme', (tester) async {
+      // Both themes read in ONE tree: pumping twice and reading a captured
+      // variable each time is how you end up asserting the first theme against
+      // itself.
       late List<Shadow> light;
       late List<Shadow> dark;
       await tester.pumpWidget(
@@ -128,7 +138,7 @@ void main() {
           ),
         ),
       );
-      expect(light, isNotEmpty, reason: 'gold on white with nothing behind it');
+      expect(light, isEmpty, reason: 'the bronze carries its own contrast');
       expect(dark, isEmpty);
     });
   });

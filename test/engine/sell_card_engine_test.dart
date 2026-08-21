@@ -41,6 +41,7 @@ int filled(Map<String, dynamic> s) =>
 void main() {
   tearDown(() {
     resetSellRandom();
+    resetMarketQuotes();
     clearBus();
   });
 
@@ -75,6 +76,50 @@ void main() {
       final plain = meanFor({'instanceId': 'a'});
       final lucky = meanFor({'instanceId': 'a', 'form': 5, 'sponsor': 's'});
       expect(lucky, greaterThan(plain));
+    });
+  });
+
+  group('the standing offer', () {
+    test('one roll stands for its whole window', () {
+      // It was rolled on every open, so closing and reopening the sheet shopped
+      // for a better price — a slot machine rather than a market.
+      final s = stateWithCard();
+      final at = DateTime(2026, 1, 1, 12);
+      final first = marketQuote(s, 'a', now: at);
+      for (var i = 1; i < marketWindow.inSeconds; i++) {
+        final again = marketQuote(s, 'a', now: at.add(Duration(seconds: i)));
+        expect(again.mult, first.mult);
+        expect(again.price, first.price);
+        expect(again.refreshAt, first.refreshAt);
+      }
+      expect(first.refreshAt, at.add(marketWindow));
+    });
+
+    test('and the market moves once it is up', () {
+      final s = stateWithCard();
+      final at = DateTime(2026, 1, 1, 12);
+      setSellRandom(math.Random(7));
+      final first = marketQuote(s, 'a', now: at);
+      // A reroll can land on the same rung, so it is the WINDOW that is
+      // asserted; over this many it cannot come back identical every time.
+      final mults = <double>{};
+      for (var i = 1; i <= 20; i++) {
+        mults.add(marketQuote(s, 'a', now: at.add(marketWindow * i)).mult);
+      }
+      expect(mults.length, greaterThan(1));
+      expect(mults, isNot(equals({first.mult})));
+    });
+
+    test('the price is the roll, priced against the save', () {
+      final s = stateWithCard();
+      final quote = marketQuote(s, 'a');
+      expect(quote.price, sellPriceAt(s, 'a', quote.mult));
+    });
+
+    test('a card that has left quotes nothing', () {
+      final s = stateWithCard();
+      sellCard(s, 'a', 1.3);
+      expect(marketQuote(s, 'a').price, 0);
     });
   });
 
@@ -148,7 +193,11 @@ void main() {
     });
 
     test('a player lent out, who is at another club', () {
-      final s = stateWithCard(extra: {'loanedOut': {'team': 'Ayton'}});
+      final s = stateWithCard(
+        extra: {
+          'loanedOut': {'team': 'Ayton'},
+        },
+      );
       expect(sellBlocked(s, 'a'), 'loaned_out');
       expect(sellCard(s, 'a', 1.0).ok, isFalse);
       expect(filled(s), 1);

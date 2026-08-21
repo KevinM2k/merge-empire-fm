@@ -434,7 +434,11 @@ void main() {
       expect(moodHeadTilt(Mood.elated), lessThan(0));
       expect(moodHeadTilt(Mood.neutral), 0);
       expect(moodHeadTilt(Mood.crushed), greaterThan(6));
-      // Monotonic, so the ladder cannot be reordered by accident.
+      // **AND THE UP END IS SHALLOW.** Seven degrees of chin-up read as a man
+      // addressing the stand rather than watching a match, and elated and
+      // pleased are the two moods the dugout cam spends its life in.
+      expect(moodHeadTilt(Mood.elated), greaterThan(-4));
+
       final ladder = Mood.values.map(moodHeadTilt).toList();
       for (var i = 1; i < ladder.length; i++) {
         expect(
