@@ -89,7 +89,10 @@ Future<void> showSellSheet(
                 position: view.position,
                 tier: view.tier,
                 variant: view.variant ?? 0,
-                height: 200,
+                // More of HIM. The decision is about the player, so he gets the
+                // room — the sheet is 88% tall and the offer under him is three
+                // short lines.
+                height: 300,
                 dimmed: view.injured,
               ),
             ),
@@ -105,10 +108,12 @@ Future<void> showSellSheet(
                   horizontal: 14,
                   vertical: 12,
                 ),
+                // **NO BORDER.** A ruled box round the figure reads as a form
+                // field, and the money does not need one: a surface a shade off
+                // the sheet's own is enough to say "this is the offer".
                 decoration: BoxDecoration(
                   color: kit.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: kit.border),
                 ),
                 child: Column(
                   children: [

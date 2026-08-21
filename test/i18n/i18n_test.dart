@@ -128,4 +128,36 @@ void main() {
     setLocale(null);
     expect(getLocale(), 'en');
   });
+
+  group('copy written for a DOM', () {
+    test('A <br> IS A LINE BREAK, not three characters of markup', () {
+      // Three catalogue entries still carry it, and the port printed it
+      // literally in the middle of a sentence. Fixed at the boundary rather than
+      // in the catalogues: those are GENERATED from the JS, so patching the
+      // output would be undone by the next `gen_i18n.mjs` run — and this covers
+      // every locale and any string that grows one later.
+      final out = t('sell.market_note');
+      expect(out, isNot(contains('<br')));
+      expect(out, contains('\n'));
+    });
+
+    test('and every locale is clean of it', () {
+      for (final id in localeIds) {
+        setLocale(id);
+        for (final key in ['sell.market_note', 'common.market_fluctuates']) {
+          expect(
+            t(key),
+            isNot(contains('<br')),
+            reason: '\$id/\$key still carries markup',
+          );
+        }
+      }
+      resetLocale();
+    });
+
+    test('a string with no markup is handed back untouched', () {
+      // The guard is a `contains('<')` so the common case does no work at all.
+      expect(t('common.cancel'), isNot(contains('\n')));
+    });
+  });
 }

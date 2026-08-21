@@ -2777,6 +2777,53 @@ by a test.
       it, so it must not be muted for ten minutes. A test pins that the ledger is
       untouched.
 
+### The player sheet, and the trait roll — 26 Aug, later still
+
+- [ ] **The numbers belong ON the card, and then the box goes.** ATK/DEF under the
+      main rating in the hero's top-left, income top-right — and with those two
+      moved, the whole Attributes block is repeating what is already on screen.
+      **Market value goes with it**: Sell has left this sheet, so what he would
+      fetch is no longer a decision being made here.
+- [ ] **What is left is the trait and his STATS** — goals, tackles, saves for a
+      keeper. Not a list of label/value rows: they want a shape.
+- [ ] **The trait box needs designing.** It is the most interesting thing on the
+      sheet and it is drawn as the least.
+- [ ] **THE RATINGS MUST NOT MOVE UNTIL THE REELS STOP.** Half-fixed already —
+      the trait's NAME is held for the spin — but the stats read the save, and the
+      save is written before the reels move, so the numbers still give it away.
+- [ ] **And then it should ANNOUNCE it**, the way a club asset unlock does: a
+      window with what he just got.
+
+### The sell sheet, again
+
+- [x] **The copy had `<br>` in it.** Three catalogue entries are still written for
+      a DOM, so the port printed literal markup mid-sentence. Fixed in `t()`
+      rather than in the ten catalogues: those are GENERATED from the JS, so
+      patching the output would be undone by the next `gen_i18n.mjs` run — and the
+      boundary covers every locale and any string that grows one later. Guarded on
+      a `contains('<')` so the common case does no work.
+- [x] **More room for him, and no border on the money.** 300px of figure, and the
+      offer panel loses its rule: a ruled box round a figure reads as a form
+      field.
+- [~] **DOES THE MARKET FLUCTUATE? No — and the copy is a lie.** `rollMarketMult`
+      rolls ONCE when the sheet opens, weighted by the player's form and whether
+      he is sponsored (up to +35% of luck shifted in his favour). Nothing moves
+      while you look at it and there is no clock, so "time your sale" is asking
+      for something the game does not offer. What DOES change it is closing and
+      reopening the sheet, which rerolls — a reroll exploit rather than a market.
+      Three ways out, and it is a design call: retime it on a real clock and add
+      the timer; own the reroll and make it the mechanic; or change the line to
+      say what actually decides the price, which is his form.
+- [ ] **A coach tip on whether to accept**, and whether the flow should be SELL at
+      all rather than RELEASE for nothing. Both are design decisions rather than
+      bugs — see the note to the manager.
+
+### The club
+
+- [ ] **The upgrade popup fires on EVERY upgrade.** It should come up at the end
+      of a TIER, not on each tap — a celebration that happens every time is a
+      dialog in the way of a button.
+
 ### Light mode
 
 - [x] **The match-quest coin yellow read ORANGE.** It was an amber, `#E8A100`,
