@@ -2544,6 +2544,19 @@ by a test.
       drill exists and plays; the pressure does not. Check the timing against
       the source before retuning it.
 
+### Sound
+
+- [x] **Buying four players played the signing chime over and over.** A batch
+      signing places four cards inside ONE `update`, so `card:placed` fires four
+      times in the same frame — and `play` retriggers a non-overlapping effect
+      from the top, which meant a 0.55s clip restarted four times within a few
+      milliseconds. That is not four sounds; it is a burr.
+      `retriggerFloor` is 70ms — a frame or two, deliberately nowhere near the
+      length of a clip, so a repeat at any human pace is still a second sound and
+      only the ones caused by a single action collapse. Per effect, so a batch
+      does not swallow the coin or the discovery alongside it, and overlapping
+      effects are exempt because stacking is the whole point of the two that ask.
+
 ### The subs bench
 
 - [x] **It is the same pitch as the Squad tab now.** It was two scrolling lists,

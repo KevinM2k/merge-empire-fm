@@ -97,11 +97,38 @@ abstract class SoundBackend {
   Future<void> stopAllSfx();
 }
 
+/// How close together two requests for the SAME effect are one sound.
+///
+/// **A batch signing places four cards inside one `update`**, so `card:placed`
+/// fires four times in the same frame and the acquisition chime was retriggered
+/// four times within a few milliseconds. A 0.55s clip restarted four times in
+/// one frame is not four sounds — it is a burr, and it reads as the sound
+/// playing over and over.
+///
+/// A frame or two, deliberately, and nowhere near the length of a clip: a repeat
+/// at any human pace is still a second sound. This only collapses the ones that
+/// arrive together because one action caused all of them.
+const Duration retriggerFloor = Duration(milliseconds: 70);
+
 class SoundService {
-  SoundService({required SoundBackend backend, this.render = renderAllSounds})
-    : _backend = backend;
+  SoundService({
+    required SoundBackend backend,
+    this.render = renderAllSounds,
+    Duration Function()? clock,
+  }) : _backend = backend,
+       _clock = clock ?? _sinceBoot;
 
   final SoundBackend _backend;
+
+  /// Monotonic time, injectable so the coalescing rule can be tested without
+  /// waiting for it.
+  final Duration Function() _clock;
+
+  static final Stopwatch _boot = Stopwatch()..start();
+  static Duration _sinceBoot() => _boot.elapsed;
+
+  /// When each effect was last handed to the backend.
+  final Map<String, Duration> _lastPlayed = {};
 
   /// How the effects get made. Swapped in tests so a case about the RULES does
   /// not pay for a second of DSP.
@@ -180,6 +207,14 @@ class SoundService {
     if (!_soundEnabled || _suspended) return;
     final wav = _cache[name];
     if (wav == null) return;
+    // **ONE ACTION IS ONE SOUND.** See [retriggerFloor]. Overlapping effects are
+    // exempt: stacking is the whole point of the two that ask for it.
+    if (!overlap) {
+      final now = _clock();
+      final last = _lastPlayed[name];
+      if (last != null && now - last < retriggerFloor) return;
+      _lastPlayed[name] = now;
+    }
     await _backend.playSfx(
       name,
       wav,

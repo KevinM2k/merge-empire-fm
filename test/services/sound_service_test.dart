@@ -60,37 +60,111 @@ class FakeBackend implements SoundBackend {
 /// One byte per sound. The rules do not care what is in it, and a real render is
 /// most of a second.
 Map<String, Uint8List> fakeRender() => {
-  for (final name in ['merge', 'coin', 'goal']) name: Uint8List(1),
+  for (final name in [
+    'merge',
+    'coin',
+    'goal',
+    'scout',
+    'newDiscovery',
+    'thunder',
+  ])
+    name: Uint8List(1),
 };
 
-({SoundService service, FakeBackend backend}) build() {
+/// A clock the test can wind on, for the rule that two requests for one effect
+/// inside a frame are one sound — see [retriggerFloor].
+class TestClock {
+  Duration now = Duration.zero;
+  void tick() => now += retriggerFloor * 2;
+}
+
+({SoundService service, FakeBackend backend, TestClock clock}) build() {
   final backend = FakeBackend();
-  final service = SoundService(backend: backend, render: fakeRender)
-    ..warmUpNow();
-  return (service: service, backend: backend);
+  final clock = TestClock();
+  final service = SoundService(
+    backend: backend,
+    render: fakeRender,
+    clock: () => clock.now,
+  )..warmUpNow();
+  return (service: service, backend: backend, clock: clock);
 }
 
 void main() {
   group('effects', () {
     test('play at the base level times the player\'s own', () {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: clock) = build();
       unawaited(s.play('merge'));
       expect(b.sfx.single.volume, closeTo(sfxBaseVolume, 1e-9));
       s.setSoundVolume(0.5);
+      // Past the retrigger floor, or the second one is the same sound as the
+      // first and never reaches the backend.
+      clock.tick();
       unawaited(s.play('merge'));
       expect(b.sfx.last.volume, closeTo(sfxBaseVolume * 0.5, 1e-9));
     });
 
     test('and volume clamps rather than trusting the save', () {
-      final (service: s, backend: _) = build();
+      final (service: s, backend: _, clock: _) = build();
       s.setSoundVolume(4);
       expect(s.sfxVolume, 1);
       s.setSoundVolume(-1);
       expect(s.sfxVolume, 0);
     });
 
+    test('FOUR CARDS IN ONE TAP IS ONE SOUND', () async {
+      // Signing a batch of four places four cards, so `card:placed` fires four
+      // times inside one `update` — and the acquisition chime was retriggered
+      // four times within a few milliseconds. A 0.55s clip restarted four times
+      // in one frame is not four sounds; it is a burr, and it reads as the sound
+      // playing over and over.
+      var now = Duration.zero;
+      final backend = FakeBackend();
+      final service = SoundService(
+        backend: backend,
+        render: fakeRender,
+        clock: () => now,
+      );
+      service.warmUpNow();
+
+      for (var i = 0; i < 4; i++) {
+        await service.play('scout');
+      }
+      expect(backend.sfx.length, 1, reason: 'four retriggers of one clip');
+
+      // A human-paced repeat is still a second sound: the floor is a frame or
+      // two, not the length of the clip.
+      now += retriggerFloor + const Duration(milliseconds: 1);
+      await service.play('scout');
+      expect(backend.sfx.length, 2, reason: 'the second tap was swallowed');
+    });
+
+    test('and it is PER SOUND, so a batch does not mute anything else', () async {
+      // Placing a card also updates coins and can be a new discovery. Those are
+      // different sounds and each should still be heard once.
+      final (service: service, backend: backend, clock: _) = build();
+      await service.play('scout');
+      await service.play('coin');
+      await service.play('newDiscovery');
+      expect(backend.sfx.map((s) => s.name), [
+        'scout',
+        'coin',
+        'newDiscovery',
+      ]);
+    });
+
+    test('an OVERLAPPING sound is never coalesced', () async {
+      // Overlap exists for the two effects whose whole point is stacking —
+      // thunder and fireworks. Collapsing those would be the opposite of what
+      // the caller asked for.
+      final (service: service, backend: backend, clock: _) = build();
+      for (var i = 0; i < 3; i++) {
+        await service.play('thunder', overlap: true);
+      }
+      expect(backend.sfx.length, 3);
+    });
+
     test('nothing plays with sound off', () {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       s.setSoundEnabled(false);
       unawaited(s.play('merge'));
       expect(b.sfx, isEmpty);
@@ -98,7 +172,7 @@ void main() {
 
     test('nothing plays while the app is away', () async {
       // Without this the OS keeps playing after the app leaves the foreground.
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.suspend();
       unawaited(s.play('merge'));
       expect(b.sfx, isEmpty);
@@ -114,7 +188,7 @@ void main() {
       final cold = SoundService(backend: backend, render: fakeRender);
       expect(() => unawaited(cold.play('merge')), returnsNormally);
       expect(backend.sfx, isEmpty);
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       expect(() => unawaited(s.play('nothing-like-this')), returnsNormally);
       expect(b.sfx, isEmpty);
     });
@@ -123,20 +197,20 @@ void main() {
       // The backend stops the sound itself rather than trusting the platform's
       // release mode — a sound that will not stop is far worse than one that
       // costs a little to start.
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       unawaited(s.play('merge'));
       expect(b.sfx.single.length, soundLength('merge'));
       expect(b.sfx.single.length.inMilliseconds, greaterThan(0));
     });
 
     test('overlap is passed through for the ones that need it', () {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       unawaited(s.play('goal', overlap: true));
       expect(b.sfx.single.overlap, isTrue);
     });
 
     test('the firework is a bundled recording, kept well back', () {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       unawaited(s.playFirework());
       expect(b.assets.single.asset, fireworkAsset);
       expect(
@@ -151,7 +225,7 @@ void main() {
     test(
       'ships off, and turning it on starts the bed the game wants',
       () async {
-        final (service: s, backend: b) = build();
+        final (service: s, backend: b, clock: _) = build();
         expect(s.musicEnabled, isFalse);
         expect(b.music, isEmpty);
         await s.setMusicEnabled(true);
@@ -160,14 +234,14 @@ void main() {
     );
 
     test('at the base level times the player\'s own', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicVolume(0.5);
       await s.setMusicEnabled(true);
       expect(b.music.single.volume, closeTo(musicBaseVolume * 0.5, 1e-9));
     });
 
     test('turning it off stops the bed', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicEnabled(true);
       await s.setMusicEnabled(false);
       expect(b.music.last.asset, isNull);
@@ -175,7 +249,7 @@ void main() {
     });
 
     test('a track change CROSSFADES; starting from silence does not', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicEnabled(true);
       expect(b.music.single.fade, isFalse, reason: 'faded in from nothing');
       await s.setMusicTrack(MusicBed.match);
@@ -184,7 +258,7 @@ void main() {
     });
 
     test('asking for the bed already playing does not restart it', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicEnabled(true);
       final calls = b.music.length;
       await s.setMusicTrack(MusicBed.menu);
@@ -194,7 +268,7 @@ void main() {
     test('the wanted bed is REMEMBERED while music is off', () async {
       // Turning music back on mid-match has to resume the match bed rather than
       // dropping to the menu loop.
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicTrack(MusicBed.match);
       expect(b.music, isEmpty, reason: 'it played with music off');
       expect(s.wantedBed, MusicBed.match);
@@ -203,7 +277,7 @@ void main() {
     });
 
     test('and while the app is away', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicEnabled(true);
       await s.suspend();
       await s.setMusicTrack(MusicBed.match);
@@ -217,7 +291,7 @@ void main() {
     });
 
     test('a volume change while playing reaches the channel', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicEnabled(true);
       await s.setMusicVolume(0.25);
       expect(b.volumes.last, closeTo(musicBaseVolume * 0.25, 1e-9));
@@ -226,7 +300,7 @@ void main() {
 
   group('going away and coming back', () {
     test('pauses the bed in place and cuts anything in flight', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.setMusicEnabled(true);
       await s.suspend();
       expect(b.paused, 1);
@@ -237,7 +311,7 @@ void main() {
 
     test('and both calls are idempotent', () async {
       // The signals that trigger them overlap by platform.
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.suspend();
       await s.suspend();
       expect(b.paused, 1);
@@ -247,7 +321,7 @@ void main() {
     });
 
     test('coming back with music off starts nothing', () async {
-      final (service: s, backend: b) = build();
+      final (service: s, backend: b, clock: _) = build();
       await s.suspend();
       await s.resume();
       expect(b.music, isEmpty);
@@ -257,7 +331,7 @@ void main() {
     test(
       'and coming back onto the same bed resumes rather than restarts',
       () async {
-        final (service: s, backend: b) = build();
+        final (service: s, backend: b, clock: _) = build();
         await s.setMusicEnabled(true);
         final calls = b.music.length;
         await s.suspend();
