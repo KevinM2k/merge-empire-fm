@@ -23,11 +23,17 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
     show pitchAspect;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
+import 'package:merge_empire_fc/engine/match_orchestration.dart'
+    show reSimulateRemainder;
+import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
+    show coachSuggestedTacticProvider;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
     show settingPick;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
@@ -53,7 +59,10 @@ class MatchScreen extends ConsumerStatefulWidget {
 }
 
 class MatchScreenState extends ConsumerState<MatchScreen> {
-  late final List<TimelineEvent> _timeline = timelineOf(widget.result);
+  /// Rebuilt whenever the tactic changes — see [applyStrategy]. Not `final`:
+  /// the remainder of the match is genuinely re-decided, so the list of what is
+  /// left to show is replaced.
+  late List<TimelineEvent> _timeline = timelineOf(widget.result);
   late final int _end = fullTime(
     (widget.result['addedTime'] as num?)?.toInt() ?? 0,
   );
@@ -71,6 +80,28 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// The last minute a clip was cut for, so a rebuild does not restart one.
   int _clippedMinute = -1;
+
+  /// What the side is playing right now.
+  late String _strategy = '${widget.result['strategyId'] ?? defaultStrategy}';
+
+  /// What Colin would have played, captured when the screen opens.
+  ///
+  /// Null when he agreed with the tactic that was already set. Switching TO his
+  /// pick mid-match is what sets `followedCoachSuggestion`, which is the whole
+  /// of one achievement and one quest.
+  String? _coachSuggestion;
+
+  /// A second's grace after a change, so the strip cannot be strummed.
+  bool _tacticCooldown = false;
+  Timer? _cooldownTimer;
+
+  /// The tactic changes, as feed lines. They are not events on the timeline —
+  /// nothing decided them — so they ride alongside it and merge in by minute.
+  final List<FeedLine> _notes = [];
+
+  /// Test seams.
+  String get strategy => _strategy;
+  bool get tacticOnCooldown => _tacticCooldown;
 
   /// Held from initState: `ref` is not usable once the widget is disposed, and
   /// handing the gates back is exactly a teardown job.
@@ -112,6 +143,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         colinOnScreen: false,
       );
     });
+    // Read ONCE, before the first minute: it is derived from the save, and the
+    // save moves under a long match.
+    _coachSuggestion = ref.read(coachSuggestedTacticProvider);
     _timer = Timer.periodic(minuteDuration(fast: widget.fast), (_) => _tick());
     // **THE MATCH HAS ITS OWN BED, and the whistle starts it.** The sounds here
     // belong to the CLOCK rather than to the simulation: the whole ninety
@@ -287,6 +321,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _cooldownTimer?.cancel();
     for (final cue in _cues) {
       cue.cancel();
     }
@@ -298,6 +333,87 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     super.dispose();
   }
 
+  /// Change the tactic, and RE-DECIDE the rest of the match under it.
+  ///
+  /// **`reSimulateRemainder` is 350 ported, tested lines with no caller in
+  /// `lib/`** — which is why five quests and four achievements that read
+  /// `strategyChanged`, `strategiesUsed`, `finalStrategy` and
+  /// `followedCoachSuggestion` could only ever see their kickoff defaults.
+  /// Three of those achievements were unwinnable.
+  ///
+  /// The split is the JS's and its reasoning is worth keeping: events whose
+  /// minute has PASSED are kept — they have either fired or are guaranteed to,
+  /// a goal whose cutaway is still playing being the case that matters — and
+  /// the baseline goals are counted from those kept EVENTS rather than from the
+  /// scoreboard tally. Passing the tally would drop a goal the feed has already
+  /// promised, and the screen would end 2-1 with the engine calling it a draw.
+  void applyStrategy(String id) {
+    if (frame.finished || id == _strategy || _tacticCooldown) return;
+    final strat = strategies[id];
+    if (strat == null) return;
+
+    final at = _minute;
+    final raw = widget.result['events'];
+    final kept = [
+      for (final e in raw is List ? raw : const [])
+        if (e is Map<String, dynamic> && ((e['minute'] as num?) ?? 0) <= at) e,
+    ];
+    var ours = 0;
+    var theirs = 0;
+    for (final e in kept) {
+      if (e['type'] != 'goal') continue;
+      // `home` is us — see `MatchFrame`.
+      if (e['team'] == 'away') {
+        theirs++;
+      } else {
+        ours++;
+      }
+    }
+
+    final fresh = reSimulateRemainder(
+      widget.result,
+      at,
+      id,
+      ours,
+      theirs,
+      ref.read(gameProvider).state,
+    );
+    widget.result['events'] = [...kept, ...fresh];
+
+    // What the quests and the achievements read. `strategiesUsed` opens with
+    // the tactic the side kicked off in, so a switch is genuinely a second
+    // entry rather than the first.
+    widget.result['strategyChanged'] = true;
+    final used = widget.result['strategiesUsed'];
+    final usedList = used is List ? used : <Object?>[_strategy];
+    if (!usedList.contains(id)) usedList.add(id);
+    widget.result['strategiesUsed'] = usedList;
+    widget.result['finalStrategy'] = id;
+    if (id == _coachSuggestion) {
+      widget.result['followedCoachSuggestion'] = true;
+    }
+
+    setState(() {
+      _strategy = id;
+      _timeline = timelineOf(widget.result);
+      _notes.add((
+        minute: at,
+        type: 'tactics',
+        key: 'pause.tactics_change',
+        params: {
+          'name': t('strategy.$id.name'),
+          'hint': t('strategy.$id.hint'),
+        },
+        seed: 'tactic-$at-$id',
+      ));
+      _tacticCooldown = true;
+    });
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer(tacticCooldown, () {
+      if (mounted) setState(() => _tacticCooldown = false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final f = frame;
@@ -307,7 +423,23 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // Only what has been SHOWN, so the feed can never run ahead of the clock —
     // and built off the whole shown list, because whether a chance earns a line
     // depends on how long it has been since the last one did.
-    final lines = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
+    final events = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
+    // The tactic changes, merged in by minute. A stable merge rather than a
+    // sort: `_notes` is already in order, and a note belongs AFTER the events
+    // of the minute it was made in — the switch answers what just happened.
+    final lines = <FeedLine>[];
+    var next = 0;
+    for (final line in events) {
+      while (next < _notes.length &&
+          _notes[next].minute < line.minute &&
+          _notes[next].minute <= f.minute) {
+        lines.add(_notes[next++]);
+      }
+      lines.add(line);
+    }
+    while (next < _notes.length && _notes[next].minute <= f.minute) {
+      lines.add(_notes[next++]);
+    }
 
     return Scaffold(
       key: const ValueKey('match-screen'),
@@ -392,6 +524,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   ),
                 ),
               ),
+              // **DIRECTLY UNDER THE PITCH IT ACTS ON** — the JS's own band
+              // order, and the reason for it: a control for the thing above it
+              // reads as belonging to it.
+              if (!f.finished)
+                _TacticStrip(
+                  active: _strategy,
+                  onPick: applyStrategy,
+                  cooldown: _tacticCooldown,
+                ),
               Expanded(
                 child: ListView.builder(
                   key: const ValueKey('match-feed'),
@@ -435,6 +576,149 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (widget.result['won'] == true) return t('match.victory');
     if (widget.result['drawn'] == true) return t('match.draw');
     return t('match.defeat');
+  }
+}
+
+/// How long the strip stays shut after a change.
+///
+/// The JS's second, and its reason: the remainder is genuinely re-rolled on
+/// every switch, so a strummed strip is a player re-rolling the result until
+/// they like it.
+const Duration tacticCooldown = Duration(seconds: 1);
+
+/// The order the five are offered in. The JS's own, and it is not alphabetical
+/// or by strength: Balanced first because it is the neutral one, then the two
+/// extremes, then the two reads.
+const List<String> strategyStrip = [
+  'balanced',
+  'allOutAttack',
+  'parkTheBus',
+  'counterAttack',
+  'highPress',
+];
+
+/// Five buttons and a cooldown bar.
+///
+/// **Every tactic carries its own hue, lit or not.** The strip reads as five
+/// distinct options rather than one lit cell in a row of grey — and the icons
+/// are 14px line art on a mid-tone panel, so dimming the inactive ones on top
+/// of that took them below readable, which is all the hue had to work with.
+///
+/// The ATK/DEF deltas are deliberately left off: this is a quick switcher, and
+/// the full breakdown lives on the Squad page.
+class _TacticStrip extends StatelessWidget {
+  const _TacticStrip({
+    required this.active,
+    required this.onPick,
+    required this.cooldown,
+  });
+
+  final String active;
+  final void Function(String) onPick;
+  final bool cooldown;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Column(
+      key: const ValueKey('match-tactics'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 46,
+          child: Row(
+            children: [
+              for (final id in strategyStrip)
+                Expanded(
+                  child: _TacticButton(
+                    id: id,
+                    active: id == active,
+                    last: id == strategyStrip.last,
+                    enabled: !cooldown,
+                    onTap: () => onPick(id),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Only while it is shut. A bar that is always there, empty, is a
+        // control the player has to learn to ignore.
+        SizedBox(
+          height: 2,
+          child: cooldown
+              ? TweenAnimationBuilder<double>(
+                  key: const ValueKey('match-tactic-cooldown'),
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: tacticCooldown,
+                  curve: Curves.linear,
+                  builder: (context, t, _) => Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: t,
+                      child: ColoredBox(color: kit.accentBright),
+                    ),
+                  ),
+                )
+              : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _TacticButton extends StatelessWidget {
+  const _TacticButton({
+    required this.id,
+    required this.active,
+    required this.last,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String id;
+  final bool active, last, enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final hue = tacticColor(context, id);
+    return GestureDetector(
+      key: ValueKey('match-tactic-$id'),
+      behavior: HitTestBehavior.opaque,
+      onTap: enabled ? onTap : null,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: active ? hue : kit.surface2,
+          border: last ? null : Border(right: BorderSide(color: kit.border)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GameIcon(
+                tacticIconName(id),
+                size: 17,
+                color: active ? tacticInk(context, id) : hue,
+              ),
+              const SizedBox(height: 1),
+              Text(
+                t('strategy.$id.short'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  height: 1.2,
+                  fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+                  color: active ? tacticInk(context, id) : kit.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

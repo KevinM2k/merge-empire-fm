@@ -464,4 +464,185 @@ void main() {
       expect(state.frame.theirGoals, 0);
     });
   });
+
+  group('THE TACTIC STRIP', () {
+    /// A result with enough on it for `reSimulateRemainder` to work with.
+    ///
+    /// It rewrites the scoreline in place from the ratings, so a result with
+    /// none of them re-decides the match as 0-0 and proves nothing.
+    Map<String, dynamic> playable() => {
+      ...matchResult(
+        addedTime: 0,
+        events: [
+          {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+          {'minute': 70, 'type': 'goal', 'team': 'away'},
+          {'minute': 80, 'type': 'goal', 'team': 'home', 'scorer': 'Ada'},
+        ],
+      ),
+      'strategyId': 'balanced',
+      'strategiesUsed': ['balanced'],
+      'strategyChanged': false,
+      'followedCoachSuggestion': false,
+      'ourAttackRating': 60,
+      'ourDefenceRating': 55,
+      'effectiveSquadRating': 58,
+      'effOppAttackRating': 50,
+      'effOppDefenceRating': 52,
+      'effectiveOppRating': 51,
+      'opponentRating': 51,
+      'homeGoals': 2,
+      'awayGoals': 1,
+    };
+
+    testWidgets('is on screen, with every tactic on it', (tester) async {
+      await pumpMatch(tester, playable());
+      expect(find.byKey(const ValueKey('match-tactics')), findsOneWidget);
+      for (final id in strategyStrip) {
+        expect(
+          find.byKey(ValueKey('match-tactic-$id')),
+          findsOneWidget,
+          reason: id,
+        );
+      }
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('A TAP ON IT REACHES THE ENGINE', (tester) async {
+      // The strip is the only route to `reSimulateRemainder`, so a test that
+      // only calls the method proves the method.
+      final result = playable();
+      await pumpMatch(tester, result);
+      await tester.pump(minuteDurationFor(20));
+      await tester.tap(find.byKey(const ValueKey('match-tactic-parkTheBus')));
+      await tester.pump();
+      expect(stateOf(tester).strategy, 'parkTheBus');
+      expect(result['strategyChanged'], isTrue);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('A CHANGE RE-DECIDES THE REST, and keeps what has happened', (
+      tester,
+    ) async {
+      // `reSimulateRemainder` is 350 ported, tested lines with no caller in
+      // `lib/`. Events whose minute has passed are kept — a goal whose cutaway
+      // is still playing being the case that matters — and everything later is
+      // replaced.
+      final result = playable();
+      await pumpMatch(tester, result);
+      await tester.pump(minuteDurationFor(30));
+      final state = stateOf(tester);
+      final at = state.frame.minute;
+
+      state.applyStrategy('allOutAttack');
+      await tester.pump();
+
+      final events = (result['events'] as List).cast<Map<String, dynamic>>();
+      expect(
+        events.where((e) => (e['minute'] as num) <= at).length,
+        greaterThan(0),
+        reason: 'the minutes already played were thrown away',
+      );
+      expect(
+        events.any((e) => e['type'] == 'goal' && (e['minute'] as num) <= at),
+        isTrue,
+        reason: 'a goal the feed had already shown was un-scored',
+      );
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('AND THE QUESTS CAN SEE IT — four fields nothing could set', (
+      tester,
+    ) async {
+      // Five quests and four achievements read these. Three of the four were
+      // unwinnable: nothing in the port could make `strategyChanged` true.
+      final result = playable();
+      await pumpMatch(tester, result);
+      await tester.pump(minuteDurationFor(20));
+      expect(result['strategyChanged'], isFalse);
+
+      stateOf(tester).applyStrategy('parkTheBus');
+      await tester.pump();
+      expect(result['strategyChanged'], isTrue);
+      expect(result['finalStrategy'], 'parkTheBus');
+      expect(result['strategiesUsed'], containsAll(['balanced', 'parkTheBus']));
+      expect(result['strategyId'], 'parkTheBus');
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('the change SAYS SO in the feed', (tester) async {
+      await pumpMatch(tester, playable());
+      await tester.pump(minuteDurationFor(20));
+      stateOf(tester).applyStrategy('highPress');
+      await tester.pump();
+      expect(
+        find.text(
+          t('pause.tactics_change', {
+            'name': t('strategy.highPress.name'),
+            'hint': t('strategy.highPress.hint'),
+          }),
+        ),
+        findsOneWidget,
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('A SECOND CHANGE HAS TO WAIT', (tester) async {
+      // The remainder is genuinely re-rolled on every switch, so a strummed
+      // strip is a player re-rolling the result until they like it.
+      await pumpMatch(tester, playable());
+      await tester.pump(minuteDurationFor(20));
+      final state = stateOf(tester);
+      state.applyStrategy('highPress');
+      await tester.pump();
+      expect(state.tacticOnCooldown, isTrue);
+
+      state.applyStrategy('parkTheBus');
+      await tester.pump();
+      expect(state.strategy, 'highPress', reason: 'the cooldown did nothing');
+
+      await tester.pump(tacticCooldown + const Duration(milliseconds: 50));
+      expect(state.tacticOnCooldown, isFalse);
+      state.applyStrategy('parkTheBus');
+      await tester.pump();
+      expect(state.strategy, 'parkTheBus');
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and picking the ONE ALREADY ON does nothing at all', (
+      tester,
+    ) async {
+      final result = playable();
+      await pumpMatch(tester, result);
+      await tester.pump(minuteDurationFor(20));
+      stateOf(tester).applyStrategy('balanced');
+      await tester.pump();
+      expect(
+        result['strategyChanged'],
+        isFalse,
+        reason: 'a no-op counted as a tactical switch',
+      );
+      expect(stateOf(tester).tacticOnCooldown, isFalse);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('AT FULL TIME THE STRIP IS GONE', (tester) async {
+      // There is no remainder to re-decide, and a live control over a finished
+      // match is a control that lies.
+      final result = playable();
+      await pumpMatch(tester, result);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('match-tactics')), findsNothing);
+      stateOf(tester).applyStrategy('highPress');
+      await tester.pump();
+      expect(result['strategyChanged'], isFalse);
+    });
+  });
 }

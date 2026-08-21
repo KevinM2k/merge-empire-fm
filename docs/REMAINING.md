@@ -1501,9 +1501,20 @@ findings were arithmetic rather than taste and one is a reversal.
       `manager_mood.dart` has the five moods; the JS's `GESTURES` table in
       `data/managerMood.js` is the mapping, and `DugoutCam.js` is how it plays
       one.
-- [ ] **The match popup is missing most of itself** — boxes, tactics, subs, the
-      watch-ad buttons. It is a screen-sized parity job against the JS's own CSS
-      rather than a fix.
+- [~] **The match popup is missing most of itself** — boxes, tactics, subs, the
+      watch-ad buttons. The boxes were already there (`MatchStatRows`, drawn by
+      the scorecard), and **the TACTIC STRIP is in**: five buttons under the
+      pitch it acts on, each in its own hue, with the JS's one-second cooldown.
+      It is the caller `reSimulateRemainder` never had — 350 ported, tested
+      lines that re-decide the remaining minutes, keeping every event whose
+      minute has passed and counting the baseline from those kept EVENTS rather
+      than the scoreboard tally, so a goal whose cutaway is still playing cannot
+      be un-scored. Five quests and four achievements read `strategyChanged`,
+      `strategiesUsed`, `finalStrategy` and `followedCoachSuggestion`, and until
+      now they only ever saw the kickoff defaults — three of those achievements
+      were unwinnable.
+      Still to go: SUBS (which want a substitution path of their own) and the
+      watch-ad buttons (M4).
 - [ ] **A PHYSICS pass, and it wants a real decision first.** The ask is to be
       more creative with a physics engine for the cutaway, the penalty game and
       the character drawing. The honest position:
@@ -1789,8 +1800,9 @@ Ordered by how visible each one is to somebody playing.
 
 **The match popup and the cutaway.**
 
-- [ ] **The popup is missing its boxes, tactics, subs and watch-ad buttons** — see
-      22 Aug. Against the JS's own CSS.
+- [~] **The popup is missing its boxes, tactics, subs and watch-ad buttons** — the
+      boxes were already there and the TACTICS are in as of 21 Aug; subs and the
+      watch-ad buttons remain. See 22 Aug.
 - [ ] **Continuous play between chances.** The stage is persistent and the players
       only exist during a chance; the JS runs them between chances too. The hard
       part is the one raised in the request: the ball has to arrive at each chance
