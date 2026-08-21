@@ -19,6 +19,9 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
+import 'package:merge_empire_fc/ui/screens/match/summary_league_move.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 /// An ad server that answers however the test needs it to.
@@ -64,6 +67,11 @@ Future<MatchSummaryScreenState> pumpSummary(
   WidgetTester tester,
   Map<String, dynamic> res, {
   RewardedAds? ads,
+
+  /// Through the runner rather than a bare load — the schedule and the
+  /// opponents are boot sweeps, and a save with no fixtures has no table for
+  /// the standings block to move.
+  bool boot = false,
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -74,7 +82,11 @@ Future<MatchSummaryScreenState> pumpSummary(
     ],
   );
   addTearDown(container.dispose);
-  container.read(gameProvider).load();
+  if (boot) {
+    container.read(gameRunnerProvider).boot();
+  } else {
+    container.read(gameProvider).load();
+  }
 
   // **PUSHED, not the home route.** The screen pops itself when the offer is
   // answered, and a route with nothing under it cannot be popped — which is a
@@ -140,6 +152,76 @@ void main() {
   ) async {
     await pumpSummary(tester, result(won: false));
     expect(find.text(t('match.defeat').toUpperCase()), findsOneWidget);
+  });
+
+  testWidgets('THE VERDICT IS THE RESULT\'S COLOUR, not the club\'s', (
+    tester,
+  ) async {
+    // It wore `accentBright`, which belongs to the KIT: a side in red was told
+    // it had won in the same red this game uses for a goal against, and a
+    // green-shirted defeat read as a win.
+    for (final (won, drawn) in [(true, false), (false, true), (false, false)]) {
+      await pumpSummary(tester, result(won: won, drawn: drawn));
+      final text = tester.widget<Text>(
+        find.byKey(const ValueKey('summary-verdict')),
+      );
+      expect(
+        text.style?.color,
+        verdictInk(won: won, drawn: drawn),
+        reason: 'won: $won, drawn: $drawn',
+      );
+    }
+  });
+
+  testWidgets('IT IS ONE BOX, not four notes on the sky', (tester) async {
+    // The verdict, the money and the quest outcomes each sat loose on the
+    // gradient with only the scoreline in a panel — four halves of the same
+    // statement, reading as four unrelated notes.
+    await pumpSummary(
+      tester,
+      result(
+        questResults: [
+          {
+            'id': 'match_clean_sheet',
+            'icon': '🧱',
+            'target': 1,
+            'passed': true,
+            'coins': 120,
+          },
+        ],
+      ),
+    );
+    final card = find.ancestor(
+      of: find.byKey(const ValueKey('summary-verdict')),
+      matching: find.byType(GlassPanel),
+    );
+    expect(card, findsOneWidget);
+    for (final part in [
+      const ValueKey('summary-score'),
+      const ValueKey('summary-payout'),
+      const ValueKey('match-quests'),
+    ]) {
+      expect(
+        find.descendant(of: card, matching: find.byKey(part)),
+        findsOneWidget,
+        reason: '$part is not in the box the score is in',
+      );
+    }
+  });
+
+  testWidgets('THE TABLE MOVES ON IT', (tester) async {
+    // A league match is only half told by its own scoreline: the other half is
+    // where it left you.
+    await pumpSummary(tester, result(), boot: true);
+    expect(find.byKey(const ValueKey('summary-table')), findsOneWidget);
+    await tester.pump(leagueMoveHold);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('and a CUP TIE has no table to move', (tester) async {
+    // A cup round is not a league fixture; it changes no standing.
+    await pumpSummary(tester, result()..['isCup'] = true, boot: true);
+    expect(find.byKey(const ValueKey('summary-table')), findsNothing);
   });
 
   group('the doubling offer', () {
@@ -236,6 +318,44 @@ void main() {
     ) async {
       await pumpSummary(tester, result());
       expect(find.byKey(const ValueKey('match-quests')), findsNothing);
+    });
+
+    testWidgets('AND THE MONEY THEY PAID IS IN WHAT THE SCREEN CLAIMS', (
+      tester,
+    ) async {
+      // A match quest auto-pays at the whistle, so it never passes through the
+      // offer or through `applyMatchRewards` — and the screen was quoting the
+      // fee alone. The player walked away with 420 while being told 300, on
+      // the one line whose job is to say what declining is worth.
+      await pumpSummary(
+        tester,
+        result(coins: 300, questResults: outcomes()),
+        ads: FakeAds(AdOutcome.rewarded),
+      );
+      expect(
+        find.text('${t('match.no_thanks')} — ${formatCoins(420)}'),
+        findsOneWidget,
+        reason: 'declining understated what the player keeps',
+      );
+      // And both answers are totals, so the difference between them is
+      // exactly what the video is worth.
+      expect(
+        find.text('${t('match.double_reward')} → ${formatCoins(720)}'),
+        findsOneWidget,
+      );
+      expect(find.text('+${formatCoins(420)}'), findsOneWidget);
+    });
+
+    testWidgets('a match that paid no fee still shows the quest money', (
+      tester,
+    ) async {
+      // No offer to make and money to report: the two are independent, and a
+      // teaser under a figure nothing can double is a button that is not there.
+      await pumpSummary(tester, result(coins: 0, questResults: outcomes()));
+      expect(find.byKey(const ValueKey('summary-payout')), findsOneWidget);
+      expect(find.text('+${formatCoins(120)}'), findsOneWidget);
+      expect(find.text(t('match.double_teaser')), findsNothing);
+      expect(find.byKey(const ValueKey('summary-double')), findsNothing);
     });
 
     testWidgets('a track where nothing came off has no total', (tester) async {

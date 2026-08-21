@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
+import 'package:merge_empire_fc/ui/screens/match/summary_league_move.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
@@ -37,6 +38,36 @@ import 'package:merge_empire_fc/util/format.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num _num(Object? v) => v is num ? v : 0;
+
+/// What the match's three quests paid, which is money the player already has.
+///
+/// A match quest auto-pays at full time — `settleMatch` resolves the track
+/// before this screen is pushed — so it never passes through the doubling offer
+/// and never through `applyMatchRewards`. It is still part of what the match
+/// was worth, and every figure on this screen that claims to be a total has to
+/// carry it.
+int questCoins(Map<String, dynamic> result) {
+  final raw = result['questResults'];
+  if (raw is! List) return 0;
+  var total = 0;
+  for (final entry in raw) {
+    final row = _map(entry);
+    if (row != null) total += _num(row['coins']).toInt();
+  }
+  return total;
+}
+
+/// The result's own colour, and it is the scale the rest of the game uses —
+/// the form dots, the pitch tokens and the HUD all read green, amber, red.
+///
+/// **Not the kit accent.** The verdict wore `accentBright`, which is the CLUB's
+/// colour: a side in red shirts was told it had won in the same red the game
+/// uses for a goal against, and a green-shirted defeat looked like a win.
+Color verdictInk({required bool won, required bool drawn}) => won
+    ? const Color(0xFF4ADE80)
+    : drawn
+    ? const Color(0xFFFBBF24)
+    : const Color(0xFFF87171);
 
 /// The AdMob placement this screen asks for.
 const String doubleMatchPlacement = 'double_match';
@@ -70,10 +101,16 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
   /// What the match paid before any doubling — the figure the offer is about.
   late final int _base;
 
+  /// What the three match quests paid, which is already in the bank. Held here
+  /// rather than recomputed per build: the offer doubles the FEE, and both
+  /// answers have to add the same quest money to it.
+  late final int _quests;
+
   @override
   void initState() {
     super.initState();
     _base = _num(widget.result['coinsEarned']).toInt();
+    _quests = questCoins(widget.result);
     if (_base > 0) {
       ref.read(rewardedAdsProvider).prepare(doubleMatchPlacement);
     }
@@ -129,15 +166,25 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
                   children: [
-                    _Verdict(won: won, drawn: drawn),
-                    const SizedBox(height: 10),
-                    _Score(
+                    // **ONE BOX, not three things loose around one.** The
+                    // verdict, the money and the quest outcomes each sat on the
+                    // bare sky with only the scoreline in a panel — so the four
+                    // halves of the same statement, what happened and what it
+                    // paid, read as four unrelated notes.
+                    _ResultCard(
+                      won: won,
+                      drawn: drawn,
                       left:
                           '${isHome ? result['clubName'] : result['opponentName'] ?? ''}',
                       right:
                           '${isHome ? result['opponentName'] : result['clubName'] ?? ''}',
                       leftGoals: isHome ? ourGoals : theirGoals,
                       rightGoals: isHome ? theirGoals : ourGoals,
+                      base: _base,
+                      quests: _quests,
+                      doubled: canDouble && _answering,
+                      trophies: trophies,
+                      result: result,
                     ),
                     const SizedBox(height: 12),
                     // **The manager, reacting to it.** The full-time shot used
@@ -151,38 +198,12 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     ),
                     const SizedBox(height: 14),
                     _Scorers(result: result),
-                    const SizedBox(height: 10),
-                    _Payout(base: _base, doubled: canDouble && _answering),
-                    if (trophies > 0) ...[
-                      const SizedBox(height: 8),
-                      Center(
-                        // A figure and the glyph, not a sentence: there is no
-                        // shipped copy for "you won N trophies", and inventing a
-                        // key the catalogues have never seen would print English
-                        // in ten languages.
-                        child: Row(
-                          key: const ValueKey('summary-trophies'),
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            GameIcon(
-                              'trophy',
-                              size: 16,
-                              color: kit.accentBright,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '+$trophies',
-                              style: TextStyle(
-                                color: kit.accentBright,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: 12),
-                    QuestOutcomes(result: result),
+                    // **THE TABLE, MOVING.** A league match is only half told
+                    // by its own scoreline: the other half is what it did to
+                    // the standings, and the other clubs played too.
+                    if (result['isCup'] != true)
+                      const LeagueMove(key: ValueKey('summary-table')),
                   ],
                 ),
               ),
@@ -221,7 +242,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                                         Flexible(
                                           child: Text(
                                             '${t('match.double_reward')} → '
-                                            '${formatCoins(_base * 2)}',
+                                            '${formatCoins(_base * 2 + _quests)}',
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w900,
@@ -244,9 +265,18 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                             style: TextButton.styleFrom(
                               foregroundColor: kit.textMuted,
                             ),
+                            // **BOTH FIGURES ARE WHAT YOU WALK AWAY WITH**,
+                            // and the quest money is part of both. The link
+                            // said `_base` — the match fee alone — while the
+                            // player was actually leaving with the fee plus
+                            // whatever the three quests paid at the whistle, so
+                            // the one line naming the outcome of declining
+                            // understated it. Totals on both sides also make
+                            // the two answers comparable: the difference
+                            // between them is exactly what the video is worth.
                             child: Text(
                               '${t('match.no_thanks')} — '
-                              '${formatCoins(_base)}',
+                              '${formatCoins(_base + _quests)}',
                             ),
                           ),
                         ],
@@ -268,6 +298,125 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
   }
 }
 
+/// The result, and everything the result was worth, on ONE surface.
+///
+/// **Four notes on the sky is not a statement.** The verdict, the money and the
+/// quest outcomes each sat loose on the gradient with only the scoreline in a
+/// panel — on a screen whose whole job is to say "this is what happened and
+/// this is what it paid". They are one thing, so they get one box, ruled into
+/// what happened and what it came to.
+class _ResultCard extends StatelessWidget {
+  const _ResultCard({
+    required this.won,
+    required this.drawn,
+    required this.left,
+    required this.right,
+    required this.leftGoals,
+    required this.rightGoals,
+    required this.base,
+    required this.quests,
+    required this.doubled,
+    required this.trophies,
+    required this.result,
+  });
+
+  final bool won;
+  final bool drawn;
+  final String left;
+  final String right;
+  final int leftGoals;
+  final int rightGoals;
+
+  /// The match fee, which is the figure the doubling offer is about.
+  final int base;
+
+  /// What the three quests paid at the whistle. Already banked.
+  final int quests;
+
+  /// Struck through and doubled while the video runs.
+  final bool doubled;
+  final int trophies;
+  final Map<String, dynamic> result;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = verdictInk(won: won, drawn: drawn);
+    final paid = base > 0 || quests > 0;
+    return GlassPanel(
+      density: GlassDensity.deep,
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _Verdict(won: won, drawn: drawn),
+          const SizedBox(height: 10),
+          _Score(
+            left: left,
+            right: right,
+            leftGoals: leftGoals,
+            rightGoals: rightGoals,
+          ),
+          if (paid || trophies > 0) ...[
+            // The rule wears the verdict's colour rather than the pane's
+            // hairline grey: it is the seam between what happened and what it
+            // was worth, and both halves are about the same result.
+            _Rule(ink: ink),
+            if (paid) _Payout(base: base, quests: quests, doubled: doubled),
+            if (trophies > 0) ...[
+              const SizedBox(height: 8),
+              // A figure and the glyph, not a sentence: there is no shipped
+              // copy for "you won N trophies", and inventing a key the
+              // catalogues have never seen would print English in ten
+              // languages.
+              _Trophies(trophies: trophies),
+            ],
+          ],
+          QuestOutcomes(result: result, rule: ink),
+        ],
+      ),
+    );
+  }
+}
+
+/// The seam inside the card, in the result's own colour.
+class _Rule extends StatelessWidget {
+  const _Rule({required this.ink});
+
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: Container(height: 1, color: ink.withValues(alpha: 0.28)),
+  );
+}
+
+class _Trophies extends StatelessWidget {
+  const _Trophies({required this.trophies});
+
+  final int trophies;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Row(
+      key: const ValueKey('summary-trophies'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        GameIcon('trophy', size: 16, color: kit.accentBright),
+        const SizedBox(width: 6),
+        Text(
+          '+$trophies',
+          style: TextStyle(
+            color: kit.accentBright,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// VICTORY, DRAW or DEFEAT, in the one size that says which without reading.
 class _Verdict extends StatelessWidget {
   const _Verdict({required this.won, required this.drawn});
@@ -277,12 +426,11 @@ class _Verdict extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final (label, colour) = won
-        ? (t('match.victory'), kit.accentBright)
+    final label = won
+        ? t('match.victory')
         : drawn
-        ? (t('match.draw'), kit.textMuted)
-        : (t('match.defeat'), const Color(0xFFE07A5F));
+        ? t('match.draw')
+        : t('match.defeat');
     return Text(
       label.toUpperCase(),
       key: const ValueKey('summary-verdict'),
@@ -291,7 +439,11 @@ class _Verdict extends StatelessWidget {
         fontSize: 30,
         fontWeight: FontWeight.w900,
         letterSpacing: 2,
-        color: colour,
+        // **THE RESULT'S OWN COLOUR**, off the green-amber-red scale the form
+        // dots, the pitch tokens and the HUD all read. It wore the kit accent,
+        // which belongs to the CLUB: a side in red was told it had won in the
+        // same red this game uses for a goal against.
+        color: verdictInk(won: won, drawn: drawn),
       ),
     );
   }
@@ -313,31 +465,27 @@ class _Score extends StatelessWidget {
   final int rightGoals;
 
   @override
-  Widget build(BuildContext context) => GlassPanel(
-    density: GlassDensity.deep,
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-    child: Row(
-      children: [
-        Expanded(
-          child: _Club(name: left, align: TextAlign.right),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            '$leftGoals–$rightGoals',
-            key: const ValueKey('summary-score'),
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: _Club(name: left, align: TextAlign.right),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(
+          '$leftGoals–$rightGoals',
+          key: const ValueKey('summary-score'),
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
-        Expanded(
-          child: _Club(name: right, align: TextAlign.left),
-        ),
-      ],
-    ),
+      ),
+      Expanded(
+        child: _Club(name: right, align: TextAlign.left),
+      ),
+    ],
   );
 }
 
@@ -479,16 +627,29 @@ class _Scorers extends ConsumerWidget {
   }
 }
 
-/// What the match paid — struck through and doubled while the video runs.
+/// What the match came to — struck through and doubled while the video runs.
+///
+/// **The hero figure is the WALK-AWAY total**, fee plus quest money, because
+/// that is the number the player is deciding about. The fee alone was the one
+/// on screen while the quests paid separately at the whistle, so the screen
+/// understated the match by however much the track was worth. The doubling
+/// offer still bites on the fee only — the quests are banked and cannot be
+/// doubled — which is exactly what the struck-through figure shows.
 class _Payout extends StatelessWidget {
-  const _Payout({required this.base, required this.doubled});
+  const _Payout({
+    required this.base,
+    required this.quests,
+    required this.doubled,
+  });
 
   final int base;
+  final int quests;
   final bool doubled;
 
   @override
   Widget build(BuildContext context) {
-    if (base <= 0) return const SizedBox.shrink();
+    final total = base + quests;
+    if (total <= 0) return const SizedBox.shrink();
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Column(
       key: const ValueKey('summary-payout'),
@@ -498,7 +659,7 @@ class _Payout extends StatelessWidget {
           children: [
             if (doubled) ...[
               Text(
-                '+${formatCoins(base)}',
+                '+${formatCoins(total)}',
                 style: TextStyle(
                   fontSize: 15,
                   color: kit.textMuted,
@@ -512,7 +673,7 @@ class _Payout extends StatelessWidget {
             CoinIcon(size: 20, solid: true, color: coinFigureInk(context)),
             const SizedBox(width: 6),
             Text(
-              '+${formatCoins(doubled ? base * 2 : base)}',
+              '+${formatCoins(doubled ? base * 2 + quests : total)}',
               key: const ValueKey('summary-coins'),
               style: TextStyle(
                 fontSize: 26,
@@ -522,12 +683,18 @@ class _Payout extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          t('match.double_teaser'),
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: kit.textMuted),
-        ),
+        // The teaser is about an offer, so it goes when there is no offer to
+        // make: a match that paid no fee still shows its quest money, and
+        // "watch to keep 2× coins" under a figure nothing can double is a
+        // button that is not there.
+        if (base > 0) ...[
+          const SizedBox(height: 4),
+          Text(
+            t('match.double_teaser'),
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: kit.textMuted),
+          ),
+        ],
       ],
     );
   }
@@ -540,9 +707,14 @@ class _Payout extends StatelessWidget {
 /// coins have already been paid — a match quest auto-pays at full time — so this
 /// is a report, not a claim.
 class QuestOutcomes extends StatelessWidget {
-  const QuestOutcomes({required this.result, super.key});
+  const QuestOutcomes({required this.result, this.rule, super.key});
 
   final Map<String, dynamic> result;
+
+  /// The seam drawn ABOVE the list when it shares a box with the result — the
+  /// verdict's colour, the same rule the money sits under. Null for a caller
+  /// that lays the list out itself.
+  final Color? rule;
 
   @override
   Widget build(BuildContext context) {
@@ -566,6 +738,7 @@ class QuestOutcomes extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (rule case final ink?) _Rule(ink: ink),
           for (final row in rows)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
