@@ -16,7 +16,12 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
+    show leagueTableProvider;
+import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
+    show PosChip;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show MatchRow;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
@@ -547,6 +552,157 @@ void main() {
     });
   });
 
+  group('THE COMMENTARY KNOWS WHO IT IS ABOUT', () {
+    testWidgets('A GOAL CARRIES THE SCORER\'S FACE', (tester) async {
+      // A goal line naming a player, next to the art of the player it names.
+      // The portraits are bundled and `playerImagePath` already resolves them,
+      // so what was missing was the row knowing who it was about rather than
+      // holding a string with his name in it.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {
+              'minute': 10,
+              'type': 'goal',
+              'team': 'home',
+              'scorer': 'Bobby',
+              'scorerInstanceId': 'c15',
+            },
+          ],
+        ),
+        save: squadSave(),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('match-feed')),
+          matching: find.byType(PlayerFace),
+        ),
+        findsOneWidget,
+        reason: 'the goal line named a player and drew nobody',
+      );
+    });
+
+    testWidgets('and a scorer who has LEFT still gets his line', (
+      tester,
+    ) async {
+      // A sale mid-season must not take a goal off the feed. No card, no face —
+      // and the ball glyph the row had before is what stands in.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {
+              'minute': 10,
+              'type': 'goal',
+              'team': 'home',
+              'scorer': 'Bobby',
+              'scorerInstanceId': 'sold-long-ago',
+            },
+          ],
+        ),
+        save: squadSave(),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      final feed = find.byKey(const ValueKey('match-feed'));
+      expect(
+        find.descendant(of: feed, matching: find.byType(PlayerFace)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: feed, matching: find.byIcon(Icons.sports_soccer)),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('and an OPPONENT goal draws no face', (tester) async {
+      // The engine picks scorers from our squad; one of theirs is nobody the
+      // save has ever heard of.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 10, 'type': 'goal', 'team': 'away'},
+          ],
+        ),
+        save: squadSave(),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('match-feed')),
+          matching: find.byType(PlayerFace),
+        ),
+        findsNothing,
+      );
+    });
+  });
+
+  group('THE BOARD IS THE FIXTURE CARD', () {
+    /// The `PosChip` on our side of the board, or null if there is none.
+    PosChip? ourChip(WidgetTester tester) {
+      final chips = tester
+          .widgetList<PosChip>(
+            find.descendant(
+              of: find.byKey(const ValueKey('match-scoreboard')),
+              matching: find.byType(PosChip),
+            ),
+          )
+          .where((c) => c.ours);
+      return chips.isEmpty ? null : chips.first;
+    }
+
+    testWidgets('IT OPENS WITH THE STANDINGS, like the home page does', (
+      tester,
+    ) async {
+      // The same fixture, described twice in two different shapes — and the
+      // home page's is the one that got the design work. The chip is the card's
+      // own, and it sits on the card's own three-track row.
+      final container = await pumpMatch(tester, matchResult());
+      final board = find.byKey(const ValueKey('match-scoreboard'));
+      expect(board, findsOneWidget);
+
+      final table = container.read(leagueTableProvider);
+      expect(
+        ourChip(tester)?.position,
+        table.indexWhere((r) => r.isPlayer) + 1,
+        reason: 'the board does not say where we stand',
+      );
+      // Standings, names and score: three bands on ONE row, which is what makes
+      // the ratings line up under the club names.
+      expect(
+        find.descendant(of: board, matching: find.byType(MatchRow)),
+        findsNWidgets(3),
+      );
+    });
+
+    testWidgets('AND THEY DO NOT MOVE UNDER THE FINAL WHISTLE', (tester) async {
+      // `finalizeMatchOutcome` runs at full time with this screen still up, so
+      // a live table would slide the chips under the player at the whistle. A
+      // fixture card describes the fixture as it was PLAYED.
+      final container = await pumpMatch(tester, matchResult());
+      final before = ourChip(tester)?.position;
+      expect(before, isNotNull);
+
+      container.read(gameProvider).update((s) {
+        final prog = s['progression'] as Map<String, dynamic>;
+        prog['seasonAwardedPlayed'] = 8;
+        prog['seasonWins'] = 8;
+        prog['seasonDraws'] = 0;
+      });
+      await tester.pump();
+      // The table really did move, or this proves nothing.
+      final moved = container.read(leagueTableProvider);
+      expect(moved.indexWhere((r) => r.isPlayer) + 1, isNot(before));
+      expect(ourChip(tester)?.position, before);
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+    });
+  });
+
   group('THE TACTIC STRIP', () {
     /// A result with enough on it for `reSimulateRemainder` to work with.
     ///
@@ -781,7 +937,6 @@ void main() {
       return (off: slot.cardInstanceId!, on: bench.instanceId);
     }
 
-
     testWidgets('THE PANEL IS THE SAME PITCH, and the bench comes up on a tap', (
       tester,
     ) async {
@@ -811,9 +966,7 @@ void main() {
       // The bench is behind a tap, from the bottom, the way the Squad tab does
       // it — not a second list sharing the screen.
       expect(find.byKey(const ValueKey('subs-bench-sheet')), findsNothing);
-      await tester.tap(
-        find.byKey(ValueKey('sub-slot-${slots.first.slotId}')),
-      );
+      await tester.tap(find.byKey(ValueKey('sub-slot-${slots.first.slotId}')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('subs-bench-sheet')), findsOneWidget);
       // Tap the barrier to send it away — a modal sheet has no back button.
@@ -1107,8 +1260,10 @@ void main() {
       await tester.pumpAndSettle();
       // Nobody comes off — there is nobody there — so the card says only who
       // comes on.
-      expect(find.text(t('match.subs.feed_on', {'on': bench.card.name})),
-          findsOneWidget);
+      expect(
+        find.text(t('match.subs.feed_on', {'on': bench.card.name})),
+        findsOneWidget,
+      );
       await confirmSub(tester);
       expect(
         container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),

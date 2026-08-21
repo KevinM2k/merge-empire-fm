@@ -144,6 +144,7 @@ void main() {
       bool big = false,
       double xg = 0,
       String? scorer,
+      String? scorerId,
       String? player,
       String? textKey,
     }) => (
@@ -151,6 +152,7 @@ void main() {
       type: type,
       team: team,
       scorer: scorer,
+      scorerId: scorerId,
       textKey: textKey,
       shotResult: shotResult,
       big: big,
@@ -160,6 +162,24 @@ void main() {
 
     List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
         feedOf(events, ourName: 'Us', theirName: 'Them', isHome: isHome);
+
+    test('AND A GOAL KNOWS WHOSE IT WAS', () {
+      // The feed printed the scorer's NAME and carried nothing else, so a row
+      // that wanted his face had a string to work from. The engine has written
+      // `scorerInstanceId` all along — `finalizeMatchOutcome` attributes career
+      // goals by it — and the line carries it now.
+      final ours = feed([ev('goal', scorer: 'Bobby', scorerId: 'c7')]);
+      expect(ours.single.aboutId, 'c7');
+
+      // An opponent goal is nobody's, and it has to be: the engine picks
+      // scorers from OUR squad, so a face for one of theirs cannot be drawn.
+      final theirs = feed([ev('goal', team: 'away')]);
+      expect(theirs.single.aboutId, isNull);
+
+      // And a goal with no scorer at all — an own goal, an older save — is a
+      // line without a face rather than a line without a goal.
+      expect(feed([ev('goal')]).single.aboutId, isNull);
+    });
 
     test('A CORNER SAYS NOTHING, and neither does full time', () {
       // The port fell through to printing `event.type`, so a corner read as the

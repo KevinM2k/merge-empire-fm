@@ -40,6 +40,47 @@ const double nmGap = 4;
 const double _ratingHalf = 22;
 const double _statClear = 8;
 
+/// One row of the card's `[1fr | gutter | 1fr]` shape.
+///
+/// **ONE ROW, because there were two.** The next-match card and the live
+/// scoreboard each carried their own copy of these five lines, which is the
+/// arrangement that makes the ratings line up under the club names — and two
+/// copies of a shape whose entire job is alignment drift the first time either
+/// surface is touched. It lives here with [nmGutter] and [nmGap], which are what
+/// it is made of.
+class MatchRow extends StatelessWidget {
+  const MatchRow({
+    super.key,
+    required this.left,
+    required this.right,
+    required this.gutter,
+    this.bottomSpacing = 0,
+  });
+
+  final Widget left;
+  final Widget right;
+  final Widget gutter;
+  final double bottomSpacing;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: bottomSpacing),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: Center(child: left)),
+        const SizedBox(width: nmGap),
+        SizedBox(
+          width: nmGutter,
+          child: Center(child: gutter),
+        ),
+        const SizedBox(width: nmGap),
+        Expanded(child: Center(child: right)),
+      ],
+    ),
+  );
+}
+
 /// Deeper and more saturated than a plain red: this is 10px type on mid-tone
 /// glass, where `#f87171` went milky. Shared with the grudge chip beside it.
 /// The three verdict hues, per pane.

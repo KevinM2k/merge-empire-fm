@@ -241,13 +241,13 @@ class NextMatchCard extends ConsumerWidget {
         // (3rd)" to save the band: it wrapped to a second line on the longer
         // half of most fixtures, and a position hanging under one club and
         // beside the other looked worse than the row it replaced.
-        _Row(
-          left: _PosChip(side: match.left),
-          right: _PosChip(side: match.right),
+        MatchRow(
+          left: PosChip.of(match.left),
+          right: PosChip.of(match.right),
           gutter: const SizedBox.shrink(),
           bottomSpacing: 6,
         ),
-        _Row(
+        MatchRow(
           left: _Name(side: match.left, note: match.bonusNote),
           right: _Name(side: match.right, note: match.bonusNote),
           // VS is on the NAMES row, which is why the standings moved out to a
@@ -290,40 +290,6 @@ class NextMatchCard extends ConsumerWidget {
   }
 }
 
-/// The card's three-track shape: `[1fr | gutter | 1fr]`. Every row keys off the
-/// SAME fixed gutter, and that is what makes the ratings line up under the names.
-class _Row extends StatelessWidget {
-  const _Row({
-    required this.left,
-    required this.right,
-    required this.gutter,
-    this.bottomSpacing = 0,
-  });
-
-  final Widget left;
-  final Widget right;
-  final Widget gutter;
-  final double bottomSpacing;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.only(bottom: bottomSpacing),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(child: Center(child: left)),
-        const SizedBox(width: nmGap),
-        SizedBox(
-          width: nmGutter,
-          child: Center(child: gutter),
-        ),
-        const SizedBox(width: nmGap),
-        Expanded(child: Center(child: right)),
-      ],
-    ),
-  );
-}
-
 /// `POS: 3rd ⌃⌃` — quiet glass, because the card already spends its colour on
 /// ATK/DEF and a red or green pill beside those read as a third opinion on the
 /// same fixture. The one coloured thing is the movement chevron.
@@ -333,19 +299,46 @@ class _Row extends StatelessWidget {
 /// on the screen that names where you stand could not show you the standing. It
 /// works for the OPPONENT's chip too: their position is the more interesting one,
 /// and the table is the same table.
-class _PosChip extends StatelessWidget {
-  const _PosChip({required this.side});
+/// Where a club stands, and how far it moved on the round just played.
+///
+/// `position` is null for a side with no table row — a cup tie has no table —
+/// and the chip draws nothing rather than an empty pill.
+typedef PosStanding = ({int? position, int delta});
 
-  final MatchSide side;
+class PosChip extends StatelessWidget {
+  const PosChip({
+    super.key,
+    required this.position,
+    required this.delta,
+    required this.ours,
+  });
+
+  /// Built from a card's own side. The chip takes three values rather than the
+  /// whole record because the live match page has a fixture and a table and no
+  /// [MatchSide] anywhere — and a chip that can only be drawn from one screen's
+  /// data structure is a chip that gets built twice.
+  factory PosChip.of(MatchSide side) => PosChip(
+    position: side.position,
+    delta: side.posDelta ?? 0,
+    ours: side.ours,
+  );
+
+  /// Where they sit. Null draws nothing — a cup tie has no table.
+  final int? position;
+
+  /// How far they moved on the round just played. Zero emits no chevron.
+  final int delta;
+
+  /// Ours or theirs, for the key alone.
+  final bool ours;
 
   @override
   Widget build(BuildContext context) {
-    final pos = side.position;
+    final pos = position;
     if (pos == null) return const SizedBox.shrink();
-    final delta = side.posDelta ?? 0;
 
     return GestureDetector(
-      key: ValueKey('nm-pos-${side.ours ? 'ours' : 'theirs'}'),
+      key: ValueKey('nm-pos-${ours ? 'ours' : 'theirs'}'),
       onTap: () => showLeagueTableSheet(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

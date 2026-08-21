@@ -15,6 +15,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart' show PlayerEnergy;
+import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
 import 'package:merge_empire_fc/data/quests.dart' show questBank;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/quest_match.dart'
@@ -31,6 +32,11 @@ import 'package:merge_empire_fc/engine/match_orchestration.dart'
     show reSimulateRemainder;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
+    show leagueTableProvider;
+import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
+import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
+    show PosChip, PosStanding;
 import 'package:merge_empire_fc/engine/lineup_engine.dart'
     show refillLineupFromBench;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
@@ -47,6 +53,7 @@ import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart' show PlayerFace;
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
@@ -136,6 +143,31 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// not get — it just halves the wait.
   late bool _fast = widget.fast;
 
+  /// Where the two clubs stood when the whistle went.
+  ///
+  /// **A SNAPSHOT, not a watch.** `finalizeMatchOutcome` runs at full time with
+  /// this screen still up, so a live table would move the chips under the player
+  /// at the final whistle — and a fixture card describes the fixture as it was
+  /// played. Null for either side that has no table row: a cup tie has no table,
+  /// and a chip with nothing in it draws nothing.
+  late final ({PosStanding ours, PosStanding theirs}) _standings;
+
+  ({PosStanding ours, PosStanding theirs}) _standingsAtKickoff() {
+    final table = ref.read(leagueTableProvider);
+    final opponent = widget.result['opponentName'];
+    PosStanding find(bool Function(LeagueRow row) match) {
+      final i = table.indexWhere(match);
+      return i < 0
+          ? (position: null, delta: 0)
+          : (position: i + 1, delta: table[i].posDelta ?? 0);
+    }
+
+    return (
+      ours: find((r) => r.isPlayer),
+      theirs: find((r) => !r.isPlayer && r.name == opponent),
+    );
+  }
+
   /// Test seams.
   bool get fast => _fast;
   String get strategy => _strategy;
@@ -221,6 +253,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // Read ONCE, before the first minute: it is derived from the save, and the
     // save moves under a long match.
     _coachSuggestion = ref.read(coachSuggestedTacticProvider);
+    _standings = _standingsAtKickoff();
     _kickoffLineup = _lineupSnapshot();
     _startClock();
     // **THE MATCH HAS ITS OWN BED, and the whistle starts it.** The sounds here
@@ -526,6 +559,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
             : 'match.subs.feed',
         params: {'on': onName, 'off': offName ?? ''},
         seed: 'sub-$_minute-${sub.onId}',
+        // The man coming ON is who the line is about, and the row can draw him.
+        aboutId: sub.onId,
       ));
     });
   }
@@ -633,6 +668,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           'hint': t('strategy.$id.hint'),
         },
         seed: 'tactic-$at-$id',
+        aboutId: null,
       ));
       _tacticCooldown = true;
     });
@@ -702,6 +738,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                 finished: f.finished,
                 result: widget.result,
                 isHome: home,
+                standings: _standings,
               ),
               const Divider(height: 1),
               // THE STAGE: one band, fixed for the whole match, holding the
@@ -718,8 +755,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                 child: ConstrainedBox(
                   // Capped: the pitch is landscape and at its natural aspect would
                   // take a third of a tall phone and all of a short one.
+                  //
+                  // 0.28 rather than 0.3 since the board took a standings band:
+                  // at full time on a 600pt screen the feed is down to single
+                  // figures, and the pitch is the one band here that is a
+                  // fraction of the screen rather than a thing being read.
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.sizeOf(context).height * 0.3,
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.28,
                   ),
                   child: AspectRatio(
                     aspectRatio: pitchAspect,
@@ -801,8 +843,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     // arrive from ABOVE and push the rest down, which is the
                     // direction the feed actually grows.
                     itemCount: lines.length,
-                    itemBuilder: (context, i) =>
-                        _FeedLine(line: lines[lines.length - 1 - i]),
+                    itemBuilder: (context, i) => _FeedLine(
+                      line: lines[lines.length - 1 - i],
+                      state: ref.read(gameProvider).state,
+                    ),
                   ),
                 ),
               if (f.finished) _QuestOutcomes(result: widget.result),
@@ -1251,6 +1295,7 @@ class _Scoreboard extends StatelessWidget {
     required this.finished,
     required this.result,
     required this.isHome,
+    required this.standings,
   });
 
   final String left;
@@ -1261,6 +1306,9 @@ class _Scoreboard extends StatelessWidget {
   final bool finished;
   final Map<String, dynamic> result;
   final bool isHome;
+
+  /// Where the two clubs stood at kick-off, home side first once laid out.
+  final ({PosStanding ours, PosStanding theirs}) standings;
 
   @override
   Widget build(BuildContext context) {
@@ -1295,9 +1343,16 @@ class _Scoreboard extends StatelessWidget {
     // A cup tie or an older save may carry no split at all, and four zeroes
     // would be worse than nothing.
     final hasSplit = result['ourAttackRating'] != null;
+    // The board is laid out HOME SIDE LEFT, the same way the fixture card is.
+    final leftStanding = isHome ? standings.ours : standings.theirs;
+    final rightStanding = isHome ? standings.theirs : standings.ours;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 11),
+      // **TIGHTER THAN IT WAS, because it grew a band.** The standings row is
+      // worth its height and the screen is not: at full time on a short phone
+      // the feed is already down to a few pixels, so the row pays for itself out
+      // of the board's own padding and the gap it replaced.
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 7),
       child: Column(
         children: [
           // What this is, and how far in.
@@ -1339,8 +1394,26 @@ class _Scoreboard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          _TeamRow(
+          const SizedBox(height: 6),
+          // **THE SAME BAND THE NEXT-MATCH CARD OPENS WITH.** It is the same
+          // fixture ten seconds later and the home page's version is the one
+          // that got the design work — so the standings come with it, on their
+          // own row, through the same chip.
+          MatchRow(
+            left: PosChip(
+              position: leftStanding.position,
+              delta: leftStanding.delta,
+              ours: isHome,
+            ),
+            right: PosChip(
+              position: rightStanding.position,
+              delta: rightStanding.delta,
+              ours: !isHome,
+            ),
+            gutter: const SizedBox.shrink(),
+            bottomSpacing: 4,
+          ),
+          MatchRow(
             left: Text(
               left,
               textAlign: TextAlign.center,
@@ -1367,7 +1440,7 @@ class _Scoreboard extends StatelessWidget {
               ),
             ),
           ),
-          _TeamRow(
+          MatchRow(
             left: Text(
               '$leftGoals',
               key: const ValueKey('match-score-left'),
@@ -1414,38 +1487,16 @@ class _Scoreboard extends StatelessWidget {
   }
 }
 
-/// The card's `[1fr | gutter | 1fr]` shape, so the score, the names and the
-/// ratings below them all line up on the same three tracks.
-class _TeamRow extends StatelessWidget {
-  const _TeamRow({
-    required this.left,
-    required this.gutter,
-    required this.right,
-  });
-
-  final Widget left;
-  final Widget gutter;
-  final Widget right;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(child: Center(child: left)),
-      const SizedBox(width: nmGap),
-      SizedBox(
-        width: nmGutter,
-        child: Center(child: gutter),
-      ),
-      const SizedBox(width: nmGap),
-      Expanded(child: Center(child: right)),
-    ],
-  );
-}
-
 class _FeedLine extends StatelessWidget {
-  const _FeedLine({required this.line});
+  const _FeedLine({required this.line, required this.state});
 
   final FeedLine line;
+
+  /// The save, for resolving [FeedLine.aboutId] into a face. Handed in rather
+  /// than watched: the feed rebuilds on every tick of the clock, and a hundred
+  /// rows each subscribing to the whole save is a hundred rebuilds a minute for
+  /// a portrait that cannot change.
+  final Map<String, dynamic>? state;
 
   @override
   Widget build(BuildContext context) {
@@ -1463,35 +1514,78 @@ class _FeedLine extends StatelessWidget {
     final text = tPoolStable(line.key, line.seed, line.params);
     if (text.isEmpty) return const SizedBox.shrink();
 
+    // **A LINE NAMING A PLAYER, BESIDE THE ART OF THE PLAYER IT NAMES.** The
+    // portraits are bundled and `playerImagePath` already resolves them; what
+    // was missing was the row knowing who it was about. Null for a line that is
+    // about nobody, and for a man who has since left — a sale mid-season must
+    // not take a goal off the feed.
+    final about = line.aboutId == null ? null : cardById(state, line.aboutId!);
+    final def = getPlayerDef(about?.definitionId);
+    final face = about == null || def == null
+        ? null
+        : PlayerFace(
+            position: def.position,
+            tier: def.tier,
+            variant: about.variant,
+            size: isGoal ? 30 : 24,
+            ring: isGoal ? kit.accentBright : kit.border,
+          );
+
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 30,
+          child: Text(
+            "${line.minute}'",
+            style: TextStyle(color: kit.textMuted, fontSize: 11),
+          ),
+        ),
+        // The face stands IN FOR the ball glyph rather than beside it: two marks
+        // in front of one sentence is a row with two subjects.
+        if (face != null)
+          Padding(padding: const EdgeInsets.only(right: 8), child: face)
+        else if (isGoal)
+          const Padding(
+            padding: EdgeInsets.only(right: 4),
+            child: Icon(Icons.sports_soccer, size: 14),
+          ),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isGoal ? FontWeight.w700 : FontWeight.w400,
+              color: isGoal ? kit.accentBright : null,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    // **A GOAL IS THE HEADLINE OF THE FEED, so it gets a surface.** Every line
+    // was the same shape in the same column, which is a transcript — and the one
+    // thing a manager looks up for is the goal. A tint and a rule down the
+    // leading edge, the way a quoted block reads, so it is legible as the thing
+    // that happened without the row growing.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 30,
-            child: Text(
-              "${line.minute}'",
-              style: TextStyle(color: kit.textMuted, fontSize: 11),
-            ),
-          ),
-          if (isGoal)
-            const Padding(
-              padding: EdgeInsets.only(right: 4),
-              child: Icon(Icons.sports_soccer, size: 14),
-            ),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isGoal ? FontWeight.w700 : FontWeight.w400,
-                color: isGoal ? kit.accentBright : null,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+      child: isGoal
+          ? Container(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+              decoration: BoxDecoration(
+                color: kit.accent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border(
+                  left: BorderSide(color: kit.accentBright, width: 3),
+                ),
               ),
+              child: row,
+            )
+          : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: row,
             ),
-          ),
-        ],
-      ),
     );
   }
 }

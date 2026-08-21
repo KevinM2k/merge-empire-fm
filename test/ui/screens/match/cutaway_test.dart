@@ -27,6 +27,7 @@ TimelineEvent _event(
   type: type,
   team: 'home',
   scorer: null,
+  scorerId: null,
   textKey: null,
   shotResult: shotResult,
   big: big,
