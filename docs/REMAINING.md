@@ -2544,6 +2544,33 @@ by a test.
       drill exists and plays; the pressure does not. Check the timing against
       the source before retuning it.
 
+### The subs bench
+
+- [x] **It is the same pitch as the Squad tab now.** It was two scrolling lists,
+      which asks the manager to rebuild the shape in their head from position
+      labels — while the shape IS the information, and they already know it from
+      the Squad tab. `PitchBoard` came out of `squad_screen.dart` so both screens
+      lay the eleven out by one set of rules; what differs is only what a tap
+      does. A hurt player wears the cross and reads zero (see above), and an
+      empty slot says "Injured — needs cover" rather than reading as a formation
+      with a gap in it.
+      Tapping a man opens the bench from the bottom, tapping a bench card asks
+      "X off, Y on" through Colin, and only a YES closes the bench — a manager
+      who says no is still choosing, and taking the bench away would make trying
+      somebody else a whole extra journey.
+- [x] **A BENCH button**, so the bench can be read before nominating anybody.
+      Who is available is half of deciding who to take off, and needing to pick a
+      man first to find out made that a chicken and an egg.
+- [x] **Three bench cards per row, not four** — and responsive above that. A
+      max-extent delegate fitted as many 92px cards as the width allowed, which
+      is four on most phones. `benchColumns` lives with `PlayerCard` because BOTH
+      benches use it and two answers to one question would read as a bug.
+- [ ] **`_spent` resets when the panel is REOPENED.** Pre-existing, and not
+      introduced by the rewrite: "nobody who has been off goes back on" holds
+      within one opening of the panel, because the set lives on the panel while
+      `used` is passed in from the screen. The withdrawn list belongs next to
+      `_kickoffLineup` on the match screen.
+
 ### The player card and the sell sheet
 
 - [x] **ATK and DEF were nowhere on the player.** Added to the detail sheet, and

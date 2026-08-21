@@ -481,57 +481,11 @@ class _Pitch extends ConsumerWidget {
   final void Function(WidgetRef ref, SquadDrag drag, String slotId) onAssign;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final slots = ref.watch(pitchSlotsProvider);
-
-    return SquadPitch(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // **The eleven scale to the shape they are in.** A formation is laid
-          // out in percentages and the token is laid out in pixels, so whether a
-          // shape crowds depends on the screen — and it is the TIGHTEST pair in
-          // the shape that decides, which is a different pair in a 4-3-3 (two
-          // centre-backs) than in a 4-2-3-1 (a centre-back and the man in front
-          // of him). `pitchTokenScale` asks that question directly rather than
-          // trusting five hand-checked shapes at three sizes.
-          //
-          // Not an inset: giving the outer lines a margin by squeezing the
-          // formation into a shorter field would take the room out of exactly
-          // the place it is missing from — between the midfield and the attack.
-          final scale = pitchTokenScale([
-            for (final slot in slots) (x: slot.x, y: slot.y),
-          ], constraints.biggest);
-          return Stack(
-            key: const ValueKey('squad-pitch'),
-            clipBehavior: Clip.none,
-            children: [
-              for (final slot in slots)
-                Positioned(
-                  // CENTRED on the formation's own percentage, which is what
-                  // `left:x%; top:y%; transform:translate(-50%,-50%)` means. It
-                  // had been mapping 0-100% onto `0..(width - cardWidth)`, which
-                  // pulls every slot toward the top-left and squeezes the gaps
-                  // between them until eleven tokens sit on top of each other.
-                  left: (slot.x / 100) * constraints.maxWidth,
-                  top: (slot.y / 100) * constraints.maxHeight,
-                  // The token sizes itself, so the half-shift has to come off its
-                  // own measured box rather than a hard-coded height. The scale
-                  // goes INSIDE it, about the token's own centre, so the slot
-                  // stays exactly where the formation put it.
-                  child: FractionalTranslation(
-                    translation: const Offset(-0.5, -0.5),
-                    child: Transform.scale(
-                      scale: scale,
-                      child: _SlotTarget(slot: slot, onAssign: onAssign),
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => PitchBoard(
+    slots: ref.watch(pitchSlotsProvider),
+    slotBuilder: (context, slot) =>
+        _SlotTarget(slot: slot, onAssign: onAssign),
+  );
 }
 
 class _SlotTarget extends ConsumerWidget {
@@ -666,8 +620,13 @@ Future<void> showBenchSheet(BuildContext context, WidgetRef ref) {
         return GridView.builder(
           key: const ValueKey('squad-bench'),
           padding: const EdgeInsets.all(12),
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 92,
+          // Three across on a phone, wider on a tablet — the same count the
+          // match's bench uses, because it is the same bench and two different
+          // answers would read as a bug.
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: benchColumns(
+              MediaQuery.sizeOf(sheetContext).width,
+            ),
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
             childAspectRatio: 0.78,

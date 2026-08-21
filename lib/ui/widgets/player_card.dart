@@ -24,6 +24,24 @@ import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
+/// How many of these fit across a bench grid of [width].
+///
+/// **Three is the FLOOR, not the answer.** A max-extent delegate fits as many
+/// cards as the width allows, which is four on most phones — and four across a
+/// sheet an inch or two wide leaves each one too small to read the face on. A
+/// tablet earns the columns its width actually pays for.
+///
+/// Lives here rather than on either screen because BOTH benches use it — the
+/// squad's and the match's — and two different answers to the same question
+/// would read as a bug.
+int benchColumns(double width) {
+  final earned = (width / benchColumnWidth).floor();
+  return earned < 3 ? 3 : earned;
+}
+
+/// The width one bench card wants before another column is worth having.
+const double benchColumnWidth = 132;
+
 /// Everything the card paints, resolved by the caller.
 ///
 /// A record rather than the save's card map: the widget should not know how a

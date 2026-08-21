@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -743,6 +744,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    /// Say yes to the "X off, Y on" card, and let the bench close behind it.
+    Future<void> confirmSub(WidgetTester tester) async {
+      await tester.tap(
+        find.byKey(const ValueKey('coach-action-common.confirm')),
+      );
+      await tester.pumpAndSettle();
+    }
+
     /// Take somebody off and bring the first bench player on.
     /// [spent] is who has already been withdrawn: they are on the bench now,
     /// and the panel will not let them back on — so a test that keeps picking
@@ -761,20 +770,24 @@ void main() {
       final bench = container
           .read(benchProvider)
           .firstWhere((b) => !spent.contains(b.instanceId));
-      final offRow = find.byKey(ValueKey('sub-slot-${slot.slotId}'));
-      await tester.ensureVisible(offRow);
+      // Tap him on the PITCH — the panel is the same pitch as the Squad tab now
+      // — which opens the bench from the bottom. Then the bench card, then the
+      // confirmation: a substitution asks before it happens.
+      await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
       await tester.pumpAndSettle();
-      await tester.tap(offRow);
+      await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
-      final onRow = find.byKey(ValueKey('sub-bench-${bench.instanceId}'));
-      await tester.ensureVisible(onRow);
-      await tester.pumpAndSettle();
-      await tester.tap(onRow);
-      await tester.pumpAndSettle();
+      await confirmSub(tester);
       return (off: slot.cardInstanceId!, on: bench.instanceId);
     }
 
-    testWidgets('THE PANEL IS REACHABLE, and it lists both', (tester) async {
+
+    testWidgets('THE PANEL IS THE SAME PITCH, and the bench comes up on a tap', (
+      tester,
+    ) async {
+      // It was two scrolling lists, which asks the manager to rebuild the shape
+      // in their head from position labels — while the shape IS the information,
+      // and they already know it from the Squad tab.
       tallView(tester);
       final container = await pumpMatch(
         tester,
@@ -783,14 +796,46 @@ void main() {
       );
       await openSubs(tester);
       expect(find.byKey(const ValueKey('subs-panel')), findsOneWidget);
-      expect(find.text(t('match.subs.on_pitch').toUpperCase()), findsOneWidget);
-      expect(find.text(t('match.subs.bench').toUpperCase()), findsOneWidget);
+      expect(find.byKey(const ValueKey('pitch-board')), findsOneWidget);
+      final slots = container.read(pitchSlotsProvider);
+      expect(slots.length, 11);
+      for (final slot in slots) {
+        expect(
+          find.byKey(ValueKey('sub-slot-${slot.slotId}')),
+          findsOneWidget,
+          reason: '${slot.slotId} is not on the pitch',
+        );
+      }
       expect(container.read(benchProvider), isNotEmpty);
+
+      // The bench is behind a tap, from the bottom, the way the Squad tab does
+      // it — not a second list sharing the screen.
+      expect(find.byKey(const ValueKey('subs-bench-sheet')), findsNothing);
+      await tester.tap(
+        find.byKey(ValueKey('sub-slot-${slots.first.slotId}')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('subs-bench-sheet')), findsOneWidget);
+      // Tap the barrier to send it away — a modal sheet has no back button.
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('subs-done')));
       await tester.pumpAndSettle();
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
       await settleSave(tester);
+    });
+
+    test('THE BENCH IS THREE ACROSS on a phone, and wider on a tablet', () {
+      // A max-extent delegate fitted as many 92px cards as the width allowed,
+      // which is four on most phones — four across a sheet an inch or two wide
+      // leaves each card too small to read the face on. Three is the floor, not
+      // the answer: a tablet earns the columns its width actually pays for.
+      expect(benchColumns(360), 3, reason: 'a small phone');
+      expect(benchColumns(430), 3, reason: 'a large phone');
+      expect(benchColumns(834), greaterThan(3), reason: 'a tablet');
+      // And it never narrows below three, however small the sheet gets.
+      expect(benchColumns(120), 3);
     });
 
     testWidgets('THE CLOCK WAITS while it is open', (tester) async {
@@ -944,7 +989,16 @@ void main() {
           .firstWhere((s) => s.cardInstanceId != null);
       await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
       await tester.pumpAndSettle();
+      // He is on the bench and the tap does nothing, so the sheet stays open.
       await tester.tap(find.byKey(ValueKey('sub-bench-${swap.off}')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('coach-card')),
+        findsNothing,
+        reason: 'a withdrawn player was offered the pitch again',
+      );
+      // Send the bench away, so Back to match is reachable behind it.
+      await tester.tapAt(const Offset(8, 8));
       await tester.pumpAndSettle();
       expect(
         container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
@@ -1001,12 +1055,16 @@ void main() {
       final panel = tester.state<SubsPanelState>(find.byType(SubsPanel));
       expect(panel.selectedSlot, slot.slotId);
 
+      // The bench is ALREADY OPEN on the hole — that is what the pre-pick buys.
+      expect(find.byKey(const ValueKey('subs-bench-sheet')), findsOneWidget);
       final bench = container.read(benchProvider).first;
-      final onRow = find.byKey(ValueKey('sub-bench-${bench.instanceId}'));
-      await tester.ensureVisible(onRow);
+      await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
-      await tester.tap(onRow);
-      await tester.pumpAndSettle();
+      // Nobody comes off — there is nobody there — so the card says only who
+      // comes on.
+      expect(find.text(t('match.subs.feed_on', {'on': bench.card.name})),
+          findsOneWidget);
+      await confirmSub(tester);
       expect(
         container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
         contains(bench.instanceId),

@@ -15,6 +15,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// The turf, its mown bands and the shading down the top.
@@ -192,4 +194,69 @@ class _PitchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PitchPainter oldDelegate) => oldDelegate.light != light;
+}
+
+/// The eleven, placed on the pitch by the formation's own percentages.
+///
+/// **Extracted so the SUBS panel can be the same pitch.** Choosing a
+/// substitution off two scrolling lists asks the manager to hold the shape in
+/// their head; the shape is the information, and they have already learnt where
+/// everybody is from the Squad tab. What differs between the two screens is only
+/// what a slot DOES when it is tapped, which is [slotBuilder].
+class PitchBoard extends StatelessWidget {
+  const PitchBoard({required this.slots, required this.slotBuilder, super.key});
+
+  final List<PitchSlot> slots;
+
+  /// What to draw in one slot. Tapping is the caller's business.
+  final Widget Function(BuildContext context, PitchSlot slot) slotBuilder;
+
+  @override
+  Widget build(BuildContext context) => SquadPitch(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        // **The eleven scale to the shape they are in.** A formation is laid out
+        // in percentages and the token in pixels, so whether a shape crowds
+        // depends on the screen — and it is the TIGHTEST pair in the shape that
+        // decides, which is a different pair in a 4-3-3 (two centre-backs) than
+        // in a 4-2-3-1 (a centre-back and the man in front of him).
+        // `pitchTokenScale` asks that question directly rather than trusting
+        // five hand-checked shapes at three sizes.
+        //
+        // Not an inset: giving the outer lines a margin by squeezing the
+        // formation into a shorter field would take the room out of exactly the
+        // place it is missing from — between the midfield and the attack.
+        final scale = pitchTokenScale([
+          for (final slot in slots) (x: slot.x, y: slot.y),
+        ], constraints.biggest);
+        return Stack(
+          key: const ValueKey('pitch-board'),
+          clipBehavior: Clip.none,
+          children: [
+            for (final slot in slots)
+              Positioned(
+                // CENTRED on the formation's own percentage, which is what
+                // `left:x%; top:y%; transform:translate(-50%,-50%)` means. It
+                // had been mapping 0-100% onto `0..(width - cardWidth)`, which
+                // pulls every slot toward the top-left and squeezes the gaps
+                // between them until eleven tokens sit on top of each other.
+                left: (slot.x / 100) * constraints.maxWidth,
+                top: (slot.y / 100) * constraints.maxHeight,
+                // The token sizes itself, so the half-shift has to come off its
+                // own measured box rather than a hard-coded height. The scale
+                // goes INSIDE it, about the token's own centre, so the slot
+                // stays exactly where the formation put it.
+                child: FractionalTranslation(
+                  translation: const Offset(-0.5, -0.5),
+                  child: Transform.scale(
+                    scale: scale,
+                    child: slotBuilder(context, slot),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    ),
+  );
 }
