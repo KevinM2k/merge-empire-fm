@@ -2660,13 +2660,20 @@ by a test.
       wanted; the rhythm of it is not. Either fewer gestures carry `stops`, or the
       ease is longer, or it should slow to a stroll rather than to nothing — see
       `walk_ramp.dart`, which already has the ramp to tune.
-- [ ] **The tab buttons stack down the side of the customiser.** A column of
-      little buttons, one per part. Wants a different control — a dropdown, a
-      segmented strip, something.
-- [ ] **Each option wants a LABEL under it** — "Kit", "Tracksuit", "Brown",
-      "Beanie". A grid of thumbnails does not say what any of them is.
-- [ ] **A locked option should still show its PREVIEW.** Locked means you cannot
-      select it, not that you cannot see what you are working toward.
+- [x] **The tab buttons stacked down the customiser.** A horizontal strip of eight
+      does not fit across a phone, so wrapping them fixed the reachability and
+      left two lines of little buttons under each other, which reads as a pile
+      rather than as navigation. One picker naming the part you are on now — the
+      same `DropdownButton` idiom the Player Index's filters use — which is one
+      line, says where you are without being read left to right, and cannot run
+      out of room however many axes the wardrobe grows.
+- [x] **Every option carries its name under it.** The label was on the control for
+      a screen reader and nowhere at all for anybody else; a grid of thumbnails
+      does not say which one is the beanie.
+- [x] **And a locked option shows what it would look like.** The padlock REPLACED
+      the preview, which made the reward for building the Fan Zone or lifting a
+      cup a surprise — the exact opposite of what keeping it on the grid was for.
+      It sits over the drawing now, on a dimmed but visible preview.
 
 ### Light mode
 

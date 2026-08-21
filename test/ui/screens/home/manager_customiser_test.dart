@@ -35,9 +35,11 @@ void main() {
   /// looking for the far ones behind a horizontal scroll — which is the whole
   /// complaint the wrap fixed.
   Future<void> openAxis(WidgetTester tester, String kind) async {
-    final tab = find.byKey(ValueKey('customise-axis-$kind'));
-    expect(tab, findsOneWidget, reason: 'no $kind tab');
-    await tester.tap(tab);
+    await tester.tap(find.byKey(const ValueKey('customise-axis-picker')));
+    await tester.pumpAndSettle();
+    final item = find.byKey(ValueKey('customise-axis-$kind')).last;
+    expect(item, findsOneWidget, reason: 'no $kind entry in the picker');
+    await tester.tap(item);
     await tester.pumpAndSettle();
   }
 
@@ -123,28 +125,82 @@ void main() {
   });
 
   group('what the sheet SHOWS', () {
-    testWidgets('EVERY AXIS IS REACHABLE WITHOUT SCROLLING', (tester) async {
-      // They were a horizontal strip, and eight tabs do not fit across a phone —
-      // so Hat and Face lived off the right-hand edge with nothing to say they
-      // were there. A row that runs out of the frame is not navigation.
+    testWidgets('THE AXES ARE ONE CONTROL, not eight stacked buttons', (
+      tester,
+    ) async {
+      // Wrapped, eight tabs took two lines of little buttons under each other —
+      // which fits and reads as a pile. One picker naming the part you are on is
+      // a control; the same idiom as the Player Index's filters.
       phone(tester);
       final container = await pumpHome(tester);
       addTearDown(container.dispose);
       await openCustomiser(tester);
 
-      final strip = tester.getRect(
-        find.byKey(const ValueKey('customise-axes')),
-      );
+      final picker = find.byKey(const ValueKey('customise-axis-picker'));
+      expect(picker, findsOneWidget);
+      // ONE line. Two rows of chips came to about sixty; a single control is
+      // half that, and the room goes to the wardrobe.
+      expect(tester.getRect(picker).height, lessThan(46));
+
+      // And every part is still reachable through it.
       for (final axis in lookAxes) {
-        final tab = find.byKey(ValueKey('customise-axis-${axis.kind}'));
-        expect(tab, findsOneWidget, reason: '${axis.kind} is not in the tree');
-        final box = tester.getRect(tab);
+        await openAxis(tester, axis.kind);
         expect(
-          box.right,
-          lessThanOrEqualTo(strip.right + 0.5),
-          reason: '${axis.kind} hangs off the right-hand edge',
+          find.byKey(ValueKey('customise-grid-${axis.kind}')),
+          findsOneWidget,
+          reason: '${axis.kind} could not be opened',
         );
       }
+      await settleSave(tester);
+    });
+
+    testWidgets('EVERY OPTION SAYS WHAT IT IS', (tester) async {
+      // A grid of thumbnails does not tell you which one is the beanie. The name
+      // was on the control for a screen reader and nowhere for anybody else.
+      phone(tester);
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      await openCustomiser(tester);
+      await openAxis(tester, 'build');
+
+      final chip = find.byKey(const ValueKey('customise-chip-build-broad'));
+      await tester.ensureVisible(chip);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: chip, matching: find.text('Broad')),
+        findsOneWidget,
+        reason: 'the option is a picture with no name under it',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('AND A LOCKED ONE STILL SHOWS WHAT IT WOULD LOOK LIKE', (
+      tester,
+    ) async {
+      // Locked means you cannot pick it, not that you cannot see it. The padlock
+      // REPLACED the preview, so the reward for building the Fan Zone was a
+      // surprise — which is the opposite of what keeping it on the grid was for.
+      phone(tester);
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      await openCustomiser(tester);
+      await openAxis(tester, 'beard');
+
+      // On a fresh save every beard but `none` is behind a Fan Zone tier.
+      final chip = find.byKey(const ValueKey('customise-chip-beard-stubble'));
+      await tester.ensureVisible(chip);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: chip, matching: find.byType(ManagerWalker)),
+        findsOneWidget,
+        reason: 'a locked option is still a padlock instead of a preview',
+      );
+      // With the padlock still on it, because it is still locked.
+      expect(
+        find.descendant(of: chip, matching: find.byIcon(Icons.lock)),
+        findsOneWidget,
+        reason: 'nothing says it is locked',
+      );
       await settleSave(tester);
     });
 

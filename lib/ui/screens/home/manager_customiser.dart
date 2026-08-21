@@ -197,28 +197,24 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
             mood: Mood.pleased,
           ),
         ),
-        // **ALL EIGHT AXES ON SCREEN AT ONCE.**
+        // **ONE CONTROL, NOT EIGHT.**
         //
-        // They were a horizontal strip, and eight tabs do not fit across a
-        // phone — so Hat and Face lived off the right-hand edge, behind a
-        // scroll with nothing to say it was there. A row that runs out of the
-        // frame is not navigation; it is a list you have to already know the
-        // length of. Wrapped, they take two lines and cost eighteen pixels.
+        // A horizontal strip of eight tabs does not fit across a phone, so Hat
+        // and Face lived off the right-hand edge behind a scroll with nothing to
+        // say it was there. Wrapping them fixed the reachability and left two
+        // lines of little buttons stacked under each other, which reads as a
+        // pile rather than as navigation.
+        //
+        // A picker naming the part you are on is one line, says where you are
+        // without being read left to right, and cannot run out of room however
+        // many axes the wardrobe grows. `DropdownButton` is the same idiom the
+        // Player Index's filters already use.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 13),
-          child: Wrap(
-            key: const ValueKey('customise-axes'),
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (var i = 0; i < lookAxes.length; i++)
-                _AxisTab(
-                  key: ValueKey('customise-axis-${lookAxes[i].kind}'),
-                  label: t(lookAxes[i].labelKey),
-                  selected: i == _axis,
-                  onTap: () => setState(() => _axis = i),
-                ),
-            ],
+          child: _AxisPicker(
+            axes: lookAxes,
+            index: _axis,
+            onPick: (i) => setState(() => _axis = i),
           ),
         ),
         const SizedBox(height: 8),
@@ -302,38 +298,61 @@ class _PreviewStage extends StatelessWidget {
   }
 }
 
-class _AxisTab extends StatelessWidget {
-  const _AxisTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    super.key,
+/// Which part of him is being edited.
+///
+/// One line, and it NAMES the part rather than leaving you to read a strip left
+/// to right — see the note at the call site. Styled off the kit rather than
+/// Material's defaults so it belongs to the sheet it sits in.
+class _AxisPicker extends StatelessWidget {
+  const _AxisPicker({
+    required this.axes,
+    required this.index,
+    required this.onPick,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final List<LookAxis> axes;
+  final int index;
+  final void Function(int) onPick;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 13),
-        decoration: BoxDecoration(
-          color: selected ? kit.accent : kit.bg,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? kit.accent : kit.border),
-        ),
-        child: Text(
-          label,
+    return Container(
+      key: const ValueKey('customise-axis-picker'),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: kit.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: kit.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: index,
+          isDense: true,
+          isExpanded: true,
+          dropdownColor: kit.surface,
+          iconEnabledColor: kit.textMuted,
+          borderRadius: BorderRadius.circular(10),
+          // The theme's own body colour: `KitTheme` names only the muted one,
+          // and the sheet's text elsewhere takes the default.
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.w800,
-            color: selected ? Colors.white : kit.textMuted,
+            color: DefaultTextStyle.of(context).style.color,
           ),
+          items: [
+            for (var i = 0; i < axes.length; i++)
+              DropdownMenuItem<int>(
+                value: i,
+                // Keyed on the axis rather than the index: a test asking for the
+                // hat should not have to know it is seventh.
+                key: ValueKey('customise-axis-${axes[i].kind}'),
+                child: Text(t(axes[i].labelKey)),
+              ),
+          ],
+          onChanged: (i) {
+            if (i != null) onPick(i);
+          },
         ),
       ),
     );
@@ -533,37 +552,84 @@ class _Chip extends StatelessWidget {
       child: GestureDetector(
         key: ValueKey('customise-chip-${axis.kind}-$id'),
         onTap: onTap,
-        child: Opacity(
-          opacity: locked ? 0.45 : 1,
-          child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: swatch ?? kit.bg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: selected ? kit.accentBright : kit.border,
-                width: selected ? 2 : 1,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Expanded(
+              child: Opacity(
+                // Knocked back rather than emptied. **A LOCKED ITEM STILL SHOWS
+                // WHAT IT WOULD LOOK LIKE**: the padlock used to REPLACE the
+                // preview, which made the reward for building the Fan Zone or
+                // lifting a cup a surprise — the exact opposite of what keeping
+                // it on the grid was for. It sits over the drawing now.
+                opacity: locked ? 0.55 : 1,
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: swatch ?? kit.bg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: selected ? kit.accentBright : kit.border,
+                      width: selected ? 2 : 1,
+                    ),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (swatch == null)
+                        _LookPreview(
+                          axis: axis,
+                          // **`defaultManagerLook` when the save has none**,
+                          // which is every fresh one — without the fallback the
+                          // whole grid was words on exactly the saves most likely
+                          // to be opening this sheet for the first time.
+                          look: <String, dynamic>{
+                            ...(look ?? defaultManagerLook),
+                            axis.field: axis.kind == 'color'
+                                ? hairColorValue(id)
+                                : id,
+                          },
+                        ),
+                      if (locked)
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: kit.bg.withValues(alpha: 0.8),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2),
+                              child: Icon(
+                                Icons.lock,
+                                size: 12,
+                                color: kit.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            child: locked
-                ? Icon(Icons.lock, size: 16, color: kit.textMuted)
-                : swatch != null
-                ? const SizedBox.shrink()
-                : _LookPreview(
-                    axis: axis,
-                    // **`defaultManagerLook` when the save has none**, which is
-                    // every fresh one — without the fallback the whole grid was
-                    // words on exactly the saves most likely to be opening this
-                    // sheet for the first time.
-                    look: <String, dynamic>{
-                      ...(look ?? defaultManagerLook),
-                      axis.field: axis.kind == 'color'
-                          ? hairColorValue(id)
-                          : id,
-                    },
-                  ),
-          ),
+            // **THE NAME, under the picture.** A grid of thumbnails does not say
+            // which one is the beanie: the label was on the control for a screen
+            // reader and nowhere at all for anybody else.
+            const SizedBox(height: 2),
+            Text(
+              _label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: locked ? kit.textMuted : null,
+              ),
+            ),
+          ],
         ),
       ),
     );
