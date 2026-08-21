@@ -2471,15 +2471,26 @@ by a test.
 
 ### The squad page — rolling a trait
 
-- [ ] **The STATS DO NOT CHANGE when the trait rolls.** A trait carries
-      directional ATK/DEF bonuses (`getTraitBonus`, folded into the rating by
-      `getCardStats`), so the numbers on the card have to move when the trait
-      does. If they do not, either the roll is not writing or the sheet is not
-      re-reading.
-- [ ] **The text above the spinner GIVES THE ANSWER AWAY** before the spinner
-      has finished. Whatever it is reading is the settled result, not the
-      animation — so the reveal reveals nothing.
-- [ ] **And the spinner is too quick.** It needs longer to be worth watching.
+- [x] **The STATS DID NOT CHANGE when the trait rolled**, and it was not the
+      roll: the sheet's rating came from `getCardRating`, which is the
+      DEFINITION's rating plus a merge bonus and knows nothing about traits,
+      aging, form or sponsor. `getCardStats` is the documented single source of
+      truth and folds the trait's directional bonus back into the overall — so
+      the one number a roll is bought to move was the one number that could not
+      move. ATK and DEF are on the sheet now as well, because the bonus is
+      directional and on the overall alone a Finisher III reads as three points
+      from nowhere. (Those two labels are literals, as they are in the source —
+      `SquadScreen.js:372` and `Card.js:34` have no key for either.)
+- [x] **The text above the spinner GAVE THE ANSWER AWAY.** The badge reads the
+      save, and the roll writes the save BEFORE the reels move — deliberately,
+      because a spin that decided at the end would have to be unwound when the
+      debit was refused. So the answer sat printed over a wheel still pretending
+      to decide it. The old trait is held for the length of the spin now, behind
+      a flag rather than a null, because "nothing" is what most first rolls
+      start from.
+- [x] **And the spinner was too quick** — 900ms is a flick. 1.9s over five
+      revolutions, and the ease-out makes that read as slowing down rather than
+      as waiting.
 
 ### The penalty shootout
 
@@ -2513,6 +2524,21 @@ by a test.
 - [ ] **It is meant to be the ball coming AT you, with no time to react.** The
       drill exists and plays; the pressure does not. Check the timing against
       the source before retuning it.
+
+### The player card and the sell sheet
+
+- [x] **ATK and DEF were nowhere on the player.** Added to the detail sheet, and
+      the sheet's RATING was wrong besides — see the trait entry above. The grid
+      card still shows the rating alone: `CardView` carries `rating` and no
+      split, so putting it there means widening the record and every builder of
+      it, and finding room on a card an inch wide. Not done, on purpose.
+- [ ] **The sell sheet on the players tab needs styling, and the full picture.**
+      Tapping a player there opens the sell popup — which works and is the right
+      shape — but it is plain next to the squad sheet, and it should carry the
+      full-length artwork the squad sheet does (`_Header`, 260px, `BoxFit.cover`
+      anchored to the top).
+- [ ] **And SELL can come off the squad page**, now that it lives on the player
+      page. One sale flow, in one place.
 
 ### The walker
 

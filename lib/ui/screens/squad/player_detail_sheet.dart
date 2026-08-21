@@ -42,6 +42,7 @@ import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/sell_engine.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -147,6 +148,16 @@ class _PlayerDetail extends ConsumerWidget {
     final outOnLoan = isLoanedOut(card);
     final proMode = state != null && isProMode(state);
 
+    // **`getCardStats`, not `getCardRating`.** The latter is the DEFINITION's
+    // rating plus a merge bonus and knows nothing about traits, aging, form or
+    // sponsor — so the one number a trait roll is bought to move was the one
+    // number that could not move. This is the documented single source of truth,
+    // and it folds the trait's directional bonus back into the overall.
+    final stats = getCardStats(
+      card,
+      definitionRatios: _map(state?['definitionRatios']) ?? const {},
+    );
+
     return ListView(
       key: ValueKey('player-detail-$instanceId'),
       padding: const EdgeInsets.all(16),
@@ -161,6 +172,7 @@ class _PlayerDetail extends ConsumerWidget {
             _Header(
               card: card,
               def: def,
+              stats: stats,
               onLoanToUs: onLoanToUs,
               outOnLoan: outOnLoan,
               actionsBelow: !outOnLoan,
@@ -182,7 +194,7 @@ class _PlayerDetail extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
 
-        _Attributes(card: card, def: def),
+        _Attributes(card: card, def: def, stats: stats),
         if (proMode) ...[const SizedBox(height: 10), _Fitness(card: card)],
         _CareerStats(card: card, def: def),
 
@@ -359,6 +371,7 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.card,
     required this.def,
+    required this.stats,
     required this.onLoanToUs,
     required this.outOnLoan,
     required this.actionsBelow,
@@ -366,6 +379,7 @@ class _Header extends StatelessWidget {
 
   final CardInstance card;
   final PlayerDef def;
+  final CardStats stats;
   final bool onLoanToUs;
   final bool outOnLoan;
 
@@ -379,7 +393,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final rating = getCardRating(def, ratingBonus: card.ratingBonus);
+    final rating = stats.rating;
     final seasons = card.seasonsPlayed;
     final gamesLeft = _num(card.raw['loanMatchesLeft']).toInt();
 
@@ -655,10 +669,15 @@ class _SlotActions extends StatelessWidget {
 }
 
 class _Attributes extends StatelessWidget {
-  const _Attributes({required this.card, required this.def});
+  const _Attributes({
+    required this.card,
+    required this.def,
+    required this.stats,
+  });
 
   final CardInstance card;
   final PlayerDef def;
+  final CardStats stats;
 
   @override
   Widget build(BuildContext context) {
@@ -676,10 +695,17 @@ class _Attributes extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _StatRow(
-            label: t('squad.detail.rating'),
-            value: '${getCardRating(def, ratingBonus: card.ratingBonus)}',
-          ),
+          _StatRow(label: t('squad.detail.rating'), value: '${stats.rating}'),
+          // **ATK and DEF, because that is where a trait LANDS.** The bonuses are
+          // directional and get folded back into the overall, so on the rating
+          // alone a Finisher III reads as three points from nowhere. These are
+          // the two numbers it actually moved.
+          //
+          // Not through `t()`, and that is the port rather than an oversight:
+          // the source hardcodes these two abbreviations everywhere it shows
+          // them (`SquadScreen.js:372`, `Card.js:34`) and has no key for either.
+          _StatRow(label: 'ATK', value: '${stats.attack}'),
+          _StatRow(label: 'DEF', value: '${stats.defence}'),
           _StatRow(
             label: t('squad.detail.income'),
             value: '+${income.toStringAsFixed(2)}/s',
@@ -1135,12 +1161,18 @@ class TraitBlock extends ConsumerStatefulWidget {
 }
 
 class TraitBlockState extends ConsumerState<TraitBlock> {
-  /// How long the reels run. The JS spins for about this long before it settles.
-  static const Duration spin = Duration(milliseconds: 900);
+  /// How long the reels run.
+  ///
+  /// **Nine hundred milliseconds was a flick, not a spin.** A roll is bought
+  /// with coins and it is the only gamble on the screen; the wheel has to turn
+  /// long enough to be worth having watched. The ease-out does the rest — most
+  /// of the travel goes early, so a longer spin reads as slowing down rather
+  /// than as waiting.
+  static const Duration spin = Duration(milliseconds: 1900);
 
   /// How many times round before it lands. Enough to read as a spin rather than
   /// a jump, and the looping delegate is what makes it free.
-  static const int _revolutions = 3;
+  static const int _revolutions = 5;
 
   /// Row height, and the reel shows three rows: the one either side is what
   /// makes it a wheel rather than a label.
@@ -1150,6 +1182,19 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
   final FixedExtentScrollController _levels = FixedExtentScrollController();
 
   bool _spinning = false;
+
+  /// What he had when the spin started, shown for as long as it runs.
+  ///
+  /// **The outcome is written to the save BEFORE the reels move** — deliberately,
+  /// because a spin that decided at the end would have to be unwound when the
+  /// debit was refused. But the badge above the reels reads the save, so the
+  /// answer was printed over a wheel still pretending to decide it. This is the
+  /// old trait, held back so the reveal has something to reveal.
+  ///
+  /// `null` is not "he had nothing": [_holding] says whether this is in force at
+  /// all, because "nothing" is exactly what most first rolls start from.
+  Map<String, dynamic>? _heldBefore;
+  bool _holding = false;
 
   /// Test seam.
   bool get spinning => _spinning;
@@ -1163,6 +1208,10 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
 
   Future<void> _roll(List<Trait> pool) async {
     if (_spinning) return;
+    // Read BEFORE the write, or there is nothing left to hold.
+    final was = _map(
+      cardById(ref.read(gameProvider).state, widget.instanceId)?.raw['trait'],
+    );
     final result = ref
         .read(gameProvider)
         .update((s) => rollTraitForCard(s, widget.instanceId));
@@ -1171,7 +1220,11 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
 
     final landing = pool.indexWhere((t) => t.id == roll.id);
     if (landing < 0) return;
-    setState(() => _spinning = true);
+    setState(() {
+      _spinning = true;
+      _heldBefore = was;
+      _holding = true;
+    });
 
     // Both reels animate at once; the level lands a beat later, which is the
     // order the player reads them in.
@@ -1187,7 +1240,13 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
         curve: Curves.easeOutCubic,
       ),
     ]);
-    if (mounted) setState(() => _spinning = false);
+    if (mounted) {
+      setState(() {
+        _spinning = false;
+        _holding = false;
+        _heldBefore = null;
+      });
+    }
   }
 
   @override
@@ -1200,7 +1259,8 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       widget.def.position,
       hardMode: ref.watch(proModeProvider),
     );
-    final trait = _map(card?.raw['trait']);
+    // Mid-spin this is what he had, not what he just won — see [_heldBefore].
+    final trait = _holding ? _heldBefore : _map(card?.raw['trait']);
 
     final held = getTrait(trait?['id'] as String?);
 

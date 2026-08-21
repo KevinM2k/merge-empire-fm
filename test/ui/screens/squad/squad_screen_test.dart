@@ -114,6 +114,21 @@ Future<void> openDetailOfFirst(
   await tester.pumpAndSettle();
 }
 
+/// Scroll the open player sheet until [key] is on screen.
+///
+/// `ensureVisible` cannot do this: the sheet is a `ListView`, its children are
+/// built lazily, and the trait block sits below the fold — so the finder matches
+/// nothing at all until something has scrolled. It stopped being built at all
+/// the moment the attributes block grew two rows.
+Future<void> scrollSheetTo(WidgetTester tester, String key) async {
+  await tester.scrollUntilVisible(
+    find.byKey(ValueKey(key)),
+    240,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.pumpAndSettle();
+}
+
 void drop(WidgetTester tester, SquadDrag drag, String slotId) {
   final target = tester.widget<DragTarget<SquadDrag>>(
     find.ancestor(
@@ -610,7 +625,7 @@ void main() {
       await tester.tap(find.byKey(ValueKey('squad-slot-${slot.slotId}')));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byKey(const ValueKey('detail-sell')));
+      await scrollSheetTo(tester, 'detail-sell');
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('detail-sell')));
       await tester.pumpAndSettle();
@@ -637,7 +652,7 @@ void main() {
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
 
-      await tester.ensureVisible(find.byKey(const ValueKey('detail-trait')));
+      await scrollSheetTo(tester, 'detail-trait');
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('detail-trait-roll')), findsOneWidget);
       expect(find.byKey(const ValueKey('detail-trait-label')), findsOneWidget);
@@ -649,7 +664,7 @@ void main() {
       // The roll is bought, not flicked.
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
-      await tester.ensureVisible(find.byKey(const ValueKey('trait-reel-name')));
+      await scrollSheetTo(tester, 'trait-reel-name');
       await tester.pumpAndSettle();
       expect(
         tester
@@ -661,6 +676,114 @@ void main() {
       );
     });
 
+    testWidgets('THE STATS MOVE WHEN THE TRAIT DOES', (tester) async {
+      // They did not move at all. The sheet's rating came from
+      // `getCardRating`, which is the DEFINITION's rating plus a merge bonus and
+      // knows nothing about traits — while `getCardStats` is documented as the
+      // single source of truth and folds the trait's directional bonus back into
+      // the overall. So the one number a roll is bought to move was the one
+      // number that could not move.
+      final container = await pumpSquad(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      final id = slot.cardInstanceId!;
+      // A FWD trait on a forward, at its top level, so the bonus is real and
+      // the direction is his own — a trait he cannot hold would prove nothing.
+      final fwd = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotPosition == 'FWD' && s.cardInstanceId != null)
+          .cardInstanceId!;
+
+      await tester.tap(
+        find.byKey(
+          ValueKey(
+            'squad-slot-'
+            '${container.read(pitchSlotsProvider).firstWhere((s) => s.cardInstanceId == fwd).slotId}',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await scrollSheetTo(tester, 'detail-attributes');
+      await tester.pumpAndSettle();
+      final before = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('detail-attributes')),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((w) => w.data)
+          .toList();
+
+      container.read(gameProvider).update((s) {
+        for (final cell in (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>) {
+          if (cell is Map<String, dynamic> && cell['instanceId'] == fwd) {
+            cell['trait'] = {'id': 'finisher', 'level': 3};
+          }
+        }
+      });
+      await tester.pumpAndSettle();
+      final after = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('detail-attributes')),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((w) => w.data)
+          .toList();
+
+      expect(
+        after,
+        isNot(before),
+        reason: 'a Finisher III changed nothing on the sheet',
+      );
+      expect(id, isNotEmpty);
+      await settleSave(tester);
+    });
+
+    testWidgets('AND THE LABEL DOES NOT GIVE THE ANSWER AWAY', (tester) async {
+      // The badge above the reels reads the save, and the roll writes the save
+      // BEFORE the reels move — so the answer was sitting above a wheel still
+      // pretending to decide it. Nine hundred milliseconds of spin with the
+      // result already printed over it.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait-roll');
+      await tester.pumpAndSettle();
+      // He starts with nothing, so that is what the label has to keep saying
+      // until the wheel stops.
+      expect(find.text(t('trait.name.none')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
+      await tester.pump();
+      expect(
+        find.text(t('trait.name.none')),
+        findsOneWidget,
+        reason: 'the trait was announced while the reels were still turning',
+      );
+
+      await tester.pump(
+        TraitBlockState.spin + const Duration(milliseconds: 400),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(t('trait.name.none')),
+        findsNothing,
+        reason: 'the wheel stopped and never said what it landed on',
+      );
+      await settleSave(tester);
+    });
+
+    test('and the spin is long enough to be worth watching', () {
+      // 900ms was a flick. A reel the player has just paid for should turn.
+      expect(
+        TraitBlockState.spin.inMilliseconds,
+        greaterThanOrEqualTo(1600),
+      );
+    });
+
     testWidgets('rolling charges, spins, and lands a trait', (tester) async {
       final container = await pumpSquad(tester);
       final slot = container
@@ -669,9 +792,7 @@ void main() {
       await openDetailOfFirst(tester, container);
       final before = container.read(coinsProvider);
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('detail-trait-roll')),
-      );
+      await scrollSheetTo(tester, 'detail-trait-roll');
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
       await tester.pump();
@@ -713,7 +834,7 @@ void main() {
       await tester.pumpAndSettle();
       await openDetailOfFirst(tester, container);
 
-      await tester.ensureVisible(find.byKey(const ValueKey('detail-trait')));
+      await scrollSheetTo(tester, 'detail-trait');
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('detail-trait-blocked')),
@@ -1214,7 +1335,7 @@ void main() {
         },
       );
       await openDetailOfFirst(tester, container);
-      await tester.ensureVisible(find.byKey(const ValueKey('detail-trait')));
+      await scrollSheetTo(tester, 'detail-trait');
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('detail-trait-desc')),
