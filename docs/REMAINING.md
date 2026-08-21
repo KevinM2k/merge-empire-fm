@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,385 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,387 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -3592,7 +3592,33 @@ already done are marked; the rest are the queue.
 
 Its own list, because almost none of it is right yet.
 
-- [ ] **The figures and the net still do not read as real.**
+- [~] **The figures and the net still do not read as real** — reported more
+      precisely from the couch mid-pass: **the problem is the BODIES**. The
+      kicker had no neck, tiny arms coming out of his waist, and no football
+      kit — shirt, shorts or socks; the keeper had monkey arms, no neck, and a
+      top that did not read as a keeper's, with no socks, boots or feet. All of
+      that is addressed below; what remains of this line is taste — say what
+      still looks wrong after playing it.
+      - **The necks did not exist by arithmetic**: the torso stroke's round cap
+        covers 0.15 past the shoulder and the head is 0.13 around its centre,
+        so a 0.22 neck put the head straight onto the shirt. Both necks are
+        0.34 now with a drawn skin stroke.
+      - **The arms came out of the waist because of where they were DRAWN
+        from**: both hung off the torso's centreline, so the 0.30-wide torso
+        stroke swallowed their top third and they surfaced at hip height,
+        tiny. They hang off the girdle's edges now, over a fixed-bend elbow,
+        with a sleeve to the elbow and skin to the hand.
+      - **The keeper's monkey arms were the reach circle worn as a pose**: the
+        gloves sat ON the circle in every pose, a wingspan of dead-straight
+        limb held out at rest. The circle is the ball-side truth, so the
+        gloves are on it only when the dive is FULL; short of that the arm is
+        folded at the elbow (`_gloveTuck`, a two-bone solve so neither bone
+        ever changes length).
+      - **The kit is a kit**: the whole leg was one dark stroke, which is
+        trousers. Shorts stop at the knee, socks run into the boots, the boots
+        are boots; the taker's shirt has short sleeves; the keeper wears the
+        classic strip — long sleeves in one loud colour, black shorts,
+        matching socks, and WHITE gloves.
 - [x] **The background was at the wrong height, and the goal line was why.**
       The seam between the painter's turf and the photograph behind it was
       `goalLineY`, so the band handed to the art started ON the line — and the

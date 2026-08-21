@@ -62,45 +62,49 @@ void main() {
       }
     });
 
-    test('and his gloves sweep exactly the reach the engine allows him', () {
-      // The drawn arm IS `keeperReach`, so the sweep on screen and the circle in
-      // the maths are one number. A shorter arm would show a keeper failing to
-      // touch balls he saved; a longer one, the reverse.
+    test('and his gloves reach exactly the circle when the dive is full', () {
+      // The reach circle is what decides saves, so at full stretch the drawn
+      // glove has to be ON it — a shorter sweep would show a keeper failing to
+      // touch balls he saved. Short of full stretch the arm is FOLDED at the
+      // elbow and the glove sits inside the circle: gloves pinned to the circle
+      // in every pose was a wingspan of dead-straight limb held out at rest,
+      // which is what read as arms like a monkey's.
+      final arm = scaleAt(-0.25, view, keeperReach);
       for (final pose in poses) {
         final rig = keeperRigFor(pose, view)!;
-        final arm = scaleAt(-0.25, view, keeperReach);
-        expect((rig.glove - rig.shoulder).distance, closeTo(arm, 1e-6));
-        expect((rig.trailGlove - rig.shoulder).distance, closeTo(arm, 1e-6));
+        for (final glove in [rig.glove, rig.trailGlove]) {
+          final sweep = (glove - rig.shoulder).distance;
+          expect(sweep, lessThanOrEqualTo(arm + 1e-6));
+          if (pose.dive >= 1) {
+            expect(sweep, closeTo(arm, 1e-6));
+          } else if (pose.dive == 0) {
+            expect(sweep, lessThan(arm * 0.75));
+          }
+        }
       }
     });
 
     test('AND HIS ARMS DO NOT STRETCH', () {
       // One arm went from 0.40 to 1.35 units across the dive while the other
       // halved — an arm that more than triples in length is not an arm reaching,
-      // it is an arm growing. A limb keeps its length and changes its ANGLE.
-      final lengths = <double>{};
-      final trailLengths = <double>{};
+      // it is an arm growing. A limb keeps its length and changes its ANGLE —
+      // measured on the BONES, because the chest-to-glove distance now varies
+      // by design: the elbow folds at rest and straightens into the dive, and
+      // the two-bone solve is what lets it do that without either bone moving.
+      final upper = <double>{};
+      final fore = <double>{};
       for (final pose in poses) {
         final rig = keeperRigFor(pose, view)!;
-        lengths.add(
-          double.parse((rig.glove - rig.shoulder).distance.toStringAsFixed(6)),
-        );
-        trailLengths.add(
-          double.parse(
-            (rig.trailGlove - rig.shoulder).distance.toStringAsFixed(6),
-          ),
-        );
+        for (final (joint, elbow, glove) in [
+          (rig.leadJoint, rig.leadElbow, rig.glove),
+          (rig.trailJoint, rig.trailElbow, rig.trailGlove),
+        ]) {
+          upper.add(double.parse((elbow - joint).distance.toStringAsFixed(5)));
+          fore.add(double.parse((glove - elbow).distance.toStringAsFixed(5)));
+        }
       }
-      expect(
-        lengths,
-        hasLength(1),
-        reason: 'the leading arm changes length: $lengths',
-      );
-      expect(
-        trailLengths,
-        hasLength(1),
-        reason: 'the trailing arm changes length: $trailLengths',
-      );
+      expect(upper, hasLength(1), reason: 'an upper arm changed: $upper');
+      expect(fore, hasLength(1), reason: 'a forearm changed: $fore');
     });
 
     test('THE ARM HE IS DRAWN WITH IS SHORTER THAN HIS REACH', () {
@@ -188,8 +192,9 @@ void main() {
           greaterThan(rig.shoulder.dy),
           reason: 'a set keeper does not hold his gloves above his chest',
         );
-        // And well out to the side of him, which is where a reach comes from.
-        expect((glove.dx - rig.shoulder.dx).abs(), greaterThan(rig.unit * 0.8));
+        // And out to the side of him — less than before, because a set
+        // keeper's arms are BENT; the full span belongs to the dive.
+        expect((glove.dx - rig.shoulder.dx).abs(), greaterThan(rig.unit * 0.5));
       }
     });
 
@@ -339,19 +344,35 @@ void main() {
     });
 
     test('and neither do his arms', () {
-      final arms = <double>{};
+      // On the bones — girdle to elbow, elbow to hand — because that is what
+      // is drawn. They hang off the girdle's edges: from the torso's centreline
+      // the torso stroke swallowed their top third and they surfaced at hip
+      // height, which read as tiny arms out of his waist.
+      final upper = <double>{};
+      final fore = <double>{};
       for (final t in moments) {
         final rig = takerRigFor(t, view);
         if (rig == null) continue;
-        for (final hand in [rig.leftHand, rig.rightHand]) {
-          arms.add(
+        for (final (joint, elbow, hand) in [
+          (rig.leftJoint, rig.leftElbow, rig.leftHand),
+          (rig.rightJoint, rig.rightElbow, rig.rightHand),
+        ]) {
+          upper.add(
             double.parse(
-              ((hand - rig.shoulder).distance / rig.unit).toStringAsFixed(6),
+              ((elbow - joint).distance / rig.unit).toStringAsFixed(5),
             ),
           );
+          fore.add(
+            double.parse(
+              ((hand - elbow).distance / rig.unit).toStringAsFixed(5),
+            ),
+          );
+          // Off the centreline: an arm starts at a shoulder, not a sternum.
+          expect((joint.dx - rig.shoulder.dx).abs(), greaterThan(1));
         }
       }
-      expect(arms, hasLength(1), reason: 'an arm changed length: \$arms');
+      expect(upper, hasLength(1), reason: 'an upper arm changed: $upper');
+      expect(fore, hasLength(1), reason: 'a forearm changed: $fore');
     });
 
     test('HE SHRINKS AS HE RUNS IN, because the path is in WORLD space', () {
