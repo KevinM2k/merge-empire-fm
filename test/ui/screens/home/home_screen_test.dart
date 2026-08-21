@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart' show styleVaultId;
@@ -667,6 +668,58 @@ void main() {
         container.read(tickGatesProvider).matchOpen,
         isFalse,
         reason: 'the screen handed the gates back',
+      );
+      await settleSave(tester);
+    });
+  });
+
+  group('the round controls are ONE control', () {
+    /// The disc inside a dock orb, whichever orb it is.
+    BoxDecoration discOf(WidgetTester tester, String key) => tester
+        .widgetList<Container>(
+          find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(Container),
+          ),
+        )
+        .map((c) => c.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere((d) => d.shape == BoxShape.circle);
+
+    testWidgets('THE DOCK ORBS ARE CIRCLES, like the floating coach', (
+      tester,
+    ) async {
+      // They were rounded squares while the same coach on every other screen was
+      // a ringed disc — one control, two shapes, depending which tab you were
+      // on.
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      for (final orb in ['dock-coach', 'dock-menu']) {
+        expect(
+          discOf(tester, orb).shape,
+          BoxShape.circle,
+          reason: '$orb is not a circle',
+        );
+      }
+      await settleSave(tester);
+    });
+
+    testWidgets('and the nag is the ONE red, wherever it appears', (
+      tester,
+    ) async {
+      // The floating coach's badge and this one are the same badge; two reds a
+      // shade apart is two badges.
+      final container = await pumpHome(tester);
+      addTearDown(container.dispose);
+      final nags = tester
+          .widgetList<Container>(find.byType(Container))
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .where((d) => d.shape == BoxShape.circle && d.color == coachAlert);
+      expect(
+        nags,
+        isNotEmpty,
+        reason: 'the home nag is not the shared alert red',
       );
       await settleSave(tester);
     });

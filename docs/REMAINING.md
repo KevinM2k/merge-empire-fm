@@ -2744,8 +2744,18 @@ by a test.
       screen already wearing that colour — and it is the one thing in the corner
       asking to be pressed. `coachAlert` sits with the card, so the home page and
       the dock can take the same red.
-- [ ] **And that circle design should be used on the home page too**, and for the
-      MENU button — one shape for the round controls rather than three.
+- [x] **The dock orbs are CIRCLES now**, like the floating head. They were rounded
+      squares while the same coach on every other screen was a ringed disc — one
+      control, two shapes, depending which tab you were on. The burger takes it
+      too, so the three round controls are one control.
+      Their rim stays a LIGHT one rather than the accent the floating head can
+      afford: these sit ON the diorama, and in dark mode the theme's border is a
+      near-black ring, which round Colin's portrait — art of a face on white —
+      read as a black frame stuck to him.
+      And the nag is one red in both places. The home badge was `#D32F2F` and the
+      floating one `#E23B3B`; two reds a shade apart is two badges, so both take
+      `coachAlert` and the floating one takes the home badge's white ring and drop
+      shadow with it.
 - [ ] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Whatever it takes:
       it is the game talking to the player and it currently sits quietly in a
       corner.

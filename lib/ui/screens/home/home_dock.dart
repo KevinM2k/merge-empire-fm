@@ -21,6 +21,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
@@ -74,14 +75,21 @@ class DockButton extends StatelessWidget {
                     height: 54,
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
-                      // A LIGHT rim, not the theme's border. These orbs sit on
-                      // the diorama, and in dark mode `border` is a near-black
-                      // ring — which round Colin's portrait, whose art is a
-                      // face on white, read as a black frame stuck to him.
+                      // **A CIRCLE, like the floating coach's head.** These were
+                      // rounded squares while the same coach on every other
+                      // screen was a ringed disc — one control, two shapes,
+                      // depending which tab you were on.
+                      //
+                      // A LIGHT rim rather than the theme's border, and rather
+                      // than the accent the floating head can afford: these sit
+                      // ON the diorama. In dark mode `border` is a near-black
+                      // ring, which round Colin's portrait — art of a face on
+                      // white — read as a black frame stuck to him.
                       color: Colors.black.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(16),
+                      shape: BoxShape.circle,
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.28),
+                        width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -316,7 +324,7 @@ class _NagState extends State<_Nag> with SingleTickerProviderStateMixin {
         height: 18,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: const Color(0xFFD32F2F),
+          color: coachAlert,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 1.6),
           boxShadow: [
