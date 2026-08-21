@@ -21,6 +21,8 @@ import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
+import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
+    show SettingsToggle;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -119,11 +121,26 @@ class _AutoTierSheet extends ConsumerWidget {
               ),
             ),
           ),
+        // **NOT A `SwitchListTile`.** Two reasons, and the second is a bug.
+        //
+        // It is a MATERIAL row in a sheet where every other control is the
+        // game's own — the same objection `settings_controls.dart` records
+        // against Material's `Switch`: 52×32 with its own knob travel and state
+        // layer, which beside the game's toggles reads as a borrowed control.
+        //
+        // And a `ListTile` paints its background and its ink on the nearest
+        // `Material` ANCESTOR, which here is behind the sheet's own decorated
+        // box — so Flutter asserts, and every test that opens this sheet, or
+        // any screen that can, failed on it. [SettingsToggle] is a
+        // `GestureDetector` and an `AnimatedContainer`; it has no ancestor to
+        // find.
         for (final tier in autoTiers)
-          SwitchListTile(
+          _TierRow(
             key: ValueKey('auto-tier-$tier'),
-            value: getTierAction(state, tier) == TierAction.sell,
-            onChanged: (on) => ref
+            tier: tier,
+            on: getTierAction(state, tier) == TierAction.sell,
+            worth: formatCoins(tierSellPrice(state, tier)),
+            onToggle: (on) => ref
                 .read(gameProvider)
                 .update(
                   (s) => setTierAction(
@@ -132,16 +149,6 @@ class _AutoTierSheet extends ConsumerWidget {
                     on ? TierAction.sell : TierAction.keep,
                   ),
                 ),
-            title: Text(
-              '${tierEmoji[tier] ?? ''} ${tierLabel[tier] ?? 'T$tier'}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-            ),
-            subtitle: Text(
-              t('settings.autoTier.worth', {
-                'coins': formatCoins(tierSellPrice(state, tier)),
-              }),
-              style: TextStyle(color: kit.textMuted, fontSize: 11),
-            ),
           ),
         const SizedBox(height: 12),
         // The two tiers no rule may cover, said out loud: nobody wants a chase
@@ -157,6 +164,64 @@ class _AutoTierSheet extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One tier's rule: what it is, what it is worth, and the switch.
+///
+/// The whole row is the target rather than just the toggle — a rule with a
+/// 48-pixel hit area on a sheet of them is a row you have to aim at.
+class _TierRow extends StatelessWidget {
+  const _TierRow({
+    super.key,
+    required this.tier,
+    required this.on,
+    required this.worth,
+    required this.onToggle,
+  });
+
+  final int tier;
+  final bool on;
+  final String worth;
+  final ValueChanged<bool> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onToggle(!on),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${tierEmoji[tier] ?? ''} ${tierLabel[tier] ?? 'T$tier'}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    t('settings.autoTier.worth', {'coins': worth}),
+                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Not keyed: the ROW carries the tier's key, so a tap anywhere on it
+            // is the same tap.
+            SettingsToggle(value: on, onChanged: onToggle),
+          ],
+        ),
+      ),
     );
   }
 }
