@@ -186,8 +186,26 @@ card does. Which makes it and `offseason.*` one piece of work — **the port has
 no season-end popup chain** — and that is the biggest thing this pass leaves
 open with a known shape.
 
-**THE NEWEST SECTION IS `From playtesting — 28 Aug` AND IT IS THE LONGEST ONE
-IN THIS FILE.** Read it before anything else. Three things about its shape:
+**`From playtesting — 28 Aug` IS CLEAR.** It was the longest section in this
+file and every item in it is done — the summary's layout, the match screen's
+chrome, the light-mode palette, the shop, the bid window, the arrow, the two
+mini-games, the frame rate and the perspective pitch. **91 items are open**, and
+the shape of what is left is worth knowing before picking one:
+
+| section | open | can it be done from here? |
+|---|---|---|
+| playtesting, 19–27 Aug | 45 | mostly yes |
+| M1 logic core / M3 UI | 11 | yes |
+| M4 services | 16 | **no** — AdMob, Firebase, Play Billing, StoreKit |
+| M5 i18n | 2 | needs the spec repo's `en.js` |
+| M6 release / M7 cutover | 9 | **no** — signing, both consoles, staged rollout |
+| open questions | 5 | decisions and physical hardware |
+
+So **twenty-five of the ninety-one are blocked on accounts, consoles and
+devices**, not on effort. Everything else is open.
+
+Three things about the 28 Aug section's shape, kept because they are the
+general lessons rather than the items:
 
 **Two of its items REVERSE decisions recorded here as done** — the match clock's
 own card, and Colin's head filling its orb. Both reversals say so in place,
