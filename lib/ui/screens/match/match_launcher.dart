@@ -15,12 +15,20 @@ library;
 
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
+import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/engine/quest_match.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
+
+List<CardInstance?> _cells(Map<String, dynamic>? state) {
+  final cells = _map(state?['grid'])?['cells'];
+  if (cells is! List) return const [];
+  return [for (final c in cells) CardInstance.from(c)];
+}
 
 /// Why a match cannot start, or null when it can.
 ///
@@ -28,6 +36,14 @@ Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 String? matchStartBlocked(Map<String, dynamic> state) {
   final prog = _map(state['progression']);
   if (prog?['seasonComplete'] == true) return 'season_over';
+  // **A LINEUP OF INJURED MEN IS NOT A SIDE.** `hasEnoughPlayers` counts
+  // HEALTHY cards on the grid and had no caller in `lib/` at all, which left
+  // three shapes of "can we field a side" in the tree with only the narrowest
+  // of them wired: filled lineup SLOTS, which an injured card still fills.
+  // The JS's play button ANDs the two (`LeagueScreen.js`, `_updatePlayBtn`),
+  // and the gate belongs at the SCREEN rather than in `canPlayMatch` — that is
+  // a parity function whose refusals are pinned against the JS's own.
+  if (!hasEnoughPlayers(_cells(state))) return 'squad_too_small';
   if (!canPlayMatch(state)) {
     // canPlayMatch folds three refusals together; separate them so the button
     // can say which one it is rather than just going grey.

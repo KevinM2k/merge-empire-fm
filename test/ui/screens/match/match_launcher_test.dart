@@ -69,6 +69,35 @@ void main() {
       expect(matchStartBlocked(s), 'squad_too_small');
     });
 
+    test('AND A LINEUP OF INJURED MEN IS NOT A SIDE EITHER', () {
+      // `hasEnoughPlayers` counts HEALTHY cards on the GRID and had no caller
+      // in `lib/` at all, so the only gate was filled lineup SLOTS — which an
+      // injured card still fills. The JS's play button ANDs the two.
+      final s = readyState(squad: 3);
+      for (final c in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+        if (c is Map<String, dynamic>) c['injured'] = true;
+      }
+      expect(matchStartBlocked(s), 'squad_too_small');
+    });
+
+    test('and one fit man short of three is the boundary', () {
+      final s = readyState(squad: 11);
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      var injured = 0;
+      for (final c in cells) {
+        if (c is Map<String, dynamic> && injured < 9) {
+          c['injured'] = true;
+          injured++;
+        }
+      }
+      // Two fit, and the eleven slots are all still filled.
+      expect(matchStartBlocked(s), 'squad_too_small');
+
+      (cells.firstWhere((c) => c is Map && c['injured'] == true)
+          as Map<String, dynamic>)['injured'] = false;
+      expect(matchStartBlocked(s), isNull);
+    });
+
     test('no energy cannot, in casual', () {
       expect(matchStartBlocked(readyState(energy: 0)), 'no_energy');
     });

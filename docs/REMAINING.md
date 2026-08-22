@@ -30,8 +30,19 @@ too late:
 
 ## Where we are
 
-**4,491 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,535 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
+
+**The newest pass also ran green on 3.38.3**, which is the version that happened
+to be on the author's PATH — `fvm` is still not installed, so `.fvmrc` resolves
+to nothing. That is a data point and not a change of policy: 3.44.9 is still the
+number CI runs and the number to develop against.
+
+**And a contended machine will fail three tests for no reason.** One full run
+during this pass reported `+4457 -3` while a `flutter test` on a single file was
+running beside it; the same tree, run twice on its own, is `+4535` in 44 seconds
+both times. A suite that takes 44 seconds clean and 17 minutes under load is
+timing out rather than failing, so **run it alone before believing a red**.
 
 **4,418 to 4,491 across this session's ten passes**, and the first fourteen of
 those are the fourteen that went the pass before.
@@ -106,6 +117,30 @@ delegation to it, so there is still one implementation of the pick. The hash cam
 out with it as `stableIndex`, because the roll on whether the record joins is the
 same stable choice over something that is not a sentence, and a second hash would
 have been a second answer to "which one is stable".
+
+**AND THE SPEC CLOSED SIX AUDIT ROWS WITHOUT A LINE OF CODE, which is the
+cheapest thing in this file.** Every row on the unreached list that said "check
+the JS for which shape it ships" was a five-second grep once the repo was there,
+and **five of the six came back the same way: a dead end in the JS as well.**
+`purchaseCoinSink`, `getBadgeChoices`, `describeOffer`, `peekGrudge` and
+`tapsForTier` each have only their own declaration and their own unit test in
+`src/` — no UI, no caller. So they are not features the port dropped; they are
+functions the shipped game does not use either, and building a surface for one
+is adding a feature rather than porting it.
+
+**The sixth was a live bug and it took eleven minutes to find and fix.**
+`hasEnoughPlayers` is the one the JS DOES call, and it calls it as half of a
+pair: the play button ANDs three healthy cards on the GRID with three filled
+LINEUP slots. The port had only the second — and an injured card still fills a
+slot — so **a side of eleven with nine of them injured could kick off**. It went
+into `matchStartBlocked`, the port's screen gate, rather than into
+`canPlayMatch`, which is a parity function pinned against the JS's own and does
+not carry the check there either.
+
+**The transferable bit is which half of a pair got ported.** Both halves are
+"can we field a side", they read two different collections, and the narrower one
+passes every test the wider one would — so nothing failed and nothing could.
+`unreached.sh` found it by asking a completely different question.
 
 **START HERE if you are picking this up cold:**
 
@@ -455,10 +490,11 @@ URL). Three are real and are their own items:
       drawn** — the boot sweep materialises `seasonOpponentRatings` for the
       whole season — so the test builds that state rather than hoping a fresh
       save is in it.
-- [ ] **`fixtures.played`** ('Played') duplicates `play.previousMatches`
-      ('Previous Matches'), which the sheet already uses for that heading. One
-      of the two is the JS's and the other is not; which cannot be told from
-      here.
+- [x] **`fixtures.played`** ('Played') duplicates `play.previousMatches`
+      ('Previous Matches'), and the spec settles it: `LeagueScreen.js:5635`
+      prints `play.previousMatches` over the played block and **nothing in the
+      JS references `fixtures.played` at all**. The port is already on the right
+      one; the other is the JS's own orphan and wants no call site.
 - [ ] **`prize.win` / `.draw` / `.loss` / `.boost`** (4) and
       **`boost.tv_deal_chip` / `.kit_sponsor_chip`** (2) — the boost chips read
       "TV Deal ×1.5 · {n} left" and both boosts are scoped to the season they
@@ -576,20 +612,23 @@ building a throwaway `CardInstance` inline.
 **Two more rows on that list should not be built as written**, and both were
 checked rather than assumed:
 
-- **`purchaseCoinSink` is blocked on `en.js`, not on the port.** There is no
-  `coin_sink` copy in the catalogues at all — not a name, not a description, for
-  any of the four — and `coin_sinks.dart` carries raw English in the data field
-  instead. A shelf needs eight strings that do not exist in ten languages, so it
-  is blocked on the spec repo like every other new-copy item. Whether the JS
-  prints that raw data field or has keys the port's generator missed is the thing
-  to check first, and it cannot be checked from here.
+- **`purchaseCoinSink` is A DEAD END IN THE JS TOO, which is the answer.** The
+  old note here said it was blocked on `en.js` and named the check to run first;
+  the check has been run. `src/data/coinSinks.js` carries the four sinks with
+  raw English `name` fields, there is no `coin_sink` copy in the JS's own
+  catalogues either, and `purchaseCoinSink` has **no caller anywhere in
+  `src/`** — only its own unit test, exactly like the port. So it is not a shelf
+  the port dropped: it is a shelf the shipped game does not have. Building one
+  would be adding a feature rather than porting it, which is the same call the
+  transfer list already got.
   (`isTrophyPolishActive`, bundled with it in the old row, was never about the
   shelf: the polish is a GEM item now, bought through `gem_engine`.)
-- **`getBadgeChoices` has no caller because nothing needs the list.** The badge
-  picker is not missing — the trophy room equips a badge from each achievement's
-  own card, through `setEquippedBadge`, which is a picker with the achievement in
-  front of you rather than a grid of emblems. `getBadgeChoices` is the grid's
-  data source. Check the JS for which shape it ships before building the second.
+- **`getBadgeChoices` is a dead end in the JS too.** Same check, same answer:
+  only `badgeEngine.js`'s own declaration and its own test, no UI. So the trophy
+  room's per-achievement picker — `setEquippedBadge` with the achievement in
+  front of you — is the ONLY shape either codebase ships, and the grid this
+  function is the data source for was never built anywhere. Do not build the
+  second one.
 
 **THE AUDIT ITSELF WAS NOT A PLAYTEST**, and it is a different shape
 from everything below: nobody watched a screen and disliked it. A reachability
@@ -696,16 +735,16 @@ status is "only its own test":
       effort.
 - [x] **`isTrophyPolishActive`** (`coin_sink_engine.dart`) — one of five copies
       of the rule, and the only one with a name. All four readers go through it.
-- [~] **`purchaseCoinSink`** (`coin_sink_engine.dart`) — a shelf that cannot be
-      bought from, and cannot be BUILT from here: the four sinks have no
-      catalogue copy at all. Blocked on `en.js`.
+- [x] **`purchaseCoinSink`** (`coin_sink_engine.dart`) — checked against the
+      spec and CLOSED: no caller in `src/` either, and no `coin_sink` copy in
+      the JS's own catalogues. The shipped game has no shelf. See above.
 - [x] **`acceptSellerCounter` and `liveListingsBySide`** (`deadline_day_engine.dart`)
       — the counter had a figure, six translated strings and nothing on screen
       able to take it. Both wired; `sellerCounter` is the new peek the button
       needs, so the cash is worked out once.
-- [~] **`getBadgeChoices`** (`badge_engine.dart`) — the badge picker EXISTS, one
-      achievement at a time, in the trophy room. This is the grid's data source,
-      and which shape the JS ships is the question to answer before building it.
+- [x] **`getBadgeChoices`** (`badge_engine.dart`) — the question is answered:
+      the JS ships the per-achievement picker and nothing else. No caller in
+      `src/` for this one either. The grid is not a missing feature.
 - [x] **`takePenalty`** (`penalty_game_engine.dart`) — checked, and the physics
       is right. It went, and so did the two UI files nobody had noticed went with
       it. See **The penalty's predecessor** below.
@@ -727,23 +766,29 @@ status is "only its own test":
 - [x] **`retirementMultiplier`** (`goal_model.dart`) — the port's own doc said
       "deprecated in the JS, kept so any future caller does not silently break",
       and a caller that never came is not one that breaks.
-- [ ] **`describeOffer`** (`negotiation_engine.dart`), **`peekGrudge`**
-      (`transfer_engine.dart`), **`hasEnoughPlayers`** (`goal_model.dart`),
-      **`tapsForTier`** (`club_assets.dart`), **`getNextDivision`**
-      (`divisions.dart`) — what is left of that row, and each has been LOOKED at
-      rather than only listed:
-      - `hasEnoughPlayers` counts GRID cells and excludes the injured, while the
-        two live copies of "can we field a side" (`canPlayMatch`,
-        `matchStartBlocked`) count filled LINEUP slots and do not. Three shapes
-        of one question, over two different collections. Worth resolving, but
-        which is right is a rules question the JS answers.
-      - `tapsForTier` is a public accessor over `_tapsPerTier`, which the file
-        already uses internally; the club UI shows progress as coins invested
-        over the tier threshold, not as taps, so nothing wants it. No catalogue
-        copy mentions taps either.
-      - `getNextDivision` is not the helper `season_end` wants — both its
-        anonymous `divisions[divIdx + 1]` sites already hold the INDEX and also
-        need the down direction.
+- [x] **`describeOffer`, `peekGrudge`, `hasEnoughPlayers`, `tapsForTier` and
+      `getNextDivision`** — the rest of that row, all five now answered against
+      the spec rather than reasoned about. **Four of the five are dead ends in
+      the JS as well** and want no call site: `describeOffer`
+      (`negotiationEngine.js`), `peekGrudge` (`transferEngine.js`) and
+      `tapsForTier` (`data/clubAssets.js`) each have only their own declaration
+      and their own unit test in `src/`.
+      - **`hasEnoughPlayers` WAS a live bug, and it is fixed.** It is the one of
+        the five that the JS actually calls, and it calls it as HALF of a pair:
+        `LeagueScreen.js`'s play button ANDs `hasEnoughPlayers(state)` — three
+        HEALTHY cards on the grid — with the filled-lineup count. The port had
+        only the second, and an injured card still fills a slot, so **a side of
+        eleven with nine of them injured could kick off**. The gate went into
+        `matchStartBlocked`, which is the port's SCREEN gate, and not into
+        `canPlayMatch`, which is a parity function pinned character-for-character
+        against the JS's own and does not carry this check there either.
+      - **`getNextDivision` is live in the JS and the port is right not to call
+        it.** `LeagueScreen.js:3333` recomputes the promotion target from the
+        current division at render time, because its season-end card is drawn
+        before the rollover. The port's `season_end_screen.dart` reads
+        `outcome.newDivision` — the league `endSeason` has already moved you
+        into — which is a fact rather than a second derivation of one. Deriving
+        it again is how the two answers get to disagree.
 - [x] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) — both
       the per-match economy the port replaced, and between them they found a live
       one: the end-of-night ledger was printing a per-match wage bill with a
