@@ -24,6 +24,8 @@ library;
 
 import 'dart:async';
 
+import 'dart:math' show pi;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -433,20 +435,30 @@ class _SceneState extends ConsumerState<_Scene> {
       // and nothing here competes with the stride.
       walker: ManagerIdle(
         mood: mood,
-        builder: (context, idle) => ManagerWalker(
-          // How he is getting on in what the player dressed him in. Read fresh
-          // rather than cached, because both halves move on their own.
-          comfort: ref.watch(managerComfortProvider),
-          kit: kit.accent,
-          skin: const Color(0xFFEEBB8C),
-          hair: const Color(0xFF3A2A1C),
-          // His own look and his own mood — both were ported data with nothing
-          // reading them.
-          look: ref.watch(managerLookProvider),
-          mood: mood,
-          gesture: _cue,
-          carrying: _carrying,
-          idle: idle.pose,
+        // **AND THE MOOD'S LEAN, which was cam-only.** `--lean` is a whole-body
+        // pitch about the boots — head down on a bad night, chest out on a
+        // good one — and the stylesheet turns it about `50% 92%`, which is why
+        // it is a rotation here rather than something the rig carries. It was
+        // built for the dugout shot and never reached the touchline, so the one
+        // manager most players look at had no posture at all.
+        builder: (context, idle) => Transform.rotate(
+          angle: idle.tilt * pi / 180,
+          alignment: camBootPivot,
+          child: ManagerWalker(
+            // How he is getting on in what the player dressed him in. Read fresh
+            // rather than cached, because both halves move on their own.
+            comfort: ref.watch(managerComfortProvider),
+            kit: kit.accent,
+            skin: const Color(0xFFEEBB8C),
+            hair: const Color(0xFF3A2A1C),
+            // His own look and his own mood — both were ported data with nothing
+            // reading them.
+            look: ref.watch(managerLookProvider),
+            mood: mood,
+            gesture: _cue,
+            carrying: _carrying,
+            idle: idle.pose,
+          ),
         ),
       ),
     );

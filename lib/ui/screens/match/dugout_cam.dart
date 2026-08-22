@@ -86,9 +86,6 @@ const double camCropWidth = 78;
 /// landscape window and the crop is what makes it one.
 const double camViewAspect = 5 / 4;
 
-/// The pivot both whole-body rotations turn about — the stylesheet's
-/// `transform-origin: 50% 92%`, which is his boots.
-const Alignment camBootPivot = Alignment(0, 0.84);
 
 /// How long the REC dot's blink takes.
 const Duration camRecBlink = Duration(milliseconds: 1100);

@@ -484,10 +484,21 @@ void main() {
         if (k.decidedAt != null) break;
         if (k.elapsed <= k.plan.commitAt) continue;
         expect(k.keeperLand, 0);
-        // The extension, and nothing taken off it.
+        // The extension, and nothing taken off it — **once he is off the
+        // settle**. His hands used to teleport 35cm the instant he committed,
+        // because the curve's own value at `dive == 0` is 0.55 and he stands at
+        // `keeperStandZ`; he joins the curve over the first slice of the dive
+        // instead, which is over inside a fiftieth of a second and long before
+        // the ball is near. Nothing about the flight moved, which is the whole
+        // point of doing it this way round rather than lifting the curve.
+        final curve = 0.55 + k.plan.height * 1.5 * k.keeperDive;
+        final expected =
+            keeperStandZ +
+            (curve - keeperStandZ) *
+                (k.keeperDive / keeperSettle).clamp(0.0, 1.0);
         expect(
           k.keeperHand.z,
-          closeTo(0.55 + k.plan.height * 1.5 * k.keeperDive, 1e-9),
+          closeTo(expected, 1e-9),
           reason: 'he sank at ${k.elapsed}s with the ball still in the air',
         );
         checked++;
@@ -616,4 +627,55 @@ void main() {
       }
     });
   });
+  group('HIS HANDS DO NOT TELEPORT ANY MORE', () {
+    test('THE FRAME HE COMMITS DOES NOT DROP HIM A THIRD OF A METRE', () {
+      // The curve's own value at `dive == 0` is 0.55 and his shoulders stand at
+      // 0.9, so the frame he went the whole figure fell 35cm and then climbed
+      // back out of it.
+      final k = PenaltyKick(
+        aim: (across: -0.6, lift: 0.7, power: 0.5, curl: 0),
+        plan: (side: -0.8, height: 0.7, commitAt: 0.1),
+      );
+      var previous = k.keeperHand.z;
+      var worst = 0.0;
+      while (!k.done && k.elapsed < 1.2) {
+        k.advance(1 / 120);
+        worst = math.max(worst, (k.keeperHand.z - previous).abs());
+        previous = k.keeperHand.z;
+      }
+      // A frame at 120Hz. Anything approaching the old 0.35 is a jump.
+      expect(worst, lessThan(0.06));
+    });
+
+    test('and he still ARRIVES at the dive\'s own height', () {
+      // The settle is a JOIN, not a movement: where he ends up is untouched.
+      final k = PenaltyKick(
+        aim: (across: -0.6, lift: 0.7, power: 0.5, curl: 0),
+        plan: (side: -0.8, height: 0.7, commitAt: 0.02),
+      );
+      while (k.keeperDive < 0.999 && k.elapsed < 2) {
+        k.advance(1 / 240);
+        if (k.decidedAt != null) break;
+      }
+      if (k.decidedAt == null) {
+        expect(k.keeperHand.z, closeTo(0.55 + 0.7 * 1.5, 0.02));
+      }
+    });
+
+    test('THE BALANCE IS UNMOVED, which is why it is done this way round', () {
+      // Interpolating the whole curve from standing was tried: it lifts his
+      // gloves through the entire flight and turned "a read no longer
+      // guarantees a save" — a property this file is tuned around — into a
+      // keeper who saves everything he reads.
+      const soft = (across: -0.5, lift: 0.3, power: 0.25, curl: 0.0);
+      expect(kick(soft, plan: reads(soft)).result, PenaltyResult.saved);
+      const hard = (across: -0.74, lift: 0.62, power: 1.0, curl: 0.0);
+      expect(
+        kick(hard, plan: reads(hard)).result,
+        isNot(PenaltyResult.saved),
+        reason: 'a read now guarantees a save',
+      );
+    });
+  });
+
 }

@@ -208,6 +208,19 @@ const double keeperLandTime = 0.34;
 const double keeperGroundZ = 0.34;
 const double keeperStandZ = 0.9;
 
+/// How much of the dive he spends settling from standing onto its curve.
+///
+/// **His hands used to teleport 35cm the instant he committed**: the curve's
+/// own value at `dive == 0` is 0.55 and his shoulders stand at [keeperStandZ],
+/// so the frame he went the whole figure dropped a third of a metre and then
+/// climbed back out of it.
+///
+/// Small, because it is a JOIN and not a movement: the dive is eased, so this
+/// is over inside the first fiftieth of a second and the ball is nowhere near.
+/// Anything larger starts moving where his gloves are during the flight, which
+/// is a balance change — see `_moveKeeper`.
+const double keeperSettle = 0.18;
+
 /// One penalty, stepped.
 class PenaltyKick {
   PenaltyKick({
@@ -638,7 +651,26 @@ class PenaltyKick {
     // Eased, because a dive accelerates off the line and then travels.
     keeperDive = extend * extend * (3 - 2 * extend);
     // Low dives stay near the ground; a high one gets up.
-    final peak = 0.55 + plan.height * 1.5 * keeperDive;
+    //
+    // **AND IT STARTS WHERE HE IS STANDING.** It used to start at 0.55 — the
+    // curve's own constant, evaluated at `dive == 0` — while his shoulders are
+    // at [keeperStandZ], so the frame he committed the whole figure dropped a
+    // third of a metre and then climbed back out of it. Reported as his hands
+    // teleporting 35cm the instant he goes.
+    //
+    // **The defect is a DISCONTINUITY, so what is fixed is the discontinuity.**
+    // Interpolating the whole curve from standing was tried and it is a balance
+    // change, not a tidy-up: it lifts his gloves through the entire flight, and
+    // measured it turned "a read no longer guarantees a save" — a property this
+    // file is tuned around and has a test for — into a keeper who saves
+    // everything he reads. So instead he SETTLES onto the curve over the first
+    // fraction of the dive: continuous, and finished long before the ball is
+    // anywhere near him, which leaves the flight path and therefore what he
+    // saves exactly as they were.
+    final curve = 0.55 + plan.height * 1.5 * keeperDive;
+    final peak =
+        keeperStandZ +
+        (curve - keeperStandZ) * math.min(1.0, keeperDive / keeperSettle);
     keeperHand.x = plan.side * keeperDiveSpan * keeperDive;
 
     final at = decidedAt;

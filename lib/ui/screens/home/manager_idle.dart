@@ -158,6 +158,10 @@ const GestureTrack _scanTrack = [(0, -1), (0.3, 0.85), (0.62, -0.3), (1, -1)];
   tilt: tune.lean + trackAt(_weightTrack, weight)! * tune.weightDegrees,
 );
 
+/// The pivot both whole-body rotations turn about — the stylesheet's
+/// `transform-origin: 50% 92%`, which is his boots.
+const Alignment camBootPivot = Alignment(0, 0.84);
+
 /// Four clocks, and the pose they make.
 ///
 /// **Four separate loops rather than one with four phases read off it**, and

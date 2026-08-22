@@ -3682,7 +3682,10 @@ by a test.
       `pumpMatch` now runs under REDUCED MOTION by default, which is what
       refuses the shot — the cam is the one thing on this screen that runs
       forever, so a live one makes `pumpAndSettle` never return.
-- [ ] **The mood's body LEAN is cam-only.** `--lean` is a whole-body pitch —
+- [x] **The mood's body LEAN is cam-only.** Not any more: the touchline walker
+      wears it too, about the same boot pivot, which moved out of the cam and
+      beside the idle it belongs to. The original entry follows.
+      **`--lean` is a whole-body pitch** —
       chest out on a good night, head down on a bad one — and the diorama has
       never had it: the port renders mood as a head tilt, a stride tempo and a
       gesture pool. The cam applies it because a reaction shot is the whole
@@ -3786,15 +3789,19 @@ by a test.
       finished kick now. And the renderer had a second copy of the dive curve on
       a straight ramp, so the limbs were on a different curve from the glove they
       hang off — `keeperDive` is published and is the one that moved the hand.
-- [ ] **HIS HANDS TELEPORT 35cm THE INSTANT HE COMMITS.** Found while landing
-      him, pre-existing and NOT fixed: he stands with his shoulders at 0.9 and
-      the dive's own curve starts at `0.55 + height · 1.5 · dive`, which is 0.55
-      at `dive = 0`. So the frame he commits, the whole figure drops a third of a
-      metre and then climbs back out of it.
-      The fix is one line — start the curve at [keeperStandZ] and interpolate —
-      and it is left alone deliberately, because it moves where his gloves are
-      DURING the flight and therefore what he saves. It wants a balance pass, or
-      a fixture, rather than a tidy-up.
+- [x] **HIS HANDS TELEPORT 35cm THE INSTANT HE COMMITS.** Fixed — and **the
+      one-line fix this entry proposed was tried first and is wrong**, which is
+      the part worth carrying. Interpolating the whole curve from standing lifts
+      his gloves through the ENTIRE flight, and measured it turned "a read no
+      longer guarantees a save" — a property this file is tuned around and has a
+      test for — into a keeper who saves everything he reads. Two other tests
+      moved with it.
+      **The defect is a DISCONTINUITY, so what is fixed is the discontinuity.**
+      He settles onto the curve over the first slice of the dive
+      (`keeperSettle`): continuous, over inside a fiftieth of a second, and
+      finished long before the ball is anywhere near — so the flight path, and
+      therefore what he saves, is exactly as it was. The balance the entry asked
+      for is now stated as a test rather than assumed.
 - [x] **The aim line is dotted, and the dashes MARCH toward the goal.** A solid
       curve reads as a target; the same curve with movement in it reads as a
       shot, which is the part the preview was not saying. `dashedPath` is pure
