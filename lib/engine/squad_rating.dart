@@ -69,6 +69,28 @@ class CardStats {
 int teamRatingFromSplit(num attack, num defence) =>
     _jsRound(0.7 * math.max(attack, defence) + 0.3 * math.min(attack, defence));
 
+
+/// Which attack ratio a card is split on: **its own, then the definition's
+/// override, then the definition's own.**
+///
+/// Written out three times in this file and a fourth in `player_rating.dart`,
+/// inside a `getCardSplit` that was the only NAMED statement of the rule and
+/// had no caller — a strict subset of [getCardStats], which every screen
+/// showing an ATK/DEF pair already goes through. That one is gone; this is the
+/// half of it that was worth keeping.
+///
+/// The middle term is a live re-rating of a whole definition — a card minted
+/// before it keeps the old ratio unless the SAVE says otherwise, which is why
+/// the instance still wins.
+double _attackRatio(
+  CardInstance card,
+  PlayerDef def,
+  Map<String, dynamic> definitionRatios,
+) =>
+    card.attackRatio ??
+    (definitionRatios[card.definitionId] as num?)?.toDouble() ??
+    def.attackRatio;
+
 /// The single source of truth for a card's effective ATK, DEF and rating.
 ///
 /// FIFA model: the rating is the identity and ATK/DEF sit AROUND it. The rating
@@ -102,9 +124,7 @@ CardStats getCardStats(
   // applies live in-match energy itself.
   if (fatigue) basis *= fatigueRatingFactor(energyPct(card));
 
-  final ratio = card.attackRatio ??
-      (definitionRatios[card.definitionId] as num?)?.toDouble() ??
-      def.attackRatio;
+  final ratio = _attackRatio(card, def, definitionRatios);
 
   final eff = getCardAtkDefSplit(
     ratio,
@@ -246,9 +266,7 @@ TeamSplit computeSquadRatings(
           return _Slot(
             effectiveRating: raw * (1 - penalty) * fat,
             slotPosition: slotPos,
-            attackRatio: c.attackRatio ??
-                (definitionRatios[c.definitionId] as num?)?.toDouble() ??
-                def.attackRatio,
+            attackRatio: _attackRatio(c, def, definitionRatios),
             atkBonus: trait.atkBonus,
             defBonus: trait.defBonus,
           );
@@ -269,9 +287,7 @@ TeamSplit computeSquadRatings(
           effectiveRating: getEffectiveRating(c) *
               (fatigue ? fatigueRatingFactor(energyPct(c)) : 1.0),
           slotPosition: def.position,
-          attackRatio: c.attackRatio ??
-              (definitionRatios[c.definitionId] as num?)?.toDouble() ??
-              def.attackRatio,
+          attackRatio: _attackRatio(c, def, definitionRatios),
           atkBonus: trait.atkBonus,
           defBonus: trait.defBonus,
         ),

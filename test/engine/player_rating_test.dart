@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/player_rating.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 
 CardInstance _card({
@@ -133,20 +134,27 @@ void main() {
     });
   });
 
-  group('getCardSplit', () {
+  /// **These pinned `getCardSplit`, which was the second implementation.**
+  /// Every property below is a property of the ATK/DEF split itself, so they
+  /// moved to the one every screen actually goes through rather than being
+  /// deleted with it — that is the whole reason to check whether an unreachable
+  /// function's tests prove something the live one is missing. It ran with the
+  /// definition ratio passed as a bare double; `getCardStats` takes the map the
+  /// save carries, which is where a live re-rating comes from.
+  group('the ATK/DEF split, through getCardStats', () {
     test('a striker leads on attack', () {
-      final split = getCardSplit(_card());
+      final split = getCardStats(_card());
       expect(split.attack, greaterThan(split.defence));
     });
 
     test('a keeper leads on defence', () {
-      final split = getCardSplit(_card(definitionId: 'player_t5_gk'));
+      final split = getCardStats(_card(definitionId: 'player_t5_gk'));
       expect(split.defence, greaterThan(split.attack));
     });
 
     test('a trait adds its directional bonus', () {
-      final plain = getCardSplit(_card());
-      final withTrait = getCardSplit(_card(traitId: 'finisher', traitLevel: 3));
+      final plain = getCardStats(_card());
+      final withTrait = getCardStats(_card(traitId: 'finisher', traitLevel: 3));
       expect(withTrait.attack, greaterThan(plain.attack));
       expect(
         withTrait.attack - plain.attack,
@@ -155,39 +163,39 @@ void main() {
     });
 
     test('an off-position trait adds nothing directional', () {
-      final plain = getCardSplit(_card(definitionId: 'player_t5_def'));
-      final withTrait = getCardSplit(
+      final plain = getCardStats(_card(definitionId: 'player_t5_def'));
+      final withTrait = getCardStats(
         _card(definitionId: 'player_t5_def', traitId: 'finisher', traitLevel: 3),
       );
       expect(withTrait.attack, plain.attack);
     });
 
     test('a per-instance ratio beats the definition ratio', () {
-      final split = getCardSplit(_card(attackRatio: 0.10));
+      final split = getCardStats(_card(attackRatio: 0.10));
       expect(split.defence, greaterThan(split.attack));
     });
 
     test('a supplied definition ratio is used when the card has none', () {
-      final split = getCardSplit(_card(), definitionRatio: 0.10);
+      final split = getCardStats(_card(), definitionRatios: {'player_t5_fwd': 0.10});
       expect(split.defence, greaterThan(split.attack));
     });
 
     test('both stats stay inside 0..100', () {
       for (final defId in players.map((p) => p.id)) {
-        final split = getCardSplit(_card(definitionId: defId, traitId: 'allrounder', traitLevel: 3));
+        final split = getCardStats(_card(definitionId: defId, traitId: 'allrounder', traitLevel: 3));
         expect(split.attack, inInclusiveRange(0, 100), reason: defId);
         expect(split.defence, inInclusiveRange(0, 100), reason: defId);
       }
     });
 
     test('an unknown definition or null card splits to zero', () {
-      expect(getCardSplit(null).attack, 0);
-      expect(getCardSplit(CardInstance({'definitionId': 'nope'})).attack, 0);
+      expect(getCardStats(null).attack, 0);
+      expect(getCardStats(CardInstance({'definitionId': 'nope'})).attack, 0);
     });
 
     test('aging drags both stats down together', () {
-      final fresh = getCardSplit(_card());
-      final old = getCardSplit(_card(seasonsPlayed: 13));
+      final fresh = getCardStats(_card());
+      final old = getCardStats(_card(seasonsPlayed: 13));
       expect(old.attack, lessThan(fresh.attack));
     });
   });

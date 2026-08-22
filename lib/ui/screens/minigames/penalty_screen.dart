@@ -26,13 +26,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
+import 'package:merge_empire_fc/data/divisions.dart'
+    show currentDivisionIndex;
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/engine/penalty_game_engine.dart'
-    show keeperDivisionIndex, keeperSmartChanceFor;
+    show keeperSmartChanceFor;
 import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
@@ -134,7 +136,7 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
     // rather than the index, because `keeperSmartChanceFor` is the engine's
     // own named entry point for it and routing around it would leave the
     // engine with no caller.
-    final division = keeperDivisionIndex(ref.read(gameProvider).state);
+    final division = currentDivisionIndex(ref.read(gameProvider).state);
 
     return Scaffold(
       key: const ValueKey('penalty-screen'),

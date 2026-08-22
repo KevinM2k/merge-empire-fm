@@ -201,4 +201,42 @@ void main() {
       expect(walked, divisions.map((d) => d.id).toList());
     });
   });
+
+  /// **Six mini-games ramp off this and there were two of it** — one in
+  /// `penalty_game_engine.dart` documented as shared, and a
+  /// character-for-character copy that lived in `boot_room_screen.dart` and was
+  /// imported by four sibling screens. Nothing was broken yet, which is always
+  /// the case at birth; the reason to have one is that two disagree later.
+  group('currentDivisionIndex', () {
+    Map<String, dynamic> stateIn(String id) => {
+      'progression': <String, dynamic>{'currentDivision': id},
+    };
+
+    test('is the position on the ladder', () {
+      for (var i = 0; i < divisions.length; i++) {
+        expect(currentDivisionIndex(stateIn(divisions[i].id)), i,
+            reason: divisions[i].id);
+      }
+    });
+
+    test('AN UNREADABLE SAVE IS THE BOTTOM RUNG, not minus one', () {
+      // Every caller feeds this straight into a difficulty table. A raw
+      // `indexWhere` miss is -1, which is an easier opponent than the easiest
+      // in the ones that clamp and a range error in the ones that index.
+      expect(currentDivisionIndex(null), 0);
+      expect(currentDivisionIndex({}), 0);
+      expect(currentDivisionIndex({'progression': 'not a map'}), 0);
+      expect(currentDivisionIndex(stateIn('no-such-division')), 0);
+      expect(currentDivisionIndex({'progression': <String, dynamic>{}}), 0);
+    });
+
+    test('and it agrees with getDivision on the same save', () {
+      // Two ways of asking which division a save is on, and the ladder is the
+      // one place that answers both.
+      for (final d in divisions) {
+        final state = stateIn(d.id);
+        expect(divisions[currentDivisionIndex(state)].id, getDivision(d.id).id);
+      }
+    });
+  });
 }

@@ -38,8 +38,8 @@ void main() {
         Penalty.keeperSmartBase,
       );
       expect(keeperSmartChanceFor(null), Penalty.keeperSmartBase);
-      expect(keeperDivisionIndex(null), 0);
-      expect(keeperDivisionIndex(stateIn('no-such-division')), 0);
+      expect(currentDivisionIndex(null), 0);
+      expect(currentDivisionIndex(stateIn('no-such-division')), 0);
     });
 
     test('the index is the ladder, and it is the one both ramps read', () {
@@ -49,10 +49,10 @@ void main() {
       // Sunday League.
       for (var i = 0; i < divisions.length; i++) {
         final state = stateIn(divisions[i].id);
-        expect(keeperDivisionIndex(state), i, reason: divisions[i].id);
+        expect(currentDivisionIndex(state), i, reason: divisions[i].id);
         expect(
           keeperSmartChanceFor(state),
-          penaltyKeeperSmartChance(keeperDivisionIndex(state)),
+          penaltyKeeperSmartChance(currentDivisionIndex(state)),
           reason: divisions[i].id,
         );
       }

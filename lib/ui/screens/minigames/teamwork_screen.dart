@@ -20,6 +20,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
+import 'package:merge_empire_fc/data/divisions.dart'
+    show currentDivisionIndex;
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
@@ -29,8 +31,6 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
-import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart'
-    show divisionIndexOf;
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -156,7 +156,7 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
     super.initState();
     _gates = ref.read(tickGatesProvider.notifier);
     _game = ref.read(gameProvider);
-    final divIdx = divisionIndexOf(_game.state);
+    final divIdx = currentDivisionIndex(_game.state);
     final difficulty = pairsDifficulty(divIdx);
     _totalPairs = difficulty.pairs;
     _tiles = dealTiles(

@@ -232,17 +232,17 @@ bool hasTrait(CardInstance? card) {
   );
 }
 
-/// The trait's name and level with NO emoji. [traitLabel] bakes the emoji in,
-/// so a caller wanting its own glyph would otherwise render both.
-String traitLabelPlain(Map<String, dynamic>? traitInstance) {
-  if (traitInstance == null) return '';
-  final trait = getTrait(traitInstance['id'] as String?);
-  if (trait == null) return '';
-  final level = (traitInstance['level'] as num?)?.toInt();
-  final lvl = (level == null ? null : getTraitLevel(trait, level)?.label) ?? '';
-  return lvl.isNotEmpty ? '${trait.name} $lvl' : trait.name;
-}
-
+/// `⚽ Finisher III` — the JS's own label, in the JS's own English.
+///
+/// **It has no caller in `lib/` and that is correct**: it is a parity function,
+/// its output is pinned against the JS's, and a fixture that starts speaking
+/// German is not a fixture. `ui/widgets/trait_copy.dart` is what the screens go
+/// through — `traitTitle` is this, localised.
+///
+/// Its plain-text sibling was NOT that. `traitLabelPlain` was the port's own
+/// addition, written so a caller supplying its own glyph would not render two;
+/// the caller that wanted it arrived as `TraitBadge` plus `traitName`, through
+/// the catalogue, and the untranslated helper sat unreachable behind it. Gone.
 String traitLabel(Map<String, dynamic>? traitInstance) {
   if (traitInstance == null) return '';
   final trait = getTrait(traitInstance['id'] as String?);

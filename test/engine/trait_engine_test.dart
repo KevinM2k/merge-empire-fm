@@ -317,23 +317,17 @@ void main() {
   });
 
   group('labels', () {
-    test('plain label carries no emoji', () {
-      expect(traitLabelPlain({'id': 'finisher', 'level': 3}), 'Finisher III');
-    });
-
-    test('decorated label leads with the icon', () {
+    test('the label leads with the icon', () {
       expect(traitLabel({'id': 'finisher', 'level': 3}), '⚽ Finisher III');
     });
 
     test('none has no level label', () {
-      expect(traitLabelPlain({'id': 'none', 'level': 1}), 'None');
       expect(traitLabel({'id': 'none', 'level': 1}), '✕ None');
     });
 
     test('an unknown trait or null yields an empty label', () {
-      expect(traitLabelPlain(null), '');
       expect(traitLabel(null), '');
-      expect(traitLabelPlain({'id': 'nope', 'level': 1}), '');
+      expect(traitLabel({'id': 'nope', 'level': 1}), '');
     });
   });
 

@@ -51,23 +51,11 @@ int getEffectiveRating(CardInstance? card) {
   return math.max(1, math.min(cap, composed)).round();
 }
 
-/// A card's ATK and DEF, with its trait's directional bonuses folded in.
-///
-/// [attackRatio] resolves per-instance first, then the definition's — the same
-/// precedence the JS callers apply before handing it to the split.
-AtkDefSplit getCardSplit(CardInstance? card, {double? definitionRatio}) {
-  if (card == null) return const AtkDefSplit(attack: 0, defence: 0);
-
-  final def = getPlayerDef(card.definitionId);
-  if (def == null) return const AtkDefSplit(attack: 0, defence: 0);
-
-  final tb = getTraitBonus(card, def.position);
-  final ratio = card.attackRatio ?? definitionRatio ?? def.attackRatio;
-
-  return getCardAtkDefSplit(
-    ratio,
-    getEffectiveRating(card),
-    atkBonus: tb.atkBonus,
-    defBonus: tb.defBonus,
-  );
-}
+// **`getCardSplit` was here and it was the second implementation.** It took a
+// card and returned its ATK/DEF with the trait's directional bonuses folded in
+// — which is, expression for expression, what `getCardStats` in
+// `squad_rating.dart` computes as its `eff` before wrapping it with the base
+// split and the rating. That one has five callers and every screen showing an
+// ATK/DEF pair goes through it; this one had none. The rule it named that WAS
+// duplicated is the attack-ratio precedence, and that is `_attackRatio` there
+// now.
