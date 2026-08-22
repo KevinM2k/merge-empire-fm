@@ -169,7 +169,7 @@ void main() {
     testWidgets('AND SO DOES CANCELLING THE CONFIRM — nothing is written '
         'until the last button', (tester) async {
       final c = await pumpFlow(tester);
-      await tapAction(tester, 'prestige.button');
+      await tapAction(tester, 'prestige.button_standard');
       expect(find.text(t('prestige.confirm_title')), findsOneWidget);
       await tapAction(tester, 'common.cancel');
       expect(lastResult, isNull);
@@ -181,7 +181,7 @@ void main() {
       tester,
     ) async {
       final c = await pumpFlow(tester);
-      await tapAction(tester, 'prestige.button');
+      await tapAction(tester, 'prestige.button_standard');
       await tapAction(tester, 'prestige.lets_go');
 
       final state = c.read(gameProvider).state!;
@@ -215,6 +215,100 @@ void main() {
       await pumpFlow(tester, wonChampionsCup: false);
       expect(find.text(t('prestige.title')), findsNothing);
       expect(lastResult, isNull);
+    });
+  });
+
+  group('THE SECOND DOOR INTO PRO MODE', () {
+    testWidgets('A CASUAL SAVE IS OFFERED BOTH, and a Pro save only one', (
+      tester,
+    ) async {
+      // `prestige.button_standard` exists BECAUSE there are two buttons — a
+      // card with one has no reason for a shorter label on it — and it had no
+      // caller here for exactly as long as the Pro route was missing.
+      await pumpFlow(tester);
+      expect(
+        find.byKey(const ValueKey('coach-action-prestige.button_standard')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('coach-action-champ.pro_cta')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('coach-action-prestige.button')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('and a save already in Pro is offered one', (tester) async {
+      await pumpFlow(tester, hardMode: true);
+      expect(
+        find.byKey(const ValueKey('coach-action-prestige.button')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('coach-action-champ.pro_cta')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('THE PRO ROUTE WARNS ON THE CONFIRM, not on the offer', (
+      tester,
+    ) async {
+      // The JS appends `prestige.pro_note` to `_doPrestige(true)`'s confirm
+      // body. Choosing the harder game and being told what it costs are two
+      // beats, and the second is the last card before the career goes.
+      await pumpFlow(tester);
+      expect(find.text(t('prestige.pro_note')), findsNothing);
+      await tapAction(tester, 'champ.pro_cta');
+      expect(find.text(t('prestige.confirm_title')), findsOneWidget);
+      expect(find.text(t('prestige.pro_note')), findsOneWidget);
+    });
+
+    testWidgets('and the standard route does NOT', (tester) async {
+      await pumpFlow(tester);
+      await tapAction(tester, 'prestige.button_standard');
+      expect(find.text(t('prestige.pro_note')), findsNothing);
+    });
+
+    testWidgets('THE NEW CAREER BOOTS IN PRO, and only on that route', (
+      tester,
+    ) async {
+      final c = await pumpFlow(tester);
+      expect(c.read(hardModeProvider), isFalse);
+      await tapAction(tester, 'champ.pro_cta');
+      await tapAction(tester, 'prestige.lets_go');
+
+      final state = c.read(gameProvider).state!;
+      expect(prestigeLevel(state), 1);
+      expect((state['settings'] as Map)['hardMode'], isTrue);
+
+      await tapAction(tester, 'common.cancel');
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 1));
+    });
+
+    testWidgets('a standard reset leaves the mode alone', (tester) async {
+      final c = await pumpFlow(tester);
+      await tapAction(tester, 'prestige.button_standard');
+      await tapAction(tester, 'prestige.lets_go');
+
+      final state = c.read(gameProvider).state!;
+      expect(prestigeLevel(state), 1);
+      expect((state['settings'] as Map)['hardMode'], isFalse);
+
+      await tapAction(tester, 'common.cancel');
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 1));
+    });
+
+    testWidgets('and backing out of the Pro confirm changes no mode either', (
+      tester,
+    ) async {
+      final c = await pumpFlow(tester);
+      await tapAction(tester, 'champ.pro_cta');
+      await tapAction(tester, 'common.cancel');
+      expect(lastResult, isNull);
+      expect(prestigeLevel(c.read(gameProvider).state), 0);
+      expect(c.read(hardModeProvider), isFalse);
     });
   });
 

@@ -62,6 +62,13 @@ String formatPrestigeMultiplier(double mult) {
   return text.endsWith('0') ? text.substring(0, text.length - 1) : text;
 }
 
+/// Which way the offer was answered.
+///
+/// Three answers rather than a bool, because "yes" now has two meanings and a
+/// captured variable beside a `bool` is exactly the plumbing `CoachAction.result`
+/// exists to avoid.
+enum _Route { standard, pro, cancel }
+
 /// The offer, the confirm, the reset and the new club's name — in that order,
 /// and any of the three cards may be the last one.
 ///
@@ -74,7 +81,7 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
 
   final mult = formatPrestigeMultiplier(nextPrestigeMultiplier(game.state));
   final pro = ref.read(hardModeProvider);
-  final accepted = await showCoachCard<bool>(
+  final answer = await showCoachCard<_Route>(
     context,
     titleKey: 'prestige.title',
     bodyKey: 'prestige.body',
@@ -91,17 +98,50 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
         strong: false,
       ),
     ],
+    // **THE SECOND DOOR INTO PRO MODE, and the JS has had it all along.**
+    // `_showPrestigeColin` offers ONE button on a save already in Pro and TWO
+    // on one that is not — the standard reset and `champ.pro_cta` — which is
+    // why `prestige.button_standard` exists at all and why it had no caller
+    // here: a card with one button has no reason for a shorter label on it.
+    //
+    // Both are green because both are the same answer to the offer; what
+    // differs is which game the next career is. Cancel goes last rather than
+    // first once there are three, which is the order the JS's own celebration
+    // stacks them in and the only order in which the two ways to say yes are
+    // adjacent.
     actions: [
-      CoachAction(labelKey: 'common.cancel', onTap: () {}, result: false),
+      if (pro)
+        CoachAction(
+          labelKey: 'prestige.button',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: _Route.standard,
+        )
+      else ...[
+        CoachAction(
+          labelKey: 'prestige.button_standard',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: _Route.standard,
+        ),
+        CoachAction(
+          labelKey: 'champ.pro_cta',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: _Route.pro,
+        ),
+      ],
       CoachAction(
-        labelKey: 'prestige.button',
-        tone: CoachTone.confirm,
+        labelKey: 'common.cancel',
         onTap: () {},
-        result: true,
+        result: _Route.cancel,
       ),
     ],
   );
-  if (accepted != true || !context.mounted) return null;
+  final toPro = answer == _Route.pro;
+  if (answer == null || answer == _Route.cancel || !context.mounted) {
+    return null;
+  }
 
   // **A SECOND CARD, and it is not a formality.** The offer is about what is
   // gained; this is the only place the player is told what goes — the squad,
@@ -110,6 +150,15 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
     context,
     titleKey: 'prestige.confirm_title',
     bodyKey: 'prestige.confirm_body',
+    // **The Pro warning belongs HERE when Pro is what was chosen**, which is
+    // where the JS puts it: `_doPrestige(true)` appends `prestige.pro_note` to
+    // the confirm body. Choosing the harder game and being told what it costs
+    // are two different beats, and the second one is the last card before the
+    // career goes.
+    extraLines: [
+      if (toPro)
+        (key: 'prestige.pro_note', params: const {}, strong: true),
+    ],
     actions: [
       CoachAction(labelKey: 'common.cancel', onTap: () {}, result: false),
       CoachAction(
@@ -125,7 +174,20 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
   // The point of no return. Everything above this line is reversible by
   // pressing Cancel; nothing below it is.
   late PrestigeResult result;
-  game.update((s) => result = performPrestige(s));
+  game.update((s) {
+    result = performPrestige(s);
+    // **After the reset, not before**, and the two orders are not the same:
+    // `performPrestige` mutates the save in place and never touches `settings`,
+    // so the flag survives it either way — but `resetState`, which the New Team
+    // flow uses, COPIES settings forward, and writing the flag after that one
+    // would land it on a save that had already booted in the old mode. Same
+    // sentence, opposite order, and the difference is which function is
+    // downstream. This is the JS's order for this flow.
+    if (result.ok && toPro) {
+      final settings = s['settings'];
+      if (settings is Map<String, dynamic>) settings['hardMode'] = true;
+    }
+  });
   if (!result.ok) return null;
 
   // **The toast is emitted HERE rather than by the engine**, and that is the
