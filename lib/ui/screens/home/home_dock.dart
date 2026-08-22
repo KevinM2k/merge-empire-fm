@@ -10,7 +10,9 @@
 ///   have to go looking for is not advice, it is a screen.
 /// - **The burger, bottom right**, with Prestige above it when it is available.
 ///   Prestige leads the column: a gold star with a dot, rather than the
-///   full-width call to action that used to sit under the match card.
+///   full-width call to action that used to sit under the match card. See
+///   `ui/popups/prestige_card.dart` for what it opens — the engine behind it
+///   had no caller in `lib/` at all until that landed.
 ///
 /// The burger's dot is the OR of every tile's inside it, so nothing that used
 /// to nag from the scene goes quiet just because it moved one tap deeper.
@@ -21,7 +23,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
+import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
@@ -188,6 +192,41 @@ class CoachDock extends ConsumerWidget {
           fallback: Center(child: Text('🧢', style: TextStyle(fontSize: 26))),
         ),
       ),
+    );
+  }
+}
+
+/// Prestige, directly above the burger and only when it is available.
+///
+/// **A gold star with a dot, not a full-width call to action.** The JS used to
+/// put "Start New Adventure" across the scene under the match card, which is a
+/// banner for a thing that happens at most once a career and can be taken at
+/// any time from then on — and it competed with the one button on this screen
+/// that the player is here to press. As an orb it leads the right-hand column
+/// and nags exactly as much as the burger does.
+///
+/// **It appears at all only after the Champions League is won**, which is what
+/// `canPrestige` reads; on every save before that this builds nothing and the
+/// column is the burger alone.
+class PrestigeDock extends ConsumerWidget {
+  const PrestigeDock({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(canPrestigeProvider)) return const SizedBox.shrink();
+    return DockButton(
+      key: const ValueKey('dock-prestige'),
+      dotKey: const ValueKey('prestige-dot'),
+      label: t('scene.dock.prestige'),
+      // Always nagging while it is up: an unclaimed new adventure is the only
+      // thing on this screen with nothing else to remind you of it, and the orb
+      // goes the moment it is taken.
+      dot: true,
+      onTap: () => showPrestigeOffer(context, ref),
+      // Gold rather than the kit's accent, and this is the one orb where that
+      // is right: prestige is the only control on the dock that is not about
+      // the club the palette is derived FROM.
+      child: const Icon(Icons.star_rounded, size: 26, color: Color(0xFFFFC93C)),
     );
   }
 }

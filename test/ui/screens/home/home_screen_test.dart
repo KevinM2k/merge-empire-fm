@@ -288,6 +288,50 @@ void main() {
       expect(box.bottom, closeTo(coach.bottom, 8));
     });
 
+    testWidgets('THE PRESTIGE ORB IS NOT THERE until the cup is won', (
+      tester,
+    ) async {
+      // `canPrestige` gates it, and on every save before a Champions League
+      // there is nothing to offer — so the right-hand column is the burger
+      // alone and the dock row is exactly what it was.
+      await pumpHome(tester);
+      expect(find.byKey(const ValueKey('dock-prestige')), findsNothing);
+    });
+
+    testWidgets('and it LEADS THE COLUMN above the burger once it is', (
+      tester,
+    ) async {
+      // The dock's own note: "the burger, bottom right, with Prestige above it
+      // when it is available". Above rather than beside, so the menu does not
+      // move under a thumb that has learned where it is.
+      await pumpHome(
+        tester,
+        mutate: (s) =>
+            (s['progression'] as Map<String, dynamic>)['wonChampionsCup'] =
+                true,
+      );
+      final orb = find.byKey(const ValueKey('dock-prestige'));
+      expect(orb, findsOneWidget, reason: 'no way to start a new adventure');
+      final star = tester.getRect(orb);
+      final menu = tester.getRect(find.byKey(const ValueKey('dock-menu')));
+      expect(star.bottom, lessThanOrEqualTo(menu.top));
+      expect(star.center.dx, closeTo(menu.center.dx, 1));
+      // And it nags, because nothing else on this screen mentions it.
+      expect(find.byKey(const ValueKey('prestige-dot')), findsOneWidget);
+    });
+
+    testWidgets('tapping it opens the offer', (tester) async {
+      await pumpHome(
+        tester,
+        mutate: (s) =>
+            (s['progression'] as Map<String, dynamic>)['wonChampionsCup'] =
+                true,
+      );
+      await tester.tap(find.byKey(const ValueKey('dock-prestige')));
+      await tester.pumpAndSettle();
+      expect(find.text(t('prestige.title')), findsOneWidget);
+    });
+
     testWidgets('and he stands just over it, not up the pitch', (tester) async {
       // 12px above the pill. He used to be derived from the footer's FULL
       // height, dock row included, which stood him a whole orb too high.

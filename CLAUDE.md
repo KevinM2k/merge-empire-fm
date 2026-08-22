@@ -46,7 +46,7 @@ existing key, or the queue saying it is blocked.
 
 ```bash
 flutter analyze                      # must be clean before any commit
-flutter test                         # ~4,350 tests
+flutter test                         # ~4,430 tests
 TZ=UTC flutter test                  # test/data/events_test.dart and
                                      # test/engine/event_engine_test.dart skip
                                      # themselves outside UTC — annual event
@@ -115,9 +115,15 @@ layer run under plain `dart test` with no widget binding.
   change first. The queue drains in priority order and **may never time out or
   discard**: the welcome-back card holds coins that exist nowhere else.
 - **Every user-facing string goes through `t()`.** The key must exist in `en` or
-  `test/i18n/call_sites_test.dart` fails the build. `t()` also turns a catalogue
-  `<br>` into a newline — three entries are still written for a DOM, and the
-  catalogues are generated, so the fix has to live at the boundary.
+  `test/i18n/call_sites_test.dart` fails the build. `t()` also strips the markup
+  the copy was written with — a catalogue `<br>` becomes a newline, `<strong>`
+  becomes nothing — because those entries were written for a DOM and the
+  catalogues are GENERATED, so the fix has to live at the boundary or the next
+  `gen_i18n.mjs` run undoes it. Twenty-three entries carry `<strong>` and one of
+  them was on screen: the cup sponsor offer read `<strong>Nike</strong> wants to
+  sponsor <strong>Smith</strong>.` to players. Emphasis inside a run of text is
+  a DOM affordance a Dart `String` cannot carry; the port's cards get it from
+  their own typography (`CoachLine.strong`) instead.
 - **A cue emitted N times in one frame plays ONCE.** `retriggerFloor` in
   `sound_service.dart` is 70ms, because a batch signing places four cards inside
   one `update` and four retriggers of a 0.55s clip is a burr rather than four
@@ -167,6 +173,24 @@ layer run under plain `dart test` with no widget binding.
   caller in `lib/`, so three quests could never advance while every test passed.
   And grep the JS for a caller as well — some functions are a dead end *there*,
   and building a UI for one is adding a feature rather than porting it.
+- **`bash tool/unreached.sh` is that check mechanised**, over every public
+  top-level function in `lib/engine`, `lib/data` and `lib/state`. Six engines
+  have been caught this way, the largest being the whole of prestige — engine,
+  fourteen strings in ten catalogues and three achievements, none of it
+  reachable. **A high `test-files=` count is the interesting row, not the safe
+  one.** The script's header lists the four kinds of hit that are expected and
+  are not bugs; read it before acting on a row.
+- **Shipped copy with no caller is the loudest tell there is.** The catalogues
+  are generated from the JS, so a translated string nothing can print is a
+  feature the port dropped, named and counted in ten languages. It has now found
+  the coach tips, the income breakdown, every trait, the match commentary, the
+  transfer pill and prestige. Grep `lib/i18n/locales/en.g.dart` for a key prefix
+  and then for a caller — the gap between the two counts is a work queue.
+- **A shipped string with markup in it is a second tell.** `t()` strips `<br>`
+  and `<strong>` at the boundary because the copy was written for a DOM and the
+  catalogues are generated; a string that renders its own tags is a call site
+  nobody has looked at. `cup.win_reward.body` was printing
+  `<strong>Nike</strong>` to players.
 - A port with no tests is not done.
 
 ## Identifiers

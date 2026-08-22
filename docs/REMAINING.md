@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,404 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,426 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -42,6 +42,130 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
+**THE NEWEST PASS WAS AN AUDIT, NOT A PLAYTEST**, and it is a different shape
+from everything below: nobody watched a screen and disliked it. A reachability
+sweep over every public top-level function in `lib/engine`, `lib/data` and
+`lib/state` asked one question — does anything in `lib/` name this apart from
+its own declaration — and for a great many the answer was no.
+
+**The sweep is `tool/unreached.sh`, committed rather than described**, so the
+number is reproducible instead of asserted and a next session re-runs it rather
+than rebuilding it:
+
+```bash
+bash tool/unreached.sh            # file :: function :: test-files=N
+bash tool/unreached.sh | wc -l    # 79 as this pass ends
+```
+
+A HIGH test-file count is the interesting case, not the safe one: it means the
+thing is ported, proven and unreachable. The script's own header lists the four
+kinds of hit that are EXPECTED and are not bugs, so read that before acting on a
+row. Five findings from this run are worth carrying, and between them they take
+the tally of engines caught this way to six: `recordDiscovery`,
+`maybeGenerateOffer`, `trackEvent`, `club_asset_tiers`, `grantLookPack` and now
+the whole of prestige.
+
+**1. PRESTIGE WAS THE WHOLE SYSTEM, and none of it could be reached.**
+`canPrestige` and `performPrestige` had no caller in `lib/` at all; fourteen
+`prestige.*` strings sat generated in all ten catalogues with nothing able to
+print one; and `prestige_level_1`, `prestige_level_3` and `prestige_level_10`
+read a level that could therefore never rise. It is built now —
+`ui/popups/prestige_card.dart`, a gold-star orb above the burger, three cards
+and a toast. **Nothing about the placement was reconstructed**: `home_dock.dart`'s
+own header had described the orb ("a gold star with a dot, rather than the
+full-width call to action that used to sit under the match card") since the dock
+was written. When a port's own doc describes a control that is not there, that
+is the spec, and it is cheaper to read than the JS.
+
+**2. SHIPPED COPY WAS THE TELL AGAIN, and this time it was on screen.** `<br>`
+had been handled at the `t()` boundary and `<strong>` had not — twenty-three
+entries carry it, and `cup.win_reward.body` HAS a caller, so the cup sponsor
+offer was reading `<strong>Nike</strong> wants to sponsor <strong>Smith</strong>.`
+to the player. Stripped rather than honoured, and the reasoning is worth keeping:
+a Dart `String` cannot carry emphasis, so honouring the tag means twenty-three
+call sites taking spans to buy bold on two of them. `CoachLine.strong` is the
+port's answer — a whole line at 15px and w800.
+
+**3. A GATE THAT IS NOT CALLED IS A GATE THAT IS OPEN.** The daily reward's boot
+entry asked `!claimedToday`, so the sheet came back on EVERY launch until the
+reward was taken — a player who opened the app, looked at the cycle and closed
+it got it again, and again. `shouldAutoShowPopup` is the once-a-day rule and had
+no caller. The general shape: when an engine exposes both a cheap predicate and
+a stateful gate, the UI reaching for the cheap one is not a smaller version of
+the same behaviour.
+
+**4. TWO IMPLEMENTATIONS OF ONE RULE, and they agreed — this time.**
+`claimableQuestsProvider` wrote "completed and not yet claimed" out again while
+`unclaimedCount` sat uncalled in `quest_engine.dart`. Nothing was broken and
+nothing had to be; the standing rule about not building a second of anything
+exists because the two disagree LATER, not at birth.
+
+**5. What the sweep found and this pass deliberately did NOT act on**, because
+the measurement says they are not bugs:
+
+- **`expireBoosts` has no caller and it does not matter.** Every reader of
+  `incomeBoostActive` and `vipActive` — `income_breakdown`, `match_orchestration`,
+  `iap_engine` — already guards on the expiry timestamp beside the flag, so a
+  stale flag pays nobody anything. It is housekeeping, not a live bug. The one
+  reader that checks the flag alone is `season_end.dart:645`, which is the
+  `vipPrestigeLinked` branch the queue already lists as dead.
+- **`getDailyStreak` has no caller, and "needs none" was wrong** — `PARITY.md`
+  says so, which is the argument for reading both queues rather than one. Its
+  own doc names a HUD chip and PARITY names a daily-reward ORB "with its streak
+  count"; the port has neither, and the daily lives in the burger where the
+  sheet prints the streak only once it is open. So the engine is not dead, it is
+  waiting on a control that is still an open PARITY item — and the streak, which
+  is the whole reason to come back tomorrow, is currently invisible until you
+  open the thing it is meant to draw you to.
+- **`setXRandom` / `resetXRandom` are test seams** and are supposed to look like
+  this. A dozen of the rows are those.
+- **`listPlayer`, `unlistPlayer` and `listedCards`** are the transfer list, which
+  the queue already records as a dead end in the JS too.
+- **`reset_after_prestige` still cannot unlock**, and prestige is not why: it
+  reads `maxPrestigeLevelAtReset`, which a New Team reset writes, and the port
+  has no New Team flow at all. That is its own item.
+
+**Still open from that sweep**, in rough order of how much a player would
+notice — each one is an engine with no caller in `lib/`, so the module's real
+status is "only its own test":
+
+- [ ] **`refreshCupAvailability`** (`cup_engine.dart`) — nothing refreshes whether
+      a cup may be entered this season.
+- [ ] **`grantTutorialGems`** (`gem_engine.dart`), and with it the whole tutorial:
+      no file in `lib/` references a `tut.` key, so forty-odd tutorial strings and
+      every step of it are unreachable. Much the biggest thing left on this list.
+- [ ] **`purchaseCoinSink` and `isTrophyPolishActive`** (`coin_sink_engine.dart`)
+      — a shelf that cannot be bought from.
+- [ ] **`acceptSellerCounter` and `liveListingsBySide`** (`deadline_day_engine.dart`)
+      — Deadline Day HAS a screen, so this is a control missing from a screen
+      that exists rather than a screen missing.
+- [ ] **`getBadgeChoices`** (`badge_engine.dart`) — the badge picker.
+- [ ] **`takePenalty`** (`penalty_game_engine.dart`) — the penalty screen does not
+      go through it. Worth checking which of the two is right before wiring it.
+- [ ] **`describeOffer`** (`negotiation_engine.dart`), **`seasonStatusFor`**
+      (`league_table.dart`), **`getCardSplit`** (`player_rating.dart`),
+      **`traitLabelPlain`** (`trait_engine.dart`), **`peekGrudge`**
+      (`transfer_engine.dart`), **`hasEnoughPlayers`** and
+      **`retirementMultiplier`** (`goal_model.dart`), **`tapsForTier`**
+      (`club_assets.dart`), **`getNextDivision`** (`divisions.dart`) — smaller,
+      and several may be genuine dead ends in the JS. Check the JS for a caller
+      before building a UI for one: some functions are a dead end THERE, and
+      building a screen for one is adding a feature rather than porting it.
+- [ ] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) have no
+      test either, so they are not ported so much as typed in.
+- [ ] **`prestige.season_income` is the one prestige string still unreachable**,
+      and it is blocked on PLACEMENT rather than on anything else. "Season
+      {season} · Income ×{mult}" is a standing header line, not a beat in the
+      prestige flow, and where the JS puts it cannot be read from a cloud
+      container. Two halves of it are sitting ready: `seasonNumberProvider`
+      (`home/league_providers.dart`) has no caller either — **the season number
+      is never shown to the player at all outside the season-end card and a
+      trophy subtitle** — and `formatPrestigeMultiplier` (`prestige_card.dart`)
+      is the figure. A helper for the line lived in `prestige_card.dart` briefly
+      with nothing calling it and was deleted, which is the rule this whole
+      block is about: shipping a function with no caller is the fault, not the
+      fix.
+
 **READ `CLAUDE.md`'s Commands section before touching anything in a cloud
 session.** Two facts about that environment are not obvious and both cost a
 session time: there is **no Flutter on the PATH** until you install the pinned
@@ -50,14 +174,16 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**93 items are open**, plus nine carrying a `[~]` — answered, but with a decision
-left for the manager rather than a line of code. The two newest sections,
-`From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
-ones to read first: they are a single sitting's worth of playtesting and most of
-what is open now came out of them.
+**96 items are open**, plus ten carrying a `[~]` — answered, but with a decision
+left for the manager rather than a line of code. **Read the audit block above
+first** — nine of the open items came out of it and each is a whole engine
+nobody can reach, which is a different kind of gap from the playtesting
+sections. After that, `From playtesting — 27 Aug` and `From the whistle back —
+27 Aug, later`: a single sitting's worth of playtesting, and most of the rest of
+what is open came out of them.
 
-**The newest pass cleared the PENALTY SCENE and then went round the screens a
-player had called boring or wrong.** Fourteen commits; what a next session
+**The pass before the audit cleared the PENALTY SCENE and then went round the
+screens a player had called boring or wrong.** Fourteen commits; what a next session
 actually needs from it is the six findings, not the list of changes.
 
 **1. The penalty scene is done bar taste** — seven of its eight items. Four of
@@ -3362,13 +3488,20 @@ never CALLED; this one is almost entirely things that are called and look wrong.
 The card a tap on a player opens. Not a list of fixes so much as one layout that
 is wrong in six places.
 
-- [ ] **Get rid of the stats box.** Rating, ATK, DEF, income and seasons in a
-      ruled panel is an inventory readout on a card about a person.
-- [ ] **ATK and DEF go under the rating, top left of the card.**
-- [ ] **Income goes under seasons, or top right.**
-- [ ] **`BRONZE PRO · DEF` is too close to the buttons** — lift it.
-- [ ] **The trait box is the point of this card and looks the least like it.**
-      It is the thing the sheet is FOR; make it look like it.
+**All five were done by the entry at the top of this session** — "the squad
+sheet's numbers live on the player now" — and never ticked. Left here as the
+list of what that change was answering.
+
+- [x] **Get rid of the stats box.** Rating, ATK, DEF, income and seasons in a
+      ruled panel is an inventory readout on a card about a person. Gone: the
+      numbers are two glass plates on the portrait, `_HeaderPlate`.
+- [x] **ATK and DEF go under the rating, top left of the card.**
+- [x] **Income goes under seasons, or top right.**
+- [x] **`BRONZE PRO · DEF` is too close to the buttons** — lifted, 72px of
+      bottom padding rather than 58.
+- [x] **The trait box is the point of this card and looks the least like it.**
+      It wears an accent wash and a level chip when he has one, and the reels
+      land in a lit window.
 
 ### Light and dark
 
@@ -3594,10 +3727,29 @@ is wrong in six places.
 - [x] **Every chance drew the SAME passage.** `?? ` binds looser than `+`, so
       `seed ?? 0 + event.minute` added the minute only when the result carried
       no seed at all.
-- [ ] **The dugout cam still wants watching on a goal.** The wiring is there —
-      `_dugoutCamFor` off the clip's `onDone` — so if it is not landing it is
-      the policy gate (three goal cuts, the gap, reduced motion), not the
-      absence of a caller.
+- [~] **The dugout cam still wants watching on a goal — and here is the
+      arithmetic, which nobody had done.** The wiring is fine and the gate that
+      refuses it is neither the budget nor the gap: it is
+      `camFitsBeforeFullTime`, and the numbers are brutal. A minute is 120ms
+      (60ms in fast mode), so a 90-minute match is **10.8 real seconds** — and
+      the cam window is `220 + gesture + 900 + 200`, with gestures running
+      1500–2800ms, so it is **2.8 to 4.1 seconds of an 11-second match**. The
+      rule refuses any shot that would still be up at the whistle, which means:
+
+      | pace | last minute that can get the camera |
+      |---|---|
+      | normal, short gesture | 66' |
+      | normal, long gesture | 55' |
+      | fast, short gesture | 43' |
+      | fast, long gesture | 21' |
+
+      So in fast mode most of the match is camera-free, and it is not a bug —
+      the 70th minute really is 2.4 seconds from full time. **The decision is
+      whether the window is too long for the match, not whether the gate is
+      wrong.** Three goal cut-ins at ~3s each is nine of the eleven seconds;
+      that is the number to argue with. Left `[~]` because shortening `camHold`
+      or dropping the budget to two is a taste call, and the measurement is
+      written down so nobody re-derives it.
 - [x] **Colin had NOTHING to say for ninety minutes.** Twenty-four pooled
       `coach.match.*` strings — his read at every scoreline, his half-time word,
       his per-tactic ask — translated into ten catalogues with not one caller.

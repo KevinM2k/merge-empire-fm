@@ -27,11 +27,47 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/club_name.dart';
 
 /// Opens the card. Resolves to the stored name, or null if it was dismissed.
-Future<String?> showClubNameCard(BuildContext context) =>
-    showDialog<String>(context: context, builder: (_) => const ClubNameCard());
+///
+/// **The three key overrides are what stop there being a second name card.**
+/// Prestige asks the same question with its own words — `prestige.name_prompt`,
+/// `prestige.name_placeholder` and `prestige.kick_off`, all three translated ten
+/// times over with nothing able to reach one — and the difference between that
+/// card and this one is three strings, not a widget. Everything that matters
+/// here (the screening, the dice, the error that appears on the card it was
+/// earned on) is the same question either way round.
+Future<String?> showClubNameCard(
+  BuildContext context, {
+  String? titleKey,
+  String? placeholderKey,
+  String? confirmKey,
+}) => showDialog<String>(
+  context: context,
+  builder: (_) => ClubNameCard(
+    titleKey: titleKey,
+    placeholderKey: placeholderKey,
+    confirmKey: confirmKey,
+  ),
+);
 
 class ClubNameCard extends ConsumerStatefulWidget {
-  const ClubNameCard({super.key});
+  const ClubNameCard({
+    this.titleKey,
+    this.placeholderKey,
+    this.confirmKey,
+    super.key,
+  });
+
+  /// The card's own heading, or null for the standing "name your club".
+  final String? titleKey;
+
+  /// The hint in the field. Takes `{name}` — the dice's current suggestion —
+  /// and a key that does not use it simply ignores it, which is `t()`'s own
+  /// behaviour for a param with no placeholder.
+  final String? placeholderKey;
+
+  /// The confirm button. Prestige's is "Kick Off!", because on that card the
+  /// name is the last thing between the player and a new career.
+  final String? confirmKey;
 
   @override
   ConsumerState<ClubNameCard> createState() => ClubNameCardState();
@@ -73,12 +109,12 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return CoachCardFrame(
-      title: t('club_name.title'),
+      title: t(widget.titleKey ?? 'club_name.title'),
       body: t('club_name.subtitle'),
       actions: [
         CoachAction(labelKey: 'common.cancel', onTap: () {}),
         CoachAction(
-          labelKey: 'club_name.confirm',
+          labelKey: widget.confirmKey ?? 'club_name.confirm',
           tone: CoachTone.confirm,
           // The card stays up until the name is good — otherwise a rejected
           // name closes the card the rejection was going to appear on.
@@ -107,7 +143,10 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
                     if (_error != null) setState(() => _error = null);
                   },
                   decoration: InputDecoration(
-                    hintText: t('club_name.placeholder', {'name': _suggested}),
+                    hintText: t(
+                      widget.placeholderKey ?? 'club_name.placeholder',
+                      {'name': _suggested},
+                    ),
                     counterText: '',
                     filled: true,
                     fillColor: kit.surface2,

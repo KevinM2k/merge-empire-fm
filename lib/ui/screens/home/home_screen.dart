@@ -160,7 +160,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: CustomiseDock(anchorKey: _customiseKey),
                       ),
                       const Spacer(),
-                      const MenuDock(),
+                      // **A COLUMN, not a second orb in the row.** Prestige
+                      // leads the right-hand side and the burger stays where
+                      // the player's thumb has learned it is — putting the new
+                      // orb in the row instead would move the menu every time
+                      // a career came up for renewal. It builds nothing at all
+                      // on a save that cannot prestige, so the common case is
+                      // the burger alone and the row is unchanged.
+                      const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PrestigeDock(),
+                          SizedBox(height: 8),
+                          MenuDock(),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),

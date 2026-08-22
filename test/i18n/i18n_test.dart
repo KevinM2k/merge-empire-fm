@@ -155,6 +155,47 @@ void main() {
       resetLocale();
     });
 
+    test(
+      'A <strong> IS NOTHING AT ALL, and one of them is on screen today',
+      () {
+        // `cup.win_reward.body` is the cup sponsor offer's line and it is
+        // RENDERED — the player was reading `<strong>Nike</strong> wants to
+        // sponsor <strong>Smith</strong>.` off a Coach Colin card. Twenty-three
+        // entries carry the tag; this is the one that had a caller.
+        final out = t('cup.win_reward.body', {
+          'sponsor': 'Nike',
+          'player': 'Smith',
+        });
+        expect(out, isNot(contains('<strong')));
+        expect(out, isNot(contains('</strong')));
+        expect(out, 'Nike wants to sponsor Smith.');
+      },
+    );
+
+    test('and every locale is clean of THAT too', () {
+      for (final id in localeIds) {
+        setLocale(id);
+        for (final key in [
+          'cup.win_reward.body',
+          'prestige.body',
+          'merge.warn.lose_sponsor',
+        ]) {
+          expect(
+            t(key),
+            isNot(contains('strong>')),
+            reason: '$id/$key still carries markup',
+          );
+        }
+      }
+      resetLocale();
+    });
+
+    test('a string carrying BOTH loses both', () {
+      // The two replacements run over the same template, so a string that grows
+      // a line break inside an emphasised run cannot come out half-done.
+      expect(t('tut.merge.body'), isNot(contains('<')));
+    });
+
     test('a string with no markup is handed back untouched', () {
       // The guard is a `contains('<')` so the common case does no work at all.
       expect(t('common.cancel'), isNot(contains('\n')));
