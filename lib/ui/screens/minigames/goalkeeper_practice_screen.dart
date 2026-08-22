@@ -45,8 +45,19 @@ const int trainingTickMs = 100;
 /// How long a hit or a miss stays on the stage.
 const Duration drillFlash = Duration(milliseconds: 400);
 
-/// The five drill faces, in the order they come round.
-const List<String> drillFaces = ['⚽', '🏃', '🎯', '⚡', '🔥'];
+/// **EVERY SHOT IS A FOOTBALL.** It was five faces in rotation — a runner, a
+/// target, a bolt, a flame — which is a list of drills rather than a keeper
+/// facing shots. There is one thing coming at a goalkeeper.
+const String drillFace = '⚽';
+
+/// How wide a ball is when it is struck, against how wide it is when it reaches
+/// you.
+///
+/// **It has to GROW.** A flat scene has exactly one cue for a ball travelling
+/// toward the camera and this is it — the same reading the penalty scene got
+/// from `_eyeZ`, which this game never had. Starting at a quarter and arriving
+/// at full size is a ball hit from the edge of the box.
+const double drillStartScale = 0.28;
 
 /// When each drill is due, in milliseconds from the start of the session.
 ///
@@ -59,6 +70,23 @@ List<int> drillTimes(int drillCount) {
     for (var i = 0; i < drillCount; i++)
       (Training.leadInMs + ((i + 0.5) / drillCount) * usable).round(),
   ];
+}
+
+/// This shot's window, jittered either side of the session's own.
+///
+/// **Shots that all arrive at exactly the same speed are a metronome**, and
+/// after two of them the player is not reacting, they are counting — which is
+/// what made this too easy. The division's ramp still sets the middle, so the
+/// whole game gets harder as you climb; what changes is that no two shots in a
+/// row are the same shot.
+///
+/// [roll] is 0..1. Pure so the spread can be pinned without a screen.
+int drillWindowFor(int sessionMs, double roll) {
+  const spread = 0.34;
+  // Never longer than the session's own window: a jitter that can make a shot
+  // EASIER than the division asked for is a ramp with a hole in it.
+  final scale = 1 - spread * roll.clamp(0.0, 1.0);
+  return math.max(360, (sessionMs * scale).round());
 }
 
 class GoalkeeperPracticeScreen extends ConsumerStatefulWidget {
@@ -89,7 +117,11 @@ class GoalkeeperPracticeScreenState
   int _hit = 0;
 
   /// The bubble on the stage, or null between drills.
-  ({int index, int expiresAt, double top, double left})? _drill;
+  ///
+  /// [windowMs] is per DRILL, not per session: shots that all arrive at exactly
+  /// the same speed are a metronome, and a metronome is what made this too
+  /// easy — after two you are not reacting, you are counting.
+  ({int index, int expiresAt, int windowMs, double top, double left})? _drill;
 
   /// '✓', '✗' or null.
   String? _flash;
@@ -148,16 +180,30 @@ class GoalkeeperPracticeScreenState
     final drill = _drill;
     if (drill != null && now() >= drill.expiresAt) _miss();
 
+    // **THE WHISTLE IS THE LAST SHOT, not the clock.** Sitting on an empty
+    // scene watching a bar run down is the player being made to watch nothing
+    // happen; every shot has been faced, so the session is over. The flash is
+    // waited out first — the ✓ or ✗ on the last one is the answer to it.
+    if (_appeared >= _drillCount && _drill == null && _flash == null) {
+      _finish();
+      return;
+    }
     if (_elapsed >= Training.durationMs) _finish();
   }
 
   void _spawn() {
+    // **A SHOT AT A TIME, not a shot every time.** The window jitters either
+    // side of the session's own — which is still the division's ramp, so the
+    // whole thing gets harder as you climb; what changes is that two shots in a
+    // row are never the same shot.
+    final window = drillWindowFor(_windowMs, _rng.nextDouble());
     setState(() {
       _appeared++;
       _flash = null;
       _drill = (
         index: _appeared - 1,
-        expiresAt: now() + _windowMs,
+        expiresAt: now() + window,
+        windowMs: window,
         // The same bands as the JS, as fractions of the stage: never against an
         // edge, and never in the same place twice running by luck alone.
         top: 0.15 + _rng.nextDouble() * 0.55,
@@ -309,7 +355,6 @@ class GoalkeeperPracticeScreenState
                       child: _Stage(
                         kit: kit,
                         drill: _drill,
-                        windowMs: _windowMs,
                         flash: _flash,
                         flashGood: _flashGood,
                         idleText: _appeared == 0
@@ -409,7 +454,6 @@ class _Stage extends StatelessWidget {
   const _Stage({
     required this.kit,
     required this.drill,
-    required this.windowMs,
     required this.flash,
     required this.flashGood,
     required this.idleText,
@@ -417,8 +461,8 @@ class _Stage extends StatelessWidget {
   });
 
   final KitTheme kit;
-  final ({int index, int expiresAt, double top, double left})? drill;
-  final int windowMs;
+  final ({int index, int expiresAt, int windowMs, double top, double left})?
+  drill;
   final String? flash;
   final bool flashGood;
   final String idleText;
@@ -467,8 +511,8 @@ class _Stage extends StatelessWidget {
                     // each one instead of carrying the last one's progress.
                     key: ValueKey('train-bubble-${current.index}'),
                     kit: kit,
-                    face: drillFaces[current.index % drillFaces.length],
-                    windowMs: windowMs,
+                    face: drillFace,
+                    windowMs: current.windowMs,
                     onTap: onHit,
                   ),
                 ),
@@ -500,70 +544,39 @@ class _Bubble extends StatefulWidget {
   State<_Bubble> createState() => _BubbleState();
 }
 
-class _BubbleState extends State<_Bubble> with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: widget.windowMs ~/ 2),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
+class _BubbleState extends State<_Bubble> {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: bubbleSize,
     height: bubbleSize,
-    child: Stack(
-      alignment: Alignment.center,
-      clipBehavior: Clip.none,
-      children: [
-        // The ring closing in, so the window tightening is something the player
-        // can SEE rather than something they have to have learnt.
-        TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0, end: 1),
-          duration: Duration(milliseconds: widget.windowMs),
-          curve: Curves.linear,
-          builder: (context, t, child) => Transform.scale(
-            scale: 1.8 - 0.8 * t,
-            child: Opacity(opacity: (1 - t).clamp(0.0, 1.0), child: child),
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white24, width: 2),
-            ),
-            child: const SizedBox(width: bubbleSize, height: bubbleSize),
-          ),
-        ),
-        GestureDetector(
-          key: const ValueKey('train-bubble'),
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onTap,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 1, end: 1.15).animate(_pulse),
-            child: Container(
-              width: bubbleSize,
-              height: bubbleSize,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                gradient: RadialGradient(
-                  center: const Alignment(-0.4, -0.4),
-                  colors: [widget.kit.accentBright, widget.kit.accent],
-                ),
-              ),
-              child: Text(
-                widget.face,
-                style: const TextStyle(fontSize: 24, height: 1),
-              ),
-            ),
+    child: GestureDetector(
+      key: const ValueKey('train-bubble'),
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
+      // **THE BALL COMING AT YOU, and nothing round it.** It was a coloured
+      // disc with a white rim and a face inside, pulsing — which is a button
+      // with a picture on it, not a shot. The rim went with the disc, and the
+      // ring that used to close in went with them: the GROWTH is the clock now,
+      // and it is the same reading rather than a second one. A flat scene has
+      // exactly one cue for a ball travelling toward the camera.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: drillStartScale, end: 1),
+        duration: Duration(milliseconds: widget.windowMs),
+        // Eased OUT: a struck ball covers most of the ground early and looms in
+        // the last instant, which is also what makes the late save the hard one.
+        curve: Curves.easeOutQuad,
+        builder: (context, t, child) => Center(
+          child: SizedBox(
+            width: bubbleSize * t,
+            height: bubbleSize * t,
+            child: FittedBox(child: child),
           ),
         ),
-      ],
+        child: Text(
+          widget.face,
+          style: const TextStyle(fontSize: 40, height: 1),
+        ),
+      ),
     ),
   );
 }

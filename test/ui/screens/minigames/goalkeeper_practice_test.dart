@@ -332,4 +332,69 @@ void main() {
     expect(find.text(t('training.title').toUpperCase()), findsOneWidget);
     expect(find.text(t('settings.comingSoon')), findsNothing);
   });
+  testWidgets('THE WHISTLE IS THE LAST SHOT, not the clock', (tester) async {
+    // Sitting on an empty scene watching a bar run down is the player being
+    // made to watch nothing happen. Every shot has been faced, so the session
+    // is over — and it ends WITHOUT the clock reaching the end.
+    await pumpGame(tester);
+    final state = stateOf(tester);
+    // Face them all: tap the ball whenever one is up.
+    var elapsed = 0;
+    while (elapsed < Training.durationMs) {
+      final bubble = find.byKey(const ValueKey('train-bubble'));
+      if (bubble.evaluate().isNotEmpty) {
+        await tester.tap(bubble);
+        await tester.pump();
+      }
+      await advance(tester, trainingTickMs);
+      elapsed += trainingTickMs;
+      if (find.byKey(const ValueKey('train-summary')).evaluate().isNotEmpty) break;
+    }
+    expect(state.drillsAppeared, state.drillCount);
+    expect(
+      elapsed,
+      lessThan(Training.durationMs),
+      reason: 'it waited out the clock with nothing left to face',
+    );
+    await closeGame(tester);
+  });
+
+  group('THE SHOTS ARE FOOTBALLS COMING AT YOU', () {
+    test('every drill wears the same face, and it is a ball', () {
+      // It was five in rotation — a runner, a target, a bolt, a flame — which
+      // is a list of drills rather than a keeper facing shots.
+      expect(drillFace, '⚽');
+    });
+
+    test('and it starts small, because that is how distance reads', () {
+      // A flat scene has exactly one cue for a ball travelling toward the
+      // camera; the penalty scene got it from `_eyeZ` and this game never had
+      // it at all.
+      expect(drillStartScale, lessThan(0.5));
+      expect(drillStartScale, greaterThan(0));
+    });
+
+    group('NO TWO SHOTS IN A ROW ARE THE SAME SHOT', () {
+      test('the window jitters either side of the session\'s own', () {
+        final windows = [
+          for (var i = 0; i <= 10; i++) drillWindowFor(1700, i / 10),
+        ];
+        expect(windows.toSet().length, greaterThan(3));
+      });
+
+      test('but NEVER easier than the division asked for', () {
+        // A jitter that can lengthen the window is a difficulty ramp with a
+        // hole in it — the whole game gets harder as you climb and this must
+        // not undo that.
+        for (var i = 0; i <= 10; i++) {
+          expect(drillWindowFor(1700, i / 10), lessThanOrEqualTo(1700));
+        }
+      });
+
+      test('and never so short that nobody could reach it', () {
+        expect(drillWindowFor(400, 1), greaterThanOrEqualTo(360));
+      });
+    });
+  });
+
 }

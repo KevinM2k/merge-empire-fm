@@ -4690,20 +4690,23 @@ already done are marked; the rest are the queue.
 
 ### Goalkeeper Practice
 
-- [ ] **THE SHOTS SHOULD BE FOOTBALLS COMING AT YOU.** Every target is drawn
-      with a surrounding border; drop it and make them all plain footballs.
-      **And they should GROW** — start small and swell as they arrive, which is
-      the only cue a flat scene has for a ball travelling toward the camera.
-      This is the same reading the penalty scene reached (`_eyeZ`, the ball
-      scaling with distance) and this game never got it.
-- [ ] **It is too easy, and too samey.** More VARIED — placement, timing, size —
-      and not too slow. The difficulty already ramps off `currentDivisionIndex`
-      like the other five mini-games, so whatever changes has to change along
-      that ramp rather than as a flat speed-up.
-- [ ] **THE GAME ENDS WHEN THE LAST SHOT IS SETTLED, not when the clock runs
-      out.** Saved or scored, if there is nothing left to face the summary
-      should come up — sitting on an empty scene waiting for a timer is the
-      player being made to watch nothing happen.
+- [x] **THE SHOTS SHOULD BE FOOTBALLS COMING AT YOU.** They were five faces in
+      rotation — a runner, a target, a bolt, a flame — inside a coloured disc
+      with a white rim, pulsing, which is a button with a picture on it rather
+      than a shot. One ball, no disc, no rim, growing from 0.28 to full over its
+      window. **The closing ring went with them**: the growth IS the clock now,
+      and one reading is better than two saying the same thing. Eased OUT, which
+      is both what a struck ball does and what makes the late save the hard
+      one.
+- [x] **It is too easy, and too samey.** The window is per SHOT now rather than
+      per session — `drillWindowFor` jitters it — because shots that all arrive
+      at exactly the same speed are a metronome, and after two of them the
+      player is counting rather than reacting. **It jitters DOWN only**: a
+      jitter that could lengthen the window would be a hole in the division's
+      ramp, and the ramp is still what sets the middle.
+- [x] **THE GAME ENDS WHEN THE LAST SHOT IS SETTLED, not when the clock runs
+      out.** It waits out the flash first — the ✓ or ✗ on the last one is the
+      answer to it — and then the summary comes up.
 
 ### The full-time summary — the third report
 
