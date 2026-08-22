@@ -157,11 +157,12 @@ void main() {
     expect(find.text(t('match.victory').toUpperCase()), findsOneWidget);
     expect(find.byKey(const ValueKey('summary-score')), findsOneWidget);
     expect(find.text('2–0'), findsOneWidget);
-    // Who scored, even for a man the save has never heard of: the name is on
-    // the event whether or not there is a card to draw. Below the table now,
-    // so it has to be scrolled to.
-    await scrollReport(tester, const ValueKey('summary-scorers'));
-    expect(find.text('Bobby'), findsOneWidget);
+    // **Who scored, right under the score they made** — a scoreboard's own
+    // convention. The name is on the event whether or not the save still has a
+    // card to draw, so a scorer since sold still scored.
+    expect(find.byKey(const ValueKey('summary-scorers')), findsOneWidget);
+    expect(find.textContaining('Bobby'), findsOneWidget);
+    expect(find.textContaining("22'"), findsOneWidget);
   });
 
   testWidgets('and a defeat says so rather than dressing it up', (
@@ -250,9 +251,53 @@ void main() {
     );
   });
 
-  testWidgets('AND THE QUESTS ARE LAST, under everything', (tester) async {
-    // A report rather than a claim — the coins are already banked — which is
-    // what makes it the thing to scroll to rather than the thing in the way.
+  testWidgets('THE MANAGER AND THE QUESTS SHARE A ROW', (tester) async {
+    // Stacked, the quest list was below the fold on any phone — and the two are
+    // a natural pair: he is reacting to the match and they are what the match
+    // was played for. The shot goes smaller to pay for it; it is a reaction,
+    // not a portrait.
+    await pumpSummary(
+      tester,
+      result(
+        questResults: [
+          {
+            'id': 'match_clean_sheet',
+            'icon': '🧱',
+            'target': 1,
+            'passed': true,
+            'coins': 120,
+          },
+        ],
+      ),
+    );
+    await scrollReport(tester, const ValueKey('summary-reaction-row'));
+    final row = find.byKey(const ValueKey('summary-reaction-row'));
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(of: row, matching: find.byKey(const ValueKey('match-quests'))),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('AND THE MONEY GETS A SURFACE, like everything else here', (
+    tester,
+  ) async {
+    // It was the one figure on the report drawn straight onto the sky, under a
+    // column of panels — so the biggest number on the screen read as a caption.
+    await pumpSummary(tester, result(coins: 500));
+    expect(find.byKey(const ValueKey('summary-payout-card')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('summary-payout-card')),
+        matching: find.byKey(const ValueKey('summary-payout')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('AND THEY ARE STILL BELOW THE TABLE', (tester) async {
+    // A report rather than a claim — the coins are already banked — so it may
+    // not come before the thing this screen exists to show.
     await pumpSummary(
       tester,
       result(

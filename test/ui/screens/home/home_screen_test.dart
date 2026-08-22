@@ -631,9 +631,16 @@ void main() {
     /// animates, so on an unlucky run there is no skip left to press and the
     /// test fails on the finder rather than on anything it is about. Which of
     /// the two got there first is not the assertion.
+    /// Skip to the whistle and let the screen take itself off.
+    ///
+    /// **The 1.4s leave is a plain `Timer`**, so `pumpAndSettle` alone does not
+    /// reach it — it advances the clock only while frames are pending, and a
+    /// finished match schedules none. The pump is what fires it.
     Future<void> skipMatch(WidgetTester tester) async {
       final skip = find.byKey(const ValueKey('match-skip'));
       if (skip.evaluate().isNotEmpty) await tester.tap(skip);
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 1500));
       await tester.pumpAndSettle();
     }
 
@@ -658,7 +665,8 @@ void main() {
       // Close it: the clock is a periodic timer, and a test that walks away
       // mid-match leaves it pending.
       await skipMatch(tester);
-      await tester.tap(find.byKey(const ValueKey('match-close')));
+      // **No close button any more**: the whistle leaves the commentary page
+      // on its own 1.4s after the sting, so settling is what dismisses it.
       await tester.pumpAndSettle();
       await settleSave(tester);
     });
@@ -694,7 +702,8 @@ void main() {
         reason: 'won and moved on, or knocked out and filed',
       );
 
-      await tester.tap(find.byKey(const ValueKey('match-close')));
+      // **No close button any more**: the whistle leaves the commentary page
+      // on its own 1.4s after the sting, so settling is what dismisses it.
       await tester.pumpAndSettle();
       await settleSave(tester);
     });
@@ -732,7 +741,8 @@ void main() {
       );
 
       final coinsAtFullTime = container.read(coinsProvider);
-      await tester.tap(find.byKey(const ValueKey('match-close')));
+      // **No close button any more**: the whistle leaves the commentary page
+      // on its own 1.4s after the sting, so settling is what dismisses it.
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('match-screen')), findsNothing);

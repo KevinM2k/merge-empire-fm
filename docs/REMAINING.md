@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,573 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,575 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **The newest pass also ran green on 3.38.3**, which is the version that happened
@@ -4705,6 +4705,22 @@ already done are marked; the rest are the queue.
       should come up — sitting on an empty scene waiting for a timer is the
       player being made to watch nothing happen.
 
+### The full-time summary — the third report
+
+- [x] **The goalscorers go in the TOP card**, names and minutes only. They had a
+      panel of their own further down with a portrait per row, which is a second
+      card telling the story the number above it already told — and the number
+      is the part that has to be found first. Under the score is a scoreboard's
+      own convention rather than a design choice.
+- [x] **The defeat/victory button on the MATCH screen has gone.** The whistle
+      already leaves that page on its own 1.4s after the sting, so the button
+      was a control for something about to happen anyway — a row of height on
+      the one screen with none, inviting a tap that raced the timer.
+      **And it cost the tests a trap worth writing down**: that leave is a plain
+      `Timer`, so `pumpAndSettle` never reaches it — it advances the clock only
+      while frames are pending and a finished match schedules none. A pump of
+      1.5s is what fires it.
+
 ### The bid window
 
 - [x] **The coins want a coin beside them**, and the percentage over fair value
@@ -4899,7 +4915,7 @@ that reads only the older entry will put them back.
 
 ### The full-time summary
 
-- [ ] **THE TABLE HAS TO BE ABOVE THE FOLD.** It is the thing the player scrolls
+- [x] **THE TABLE HAS TO BE ABOVE THE FOLD.** It is the thing the player scrolls
       to and the one part of the screen that moves on its own, so it may not be
       the part that needs finding. `summary_league_move.dart` animates every
       club to where the round left it and it is currently below what fits.
@@ -4908,14 +4924,19 @@ that reads only the older entry will put them back.
 
 ### The match screen — it needs ROOM, and here is where it comes from
 
-- [ ] **The clock and the progress bar go INTO the scoreboard card.**
+- [x] **The clock and the progress bar go INTO the scoreboard card.**
       **This reverses `_ClockCard`**, which was split out on 27 Aug for a good
       reason — "the one thing that changes every tick at the top of the one card
       whose job is to hold still" — and the reason is overruled by the space.
       Two cards stacked is a rule and a gap that buy nothing; the minute is
       small and the bar is a hairline, and neither has to move the score.
-- [ ] **The Quests and Stats TABS should find another home, and then the tab bar
-      goes too.** That bar is a full row of chrome serving two panels the player
+- [x] **The Quests and Stats TABS should find another home, and then the tab bar
+      goes too.** Done. The quests report on the summary and the statistics are
+      behind the board's own chart button — a bottom sheet that does NOT pause
+      the match, because subs decide what happens next and this is a look at
+      what already has. `MatchStatboard` and `match.tab.stats` moved rather than
+      went; deleting them would have been the fault the sweeps exist to find.
+      The commentary has the whole box, on glass. That bar is a full row of chrome serving two panels the player
       does not watch during a match. **Quests are welcome to live only on the
       end screen** — confirmed — which is where the money is paid anyway, and
       the count already rides the Quests tab elsewhere. Stats wants a home; if
@@ -5069,7 +5090,7 @@ missing second choices.
       could not shove the feed about; that reasoning holds and the placement
       still loses him. The third option from 26 Aug — a bigger head — is the one
       not yet tried.
-- [ ] **The commentary wants the GLASS of the end screen.** `GlassPanel` is what
+- [x] **The commentary wants the GLASS of the end screen.** `GlassPanel` is what
       the summary is built from and the commentary box is not using it.
 - [ ] **THE BALL GOES TO AN INVISIBLE PLAYER, who then scores or misses.** The
       passage is drawing a receiver that is not on the pitch. This is a
@@ -5114,11 +5135,15 @@ missing second choices.
 
 ### The full-time summary — continued
 
-- [ ] **The 2× offer, with its coins, belongs at the BOTTOM beside the button
-      that answers it.** A figure at the top and the button that changes it at
+- [x] **The 2× offer, with its coins, belongs at the BOTTOM beside the button
+      that answers it.** And it has a card of its own now — it was the one
+      figure on the report drawn straight onto the sky, under a column of
+      panels, so the biggest number on the screen read as a caption. A figure at the top and the button that changes it at
       the foot is one decision split across a scroll.
-- [ ] **The quests go to the very bottom**, under everything.
-- [ ] **Which is all so THE TABLE IS VISIBLE** — see the top of this section.
+- [x] **The quests go to the very bottom** — then, on the next report, BESIDE
+      the manager instead, so the whole thing fits one screen. The shot went
+      smaller to pay for it; it is a reaction, not a portrait.
+- [x] **Which is all so THE TABLE IS VISIBLE** — see the top of this section.
       The point of the animation is watching your club shove everyone else down,
       and it cannot be the part below the fold.
 

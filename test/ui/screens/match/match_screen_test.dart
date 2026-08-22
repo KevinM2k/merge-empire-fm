@@ -470,11 +470,23 @@ void main() {
     ('draw', matchResult(won: false, drawn: true)),
     ('defeat', matchResult(won: false)),
   ]) {
-    testWidgets('the verdict names a $label', (tester) async {
+    testWidgets('THE WHISTLE LEAVES, it does not offer a button — $label', (
+      tester,
+    ) async {
+      // **The full-width verdict button has gone.** `_leaveFullTime` already
+      // takes the player off this page 1.4s after the sting, so the button was
+      // a control for something that was going to happen anyway — holding a row
+      // of height on the one screen with none, and inviting a tap that raced
+      // the timer. The verdict is named on the summary, which is where the
+      // payoff is.
       await pumpMatch(tester, result, instance: label);
       await tester.tap(find.byKey(const ValueKey('match-skip')));
       await tester.pumpAndSettle();
-      expect(find.text(t('match.$label')), findsOneWidget, reason: label);
+      expect(stateOf(tester).frame.finished, isTrue, reason: label);
+      expect(find.byKey(const ValueKey('match-close')), findsNothing);
+      // And the controls that only make sense while it is running go with it.
+      expect(find.byKey(const ValueKey('match-skip')), findsNothing);
+      expect(find.byKey(const ValueKey('match-subs')), findsNothing);
     });
   }
 
@@ -543,7 +555,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
     expect(finished, 1);
-    expect(find.byKey(const ValueKey('match-close')), findsOneWidget);
+    expect(stateOf(tester).frame.finished, isTrue);
   });
 
   group('the stage', () {

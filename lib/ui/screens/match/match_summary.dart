@@ -32,7 +32,6 @@ import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
-import 'package:merge_empire_fc/ui/widgets/player_card.dart' show PlayerFace;
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -148,6 +147,8 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
     final theirGoals = _num(result['theirGoals']).toInt();
     final trophies = _num(result['trophiesEarned']).toInt();
     final canDouble = _base > 0;
+    final questRows = result['questResults'];
+    final hasQuests = questRows is List && questRows.isNotEmpty;
 
     return Scaffold(
       key: const ValueKey('match-summary'),
@@ -181,6 +182,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                       leftGoals: isHome ? ourGoals : theirGoals,
                       rightGoals: isHome ? theirGoals : ourGoals,
                       trophies: trophies,
+                      result: result,
                     ),
                     const SizedBox(height: 12),
                     // **THE TABLE IS SECOND, and that is the whole ordering
@@ -195,31 +197,36 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                       const LeagueMove(key: ValueKey('summary-table')),
                       const SizedBox(height: 12),
                     ],
-                    // **The manager, reacting to it.** The full-time shot used
-                    // to be laid into the head of the commentary feed, where it
-                    // sat above a wall of text nobody scrolls back to.
-                    Center(
-                      child: SizedBox(
-                        width: 210,
-                        child: _Manager(result: result),
-                      ),
+                    // **THE MANAGER AND THE QUESTS SHARE A ROW, so the whole
+                    // report fits one screen.** They were stacked, which put
+                    // the quest list below the fold on any phone — and the two
+                    // are a natural pair: he is reacting to the match and they
+                    // are what the match was played for. The shot goes smaller
+                    // to pay for it; it is a reaction, not a portrait.
+                    Row(
+                      key: const ValueKey('summary-reaction-row'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          child: _Manager(result: result),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: hasQuests
+                              ? GlassPanel(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    10,
+                                    12,
+                                    12,
+                                  ),
+                                  child: QuestOutcomes(result: result),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 14),
-                    _Scorers(result: result),
-                    // **The quests go LAST, and they are a report.** All three
-                    // are shown, winners and misses both, and the coins are
-                    // already banked — a match quest auto-pays at the whistle —
-                    // so nothing here is waiting on the player. That is exactly
-                    // what makes it the thing to scroll to rather than the
-                    // thing in the way.
-                    if (result['questResults'] case final List<dynamic> q
-                        when q.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      GlassPanel(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                        child: QuestOutcomes(result: result),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -235,11 +242,20 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _Payout(
-                      base: _base,
-                      quests: _quests,
-                      doubled: canDouble && _answering,
-                    ),
+                    // **THE MONEY GETS A SURFACE, like everything else here.**
+                    // It was the one figure on the report drawn straight onto
+                    // the sky, directly under a column of panels — so the
+                    // biggest number on the screen read as a caption.
+                    if (_base + _quests > 0)
+                      GlassPanel(
+                        key: const ValueKey('summary-payout-card'),
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        child: _Payout(
+                          base: _base,
+                          quests: _quests,
+                          doubled: canDouble && _answering,
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     canDouble
                     ? Column(
@@ -348,6 +364,7 @@ class _ResultCard extends StatelessWidget {
     required this.leftGoals,
     required this.rightGoals,
     required this.trophies,
+    required this.result,
   });
 
   final bool won;
@@ -357,6 +374,7 @@ class _ResultCard extends StatelessWidget {
   final int leftGoals;
   final int rightGoals;
   final int trophies;
+  final Map<String, dynamic> result;
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +392,12 @@ class _ResultCard extends StatelessWidget {
             leftGoals: leftGoals,
             rightGoals: rightGoals,
           ),
+          // **WHO SCORED BELONGS UNDER THE SCORE, which is a scoreboard's own
+          // convention and not a design choice.** It was its own panel further
+          // down with a portrait on every row, which is a second card telling
+          // the same story as the number above it — and the number is the part
+          // that has to be found first. Names and minutes, on one line each.
+          _ScorerLines(result: result),
           if (trophies > 0) ...[
             // The rule wears the verdict's colour rather than the pane's
             // hairline grey: both halves are about the same result.
@@ -570,8 +594,15 @@ class _Manager extends ConsumerWidget {
 
 /// Who scored, with their faces. Ours only — the engine picks scorers from our
 /// squad, and a face for one of theirs cannot be drawn.
-class _Scorers extends ConsumerWidget {
-  const _Scorers({required this.result});
+/// Who scored and when, under the score they made.
+///
+/// **A scoreboard's own convention rather than a design choice**, and it
+/// replaces a panel of its own further down the report: a portrait per scorer
+/// is a second card telling the story the number above it already told, and the
+/// number is the part that has to be found first. Ours only — a goal against is
+/// on the opposition's teamsheet, not on ours.
+class _ScorerLines extends ConsumerWidget {
+  const _ScorerLines({required this.result});
 
   final Map<String, dynamic> result;
 
@@ -582,70 +613,40 @@ class _Scorers extends ConsumerWidget {
     if (raw is! List) return const SizedBox.shrink();
     final save = ref.read(gameProvider).state;
 
-    final rows = <Widget>[];
+    final lines = <String>[];
     for (final entry in raw) {
       final e = _map(entry);
       if (e == null || e['type'] != 'goal' || e['team'] != 'home') continue;
       final card = cardById(save, '${e['scorerInstanceId'] ?? ''}');
       final def = getPlayerDef(card?.definitionId);
+      // The NAME is on the event whether or not the save still has a card to
+      // draw — a scorer who has since been sold still scored.
       final name = card != null && def != null
           ? card.name(def.name)
           : '${e['scorer'] ?? ''}';
       if (name.isEmpty) continue;
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(
-            children: [
-              if (card != null && def != null)
-                PlayerFace(
-                  position: def.position,
-                  tier: def.tier,
-                  variant: card.variant,
-                  size: 26,
-                  ring: kit.accentBright,
-                )
-              else
-                Icon(Icons.sports_soccer, size: 18, color: kit.accentBright),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              Text(
-                "${_num(e['minute']).toInt()}'",
-                style: TextStyle(color: kit.textMuted, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      );
+      lines.add("$name ${_num(e['minute']).toInt()}'");
     }
-    if (rows.isEmpty) return const SizedBox.shrink();
+    if (lines.isEmpty) return const SizedBox.shrink();
 
-    return GlassPanel(
+    return Padding(
       key: const ValueKey('summary-scorers'),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: rows,
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        // A comma list rather than a row each: two goals is the common case and
+        // three lines of chrome for it would undo the space this saved.
+        lines.join('  ·  '),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: kit.accentBright,
+        ),
       ),
     );
   }
 }
 
-/// What the match came to — struck through and doubled while the video runs.
-///
-/// **The hero figure is the WALK-AWAY total**, fee plus quest money, because
-/// that is the number the player is deciding about. The fee alone was the one
-/// on screen while the quests paid separately at the whistle, so the screen
-/// understated the match by however much the track was worth. The doubling
-/// offer still bites on the fee only — the quests are banked and cannot be
-/// doubled — which is exactly what the struck-through figure shows.
 class _Payout extends StatelessWidget {
   const _Payout({
     required this.base,

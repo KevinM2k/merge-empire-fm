@@ -1362,15 +1362,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.all(12),
+                    // **NO BUTTON AT FULL TIME.** The whistle already leaves
+                    // this page on its own — see `_leaveFullTime`, 1.4s after
+                    // the sting — so a full-width "VICTORY" button was a
+                    // control for something that was going to happen anyway,
+                    // holding a row of height on the one screen with none, and
+                    // inviting a tap that raced the timer.
                     child: f.finished
-                        ? SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              key: const ValueKey('match-close'),
-                              onPressed: () => Navigator.of(context).maybePop(),
-                              child: Text(_verdictLabel()),
-                            ),
-                          )
+                        ? const SizedBox.shrink()
                         : Row(
                             children: [
                               OutlinedButton(
@@ -1572,11 +1571,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     );
   }
 
-  String _verdictLabel() {
-    if (widget.result['won'] == true) return t('match.victory');
-    if (widget.result['drawn'] == true) return t('match.draw');
-    return t('match.defeat');
-  }
 }
 
 /// Colin, saying one thing, from the touchline.
