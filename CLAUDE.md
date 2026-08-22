@@ -180,6 +180,15 @@ layer run under plain `dart test` with no widget binding.
   reachable. **A high `test-files=` count is the interesting row, not the safe
   one.** The script's header lists the four kinds of hit that are expected and
   are not bugs; read it before acting on a row.
+- **`bash tool/unreached_ui.sh` is the same question for `lib/ui`**, and it is a
+  different question rather than the same one over more files: a widget's
+  functions are called by its own `build`, so a dead SCREEN reads as busy to the
+  sweep above and is structurally invisible to it. This one asks what imports the
+  file. **It loops, and `round=2` is where the bodies are** — one pass finds a
+  dead screen and stops, and it is the file that screen was the last importer of
+  that turns out to be the big one. That is exactly how it went: 313 lines in
+  round one, 768 more and eighteen passing tests in round two. Liveness means a
+  `lib/` importer; a test is not a caller.
 - **Shipped copy with no caller is the loudest tell there is.** The catalogues
   are generated from the JS, so a translated string nothing can print is a
   feature the port dropped, named and counted in ten languages. It has now found

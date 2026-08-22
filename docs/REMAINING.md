@@ -78,11 +78,36 @@ gone. `assets/bg/penalty_goal.jpeg` is orphaned too, 105KB still shipping becaus
 `assets/bg/` is declared as a directory; art is not a thing to bin on a whim, so
 it is left for someone who can look at it.
 
-**`tool/unreached.sh` could not have found the UI half, and that is the gap in
-the sweep.** It scans `lib/engine`, `lib/data` and `lib/state`, so a dead SCREEN
-is invisible to it — and a dead screen with a test file looks healthiest of all.
-A second sweep over `lib/ui` for files nothing imports is the obvious next tool,
-and it would have found 1,081 lines here on its own.
+**`tool/unreached.sh` could not have found the UI half, so `tool/unreached_ui.sh`
+is committed beside it.** The first scans `lib/engine`, `lib/data` and
+`lib/state` for functions with no caller, which a widget can never fail: its
+functions are called by its own `build`, so a dead SCREEN reads as busy and is
+structurally invisible to it. The new one asks what IMPORTS the file.
+
+**It loops, and round 2 is the whole reason.** A single pass found
+`penalty_scene.dart` and stopped — `keeper_figure.dart` looked alive because the
+dead scene imported it, which is 768 lines and eighteen tests hidden behind 313.
+So it drops what it found and asks again until a round comes back empty. Liveness
+is a `lib/` importer only: the sibling sweep's header already says a green test is
+not a caller, and counting one here would have kept the keeper alive on his own
+tests after the only screen that drew him had gone.
+
+**Two rows in the current tree, both left alone deliberately** — they are the
+expected kinds the script's header describes, and neither is a second
+implementation of anything live:
+
+- [~] **`ui/screens/placeholder_screen.dart`** (65 lines, 1 test) — a test fixture
+      that lives in `lib/`. Its own doc says why: the shell's ticker test needs a
+      child that really consumes frames, and `Ticker.isTicking` is the only thing
+      that answers "is this screen still being given frames". Reachable from
+      `test/` by design. Whether a fixture belongs in `lib/` at all is the only
+      question here.
+- [~] **`ui/widgets/probe_diorama.dart`** (151 lines, 1 test) — says "**Throwaway**:
+      this is a measurement rig, not the beginning of the real scene", and the M3
+      question it existed to settle (one painter on one ticker versus a tree of
+      animated widgets) has been settled — the diorama is built. A rig you might
+      want to re-measure with is not the same as a superseded implementation, so
+      it is reported rather than binned.
 
 **The wage bill was a dead pair pointing at a live bug.** `totalLoanWages` summed
 the `loanWage` stamped on each card — the TERMS, which nothing debits, because
