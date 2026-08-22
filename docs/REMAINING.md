@@ -5109,11 +5109,14 @@ missing second choices.
 
 ### The daily popup
 
-- [ ] **It is a bit rubbish, and there is far more room than it uses.** The
-      27 Aug pass fixed the LAYOUT — seven equal tiles, four and three, a stamp
-      across a claimed one — and stopped there. What is missing is the reason to
-      come back tomorrow: the STREAK. `getDailyStreak` has been sitting uncalled
-      through two audits for exactly this.
+- [x] **It is a bit rubbish, and there is far more room than it uses.** The
+      27 Aug pass fixed the LAYOUT and stopped there; what was missing was the
+      reason to come back tomorrow. The STREAK is the hero band now — a flame,
+      the figure at 34px, the sentence beside it — instead of a 12px grey
+      caption under the title. It is the one number on that sheet that is about
+      the PLAYER rather than about the prize, and the cycle strip below already
+      says what today pays. `getDailyStreak` had gone through two reachability
+      audits with no caller in `lib/` at all; it has one.
 
 ### The match screen — continued
 
@@ -5164,9 +5167,15 @@ missing second choices.
       under that policy — and so does any future test that has a bid parked.
       (The RENAME to "Review" is a separate, still-blocked item — new copy, so
       `en.js`.)
-- [ ] **AND THE TARGETED PLAYER NEEDS HIGHLIGHTING ON THE SQUAD PAGE.** A bid
-      names a player and the squad page draws him exactly like the other
-      twenty-nine, so answering it means finding him first.
+- [x] **AND THE TARGETED PLAYER NEEDS HIGHLIGHTING ON THE SQUAD PAGE.**
+      `BidTargetMark` — a ring and the pill's own 💸 — over whatever it wraps,
+      so the pitch's `PitchToken` and the bench's `PlayerCard` wear the same
+      mark. A mark that looks like one thing on the pitch and another on the
+      bench is a mark the player has to learn twice, which is the argument
+      `TraitBadge` already settled.
+      **Outside the child rather than over it**: the card underneath is already
+      the club's colours, and a wash on top would say "selected", which is a
+      thing the player did rather than a thing that happened to them.
 
 ### The full-time summary — continued
 

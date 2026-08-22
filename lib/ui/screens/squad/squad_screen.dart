@@ -23,6 +23,8 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart'
+    show BidTargetMark;
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
 /// What a drag carries: a bench card, or the slot it came from.
@@ -518,11 +520,14 @@ class _SlotTarget extends ConsumerWidget {
             child: PitchEmptySlot(position: slot.slotPosition),
           );
         }
-        final token = PitchToken(
-          key: ValueKey('squad-slot-${slot.slotId}'),
-          slot: slot,
-          proMode: pro,
-          highlighted: candidate.isNotEmpty,
+        final token = BidTargetMark(
+          instanceId: slot.cardInstanceId,
+          child: PitchToken(
+            key: ValueKey('squad-slot-${slot.slotId}'),
+            slot: slot,
+            proMode: pro,
+            highlighted: candidate.isNotEmpty,
+          ),
         );
         return LongPressDraggable<SquadDrag>(
           data: (instanceId: slot.cardInstanceId, fromSlotId: slot.slotId),
@@ -645,10 +650,13 @@ Future<void> showBenchSheet(BuildContext context, WidgetRef ref) {
                 instanceId: entry.instanceId,
                 slotId: null,
               ),
-              child: PlayerCard(
-                key: ValueKey('squad-bench-${entry.instanceId}'),
-                view: entry.card,
-                light: Theme.of(context).brightness == Brightness.light,
+              child: BidTargetMark(
+                instanceId: entry.instanceId,
+                child: PlayerCard(
+                  key: ValueKey('squad-bench-${entry.instanceId}'),
+                  view: entry.card,
+                  light: Theme.of(context).brightness == Brightness.light,
+                ),
               ),
             );
           },

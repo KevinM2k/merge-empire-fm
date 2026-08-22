@@ -381,6 +381,76 @@ class _TransferOfferCard extends ConsumerWidget {
 /// It sits in the shell above the tab bar, so it follows the player across every
 /// tab: the bid is about the squad, and the squad is three tabs away from
 /// wherever the card was parked.
+/// The card a rival has a bid in for, or null.
+final bidTargetProvider = Provider<String?>((ref) {
+  final offer = ref.watch(pendingOfferProvider);
+  final id = offer?['cardInstanceId'];
+  return id is String && id.isNotEmpty ? id : null;
+});
+
+/// **A BID NAMES A PLAYER AND THE SQUAD PAGE DREW HIM LIKE THE OTHER
+/// TWENTY-NINE.** Answering an offer meant finding the man first, on a page
+/// whose whole job is that they all look the same — so the one thing on it the
+/// player has been asked about was the one thing not marked.
+///
+/// A ring and the note's own glyph, over whatever it wraps: the pitch draws a
+/// `PitchToken` and everything else draws a `PlayerCard`, and a mark that looks
+/// like one thing on the pitch and another on the bench is a mark the player
+/// has to learn twice — the same argument `TraitBadge` settled.
+class BidTargetMark extends ConsumerWidget {
+  const BidTargetMark({
+    super.key,
+    required this.instanceId,
+    required this.child,
+  });
+
+  final String? instanceId;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (instanceId == null || ref.watch(bidTargetProvider) != instanceId) {
+      return child;
+    }
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Stack(
+      key: ValueKey('bid-target-$instanceId'),
+      clipBehavior: Clip.none,
+      children: [
+        DecoratedBox(
+          // Outside the child rather than over it: the card underneath is
+          // already the club's colours and a wash on top would say "selected",
+          // which is a thing the player did.
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: kit.accentBright.withValues(alpha: 0.55),
+                blurRadius: 12,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: child,
+        ),
+        Positioned(
+          right: -4,
+          top: -4,
+          child: Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: kit.accentBright,
+              shape: BoxShape.circle,
+              border: Border.all(color: kit.surface, width: 1.5),
+            ),
+            child: const Text('💸', style: TextStyle(fontSize: 11)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class TransferPill extends ConsumerStatefulWidget {
   const TransferPill({super.key});
 

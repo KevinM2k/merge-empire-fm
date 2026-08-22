@@ -97,13 +97,17 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
           title: claim == null ? t('daily.title') : t('daily.congrats'),
           padding: EdgeInsets.zero,
         ),
-        const SizedBox(height: 4),
-        Text(
-          t('daily.streak', {'n': claim?.streak ?? status.streak}),
-          key: const ValueKey('daily-streak'),
-          textAlign: TextAlign.center,
-          style: TextStyle(color: kit.textMuted, fontSize: 12),
-        ),
+        const SizedBox(height: 10),
+        // **THE STREAK IS THE WHOLE REASON TO COME BACK TOMORROW, and it was a
+        // 12px grey caption.** It is the one number on this sheet that is
+        // ABOUT the player rather than about the prize — the cycle strip below
+        // already says what today pays — and the sheet had room to spare.
+        //
+        // `getDailyStreak` reads it off the save and had gone through two
+        // reachability audits with no caller in `lib/` at all. A claim in
+        // flight still wins: the engine has already counted today and the save
+        // it is read from has not been written yet.
+        _StreakBand(streak: claim?.streak ?? getDailyStreak(state)),
         const SizedBox(height: 14),
 
         if (showRepair)
@@ -363,6 +367,66 @@ class _ItemsObtained extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// How many days in a row, at the size that says it matters.
+class _StreakBand extends StatelessWidget {
+  const _StreakBand({required this.streak});
+
+  final int streak;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Container(
+      key: const ValueKey('daily-streak'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          colors: [
+            kit.accent.withValues(alpha: 0.30),
+            kit.accent.withValues(alpha: 0.08),
+          ],
+        ),
+        border: Border.all(color: kit.accent.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        children: [
+          // A flame rather than a number in a sentence: a run is a thing that
+          // is burning, and the glyph says it in every language — which this
+          // sheet needs, because no new `t()` key can be added from here.
+          Text(
+            streak > 0 ? '🔥' : '·',
+            style: const TextStyle(fontSize: 26),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '$streak',
+            key: const ValueKey('daily-streak-figure'),
+            style: TextStyle(
+              fontSize: 34,
+              height: 1,
+              fontWeight: FontWeight.w900,
+              color: kit.accentBright,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              t('daily.streak', {'n': streak}),
+              style: TextStyle(
+                color: kit.textMuted,
+                fontSize: 12,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

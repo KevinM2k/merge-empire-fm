@@ -298,4 +298,47 @@ void main() {
       );
     });
   });
+  group('THE STREAK IS THE HERO, not a caption', () {
+    testWidgets('the figure is drawn at size, with the run beside it', (
+      tester,
+    ) async {
+      // It is the one number on this sheet that is ABOUT the player rather than
+      // about the prize — the cycle strip already says what today pays — and it
+      // was a 12px grey line under the title on a sheet with room to spare.
+      await pumpSheet(tester, save(streak: 6));
+      expect(find.byKey(const ValueKey('daily-streak')), findsOneWidget);
+      final figure = tester.widget<Text>(
+        find.byKey(const ValueKey('daily-streak-figure')),
+      );
+      expect(figure.data, '6');
+      expect(figure.style!.fontSize, greaterThan(24));
+      expect(find.text('🔥'), findsOneWidget);
+    });
+
+    testWidgets('AND IT READS THE SAVE, which is what nothing did', (
+      tester,
+    ) async {
+      // `getDailyStreak` went through two reachability audits with no caller in
+      // `lib/` at all.
+      await pumpSheet(tester, save(streak: 11));
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('daily-streak-figure')))
+            .data,
+        '11',
+      );
+    });
+
+    testWidgets('a run of nothing shows a nought and no flame', (tester) async {
+      await pumpSheet(tester, save(streak: 0, lastClaimDaysAgo: null));
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('daily-streak-figure')))
+            .data,
+        '0',
+      );
+      expect(find.text('🔥'), findsNothing);
+    });
+  });
+
 }

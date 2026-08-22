@@ -35,6 +35,20 @@ const String _instanceId = 'c0';
 const String _rival = 'Ayton Rovers';
 
 /// A save holding one player and one bid for them.
+/// A container over a given save, for the tests that only need to read it.
+ProviderContainer shopStyleContainer(Map<String, dynamic> state) {
+  final container = ProviderContainer(
+    overrides: [
+      saveStoreProvider.overrideWithValue(
+        MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(gameProvider).load();
+  return container;
+}
+
 Map<String, dynamic> _saveWithOffer({
   int price = 5000,
   int seasonsPlayed = 0,
@@ -584,4 +598,64 @@ void main() {
       expect(held!['fromTeam'], _rival);
     });
   });
+  group('THE TARGETED PLAYER IS MARKED', () {
+    testWidgets('a bid picks him out of the squad', (tester) async {
+      // A bid names a player and the squad page drew him like the other
+      // twenty-nine, on a page whose whole job is that they all look the same —
+      // so answering the offer meant finding the man first.
+      final c = shopStyleContainer(_saveWithOffer());
+      expect(c.read(bidTargetProvider), _instanceId);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: const Scaffold(
+                body: BidTargetMark(
+                  instanceId: _instanceId,
+                  child: SizedBox(width: 40, height: 40),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('bid-target-$_instanceId')),
+        findsOneWidget,
+      );
+      expect(find.text('💸'), findsOneWidget);
+    });
+
+    testWidgets('and everybody else is left alone', (tester) async {
+      final c = shopStyleContainer(_saveWithOffer());
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: const Scaffold(
+                body: BidTargetMark(
+                  instanceId: 'somebody-else',
+                  child: SizedBox(width: 40, height: 40),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('💸'), findsNothing);
+    });
+
+    test('and a save with no bid marks nobody', () {
+      final c = shopStyleContainer(createDefaultState());
+      expect(c.read(bidTargetProvider), isNull);
+    });
+  });
+
 }
