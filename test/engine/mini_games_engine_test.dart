@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -313,9 +314,18 @@ void main() {
         } else if (want is Map && want.containsKey('energyGranted')) {
           final got = returned as ({int coins, int energyGranted});
           expect(got.coins, want['coins'], reason: '$label coins');
+          // **ONE ROW DIVERGES ON PURPOSE, and the fixture keeps the JS's wrong
+          // answer so the divergence stays visible** — the same shape
+          // `kit_theme_test` uses for the ink bug. `recordTrainingComplete`
+          // clamped to `Energy.max` (10) rather than the player's own cap (15
+          // with the Energy Director), so a tank above ten was cut back down by
+          // a game that grants no energy at all, and `energyGranted` came back
+          // NEGATIVE — reported as a grant. The zero grant is what hid it:
+          // nothing on the summary prints a number, so the only sign was the
+          // tank emptying.
           expect(
             got.energyGranted,
-            want['energyGranted'],
+            row['label'] == 'upgradedTank' ? 0 : want['energyGranted'],
             reason: '$label energyGranted',
           );
         } else if (want is Map) {
@@ -484,9 +494,8 @@ void main() {
                   drillTotal: opts.drillTotal,
                 ),
           stats: row['label'] != 'noStatsBranch',
-          // The grant is zero, so the only thing the energy line does with a
-          // fifteen-pip tank is clamp it back to ten. See the carried-over bug
-          // in docs/REMAINING.md.
+          // The row that carries the divergence: a fifteen-pip tank, which the
+          // JS clamps to ten and the port leaves alone. See `expectRow`.
           energyCurrent: row['label'] == 'upgradedTank' ? 15 : 0,
         );
       }
@@ -589,4 +598,45 @@ void main() {
       expect(skipAdsLeftToday(null, 'Tue Aug 18 2026'), 3);
     });
   });
+  group('AND THE TANK IS THE PLAYER\'S OWN', () {
+    // The JS clamps a training session against `ENERGY.MAX` and the port does
+    // not; the parity fixture keeps the JS's answer so the divergence stays
+    // visible. These are the port's side of it.
+
+    test('AN UPGRADED TANK IS NOT CUT BACK DOWN', () {
+      final s = _state(division: 'sunday_league', mediaTier: 0);
+      (s['shop'] as Map<String, dynamic>)['energyUpgraded'] = true;
+      (s['energy'] as Map<String, dynamic>)['current'] = Energy.maxUpgraded;
+      final out = recordTrainingComplete(s, drillsHit: 4, drillTotal: 4);
+      expect(
+        (s['energy'] as Map<String, dynamic>)['current'],
+        Energy.maxUpgraded,
+        reason: 'a game that grants no energy took five pips away',
+      );
+      expect(out.energyGranted, 0);
+    });
+
+    test('and a grant is never reported as NEGATIVE', () {
+      // `energyGranted` came back `-5` and the summary calls it a grant.
+      final s = _state(division: 'sunday_league', mediaTier: 0);
+      (s['energy'] as Map<String, dynamic>)['current'] = Energy.max;
+      expect(
+        recordTrainingComplete(s, drillsHit: 4, drillTotal: 4).energyGranted,
+        greaterThanOrEqualTo(0),
+      );
+    });
+
+    test('THE CLAMP STAYS, because the grant is a tunable', () {
+      // It is the CAP that was wrong, not the clamping: a future grant must not
+      // be able to overfill the tank.
+      final s = _state(division: 'sunday_league', mediaTier: 0);
+      (s['energy'] as Map<String, dynamic>)['current'] = Energy.max;
+      recordTrainingComplete(s, drillsHit: 4, drillTotal: 4);
+      expect(
+        (s['energy'] as Map<String, dynamic>)['current'],
+        lessThanOrEqualTo(Energy.max),
+      );
+    });
+  });
+
 }

@@ -5673,14 +5673,14 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       prestige with "no wall-clock timer"; the product actually carries
       `vipDays: 30`. One of the two is wrong. The branch is ported and unreachable,
       so switching it on is a data change.
-- [ ] **Finishing Goalkeeper Practice can DRAIN an upgraded energy tank.**
-      `recordTrainingComplete` clamps against `ENERGY.MAX` (10) rather than
-      `getEnergyMax(state)` (15 with the Energy Director upgrade), so a player
-      sitting above ten pips is clamped back down by a game that grants no
-      energy at all — and the returned `energyGranted` reads as a negative
-      "grant". The grant being zero is what hides it. One-line fix, but it is a
-      live economy change for anyone holding the upgrade. See
-      `recordTrainingComplete` in `engine/mini_games_engine.dart`.
+- [x] **Finishing Goalkeeper Practice can DRAIN an upgraded energy tank.** Fixed,
+      and it is a deliberate divergence from the JS rather than a port fault —
+      the JS clamps to `ENERGY.MAX` too, so **the parity fixture keeps its wrong
+      answer and the test names the row that diverges**, which is the shape
+      `kit_theme_test` already uses for the ink bug.
+      **The clamp stays and the CAP moves**, which is the distinction: the grant
+      is a tunable and a future one must not be able to overfill the tank. What
+      was wrong was clamping to ten when the player had paid for fifteen.
 - [ ] **Two of Coach Colin's reasons can never fire.** `too_dear` needs a price
       above the balance on a deal that is NOT blocked, but both buy-side kinds
       gate on the same comparison, so that state does not exist. `no_room` needs
@@ -5692,7 +5692,12 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       going to use them: `product.energy` (no product carries it — every energy
       product uses `energyAdd`), and `WC_RATING_BY_NATION` in `achievements.js`,
       which is declared and never read. The latter is simply not ported.
-- [ ] **The transfer LIST is a dead end in the JS too.** `listPlayer`,
+- [x] **The transfer LIST is a dead end in the JS too.** Re-checked with the spec
+      repo on disk: `listPlayer` and `unlistPlayer` are declared in
+      `negotiationEngine.js` and called by nothing but their own test, exactly
+      as recorded. **The decision stands and this row is closed** — giving it a
+      UI is adding a feature to the game rather than porting it. The original
+      note follows. `listPlayer`,
       `unlistPlayer`, `isListed` and `listedCards` are a complete feature —
       advertise a player, lose them from the XI, draw better bids
       (`listedPremium`) — and nothing in `src/` calls the first two: only their

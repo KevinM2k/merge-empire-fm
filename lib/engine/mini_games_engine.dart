@@ -20,6 +20,7 @@ import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/energy_engine.dart' show getEnergyMax;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
@@ -445,15 +446,26 @@ int recordPenaltyResult(Map<String, dynamic> state, {num? scored, num? total}) {
         getMiniGameCoinMult(state),
   );
 
-  // Against `Energy.max`, NOT the player's actual cap — see the carried-over
-  // bug in docs/REMAINING.md. With a zero grant the only thing this does is
-  // clamp an upgraded tank back down to ten.
+  // **AGAINST THE PLAYER'S OWN CAP, which it was not.** It clamped to
+  // `Energy.max` (10) rather than `getEnergyMax(state)` (15 with the Energy
+  // Director), so a player sitting above ten pips had them taken away by a
+  // game that grants no energy at all — and `energyGranted` came back NEGATIVE,
+  // reported as a grant. The grant being zero is what hid it: nothing on the
+  // summary said a number, so the only sign was the tank.
+  //
+  // The clamp stays rather than going, because the grant is a tunable and a
+  // future one must not be able to overfill the tank. It is the CAP that was
+  // wrong, not the clamping.
+  final cap = getEnergyMax(state);
   final energy =
       _map(state['energy']) ??
       (state['energy'] = <String, dynamic>{'current': 0, 'lastRegenAt': now()});
   final before = _num(energy['current'])?.toInt() ?? 0;
-  final energyGranted = math.min(Training.energyGrant, Energy.max - before);
-  energy['current'] = math.min(before + Training.energyGrant, Energy.max);
+  final energyGranted = math.max(
+    0,
+    math.min(Training.energyGrant, cap - before),
+  );
+  energy['current'] = math.min(before + Training.energyGrant, cap);
 
   mg['trainingLastPlayed'] = now();
   final stats = _map(state['stats']);
