@@ -391,10 +391,14 @@ class _Header extends StatelessWidget {
       child: Stack(
         children: [
           SizedBox(
-            // **260, not 200.** The artwork is a full-length figure and 200 was
-            // a head-and-shoulders crop of it; the extra sixty is where the
-            // buttons now float, so it costs the sheet nothing.
-            height: 260,
+            // **A SHARE OF THE SHEET, not a fixed 260.** It went 200 → 260 when
+            // the buttons moved onto it, and a constant is the wrong shape for
+            // this: the artwork is a full-length figure and the sheet is 92% of
+            // whatever screen it opens on, so 260 is generous on a small phone
+            // and a postage stamp on a tall one. Floored at the old number so
+            // nothing gets SMALLER, and capped so he cannot push the trait
+            // block — the thing this sheet is for — off the bottom.
+            height: (MediaQuery.sizeOf(context).height * 0.42).clamp(260, 420),
             width: double.infinity,
             child: ArtImage(
               path: playerImagePath(def.position, def.tier, card.variant),
@@ -1184,8 +1188,6 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
 
     final held = getTrait(trait?['id'] as String?);
 
-    final level = _num(trait?['level']).toInt();
-
     return Container(
       key: const ValueKey('detail-trait'),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -1232,30 +1234,10 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                   ),
                 ),
               ),
-              // The level as a chip rather than a numeral inside the title: it
-              // is the part that changes on a reroll of the same trait, and the
-              // one thing a player is looking for when they roll again.
-              if (held != null && level > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kit.accent,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    _roman[level.clamp(1, 3) - 1],
-                    key: const ValueKey('detail-trait-level'),
-                    style: TextStyle(
-                      color: kit.accentInk,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
+              // **The level is ON THE MEDAL now**, not in this row. It is the
+              // part that changes on a reroll of the same trait, and a numeral
+              // in a header is a specification where on the medal it is what
+              // the medal is worth. See [_TraitDisc].
             ],
           ),
           const SizedBox(height: 10),
@@ -1370,34 +1352,105 @@ const List<String> _roman = ['I', 'II', 'III'];
 
 /// The glyph on its own disc, so it reads as a badge rather than as an emoji
 /// that happens to start the line.
+/// The trait's face — a MEDAL, not a circle with a glyph in it.
+///
+/// **It is the most interesting thing on this sheet and looked the least like
+/// it.** A 1.4px outlined disc is the shape this app uses for a filter chip; a
+/// trait is a thing you spent coins to win, and a thing you won has a rim, a
+/// light on it and a level stamped on its corner. The level moved here off the
+/// block's title row for the same reason: a numeral in a header is a
+/// specification, and on the medal it is what the medal is worth.
 class _TraitDisc extends StatelessWidget {
   const _TraitDisc({
     required this.glyph,
     required this.colour,
     required this.fill,
+    this.level,
+    this.levelInk,
   });
 
   final String glyph;
   final Color colour;
   final Color fill;
 
+  /// The roman numeral, or null for a card with no trait yet.
+  final String? level;
+  final Color? levelInk;
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: 46,
-    height: 46,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: fill,
-      border: Border.all(color: colour.withValues(alpha: 0.55), width: 1.4),
-    ),
-    child: Text(
-      glyph,
-      style: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.w900,
-        color: colour,
-      ),
+  Widget build(BuildContext context) => SizedBox(
+    width: 56,
+    height: 56,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            // Lit from the top left, the way anything struck out of metal is.
+            gradient: RadialGradient(
+              center: const Alignment(-0.35, -0.45),
+              radius: 0.95,
+              colors: [
+                Color.lerp(fill, Colors.white, 0.22)!,
+                fill,
+                Color.lerp(fill, Colors.black, 0.18)!,
+              ],
+              stops: const [0, 0.55, 1],
+            ),
+            border: Border.all(
+              color: colour.withValues(alpha: 0.85),
+              width: 2.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: colour.withValues(alpha: 0.30),
+                blurRadius: 10,
+                spreadRadius: 0.5,
+              ),
+            ],
+          ),
+          child: Text(
+            glyph,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: colour,
+            ),
+          ),
+        ),
+        if (level != null)
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: colour,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: Theme.of(
+                    context,
+                  ).extension<KitTheme>()!.surface,
+                  width: 1.5,
+                ),
+              ),
+              child: Text(
+                level!,
+                key: const ValueKey('detail-trait-level'),
+                style: TextStyle(
+                  color: levelInk ?? Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+          ),
+      ],
     ),
   );
 }
@@ -1425,6 +1478,11 @@ class _TraitBadge extends StatelessWidget {
           glyph: trait.icon,
           colour: kit.accent,
           fill: kit.accent.withValues(alpha: 0.18),
+          level: switch ((instance['level'] as num?)?.toInt() ?? 0) {
+            final l when l > 0 => _roman[l.clamp(1, 3) - 1],
+            _ => null,
+          },
+          levelInk: kit.accentInk,
         ),
         const SizedBox(width: 10),
         Expanded(

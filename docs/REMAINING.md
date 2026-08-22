@@ -5043,10 +5043,14 @@ that reads only the older entry will put them back.
 
 ### Motion, and how static things read
 
-- [ ] **The exclamation mark should almost BOUNCE.** Every unread marker in the
-      game is a static glyph; the one thing it is for is being noticed. A small
-      looping bounce, and it wants to be ONE widget — there is more than one
-      exclamation in the app and two implementations would drift.
+- [x] **The exclamation mark should almost BOUNCE**, and **there were two of it
+      with only one moving.** The home dock's badge has bounced since it was
+      written; the floating coach's — the same eighteen pixels, the same white
+      ring, the same drop shadow, on every OTHER tab — was a still copy of it,
+      which is where the report came from. `CoachAlertBadge` is the one of it,
+      in `coach_card.dart` with the rest of his chrome. Reduced motion holds it
+      still and does NOT hide it: red on its own still reads, and a badge that
+      vanishes takes away the only sign something is waiting.
 - [ ] **THE MANAGER NEEDS TO BE MUCH MORE ANIMATED.** Standing said as much on
       26 Aug (`standing`, `idle`, `poseOverIdle` were added for exactly this)
       and the answer on screen is still too still. See the Lottie note under
@@ -5091,11 +5095,17 @@ missing second choices.
 
 ### The squad page
 
-- [ ] **The player's image is not big enough.** It is the subject of the card
-      and it is the smallest thing on it.
-- [ ] **The trait should look much nicer than it does.** It was given an accent
-      wash and a level chip on 27 Aug and it is still the least interesting-
-      looking thing on a card it is the point of.
+- [x] **The player's image is not big enough.** It is a SHARE of the sheet now
+      rather than a constant — 42% of the screen, floored at the old 260 so
+      nothing shrinks and capped at 420 so he cannot push the trait block off
+      the bottom. A fixed height is the wrong shape for a sheet that is 92% of
+      whatever screen it opens on.
+- [x] **The trait should look much nicer than it does.** It is a MEDAL now: a
+      radial gradient lit from the top left, a 2.2px rim in the accent, a glow,
+      and the level stamped on its corner. A 1.4px outlined disc is the shape
+      this app uses for a filter CHIP — and the level moved off the block's
+      title row for the same reason: a numeral in a header is a specification,
+      and on the medal it is what the medal is worth.
 
 ### The daily popup
 
@@ -5174,7 +5184,12 @@ missing second choices.
 
 ### The home screen
 
-- [ ] **Colin's head fills the circle now and that reads wrong.**
+- [x] **Colin's head fills the circle now and that reads wrong.** The 27 Aug
+      fix was right and overshot: it was letterboxed, `cover` off the top fixed
+      that, and it cropped the crown flush to the rim. A 3px inset and an
+      alignment off the very top — with `cover`, padding shrinks the box the
+      crop fills rather than letterboxing it, so the air is real and the disc is
+      still full.
       **This reverses the 27 Aug entry** that made the image fill the orb: it
       fixed a portrait floating in a band of dark glass, and it has overshot —
       a face cropped to the rim has no air round it. What is wanted is between

@@ -26,6 +26,8 @@
 ///    the decision is readable before the words are.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -567,6 +569,100 @@ class _CoachButton extends StatelessWidget {
         maxLines: 1,
         softWrap: false,
         overflow: TextOverflow.fade,
+      ),
+    );
+  }
+}
+
+/// Something in here wants attention.
+///
+/// **ONE OF IT, because there were two and only one moved.** The home dock's
+/// badge has bounced since it was written and the floating coach's — the same
+/// eighteen pixels, the same white ring, the same drop shadow, on every other
+/// tab — was a still copy of it. A mark whose whole job is to be noticed,
+/// holding perfectly still, on the screens the player spends most of their time
+/// on.
+///
+/// A RED EXCLAMATION, and it bounces. It was a flat accent-coloured dot, which
+/// on a green kit is a green pip on a green pitch — the one mark on this screen
+/// whose entire job is to be noticed, in the one colour that cannot be. Red is
+/// not the club's to choose, and a mark that moves is seen without being looked
+/// for.
+class CoachAlertBadge extends StatefulWidget {
+  const CoachAlertBadge({super.key, this.dotKey});
+
+  final Key? dotKey;
+
+  @override
+  State<CoachAlertBadge> createState() => _CoachAlertBadgeState();
+}
+
+class _CoachAlertBadgeState extends State<CoachAlertBadge> with SingleTickerProviderStateMixin {
+  late final AnimationController _bounce = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  void _sync() {
+    // A badge that never stops moving is exactly what reduce-motion is asking
+    // us not to run. It stays — red on its own still reads — it just holds
+    // still.
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_bounce.isAnimating) _bounce.stop();
+      return;
+    }
+    if (!_bounce.isAnimating) _bounce.repeat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _bounce,
+      builder: (context, child) {
+        // Two hops and a rest, rather than a sine that never settles: a badge
+        // bobbing continuously reads as a loading spinner.
+        final phase = (_bounce.value * 2).clamp(0.0, 1.0);
+        final hop = math.sin(phase * math.pi * 2).clamp(0.0, 1.0) * 4;
+        return Transform.translate(offset: Offset(0, -hop), child: child);
+      },
+      child: Container(
+        key: widget.dotKey,
+        width: 18,
+        height: 18,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: coachAlert,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 1.6),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Text(
+          '!',
+          style: TextStyle(
+            fontSize: 12,
+            height: 1,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

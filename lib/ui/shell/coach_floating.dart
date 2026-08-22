@@ -41,7 +41,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
-    show CoachBubbleTail, coachAlert, coachPortrait, coachTailSize;
+    show
+        CoachAlertBadge,
+        CoachBubbleTail,
+        coachPortrait,
+        coachTailSize;
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -318,45 +322,13 @@ class _CoachHeadState extends State<_CoachHead>
                   ),
                 ),
               ),
-              // The badge. A single character, because a count would imply there
-              // is a list of them.
-              Positioned(
+              // The badge. A single character, because a count would imply
+              // there is a list of them — and it is the DOCK's badge, shared,
+              // because there were two of these and only the dock's moved.
+              const Positioned(
                 right: 0,
                 top: 0,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  alignment: Alignment.center,
-                  // **RED, not the kit accent.** A badge in the club's own
-                  // colour reads as decoration on a screen already wearing it —
-                  // and this is the one thing in the corner asking to be
-                  // pressed. Red is what an unread thing looks like everywhere
-                  // else on a phone.
-                  // The home dock's own nag, to the pixel: a white ring and a
-                  // drop shadow, so the badge does not change shape depending on
-                  // which tab the player happens to be on.
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: coachAlert,
-                    border: Border.all(color: Colors.white, width: 1.6),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    '!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
-                    ),
-                  ),
-                ),
+                child: CoachAlertBadge(),
               ),
             ],
           ),

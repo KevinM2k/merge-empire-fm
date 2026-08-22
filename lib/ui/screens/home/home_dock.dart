@@ -18,13 +18,13 @@
 /// to nag from the scene goes quiet just because it moved one tap deeper.
 library;
 
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
+import 'package:merge_empire_fc/ui/popups/coach_card.dart'
+    show CoachAlertBadge;
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
@@ -155,7 +155,11 @@ class DockButton extends StatelessWidget {
                 ],
               ),
               if (dot)
-                Positioned(right: -3, top: -4, child: _Nag(dotKey: dotKey)),
+                Positioned(
+                  right: -3,
+                  top: -4,
+                  child: CoachAlertBadge(dotKey: dotKey),
+                ),
             ],
           ),
         ),
@@ -303,93 +307,6 @@ class CustomiseDock extends ConsumerWidget {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Something in here wants attention.
-///
-/// A RED EXCLAMATION, and it bounces. It was a flat accent-coloured dot, which
-/// on a green kit is a green pip on a green pitch — the one mark on this screen
-/// whose entire job is to be noticed, in the one colour that cannot be. Red is
-/// not the club's to choose, and a mark that moves is seen without being looked
-/// for.
-class _Nag extends StatefulWidget {
-  const _Nag({this.dotKey});
-
-  final Key? dotKey;
-
-  @override
-  State<_Nag> createState() => _NagState();
-}
-
-class _NagState extends State<_Nag> with SingleTickerProviderStateMixin {
-  late final AnimationController _bounce = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
-
-  void _sync() {
-    // A badge that never stops moving is exactly what reduce-motion is asking
-    // us not to run. It stays — red on its own still reads — it just holds
-    // still.
-    if (MediaQuery.of(context).disableAnimations) {
-      if (_bounce.isAnimating) _bounce.stop();
-      return;
-    }
-    if (!_bounce.isAnimating) _bounce.repeat();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void dispose() {
-    _bounce.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _bounce,
-      builder: (context, child) {
-        // Two hops and a rest, rather than a sine that never settles: a badge
-        // bobbing continuously reads as a loading spinner.
-        final phase = (_bounce.value * 2).clamp(0.0, 1.0);
-        final hop = math.sin(phase * math.pi * 2).clamp(0.0, 1.0) * 4;
-        return Transform.translate(offset: Offset(0, -hop), child: child);
-      },
-      child: Container(
-        key: widget.dotKey,
-        width: 18,
-        height: 18,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: coachAlert,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 1.6),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Text(
-          '!',
-          style: TextStyle(
-            fontSize: 12,
-            height: 1,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
           ),
         ),
       ),
