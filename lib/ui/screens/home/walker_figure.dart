@@ -167,6 +167,16 @@ void paintLimb(
 /// Null means "leave it as it is": the kit's forearms and shins are BARE, and
 /// that is the zero point everything else is measured against.
 typedef ManagerOutfit = ({
+  /// The body of the garment AND the upper arms — the CSS's `--top`, whose own
+  /// comment names both: "shirt, jacket or training-top body + upper arms".
+  ///
+  /// **Null is the club's colour**, which is the kit's zero point and the
+  /// tracksuit's whole point. A coat and a suit override it, and until they did
+  /// the port painted a charcoal overcoat with green shoulders and a green
+  /// crescent of shirt above its collar — the torso and the bicep were the two
+  /// pieces still reading `--kit` directly.
+  Color? top,
+
   /// The sleeve below the elbow. Null is bare arms.
   Color? fore,
 
@@ -189,6 +199,7 @@ typedef ManagerOutfit = ({
 const Map<String, ManagerOutfit> outfitPalettes = {
   // The playing kit: bare arms, bare shins, black boots. The zero point.
   'kit': (
+    top: null,
     fore: null,
     shin: null,
     legs: null,
@@ -200,6 +211,7 @@ const Map<String, ManagerOutfit> outfitPalettes = {
   // is why the forearm takes the kit's own paint rather than skin — over dark
   // bottoms with a side stripe, and white trainers.
   'tracksuit': (
+    top: null, // the club's, and the reason this outfit exists
     fore: null, // the kit colour, resolved by the painter
     shin: Color(0xFF2C313A),
     legs: Color(0xFF2C313A),
@@ -209,6 +221,7 @@ const Map<String, ManagerOutfit> outfitPalettes = {
   // The wet-Tuesday-night touchline look. Deliberately drab — the only colour
   // on it is the club scarf at the throat, which the overlay draws.
   'coat': (
+    top: Color(0xFF2A3140),
     fore: Color(0xFF2A3140),
     shin: Color(0xFF23262C),
     legs: Color(0xFF23262C),
@@ -217,6 +230,7 @@ const Map<String, ManagerOutfit> outfitPalettes = {
   ),
   // Charcoal jacket, and trousers to the shoe.
   'suit': (
+    top: Color(0xFF333846),
     fore: Color(0xFF333846),
     shin: Color(0xFF333846),
     legs: Color(0xFF333846),

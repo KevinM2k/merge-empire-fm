@@ -1096,6 +1096,34 @@ class _ManagerWalkerState extends State<ManagerWalker>
                         ),
                       ),
                     ),
+                    // Paint, before the fringe goes over it — see
+                    // [ManagerParts.onSkin].
+                    for (final layer in parts.onSkin)
+                      _Tilt(
+                        degrees: headTilt,
+                        child: _SetBack(child: _HeadArt(layer: layer)),
+                      ),
+                    for (final layer in parts.overHair)
+                      _Tilt(
+                        degrees: headTilt,
+                        child: _SetBack(child: _HeadArt(layer: layer)),
+                      ),
+                    // Then the eye, over the paint and the fringe both — the
+                    // other half of the same JS note: paint belongs under the
+                    // hair AND under the eye, or war paint blinds him. Before
+                    // the glasses and the hat, which have to cover it.
+                    _Tilt(
+                      degrees: headTilt,
+                      child: _SetBack(
+                        child: CustomPaint(
+                          painter: _HeadPainter(
+                            skin: parts.skin,
+                            blink: _blink,
+                            features: true,
+                          ),
+                        ),
+                      ),
+                    ),
                     for (final layer in parts.overHead)
                       _Tilt(
                         degrees: headTilt,
@@ -1459,14 +1487,24 @@ typedef ManagerParts = ({
   Color skin,
   List<String> overTorso,
   List<HeadLayer> behindHead,
+
+  /// **On the skin, and under the fringe.** War paint, eye black and a
+  /// half-and-half face are the JS's `.psv-facepaint`, drawn between the skull
+  /// and the front hair — see [facesUnderHair]. The port had one face slot over
+  /// the lot, so a green half-face was painted onto the hair as well.
+  List<HeadLayer> onSkin,
+
+  /// The fringe, over the paint and under the eye — the JS's `.psv-hair-front`
+  /// sits at exactly that depth, which is why it is its own slot here.
+  List<HeadLayer> overHair,
   List<HeadLayer> overHead,
 });
 
 /// Resolve a look into drawable, recoloured fragments.
 ///
 /// Pure, and public, because the layering is the part worth pinning in a test:
-/// hair behind the skull, the skull, hair in front of it, then beard, glasses and
-/// hat over the lot.
+/// hair behind the skull, the skull, PAINT ON THE SKIN, hair in front of it,
+/// then beard, glasses and hat over the lot.
 ManagerParts managerPartsFor(
   ManagerLook look, {
   required Color kit,
@@ -1520,11 +1558,15 @@ ManagerParts managerPartsFor(
       managerNeck['${look['neck']}'],
     ]),
     behindHead: layers([hairBack], hideAbove: crown),
+    onSkin: layers([
+      if (faceIsUnderHair('${look['face']}')) managerFaces['${look['face']}'],
+    ]),
+    overHair: layers([hairFront], hideAbove: crown),
     overHead: [
-      ...layers([hairFront], hideAbove: crown),
       ...layers([
         managerBeards['${look['beard']}'],
-        managerFaces['${look['face']}'],
+        if (!faceIsUnderHair('${look['face']}'))
+          managerFaces['${look['face']}'],
         managerHats['${look['hat']}'],
         // The mouth is the manager's MOOD, and `manager_mood.dart` was ported
         // with nothing to draw it: how the gaffer feels about the season was a
@@ -1602,7 +1644,20 @@ class _ShadowPainter extends CustomPainter {
 /// a pair of shades has to cover the eye, a beard has to cover the jaw, and a
 /// hat has to sit on the hair.
 class _HeadPainter extends CustomPainter {
-  const _HeadPainter({required this.skin, this.blink = 0});
+  const _HeadPainter({
+    required this.skin,
+    this.blink = 0,
+    this.features = false,
+  });
+
+  /// **The EYE AND BROW, drawn as their own pass.**
+  ///
+  /// The JS's stack is skull, paint, front hair, then the features — and the
+  /// reason is the paint: war paint drawn over the top swallowed the eye, the
+  /// same way it tinted the fringe. Splitting the painter is what lets the
+  /// port's one-piece head obey that order; false is the skull and everything
+  /// that is not a feature, true is the eye, the lid and the brow.
+  final bool features;
 
   final Color skin;
 
@@ -1619,6 +1674,12 @@ class _HeadPainter extends CustomPainter {
     canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
 
     final shade = Color.lerp(skin, Colors.black, 0.22)!;
+
+    if (features) {
+      _features(canvas, shade);
+      canvas.restore();
+      return;
+    }
 
     // **The head is a SKULL WITH A JAW, not a circle with an arc drawn on it.**
     // The circle stays exactly where it was — the generated hair, hats and
@@ -1751,6 +1812,12 @@ class _HeadPainter extends CustomPainter {
     );
     canvas.restore();
 
+
+    canvas.restore();
+  }
+
+  /// The eye, the lid and the brow, in the art's own space.
+  void _features(Canvas canvas, Color shade) {
     // The eye, where the glasses' lens lands.
     const eye = Offset(67.3, 47.4);
     canvas.drawOval(
@@ -1824,13 +1891,11 @@ class _HeadPainter extends CustomPainter {
     // see — and worse, x 59.6 is precisely where an EAR belongs, so what it
     // actually read as was a small second eye stuck where his ear should be.
     // Nothing replaces it; the ear goes there instead.
-
-    canvas.restore();
   }
 
   @override
   bool shouldRepaint(_HeadPainter old) =>
-      old.skin != skin || old.blink != blink;
+      old.skin != skin || old.blink != blink || old.features != features;
 }
 
 class _WalkerPainter extends CustomPainter {
@@ -1970,6 +2035,9 @@ class _WalkerPainter extends CustomPainter {
   Color get _shortsColour =>
       outfit.legs ?? Color.lerp(kit, Colors.black, 0.36)!;
 
+  /// The body of whatever he has on. The club's colour is the zero point.
+  Color get _top => outfit.top ?? kit;
+
   /// One leg, and the fold it may be standing inside.
   ///
   /// **The counter-rotation WRAPS the leg; it does not replace the stride.** The
@@ -2105,7 +2173,10 @@ class _WalkerPainter extends CustomPainter {
   }
 
   void _arm(Canvas canvas, {required bool near}) {
-    final sleeve = near ? kit : _shade(kit);
+    // **THE UPPER ARM IS THE GARMENT, not the shirt underneath it.** `--top`
+    // paints the body and the biceps together in the CSS, so a coat sleeve that
+    // only started at the elbow left a green shoulder on a charcoal overcoat.
+    final sleeve = near ? _top : _shade(_top);
     // **THE SLEEVE REACHES THE WRIST** on everything but the playing kit: bare
     // arms are the kit's zero point and every other outfit covers them. The
     // tracksuit's is club-coloured CLOTH rather than a fixed colour, so on a
@@ -2221,7 +2292,7 @@ class _WalkerPainter extends CustomPainter {
     // head used to sit straight on the shirt, which is the other half of why it
     // read as stuck on.
     paintNeck(canvas, skin);
-    paintTorso(canvas, kit, build: build.torso, bulge: build.bulge);
+    paintTorso(canvas, _top, build: build.torso, bulge: build.bulge);
 
     // Where the shirt meets the shorts. A garment that ends without a shadow
     // under it reads as printed on rather than worn.

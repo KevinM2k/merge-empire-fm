@@ -171,6 +171,54 @@ void main() {
       }
     });
 
+    group('PAINT IS ON THE SKIN, hardware is on top of everything', () {
+      // One axis to the player, two draw layers to the rig — `FACE_UNDER_HAIR`
+      // in the JS, which the port flattened into a single slot over the lot.
+      // War paint tinted the FRINGE green and swallowed the eye, which is a bad
+      // recolour rather than war paint, and it is what the playtest reported.
+      test('war paint, eye black and a half-face go under the hair', () {
+        for (final id in ['warpaint', 'eyeblack', 'facepaint']) {
+          final parts = partsFor({...defaultManagerLook, 'face': id});
+          expect(parts.onSkin, hasLength(1), reason: '$id is not on the skin');
+          expect(
+            parts.overHead.map((l) => l.svg),
+            isNot(contains(parts.onSkin.single.svg)),
+            reason: '$id is drawn twice',
+          );
+        }
+      });
+
+      test('and glasses, a cigar and a whistle go over it', () {
+        // Anything not named as paint is hardware, so a new item defaults to
+        // the layer a haircut cannot hide.
+        for (final id in ['specs', 'shades', 'aviators', 'cigar', 'whistle']) {
+          final parts = partsFor({...defaultManagerLook, 'face': id});
+          expect(parts.onSkin, isEmpty, reason: '$id is not paint');
+          expect(
+            parts.overHead.map((l) => l.svg),
+            contains(managerFaces[id]),
+            reason: '$id never reaches the face',
+          );
+        }
+      });
+
+      test('and a bare face draws neither', () {
+        final parts = partsFor({...defaultManagerLook, 'face': 'none'});
+        expect(parts.onSkin, isEmpty);
+      });
+
+      test('THE FRINGE IS ITS OWN LAYER, between the paint and the eye', () {
+        // Which is the whole reason the split works: the JS's stack is skull,
+        // paint, front hair, features — and the port drew the head in one pass,
+        // so there was no depth for paint to go to.
+        final parts = partsFor({...defaultManagerLook, 'style': 'crop'});
+        expect(parts.overHair, hasLength(1));
+        final (_, front) = managerHair['crop']!;
+        expect(parts.overHair.single.svg, contains('path'));
+        expect(front, isNotEmpty);
+      });
+    });
+
     test('and only the HAIR is ever clipped by a hat', () {
       // The hat itself must not be clipped by its own brow, and neither must the
       // beard, the face or the mouth. Two layers carry the clip and they are the
@@ -182,6 +230,8 @@ void main() {
       });
       final clipped = [
         ...parts.behindHead,
+        ...parts.onSkin,
+        ...parts.overHair,
         ...parts.overHead,
       ].where((l) => l.hideAbove != null).toList();
       // A mohawk has no back layer, so one here rather than two — which is the
@@ -598,6 +648,22 @@ void main() {
         outfitPalette('tracksuit').boot.computeLuminance(),
         greaterThan(outfitPalette('kit').boot.computeLuminance()),
       );
+    });
+
+    test('A COAT AND A SUIT ARE THE GARMENT ALL THE WAY UP', () {
+      // **`--top` is "shirt, jacket or training-top body + upper arms"** — the
+      // CSS's own words, and the port had no such colour: the torso and the
+      // bicep both read `--kit` directly. A charcoal overcoat came out with
+      // green shoulders and a green crescent of shirt above its own collar,
+      // because the overlay's shoulders are narrower than the torso under them.
+      for (final id in ['coat', 'suit']) {
+        expect(outfitPalette(id).top, isNotNull, reason: '$id is a top only');
+      }
+      // And the two that keep the club on his back do NOT override it: the
+      // kit is the zero point and the tracksuit's whole point is being the
+      // club's colour, stripes and all.
+      expect(outfitPalette('kit').top, isNull);
+      expect(outfitPalette('tracksuit').top, isNull);
     });
 
     test('and an unknown outfit is the kit, not a hole', () {

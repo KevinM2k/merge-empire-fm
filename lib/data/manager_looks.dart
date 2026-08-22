@@ -145,6 +145,23 @@ const List<String> faceIds = [
   'facepaint',
 ];
 
+/// **Face items are one axis to the player and TWO DRAW LAYERS to the rig.**
+/// Ported from `FACE_UNDER_HAIR` in `../merge-empire-fc/src/data/managerAvatar.js`,
+/// which the JS added after exactly the complaint the port then collected again:
+///
+/// - **Paint is on the SKIN**, so it goes under the front hair and under the eye.
+///   Drawn over the top, face paint tinted the FRINGE green and swallowed the
+///   eye — a bad recolour rather than war paint.
+/// - **Hardware sits on top of everything on the face** — glasses go over a
+///   fringe in real life, and a cigar has to be in front of the mouth to read.
+///
+/// Anything not listed is hardware, so a new item defaults to the layer a
+/// haircut cannot hide.
+const Set<String> facesUnderHair = {'facepaint', 'warpaint', 'eyeblack'};
+
+/// Whether this face item is paint rather than hardware.
+bool faceIsUnderHair(String? id) => facesUnderHair.contains(id);
+
 const List<String> ballIds = [
   'classic',
   'retro',

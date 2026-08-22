@@ -4100,16 +4100,29 @@ by a test.
       padding — `isDense` shrink-wraps a dropdown to the height of a word — and
       12px clear of the stage, so it reads as the control under the picture
       rather than as part of it.
-- [ ] **EVERYTHING ON HIM HAS TO SIT WHERE IT BELONGS.** A full pass over the
-      accessories, the facial hair and the clothing, checking each against the
-      skull and the torso rather than against how it looked on one build:
-      nothing floating, face paint not painted onto hair, a moustache on the
-      mouth, beards on the jaw.
-      And two garments are wrong rather than misplaced: **the suit and the coat
-      are tops only** and should be full-body — a suit needs trousers and to read
-      as a suit, a coat needs a length. `walker_figure.dart` already carries the
-      per-outfit sleeve and shin coverage the rig understands, so this is the
-      art, not the rig.
+- [x] **EVERYTHING ON HIM HAS TO SIT WHERE IT BELONGS.** Done by RENDERING him —
+      every hat, every beard, every face item and all four outfits, dumped to a
+      PNG from a widget test and looked at, rather than reasoned about. Two real
+      defects, and both were DEPTH rather than position:
+      **The face paint was painted onto the hair, and it was the port that lost
+      the fix.** The JS splits the face slot into two draw layers — `FACE_UNDER_HAIR`
+      in `managerAvatar.js` — because paint is on the SKIN and hardware is not:
+      "drawn over the top, face paint tinted the FRINGE green and swallowed the
+      eye". The port had one slot over the lot, so it reproduced both halves of a
+      bug the spec had already fixed. `facesUnderHair` is that set, `ManagerParts`
+      gained `onSkin` and `overHair`, and `_HeadPainter` gained a `features` pass
+      so the eye can be drawn AFTER the paint — the port drew the whole head in
+      one go, which is why there was no depth for paint to go to.
+      **And the suit and the coat were tops only because `--top` had no port.**
+      The CSS names it "shirt, jacket or training-top body + upper arms", and
+      both garments override it; the port's palette had `fore`, `shin` and `legs`
+      but nothing for the body, so the torso and the BICEP still read the kit
+      directly. A charcoal overcoat came out with green shoulders and a green
+      crescent of shirt above its own collar — the overlay's shoulders are
+      narrower than the torso beneath them, which is what let it show.
+      Everything else sits where it belongs, and the render is what says so:
+      the santa bobble and the viking horns are attached, the peaks are on the
+      caps, the moustaches are on the mouth and the beards are on the jaw.
 
 ### Coach Colin — 26 Aug, later
 
