@@ -30,6 +30,27 @@ too late:
 
 ## Where we are
 
+**THE PLAYTEST QUEUE IS EMPTY.** Every row a player reported has been either
+fixed or answered, and the forty-five boxes still open below are all of one of
+five kinds, none of which can be closed by writing Dart in this repo:
+
+- **M4 services** — AdMob, Firebase, Play Billing, StoreKit, cloud save,
+  leaderboards, notifications, the weather service's timezone. Accounts, SDKs
+  and native bridges.
+- **M6 release and M7 cutover** — signing, both store consoles, staged rollout.
+- **Device passes** — the play button's pop, the crowd surge and the ear have
+  never been seen on physical hardware, and nor has profile mode.
+- **One that asks for a screenshot** before anybody guesses: the tick with no
+  top border on the home page. There is no checkmark on that page in the port,
+  so guessing is all that is on offer without one.
+- **An artwork BACKLOG rather than a defect list** — the Kenney packs for
+  celebration sprites and backdrops. Read those rows before starting: the merge
+  burst is procedural and draws in any tier's colours, which a sprite sheet
+  cannot, so this is an addition to what is there and not a replacement of it.
+
+Also still open, and deliberately so: the carried risks at the foot of the file
+are DECISIONS, not work.
+
 **4,575 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
