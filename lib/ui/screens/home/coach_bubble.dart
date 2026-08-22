@@ -359,13 +359,24 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
             Positioned(
               top: -4,
               right: -22,
-              child: IconButton(
-                key: const ValueKey('coach-bubble-close'),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: t('common.close'),
-                icon: const Icon(Icons.close, size: 14),
-                onPressed: () => Navigator.of(context).pop(),
+              // **`manager_hint.aria.dismiss`, at last.** It and its sibling
+              // are DOM accessibility labels — the last two of the fourteen
+              // `manager_hint.*` strings with no caller — and the queue's own
+              // note was that they want a Flutter `Semantics` rather than a
+              // printed string. This is that: the label a screen reader reads,
+              // in the player's own language, where `common.close` is what a
+              // pointer gets as a tooltip.
+              child: Semantics(
+                label: t('manager_hint.aria.dismiss'),
+                button: true,
+                child: IconButton(
+                  key: const ValueKey('coach-bubble-close'),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: t('common.close'),
+                  icon: const Icon(Icons.close, size: 14),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
               ),
             ),
           ],
@@ -385,7 +396,14 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
         Positioned(
           left: left,
           bottom: bottom,
-          child: Stack(
+          // **`manager_hint.aria.head`**, which is what the whole panel is
+          // called to a screen reader — "Manager hint". Without it the bubble
+          // is read out as a pile of unrelated strings with a close button in
+          // the middle of them.
+          child: Semantics(
+            container: true,
+            label: t('manager_hint.aria.head'),
+            child: Stack(
             clipBehavior: Clip.none,
             children: [
               bubble,
@@ -403,6 +421,7 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ],

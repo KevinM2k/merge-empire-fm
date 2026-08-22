@@ -9,6 +9,8 @@ library;
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -16,6 +18,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
@@ -184,4 +187,57 @@ void main() {
     expect(history.text, isNot(contains('manager_hint.')));
     expect(history.text, isNot(contains('tight affair')));
   });
+  testWidgets('THE BUBBLE HAS A NAME AND A DISMISS, for a screen reader', (
+    tester,
+  ) async {
+    // `manager_hint.aria.head` and `.aria.dismiss` are the last two of the
+    // fourteen `manager_hint.*` strings with no caller, and the queue's own
+    // note was that they want a Flutter `Semantics` rather than a printed
+    // string — a DOM aria-label has no text equivalent here.
+    // Disposed in the BODY, not by `addTearDown`: the framework checks for a
+    // live handle before teardowns run, so a deferred dispose fails the test it
+    // was meant to tidy up after.
+    final semantics = SemanticsBinding.instance.ensureSemantics();
+
+    final boot = bootWithFixtures(null);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: boot.c,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => showCoachBubble(context, ref),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // **Matched as a SUBSTRING, not exactly.** A `Semantics` container merges
+    // its label with its children's, so the panel's node reads "Manager hint"
+    // followed by whatever Colin is saying — which is the right behaviour and
+    // the wrong thing to assert equality on.
+    expect(
+      find.bySemanticsLabel(RegExp(t('manager_hint.aria.head'))),
+      findsWidgets,
+    );
+    expect(
+      find.bySemanticsLabel(RegExp(t('manager_hint.aria.dismiss'))),
+      findsWidgets,
+    );
+    Navigator.of(
+      tester.element(find.byKey(const ValueKey('coach-bubble-close'))),
+    ).pop();
+    await tester.pumpAndSettle();
+    semantics.dispose();
+  });
+
 }

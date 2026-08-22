@@ -671,9 +671,12 @@ URL). Three are real and are their own items:
       meetings, a MARGIN of two clear (`wins > losses + 1`), and a one-in-three
       roll on whether the record is mentioned at all. See **The record joins
       the pool** below.
-- [ ] **`manager_hint.aria.head` / `.aria.dismiss`** are what is left of that
-      row, and they are DOM accessibility labels that want a Flutter
-      `Semantics` rather than a printed string.
+- [x] **`manager_hint.aria.head` / `.aria.dismiss`** — built, as the row said
+      they should be: a `Semantics` on the bubble and one on its close button,
+      not a printed string. That closes all fourteen `manager_hint.*`.
+      **A container merges its label with its children's**, so the panel's node
+      reads "Manager hint" followed by whatever Colin is saying — right
+      behaviour, and the wrong thing for a test to assert equality on.
 - [x] **`difficulty.switch.*` (5)** — built, and it turned out to be the door
       into a whole difficulty mode nobody could reach. See **Pro Mode was
       unreachable** below.
