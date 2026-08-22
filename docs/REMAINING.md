@@ -30,10 +30,10 @@ too late:
 
 ## Where we are
 
-**4,485 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,491 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
-**4,418 to 4,485 across this session's nine passes**, and the first fourteen of
+**4,418 to 4,491 across this session's ten passes**, and the first fourteen of
 those are the fourteen that went the pass before.
 The pass before this one took the suite DOWN — 4,426 to 4,418 — because fourteen
 of its tests belonged to a keeper nothing drew and the rest to a penalty model
@@ -198,6 +198,47 @@ while claiming to prove the full one. It reads the rows off the loaded save now.
 
 `table.col_club` and `table.col_pts` stay unreachable and should: they are the
 JS's column header, which the port replaced on purpose.
+
+**PRO MODE WAS UNREACHABLE, and it is a whole difficulty mode.** `hardMode` had
+FOURTEEN readers across ten engines — player fatigue, squad rotation, live subs,
+a different trait pool, different daily rewards, different quests, no auto-pick,
+a quieter coach — and exactly ONE writer: `false`, in `createDefaultState`.
+Nothing in the app could ever turn it on, so every one of those branches was
+dead for every player who has ever installed the port.
+
+**The control was there and inert**, both choices carrying `onTap: null`, with a
+comment saying why: "the JS changes it only through the new-team flow". That
+reading was right and the conclusion was not — **switching HERE starts the
+career over**, which `difficulty.switch.toHard` says in as many words, so this
+IS that flow, entered from the one row that names the mode. `resetState` has
+been wired since the pass that found both reset rows confirming into an empty
+handler, so the flow existed; what was missing was the CHOICE on the way in.
+
+The flag is written BEFORE the reset, not after: `resetState` copies `settings`
+forward, so the new career starts in the mode that was chosen — and the other
+order leaves a window where the save is reset but still in the old mode.
+
+**A test was asserting the gap**, and replacing it rather than deleting it is
+the point: what survives is why the row is on the tab at all (which mode you are
+playing is the single biggest thing about a save, so it is shown rather than
+hidden), and what goes is the claim that neither half of it does anything.
+
+**AND A POOLED KEY'S VARIANTS DO NOT ALL TAKE THE SAME PLACEHOLDERS.** This cost
+an intermittent failure and it is the most transferable thing in this pass.
+`manager_hint.streak.win.3plus` has four sentences; the fourth ("{n} unbeaten
+runs against these, gaffer") never names the club, and one variant of
+`streak.loss.2` takes no params at all. A caller supplying what ONE variant
+needs leaves literal braces in the others — and since `tPoolStable` picks off a
+seed that includes the opponent's NAME, which is itself drawn from the seeded
+stream, it surfaces as a test that fails one run in four rather than as a broken
+screen.
+
+So: **the params a pooled key needs are the UNION across its variants**, and
+there is now a test that checks the engine supplies that union for every key it
+can emit — plus a check that every one of those keys was actually exercised, so
+a key nobody reached cannot pass by never being looked at. The screen-level test
+asserts only that nothing is left unresolved, which is the invariant that
+actually holds.
 
 **THE COACH HAD NOTHING TO SAY ABOUT THE FIXTURE**, only about the squad.
 Fourteen `manager_hint.*` strings, translated ten times over, with nothing able
@@ -379,8 +420,9 @@ URL). Three are real and are their own items:
       pair needs a SAMPLE SIZE and a MARGIN before an all-time head-to-head
       counts as either, and those numbers are in `../merge-empire-fc`.
       Deliberately not guessed — see the engine's own header.
-- [ ] **`difficulty.switch.*` (5)** — the Pro-mode switch confirmation, which
-      warns that switching starts you over.
+- [x] **`difficulty.switch.*` (5)** — built, and it turned out to be the door
+      into a whole difficulty mode nobody could reach. See **Pro Mode was
+      unreachable** below.
 
 **THE KEEPER WEARS THE DIVISION AGAIN**, which was the row the last pass left
 behind, and it cost two decisions the row could not have predicted.
@@ -999,7 +1041,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,485 passing
+flutter test             # 4,491 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 

@@ -183,7 +183,47 @@ void main() {
       expect(headToHeadHint(null, 'Rivals', currentSeason: 3), isNull);
     });
 
-    test('and the opponent is named in every line it can produce', () {
+    test('IT SUPPLIES EVERY PLACEHOLDER ANY VARIANT COULD ASK FOR', () {
+      // **The params a pooled key needs are the UNION across its variants**, and
+      // no single variant uses all of them: `streak.win.3plus` has four
+      // sentences, one of which never names the club, while another uses only
+      // the club. A caller that supplied what one variant needed would leave
+      // literal braces in the others — and which variant a player sees depends
+      // on a seed, so it would show up as an intermittent bug rather than a
+      // broken screen. This is the check that stops that.
+      final needed = <String, Set<String>>{
+        'manager_hint.streak.win.3plus': {'opp', 'n'},
+        'manager_hint.streak.loss.3plus': {'opp', 'n'},
+        'manager_hint.streak.win.2': {'opp', 'n'},
+        'manager_hint.streak.loss.2': {'opp', 'n'},
+        'manager_hint.last_meeting.won': {'opp', 'lastScore', 'when'},
+        'manager_hint.last_meeting.drawn': {'opp', 'lastScore', 'when'},
+        'manager_hint.last_meeting.lost': {'opp', 'lastScore', 'when'},
+      };
+      final seen = <String>{};
+      for (final p in [
+        [win(1, 1), win(1, 2), win(1, 3)],
+        [loss(1, 1), loss(1, 2), loss(1, 3)],
+        [loss(1, 1), win(1, 2), win(1, 3)],
+        [win(1, 1), loss(1, 2), loss(1, 3)],
+        [win(1, 1)],
+        [draw(1, 1)],
+        [loss(1, 1)],
+      ]) {
+        final h = hint(p)!;
+        seen.add(h.key);
+        expect(
+          h.params.keys.toSet(),
+          containsAll(needed[h.key]!),
+          reason: h.key,
+        );
+      }
+      // And every key the engine can emit was actually exercised above, so a
+      // key nobody reached cannot pass this by never being checked.
+      expect(seen, needed.keys.toSet());
+    });
+
+    test('and the opponent is named where the line names one', () {
       for (final p in [
         [win(1, 1), win(1, 2), win(1, 3)],
         [win(1, 1), win(1, 2)],

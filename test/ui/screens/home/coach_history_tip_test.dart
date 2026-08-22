@@ -73,14 +73,24 @@ void main() {
     expect(history, hasLength(1));
 
     final text = history.first.text;
-    expect(text, contains(boot.opponent));
-    // The placeholders are FILLED, not printed. `{when}` is the one that has to
-    // be resolved twice — the engine hands back a key and the pool turns it
-    // into a phrase — so an unresolved one shows up here as literal braces.
+    // **NOT `contains(opponent)`, and that cost an intermittent failure.** The
+    // variants of one pooled key do not all take the same placeholders:
+    // `streak.win.3plus` has four sentences and the fourth ("{n} unbeaten runs
+    // against these, gaffer") never names the club. Which one the stable seed
+    // lands on depends on the opponent's NAME, which is drawn from the seeded
+    // stream — so the assertion passed or failed depending on what the club was
+    // called. A test that fails one run in four is worse than one that fails
+    // every time.
+    //
+    // The invariant that actually holds is that nothing is left UNRESOLVED.
+    // `{when}` is the one that has to be resolved twice — the engine hands back
+    // a key and the pool turns it into a phrase — so a miss shows up as literal
+    // braces.
     expect(text, isNot(contains('{')));
     expect(text, isNot(contains('}')));
     // And it is pooled copy: one line, not four separated by pipes.
     expect(text, isNot(contains('|')));
+    expect(text.trim(), isNotEmpty);
   });
 
   test('IT IS ONE SENTENCE, not the whole pool, and it HOLDS STILL', () {

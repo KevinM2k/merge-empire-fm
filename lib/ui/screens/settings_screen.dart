@@ -196,6 +196,41 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     ),
   ];
 
+  /// Switch difficulty, which starts the career over.
+  ///
+  /// **The copy is emphatic about the cost and so is this.** `toHard` and
+  /// `toEasy` both end "Switching will start you over", and they are the whole
+  /// explanation of what the other mode IS — fatigue, rotation and live subs on
+  /// one side, auto-pick and coach tips on the other. So the card is the
+  /// warning, and the target mode's own sentence is its body.
+  ///
+  /// **Written BEFORE the reset, not after.** `resetState` copies `settings`
+  /// forward, so the flag set here is the one the new career starts under —
+  /// and doing it the other way round would leave a window where the save is
+  /// reset but still in the old mode.
+  void _confirmDifficulty({required bool hard}) {
+    showCoachCard<void>(
+      context,
+      titleKey: 'difficulty.switch.title',
+      bodyKey: hard ? 'difficulty.switch.toHard' : 'difficulty.switch.toEasy',
+      actions: [
+        CoachAction(labelKey: 'difficulty.switch.cancel', onTap: () {}),
+        CoachAction(
+          labelKey: 'difficulty.switch.confirm',
+          tone: CoachTone.decline,
+          onTap: () {
+            writeSetting(ref, 'hardMode', hard);
+            ref.read(gameProvider).resetState();
+            // Same reason the reset rows do it: landing back on the Settings
+            // screen of a save that no longer exists is the closest thing to
+            // nothing having happened.
+            Navigator.of(context).maybePop();
+          },
+        ),
+      ],
+    );
+  }
+
   /// Ask, then actually do it.
   ///
   /// Both rows used to open Colin's card with an EMPTY handler behind the
@@ -298,10 +333,24 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
           ),
-          // Read-only here. The JS changes it only through the new-team flow, and
-          // it is named for the old "Hard" label while the UI says Pro. Shown
-          // rather than hidden, because which mode you are playing is the single
-          // biggest thing about a save.
+          // **PRO MODE WAS UNREACHABLE, and it is a whole difficulty mode.**
+          // `hardMode` had fourteen readers across ten engines — player fatigue,
+          // squad rotation, live subs, a different trait pool, different daily
+          // rewards and quests, no auto-pick, a quieter coach — and exactly one
+          // writer: `false`, in `createDefaultState`. Nothing in the app could
+          // ever turn it on, so every one of those branches was dead for every
+          // player who has ever installed the port.
+          //
+          // Both choices sat here with `onTap: null` and the note said why: "the
+          // JS changes it only through the new-team flow". That flow is the
+          // START OVER group further up this same screen — `resetState` has been
+          // wired since the pass that found both reset rows confirming into an
+          // empty handler — so what was missing is not the flow, it is the
+          // CHOICE on the way into it.
+          //
+          // Which is precisely what `difficulty.switch.*` describes, five
+          // strings of it, translated ten times over with no caller:
+          // "Switching will start you over."
           SettingsRow(
             icon: 'swords',
             label: t('settings.difficulty'),
@@ -309,8 +358,19 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             trailing: SettingsSegment(
               key: const ValueKey('setting-hardMode'),
               choices: [
-                (label: t('settings.difficulty.easy'), on: !hard, onTap: null),
-                (label: t('settings.difficulty.hard'), on: hard, onTap: null),
+                (
+                  label: t('settings.difficulty.easy'),
+                  on: !hard,
+                  // The mode you are ALREADY in is not a switch. Offering it
+                  // would put a start-over warning behind a button that changes
+                  // nothing.
+                  onTap: hard ? () => _confirmDifficulty(hard: false) : null,
+                ),
+                (
+                  label: t('settings.difficulty.hard'),
+                  on: hard,
+                  onTap: hard ? null : () => _confirmDifficulty(hard: true),
+                ),
               ],
             ),
           ),

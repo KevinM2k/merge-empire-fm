@@ -373,15 +373,25 @@ void main() {
       expect(settingsOf(container)['cutawayOpponent'], isFalse);
     });
 
-    testWidgets('Pro mode is shown but not switchable here', (tester) async {
-      // The JS changes it only through the new-team flow. Shown rather than
-      // hidden, because which mode you are playing is the biggest single thing
-      // about a save.
+    testWidgets('Pro mode is shown, and it is the biggest thing on the tab', (
+      tester,
+    ) async {
+      // **This used to assert that neither choice was tappable**, on the
+      // grounds that "the JS changes it only through the new-team flow". That
+      // reading was right and the conclusion was not: switching HERE starts the
+      // career over — `difficulty.switch.toHard` says so in as many words — so
+      // this IS that flow, entered from the one row that names the mode. Left
+      // inert, `hardMode` had fourteen readers across ten engines and one
+      // writer: `false`, in the default state.
+      //
+      // What survives from the old test is why the row is here at all: which
+      // mode you are playing is the single biggest thing about a save, so it is
+      // shown rather than hidden.
       await pumpSettings(tester, SettingsTab.match);
       final segment = tester.widget<SettingsSegment>(
         find.byKey(const ValueKey('setting-hardMode')),
       );
-      expect(segment.choices.map((c) => c.onTap), everyElement(isNull));
+      expect(segment.choices.map((c) => c.onTap).any((t) => t != null), isTrue);
       expect(find.text(t('settings.difficulty.hint')), findsOne);
     });
 
@@ -444,6 +454,106 @@ void main() {
       // And the game can still save, because there is no page reload here to
       // clear the reset's freeze.
       expect(container.read(gameProvider).frozen, isFalse);
+    });
+
+    /// **Pro Mode was unreachable, and it is a whole difficulty mode.**
+    /// `hardMode` had fourteen readers across ten engines — fatigue, rotation,
+    /// live subs, a different trait pool, different dailies and quests, no
+    /// auto-pick, a quieter coach — and exactly one writer: `false`, in
+    /// `createDefaultState`. Both choices on this row sat with `onTap: null`.
+    group('switching difficulty', () {
+      testWidgets('THE MODE YOU ARE IN IS NOT A SWITCH', (tester) async {
+        // Offering it would put a start-over warning behind a button that
+        // changes nothing.
+        await pumpSettings(tester, SettingsTab.match);
+        final segment = tester.widget<SettingsSegment>(
+          find.byKey(const ValueKey('setting-hardMode')),
+        );
+        expect(segment.choices[0].onTap, isNull, reason: 'already casual');
+        expect(segment.choices[1].onTap, isNotNull, reason: 'pro is the switch');
+      });
+
+      testWidgets('and it is the other way round on a Pro save', (tester) async {
+        await pumpSettings(
+          tester,
+          SettingsTab.match,
+          mutate: (s) =>
+              (s['settings'] as Map<String, dynamic>)['hardMode'] = true,
+        );
+        final segment = tester.widget<SettingsSegment>(
+          find.byKey(const ValueKey('setting-hardMode')),
+        );
+        expect(segment.choices[0].onTap, isNotNull);
+        expect(segment.choices[1].onTap, isNull);
+      });
+
+      testWidgets('IT WARNS THAT IT STARTS YOU OVER, and asks first', (
+        tester,
+      ) async {
+        final container = await pumpSettings(
+          tester,
+          SettingsTab.match,
+          mutate: (s) => s['clubName'] = 'Ember Rovers',
+        );
+        await tester.tap(find.text(t('settings.difficulty.hard')));
+        await tester.pumpAndSettle();
+        expect(find.text(t('difficulty.switch.title')), findsOne);
+        // The body is the target mode's own explanation, not the one you are
+        // leaving.
+        expect(find.text(t('difficulty.switch.toHard')), findsOne);
+        // And nothing has happened yet.
+        expect(container.read(gameProvider).state!['clubName'], 'Ember Rovers');
+        expect(
+          (container.read(gameProvider).state!['settings']
+              as Map<String, dynamic>)['hardMode'],
+          false,
+        );
+      });
+
+      testWidgets('AND THEN IT ACTUALLY SWITCHES, and starts the career over', (
+        tester,
+      ) async {
+        final container = await pumpSettings(
+          tester,
+          SettingsTab.match,
+          mutate: (s) => s['clubName'] = 'Ember Rovers',
+        );
+        await tester.tap(find.text(t('settings.difficulty.hard')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('coach-action-difficulty.switch.confirm')),
+        );
+        await tester.pumpAndSettle();
+        await settleSave(tester);
+
+        final state = container.read(gameProvider).state!;
+        // **The flag survives the reset**, which is the whole reason it is
+        // written before it: `resetState` copies `settings` forward, so the new
+        // career starts in the mode that was chosen rather than in the old one.
+        expect(
+          (state['settings'] as Map<String, dynamic>)['hardMode'],
+          isTrue,
+        );
+        expect(state['clubName'], isNot('Ember Rovers'));
+        expect(container.read(gameProvider).frozen, isFalse);
+      });
+
+      testWidgets('and backing out changes nothing at all', (tester) async {
+        final container = await pumpSettings(
+          tester,
+          SettingsTab.match,
+          mutate: (s) => s['clubName'] = 'Ember Rovers',
+        );
+        await tester.tap(find.text(t('settings.difficulty.hard')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('coach-action-difficulty.switch.cancel')),
+        );
+        await tester.pumpAndSettle();
+        final state = container.read(gameProvider).state!;
+        expect((state['settings'] as Map<String, dynamic>)['hardMode'], false);
+        expect(state['clubName'], 'Ember Rovers');
+      });
     });
 
     testWidgets('a full reset asks first too, and then wipes it', (
