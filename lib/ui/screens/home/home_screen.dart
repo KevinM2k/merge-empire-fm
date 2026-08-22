@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/ui/screens/home/event_strip.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_dock.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_idle.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/engine/weather_engine.dart' show windAccelFor;
 import 'package:merge_empire_fc/ui/screens/home/pitch_ball.dart';
@@ -421,19 +422,32 @@ class _SceneState extends ConsumerState<_Scene> {
       // `TickerMode` stops every animation here when the tab is offscreen, which
       // is the whole reason the shell puts each tab in one — no freeze of the
       // scene's own needed.
-      walker: ManagerWalker(
-        // How he is getting on in what the player dressed him in. Read fresh
-        // rather than cached, because both halves move on their own.
-        comfort: ref.watch(managerComfortProvider),
-        kit: kit.accent,
-        skin: const Color(0xFFEEBB8C),
-        hair: const Color(0xFF3A2A1C),
-        // His own look and his own mood — both were ported data with nothing
-        // reading them.
-        look: ref.watch(managerLookProvider),
+      // **HE IS ALIVE BETWEEN GESTURES NOW.** The dugout cam has had a complete
+      // idle since it was built — four out-of-phase loops driving breath, a
+      // weight rock, arm sway and a slow scan — and the manager on the HOME
+      // screen, who is the one most players look at most, had none of it: he
+      // walked, and between cues that was the whole of him.
+      //
+      // It layers UNDER the walk and under any gesture, joint by joint, which
+      // is `poseOverIdle`'s entire job — so a playing gesture still outruns it
+      // and nothing here competes with the stride.
+      walker: ManagerIdle(
         mood: mood,
-        gesture: _cue,
-        carrying: _carrying,
+        builder: (context, idle) => ManagerWalker(
+          // How he is getting on in what the player dressed him in. Read fresh
+          // rather than cached, because both halves move on their own.
+          comfort: ref.watch(managerComfortProvider),
+          kit: kit.accent,
+          skin: const Color(0xFFEEBB8C),
+          hair: const Color(0xFF3A2A1C),
+          // His own look and his own mood — both were ported data with nothing
+          // reading them.
+          look: ref.watch(managerLookProvider),
+          mood: mood,
+          gesture: _cue,
+          carrying: _carrying,
+          idle: idle.pose,
+        ),
       ),
     );
   }

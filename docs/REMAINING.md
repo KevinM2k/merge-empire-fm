@@ -5076,12 +5076,20 @@ that reads only the older entry will put them back.
       in `coach_card.dart` with the rest of his chrome. Reduced motion holds it
       still and does NOT hide it: red on its own still reads, and a badge that
       vanishes takes away the only sign something is waiting.
-- [ ] **THE MANAGER NEEDS TO BE MUCH MORE ANIMATED.** Standing said as much on
-      26 Aug (`standing`, `idle`, `poseOverIdle` were added for exactly this)
-      and the answer on screen is still too still. See the Lottie note under
-      the customiser: a manager who is planted rather than walking is the case
-      where a recorded clip costs nothing, because there is no foot contact to
-      solve.
+- [x] **THE MANAGER NEEDS TO BE MUCH MORE ANIMATED**, and **there were two of
+      him with only one breathing.** The dugout cam has had a complete idle
+      since it was built — four out-of-phase loops driving breath, a weight
+      rock, arm sway and a slow scan, tuned per mood — and the manager on the
+      HOME screen, who is the one most players look at most, had none of it: he
+      walked, and between cues that was the whole of him.
+      `ManagerIdle` is that idle, moved out of `dugout_cam.dart` unchanged and
+      put beside the walker, where it belongs — it is about the FIGURE, and the
+      dependency already ran cam → home for `ManagerWalker` itself. It layers
+      UNDER the walk and under any gesture, joint by joint, which is
+      `poseOverIdle`'s whole job, so nothing here competes with the stride.
+      **No Lottie needed for this half**, and that is worth saying because the
+      Lottie note is filed against exactly this ask: what was missing was not a
+      recorded clip, it was a driver that already existed one directory away.
 
 ### Light mode, again, and it is a pattern now
 

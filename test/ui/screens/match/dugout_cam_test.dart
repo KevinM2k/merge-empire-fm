@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_idle.dart';
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 
