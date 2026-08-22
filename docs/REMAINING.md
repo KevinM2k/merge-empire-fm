@@ -50,16 +50,19 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**94 items are open**, plus eight carrying a `[~]` — answered, but with a decision
+**93 items are open**, plus nine carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
 what is open now came out of them.
 
-**The newest work is the PENALTY SCENE's camera, the ground it stands on and
-the keeper's arms.** Six of its eight open items went together, and the shape
-of the first four is the same — the scene was right about the goal and wrong
-about everything around it:
+**The newest pass cleared the PENALTY SCENE and then went round the screens a
+player had called boring or wrong.** Fourteen commits; what a next session
+actually needs from it is the six findings, not the list of changes.
+
+**1. The penalty scene is done bar taste** — seven of its eight items. Four of
+them were the same shape, which is worth knowing before touching it again: the
+scene was right about the goal and wrong about everything around it.
 
 - **`standBaseY` is the seam, not `goalLineY`.** The pitch runs on past the goal
   line — dead ball area, run-off — and handing that strip to the photograph is
@@ -77,15 +80,63 @@ about everything around it:
   crossbar, and `_focalFor` opens the lens on a view too short to hold both.
 - **A goal is a box.** `sideVertex` and `roofVertex` string the two sides and
   the roof off the rear stanchions the frame was already drawing.
-- **An arm hangs off a shoulder.** The reach circle is centred on his chest, so
-  drawing the arm from there made it `keeperReach` long — longer than his own
-  leg. `_keeperShoulder` displaces the joint ALONG the arm, which is the only
-  offset that leaves every limb the same length, and `_armRest` stops him
-  signalling a touchdown while he waits.
 - **`_settle` is the picture after the whistle, and the ball is in it.** A goal
   pinned the ball to the cords and stopped stepping it, so it hung at head
-  height for the whole 1.9s hold. The net takes the pace and gravity does the
-  rest; the outcome is set once and nothing in the settle can reach it.
+  height for the whole 1.9s hold.
+
+**2. A LIMB CONNECTS WHEN IT HANGS OFF A BAR THAT IS DRAWN**, and this is the
+one to carry to any other figure in the game. Reported as four separate faults
+on both the keeper and the taker — limbs not joining the body, necks too long,
+arms too long, faces blank — and the first three were ONE cause: every arm and
+leg started at a single point on the centreline, under a torso stroke whose
+ROUND cap domed past it. The shirt painted over the tops of the legs and
+swallowed the necks. Flat torso cap, a drawn pelvis and a drawn shoulder
+girdle, one limb off each end. The necks were only long because they had been
+sized to clear that dome.
+
+**3. A rig's invariant belongs on the BONES, not on the joint-to-joint span.**
+Twice now: the keeper's arm was pinned to the reach circle, which forced two
+bones summing to the length of his own leg, and the taker's leg was pinned
+hip-to-boot, which is what stopped it ever having a knee. Both distances SHOULD
+vary — a folded limb is a shorter limb — and it is the thigh and the shin, the
+upper arm and the forearm, that may never change. See `kneeBetween`.
+
+**4. The reach circle is the PHYSICS' truth and the figure in front of it is a
+person.** Making the drawn glove land on the circle is what produced the ape.
+A save at the very edge of the reach may now show the glove a hand short for a
+frame; that is the better trade, and it is deliberate.
+
+**5. Light mode is the DEFAULT** (`lightModeProvider` returns true unless the
+save says otherwise), so a screen that hardcodes a dark scrim is what MOST
+players see, not an edge case. The Player Index was the last one doing it. If
+another turns up, the fault to look for is `Colors.black.withValues(...)` and a
+tier gradient that never reads `bgLight`.
+
+**6. Measure the lag before fixing it.** "The customise button comes up laggy"
+was 209ms on the tapped frame and 23ms for everything after — one build, not a
+slow sheet. The first guess (twenty walkers' animation clocks) was WRONG:
+twenty still walkers register zero tickers and run twenty frames in 2ms. It was
+the building. And picking a choice was already free at 91 microseconds, so an
+afternoon spent optimising that would have bought nothing.
+
+**Three things this pass could not do, all for the same reason** — the spec repo
+is not in a cloud container, and they are marked `[~]` rather than done:
+
+- **The gem pack art is NOT a port.** `assets/gemArt.js` is 146 lines in
+  `../merge-empire-fc`, and `../merge-empire-match-day` — which the queue points
+  at for the shop — is not cloned either. What landed is this repo's own
+  coin-pack pattern carried one shelf across. Check the three compositions
+  against the JS when you can read it.
+- **"Card bottoms still dark in light mode on the squad page" could not be
+  reproduced.** The mechanism is gone — `PlayerCard`'s scrim follows the theme
+  and the bench passes `light`. What IS dark on a high-tier card is the
+  generated PORTRAIT, which carries its own near-black background from tier 6
+  up. If that is the report, it is an art change. Wants a screenshot.
+- **"Minimise" still cannot say "Review"**, and nor can anything else needing
+  new copy: `en.js` is in the other repo and the catalogues are generated from
+  it. Every fix in this pass that wanted a word used a glyph instead — the
+  drill faces, the quest medallion, the fixtures' W/D/L — which is the move to
+  reach for, not a new key.
 
 **The pass before this one was the SUMMARY, the replay and the bid window.** Five
 things whoever picks this up next will want to know before reading the queue:
@@ -284,7 +335,7 @@ Measured, not estimated: `101,906` lines of non-test JS in
 | `data/` | 6,357 | done — `managerAvatar.js`'s SVG half is now `manager_art.g.dart` |
 | `utils/` | 3,396 | done bar 1,170 (`sound` 782, `ageVerification` 134, `devTools` 114, `adConsent` 63, `wakeLock` 54, `openUrl` 15, `network` 8) |
 | `state/` + `main.js` | 2,333 | done |
-| `assets/` | 853 | `playerArt`, `clubArt` and `svgCache`'s path half done; `gemArt` (146) left |
+| `assets/` | 853 | `playerArt`, `clubArt` and `svgCache`'s path half done; `gemArt` (146) left — but see `gem_pack_art.dart`, which draws the shelf's three packs WITHOUT it |
 | `i18n/` | 29,163 | done — the lookup layer and all ten catalogues |
 | `services/` | 4,144 | none — this is M4 |
 | `ui/` | 40,329 | roughly 20,000: the shell, HUD, theme, popups, all five tabs, the events, the cutaway and the sheets behind the burger |
@@ -332,8 +383,19 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,473 passing, 2 skipped
-TZ=UTC flutter test      # one parity group needs UTC — see below
+flutter test             # 4,404 passing
+TZ=UTC flutter test      # two parity groups skip themselves outside UTC
+```
+
+**In a CLOUD session there is no Flutter yet**, and that is the first thing to
+do rather than the thing you discover twenty minutes in — the install is in
+`CLAUDE.md`'s Commands section and takes about three minutes:
+
+```bash
+curl -sSo /tmp/f.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.44.9-stable.tar.xz
+mkdir -p ~/sdk && tar xf /tmp/f.tar.xz -C ~/sdk
+git config --global --add safe.directory ~/sdk/flutter
+export PATH=~/sdk/flutter/bin:$PATH && flutter pub get
 ```
 
 **Do not run `dart format lib/ test/`.** It reformats ~186 files, collapses
@@ -4120,7 +4182,8 @@ back while five of them were unbuilt.
 - **The rest of `MergeAnimation.js`** (928): the centre-screen reveal, floating
   income labels, the promotion celebration. The merge burst is done.
 - The dugout cam, gestures and moods — the rest of the manager rig.
-- The remaining art: `gemArt` (146) and `svgCache`'s SVG half (54).
+- The remaining art: `gemArt` (146) and `svgCache`'s SVG half (54). The shop's
+  gem packs no longer wait on the first of these — see `gem_pack_art.dart`.
 
 **Depth inside screens that DO exist.**
 
@@ -4532,6 +4595,12 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 - [ ] **The SVG art that is not player art**: `assets/gemArt` (146), which the
       gem icons read from. `playerArt`, `clubArt` and `svgCache`'s path half are
       done.
+      **The shop's three gem packs are no longer waiting on this.**
+      `gem_pack_art.dart` draws a pouch, a casket and a hoard from two
+      primitives, because every bundle wearing one identical gem icon was a
+      reported fault and the JS could not be read from a cloud session. So this
+      item is now about the OTHER gem art, and about checking those three
+      compositions against `gemArt.js` — not about an empty shelf.
       **Worth knowing:** `svg_canvas.dart` could not draw cubics, arcs or
       gradients until this was looked at, and it failed SILENTLY — a `C` command
       had its numbers eaten by the command before it, and a `url(#id)` fill left
