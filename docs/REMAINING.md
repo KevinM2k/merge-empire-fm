@@ -31,7 +31,7 @@ too late:
 ## Where we are
 
 **THE PLAYTEST QUEUE IS EMPTY.** Every row a player reported has been either
-fixed or answered, and the forty-five boxes still open below are all of one of
+fixed or answered, and the forty-four boxes still open below are all of one of
 five kinds, none of which can be closed by writing Dart in this repo:
 
 - **M4 services** — AdMob, Firebase, Play Billing, StoreKit, cloud save,
@@ -6283,7 +6283,13 @@ of buttons that error.
       `data/geo_zones` takes the zone as an argument and this is the half that
       has to supply it
 - [ ] Local notifications — four of them, all `allowWhileIdle`
-- [ ] `util/sound.js` (782) — synthesised SFX plus the one background track
+- [x] `util/sound.js` (782) — **DONE, and this row was stale.** Both halves are
+      in: `util/audio_render.dart` is the offline Web Audio graph rendered in
+      plain Dart and `data/sound_defs.dart` is every effect's recipe, so the SFX
+      are synthesised here exactly as the JS synthesises them; `services/sound_service.dart`
+      carries the music beds and `assets/audio/` carries the three files. It sat
+      under M4 because sound was filed with the services, and it is the one thing
+      in that block that needed no account, no SDK and no console.
 - [ ] `util/wake_lock` (54)
 - [ ] `util/ad_consent` (63), `util/network` (8), `util/open_url` (15)
 
