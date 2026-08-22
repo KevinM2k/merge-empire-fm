@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// [heightFraction] is a CEILING, not a height, when [fitContent] is set: a
@@ -17,6 +19,30 @@ Future<T?> showBottomSheetPopup<T>(
   bool fitContent = false,
 }) {
   final kit = Theme.of(context).extension<KitTheme>()!;
+  // **THE SCREEN UNDERNEATH STOPS ANIMATING while this is up.** A modal bottom
+  // sheet is a `PopupRoute` — it rises over the current route without pushing
+  // it out — so nothing tells the tab body it has stopped being looked at, and
+  // on the home tab that is a pitch scene, weather, a ball and a walking
+  // manager still running behind something opaque. See [screenCoveredProvider].
+  //
+  // Guarded: this helper is called from places that may not sit under a
+  // `ProviderScope` in a test, and a sheet that cannot open is worse than one
+  // that opens over a screen still ticking.
+  ProviderContainer? container;
+  try {
+    container = ProviderScope.containerOf(context, listen: false);
+    container.read(screenCoveredProvider.notifier).state++;
+  } catch (_) {
+    container = null;
+  }
+  void uncover() {
+    final held = container;
+    if (held == null) return;
+    container = null;
+    final n = held.read(screenCoveredProvider);
+    if (n > 0) held.read(screenCoveredProvider.notifier).state = n - 1;
+  }
+
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
@@ -34,7 +60,7 @@ Future<T?> showBottomSheetPopup<T>(
         child: SafeArea(top: false, child: child),
       ),
     ),
-  );
+  ).whenComplete(uncover);
 }
 
 /// The sheet's box: a fraction of the screen, or as tall as its content needs up

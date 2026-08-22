@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart'
     show TransferPill;
+import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
@@ -132,6 +133,7 @@ class AppShellState extends ConsumerState<AppShell>
     ref.listen(shellControllerProvider, (_, next) {
       _applyTab(next.tab, noSlide: next.noSlide);
     });
+    final covered = ref.watch(screenIsCoveredProvider);
     // The HUD's energy + asks for this rather than opening it, so the button
     // stays a button and the shell owns what a route means.
     ref.listen(busEventProvider('nav:energy'), (_, _) {
@@ -181,7 +183,17 @@ class AppShellState extends ConsumerState<AppShell>
                       children: [
                         for (final tab in tabOrder)
                           TickerMode(
-                            enabled: tab == _active,
+                            // **AND OFF WHILE SOMETHING OPAQUE IS OVER IT.** An
+                            // offscreen tab has never been given frames; the
+                            // COVERED one was, because a modal bottom sheet is
+                            // a `PopupRoute` and nothing tells the route beneath
+                            // it that it has stopped being looked at. On the
+                            // home tab that is a pitch scene, weather, a ball
+                            // and a walking manager, all animating behind a
+                            // sheet nobody can see through — which is the
+                            // "second animated screen" the customiser's lag was
+                            // reported as. See `screen_covered.dart`.
+                            enabled: tab == _active && !covered,
                             // Exhaustive over ShellTab: every tab has a real
                             // screen now, so there is no fallback left to write.
                             child:

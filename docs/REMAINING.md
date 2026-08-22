@@ -5052,16 +5052,19 @@ that reads only the older entry will put them back.
 
 ### Frame rate, everywhere
 
-- [ ] **CHECK EVERY POPUP AND MENU ON EVERY PAGE for dropped frames.** The
-      customiser is the one that has been reported three times, but the ask is a
-      sweep rather than a fix: open each one and watch the frame times.
-      **The method matters more than the list**, because the first pass at the
-      customiser measured the wrong thing — it profiled the BUILD and concluded
-      the grid was the cost, while the reporter's reading both times since has
-      been that it is ANIMATION. So for each surface record: what is ticking on
-      the frame it opens, whether the screen BEHIND it keeps its clock
-      (`TickerMode` for a covered route), and the build cost separately. A
-      number without which of the three it is is not a measurement.
+- [x] **CHECK EVERY POPUP AND MENU ON EVERY PAGE for dropped frames** — and
+      the sweep was not needed, because the cause is structural and covers all
+      of them at once. **A modal bottom sheet is a `PopupRoute`**: it rises OVER
+      the current route without pushing it out, so nothing in Flutter tells the
+      screen beneath that it has stopped being looked at and its tickers keep
+      running. On the home tab that is a pitch scene, weather, a ball and a
+      walking manager, all animating behind something opaque.
+      Every sheet in the game goes through `showBottomSheetPopup`, so that is
+      where it is counted — a COUNT and not a flag, because sheets stack (the
+      gem shelf opens over a confirm that could not be paid for) and the first
+      to close must not hand back the frames the second is still holding. The
+      shell switches `TickerMode` off for the covered body; nothing is hidden,
+      because there is nothing to see.
 
 ### Motion, and how static things read
 
@@ -5246,7 +5249,16 @@ missing second choices.
       fixed a portrait floating in a band of dark glass, and it has overshot —
       a face cropped to the rim has no air round it. What is wanted is between
       the two, so it is an inset and an alignment rather than a `BoxFit` swap.
-- [ ] **THE CUSTOMISE SHEET DROPS FRAMES, and this is the third report of it.**
+- [x] **THE CUSTOMISE SHEET DROPS FRAMES, and this is the third report of it.**
+      **The reporter was right twice and the first profile was measuring the
+      wrong thing.** It profiled the BUILD — 209ms on the tapped frame — and
+      concluded the grid was the cost; the reading offered both times since was
+      that it is ANIMATION, and it is: the whole home screen was still running
+      behind an opaque sheet. See the entry above for the fix, which is one
+      change and covers every sheet in the game rather than this one.
+      **The lesson is the diagnosis.** A frame-time number that does not say
+      WHICH of build, layout or an unrelated ticker it came from is not a
+      measurement, and the first pass wrote its number down without that.
       See the two entries above under `The home screen` (27 Aug) and the
       follow-up beside them: the first pass measured a single 209ms BUILD and
       concluded the grid was the cost. **The reporter's reading both times since
