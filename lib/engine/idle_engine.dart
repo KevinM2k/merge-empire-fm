@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/coin_sink_engine.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -111,11 +112,9 @@ double computeMultiplier(
   }
 
   // Trophy Polish: x2 idle income for the bought-for season. The same x2 is
-  // applied to match revenue, so the buff doubles ALL coin income.
-  final polishSeason = _num(boosts?['trophyPolishSeason']);
-  if (polishSeason != null && seasonCount != null && polishSeason == seasonCount) {
-    multiplier *= 2.0;
-  }
+  // applied to match revenue below, so the buff doubles ALL coin income — and
+  // both read the one rule rather than restating the stamp comparison.
+  multiplier *= trophyPolishMultiplierFor(boosts, seasonCount);
 
   return multiplier;
 }
@@ -200,11 +199,8 @@ double computeMatchRevenueMultiplier(
     mult *= 1.5;
   }
 
-  // Trophy Polish mirrors the x2 applied to idle income.
-  final polishSeason = _num(boosts?['trophyPolishSeason']);
-  if (polishSeason != null && seasonCount != null && polishSeason == seasonCount) {
-    mult *= 2.0;
-  }
+  // Trophy Polish mirrors the x2 applied to idle income, off the same rule.
+  mult *= trophyPolishMultiplierFor(boosts, seasonCount);
 
   // Squad traits are additive among themselves and multiplicative with the
   // club and boost stack, so a Commanding keeper is worth more once the Stadium

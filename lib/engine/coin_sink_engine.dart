@@ -32,20 +32,46 @@ Map<String, dynamic> _branch(Map<String, dynamic> owner, String key) {
 /// is doubled outright — the same multiplier is applied to match revenue.
 const double _trophyPolishBonus = 1.0;
 
-/// The polish multiplier for this save right now.
+/// The polish multiplier for a `boosts` branch read against one season.
 ///
 /// The polish is a ONE-SEASON buff stamped with the season it was bought in, so
 /// it expires at the next season end. An old save's permanent `polishLevel` is
 /// ignored: the permanent form was retired to take out a
 /// pay-for-permanent-advantage.
-double trophyPolishMultiplier(Map<String, dynamic>? state) {
-  final polishSeason = _map(state?['boosts'])?['trophyPolishSeason'];
-  final currentSeason = _map(state?['progression'])?['seasonCount'];
-  if (polishSeason != null && polishSeason == currentSeason) {
+///
+/// **Takes the two branches loose rather than the save**, because the two
+/// functions that actually pay the buff out — `computeMultiplier` and
+/// `computeMatchRevenueMultiplier` — are handed `boosts` and a season number,
+/// not the state they came from. Without this shape they cannot call the rule
+/// and end up restating it, which is how there came to be five copies of it:
+/// twice in `idle_engine`, once in `income_breakdown`, once in `gem_engine`'s
+/// shop guard, and here — where the only copy with a NAME was the one nothing
+/// called.
+///
+/// They had already drifted. Four read a missing `seasonCount` as no match and
+/// the fifth read it as season one, so a save with no progression branch could
+/// have the shop refusing to sell a polish that nothing was paying out. The
+/// paying engines' reading wins: the shop must never say "already active" about
+/// a buff no multiplier is applying.
+double trophyPolishMultiplierFor(
+  Map<String, dynamic>? boosts,
+  int? seasonCount,
+) {
+  final polishSeason = _num(boosts?['trophyPolishSeason']);
+  if (polishSeason != null &&
+      seasonCount != null &&
+      polishSeason == seasonCount) {
     return 1 + _trophyPolishBonus;
   }
   return 1;
 }
+
+/// The polish multiplier for this save right now.
+double trophyPolishMultiplier(Map<String, dynamic>? state) =>
+    trophyPolishMultiplierFor(
+      _map(state?['boosts']),
+      _num(_map(state?['progression'])?['seasonCount'])?.toInt(),
+    );
 
 bool isTrophyPolishActive(Map<String, dynamic>? state) =>
     trophyPolishMultiplier(state) > 1;

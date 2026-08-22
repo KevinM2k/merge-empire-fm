@@ -320,9 +320,12 @@ SeasonOutcome endSeason(Map<String, dynamic> state) {
   initSeasonOpponents(state);
 
   // Cups refresh each season, so a player who skipped one gets another shot.
-  // An active run carries over untouched.
-  final cups = _map(prog['cups']);
-  if (cups != null) cups['availableThisSeason'] = true;
+  // An active run carries over untouched. Through the cup engine's own
+  // `refreshCupAvailability` rather than the flag: the engine that decides what
+  // `availableThisSeason` means is the one that should set it, and it also
+  // builds the branch on a save that has none — this used to skip silently
+  // there.
+  refreshCupAvailability(state);
   // Auto-enter the cup for the division — matching real football, where clubs
   // are scheduled into their cup rather than opting in.
   if (cupForDivision(state) != null && cupAvailable(state)) startCup(state);
@@ -716,8 +719,9 @@ PrestigeResult performPrestige(Map<String, dynamic> state) {
     // and the cosmetics ledger, neither of which prestige touches. This list is
     // the per-run slate: which cups THIS adventure has entered.
     cups['history'] = <dynamic>[];
-    cups['availableThisSeason'] = true;
   }
+  // A new run may enter its division's cup, same as a new season may.
+  refreshCupAvailability(state);
   prog['leagueTrophies'] = <dynamic>[];
   // Allow the achievements to be re-unlocked in the new run.
   prog['achievementIdsThisRun'] = <dynamic>[];

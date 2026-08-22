@@ -1,8 +1,17 @@
-/// Taking a penalty in the arcade mini-game.
+/// How hard the keeper is in the penalty mini-game.
 ///
-/// The shot resolution lived in `ui/components/PenaltyGame.js`; the ramp it
-/// uses, `penaltyKeeperSmartChance`, was already ported with the data. This is
-/// the rest, lifted out so the outcome of a shot is testable without a widget.
+/// **The SHOT is not here, and that is the point.** This library used to carry a
+/// four-corner `takePenalty` in which a read was an automatic save — the arcade
+/// model ported from `ui/components/PenaltyGame.js` — and the scene rebuild
+/// replaced it wholesale with a simulated kick: `engine/penalty_physics.dart`
+/// flies the ball at regulation numbers and `planKeeper` gives the keeper a dive
+/// he still has to REACH, which is what makes aim worth anything. Two models of
+/// one shot is two answers to "did that go in", so the arcade one is gone rather
+/// than left where a future screen could pick the wrong one.
+///
+/// What survives is the pair the physics asks for: how often he goes the right
+/// way, and off which division. They were always shared and are now all this
+/// library is.
 ///
 /// Never a cup-tie shootout: that is the match engine's, and it touches
 /// different counters entirely.
@@ -14,26 +23,6 @@ import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/mini_games.dart';
-
-/// The four corners a penalty can be aimed at.
-enum PenaltyCorner { topLeft, topRight, bottomLeft, bottomRight }
-
-/// What one shot did.
-typedef PenaltyShot = ({
-  bool scored,
-  PenaltyCorner aimed,
-  PenaltyCorner keeper,
-
-  /// The keeper READ it, rather than guessing and happening to be right. Worth
-  /// separating: one is the division getting harder, the other is luck.
-  bool keeperRead,
-});
-
-math.Random _rng = math.Random();
-
-void setPenaltyRandom(math.Random rng) => _rng = rng;
-
-void resetPenaltyRandom() => _rng = math.Random();
 
 /// How often the keeper reads the shot at this save's division.
 ///
@@ -53,20 +42,4 @@ int keeperDivisionIndex(Map<String, dynamic>? state) {
       ? progression['currentDivision']
       : null;
   return math.max(0, divisions.indexWhere((d) => d.id == id));
-}
-
-/// Take one penalty at [aimed].
-PenaltyShot takePenalty(Map<String, dynamic>? state, PenaltyCorner aimed) {
-  final read = _rng.nextDouble() < keeperSmartChanceFor(state);
-  // A read shot is a guaranteed save; otherwise the keeper picks a corner and
-  // the shot beats them unless they happen to have picked the same one.
-  final keeper = read
-      ? aimed
-      : PenaltyCorner.values[_rng.nextInt(PenaltyCorner.values.length)];
-  return (
-    scored: keeper != aimed,
-    aimed: aimed,
-    keeper: keeper,
-    keeperRead: read,
-  );
 }

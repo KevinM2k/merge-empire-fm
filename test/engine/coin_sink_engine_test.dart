@@ -4,6 +4,9 @@ import 'package:merge_empire_fc/data/coin_sinks.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/coin_sink_engine.dart';
+import 'package:merge_empire_fc/engine/gem_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
+import 'package:merge_empire_fc/engine/income_breakdown.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 
@@ -68,6 +71,48 @@ void main() {
       final state = _state();
       (state['boosts'] as Map<String, dynamic>)['polishLevel'] = 5;
       expect(trophyPolishMultiplier(state), 1.0);
+    });
+
+    test('is ONE rule, and everything that pays it out reads it', () {
+      // It had been written out five times — twice in `idle_engine`, once in
+      // `income_breakdown`, once in `gem_engine`'s shop guard and once here,
+      // where the only copy with a name was the one nothing called. This pins
+      // the four surviving readers against it rather than against the number 2,
+      // because a bonus that changes size is exactly when five copies would be
+      // found to have drifted.
+      final boosts = <String, dynamic>{'trophyPolishSeason': 4};
+      final live = trophyPolishMultiplierFor(boosts, 4);
+      expect(live, greaterThan(1));
+
+      // Idle income, and match revenue, which mirrors it.
+      expect(computeMultiplier({}, boosts, {}, {}, 4), live);
+      expect(computeMatchRevenueMultiplier({}, boosts, 4), live);
+
+      // The books say what the multiplier is doing, and the row has to carry
+      // the same figure or the list stops multiplying out to the total.
+      final polish = incomeBreakdown(
+        _state(seasonCount: 4, trophyPolishSeason: 4),
+      ).factors.where((f) => f.key == 'hud.income.trophy_polish');
+      expect(polish, hasLength(1));
+      expect(polish.first.x, live);
+
+      // And the shop's "already active" is the same question.
+      expect(
+        gemItemBlocked(_state(seasonCount: 4, trophyPolishSeason: 4), 
+            'trophy_polish_gem'),
+        'already_held',
+      );
+    });
+
+    test('a save with no season pays nobody, and is sold one anyway', () {
+      // The five copies disagreed here: four read a missing `seasonCount` as no
+      // match and `gem_engine`'s guard read it as season one. The paying
+      // engines win — a shop that refuses to sell a buff nothing is applying is
+      // the one failure a player cannot argue their way out of.
+      final orphan = _state(trophyPolishSeason: 1);
+      (orphan['progression'] as Map<String, dynamic>).remove('seasonCount');
+      expect(trophyPolishMultiplier(orphan), 1.0);
+      expect(gemItemBlocked(orphan, 'trophy_polish_gem'), isNot('already_held'));
     });
   });
 

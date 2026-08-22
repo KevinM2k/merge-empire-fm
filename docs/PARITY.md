@@ -241,12 +241,21 @@ Not yet diffed control by control.
 ## Mini-games
 
 - [x] Penalty Training (the goal is the target)
-- [x] **The keeper is the JS's own illustration**, generated the way the club and
-      manager art were, with the **eight kit tiers taken from the division** so
-      the opposition visibly improves. He was five flat rectangles with the arms
-      permanently out. Rigged as the JS rigs him — each arm and leg turns about
-      its documented joint — and posed with `AnimatedRotation`, so a low shot
-      lays him full-length and a high one only leans him.
+- [~] **The keeper is rigged, but he has stopped wearing the division.** The
+      original tick was for `keeper_figure.dart`: the JS's own illustration, each
+      arm and leg turning about its documented joint, posed with
+      `AnimatedRotation`, and carrying **eight kit tiers taken from the division**
+      so the opposition visibly improves.
+      **The scene rebuild replaced that file and did not carry the kits over.**
+      `penalty_view.dart` draws its own jointed rig — better, and against
+      regulation geometry — but it takes only `readChance` and `keeperSpread`, so
+      this division's keeper is HARDER than the last one's and looks identical to
+      him. `keeper_figure.dart` went in the cleanup that found it unreachable, and
+      `keeperKits` went with it; the eight palettes are recoverable from git
+      (`git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart`) or from
+      the JS. Dressing the live rig from the division is the open half.
+      **Nobody removed this — the rebuild simply did not port it**, and the dead
+      file kept the parity item looking honest for as long as it sat there.
 - [x] Boot Room
 - [ ] Training Drills, Keepy Uppys, Through Ball, Whack, Teamwork
 

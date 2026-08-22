@@ -30,8 +30,25 @@ too late:
 
 ## Where we are
 
-**4,426 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,418 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
+
+**The count went DOWN this pass and that is the point** — 4,426 to 4,418. New
+tests went in for everything built, and more came out with the code they pinned:
+**fourteen of them belonged to a keeper nothing drew**, and the rest to a penalty
+model nothing took. A suite that only ever grows is a suite that has stopped
+being asked whether what it proves is still reachable.
+
+**START HERE if you are picking this up cold:**
+
+```bash
+bash tool/unreached.sh        # 70 rows — engines nothing calls
+bash tool/unreached_ui.sh     # 2 rows — UI files nothing imports; it LOOPS
+```
+
+Both have headers listing the hits that are expected and are NOT bugs. Read the
+header before acting on a row — most rows are not work, and telling which is
+which is most of the job.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
 `TickerMode.valuesOf`, which does not exist before 3.44, so a clone on anything
@@ -42,7 +59,126 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
-**THE NEWEST PASS WAS AN AUDIT, NOT A PLAYTEST**, and it is a different shape
+**THE NEWEST PASS WORKED THE AUDIT'S OWN QUEUE**, and six of its rows came off.
+Three of the first four were the same shape, and it is the shape to expect from
+the rest of that list: **an engine with no caller is usually not a missing feature, it is
+the only NAMED copy of a rule the port had already written out again somewhere
+else.** `isTrophyPolishActive` was one of five copies of "is the polish stamped
+for this season" — the other four anonymous, in `idle_engine` twice, in
+`income_breakdown` and in `gem_engine`'s shop guard — and they had ALREADY
+drifted on a missing `seasonCount`. `refreshCupAvailability` was two copies, both
+in `season_end`, one of which skipped a save with no cups branch entirely.
+`liveListingsBySide` was the Deadline Day board splitting the feed inline.
+
+**The fourth was a real hole, and shipped copy found it again.**
+`acceptSellerCounter` had no caller and neither did five of the six
+`event.deadline.counter*` strings, so a club that countered an offer got a
+snackbar reading "They want more" with no number in it and no way to take the
+deal — over a card still quoting the price that club had just refused. It is
+built: a dialog in the confirm's shape, and the card goes on offering the number
+afterwards, which is what `counter_keeps` promises. **The peek is the part worth
+carrying**: their figure is a TOTAL and the cash is what is left after the swap
+already on the table, so `sellerCounter` was pulled out of the accept rather than
+the subtraction being written a second time in the UI.
+
+**The penalty's predecessor was still in the tree, all three pieces of it.**
+`takePenalty` was on the list as "worth checking which of the two is right". The
+port's own headers answer it: `planKeeper` says a read is no longer an automatic
+save, "which is the change from the old game, where a read was an automatic save
+and aim was therefore worth nothing", and `penalty_view.dart` says the old scene
+was "a flat photograph of a goalmouth with a keeper sprite slid across it". The
+rebuild replaced the arcade model and then left every part of it behind:
+`takePenalty` and its enum, `penalty_scene.dart` (313 lines, imported by nothing),
+and `keeper_figure.dart` (768 lines and **14 passing tests** — commit `25ab12c`'s
+message says eighteen, which was the net suite drop, not the file) — whose `KeeperPose`
+and `KeeperRig` share their names with the live rig in `penalty_view.dart`. All
+gone. `assets/bg/penalty_goal.jpeg` is orphaned too, 105KB still shipping because
+`assets/bg/` is declared as a directory; art is not a thing to bin on a whim, so
+it is left for someone who can look at it.
+
+**`tool/unreached.sh` could not have found the UI half, so `tool/unreached_ui.sh`
+is committed beside it.** The first scans `lib/engine`, `lib/data` and
+`lib/state` for functions with no caller, which a widget can never fail: its
+functions are called by its own `build`, so a dead SCREEN reads as busy and is
+structurally invisible to it. The new one asks what IMPORTS the file.
+
+**It loops, and round 2 is the whole reason.** A single pass found
+`penalty_scene.dart` and stopped — `keeper_figure.dart` looked alive because the
+dead scene imported it, which is 768 lines and fourteen tests hidden behind 313.
+So it drops what it found and asks again until a round comes back empty. Liveness
+is a `lib/` importer only: the sibling sweep's header already says a green test is
+not a caller, and counting one here would have kept the keeper alive on his own
+tests after the only screen that drew him had gone.
+
+**And it left one thing behind that the sweep could not tell you about.**
+Deleting `keeper_figure.dart` took `keeperKits` with it — eight kit palettes
+indexed by division — and `PARITY.md` had that ticked as done. It is not:
+`penalty_view.dart` draws its own rig and takes only `readChance` and
+`keeperSpread`, so **the keeper gets harder as you climb and looks exactly the
+same**. The rebuild dropped it, not the cleanup; the dead file kept the parity
+item looking honest for as long as it sat there, which is the second-order cost
+of leaving a superseded screen in the tree. `PARITY.md` now carries it as `[~]`
+with the git incantation to recover the palettes:
+
+- [ ] **Dress the penalty keeper from the division.** `keeperKits` is at
+      `git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart`, eight
+      entries of shirt/shirtShade/trim/shorts/socks/glove/hair/skin. `PenaltyView`
+      already knows the division twice over — both its ramps are derived from
+      `keeperDivisionIndex` — so this is a third argument, not a new lookup.
+
+**Two rows in the current tree, both left alone deliberately** — they are the
+expected kinds the script's header describes, and neither is a second
+implementation of anything live:
+
+- [~] **`ui/screens/placeholder_screen.dart`** (65 lines, 1 test) — a test fixture
+      that lives in `lib/`. Its own doc says why: the shell's ticker test needs a
+      child that really consumes frames, and `Ticker.isTicking` is the only thing
+      that answers "is this screen still being given frames". Reachable from
+      `test/` by design. Whether a fixture belongs in `lib/` at all is the only
+      question here.
+- [~] **`ui/widgets/probe_diorama.dart`** (151 lines, 1 test) — says "**Throwaway**:
+      this is a measurement rig, not the beginning of the real scene", and the M3
+      question it existed to settle (one painter on one ticker versus a tree of
+      animated widgets) has been settled — the diorama is built. A rig you might
+      want to re-measure with is not the same as a superseded implementation, so
+      it is reported rather than binned.
+
+**The wage bill was a dead pair pointing at a live bug.** `totalLoanWages` summed
+the `loanWage` stamped on each card — the TERMS, which nothing debits, because
+`loanWagePerSec` charges a share of the definition's income every second instead.
+`totalLoanOutFees` summed `feePerMatch`, annotated in the port's own code as
+"Display only — what they paid, expressed per game", since `grantLoanOut` pays the
+whole spell up front. Neither is owed by anybody.
+
+What they were pointing at: the end-of-night ledger printed `summary['wageBill']`
+with a `/ match` suffix — the same per-match arithmetic, in a currency the wallet
+is never billed in, in a table whose other rows are real money. **And that field
+could not just be fixed**: the summary map is compared against the JS's own
+summary object field for field by `deadline_day_parity_test`, so its arithmetic
+belongs to the harness. The ledger is the port's screen, so it asks the squad
+instead. `loanWageRateFor` is the new shared bit — it prices a DEFINITION, so a
+listing can be quoted before the card exists, which the board was doing by
+building a throwaway `CardInstance` inline.
+
+**Two more rows on that list should not be built as written**, and both were
+checked rather than assumed:
+
+- **`purchaseCoinSink` is blocked on `en.js`, not on the port.** There is no
+  `coin_sink` copy in the catalogues at all — not a name, not a description, for
+  any of the four — and `coin_sinks.dart` carries raw English in the data field
+  instead. A shelf needs eight strings that do not exist in ten languages, so it
+  is blocked on the spec repo like every other new-copy item. Whether the JS
+  prints that raw data field or has keys the port's generator missed is the thing
+  to check first, and it cannot be checked from here.
+  (`isTrophyPolishActive`, bundled with it in the old row, was never about the
+  shelf: the polish is a GEM item now, bought through `gem_engine`.)
+- **`getBadgeChoices` has no caller because nothing needs the list.** The badge
+  picker is not missing — the trophy room equips a badge from each achievement's
+  own card, through `setEquippedBadge`, which is a picker with the achievement in
+  front of you rather than a grid of emblems. `getBadgeChoices` is the grid's
+  data source. Check the JS for which shape it ships before building the second.
+
+**THE AUDIT ITSELF WAS NOT A PLAYTEST**, and it is a different shape
 from everything below: nobody watched a screen and disliked it. A reachability
 sweep over every public top-level function in `lib/engine`, `lib/data` and
 `lib/state` asked one question — does anything in `lib/` name this apart from
@@ -54,7 +190,7 @@ than rebuilding it:
 
 ```bash
 bash tool/unreached.sh            # file :: function :: test-files=N
-bash tool/unreached.sh | wc -l    # 79 as this pass ends
+bash tool/unreached.sh | wc -l    # 70 as this pass ends; was 79
 ```
 
 A HIGH test-file count is the interesting case, not the safe one: it means the
@@ -129,19 +265,27 @@ the measurement says they are not bugs:
 notice — each one is an engine with no caller in `lib/`, so the module's real
 status is "only its own test":
 
-- [ ] **`refreshCupAvailability`** (`cup_engine.dart`) — nothing refreshes whether
-      a cup may be entered this season.
+- [x] **`refreshCupAvailability`** (`cup_engine.dart`) — `season_end` wrote the
+      flag by hand in both the rollover and the prestige reset, and guarded on
+      the branch existing, so a save without one silently got no cup.
 - [ ] **`grantTutorialGems`** (`gem_engine.dart`), and with it the whole tutorial:
       no file in `lib/` references a `tut.` key, so forty-odd tutorial strings and
       every step of it are unreachable. Much the biggest thing left on this list.
-- [ ] **`purchaseCoinSink` and `isTrophyPolishActive`** (`coin_sink_engine.dart`)
-      — a shelf that cannot be bought from.
-- [ ] **`acceptSellerCounter` and `liveListingsBySide`** (`deadline_day_engine.dart`)
-      — Deadline Day HAS a screen, so this is a control missing from a screen
-      that exists rather than a screen missing.
-- [ ] **`getBadgeChoices`** (`badge_engine.dart`) — the badge picker.
-- [ ] **`takePenalty`** (`penalty_game_engine.dart`) — the penalty screen does not
-      go through it. Worth checking which of the two is right before wiring it.
+- [x] **`isTrophyPolishActive`** (`coin_sink_engine.dart`) — one of five copies
+      of the rule, and the only one with a name. All four readers go through it.
+- [~] **`purchaseCoinSink`** (`coin_sink_engine.dart`) — a shelf that cannot be
+      bought from, and cannot be BUILT from here: the four sinks have no
+      catalogue copy at all. Blocked on `en.js`.
+- [x] **`acceptSellerCounter` and `liveListingsBySide`** (`deadline_day_engine.dart`)
+      — the counter had a figure, six translated strings and nothing on screen
+      able to take it. Both wired; `sellerCounter` is the new peek the button
+      needs, so the cash is worked out once.
+- [~] **`getBadgeChoices`** (`badge_engine.dart`) — the badge picker EXISTS, one
+      achievement at a time, in the trophy room. This is the grid's data source,
+      and which shape the JS ships is the question to answer before building it.
+- [x] **`takePenalty`** (`penalty_game_engine.dart`) — checked, and the physics
+      is right. It went, and so did the two UI files nobody had noticed went with
+      it. See **The penalty's predecessor** below.
 - [ ] **`describeOffer`** (`negotiation_engine.dart`), **`seasonStatusFor`**
       (`league_table.dart`), **`getCardSplit`** (`player_rating.dart`),
       **`traitLabelPlain`** (`trait_engine.dart`), **`peekGrudge`**
@@ -151,8 +295,10 @@ status is "only its own test":
       and several may be genuine dead ends in the JS. Check the JS for a caller
       before building a UI for one: some functions are a dead end THERE, and
       building a screen for one is adding a feature rather than porting it.
-- [ ] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) have no
-      test either, so they are not ported so much as typed in.
+- [x] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) — both
+      the per-match economy the port replaced, and between them they found a live
+      one: the end-of-night ledger was printing a per-match wage bill with a
+      `/ match` suffix. See **The wage bill** below.
 - [ ] **`prestige.season_income` is the one prestige string still unreachable**,
       and it is blocked on PLACEMENT rather than on anything else. "Season
       {season} · Income ×{mult}" is a standing header line, not a beat in the
@@ -174,7 +320,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**96 items are open**, plus ten carrying a `[~]` — answered, but with a decision
+**91 items are open**, plus fourteen carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. **Read the audit block above
 first** — nine of the open items came out of it and each is a whole engine
 nobody can reach, which is a different kind of gap from the playtesting
@@ -509,7 +655,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,404 passing
+flutter test             # 4,418 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 
@@ -1637,9 +1783,13 @@ has a trap in it that is worth stating before the first line is written.
       geometry rather than using the flat art is explicitly fine, and is probably
       the way in — a net that can be deformed by the ball is most of what sells
       it.
-      **The trap: the OUTCOME is already decided** by `takePenalty` before
-      anything moves, and it must stay that way (the engine is proven against the
-      JS). So this is not a simulation — it is an animation that has to be
+      **SUPERSEDED — the scene was rebuilt and this constraint went with it.**
+      `takePenalty` is gone; the shot is simulated in `engine/penalty_physics.dart`
+      and the outcome falls out of the flight rather than being decided before it.
+      Kept because the note below it is still the argument against a solver.
+      **The trap, as it read:** the OUTCOME is already decided by `takePenalty`
+      before anything moves, and it must stay that way (the engine is proven
+      against the JS). So this is not a simulation — it is an animation that has to be
       constrained to end in a known state, which means solving for the flight
       that reaches the given corner and the given result rather than integrating
       forces and seeing what happens.
@@ -1904,7 +2054,9 @@ findings were arithmetic rather than taste and one is a reversal.
       **Flame ships no physics; `flame_forge2d` (Box2D) is another dependency**,
       and it is the wrong shape for two of the three. The cutaway and the penalty
       both have an outcome ALREADY DECIDED by an engine that is pinned against the
-      JS — `takePenalty` knows whether it is a goal before anything moves — so a
+      JS — `takePenalty` knew whether it was a goal before anything moved, and it
+      is gone now: the penalty rebuild simulates the flight. The cutaway still has
+      a decided outcome, so what follows holds for that one — so a
       rigid-body simulation is not a simulation here, it is an animation that must
       terminate in a known state. Forge2D gives you "let go and see what happens",
       which is exactly what neither can have.

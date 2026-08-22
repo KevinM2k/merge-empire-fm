@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/deadline_day.dart';
 import 'package:merge_empire_fc/engine/deadline_day_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
+import 'package:merge_empire_fc/engine/negotiation_engine.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
@@ -658,6 +659,119 @@ void main() {
         return;
       }
       fail('no seed produced a seller counter');
+    });
+
+    test('there is no counter to read until they have made one', () {
+      final state = _openAndRun(11, 300000);
+      final at = _windowStart + 300000;
+      final id = '${liveListings(state, at).first['listingId']}';
+      expect(sellerCounter(state, id), isNull);
+      expect(sellerCounter(state, 'nope'), isNull);
+    });
+
+    test('the counter reads the same cash the accept charges', () {
+      // The button that offers to take a counter has to name the figure BEFORE
+      // the money moves, and the only other way to get it is to write the
+      // subtraction out again in the UI. This is the claim that stops that: the
+      // peek and the charge are the same arithmetic.
+      for (var seed = 0; seed < 40; seed++) {
+        final state = _openAndRun(seed, 600000);
+        final at = _windowStart + 600000;
+        final target = _allLive(state, at).cast<Listing?>().firstWhere(
+          (l) => l!['kind'] == 'signing' && (_num(l['haggleRounds']) ?? 0) > 0,
+          orElse: () => null,
+        );
+        if (target == null) continue;
+        final id = '${target['listingId']}';
+        final res = submitOffer(state, id, {
+          'cash': (_num(target['price'])! * 0.9).round(),
+          'players': <Object?>[],
+        }, at);
+        if (res['reason'] != 'counter') continue;
+
+        final peek = sellerCounter(state, id)!;
+        // Nothing but cash was on the table, so their total IS our cash.
+        expect(peek.price, _num(res['counterPrice']), reason: 'seed $seed');
+        expect(peek.cash, peek.price, reason: 'seed $seed');
+
+        final coinsBefore = _num(_map(state['resources'])!['fanCoins'])!;
+        final taken = acceptSellerCounter(state, id, at);
+        expect(taken['ok'], isTrue, reason: 'seed $seed');
+        expect(taken['paid'], peek.cash, reason: 'seed $seed');
+        expect(
+          _num(_map(state['resources'])!['fanCoins']),
+          coinsBefore - peek.cash,
+          reason: 'seed $seed',
+        );
+        return;
+      }
+      fail('no seed produced a seller counter');
+    });
+
+    test('players already on the table are paid off their number, not ours', () {
+      // Their figure is a TOTAL. A button offering to "pay" it would ask for
+      // coins the deal never wanted, because the swap already agreed covers part
+      // of it — so the peek's cash has to come off the total, and it is the
+      // figure the accept then charges.
+      for (var seed = 0; seed < 60; seed++) {
+        final state = _openAndRun(seed, 600000);
+        final at = _windowStart + 600000;
+        for (final l in _allLive(state, at)) {
+          if (l['kind'] != 'signing') continue;
+          if ((_num(l['haggleRounds']) ?? 0) <= 0) continue;
+
+          // The cheapest of ours, so the player is a make-weight rather than the
+          // whole fee: a big enough name simply buys the deal outright and there
+          // is no counter to read.
+          final ours = ((state['grid'] as Map)['cells'] as List)
+              .whereType<Map<String, dynamic>>()
+              .where(
+                (c) => c['loanMatchesLeft'] == null && c['injured'] != true,
+              )
+              .toList();
+          if (ours.isEmpty) continue;
+          ours.sort(
+            (a, b) =>
+                playerValue(
+                  state,
+                  findOurCard(state, '${a['instanceId']}'),
+                ).compareTo(
+                  playerValue(state, findOurCard(state, '${b['instanceId']}')),
+                ),
+          );
+          final makeWeight = '${ours.first['instanceId']}';
+          final worth = playerValue(state, findOurCard(state, makeWeight));
+          final price = _num(l['price'])!;
+          // Short enough to be countered, close enough not to insult them.
+          final cash = (price * 0.9 - worth).round();
+          if (cash < 0) continue;
+
+          final id = '${l['listingId']}';
+          final res = submitOffer(state, id, {
+            'cash': cash,
+            'players': [makeWeight],
+          }, at);
+          if (res['reason'] != 'counter') continue;
+
+          final peek = sellerCounter(state, id)!;
+          expect(peek.price, _num(res['counterPrice']), reason: 'seed $seed');
+          // The make-weight's worth is exactly what we do NOT pay in cash.
+          expect(peek.cash, peek.price - worth, reason: 'seed $seed');
+
+          final coinsBefore = _num(_map(state['resources'])!['fanCoins'])!;
+          final taken = acceptSellerCounter(state, id, at);
+          expect(taken['ok'], isTrue, reason: 'seed $seed');
+          expect(taken['agreed'], peek.price, reason: 'seed $seed');
+          expect(taken['paid'], peek.cash, reason: 'seed $seed');
+          expect(
+            _num(_map(state['resources'])!['fanCoins']),
+            coinsBefore - peek.cash,
+            reason: 'seed $seed',
+          );
+          return;
+        }
+      }
+      fail('no seed produced a counter with players on the table');
     });
 
     test('a swap puts their players on our grid, and only the cash is money', () {

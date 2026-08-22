@@ -40,7 +40,7 @@ import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/deadline_day_engine.dart';
 import 'package:merge_empire_fc/engine/deal_advice_engine.dart';
 import 'package:merge_empire_fc/engine/negotiation_engine.dart';
-import 'package:merge_empire_fc/engine/idle_engine.dart';
+import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -49,6 +49,7 @@ import 'package:merge_empire_fc/ui/screens/events/deadline_deal_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -217,15 +218,14 @@ class _DeadlineDayViewState extends ConsumerState<DeadlineDayView> {
       return _DeadlineIntro(event: widget.event);
     }
 
-    final all = liveListings(state);
-    final buy = [
-      for (final l in all)
-        if (listingSide(l) == 'buy') l,
-    ];
-    final sell = [
-      for (final l in all)
-        if (listingSide(l) == 'sell') l,
-    ];
+    // One instant for all three reads: `liveListings` takes the clock, and
+    // three separate calls could cap and split against three different ones,
+    // so a listing expiring mid-build could be counted on the tab and missing
+    // from the feed under it.
+    final at = now();
+    final all = liveListings(state, at);
+    final buy = liveListingsBySide(state, 'buy', at);
+    final sell = liveListingsBySide(state, 'sell', at);
     final onSide = _side == DeskSide.buy ? buy : sell;
     final missed = missedCount(state);
 
@@ -276,6 +276,7 @@ class _DeadlineDayViewState extends ConsumerState<DeadlineDayView> {
                 onPass: () =>
                     _act((s) => dismissListing(s, '${listing['listingId']}')),
                 onNegotiate: () => _negotiate(listing),
+                onCounter: () => _counter(listing),
                 onTake: () => _take(listing),
               ),
             ),
@@ -297,7 +298,59 @@ class _DeadlineDayViewState extends ConsumerState<DeadlineDayView> {
 
   Future<void> _negotiate(Listing listing) async {
     final result = await showDeadlineDealSheet(context, ref, listing: listing);
-    if (result == true && mounted) setState(() => _feedRevision++);
+    if (!mounted) return;
+    if (result == true) setState(() => _feedRevision++);
+    // A counter is the sheet's other outcome, and it used to end at a snackbar
+    // reading "They want more" with no number in it and nothing to press: the
+    // engine had stamped a figure on the listing that no screen could take.
+    await _counter(listing);
+  }
+
+  /// Put their counter to the manager.
+  ///
+  /// Offered the moment it lands and again from the card, because it is the same
+  /// number both times — it stands for the rest of the fuse, so walking away
+  /// from the dialog is going away to think rather than saying no.
+  Future<void> _counter(Listing listing) async {
+    final state = _state;
+    if (state == null) return;
+    final id = '${listing['listingId']}';
+    final counter = sellerCounter(state, id);
+    if (counter == null) return;
+
+    final take = await showSellerCounter(context, listing, counter);
+    if (!mounted) return;
+    if (take != true) {
+      _say(t('event.deadline.counter_walked'));
+      return;
+    }
+
+    final result = ref
+        .read(gameProvider)
+        .update((s) => acceptSellerCounter(s, id));
+    setState(() => _feedRevision++);
+    if (result['ok'] == true) {
+      // A signing is a card arriving, which is what the achievement sweep and
+      // the quest counters listen for — the same signal the offer path sends.
+      emit('merge:happened');
+      _say(
+        t('event.deadline.offer_accepted', {
+          'name': result['playerName'] ?? listing['playerName'] ?? '',
+        }),
+      );
+      return;
+    }
+    _say(switch (result['reason']) {
+      'not_enough_coins' => t('toast.not_enough_coins'),
+      'no_counter' => t('event.deadline.fail_no_counter'),
+      _ => t('event.deadline.fail_expired'),
+    });
+  }
+
+  void _say(String line) {
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(line)));
   }
 
   Future<void> _take(Listing listing) async {
@@ -672,6 +725,7 @@ class DeadlineListingCard extends StatelessWidget {
     required this.onPass,
     required this.onNegotiate,
     required this.onTake,
+    required this.onCounter,
     super.key,
   });
 
@@ -685,6 +739,10 @@ class DeadlineListingCard extends StatelessWidget {
   final VoidCallback onPass;
   final VoidCallback onNegotiate;
   final VoidCallback onTake;
+
+  /// Take the figure they came back with. Null on a listing they have not
+  /// countered, which is every listing until we have made them an offer.
+  final VoidCallback onCounter;
 
   @override
   Widget build(BuildContext context) {
@@ -718,7 +776,17 @@ class DeadlineListingCard extends StatelessWidget {
         ? t('event.deadline.chip_loan_out')
         : t('event.deadline.chip_available');
 
-    final acceptLabel = isBid
+    // Once they have countered, the sticker price is not the deal any more, so
+    // the primary button stops naming it. Their number stands for the rest of
+    // the fuse — a card still offering the old figure would be the board
+    // disagreeing with the club about what the player costs.
+    final counter = sellerCounter(state, '${listing['listingId']}');
+
+    final acceptLabel = counter != null
+        ? t('event.deadline.counter_accept', {
+            'amount': formatCoins(counter.cash),
+          })
+        : isBid
         ? t('event.deadline.accept_bid', {'amount': formatCoins(bidCash)})
         : isLoan
         ? t('event.deadline.loan_for', {'amount': formatCoins(price)})
@@ -821,7 +889,14 @@ class DeadlineListingCard extends StatelessWidget {
                               const Spacer(),
                               if (price > 0)
                                 Text(
-                                  formatCoins(isBid ? bidCash : price),
+                                  // Their number once they have named one: a
+                                  // headline still reading the asking price
+                                  // beside a button offering a different figure
+                                  // is the board disagreeing with the club about
+                                  // what the player costs.
+                                  formatCoins(
+                                    counter?.price ?? (isBid ? bidCash : price),
+                                  ),
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w900,
@@ -904,6 +979,22 @@ class DeadlineListingCard extends StatelessWidget {
                         color: Color(0xFFEF5350),
                       ),
                     ),
+                  )
+                // Says WHY the button has changed its figure. In the card's own
+                // ink rather than the blocked line's red: they have not refused
+                // us, they have named a price.
+                else if (counter != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      t('event.deadline.counter_title'),
+                      key: ValueKey('dd-counter-${listing['listingId']}'),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: style.ink,
+                      ),
+                    ),
                   ),
                 const SizedBox(height: 10),
                 Row(
@@ -945,7 +1036,11 @@ class DeadlineListingCard extends StatelessWidget {
                       flex: 14,
                       child: ElevatedButton(
                         key: ValueKey('dd-take-${listing['listingId']}'),
-                        onPressed: blocked == null ? onTake : null,
+                        onPressed: blocked != null
+                            ? null
+                            : counter != null
+                            ? onCounter
+                            : onTake,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: style.ink,
                         ),
@@ -981,8 +1076,7 @@ class DeadlineListingCard extends StatelessWidget {
     if (l['kind'] == 'loan') {
       return t('event.deadline.loan_terms', {
         'matches': matches,
-        'wage':
-            '-${formatRate(loanWagePerSec(state, CardInstance(<String, dynamic>{'loanMatchesLeft': 1, 'definitionId': l['definitionId']})))}',
+        'wage': '-${formatRate(loanWageRateFor(state, l['definitionId']))}',
       });
     }
     if (l['kind'] == 'loanOut') {

@@ -35,6 +35,20 @@ git config --global --add safe.directory ~/sdk/flutter   # or every call dies on
 export PATH=~/sdk/flutter/bin:$PATH && flutter pub get
 ```
 
+**Start that in the background and read code while it runs.** The tarball is
+~1.5GB and the untar is minutes, not seconds.
+
+**A half-extracted SDK reports success, which is the trap.** `flutter analyze`
+run against one prints
+
+```
+/root/sdk/flutter/bin/flutter: line 62: .../bin/internal/shared.sh: No such file or directory
+```
+
+and **exits 0**. Nothing says "analyze did not run", so it reads exactly like a
+clean pass and will happily be believed for the rest of a session. Wait for
+`flutter --version` to answer before trusting any green.
+
 **And `../merge-empire-fc` — the spec — is NOT in a cloud container.** It is a
 separate repo and only this one is cloned. Read what the port already has (the
 source comments carry the JS's reasoning, which is why they are so long) and say
@@ -46,7 +60,7 @@ existing key, or the queue saying it is blocked.
 
 ```bash
 flutter analyze                      # must be clean before any commit
-flutter test                         # ~4,430 tests
+flutter test                         # ~4,420 tests
 TZ=UTC flutter test                  # test/data/events_test.dart and
                                      # test/engine/event_engine_test.dart skip
                                      # themselves outside UTC — annual event
@@ -57,7 +71,22 @@ flutter test test/engine/foo_test.dart --name X # one test
 
 **Never run `dart format lib/ test/`.** It reformats ~186 files and trips
 `curly_braces_in_flow_control_structures` in about ten pre-existing ones, turning
-a clean analyze into eleven issues. Format only files you touched.
+a clean analyze into eleven issues.
+
+**And "format only files you touched" is not the escape hatch it sounds like**,
+because the unit is the FILE, not your diff. The repo is not formatted to this
+`dart format`'s style, so formatting one file you edited reflows every
+pre-existing long line in it too. One pass over nine touched files this way
+reported "6 changed" and needed hand-reverting in four — `getLiveGemItems`,
+`addGems` and `spendGems` all reflowed in `gem_engine.dart` alone, none of them
+anywhere near the edit — and in `deadline_day_engine.dart` it split an `if` onto
+two lines and turned a clean analyze into one issue.
+
+**So format nothing, and match the surrounding style by hand.** If you have
+already run it, `git diff` the file and revert every hunk that is not yours
+before committing; a reviewer cannot find a four-line change inside forty lines
+of reflow. Note that `git checkout -- <file>` may be refused in a cloud session,
+so the revert is a targeted edit rather than a restore.
 
 Fixtures are dumped from node, not hand-written:
 
@@ -166,6 +195,16 @@ layer run under plain `dart test` with no widget binding.
   their own joints wants a painter.
 - **Generate a node fixture for anything with non-obvious arithmetic or an RNG
   draw.** Every fixture so far has caught something.
+- **A value the parity harness compares is the JS's, not a figure to print.**
+  Several fixtures compare a whole object field for field — `deadline_day_parity_test`
+  does it to everything `endSession` returns — so a field there cannot be
+  "corrected" to suit a screen, and a fixture cannot be regenerated from a cloud
+  container anyway. When the port has deliberately diverged from the JS on a
+  mechanic, the divergence belongs on the SCREEN. Deadline Day's `summary['wageBill']`
+  is per-match because the JS's is; wages have been a per-second drain on the
+  income rate since the port changed them, so the ledger asks the squad what the
+  drain is and leaves the field to the harness. The parity failure is how that
+  was found — it is a feature, so read one before working around it.
 - **Check reachability; do not assume it.** Widget tests construct the state they
   need, so they prove a part works and say nothing about whether a player can get
   to it. Before calling a module done, grep for who *calls* it — "only its own
@@ -180,6 +219,15 @@ layer run under plain `dart test` with no widget binding.
   reachable. **A high `test-files=` count is the interesting row, not the safe
   one.** The script's header lists the four kinds of hit that are expected and
   are not bugs; read it before acting on a row.
+- **`bash tool/unreached_ui.sh` is the same question for `lib/ui`**, and it is a
+  different question rather than the same one over more files: a widget's
+  functions are called by its own `build`, so a dead SCREEN reads as busy to the
+  sweep above and is structurally invisible to it. This one asks what imports the
+  file. **It loops, and `round=2` is where the bodies are** — one pass finds a
+  dead screen and stops, and it is the file that screen was the last importer of
+  that turns out to be the big one. That is exactly how it went: 313 lines in
+  round one, 768 more and fourteen passing tests in round two. Liveness means a
+  `lib/` importer; a test is not a caller.
 - **Shipped copy with no caller is the loudest tell there is.** The catalogues
   are generated from the JS, so a translated string nothing can print is a
   feature the port dropped, named and counted in ten languages. It has now found

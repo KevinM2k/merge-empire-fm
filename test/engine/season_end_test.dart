@@ -653,6 +653,20 @@ void main() {
       expect(cups['active'], isNotNull);
     });
 
+    test('a save with no cups branch is opened one, not skipped', () {
+      // The rollover used to write the flag itself and guard on the branch
+      // existing, so a save without one silently got no cup at all. It goes
+      // through the cup engine's own `refreshCupAvailability` now, which builds
+      // the branch — one rule, in the engine that decides what the flag means.
+      final state = _played('midTable');
+      _prog(state).remove('cups');
+      endSeason(state);
+      final cups = _prog(state)['cups'] as Map<String, dynamic>;
+      expect(cups, isNotNull);
+      // Entered on the way out, exactly as a save that had the branch is.
+      expect(cups['active'], isNotNull);
+    });
+
     test('the Lucky Boot allowance resets', () {
       final state = _played('midTable');
       (state['shop'] as Map<String, dynamic>)['luckyBootUses'] = 3;
