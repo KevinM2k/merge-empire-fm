@@ -414,6 +414,18 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
 /// same row, in ITS OWN colour, so it matches the row you will go and tap in the
 /// picker. No fill behind it: the bubble is glass, and a tinted chip on a
 /// translucent panel put the tactic's hue behind its own text.
+/// The bubble's header, on its own — the label, the suggestion and the tactic.
+///
+/// Public only so a test can pump it without the bubble's dialog and its
+/// anchor: it is one `Wrap` and mounting a route to look at it is the sort of
+/// harness that ends up testing the route.
+class CoachLabelProbe extends StatelessWidget {
+  const CoachLabelProbe({super.key});
+
+  @override
+  Widget build(BuildContext context) => const _CoachLabel();
+}
+
 class _CoachLabel extends ConsumerWidget {
   const _CoachLabel();
 
@@ -422,20 +434,32 @@ class _CoachLabel extends ConsumerWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final suggested = ref.watch(coachSuggestedTacticProvider);
 
+    // **HIS NAME IS NOT IN HIS OWN SENTENCE.** The header read `COACH COLIN
+    // SUGGESTS COUNTER ATTACK`, which is him talking about himself in the third
+    // person — on a bubble with his face on it, coming out of his own orb, on a
+    // card the player opened by tapping him. Nobody introduces themselves at
+    // the start of every sentence.
+    //
+    // **And no new copy was needed, which is the point.** Making him say "I
+    // suggest" means a new `t()` key in ten catalogues, generated from a repo
+    // this one does not own; taking the name OUT needs nothing. `coach.label`
+    // is still what the SHEET-level lines are titled with, where there is no
+    // face beside them to say who is speaking.
     return Wrap(
       spacing: 4,
       runSpacing: 2,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(
-          t('coach.label').toUpperCase(),
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-            color: kit.accentBright,
+        if (suggested == null)
+          Text(
+            t('coach.label').toUpperCase(),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: kit.accentBright,
+            ),
           ),
-        ),
         if (suggested != null) ...[
           Text(
             // CAPS, like the two words either side of it. One line reading

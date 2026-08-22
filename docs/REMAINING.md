@@ -1822,10 +1822,18 @@ section. Nothing on the list below is blocked for want of art any more.
       whose default trigger on a touch screen is a LONG PRESS. The comment above
       it said "tapping one says the word", which the widget did not keep. Was: on a
       tap — where the number comes from, which is the Stadium's Fan Zone tier.
-- [ ] **Coach Colin talks about himself in the third person** — "Coach Colin
-      suggests Balanced". He is the one speaking and he has the whole state to
-      hand; he should sound like it. **Every decision should come through him**:
-      he is who the player talks to, so a confirmation is his card.
+- [x] **Coach Colin talks about himself in the third person** — "Coach Colin
+      suggests Balanced". **His name is out of his own sentence**, on a bubble
+      with his face on it, coming out of his own orb, on a card the player
+      opened by tapping him. Nobody introduces themselves at the start of every
+      sentence.
+      **And no new copy was needed, which is the point.** Making him say "I
+      suggest" is a new `t()` key in ten catalogues generated from a repo this
+      one does not own; taking the NAME out needs nothing. The label stays where
+      there is no face beside the line to say who is speaking — the sheets' own
+      inline coach, and the header when he has no suggestion to make.
+      **The second half was already done**: every decision comes through his
+      card. Four `AlertDialog`s were the last holdouts and went on 26 Aug.
 - [x] **THE INCOME BREAKDOWN.** `_showIncomeBreakdown` from the JS's HUD, on
       Colin's card: where the rate comes from, what the multipliers are doing,
       and what a loaned-in player is costing every second. Eighteen
@@ -2464,18 +2472,16 @@ has a trap in it that is worth stating before the first line is written.
       and the painter supports neither clip paths nor scale transforms, so anything
       hand-drawn would have to be drawn and checked twelve times. In the
       GENERATOR, not the `.g.dart`.
-- [ ] **Counter Attack's description is WRONG, and it is wrong in the JS too.**
-      "ATK and DEF swap as play flows" — they do not swap. Its base is DEFENSIVE
-      (`atkMult 0.92`, `defMult 1.08`); what moves is the attack multiplier,
-      lifted by `commitmentGain 0.18 × commitmentRead(...)` against a side that
-      commits forward and cut against a deep block, with `swing 0.5` widening the
-      result either way. The true line is "sits deep and reads the opponent —
-      deadly against a side that commits, toothless against a block, and the
-      widest spread of results". The string lives in the GENERATED catalogue, so
-      fixing it means changing the JS's own i18n first. High Press's "Strongest
-      boost" is accurate — `1.22` is the biggest attack shift — but omits that it
-      is also the most exposed at the back at `0.78`, below All Out Attack's
-      `0.82`.
+- [x] **Counter Attack's description is WRONG, and it is wrong in the JS too.**
+      **Fixed upstream and already in the port's catalogue.** `en.js` now reads
+      "Sits deep and reads the opponent: your attack climbs against a side that
+      commits forward and drops against a deep block. Widest spread of results.
+      Underdog pick." — which is the true line this entry proposed, word for
+      word. High Press's is corrected too: "the most open at the back" is in it
+      now.
+      The row is closed by CHECKING rather than by doing: the string lives in
+      the generated catalogue, the generation has been run since, and a grep is
+      the whole verification.
 
 ### Consistency, and how far it got
 

@@ -9,6 +9,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -17,6 +18,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 ProviderContainer boot() {
   final container = ProviderContainer(
@@ -87,4 +89,39 @@ void main() {
     expect(text, isNot(contains('squadstate.')));
     expect(text, isNot(contains('on the books')));
   });
+  testWidgets('HIS NAME IS NOT IN HIS OWN SENTENCE', (tester) async {
+    // The header read `COACH COLIN SUGGESTS COUNTER ATTACK` — him talking
+    // about himself in the third person, on a bubble with his face on it,
+    // coming out of his own orb, on a card the player opened by tapping him.
+    //
+    // **No new copy was needed, which is the point**: making him say "I
+    // suggest" means a new `t()` key in ten catalogues generated from a repo
+    // this one does not own; taking the name out needs nothing. When there is
+    // no suggestion to make, the label stays — the line has to say who is
+    // speaking somehow.
+    final c = boot();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: const Scaffold(body: CoachLabelProbe()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final suggested = c.read(coachSuggestedTacticProvider);
+    if (suggested != null) {
+      expect(find.text(t('coach.label').toUpperCase()), findsNothing);
+      expect(
+        find.text(t('coach.suggestion_label').toUpperCase()),
+        findsOneWidget,
+      );
+    } else {
+      expect(find.text(t('coach.label').toUpperCase()), findsOneWidget);
+    }
+  });
+
 }
