@@ -5120,14 +5120,21 @@ missing second choices.
 
 ### The match screen — continued
 
-- [ ] **Every item wants the same vertical and horizontal margin, and one
-      radius.** A page of panels at four insets and three corner radii reads as
-      unfinished before anything on it is read.
-- [ ] **Colin is at the bottom of the play screen and is hard to see.** He was
-      floated over the footer on 27 Aug so a strip appearing and disappearing
-      could not shove the feed about; that reasoning holds and the placement
-      still loses him. The third option from 26 Aug — a bigger head — is the one
-      not yet tried.
+- [x] **Every item wants the same vertical and horizontal margin, and one
+      radius.** `matchInset` and `matchGap`, and the radius belongs to
+      `GlassPanel` so nothing draws its own. It was 13, 12 and 14 down the page
+      with gaps of 6, 7 and 8 between them.
+      **The STAGE is the one exception and it is not a miss**: the pitch is an
+      `AspectRatio` centred in its band, so it keeps its shape and gives the
+      width back either side. Its padding is the same; its pane is deliberately
+      narrower, and the test says so.
+- [x] **Colin is at the bottom of the play screen and is hard to see.** The
+      26 Aug note already had the answer: of three ways to make him more
+      visible, a bigger head was the one never tried. 44px to 60, a heavier ring
+      and a real shadow, and lifted clear of the row of buttons he was crowding.
+      The position stays a touchline, because that is what he is standing on —
+      and floating rather than a band of his own, because a strip that appears
+      and disappears shoves the feed about.
 - [x] **The commentary wants the GLASS of the end screen.** `GlassPanel` is what
       the summary is built from and the commentary box is not using it.
 - [x] **THE BALL GOES TO AN INVISIBLE PLAYER, who then scores or misses.** The

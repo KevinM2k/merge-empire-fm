@@ -1945,4 +1945,47 @@ void main() {
       expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
     });
   });
+  group('ONE INSET DOWN THE PAGE', () {
+    testWidgets('every band starts and ends on the same margin', (
+      tester,
+    ) async {
+      // It was 13, 12 and 14 down the page with gaps of 6, 7 and 8 between
+      // them, and a page of panels at four insets reads as unfinished before
+      // anything on it is read.
+      await pumpMatch(tester, matchResult());
+      final width = tester.getSize(find.byKey(const ValueKey('match-screen'))).width;
+      // The PANE of each band, not the padded box around it — the scoreboard's
+      // key is on the widget that owns the padding.
+      final board = tester.getRect(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('match-scoreboard')),
+              matching: find.byType(GlassPanel),
+            )
+            .first,
+      );
+      // Not the STAGE: it is an `AspectRatio` centred in its band, so the
+      // pitch keeps its shape and gives the width back either side. Its
+      // padding is the same; its pane is deliberately narrower.
+      final feed = tester.getRect(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey('match-feed')),
+              matching: find.byType(GlassPanel),
+            )
+            .first,
+      );
+      for (final (name, rect) in [('board', board), ('feed', feed)]) {
+        expect(rect.left, closeTo(matchInset, 1.5), reason: '$name left');
+        expect(
+          width - rect.right,
+          closeTo(matchInset, 1.5),
+          reason: '$name right',
+        );
+      }
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+  });
+
 }

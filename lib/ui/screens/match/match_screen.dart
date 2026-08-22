@@ -79,6 +79,15 @@ typedef _CamShot = ({
   CamVariant variant,
 });
 
+/// **ONE INSET AND ONE GAP for every band on this screen.**
+///
+/// It was 13, 12 and 14 down the page with gaps of 6, 7 and 8 between them, and
+/// a page of panels at four insets reads as unfinished before anything on it is
+/// read — which is exactly how it was reported. The radius belongs to
+/// `GlassPanel`, so nothing here draws its own.
+const double matchInset = 13;
+const double matchGap = 8;
+
 class MatchScreen extends ConsumerStatefulWidget {
   const MatchScreen({
     super.key,
@@ -1164,9 +1173,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // appeared and vanished — which is what made the pitch look like it
                   // was flickering and jumping about.
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                    padding: const EdgeInsets.fromLTRB(
+                      matchInset,
+                      matchGap,
+                      matchInset,
+                      matchGap,
                     ),
                     child: ConstrainedBox(
                       // Capped: the pitch is landscape and at its natural aspect would
@@ -1286,7 +1297,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // side, on a page whose backdrop is a sky.
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(13, 0, 13, 6),
+                      padding: const EdgeInsets.fromLTRB(
+                        matchInset,
+                        0,
+                        matchInset,
+                        matchGap,
+                      ),
                       child: GlassPanel(
                         density: GlassDensity.deep,
                         padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
@@ -1410,11 +1426,18 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               // **COLIN, ON THE TOUCHLINE.** Floating rather than a band of his
               // own: a strip that appears and disappears shoves the feed about,
               // which is the same fault the pitch had.
+              //
+              // **Higher, and bigger.** Reported as hard to see at the foot of
+              // the screen — and the 26 Aug note already had the answer in it:
+              // of the three ways to make him more visible, a bigger head was
+              // the one never tried. The position stays a touchline, because
+              // that is what he is standing on; what changes is that he is not
+              // crowding the row of buttons any more and his face is a face.
               if (_coachLine case final line?)
                 Positioned(
-                  left: 12,
-                  right: 12,
-                  bottom: 66,
+                  left: matchInset,
+                  right: matchInset,
+                  bottom: 82,
                   child: _CoachSay(key: ValueKey(line), text: line),
                 ),
             ],
@@ -1610,12 +1633,19 @@ class _CoachSay extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: kit.surface2,
-                border: Border.all(color: kit.accentBright, width: 1.6),
+                border: Border.all(color: kit.accentBright, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: const ClipOval(
                 child: ArtImage(
@@ -1763,7 +1793,7 @@ class _TacticStrip extends StatelessWidget {
       // The page's own 13 either side. The strip ran edge to edge while every
       // other band on the screen was inset, so the one control that is ABOUT
       // the pitch above it was the one thing not lined up with it.
-      padding: const EdgeInsets.symmetric(horizontal: 13),
+      padding: const EdgeInsets.symmetric(horizontal: matchInset),
       child: Column(
         key: const ValueKey('match-tactics'),
         mainAxisSize: MainAxisSize.min,
@@ -1982,7 +2012,12 @@ class _Scoreboard extends StatelessWidget {
       // worth its height and the screen is not: at full time on a short phone
       // the feed is already down to a few pixels, so the row pays for itself out
       // of the board's own padding and the gap it replaced.
-      padding: const EdgeInsets.fromLTRB(13, 6, 13, 7),
+      padding: const EdgeInsets.fromLTRB(
+        matchInset,
+        matchGap,
+        matchInset,
+        0,
+      ),
       // **THE CARD, not just the contents of one.** The board shares the
       // next-match card's rows — `MatchRow`, `PosChip`, the mirrored split — but
       // it was drawing them loose on the sky with no pane behind them, so the
