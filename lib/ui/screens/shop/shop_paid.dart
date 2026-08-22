@@ -26,11 +26,21 @@ import 'package:merge_empire_fc/util/format.dart';
 
 /// Said on every real-money control, so a player is told the feature is coming
 /// rather than left with a button that does nothing.
-String paidDisabledReason() => t('settings.comingSoon');
+/// Null once the thing behind the button exists.
+///
+/// **Nullable so a tile can tell a true badge from a lie.** The free shelf was
+/// printing "Already ready" AND "Coming soon" on the same tile: the first is
+/// the ad GATE reporting itself open, the second is there being no ad SDK, and
+/// both were true statements that contradict each other to a player.
+String? paidDisabledReason() => t('settings.comingSoon');
 
 /// The tiles for one paid category, without a shelf around them — the currency
 /// sheet draws its own frame around the same tiles the tab shows.
-List<Widget> paidTilesFor(WidgetRef ref, Set<String> categories) => [
+List<Widget> paidTilesFor(
+  WidgetRef ref,
+  Set<String> categories, {
+  bool featured = false,
+}) => [
   for (final tile
       in ref
           .watch(paidTilesProvider)
@@ -47,6 +57,7 @@ List<Widget> paidTilesFor(WidgetRef ref, Set<String> categories) => [
       tone: StoreTone.cash,
       badge: tile.product.popular ? t('shop.most_popular') : null,
       disabledReason: paidDisabledReason(),
+      featured: featured,
     ),
 ];
 
@@ -55,6 +66,7 @@ class _PaidShelf extends ConsumerWidget {
     required this.id,
     required this.categories,
     this.columns = 2,
+    this.featured = false,
   });
 
   final ShopSectionId id;
@@ -64,10 +76,16 @@ class _PaidShelf extends ConsumerWidget {
   /// whole width.
   final int columns;
 
+  /// The offers shelf, and only that one. See [ShopTile.featured].
+  final bool featured;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) => ShopSectionFrame(
     id: id,
-    child: ShopGrid(columns: columns, children: paidTilesFor(ref, categories)),
+    child: ShopGrid(
+      columns: columns,
+      children: paidTilesFor(ref, categories, featured: featured),
+    ),
   );
 }
 
@@ -123,6 +141,9 @@ class OffersSection extends StatelessWidget {
     // size as a consumable, with the third sitting alone in a half-width tile
     // beside a gap.
     columns: 1,
+    // And they LOOK like offers now — width alone did not do it. See
+    // [ShopTile.featured].
+    featured: true,
   );
 }
 
@@ -330,14 +351,15 @@ class CoinPackTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  paidDisabledReason(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: kit.textMuted, fontSize: 11),
+              if (paidDisabledReason() case final why?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    why,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

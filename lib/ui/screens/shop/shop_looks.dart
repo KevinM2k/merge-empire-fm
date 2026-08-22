@@ -131,9 +131,15 @@ class LooksSection extends ConsumerWidget {
                         : () => offerToBuy(context, ref, (
                             key: 'pack-${tile.packId}',
                             title: t('customise.pack.${tile.packId}'),
-                            subtitle: t('customise.pack.count', {
-                              'n': tile.tile.total,
-                            }),
+                            // **WHAT IT UNLOCKS, not how many.** "4 items" over
+                            // a confirm is a count of things the player cannot
+                            // see — the tile behind the sheet has the picture
+                            // and the sheet covers it. The pack's own contents
+                            // are `axis:id` pairs and every axis already has a
+                            // catalogue label (`customise.tab.*`), so the
+                            // summary needs no new copy: two Headwear, one
+                            // Accessory, one Celebration.
+                            subtitle: _packContents(tile.packId),
                             glyph: 'shirt',
                             currency: SpendCurrency.gems,
                             cost: tile.tile.cost,
@@ -150,6 +156,29 @@ class LooksSection extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// What a look pack actually contains, by part.
+///
+/// Grouped by AXIS rather than listed item by item: the ids inside a pack are
+/// `hat:sunhat` and `face:aviators`, and there is no catalogue entry naming
+/// either — but `customise.tab.hat` is "Headwear" in all ten languages and has
+/// been since the customiser was built. Order follows the pack's own, so the
+/// summary reads the way the case is laid out.
+String _packContents(String packId) {
+  final pack = getLookPack(packId);
+  if (pack == null) return '';
+  final counts = <String, int>{};
+  for (final item in pack.items) {
+    final axis = item.split(':').first;
+    counts[axis] = (counts[axis] ?? 0) + 1;
+  }
+  return [
+    for (final entry in counts.entries)
+      entry.value > 1
+          ? '${t('customise.tab.${entry.key}')} ×${entry.value}'
+          : t('customise.tab.${entry.key}'),
+  ].join(' · ');
 }
 
 /// The Vault itself: a row rather than a tile, because it is the lid of the case
@@ -208,13 +237,14 @@ class _VaultHero extends StatelessWidget {
                   height: 1.3,
                 ),
               ),
-              if (!isOwned) ...[
-                const SizedBox(height: 3),
-                Text(
-                  paidDisabledReason(),
-                  style: TextStyle(color: kit.textMuted, fontSize: 11),
-                ),
-              ],
+              if (!isOwned)
+                if (paidDisabledReason() case final why?) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    why,
+                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                  ),
+                ],
             ],
           ),
         ),
@@ -309,7 +339,7 @@ class _LookTile extends StatelessWidget {
             ),
             const Spacer(),
             const SizedBox(height: 6),
-            _PackPill(cost: tile.cost, owned: owned),
+            _PackPill(cost: tile.cost, owned: owned, onBuy: onBuy),
           ],
         ),
       ),
@@ -321,46 +351,54 @@ class _LookTile extends StatelessWidget {
 /// FREE' pill and the countdown went with the tile's old ad-first ordering; see
 /// `look_pack_engine.dart` for what they were promising.
 class _PackPill extends StatelessWidget {
-  const _PackPill({required this.cost, required this.owned});
+  const _PackPill({required this.cost, required this.owned, this.onBuy});
 
   final int cost;
   final bool owned;
+  final VoidCallback? onBuy;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    // **A BLUE BUTTON WITH A WHITE GEM.** It was a near-black pill with a blue
-    // gem and blue digits inside it — the gem's own colour on the darkest thing
-    // on the tile, at 11px, which reads as a disabled chip rather than as the
-    // control that buys the pack. The price is the button, so it wears the
-    // gem's colour as a FILL and everything on it is white.
-    return Container(
-      key: ValueKey(owned ? 'pack-pill-owned' : 'pack-pill-buy'),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: owned
-            ? kit.accent.withValues(alpha: 0.22)
-            : ShopSectionId.gems.ink,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (owned)
-            Icon(Icons.check, size: 12, color: kit.accentBright)
-          else
-            const Icon(Icons.diamond, size: 12, color: Colors.white),
-          const SizedBox(width: 4),
-          Text(
-            owned ? t('shop.owned') : '$cost',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              color: owned ? kit.accentBright : Colors.white,
+    // **IT IS THE SHOP'S OWN GEM BUTTON NOW, not a pill that looks like one.**
+    // A pass ago this became "a blue button with a white gem" and picked its
+    // own blue — `ShopSectionId.gems.ink`, the SECTION's tint — so the ten
+    // controls that buy a look pack were the only buy buttons in the shop that
+    // were not `StoreButton`: different face, different edge, different radius,
+    // no press. `StoreTone.gem` is the same blue every other gem price in the
+    // shop wears, and the glyph comes with it.
+    if (owned) {
+      return Container(
+        key: const ValueKey('pack-pill-owned'),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: kit.accent.withValues(alpha: 0.22),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check, size: 12, color: kit.accentBright),
+            const SizedBox(width: 4),
+            Text(
+              t('shop.owned'),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: kit.accentBright,
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      );
+    }
+    return StoreButton(
+      key: const ValueKey('pack-pill-buy'),
+      tone: StoreTone.gem,
+      small: true,
+      label: '$cost',
+      leading: const GameIcon('gem', size: 12),
+      onTap: onBuy,
     );
   }
 }

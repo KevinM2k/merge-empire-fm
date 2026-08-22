@@ -16,6 +16,11 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
+/// The gold a shopfront puts round the thing in the window. Fixed rather than
+/// the club's accent: a featured offer is the STORE speaking, not the club, and
+/// half the kits are a shade of green the chrome is already made of.
+const Color _featureInk = Color(0xFFFFC542);
+
 class ShopTile extends StatelessWidget {
   const ShopTile({
     super.key,
@@ -28,6 +33,7 @@ class ShopTile extends StatelessWidget {
     this.disabledReason,
     this.badge,
     this.glyph,
+    this.featured = false,
   });
 
   final String tileKey;
@@ -56,6 +62,14 @@ class ShopTile extends StatelessWidget {
   /// gets the app's own line art (`game_icon.dart`) or, for the coin packs, a
   /// drawn picture of the thing it is named after.
   final Widget? glyph;
+
+  /// **The shelf the shop OPENS on, and width alone did not make it special.**
+  /// The three offers were made full-width a pass ago and still drew the same
+  /// grey pane as a consumable — the highest-converting slot in the game, in
+  /// the shop's furniture. Featured tiles take a gold rim and a gold wash off
+  /// the top edge, the glyph goes up, and the title with it: everything a
+  /// shopfront does to the thing in the window, and nothing that needs new copy.
+  final bool featured;
 
   @override
   Widget build(BuildContext context) {
@@ -95,17 +109,28 @@ class ShopTile extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(9, 12, 9, 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [kit.surface2, kit.surface],
+            begin: featured ? Alignment.topCenter : Alignment.topLeft,
+            end: featured ? Alignment.bottomCenter : Alignment.bottomRight,
+            colors: featured
+                ? [
+                    _featureInk.withValues(alpha: 0.20),
+                    kit.surface2,
+                    kit.surface,
+                  ]
+                : [kit.surface2, kit.surface],
           ),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kit.border),
-          boxShadow: const [
+          border: Border.all(
+            color: featured ? _featureInk.withValues(alpha: 0.65) : kit.border,
+            width: featured ? 1.5 : 1,
+          ),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x33000000),
-              blurRadius: 6,
-              offset: Offset(0, 2),
+              color: featured
+                  ? _featureInk.withValues(alpha: 0.28)
+                  : const Color(0x33000000),
+              blurRadius: featured ? 14 : 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -113,14 +138,18 @@ class ShopTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (glyph != null)
-              SizedBox(height: 46, child: Center(child: glyph)),
+              SizedBox(
+                height: featured ? 62 : 46,
+                child: Center(child: glyph),
+              ),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
+              style: TextStyle(
+                fontSize: featured ? 16 : 13.5,
+                fontWeight: FontWeight.w900,
                 height: 1.2,
+                color: featured ? _featureInk : null,
               ),
             ),
             for (final line in lines)
@@ -142,6 +171,11 @@ class ShopTile extends StatelessWidget {
                 // balance are read in the same units.
                 StoreTone.coin => const CoinIcon(size: 12, solid: true),
                 StoreTone.gem => const GameIcon('gem', size: 13),
+                // **An ad button says so on the button.** The tone was already
+                // the ad yellow and the label is a VERB ("Claim") — which on
+                // its own is a free thing rather than a thing you watch a video
+                // for, and the disclosure has to come from somewhere.
+                StoreTone.ad => const GameIcon('video', size: 13),
                 _ => null,
               },
               onTap: onBuy,

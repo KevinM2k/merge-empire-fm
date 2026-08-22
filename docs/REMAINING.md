@@ -4994,27 +4994,39 @@ that reads only the older entry will put them back.
 
 ### The shop
 
-- [ ] **The manager-customisation gem buttons are the wrong blue AND the wrong
-      shape.** They were made "a blue button with a white gem" on 27 Aug and
-      that fixed the wrong half — the colour is not the shop's blue and the pill
-      is not the shop's button. **Match the other buy buttons on the same
-      screen** rather than picking a blue.
-- [ ] **And the confirm should say what the pack UNLOCKS.** "Spend these gems?"
-      over a pack whose contents are on the tile behind the sheet is a
-      confirmation the player has to close to answer. `purchase_flow.dart`'s
-      confirm takes a body; the pack knows its own items.
-- [ ] **Quick-fire matches and the free lucky boot say BOTH "already ready" AND
-      "coming soon".** Two states on one tile, which is one of them being drawn
-      by something that does not know about the other. (Recorded on 27 Aug and
-      still true.)
-- [ ] **They are AD buttons, so they should look like one**: the ad icon and the
-      yellow, which the summary's watch-to-double already establishes as the
-      colour of "watch something". A rewarded action that looks like a purchase
-      is a purchase as far as the player is concerned.
-- [ ] **The starter pack, VIP and the Energy Director are SPECIAL OFFERS and do
-      not look it.** They were made full width on 27 Aug — the shelf the shop
-      opens on — and width alone did not make them special. This is the
-      highest-converting slot in the game.
+- [x] **The manager-customisation gem buttons are the wrong blue AND the wrong
+      shape.** They are `StoreButton` with `StoreTone.gem` now — the same blue
+      every other gem price in the shop wears, with the same face, edge, radius
+      and press. **The 27 Aug pass fixed the wrong half**: it made them "a blue
+      button with a white gem" and picked its own blue, `ShopSectionId.gems.ink`
+      — the SECTION's tint — which left the ten controls that buy a look pack as
+      the only buy buttons in the shop that were not the shop's button.
+- [x] **And the confirm should say what the pack UNLOCKS.** It said "4 items",
+      which is a count of things the player cannot see — the tile has the
+      picture and the sheet covers it. **No new copy was needed**: a pack's
+      contents are `axis:id` pairs and every axis has had a catalogue label
+      (`customise.tab.*`) since the customiser was built, so the summary is two
+      Headwear, one Accessory, one Celebration, in ten languages.
+- [x] **Quick-fire matches and the free lucky boot say BOTH "already ready" AND
+      "coming soon".** Both statements were TRUE, which is why neither looked
+      like a bug: the first is the ad GATE reporting itself open and the second
+      is there being no ad SDK. The gate's badge goes while the button is dead —
+      the cap and the countdown stay, because those are facts about the gate
+      whatever the SDK is doing. `paidDisabledReason()` is nullable now so a
+      tile can tell a true badge from a lie.
+- [x] **They are AD buttons, so they should look like one.** The yellow was
+      already right — `StoreTone.ad` — and the ICON was the missing half: the
+      coin and gem tones both put their wallet on the button and the ad tone put
+      nothing, so the label was a bare verb ("Claim"), which reads as a free
+      thing rather than a thing you watch a video for.
+- [x] **The starter pack, VIP and the Energy Director are SPECIAL OFFERS and do
+      not look it.** A gold rim, a gold wash off the top edge, and the glyph and
+      title up with them — everything a shopfront does to the thing in the
+      window, and none of it new copy. **The gold is fixed rather than the
+      club's accent**: a featured offer is the STORE speaking, not the club, and
+      half the kits are a shade of the green the chrome is already made of.
+      `featured` is the offers shelf and only that one — a shop where everything
+      is special has nothing special in it, and there is a test for that.
 
 ### Frame rate, everywhere
 

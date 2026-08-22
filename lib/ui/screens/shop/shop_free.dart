@@ -32,11 +32,20 @@ class FreeShelfSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gate = ref.watch(adGateProvider);
+    final blocked = paidDisabledReason();
     // A cap that is spent says so; otherwise the row says how long until the
     // next view. Waiting is information, not a hidden row.
+    //
+    // **"ALREADY READY" GOES WHILE THERE IS NO AD**, which is the one of the
+    // three that becomes a lie: the gate really is open and there is still
+    // nothing to watch, so the tile read "Already ready" with "Coming soon"
+    // directly under it. The cap and the countdown are facts about the gate and
+    // stay true whatever the SDK is doing.
     final status = gate.remaining <= 0
         ? t('shop.daily_cap')
-        : (gate.ready ? t('shop.already_ready') : formatAdWait(gate.waitMs));
+        : gate.ready
+        ? (blocked == null ? t('shop.already_ready') : null)
+        : formatAdWait(gate.waitMs);
 
     return ShopSectionFrame(
       id: ShopSectionId.free,
@@ -49,7 +58,7 @@ class FreeShelfSection extends ConsumerWidget {
             price: t('shop.claim_cta'),
             tone: StoreTone.ad,
             badge: status,
-            disabledReason: paidDisabledReason(),
+            disabledReason: blocked,
           ),
           ShopTile(
             tileKey: 'ad-lucky-boot',
@@ -58,7 +67,7 @@ class FreeShelfSection extends ConsumerWidget {
             price: t('shop.claim_cta'),
             tone: StoreTone.ad,
             badge: status,
-            disabledReason: paidDisabledReason(),
+            disabledReason: blocked,
           ),
         ],
       ),

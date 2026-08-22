@@ -11,7 +11,6 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_looks.dart';
-import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 
 import 'shop_helpers.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -108,28 +107,42 @@ void main() {
       );
     });
 
-    testWidgets('THE PRICE IS A BLUE BUTTON WITH A WHITE GEM', (tester) async {
-      // It was a near-black pill with a blue gem and blue digits at 11px, which
-      // reads as a disabled chip rather than as the control that buys the pack.
+    testWidgets('THE PRICE IS THE SHOP\'S OWN GEM BUTTON, not a lookalike', (
+      tester,
+    ) async {
+      // A pass ago this became "a blue button with a white gem" and picked its
+      // own blue — `ShopSectionId.gems.ink`, the SECTION's tint — so the ten
+      // controls that buy a look pack were the only buy buttons in the shop
+      // that were not `StoreButton`: different face, different edge, different
+      // radius, no press.
       await pumpShopWidget(tester, (_) {}, LooksSection.new);
-      final pill = tester.widget<Container>(
+      final button = tester.widget<StoreButton>(
         find.byKey(const ValueKey('pack-pill-buy'), skipOffstage: false).first,
       );
-      expect((pill.decoration! as BoxDecoration).color, ShopSectionId.gems.ink);
-      final gem = tester.widget<Icon>(
-        find
-            .descendant(
-              of: find.byKey(
-                const ValueKey('pack-pill-buy'),
-                skipOffstage: false,
-              ),
-              matching: find.byIcon(Icons.diamond),
-            )
-            .first,
-      );
-      expect(gem.color, Colors.white);
+      expect(button.tone, StoreTone.gem);
+      expect(button.onTap, isNotNull, reason: 'and it is tappable');
     });
   });
+
+    testWidgets('AND THE CONFIRM SAYS WHAT THE PACK UNLOCKS', (tester) async {
+      // "4 items" over a confirm is a count of things the player cannot see —
+      // the tile behind the sheet has the picture and the sheet covers it. The
+      // contents are `axis:id` pairs and every axis already has a catalogue
+      // label, so the summary needs no new copy.
+      await pumpShopWidget(tester, (_) {}, LooksSection.new);
+      await tester.tap(
+        find.byKey(const ValueKey('pack-pill-buy'), skipOffstage: false).first,
+      );
+      await tester.pumpAndSettle();
+      // The Summer pack is two Headwear, an Accessory and a Celebration.
+      expect(
+        find.textContaining('${t('customise.tab.hat')} ×2'),
+        findsOneWidget,
+      );
+      expect(find.textContaining(t('customise.tab.emote')), findsOneWidget);
+      // The TILES behind the sheet still say "4 items" and should — that is
+      // the size of the pack. What changed is what the confirm leads with.
+    });
 
   testWidgets('the section note counts the packs owned', (tester) async {
     await pumpShopWidget(tester, (_) {}, LooksSection.new);
@@ -139,11 +152,19 @@ void main() {
     );
   });
 
-  testWidgets('exactly one buy button in the section — the vault', (
-    tester,
-  ) async {
+  testWidgets('EVERY PACK HAS ONE, and so does the vault', (tester) async {
+    // The vault plus one per unowned pack. They are all `StoreButton` now —
+    // the packs used to draw a pill of their own, which is what made them the
+    // odd controls in the shop.
     await pumpShopWidget(tester, (_) {}, LooksSection.new);
-    expect(find.byType(StoreButton), findsOneWidget);
+    expect(find.byType(StoreButton), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('shop-vault-case')),
+        matching: find.byType(StoreButton),
+      ),
+      findsWidgets,
+    );
   });
 
   group('the case', () {

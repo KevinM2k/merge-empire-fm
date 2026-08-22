@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
@@ -354,4 +355,26 @@ void main() {
       expect(find.text(t('shop.daily_cap')), findsWidgets);
     });
   });
+  testWidgets('THE THREE OFFERS LOOK LIKE OFFERS', (tester) async {
+    // They were made full width a pass ago — the shelf the shop opens on — and
+    // width alone did not do it: they still drew the same grey pane as a
+    // consumable. A gold rim, a gold wash off the top edge, and the glyph and
+    // title up with them.
+    await pumpShopWidget(tester, (_) {}, OffersSection.new);
+    final tiles = tester.widgetList<ShopTile>(find.byType(ShopTile));
+    expect(tiles, isNotEmpty);
+    for (final tile in tiles) {
+      expect(tile.featured, isTrue, reason: tile.tileKey);
+    }
+  });
+
+  testWidgets('and the shelves behind them do not', (tester) async {
+    // Featured is the offers shelf and only that one; a shop where everything
+    // is special has nothing special in it.
+    await pumpShopWidget(tester, (_) {}, GemPacksSection.new);
+    for (final tile in tester.widgetList<ShopTile>(find.byType(ShopTile))) {
+      expect(tile.featured, isFalse, reason: tile.tileKey);
+    }
+  });
+
 }
