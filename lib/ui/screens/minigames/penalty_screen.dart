@@ -129,6 +129,12 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final last = lastResult;
+    // Resolved once and handed to both ramps that take an index: how far he
+    // spreads, and — new — what he wears. His READ chance takes the save
+    // rather than the index, because `keeperSmartChanceFor` is the engine's
+    // own named entry point for it and routing around it would leave the
+    // engine with no caller.
+    final division = keeperDivisionIndex(ref.read(gameProvider).state);
 
     return Scaffold(
       key: const ValueKey('penalty-screen'),
@@ -185,9 +191,8 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
                       readChance: keeperSmartChanceFor(
                         ref.read(gameProvider).state,
                       ),
-                      keeperSpread: keeperReachFor(
-                        keeperDivisionIndex(ref.read(gameProvider).state),
-                      ),
+                      keeperSpread: keeperReachFor(division),
+                      kit: keeperKitForDivision(division),
                       turf: const Color(0xFF3A8C41),
                       onResult: _onResult,
                     ),

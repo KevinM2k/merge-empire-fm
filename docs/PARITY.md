@@ -241,21 +241,25 @@ Not yet diffed control by control.
 ## Mini-games
 
 - [x] Penalty Training (the goal is the target)
-- [~] **The keeper is rigged, but he has stopped wearing the division.** The
-      original tick was for `keeper_figure.dart`: the JS's own illustration, each
-      arm and leg turning about its documented joint, posed with
-      `AnimatedRotation`, and carrying **eight kit tiers taken from the division**
-      so the opposition visibly improves.
-      **The scene rebuild replaced that file and did not carry the kits over.**
-      `penalty_view.dart` draws its own jointed rig — better, and against
-      regulation geometry — but it takes only `readChance` and `keeperSpread`, so
-      this division's keeper is HARDER than the last one's and looks identical to
-      him. `keeper_figure.dart` went in the cleanup that found it unreachable, and
-      `keeperKits` went with it; the eight palettes are recoverable from git
-      (`git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart`) or from
-      the JS. Dressing the live rig from the division is the open half.
-      **Nobody removed this — the rebuild simply did not port it**, and the dead
-      file kept the parity item looking honest for as long as it sat there.
+- [x] **The keeper is rigged AND he wears the division again.** The original
+      tick was for `keeper_figure.dart`: the JS's own illustration, each arm and
+      leg turning about its documented joint, posed with `AnimatedRotation`, and
+      carrying **eight kit tiers taken from the division** so the opposition
+      visibly improves. The scene rebuild replaced that file with a better rig —
+      jointed, against regulation geometry — and did not carry the kits over, so
+      for a while this division's keeper was HARDER than the last one's and
+      looked identical to him. **Nobody removed it; the rebuild simply did not
+      port it**, and the dead file kept this item looking honest for as long as
+      it sat there.
+      The palettes are back, recovered from
+      `git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart` and
+      indexed by division rather than by tier — `keeperKits` and
+      `keeperKitForDivision` in `penalty_view.dart`, a third argument to
+      `PenaltyView` beside the two ramps that were already there.
+      **Seven, not eight**: the sprite's ramp was `2 + divisionIndex.clamp(0, 6)`,
+      so its first kit was never on the ramp at all and carrying it here would
+      be shipping a palette nothing can pick. Every colour a division wore is
+      unchanged.
 - [x] Boot Room
 - [ ] Training Drills, Keepy Uppys, Through Ball, Whack, Teamwork
 

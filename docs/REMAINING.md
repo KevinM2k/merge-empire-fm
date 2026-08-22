@@ -30,14 +30,19 @@ too late:
 
 ## Where we are
 
-**4,418 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,432 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
-**The count went DOWN this pass and that is the point** — 4,426 to 4,418. New
-tests went in for everything built, and more came out with the code they pinned:
-**fourteen of them belonged to a keeper nothing drew**, and the rest to a penalty
-model nothing took. A suite that only ever grows is a suite that has stopped
-being asked whether what it proves is still reachable.
+**4,418 to 4,432, and the fourteen that came back are the fourteen that went.**
+The pass before this one took the suite DOWN — 4,426 to 4,418 — because fourteen
+of its tests belonged to a keeper nothing drew and the rest to a penalty model
+nothing took. Deleting them was right; what came with them was `keeperKits`, and
+this pass put those back on the live rig with fourteen tests of their own. The
+symmetry is a coincidence, but the lesson is not: **a suite that only ever grows
+has stopped being asked whether what it proves is still reachable, and a
+deletion that takes shipped behaviour with it will not announce itself.** The
+only reason this one was caught is that the last pass wrote down what it could
+no longer see.
 
 **START HERE if you are picking this up cold:**
 
@@ -120,11 +125,64 @@ item looking honest for as long as it sat there, which is the second-order cost
 of leaving a superseded screen in the tree. `PARITY.md` now carries it as `[~]`
 with the git incantation to recover the palettes:
 
-- [ ] **Dress the penalty keeper from the division.** `keeperKits` is at
-      `git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart`, eight
-      entries of shirt/shirtShade/trim/shorts/socks/glove/hair/skin. `PenaltyView`
-      already knows the division twice over — both its ramps are derived from
-      `keeperDivisionIndex` — so this is a third argument, not a new lookup.
+- [x] **Dress the penalty keeper from the division.** Done, and it was the
+      third argument the row said it would be: `keeperKits` and
+      `keeperKitForDivision` sit in `penalty_view.dart` beside the two ramps,
+      `PenaltyView` takes a `kit`, and `PenaltyPainter` paints it. See
+      **The keeper wears the division again** below for the two things it turned
+      up that the row could not have known.
+
+**THE KEEPER WEARS THE DIVISION AGAIN**, which was the row the last pass left
+behind, and it cost two decisions the row could not have predicted.
+
+**Seven kits, not the sprite's eight.** Its ramp was `2 + divisionIndex.clamp(0,
+6)`, so tiers two through eight are every kit that was ever worn and the first
+was never on the ramp at all — an olive club top no division could select. The
+table is indexed by DIVISION now rather than by a tier the division has to be
+converted into, which is one lookup instead of two and makes the dead entry
+impossible to reintroduce by accident. Every colour a division actually wore is
+unchanged; the olive one stays in git with the rest of the file. Carrying it
+here would have been shipping a palette nothing can pick, which is the fault
+this whole queue keeps finding.
+
+**AND THE SKIN COMING OFF THE KIT BROKE THE FACE.** The mouth was a fixed
+`0xFF9C6B4E` — which is the old hardcoded skin, shaded, and was correct for
+exactly as long as the skin was hardcoded too. Two of the seven kits are darker
+than that, so the moment the skin became the division's those keepers would have
+had a mouth LIGHTER than the face around it. It is `Color.lerp(skin, black,
+0.36)` now. The general shape is worth carrying: **turning a constant into a
+parameter breaks every other constant that was derived from it by eye**, and
+those are invisible because nothing names the relationship. The brows were the
+same find and the sprite had already answered it — it drew them in `kit.hair`,
+so they follow the hair here too.
+
+**One thing the sprite got right for the wrong frame.** It shaded its torso
+top-left to bottom-right, which is an axis of the SCREEN — fine for a sprite
+that never rotated, wrong here, where a full dive lays the whole figure flat and
+that gradient would light his back. The shade runs shoulder-to-hip along the
+stroke instead (`ui.Gradient.linear` on two rig points), so his chest is lit at
+every angle of the dive. **A gradient ported from a rig that could not turn has
+to be re-expressed in the body's frame, not copied.**
+
+**The test that mattered is the one that goes through the SCREEN.** Six of the
+new fourteen are data invariants — one kit per division, seven distinct shirts,
+no glove the colour of its own sleeve, a shade darker than its shirt — and every
+one of them could pass with the scene still painting a hardcoded shirt. So seven
+more pump `PenaltyScreen` on a save sitting in each named division and read the
+kit back off the built `PenaltyView` *and* off the `PenaltyPainter` under it.
+The sprite's palettes were reachable too, right up until they were not.
+
+**And two traps in writing those, both costing a wrong diagnosis first:**
+
+- **Seven pumps in one test body is one pump.** The save is a process-lifetime
+  map whose contents a load REPLACES, so the second division read back as the
+  first and it looked exactly like the wiring not working. One `testWidgets` per
+  division; a failure names the division rather than the loop.
+- **`addTearDown` is too late for a pending `Timer`.** The screen's debounced
+  save leaves one outstanding, `flutter_test` asserts on it — and reports it at
+  the TOP of the body, so all seven read as the expectation having failed when
+  the scene had simply never been shut. `closePenalty(tester)` at the end of the
+  body, the same shape as `goalkeeper_practice_test`'s `closeGame`.
 
 **Two rows in the current tree, both left alone deliberately** — they are the
 expected kinds the script's header describes, and neither is a second
@@ -320,7 +378,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**91 items are open**, plus fourteen carrying a `[~]` — answered, but with a decision
+**90 items are open**, plus fourteen carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. **Read the audit block above
 first** — nine of the open items came out of it and each is a whole engine
 nobody can reach, which is a different kind of gap from the playtesting
@@ -655,7 +713,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,418 passing
+flutter test             # 4,432 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 
