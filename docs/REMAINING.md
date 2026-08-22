@@ -2408,7 +2408,24 @@ are done.
 **These are specs rather than tickets.** Each is a real piece of work and each
 has a trap in it that is worth stating before the first line is written.
 
-- [ ] **THE 2D PITCH SHOULD PLAY CONTINUOUSLY, not cut to chances.** Today the
+- [x] **THE 2D PITCH SHOULD PLAY CONTINUOUSLY, not cut to chances.**
+      **BUILT.** `IdlePitchGame` keeps eleven a side on the grass for the whole
+      match and slides their shape with the SAME figure the arrow reads — handed
+      over rather than computed twice, so the two cannot drift apart. Who has
+      the ball follows the momentum without being decided by it, which is the
+      shape the chance split takes.
+      **It is not a second simulation and could not be.** The result is settled
+      before a ball moves; this is the other STATE of the same stage, and
+      nothing in it decides anything, which is exactly why it can run for ninety
+      minutes. The bodies live in the same `(p, q)` space the scripted sequences
+      use, so a clip arrives out of a game rather than out of an empty field.
+      **Off under reduced motion**, and that is policy rather than a test
+      convenience: a pitch of drifting bodies is motion and nothing on it is
+      information — the markings, the arrow and the clips all survive without
+      it. It is also what lets `pumpAndSettle` work on that screen at all, a
+      Flame loop having no idea what `disableAnimations` means.
+      The original note follows.
+      Today the
       cutaway appears for a chance and vanishes; the idea is that the players
       keep moving between chances — making runs, passing, holding shape — and
       that when a chance is coming the shapes TRANSITION into the positions the
@@ -3003,7 +3020,8 @@ Ordered by how visible each one is to somebody playing.
       21 Aug, along with the live QUEST TRACKER behind a tab pair. The watch-ad
       buttons are M4, and the injury flow that opens the subs panel by itself is
       still to do. See 22 Aug.
-- [ ] **Continuous play between chances.** The stage is persistent and the players
+- [x] **Continuous play between chances.** Built — see the 21 Aug entry of the
+      same name, and the 27 Aug one. The stage is persistent and the players
       only exist during a chance; the JS runs them between chances too. The hard
       part is the one raised in the request: the ball has to arrive at each chance
       from wherever the last one left it, or it teleports.
@@ -4596,10 +4614,12 @@ list of what that change was answering.
       toward it as the pressure builds, off the same possession figure the board
       prints. The statistics moved to a TAB — `match.tab.stats` was in all ten
       catalogues with nothing able to reach it.
-- [ ] **And the full game is still the one you want.** The arrow is the reading;
-      a continuous twenty-two-body sim that flows into the chances is the other
-      half, and it is a build rather than a fix — `CutawayGame` would need an
-      idle mode driven off the same momentum.
+- [x] **And the full game is still the one you want.** Built, and the guess in
+      this entry was right to the seam: it IS an idle mode driven off the same
+      momentum. `IdlePitchGame` rather than a mode on `CutawayGame`, so the
+      clip path is untouched — the retelling of a chance and the run of play
+      between them are two different jobs and only one of them decides
+      anything.
 - [x] **A GOAL IS A CARD now.** It was one row of text — the single most
       important thing that happens in a match drawn exactly like "nerves
       jangling all around the ground". It has a head (the minute, the word

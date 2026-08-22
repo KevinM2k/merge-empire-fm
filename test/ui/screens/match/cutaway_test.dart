@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/idle_pitch_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
@@ -372,6 +373,76 @@ void main() {
         matching: find.byType(Transform),
       );
       expect(tilted, findsWidgets);
+    });
+  });
+
+  group('THE MATCH, BETWEEN THE CHANCES', () {
+    // The twenty-two bodies used to exist only for the two or three seconds of
+    // a scripted chance, so ninety minutes of football was a green rectangle
+    // with an arrow on it and a clip arrived out of an empty field. Reported
+    // three times across three sittings.
+
+    test('THE SHAPE SLIDES WITH THE MOMENTUM, both ways', () {
+      const base = (p: 0.5, q: 0.5);
+      final up = idleSpotFor(base, bias: 1, wobble: 0);
+      final back = idleSpotFor(base, bias: -1, wobble: 0);
+      expect(up.p, greaterThan(base.p));
+      expect(back.p, lessThan(base.p));
+      expect(up.p - base.p, closeTo(idleLineTravel, 1e-9));
+    });
+
+    test('and it never leaves the pitch, however hard it is pushed', () {
+      for (final spot in idleShape) {
+        for (final bias in [-4.0, -1.0, 0.0, 1.0, 4.0]) {
+          for (final wobble in [-1.0, 0.0, 1.0]) {
+            final out = idleSpotFor(spot, bias: bias, wobble: wobble);
+            expect(out.p, inInclusiveRange(0, 1));
+            expect(out.q, inInclusiveRange(0, 1));
+          }
+        }
+      }
+    });
+
+    test('ELEVEN A SIDE, in the same space the sequences use', () {
+      // A body drifting here and a body in a clip are on the same pitch, which
+      // is what makes the handover cost nothing.
+      expect(idleShape, hasLength(11));
+      for (final spot in idleShape) {
+        expect(spot.p, inInclusiveRange(0, 1));
+        expect(spot.q, inInclusiveRange(0, 1));
+      }
+    });
+
+    testWidgets('IT IS OFF UNDER REDUCED MOTION, and the markings are not', (
+      tester,
+    ) async {
+      // Policy rather than a test convenience: a pitch of drifting bodies is
+      // motion and nothing on it is information.
+      final momentum = ValueNotifier<double>(0);
+      addTearDown(momentum.dispose);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: MaterialApp(
+            home: Scaffold(body: CutawayStage(clip: null, momentum: momentum)),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('cutaway-idle')), findsOneWidget);
+      expect(find.byKey(const ValueKey('cutaway-idle-game')), findsNothing);
+    });
+
+    testWidgets('and a stage with no momentum draws the markings alone', (
+      tester,
+    ) async {
+      // Which is what every test that is not about the idle pitch wants.
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: CutawayStage(clip: null))),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('cutaway-idle')), findsOneWidget);
+      expect(find.byKey(const ValueKey('cutaway-idle-game')), findsNothing);
     });
   });
 

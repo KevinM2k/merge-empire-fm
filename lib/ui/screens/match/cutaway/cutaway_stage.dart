@@ -14,6 +14,7 @@ import 'package:flame/game.dart' show GameWidget;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/idle_pitch_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_sequences.dart';
@@ -108,6 +109,8 @@ class CutawayStage extends StatefulWidget {
     this.onDone,
     this.scorer,
     this.scorerFromLeft = true,
+    this.momentum,
+    this.attackingRight = true,
     super.key,
   });
 
@@ -127,6 +130,16 @@ class CutawayStage extends StatefulWidget {
   /// then rests against rather than out of nothing in the middle of the grass.
   final bool scorerFromLeft;
 
+  /// The arrow's own figure, ours-positive. Given, the stage keeps twenty-two
+  /// bodies on the pitch between chances and slides their shape with it — see
+  /// [IdlePitchGame]. Null draws the markings alone, which is what every test
+  /// that is not about the idle pitch wants.
+  final ValueNotifier<double>? momentum;
+
+  /// Which way WE are kicking, so the idle shape reads the same way the clips
+  /// do at both venues.
+  final bool attackingRight;
+
   @override
   State<CutawayStage> createState() => _CutawayStageState();
 }
@@ -139,12 +152,34 @@ class _CutawayStageState extends State<CutawayStage> {
   void initState() {
     super.initState();
     _syncGame();
+    _syncIdle();
   }
 
   @override
   void didUpdateWidget(CutawayStage old) {
     super.didUpdateWidget(old);
     _syncGame();
+    _syncIdle();
+  }
+
+  /// The idle pitch, built once and kept for the whole match.
+  ///
+  /// One instance rather than one per gap: rebuilding it every time a clip ends
+  /// would reload the sprites and reset the shape, and the shape holding across
+  /// a chance is what makes the clip read as part of the same match rather than
+  /// as a cutaway to somewhere else.
+  IdlePitchGame? _idle;
+
+  void _syncIdle() {
+    final momentum = widget.momentum;
+    if (momentum == null) {
+      _idle = null;
+      return;
+    }
+    _idle ??= IdlePitchGame(
+      attackingRight: widget.attackingRight,
+      momentum: momentum,
+    );
   }
 
   /// A NEW passage means a new game; the same passage means the same one.
@@ -179,11 +214,37 @@ class _CutawayStageState extends State<CutawayStage> {
         child: ColoredBox(
           color: PitchBackdrop.turf,
           child: game == null
-              ? const _InPerspective(
-                  child: CustomPaint(
-                    key: ValueKey('cutaway-idle'),
-                    painter: _IdlePitchPainter(),
-                    size: Size.infinite,
+              ? _InPerspective(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      const CustomPaint(
+                        key: ValueKey('cutaway-idle'),
+                        painter: _IdlePitchPainter(),
+                        size: Size.infinite,
+                      ),
+                      // **THE MATCH, BETWEEN THE CHANCES.** The bodies used to
+                      // exist only for the two or three seconds of a scripted
+                      // one, so ninety minutes of football was a green
+                      // rectangle with an arrow on it and a clip arrived out of
+                      // an empty field. Reported three times across three
+                      // sittings.
+                      //
+                      // **Off under reduced motion**, and that is the policy
+                      // rather than a test convenience: a pitch of drifting
+                      // bodies is motion and nothing on it is information —
+                      // the markings, the arrow and the clips all survive
+                      // without it. It is also what lets `pumpAndSettle` work
+                      // on this screen at all, a Flame loop having no idea what
+                      // `disableAnimations` means.
+                      if (_idle case final idle?
+                          when !MediaQuery.of(context).disableAnimations)
+                        GameWidget(
+                          key: const ValueKey('cutaway-idle-game'),
+                          game: idle,
+                          backgroundBuilder: (_) => const SizedBox.shrink(),
+                        ),
+                    ],
                   ),
                 )
               : Stack(

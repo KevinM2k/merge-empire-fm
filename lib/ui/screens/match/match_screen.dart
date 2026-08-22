@@ -175,6 +175,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// The clock waits while the panel is open — choosing is not watching.
   bool _paused = false;
 
+  /// The arrow's own figure, handed to the idle pitch so the shape it holds and
+  /// the arrow over it are the same reading rather than two.
+  final ValueNotifier<double> _momentum = ValueNotifier<double>(0);
+
   /// Which of the two the body is showing.
   /// Which of the three the body is showing.
   ///
@@ -823,6 +827,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _timer?.cancel();
     _cooldownTimer?.cancel();
     _coachTimer?.cancel();
+    _momentum.dispose();
     for (final cue in _cues) {
       cue.cancel();
     }
@@ -1092,6 +1097,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       strategyId: '${widget.result['strategyId'] ?? 'balanced'}',
     );
     final events = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
+    // **ONE reading, two things drawing it.** The arrow and the idle pitch's
+    // shape are the same figure; handed over rather than computed twice, so
+    // they cannot drift apart.
+    _momentum.value = momentumBias(
+      dangerHome: stats.dangerHome,
+      isHome: home,
+    );
     // **THE LIVE QUEST TRACKER IS GONE FROM THIS SCREEN, deliberately.** The
     // three quests auto-pay at the whistle and the summary reports all three —
     // winners and misses — so a running count here bought a tab bar's worth of
@@ -1208,6 +1220,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                             // was mounting it.
                             CutawayStage(
                               clip: _clip,
+                              // **The match, between the chances.** The stage
+                              // keeps twenty-two bodies on the grass and slides
+                              // their shape with the same figure the arrow
+                              // reads, so the two cannot disagree and a clip
+                              // arrives out of a game rather than out of an
+                              // empty field.
+                              momentum: _momentum,
+                              attackingRight: home,
                               // **THE SCORER, ON HIS OWN TOUCHLINE.** He arrives
                               // with the VERDICT, not with the clip — shown from
                               // the first beat he would give away that the ball
