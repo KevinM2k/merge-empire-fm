@@ -27,6 +27,16 @@ abstract final class PopupPriority {
   /// Holds uncollected coins — always first, never dropped.
   static const int welcomeBack = 10;
   static const int dailyReward = 20;
+
+  /// What the break did to the squad — who healed, whose sponsor lapsed, who
+  /// retired. Behind the two above because both of those hold something the
+  /// player can collect and this one is a report.
+  static const int offseasonReport = 30;
+
+  /// The night the game is won. Last in the season-end chain and last here —
+  /// the JS opens it only once the offseason report has been read, because it
+  /// is the card that offers to end the career the report is about.
+  static const int championsCelebration = 40;
 }
 
 class PopupEntry {

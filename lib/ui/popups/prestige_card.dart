@@ -142,6 +142,22 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
   if (answer == null || answer == _Route.cancel || !context.mounted) {
     return null;
   }
+  return confirmAndPrestige(context, ref, toPro: toPro);
+}
+
+/// The confirm, the reset and the new club's name — everything after the answer.
+///
+/// **Split out because there are TWO offers and one flow.** The JS's
+/// `_doPrestige(switchToPro)` is reached from the dock's card and from the
+/// champions celebration, and both are the same three beats afterwards; a
+/// second copy is how the celebration ends up resetting a career without
+/// warning anybody or asking the new club its name.
+Future<int?> confirmAndPrestige(
+  BuildContext context,
+  WidgetRef ref, {
+  required bool toPro,
+}) async {
+  final game = ref.read(gameProvider);
 
   // **A SECOND CARD, and it is not a formality.** The offer is about what is
   // gained; this is the only place the player is told what goes — the squad,
