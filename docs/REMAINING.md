@@ -5130,16 +5130,27 @@ missing second choices.
       not yet tried.
 - [x] **The commentary wants the GLASS of the end screen.** `GlassPanel` is what
       the summary is built from and the commentary box is not using it.
-- [ ] **THE BALL GOES TO AN INVISIBLE PLAYER, who then scores or misses.** The
-      passage is drawing a receiver that is not on the pitch. This is a
-      correctness bug in the clip builder rather than a look: whatever
-      `CutawayGame` picks as the target has to be one of the bodies it drew.
-- [ ] **THE DUGOUT CAM COVERS THE PITCH, and a chance straight after is missed.**
-      It is drawn over the one thing the player is watching. Either it takes its
-      own space or it is refused while a passage can still start — and note the
-      27 Aug arithmetic (`camFitsBeforeFullTime`, a 90-minute match being 10.8
-      real seconds) says the window is already most of what is left; this is a
-      second reason to shorten or reposition it rather than a new one.
+- [x] **THE BALL GOES TO AN INVISIBLE PLAYER, who then scores or misses.** The
+      receiver WAS on the pitch — he had not got there yet. **Two clocks with
+      nothing keeping them together**: a receiver is a body steering toward a
+      target at his own pace, and the ball is a tween on a fixed duration, so a
+      through ball outran its runner and landed on empty grass — and a
+      `firstTime` finish then fired from a spot with no player on it.
+      `Mover.sprintTo` gives him the pace that MEETS it. Never slower than his
+      own legs (a short square ball should not make him amble), capped at a
+      sprint (a runner who cannot make it in time is a script asking for a run
+      nobody could make, and a figure crossing the pitch in a blink is worse
+      than one arriving a beat late), and self-cleaning — he goes back to his
+      own pace on arrival rather than every call site remembering to reset it.
+      The arithmetic is `meetPace`, pure and pinned, because a Flame loop cannot
+      be settled in a widget test.
+- [x] **THE DUGOUT CAM COVERS THE PITCH, and a chance straight after is missed.**
+      **The grass belongs to the chance**: he gives way the moment a clip
+      starts, rather than sharing it. The shot he loses is a reaction to
+      something already over and the thing replacing it is happening now, which
+      is the whole argument. And the window is smaller — 0.34 of the pitch's
+      width rather than 0.44 — because nearly half of it is not a cut-in, it is
+      a second picture. The inline shot keeps its width: it covers nothing.
 
 ### The bid window
 

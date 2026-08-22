@@ -472,6 +472,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       if (clip == null) continue;
       _clippedMinute = event.minute;
       if (event.type == 'chance') _lastChanceCutMinute = event.minute;
+      // **THE GRASS BELONGS TO THE CHANCE.** The float shot sits bottom-right
+      // OVER the pitch, which is fine while nothing is happening on it and is
+      // exactly wrong the moment something is — a goal's cut-in was still up
+      // when the next chance began, so the move it covered was one the player
+      // never saw. He gives way rather than sharing it; the shot he loses is a
+      // reaction to something already over, and the thing replacing it is
+      // happening now.
+      _closeDugoutCam();
       _clip = clip;
       // Ours only: the engine picks scorers from OUR squad, so a face for one
       // of theirs cannot be drawn.

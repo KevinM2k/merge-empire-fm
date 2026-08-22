@@ -174,6 +174,51 @@ void main() {
   }
 
   group('THE DUGOUT CAM', () {
+    testWidgets('THE GRASS BELONGS TO THE CHANCE — a clip closes him', (
+      tester,
+    ) async {
+      // The float shot hangs bottom-right OVER the pitch, which is fine while
+      // nothing is happening on it and exactly wrong the moment something is: a
+      // goal's cut-in was still up when the next chance began, so the move it
+      // covered was one the player never saw.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 22, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+            // `big`, or `clipFor` refuses it: a half-chance is not worth
+            // stopping the clock for.
+            {'minute': 34, 'type': 'chance', 'team': 'home',
+             'shotResult': 'on_target', 'big': true},
+          ],
+        ),
+        reduceMotion: false,
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(22));
+      await tester.pump();
+      expect(state.clipPlaying, isTrue, reason: 'the goal drew no clip');
+      await endClip(tester);
+      expect(state.camUp, isTrue, reason: 'the goal never put him up');
+
+      // The next chance cuts in, and he gives way rather than sharing it.
+      await tester.pump(minuteDurationFor(12));
+      await tester.pump();
+      expect(state.clipPlaying, isTrue);
+      expect(state.camUp, isFalse);
+      await endClip(tester);
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    test('and the shot he hangs over is SMALLER than it was', () {
+      // Nearly half the width of the pitch is not a cut-in, it is a second
+      // picture. The inline shot stays wider — it covers nothing.
+      expect(camFloatFraction, lessThan(camInlineFraction));
+      expect(camFloatFraction, lessThanOrEqualTo(0.34));
+      expect(camFloatMaxWidth, lessThan(camInlineMaxWidth));
+    });
+
     testWidgets('A GOAL PUTS HIM ON SCREEN — but not before the move that '
         'scored it', (tester) async {
       // His reaction to a goal must not arrive ahead of the cutaway retelling

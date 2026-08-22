@@ -240,11 +240,17 @@ const Duration camRecBlink = Duration(milliseconds: 1100);
 const Duration camHandheld = Duration(seconds: 11);
 
 /// How wide the floating window is, against the pitch it hangs over — and the
-/// bounds either side of that, because 44% of a tablet is a portrait and 44% of
-/// a small phone is a stamp.
-const double camFloatFraction = 0.44;
-const double camFloatMinWidth = 128;
-const double camFloatMaxWidth = 188;
+/// bounds either side of that, because a fraction of a tablet is a portrait and
+/// the same fraction of a small phone is a stamp.
+///
+/// **Smaller than it was (0.44), because it covers the one thing on the screen
+/// worth watching.** It was reported as being in the way and it is: a shot that
+/// takes nearly half the width of the pitch is not a cut-in, it is a second
+/// picture. It also gives way outright the moment a chance starts — see
+/// `match_screen.dart` — so the size is about the QUIET minutes it hangs over.
+const double camFloatFraction = 0.34;
+const double camFloatMinWidth = 104;
+const double camFloatMaxWidth = 150;
 
 /// And the inline shot, which is wider because it is not covering anything.
 const double camInlineFraction = 0.64;

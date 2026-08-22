@@ -303,4 +303,45 @@ void main() {
       expect(cut(_event('goal', minute: 20), last: 19), isNotNull);
     });
   });
+  group('THE BALL HAS TO ARRIVE AT SOMEBODY', () {
+    // **A receiver is a body steering at his own pace; the ball is a tween on a
+    // fixed duration.** Two clocks with nothing keeping them together, so a
+    // through ball outran its runner and landed on empty grass — and a
+    // `firstTime` finish then fired from a spot with no player on it. Watched
+    // from the couch that is "the ball goes to an invisible player who scores".
+
+    test('a run he cannot make at his own pace speeds him up', () {
+      final pace = meetPace(distance: 30, seconds: 0.6, basePace: 1);
+      expect(pace, greaterThan(1));
+    });
+
+    test('and a short square ball does NOT make him amble', () {
+      // Never slower than his own legs: the floor is his pace, not the
+      // arithmetic's answer.
+      expect(meetPace(distance: 1, seconds: 3, basePace: 1.1), 1.1);
+    });
+
+    test('IT IS CAPPED, because a blink across the pitch is worse', () {
+      // A runner who cannot make it in time is a script asking for a run
+      // nobody could make; arriving a beat late reads better than teleporting.
+      expect(meetPace(distance: 400, seconds: 0.2, basePace: 1), 2.6);
+    });
+
+    test('a flight with no length or no time is his own pace', () {
+      expect(meetPace(distance: 0, seconds: 1, basePace: 0.9), 0.9);
+      expect(meetPace(distance: 10, seconds: 0, basePace: 0.9), 0.9);
+    });
+
+    test('THE MARGIN PAYS FOR THE EASING, so he is early rather than late', () {
+      // `Mover` slows over the last `arriveRadius` and accelerates into the
+      // first stride, so the straight-line average is below the cruise it is
+      // set to. Without the margin he is always a little short.
+      final exact = 30 / 0.6 / MoverTuning.baseSpeed;
+      expect(
+        meetPace(distance: 30, seconds: 0.6, basePace: 0.1),
+        greaterThan(exact),
+      );
+    });
+  });
+
 }

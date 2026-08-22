@@ -100,7 +100,12 @@ class Mover extends PositionComponent {
   final Sprite sprite;
 
   /// Individual pace, so a back four does not move as one object.
-  final double paceScale;
+  ///
+  /// **Not final any more**: a receiver has to be able to run at whatever pace
+  /// MEETS the ball. See [sprintTo], and `_basePace` for what it goes back to.
+  double paceScale;
+
+  late final double _basePace = paceScale;
 
   /// A surname or a shirt number. Null draws nothing.
   final String? label;
@@ -130,6 +135,28 @@ class Mover extends PositionComponent {
   /// Arms up. Set for the length of a celebration.
   bool celebrating = false;
 
+  /// Run to [spot] fast enough to be there in [seconds].
+  ///
+  /// **THE BALL WAS ARRIVING AT NOBODY.** A receiver is a body steering toward
+  /// a target at his own pace while the ball is a tween on a fixed duration —
+  /// two clocks with nothing keeping them together — so a through ball outran
+  /// its runner and landed on empty grass, and a `firstTime` finish then fired
+  /// from a spot with no player on it. Watched from the couch that is "the ball
+  /// goes to an invisible player who then scores".
+  ///
+  /// Never SLOWER than his own pace: a short square ball should not make him
+  /// amble. Capped, because a runner who cannot make it in time is a script
+  /// asking for a run nobody could make, and a figure crossing the pitch in a
+  /// blink is worse than one arriving a beat late.
+  void sprintTo(Vector2 spot, double seconds) {
+    target = spot.clone();
+    paceScale = meetPace(
+      distance: position.distanceTo(spot),
+      seconds: seconds,
+      basePace: _basePace,
+    );
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -152,6 +179,11 @@ class Mover extends PositionComponent {
       );
     } else {
       _velocity.scale(math.max(0, 1 - 6 * dt));
+      // Arrived, so he goes back to his own legs. Self-cleaning rather than
+      // something every call site has to remember — a dribbler carrying a
+      // sprint pace he was given for somebody else's pass is exactly the kind
+      // of leak a manual reset produces.
+      paceScale = _basePace;
     }
 
     final step = _velocity * dt;
@@ -287,6 +319,24 @@ class PitchBackdrop extends PositionComponent {
       canvas.drawRect(mouth, line..strokeWidth = 0.7);
     }
   }
+}
+
+/// The pace a run needs to arrive with the ball, in `paceScale` units.
+///
+/// Pure, so the arithmetic can be pinned without a game loop. The margin pays
+/// for the steering's own easing: `Mover` slows over the last `arriveRadius`
+/// and accelerates into the first stride, so the straight-line average is below
+/// the cruise it is set to.
+double meetPace({
+  required double distance,
+  required double seconds,
+  required double basePace,
+}) {
+  if (seconds <= 0 || distance <= 0) return basePace;
+  const margin = 1.25;
+  const maxPace = 2.6;
+  final needed = distance / seconds / MoverTuning.baseSpeed * margin;
+  return math.min(maxPace, math.max(basePace, needed));
 }
 
 /// A scripted chance, played out.
@@ -482,9 +532,7 @@ class CutawayGame extends FlameGame {
         final receiver = _cast.receiverAt[beatIndex];
         final style = passStyles[beat.kind] ?? passStyles['pass']!;
         final to = _at(beat.to);
-        // The receiver runs to MEET it, so the two arrive together.
-        attackers[receiver].target = to.clone();
-        _flight = _Flight(
+        final flight = _Flight(
           from: ball.position.clone(),
           to: to,
           style: style,
@@ -495,6 +543,10 @@ class CutawayGame extends FlameGame {
             _beginBeat();
           },
         );
+        // The receiver runs to MEET it, at the pace that gets him there —
+        // which is the half that was missing. See [Mover.sprintTo].
+        attackers[receiver].sprintTo(to, flight.duration);
+        _flight = flight;
 
       case Dribble():
         // Carried: the ball is off the tween and knocked along ahead of the
@@ -805,6 +857,9 @@ class _Flight {
   final Vector2 from;
   final Vector2 to;
   final PassStyle style;
+
+  /// How long the ball is in the air, which is the receiver's budget.
+  double get duration => _duration;
   final void Function() onArrive;
   final bool isShot;
 
