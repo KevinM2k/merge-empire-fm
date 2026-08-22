@@ -15,6 +15,7 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'package:merge_empire_fc/engine/coin_sink_engine.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
@@ -344,7 +345,10 @@ const List<GemItem> gemItems = [
     cost: 8,
     permanent: false,
     live: true,
-    heldWhen: _trophyPolishHeld,
+    // The shop's "already active" and the multiplier that pays it out are one
+    // question, so they are one function: the guard used to read the stamp
+    // itself and read a missing season more generously than the engines did.
+    heldWhen: isTrophyPolishActive,
   ),
 ];
 
@@ -353,12 +357,6 @@ bool _scoutVoucherHeld(Map<String, dynamic>? state) {
   if (shop?['freeScoutReady'] == true) return true;
   final tier = _num(shop?['scoutVoucherTier']);
   return tier != null && tier.isFinite && tier > 1;
-}
-
-bool _trophyPolishHeld(Map<String, dynamic>? state) {
-  final stamped = _map(state?['boosts'])?['trophyPolishSeason'];
-  final season = _num(_map(state?['progression'])?['seasonCount'])?.toInt() ?? 1;
-  return stamped != null && stamped == season;
 }
 
 final Map<String, GemItem> _itemsById = {for (final i in gemItems) i.id: i};

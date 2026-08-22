@@ -24,6 +24,7 @@ import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/coin_sink_engine.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -165,9 +166,13 @@ List<IncomeFactor> _factorsOf(Map<String, dynamic>? state) {
       x: prestigeMult.toDouble(),
     ));
   }
-  final polishSeason = _num(boosts?['trophyPolishSeason']);
-  if (polishSeason != null && season != null && polishSeason == season) {
-    out.add((key: 'hud.income.trophy_polish', params: const {}, x: 2));
+  // The FIGURE comes from the rule too, not just the question of whether to
+  // print the row: this list has to multiply out to the total underneath it,
+  // and a hardcoded x2 beside a rule that owns the size is how it stops doing
+  // that.
+  final polish = trophyPolishMultiplierFor(boosts, season);
+  if (polish > 1) {
+    out.add((key: 'hud.income.trophy_polish', params: const {}, x: polish));
   }
   return out;
 }
