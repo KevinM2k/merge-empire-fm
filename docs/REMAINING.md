@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,571 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,573 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **The newest pass also ran green on 3.38.3**, which is the version that happened
@@ -3824,6 +3824,22 @@ by a test.
       of cord, dark under light, which reads as string against a bright stand and
       against a dark one.
 
+### Penalty training
+
+- [ ] **THE KEEPER HITS THE FLOOR AND HIS LIMBS DO NOT.** When he lands, the
+      arms and legs should fall with him — gravity taking a body that has
+      stopped flying — rather than holding the shape the dive left them in. The
+      ask is a physics pass **on him AND on the ball** so the landing reads as
+      real.
+      Two things this touches that are already written down. `_settle` (27 Aug)
+      is the picture after the whistle and it already gives the BALL gravity,
+      the turf and rolling friction — so half of this exists and the other half
+      is the rig. And the rig's own rule is that a limb's BONES may never change
+      length while the joint-to-joint span may (`kneeBetween`); a limb going
+      slack is that same solve run toward a hanging target rather than a posed
+      one, which is why this is a change to what the pose is solved AGAINST, not
+      a second rig.
+
 ### Goalkeeper Practice
 
 - [ ] **It is meant to be the ball coming AT you, with no time to react.** The
@@ -4672,6 +4688,23 @@ already done are marked; the rest are the queue.
       hair of gap: two cards read top to bottom as one object rather than two
       panels on a page.
 
+### Goalkeeper Practice
+
+- [ ] **THE SHOTS SHOULD BE FOOTBALLS COMING AT YOU.** Every target is drawn
+      with a surrounding border; drop it and make them all plain footballs.
+      **And they should GROW** — start small and swell as they arrive, which is
+      the only cue a flat scene has for a ball travelling toward the camera.
+      This is the same reading the penalty scene reached (`_eyeZ`, the ball
+      scaling with distance) and this game never got it.
+- [ ] **It is too easy, and too samey.** More VARIED — placement, timing, size —
+      and not too slow. The difficulty already ramps off `currentDivisionIndex`
+      like the other five mini-games, so whatever changes has to change along
+      that ramp rather than as a flat speed-up.
+- [ ] **THE GAME ENDS WHEN THE LAST SHOT IS SETTLED, not when the clock runs
+      out.** Saved or scored, if there is nothing left to face the summary
+      should come up — sitting on an empty scene waiting for a timer is the
+      player being made to watch nothing happen.
+
 ### The bid window
 
 - [x] **The coins want a coin beside them**, and the percentage over fair value
@@ -4962,6 +4995,19 @@ that reads only the older entry will put them back.
       opens on — and width alone did not make them special. This is the
       highest-converting slot in the game.
 
+### Frame rate, everywhere
+
+- [ ] **CHECK EVERY POPUP AND MENU ON EVERY PAGE for dropped frames.** The
+      customiser is the one that has been reported three times, but the ask is a
+      sweep rather than a fix: open each one and watch the frame times.
+      **The method matters more than the list**, because the first pass at the
+      customiser measured the wrong thing — it profiled the BUILD and concluded
+      the grid was the cost, while the reporter's reading both times since has
+      been that it is ANIMATION. So for each surface record: what is ticking on
+      the frame it opens, whether the screen BEHIND it keeps its clock
+      (`TickerMode` for a covered route), and the build cost separately. A
+      number without which of the three it is is not a measurement.
+
 ### Motion, and how static things read
 
 - [ ] **The exclamation mark should almost BOUNCE.** Every unread marker in the
@@ -5035,6 +5081,36 @@ missing second choices.
       27 Aug arithmetic (`camFitsBeforeFullTime`, a 90-minute match being 10.8
       real seconds) says the window is already most of what is left; this is a
       second reason to shorten or reposition it rather than a new one.
+
+### The bid window
+
+- [x] **LOSE THE "367% OVER FAIR MARKET" LINE, and lose "declining will make
+      {team} play harder" with it.** Both gone. **This partly reverses the
+      27 Aug entry**
+      that built the band chip and the colour scale for exactly that percentage:
+      it was right that a paragraph of 13px grey was unreadable and wrong that
+      the answer was to make the number legible. A figure a player cannot act on
+      is not made useful by a chip. Note the consequence and take it knowingly —
+      the five `transfer.market.*` band names and the grudge warning go back to
+      being shipped copy with no caller, which is normally a bug in this file.
+      Here it is a decision, and it is written down so the next sweep does not
+      "fix" it.
+- [x] **MINIMISING HAS TO BE MORE VISIBLE.** `TransferPill` was a
+      `surface`-filled stadium with a 55% accent hairline — the quietest thing
+      the palette can draw — above a tab bar the eye already skips. Filled in
+      the accent with the accent's own ink now, and it BREATHES on the same
+      1.8s period as Colin's unread pulse, because it is the same signal.
+      **A halo rather than a scale**: it lives in the shell, where a control
+      that grows shoves the tab bar under it.
+      **And a repeating controller in the SHELL is a `pumpAndSettle` that never
+      returns**, which is the dugout cam's trap in a new place. Reduced motion
+      stops the clock and leaves the pill at full strength, so the test pumps
+      under that policy — and so does any future test that has a bid parked.
+      (The RENAME to "Review" is a separate, still-blocked item — new copy, so
+      `en.js`.)
+- [ ] **AND THE TARGETED PLAYER NEEDS HIGHLIGHTING ON THE SQUAD PAGE.** A bid
+      names a player and the squad page draws him exactly like the other
+      twenty-nine, so answering it means finding him first.
 
 ### The full-time summary — continued
 

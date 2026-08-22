@@ -17,6 +17,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -331,45 +332,28 @@ class _TransferOfferCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          // The premium against fair value, in the band's own colour — the
-          // sentence it used to be buried in gave the same fact the same weight
-          // as the club's name.
-          Text(
-            premiumPct > 0
-                ? t('transfer.over_fair_market', {
-                    'pct': formatPct(premiumPct),
-                    'value': formatCoins(sellValue),
-                  })
-                : t('transfer.at_fair_market', {
-                    'value': formatCoins(sellValue),
-                  }),
-            key: const ValueKey('transfer-premium'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: band.colour,
-            ),
-          ),
           const SizedBox(height: 10),
+          // **THE PERCENTAGE AND THE GRUDGE WARNING ARE BOTH GONE, and that is
+          // a decision rather than an oversight.** "367% over fair market
+          // value" is a figure nobody can act on — the price is the price — and
+          // making it legible (which is what the pass that built the band chip
+          // did) does not make it useful. The CHIP stays: "JACKPOT" is a
+          // judgement, which is what the player actually wanted off that line.
+          //
+          // "Declining will make {club} play harder" went with it for the same
+          // reason. Colin's read below says what to do; a second sentence
+          // warning about the answer he did not recommend is the card arguing
+          // with itself.
+          //
+          // The consequence is deliberate and is recorded in `docs/REMAINING.md`:
+          // `transfer.over_fair_market`, `transfer.at_fair_market` and
+          // `transfer.decline_warning` are now shipped copy with no caller,
+          // which anywhere else in this port is a bug. Here it is the point.
           Text(
             transferAdvice(state, offer, card),
             key: const ValueKey('transfer-advice'),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12.5, height: 1.5, color: kit.textMuted),
-          ),
-          const SizedBox(height: 10),
-          // Stated plainly, because it is the half of the decision the numbers
-          // do not carry.
-          Text(
-            t('transfer.decline_warning', {'club': offer['fromTeam'] ?? ''}),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFFFB74D),
-            ),
           ),
         ],
       ),
@@ -391,43 +375,117 @@ class _TransferOfferCard extends ConsumerWidget {
 /// It sits in the shell above the tab bar, so it follows the player across every
 /// tab: the bid is about the squad, and the squad is three tabs away from
 /// wherever the card was parked.
-class TransferPill extends ConsumerWidget {
+class TransferPill extends ConsumerStatefulWidget {
   const TransferPill({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TransferPill> createState() => _TransferPillState();
+}
+
+/// **IT WAS THERE AND NOBODY SAW IT.** A `surface`-filled stadium with a 55%
+/// accent hairline is the quietest thing the palette can draw, sitting above a
+/// tab bar the eye already skips — so the one control standing between a player
+/// and an offer they parked read as chrome.
+///
+/// Filled in the club's accent now, with the accent's own ink on it, and it
+/// BREATHES: 1.8 seconds, the same period as Colin's unread pulse, because they
+/// are the same signal — something is waiting for you. Reduced motion stops the
+/// clock and leaves it at full strength rather than mid-fade.
+class _TransferPillState extends ConsumerState<TransferPill>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  void _sync() {
+    final run =
+        !MediaQuery.of(context).disableAnimations &&
+        ref.read(pendingOfferProvider) != null;
+    if (run == _pulse.isAnimating) return;
+    if (run) {
+      _pulse.repeat();
+    } else {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final offer = ref.watch(pendingOfferProvider);
-    if (offer == null) return const SizedBox.shrink();
+    // A pill for an offer that has been answered is a button to nowhere, and
+    // the clock behind it has to stop with it.
+    if (offer == null) {
+      _pulse.stop();
+      return const SizedBox.shrink();
+    }
+    _sync();
     final kit = Theme.of(context).extension<KitTheme>()!;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: Material(
-          key: const ValueKey('transfer-pill'),
-          color: kit.surface,
-          shape: StadiumBorder(
-            side: BorderSide(color: kit.accentBright.withValues(alpha: 0.55)),
-          ),
-          elevation: 6,
-          child: InkWell(
-            customBorder: const StadiumBorder(),
-            onTap: () => unawaited(showTransferOffer(context, ref)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('💸', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 8),
-                  Text(
-                    t('transfer.pill_label'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: kit.accentBright,
-                    ),
+        child: AnimatedBuilder(
+          animation: _pulse,
+          builder: (context, child) {
+            // A halo rather than a scale: a pill that grows shoves the tab bar
+            // under it, and this one lives in the shell where nothing may move.
+            final t = math.sin(_pulse.value * 2 * math.pi) * 0.5 + 0.5;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(40),
+                boxShadow: [
+                  BoxShadow(
+                    color: kit.accentBright.withValues(alpha: 0.20 + 0.28 * t),
+                    blurRadius: 10 + 10 * t,
+                    spreadRadius: 1 + 2 * t,
                   ),
                 ],
+              ),
+              child: child,
+            );
+          },
+          child: Material(
+            key: const ValueKey('transfer-pill'),
+            color: kit.accentBright,
+            shape: const StadiumBorder(),
+            elevation: 6,
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: () => unawaited(showTransferOffer(context, ref)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 9,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('💸', style: TextStyle(fontSize: 15)),
+                    const SizedBox(width: 8),
+                    Text(
+                      t('transfer.pill_label'),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                        color: kit.accentBrightInk,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

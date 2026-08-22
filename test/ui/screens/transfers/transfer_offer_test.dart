@@ -23,9 +23,9 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
-import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -120,6 +120,12 @@ Future<ProviderContainer> _pump(
 
 /// The pill lives in the shell, so the test gives it one: the widget under a
 /// Navigator, with the save it reads.
+///
+/// **UNDER REDUCED MOTION, and that is not incidental.** The pill breathes on a
+/// repeating controller so a parked bid keeps announcing itself, which means
+/// `pumpAndSettle` never returns while one is up — the same trap the dugout cam
+/// set for `pumpMatch`. The policy stops the clock and leaves the pill at full
+/// strength, so a test that is about the pill still sees the pill.
 Future<ProviderContainer> _pumpShell(
   WidgetTester tester,
   Map<String, dynamic> state,
@@ -140,10 +146,13 @@ Future<ProviderContainer> _pumpShell(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
-          home: const Scaffold(
-            body: Align(
-              alignment: Alignment.bottomCenter,
-              child: TransferPill(),
+          home: const MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: TransferPill(),
+              ),
             ),
           ),
         ),
@@ -153,6 +162,26 @@ Future<ProviderContainer> _pumpShell(
   await tester.pumpAndSettle();
   return container;
 }
+
+KitTheme _kitOf(WidgetTester tester) => Theme.of(
+  tester.element(find.byKey(const ValueKey('transfer-pill'))),
+).extension<KitTheme>()!;
+
+/// The pill's halo, which is what the pulse moves — a glow rather than a scale,
+/// because a pill that grows shoves the tab bar under it.
+BoxShadow _haloOf(WidgetTester tester) => ((tester
+            .widget<DecoratedBox>(
+              find
+                  .ancestor(
+                    of: find.byKey(const ValueKey('transfer-pill')),
+                    matching: find.byType(DecoratedBox),
+                  )
+                  .first,
+            )
+            .decoration
+        as BoxDecoration)
+    .boxShadow!
+    .first);
 
 Future<void> _settleSave(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
@@ -182,13 +211,72 @@ void main() {
       expect(find.byKey(const ValueKey('transfer-pitch')), findsOneWidget);
     });
 
-    testWidgets('says plainly that declining costs something', (tester) async {
-      // It is the half of the decision the numbers do not carry.
+    testWidgets('AND IT SAYS NEITHER THE PERCENTAGE NOR THE GRUDGE', (
+      tester,
+    ) async {
+      // **Both were deliberately removed and this is the test that stops them
+      // coming back.** "367% over fair market value" is a figure nobody can act
+      // on — the price is the price — and making it legible, which is what the
+      // pass that built the band chip did, does not make it useful. The CHIP
+      // stays: "JACKPOT" is a judgement, which is what the player wanted off
+      // that line. The grudge warning went for the same reason: Colin's read
+      // says what to do, and a second sentence warning about the answer he did
+      // not recommend is the card arguing with itself.
+      //
+      // The consequence is deliberate and `docs/REMAINING.md` records it —
+      // three keys go back to being shipped copy with no caller, which
+      // anywhere else in this port is a bug.
       await _pump(tester, _saveWithOffer());
+      expect(find.byKey(const ValueKey('transfer-premium')), findsNothing);
       expect(
         find.text(t('transfer.decline_warning', {'club': _rival})),
-        findsOneWidget,
+        findsNothing,
       );
+      // What survives: the band, and Colin.
+      expect(find.byKey(const ValueKey('transfer-advice')), findsOneWidget);
+    });
+  });
+
+  group('THE PILL IS THE LOUDEST THING IN THE SHELL NOW', () {
+    testWidgets('it is FILLED in the accent, not outlined on the surface', (
+      tester,
+    ) async {
+      // A `surface`-filled stadium with a 55% accent hairline is the quietest
+      // thing the palette can draw, above a tab bar the eye already skips — so
+      // the one control between a player and an offer they parked read as
+      // chrome.
+      final c = await _pumpShell(tester, _saveWithOffer());
+      final kit = _kitOf(tester);
+      final pill = tester.widget<Material>(
+        find.byKey(const ValueKey('transfer-pill')),
+      );
+      expect(pill.color, kit.accentBright);
+      expect(
+        tester
+            .widget<Text>(find.text(t('transfer.pill_label')))
+            .style
+            ?.color,
+        kit.accentBrightInk,
+      );
+      c.dispose;
+    });
+
+    testWidgets('and it BREATHES, unless the device says not to', (
+      tester,
+    ) async {
+      // Same 1.8s period as Colin's unread pulse, because it is the same
+      // signal. Reduced motion stops the clock and leaves it at full strength
+      // rather than mid-fade — `_pumpShell` runs under that policy, which is
+      // also what keeps `pumpAndSettle` from hanging on it.
+      await _pumpShell(tester, _saveWithOffer());
+      final still = _haloOf(tester);
+      await tester.pump(const Duration(milliseconds: 450));
+      expect(
+        _haloOf(tester),
+        still,
+        reason: 'reduced motion has to hold it still',
+      );
+      expect(still.blurRadius, greaterThan(0));
     });
   });
 
@@ -267,9 +355,18 @@ void main() {
         find.byKey(const ValueKey('transfer-band-transfer.market.great')),
         findsOneWidget,
       );
+      // The band's own colour is what carries the reading now that the
+      // percentage under it has gone.
       expect(
         tester
-            .widget<Text>(find.byKey(const ValueKey('transfer-premium')))
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(
+                  const ValueKey('transfer-band-transfer.market.great'),
+                ),
+                matching: find.byType(Text),
+              ),
+            )
             .style
             ?.color,
         transferBand(120).colour,
@@ -288,15 +385,13 @@ void main() {
       expect(transferBand(-30).key, 'transfer.market.below');
     });
 
-    testWidgets('and a bid at fair value says so rather than showing +0%', (
+    testWidgets('and a bid at fair value is a BAND, not a +0%', (
       tester,
     ) async {
       final sellValue = players.firstWhere((p) => p.id == _defId).sellValue;
       await _pump(tester, _saveWithOffer(price: sellValue));
       expect(
-        find.text(
-          t('transfer.at_fair_market', {'value': formatCoins(sellValue)}),
-        ),
+        find.byKey(const ValueKey('transfer-band-transfer.market.below')),
         findsOneWidget,
       );
     });
