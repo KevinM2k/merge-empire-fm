@@ -1,12 +1,17 @@
-/// Taking a penalty in the arcade mini-game.
+/// How hard the keeper is in the penalty mini-game.
+///
+/// The four-corner `takePenalty` that used to live here — and the tests that
+/// pinned it — went with the scene rebuild: a read is no longer an automatic
+/// save, the shot is simulated in `engine/penalty_physics.dart`, and two models
+/// of one kick is two answers to whether it went in. What is left is the pair
+/// the physics asks for, and the claim that they come off ONE division index.
 library;
-
-import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/penalty_game_engine.dart';
+import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 
 Map<String, dynamic> stateIn(String divisionId) {
@@ -16,8 +21,6 @@ Map<String, dynamic> stateIn(String divisionId) {
 }
 
 void main() {
-  tearDown(resetPenaltyRandom);
-
   group('the keeper', () {
     test('reads more shots the higher you climb', () {
       // Five per cent at Sunday League, thirty at the top.
@@ -35,77 +38,29 @@ void main() {
         Penalty.keeperSmartBase,
       );
       expect(keeperSmartChanceFor(null), Penalty.keeperSmartBase);
-    });
-  });
-
-  group('a shot', () {
-    test('is saved outright when the keeper reads it', () {
-      // rng always 0, so the read check always passes.
-      setPenaltyRandom(_FixedRandom(0));
-      final shot = takePenalty(stateIn(divisions.first.id), PenaltyCorner.topLeft);
-      expect(shot.keeperRead, isTrue);
-      expect(shot.keeper, shot.aimed);
-      expect(shot.scored, isFalse);
+      expect(keeperDivisionIndex(null), 0);
+      expect(keeperDivisionIndex(stateIn('no-such-division')), 0);
     });
 
-    test('beats a keeper who guessed elsewhere', () {
-      // Never reads; dives to the first corner. Aim anywhere else.
-      setPenaltyRandom(_FixedRandom(0.99, intValue: 0));
-      final shot = takePenalty(
-        stateIn(divisions.first.id),
-        PenaltyCorner.bottomRight,
+    test('the index is the ladder, and it is the one both ramps read', () {
+      // His READ chance and his REACH are two ramps off the same number, and two
+      // ways of resolving which division he keeps for would be two ways of
+      // disagreeing — a keeper who reads like the top flight and dives like
+      // Sunday League.
+      for (var i = 0; i < divisions.length; i++) {
+        final state = stateIn(divisions[i].id);
+        expect(keeperDivisionIndex(state), i, reason: divisions[i].id);
+        expect(
+          keeperSmartChanceFor(state),
+          penaltyKeeperSmartChance(keeperDivisionIndex(state)),
+          reason: divisions[i].id,
+        );
+      }
+      // Both ramps climb, so the ladder is felt in the save AND in the reach.
+      expect(
+        keeperReachFor(divisions.length - 1),
+        greaterThan(keeperReachFor(0)),
       );
-      expect(shot.keeperRead, isFalse);
-      expect(shot.keeper, PenaltyCorner.topLeft);
-      expect(shot.scored, isTrue);
-    });
-
-    test('is saved when the keeper guesses right by luck', () {
-      // A guess and a read are different things, and only one is the division
-      // getting harder.
-      setPenaltyRandom(_FixedRandom(0.99, intValue: 0));
-      final shot = takePenalty(stateIn(divisions.first.id), PenaltyCorner.topLeft);
-      expect(shot.keeperRead, isFalse, reason: 'luck, not skill');
-      expect(shot.scored, isFalse);
-    });
-
-    test('every corner is aimable', () {
-      setPenaltyRandom(math.Random(7));
-      for (final corner in PenaltyCorner.values) {
-        expect(takePenalty(stateIn(divisions.first.id), corner).aimed, corner);
-      }
-    });
-
-    test('the bottom division is beatable more often than the top', () {
-      int scoreIn(String division) {
-        setPenaltyRandom(math.Random(11));
-        var scored = 0;
-        for (var i = 0; i < 600; i++) {
-          if (takePenalty(stateIn(division), PenaltyCorner.topLeft).scored) {
-            scored++;
-          }
-        }
-        return scored;
-      }
-
-      expect(scoreIn(divisions.first.id), greaterThan(scoreIn(divisions.last.id)));
     });
   });
-}
-
-/// Returns the same doubles every time, so a branch can be pinned.
-class _FixedRandom implements math.Random {
-  _FixedRandom(this.value, {this.intValue = 0});
-
-  final double value;
-  final int intValue;
-
-  @override
-  double nextDouble() => value;
-
-  @override
-  int nextInt(int max) => intValue % max;
-
-  @override
-  bool nextBool() => false;
 }
