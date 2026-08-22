@@ -152,3 +152,26 @@ Division? getNextDivision(String currentId) {
   final idx = divisions.indexWhere((d) => d.id == currentId);
   return idx >= 0 && idx < divisions.length - 1 ? divisions[idx + 1] : null;
 }
+
+/// Which rung of the ladder a save is on, as an index into [divisions].
+///
+/// **Six mini-games ramp their difficulty off this and there were two of it.**
+/// `penalty_game_engine.dart` had one, documented as shared "because his READ
+/// chance and his REACH are two ramps off the same index and two ways of
+/// resolving it would be two ways of disagreeing" — and the other five
+/// mini-games went through a character-for-character copy that lived in
+/// `boot_room_screen.dart` and was imported by its four siblings. A screen
+/// exporting a state accessor to other screens is the shape to notice: the
+/// rule is about the SAVE, so it belongs beside the ladder it indexes into.
+///
+/// Unknown or missing id reads as the bottom rung rather than -1, which is what
+/// every one of those difficulty ramps wants — an unrecognised save gets the
+/// easiest opponent, not an index that throws when it hits a table.
+int currentDivisionIndex(Map<String, dynamic>? state) {
+  final progression = state?['progression'];
+  final id = progression is Map<String, dynamic>
+      ? progression['currentDivision']
+      : null;
+  final idx = divisions.indexWhere((d) => d.id == id);
+  return idx < 0 ? 0 : idx;
+}

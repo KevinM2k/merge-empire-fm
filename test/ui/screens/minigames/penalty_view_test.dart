@@ -7,12 +7,73 @@
 /// whether the scene painted.
 library;
 
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/penalty_physics.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
+import 'package:merge_empire_fc/state/save_slots.dart';
+import 'package:merge_empire_fc/state/save_store.dart';
+import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/penalty_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+
+/// The real screen, on a save sitting in one named division.
+///
+/// The kit is the first thing the scene takes from the SAVE rather than from
+/// the physics, so the only test that can prove it is one that goes through
+/// `PenaltyScreen` — a `PenaltyView` built by hand proves the parameter exists
+/// and nothing about whether anything fills it.
+Future<void> pumpPenalty(WidgetTester tester, {required String division}) async {
+  tester.view.physicalSize = const Size(420 * 3, 900 * 3);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+
+  final save = createDefaultState();
+  (save['progression'] as Map<String, dynamic>)['currentDivision'] = division;
+
+  final container = ProviderContainer(
+    overrides: [
+      saveStoreProvider.overrideWithValue(
+        MemorySaveStore({saveKeyPrimary: jsonEncode(save)}),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(gameProvider).load();
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: Consumer(
+        builder: (context, ref, _) => MaterialApp(
+          theme: ref.watch(appThemeProvider),
+          home: const PenaltyScreen(),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
+/// Close it, IN the test body.
+///
+/// The screen's debounced save leaves a `Timer` pending and `flutter_test`
+/// fails any test that ends with one outstanding — as an assertion at the top
+/// of the body, which reads as the expectation below having failed rather than
+/// as the scene never having been shut. `addTearDown` is too late: the
+/// invariant is checked before teardowns run.
+Future<void> closePenalty(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+}
 
 void main() {
   const view = Size(400, 800);
@@ -269,6 +330,147 @@ void main() {
       for (final pose in poses) {
         expect(keeperRigFor(pose, view), isNotNull);
       }
+    });
+  });
+
+  /// **The keeper got harder as you climbed and looked exactly the same doing
+  /// it.** The palettes lived in the sprite this scene replaced, so deleting a
+  /// superseded file took a shipped feature with it and left `PARITY.md`
+  /// ticking the item — which is why these pin the mapping rather than only
+  /// the arithmetic around it.
+  group('what he is wearing', () {
+    test('THERE IS ONE KIT PER DIVISION, and no kit for a division there', () {
+      // The sprite's table was indexed by a TIER the division had to be
+      // converted into, and it carried an eighth entry its own ramp could
+      // never reach. A list as long as `divisions` cannot drift either way.
+      expect(keeperKits.length, divisions.length);
+    });
+
+    test('and the division picks it', () {
+      // Pinned at both ends: these are the sprite's tier two and tier eight,
+      // which are the kits Sunday League and the Champions Cup actually wore.
+      expect(keeperKitForDivision(0).shirt, const Color(0xFFE0A32B));
+      expect(
+        keeperKitForDivision(divisions.length - 1).shirt,
+        const Color(0xFF2E7CE8),
+      );
+      for (var i = 0; i < divisions.length; i++) {
+        expect(
+          keeperKitForDivision(i),
+          keeperKits[i],
+          reason: divisions[i].id,
+        );
+      }
+    });
+
+    test('a division off either end wears the nearest kit, not a throw', () {
+      // `keeperReachFor` clamps rather than throwing and this is the third ramp
+      // off the same index, so a division added without a kit has to draw a
+      // keeper rather than take the scene down.
+      expect(keeperKitForDivision(-1), keeperKits.first);
+      expect(keeperKitForDivision(99), keeperKits.last);
+    });
+
+    test('EVERY DIVISION IS A DIFFERENT SHIRT, which is the whole point', () {
+      final shirts = {for (final kit in keeperKits) kit.shirt};
+      expect(shirts.length, keeperKits.length);
+    });
+
+    test('the gloves never match the sleeve they hang off', () {
+      // The kit's own claim: the glove is the thing that saves it, so it is the
+      // thing you have to be able to pick out. A glove the colour of the shirt
+      // is the fault the scene's comment says it was rebuilt away from.
+      for (var i = 0; i < keeperKits.length; i++) {
+        expect(
+          keeperKits[i].glove,
+          isNot(keeperKits[i].shirt),
+          reason: divisions[i].id,
+        );
+      }
+    });
+
+    test('and the shirt shade is DARKER than the shirt', () {
+      // The torso gradient runs shoulder-to-hip through these two. A shade
+      // lighter than the shirt lights his belly and leaves his chest in the
+      // dark, which is a rig lit from underneath.
+      for (var i = 0; i < keeperKits.length; i++) {
+        final kit = keeperKits[i];
+        expect(
+          kit.shirtShade.computeLuminance(),
+          lessThan(kit.shirt.computeLuminance()),
+          reason: divisions[i].id,
+        );
+      }
+    });
+
+    // One pump per division, rather than seven inside one body: the save is a
+    // process-lifetime map that a load REPLACES THE CONTENTS OF, so pumping a
+    // second one over the first is exactly the sharp edge `game_state.dart`'s
+    // header warns about — and a failure here names the division rather than
+    // the loop.
+    for (var i = 0; i < divisions.length; i++) {
+      testWidgets('THE SAVE REACHES HIS SHIRT — ${divisions[i].id}', (
+        tester,
+      ) async {
+        // The reachability half, and the half a geometry test cannot ask: every
+        // kit above could be right and the scene still draw one hardcoded
+        // shirt. The sprite's palettes were reachable too, right up until they
+        // were not.
+        await pumpPenalty(tester, division: divisions[i].id);
+        final view = tester.widget<PenaltyView>(
+          find.byKey(const ValueKey('penalty-view')),
+        );
+        expect(view.kit, keeperKits[i]);
+        // And the painter is handed the same one — the scene draws what the
+        // screen resolved rather than a second lookup of its own.
+        final painter = tester
+            .widgetList<CustomPaint>(
+              find.descendant(
+                of: find.byType(PenaltyView),
+                matching: find.byType(CustomPaint),
+              ),
+            )
+            .map((c) => c.painter)
+            .whereType<PenaltyPainter>()
+            .single;
+        expect(painter.kit, keeperKits[i]);
+        await closePenalty(tester);
+      });
+    }
+
+    test('and he is DRAWN in it, standing and at full stretch either way', () {
+      // Every kit through the real painter, in the poses that move the rig
+      // furthest apart. **What this asks is only that `paint` returns**: a
+      // colour the rig cannot take — a shader built from two coincident
+      // points, a record field renamed out from under it — throws here rather
+      // than on the screen of whichever division happens to hold it. It is a
+      // smoke test and it is the only kind available, because what the pixels
+      // came out as is not a thing a canvas recording will answer.
+      var painted = 0;
+      for (final kit in keeperKits) {
+        for (final pose in [poses.first, poses[poses.length ~/ 2], poses.last]) {
+          final recorder = ui.PictureRecorder();
+          PenaltyPainter(
+            kit: kit,
+            turf: const Color(0xFF3A8C41),
+            frame: PenaltyFrame(
+              // On the spot, and drawn: a keeper painted beside a ball that is
+              // not there is half the scene.
+              ball: Vec3(0, -spotDistance, ballRadius),
+              ballVisible: true,
+              roll: 0,
+              keeper: pose,
+              net: NetMesh(),
+              aimPreview: null,
+            ),
+          ).paint(Canvas(recorder), view);
+          recorder.endRecording().dispose();
+          painted++;
+        }
+      }
+      // And that the loop above actually ran, rather than an empty table
+      // passing every kit test in this group by having nothing to check.
+      expect(painted, keeperKits.length * 3);
     });
   });
 

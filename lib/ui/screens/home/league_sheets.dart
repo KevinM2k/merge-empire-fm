@@ -56,25 +56,212 @@ class LeagueTableView extends ConsumerWidget {
   const LeagueTableView({super.key});
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      _PyramidPager(start: currentDivisionIndex(ref.watch(gameProvider).state));
+}
+
+/// **The table is the whole PYRAMID, not just your division.**
+///
+/// `buildPyramidTable` plays every AI fixture in any division through the same
+/// sampler the player's own league pre-simulates with, seeded off (season,
+/// division) so a league renders identically every time it is drawn — and it
+/// had no caller in `lib/`. `table.swipe_to_cycle` and `table.back_to_league`
+/// sat translated in ten languages with nothing able to print either. Engine,
+/// copy and control were all built; only the join was missing.
+///
+/// **Your own division is NOT drawn by that function**, and that is deliberate
+/// rather than an oversight to tidy up. `buildLeagueTable` writes movement back
+/// into the save — `prevPos` and `posDelta`, which the next-match card reads —
+/// and it takes your real results rather than sampling them. Swiping to a
+/// neighbour must not stamp a "position last round" for a league you were only
+/// looking at, so the pager asks the provider for your league and the engine
+/// for everyone else's.
+/// The division's name in the player's own language.
+///
+/// `Division.name` is the English literal on the data record and
+/// `division.<id>` has shipped translated in all ten catalogues since the
+/// generator first ran. See `divisionNameProvider`.
+String _divisionName(Division d) =>
+    tName('division', {'id': d.id, 'name': d.name});
+
+class _PyramidPager extends ConsumerStatefulWidget {
+  const _PyramidPager({required this.start});
+
+  /// The player's own rung, which is where the pager opens.
+  final int start;
+
+  @override
+  ConsumerState<_PyramidPager> createState() => _PyramidPagerState();
+}
+
+class _PyramidPagerState extends ConsumerState<_PyramidPager> {
+  late final PageController _controller = PageController(
+    initialPage: widget.start,
+  );
+  late int _page = widget.start;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _backToOwn() => _controller.animateToPage(
+    widget.start,
+    duration: const Duration(milliseconds: 280),
+    curve: Curves.easeOutCubic,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final home = _page == widget.start;
+    return Column(
+      key: const ValueKey('league-table'),
+      children: [
+        SheetHeader(
+          title: _divisionName(divisions[_page]),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+        ),
+        // The hint sits under the heading and says the same thing the dots do,
+        // in words, because a row of dots is only a hint once you have already
+        // guessed it is a pager.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+            t('table.swipe_to_cycle'),
+            key: const ValueKey('league-swipe-hint'),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              color: kit.textMuted,
+            ),
+          ),
+        ),
+        _RungDots(count: divisions.length, active: _page, home: widget.start),
+        Expanded(
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: divisions.length,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (context, i) => _DivisionTable(divisionIndex: i),
+          ),
+        ),
+        // **Only when you have swiped away.** On your own rung it would be a
+        // button that does nothing, and the pager opens there.
+        if (!home)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+            child: SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                key: const ValueKey('league-back-to-own'),
+                onPressed: _backToOwn,
+                child: Text(
+                  t(
+                    'table.back_to_league',
+                  ).replaceAll(
+                    '{division}',
+                    _divisionName(divisions[widget.start]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Which rung you are on, and which one is yours.
+class _RungDots extends StatelessWidget {
+  const _RungDots({
+    required this.count,
+    required this.active,
+    required this.home,
+  });
+
+  final int count;
+  final int active;
+  final int home;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < count; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.5),
+              child: Container(
+                width: i == active ? 14 : 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(3),
+                  // Your own rung keeps a mark of its own even when you are
+                  // looking at another, so "where am I" survives the swipe.
+                  color: i == active
+                      ? kit.accentBright
+                      : i == home
+                      ? kit.accent.withValues(alpha: 0.55)
+                      : kit.textMuted.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One division's table.
+///
+/// **The port had four equal columns of 12px grey**, which made the one number
+/// that decides the season the same weight as the games played. Points is the
+/// hero — a big gold figure — and P/W/D/L is a quiet micro-line under it.
+///
+/// **Promotion and relegation are BANDS with a hairline label**, not a colour on
+/// a row: a tint on its own says "this row is special" without saying which kind
+/// of special, and the label is what names it.
+///
+/// **Your own row is marked WITHOUT a hue** — a neutral lift, so it can never be
+/// confused with the green promotion or red relegation band it might be sitting
+/// in. Identity comes from the division-coloured left bar and the heavier name.
+/// The port tinted your row with the accent, which in a green-accented division
+/// made mid-table look exactly like a promotion place.
+class _DivisionTable extends ConsumerWidget {
+  const _DivisionTable({required this.divisionIndex});
+
+  final int divisionIndex;
+
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final rows = ref.watch(leagueTableProvider);
-    final divisionId = ref.watch(currentDivisionProvider);
-    final division = getDivision(divisionId);
-    final form = ref.watch(leagueFormProvider);
+    final division = divisions[divisionIndex];
+    final divisionId = division.id;
+    final own = divisionId == ref.watch(currentDivisionProvider);
+
+    // Your league from the provider — it stamps movement back into the save and
+    // reads your real results. Everyone else's is sampled, and nothing is
+    // stored.
+    final rows = own
+        ? ref.watch(leagueTableProvider)
+        : buildPyramidTable(ref.watch(gameProvider).state!, divisionId);
+    final form = own ? ref.watch(leagueFormProvider) : const <String, List<String>>{};
+    final lastSeason = ref.watch(lastSeasonStatusProvider);
 
     final isTop = divisionId == 'champions_cup';
     final isBottom = divisionId == 'sunday_league';
     final relegStart = rows.length - 2;
 
     return ListView(
-      key: const ValueKey('league-table'),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      key: ValueKey('league-table-$divisionId'),
+      padding: const EdgeInsets.only(bottom: 8),
       children: [
-        SheetHeader(
-          title: ref.watch(divisionNameProvider),
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        ),
         for (var i = 0; i < rows.length; i++) ...[
           if (!isTop && i == 0)
             _ZoneLabel(
@@ -93,9 +280,16 @@ class LeagueTableView extends ConsumerWidget {
             row: rows[i],
             zone: leagueZoneFor(i + 1, rows.length, divisionId),
             divisionColour: cssColor(division.color),
-            form: form[rows[i].name] ?? const [],
+            // A sampled table carries its own form on the row; yours is keyed
+            // by club name out of the real fixture results.
+            form: own ? (form[rows[i].name] ?? const []) : rows[i].form,
+            lastSeason: lastSeason[divisionId]?[rows[i].name],
           ),
         ],
+        // **Only when a marker is actually on the table.** Season one has no
+        // last season, and a key to symbols nobody can see is furniture.
+        if ((lastSeason[divisionId] ?? const {}).isNotEmpty)
+          const _LastSeasonLegend(),
       ],
     );
   }
@@ -133,6 +327,92 @@ class _ZoneLabel extends StatelessWidget {
   );
 }
 
+/// What a club did last season, as one glyph.
+///
+/// **A glyph rather than a word, and the arrows are already the game's.**
+/// `play.zone_promo` and `play.zone_relegation` carry ↑ and ↓ — the strings the
+/// bands above strip them OFF, because there the colour and the position
+/// already say which way. On a row they are the whole message. The trophy is
+/// the same one `play.champion_spot` uses.
+///
+/// The long string is the tooltip and the short one is the legend, which is
+/// what the catalogue ships: `table.was_promoted` is a sentence, `table.
+/// legend_promoted` is a word.
+({String glyph, Color colour, String legendKey, String longKey})? _marker(
+  String? status,
+  KitTheme kit,
+) => switch (status) {
+  'champion' => (
+    glyph: '🏆',
+    colour: const Color(0xFFFFD700),
+    legendKey: 'table.legend_champion',
+    longKey: 'table.was_champion',
+  ),
+  'promoted' => (
+    glyph: '↑',
+    colour: kit.accentBright,
+    legendKey: 'table.legend_promoted',
+    longKey: 'table.was_promoted',
+  ),
+  'relegated' => (
+    glyph: '↓',
+    colour: const Color(0xFFF87171),
+    legendKey: 'table.legend_relegated',
+    longKey: 'table.was_relegated',
+  ),
+  _ => null,
+};
+
+/// The key to the glyphs, under the table.
+class _LastSeasonLegend extends StatelessWidget {
+  const _LastSeasonLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Padding(
+      key: const ValueKey('league-last-season-legend'),
+      padding: const EdgeInsets.fromLTRB(10, 14, 10, 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            t('table.last_season').toUpperCase(),
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+              color: kit.textMuted,
+            ),
+          ),
+          for (final status in ['champion', 'promoted', 'relegated'])
+            if (_marker(status, kit) case final m?)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    m.glyph,
+                    style: TextStyle(fontSize: 11, color: m.colour),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    t(m.legendKey),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TableRow extends StatelessWidget {
   const _TableRow({
     required this.position,
@@ -140,6 +420,7 @@ class _TableRow extends StatelessWidget {
     required this.zone,
     required this.divisionColour,
     required this.form,
+    this.lastSeason,
   });
 
   final int position;
@@ -147,6 +428,9 @@ class _TableRow extends StatelessWidget {
   final LeagueZone zone;
   final Color divisionColour;
   final List<String> form;
+
+  /// `champion`, `promoted`, `relegated`, or null for a club that stayed put.
+  final String? lastSeason;
 
   @override
   Widget build(BuildContext context) {
@@ -206,16 +490,36 @@ class _TableRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  row.name,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: row.isPlayer
-                        ? FontWeight.w900
-                        : FontWeight.w700,
-                    color: row.isPlayer ? kit.accentBright : ink,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        row.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: row.isPlayer
+                              ? FontWeight.w900
+                              : FontWeight.w700,
+                          color: row.isPlayer ? kit.accentBright : ink,
+                        ),
+                      ),
+                    ),
+                    // AFTER the name and inside the same Row, so a long club
+                    // name ellipsises around the marker rather than pushing it
+                    // off the row.
+                    if (_marker(lastSeason, kit) case final m?) ...[
+                      const SizedBox(width: 5),
+                      Tooltip(
+                        message: t(m.longKey),
+                        child: Text(
+                          m.glyph,
+                          key: ValueKey('league-last-season-$position'),
+                          style: TextStyle(fontSize: 11, color: m.colour),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 if (form.isNotEmpty) ...[
                   const SizedBox(height: 5),
@@ -255,16 +559,26 @@ class _TableRow extends StatelessWidget {
                     color: kit.textMuted,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
+                  // **The letters are TRANSLATED and this printed English.**
+                  // `table.col_played`, `col_won`, `col_drawn` and `col_lost`
+                  // sit in all ten catalogues — German is S/S/U/N, French
+                  // M/V/N/D — and a German player was reading `7W 3D 2L`. The
+                  // port dropped the JS's four-column header for this
+                  // micro-line deliberately, which is why nothing referenced
+                  // the keys; the letters came with the header.
                   children: [
-                    TextSpan(text: 'P${row.played} · '),
+                    TextSpan(text: '${t('table.col_played')}${row.played} · '),
                     TextSpan(
-                      text: '${row.won}',
+                      text: '${row.won}${t('table.col_won')}',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         color: ink.withValues(alpha: 0.82),
                       ),
                     ),
-                    TextSpan(text: 'W ${row.drawn}D ${row.lost}L'),
+                    TextSpan(
+                      text: ' ${row.drawn}${t('table.col_drawn')}'
+                          ' ${row.lost}${t('table.col_lost')}',
+                    ),
                   ],
                 ),
               ),
@@ -504,14 +818,32 @@ class _FixtureRow extends StatelessWidget {
           // estimate that does not say it is one is a number the player will
           // hold the game to. In its own slot, because jammed against the score
           // the two numbers ran together into one.
+          //
+          // **And the tilde was the ONLY thing saying so.** A bare number in an
+          // unlabelled column, in a row of other numbers, is a number nobody
+          // can identify — and the catalogue has shipped the sentence that
+          // identifies it, in ten languages, since the generator first ran:
+          // `fixtures.opp_rating` and `fixtures.opp_rating_est`, the second of
+          // which explains the tilde in as many words. Both had no caller.
+          // Sentences do not fit a 34px slot, so they are what it says when you
+          // hold it — the same shape as the table's last-season markers.
           SizedBox(
             width: 34,
-            child: Text(
-              fixture.ratingEstimated
-                  ? '~${fixture.rating}'
-                  : '${fixture.rating}',
-              textAlign: TextAlign.right,
-              style: TextStyle(color: kit.textMuted, fontSize: 11),
+            child: Tooltip(
+              message: t(
+                fixture.ratingEstimated
+                    ? 'fixtures.opp_rating_est'
+                    : 'fixtures.opp_rating',
+                {'rating': fixture.rating},
+              ),
+              child: Text(
+                fixture.ratingEstimated
+                    ? '~${fixture.rating}'
+                    : '${fixture.rating}',
+                key: ValueKey('fixture-rating-${fixture.matchNum}'),
+                textAlign: TextAlign.right,
+                style: TextStyle(color: kit.textMuted, fontSize: 11),
+              ),
             ),
           ),
           SizedBox(

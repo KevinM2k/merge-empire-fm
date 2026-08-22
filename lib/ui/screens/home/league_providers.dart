@@ -115,9 +115,64 @@ final leagueTableProvider = savePick<List<LeagueRow>>((s) {
   return buildLeagueTable(s);
 });
 
+/// What each club DID last season, by division and then by club name.
+///
+/// **`season_end` has written `lastSeasonStatus` every rollover since M1 and
+/// nothing has ever read it.** `seasonStatusFor` is the engine's own accessor
+/// and had no caller either, while seven `table.*` strings sat translated in
+/// ten languages with nothing able to print one — the marker's three labels,
+/// its three long forms and the legend's heading.
+///
+/// **Keyed by division because the table browses all seven.** The record stamps
+/// each club with the league its move landed IN, so a promotion badge lights up
+/// where the club arrived and never where it left; indexing by division is that
+/// rule made structural, and it also means one pass over the record serves
+/// every page of the pager.
+///
+/// Only the moves themselves are here — a club that stayed put has no entry
+/// rather than a null one, so `isNotEmpty` is the question the legend asks.
+final lastSeasonStatusProvider = savePick<Map<String, Map<String, String>>>((
+  s,
+) {
+  final rec = _map(_map(s['progression'])?['lastSeasonStatus']);
+  if (rec == null) return const {};
+
+  final byDivision = <String, Map<String, String>>{};
+  void note(String? divId, String? name, String? status) {
+    if (divId == null || name == null || status == null) return;
+    (byDivision[divId] ??= <String, String>{})[name] = status;
+  }
+
+  final teams = _map(rec['teams']);
+  if (teams != null) {
+    for (final entry in teams.entries) {
+      final e = _map(entry.value);
+      note(e?['division'] as String?, entry.key, e?['status'] as String?);
+    }
+  }
+  // The player's own move is recorded apart from the AI clubs, under the
+  // division they landed in and the club name they were carrying at the time.
+  note(
+    rec['playerDivision'] as String?,
+    _map(s['club'])?['name'] as String? ?? 'Your Club',
+    rec['player'] as String?,
+  );
+  return byDivision;
+});
+
+/// **Through the catalogue, not off the record.**
+///
+/// `Division.name` is the English literal on the data object, and all seven
+/// division names have shipped translated in ten catalogues the whole time —
+/// German reads Sonntagsliga, Regionalliga, Champions-Liga. `tName` exists for
+/// exactly this and its own doc names divisions first; the trophy room and the
+/// pyramid editor already went through it, and everything else — this header,
+/// the season-end card, the match clock — printed English at every player in
+/// the world.
 final divisionNameProvider = savePick<String>((s) {
   final id = _map(s['progression'])?['currentDivision'] as String?;
-  return getDivision(id ?? divisions.first.id).name;
+  final div = getDivision(id ?? divisions.first.id);
+  return tName('division', {'id': div.id, 'name': div.name});
 });
 
 final seasonNumberProvider = savePick<int>(

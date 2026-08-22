@@ -23,6 +23,7 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -475,6 +476,140 @@ const double _keeperForeArm = 0.34;
 /// three fifths his gloves sat at his waist and the arms read as stubby rather
 /// than as ready.
 const double _gloveTuck = 0.80;
+
+/// What this division's keeper is WEARING.
+///
+/// **The rebuild dropped the palettes and nobody could see it.** They lived in
+/// `keeper_figure.dart` — the sprite this scene replaced — so when that file
+/// went the keeper kept getting harder as you climbed and went on looking
+/// exactly the same. `PARITY.md` had the item ticked the whole time, because a
+/// dead file kept it looking honest. Recovered from
+/// `git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart`.
+///
+/// **A goalkeeper's shirt is the one on the pitch that is deliberately unlike
+/// everyone else's**, so these are loud on purpose and they climb: Sunday
+/// League is a plain club top and the Champions Cup is something with a
+/// sponsor on it.
+typedef KeeperKit = ({
+  Color shirt,
+
+  /// The shaded side of it. The torso is one thick stroke here rather than the
+  /// sprite's filled path, so it runs shoulder-to-hip along the stroke — which
+  /// keeps the light on his chest whatever angle the dive has turned him to.
+  Color shirtShade,
+
+  /// Collar. Two strokes are what made the sprite's shirt a jersey rather than
+  /// a bib, and at this size the collar is the one that survives.
+  Color trim,
+  Color shorts,
+  Color socks,
+  Color glove,
+
+  /// Hair, and the brows — the sprite drew both in it, and a face whose brows
+  /// do not match its head reads as drawn by two people.
+  Color hair,
+  Color skin,
+});
+
+/// One per division, in the order `divisions.dart` runs.
+///
+/// **Seven, not the sprite's eight.** Its ramp was `2 + divisionIndex.clamp(0,
+/// 6)`, so tiers two through eight are every kit that was ever worn and the
+/// first was never on the ramp at all. The colours here are that mapping,
+/// unchanged — Sunday League is still the sprite's tier two — indexed by the
+/// thing that actually selects them instead of by a tier the division has to be
+/// converted into. The olive kit it leaves behind is in git with the rest of
+/// the file; carrying it here would be shipping a palette nothing can pick.
+const List<KeeperKit> keeperKits = [
+  // Sunday League.
+  (
+    shirt: Color(0xFFE0A32B),
+    shirtShade: Color(0xFFBF861B),
+    trim: Color(0xFF2B2B2B),
+    shorts: Color(0xFF2B2B2B),
+    socks: Color(0xFFE0A32B),
+    glove: Color(0xFFEDEDED),
+    hair: Color(0xFF1F1B16),
+    skin: Color(0xFFD99A6C),
+  ),
+  // Amateur Cup.
+  (
+    shirt: Color(0xFF2AA9A0),
+    shirtShade: Color(0xFF1E8078),
+    trim: Color(0xFF11333F),
+    shorts: Color(0xFF11333F),
+    socks: Color(0xFF2AA9A0),
+    glove: Color(0xFFF2F2F2),
+    hair: Color(0xFF6B4423),
+    skin: Color(0xFFEEBB8C),
+  ),
+  // Regional League.
+  (
+    shirt: Color(0xFF7E4BC4),
+    shirtShade: Color(0xFF5F3599),
+    trim: Color(0xFFEFE8FA),
+    shorts: Color(0xFF2A1A44),
+    socks: Color(0xFF7E4BC4),
+    glove: Color(0xFFEFE8FA),
+    hair: Color(0xFF1A1410),
+    skin: Color(0xFF8D5A2B),
+  ),
+  // National League.
+  (
+    shirt: Color(0xFFF07A1F),
+    shirtShade: Color(0xFFC85F10),
+    trim: Color(0xFF23262B),
+    shorts: Color(0xFF23262B),
+    socks: Color(0xFFF07A1F),
+    glove: Color(0xFFFFFFFF),
+    hair: Color(0xFF3A2A1C),
+    skin: Color(0xFFF7D9BD),
+  ),
+  // Elite League.
+  (
+    shirt: Color(0xFFB6E82F),
+    shirtShade: Color(0xFF8CBB18),
+    trim: Color(0xFF16181B),
+    shorts: Color(0xFF16181B),
+    socks: Color(0xFFB6E82F),
+    glove: Color(0xFF16181B),
+    hair: Color(0xFF9A9A9A),
+    skin: Color(0xFFB87A49),
+  ),
+  // Continental.
+  (
+    shirt: Color(0xFFC2223F),
+    shirtShade: Color(0xFF941630),
+    trim: Color(0xFFFFC233),
+    shorts: Color(0xFF1A1013),
+    socks: Color(0xFFC2223F),
+    glove: Color(0xFFFFC233),
+    hair: Color(0xFF1A1410),
+    skin: Color(0xFF6F462A),
+  ),
+  // Champions Cup.
+  (
+    shirt: Color(0xFF2E7CE8),
+    shirtShade: Color(0xFF1A56AE),
+    trim: Color(0xFFC3CCD4),
+    shorts: Color(0xFF0C1730),
+    socks: Color(0xFF2E7CE8),
+    glove: Color(0xFFC3CCD4),
+    hair: Color(0xFFD9B44A),
+    skin: Color(0xFFEEBB8C),
+  ),
+];
+
+/// The kit for a division, clamped the way the other two ramps clamp.
+///
+/// The third ramp off one index, and the only one that is a lookup rather than
+/// an interpolation: `keeperSmartChanceFor` is how often he reads it,
+/// [keeperReachFor] is how far he spreads, and this is what he does it in. A
+/// division off the end of the list wears the nearest one rather than throwing
+/// — the same shape as `keeperReachFor`'s own clamp, so a division added to
+/// `divisions.dart` without a kit still draws a keeper.
+KeeperKit keeperKitForDivision(int divisionIndex) =>
+    keeperKits[divisionIndex.clamp(0, keeperKits.length - 1)];
 
 /// The keeper's figure, solved in SCREEN space from the one point the physics
 /// actually knows.
@@ -946,10 +1081,17 @@ TakerRig? takerRigFor(double t, Size view) {
 }
 
 class PenaltyPainter extends CustomPainter {
-  const PenaltyPainter({required this.frame, required this.turf});
+  const PenaltyPainter({
+    required this.frame,
+    required this.turf,
+    required this.kit,
+  });
 
   final PenaltyFrame frame;
   final Color turf;
+
+  /// What the keeper is wearing. See [keeperKitForDivision].
+  final KeeperKit kit;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1271,16 +1413,23 @@ class PenaltyPainter extends CustomPainter {
     // **A goalkeeper's kit, not a colour scheme.** He was a yellow stroke on two
     // dark strokes — no neck, no socks, no boots, gloves the colour of the
     // shorts — which does not read as a footballer, let alone a keeper. The
-    // long-sleeved shirt in one loud colour with black shorts is the classic
+    // long-sleeved shirt in one loud colour with dark shorts is the classic
     // keeper strip, the socks match the shirt the way keepers' do, and the
-    // gloves are WHITE, because white gloves against a coloured sleeve is the
-    // single most goalkeeper-looking thing a figure this size can wear.
-    const shirtColour = Color(0xFFFFC63D);
-    const shortsColour = Color(0xFF1E242E);
-    const sockColour = Color(0xFFE8B93C);
+    // gloves are the loudest thing on him, because a glove you can pick out
+    // against the sleeve is the thing that saves it.
+    //
+    // **And it is the DIVISION's now.** Every colour above was a constant, so
+    // the keeper got harder all the way up and wore the same top doing it —
+    // see [keeperKitForDivision] for where the palettes went and why the
+    // sprite that held them took the parity item down with it.
+    final shirtColour = kit.shirt;
+    final shortsColour = kit.shorts;
+    final sockColour = kit.socks;
+    final gloveColour = kit.glove;
+    final skin = kit.skin;
+    // Boots stay the scene's, not the kit's: the sprite never had a pair, and
+    // black boots on grass is what every one of these divisions plays in.
     const bootColour = Color(0xFF15181D);
-    const gloveColour = Color(0xFFF2F4F7);
-    const skin = Color(0xFFE8B78E);
 
     Paint limb(Color c, double w) => Paint()
       ..color = c
@@ -1292,11 +1441,20 @@ class PenaltyPainter extends CustomPainter {
     // leg tops and swallowing the neck — then the hip bar and the legs off it,
     // the shoulder bar and the arms off that, and the head last. Every limb
     // starts on a bar that is drawn, which is what connects it to the body.
+    //
+    // **The shade runs along the stroke, not across the canvas.** The sprite
+    // shaded its torso path top-left to bottom-right, which is an axis of the
+    // SCREEN — and this torso turns, so at full stretch that lights his back.
+    // Two points on the body give the same lit chest at every angle of the
+    // dive, and cost nothing at rest.
     canvas.drawLine(
       rig.hip,
       rig.shoulder,
       Paint()
-        ..color = shirtColour
+        ..shader = ui.Gradient.linear(rig.shoulder, rig.hip, [
+          shirtColour,
+          kit.shirtShade,
+        ])
         ..strokeWidth = unit * 0.30
         ..strokeCap = StrokeCap.butt,
     );
@@ -1346,7 +1504,7 @@ class PenaltyPainter extends CustomPainter {
       Offset(-unit * 0.085, unit * 0.155),
       Offset(unit * 0.085, unit * 0.155),
       Paint()
-        ..color = const Color(0xFFE0A21F)
+        ..color = kit.trim
         ..strokeWidth = unit * 0.05
         ..strokeCap = StrokeCap.round,
     );
@@ -1368,7 +1526,7 @@ class PenaltyPainter extends CustomPainter {
       math.pi * 1.02,
       math.pi * 0.96,
       true,
-      Paint()..color = const Color(0xFF4A3620),
+      Paint()..color = kit.hair,
     );
     final eye = Paint()..color = const Color(0xFF20262E);
     for (final side in [-1.0, 1.0]) {
@@ -1385,16 +1543,20 @@ class PenaltyPainter extends CustomPainter {
         Offset(side * unit * 0.085, -unit * 0.055),
         Offset(side * unit * 0.022, -unit * 0.045),
         Paint()
-          ..color = const Color(0xFF4A3620)
+          ..color = kit.hair
           ..strokeWidth = unit * 0.018
           ..strokeCap = StrokeCap.round,
       );
     }
+    // The mouth is a DARKENED SKIN rather than a brown of its own. It was a
+    // fixed 0xFF9C6B4E, which is this face's own tone shaded — and the moment
+    // the skin came off the kit that stopped being true: the two darkest kits
+    // would have given a keeper a mouth lighter than the face around it.
     canvas.drawLine(
       Offset(-unit * 0.032, unit * 0.078),
       Offset(unit * 0.032, unit * 0.078),
       Paint()
-        ..color = const Color(0xFF9C6B4E)
+        ..color = Color.lerp(skin, Colors.black, 0.36)!
         ..strokeWidth = unit * 0.022
         ..strokeCap = StrokeCap.round,
     );
@@ -1709,6 +1871,7 @@ class PenaltyView extends StatefulWidget {
     super.key,
     required this.readChance,
     this.keeperSpread = keeperReach,
+    required this.kit,
     this.backdrop = Backdrop.grass,
     required this.onResult,
     required this.turf,
@@ -1721,6 +1884,10 @@ class PenaltyView extends StatefulWidget {
   /// How far this division's keeper can spread himself. See [keeperReachFor] —
   /// his read chance is one ramp and his reach is the other.
   final double keeperSpread;
+
+  /// What he wears, which is the third ramp off the same division index and
+  /// the only one you can see standing still. See [keeperKitForDivision].
+  final KeeperKit kit;
 
   /// What is behind the goal.
   ///
@@ -1998,6 +2165,7 @@ class PenaltyViewState extends State<PenaltyView>
               size: view,
               painter: PenaltyPainter(
                 turf: widget.turf,
+                kit: widget.kit,
                 frame: PenaltyFrame(
                   ball: ball,
                   ballVisible: true,

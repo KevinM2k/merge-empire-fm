@@ -24,6 +24,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/divisions.dart'
+    show currentDivisionIndex;
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -32,8 +34,6 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
-import 'package:merge_empire_fc/ui/screens/minigames/boot_room_screen.dart'
-    show divisionIndexOf;
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -159,7 +159,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
     super.initState();
     _gates = ref.read(tickGatesProvider.notifier);
     _game = ref.read(gameProvider);
-    _difficulty = whackDifficulty(divisionIndexOf(_game.state));
+    _difficulty = whackDifficulty(currentDivisionIndex(_game.state));
     _ticker = createTicker(_onFrame);
 
     // A "here they come" beat, so the first pop-up does not land before the

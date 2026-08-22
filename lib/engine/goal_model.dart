@@ -10,7 +10,6 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart' show winProbExponent;
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -53,13 +52,6 @@ int getInjuryDuration([int seasonsPlayed = 0]) {
   const baseMs = 10 * 60 * 1000; // fresh players
   const perSeason = 5 * 60 * 1000;
   return math.min(60 * 60 * 1000, baseMs + seasonsPlayed * perSeason);
-}
-
-/// Deprecated in the JS, kept so any future caller does not silently break.
-double retirementMultiplier(int seasonsPlayed) {
-  final penalty = agingPenalty(seasonsPlayed);
-  if (penalty == 0) return 1.0;
-  return math.max(0.5, 1.0 - penalty / 100);
 }
 
 /// A side can field a match while it has this many healthy players.

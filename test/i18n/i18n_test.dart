@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/i18n/catalogs.g.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -184,6 +185,57 @@ void main() {
             t(key),
             isNot(contains('strong>')),
             reason: '$id/$key still carries markup',
+          );
+        }
+      }
+      resetLocale();
+    });
+
+    test('AND `<strong>` WAS NOT THE ONLY TAG IN THERE', () {
+      // Nine entries carry markup `<strong>` never covered — seven
+      // `offseason.*` built on `<b>{n}</b>`, `tut.welcome.body`, and
+      // `squad.subtext` with a `<span style="color:…">` around the form arrows.
+      // None of the nine has a caller today, which is exactly the position
+      // `cup.win_reward.body` was in until a screen reached for it.
+      for (final key in [
+        'offseason.injuries_recovered_n',
+        'offseason.injuries_shortened_one',
+        'offseason.sponsors_expired_n',
+        'tut.welcome.body',
+        'squad.subtext',
+      ]) {
+        final out = t(key, {'n': 3});
+        expect(out, isNot(contains('<')), reason: key);
+        expect(out, isNot(contains('>')), reason: key);
+      }
+    });
+
+    test('and the span leaves its GLYPHS behind, which is the sentence', () {
+      // `squad.subtext` explains the form arrows, and the arrows were inside
+      // the span the DOM coloured. Stripping the tag has to keep what it wrapped
+      // or the line stops making sense.
+      final out = t('squad.subtext');
+      expect(out, contains('▲▲'));
+      expect(out, contains('▼▼'));
+      expect(out, isNot(contains('span')));
+      expect(out, isNot(contains('color')));
+    });
+
+    test('every locale is clean of the whole class, not one tag', () {
+      // The strip is by tag CLASS now rather than by a list somebody maintains:
+      // a `<b>`, an `<i>`, an `<em>` and a `<span …>` all mean emphasis, all
+      // cannot survive as a `String`, and all come off at this boundary.
+      final tag = RegExp(
+        r'</?(strong|b|i|em|span|u|small)(\s[^<>]*)?>',
+        caseSensitive: false,
+      );
+      for (final id in localeIds) {
+        setLocale(id);
+        for (final key in catalogs[id]!.keys) {
+          expect(
+            tag.hasMatch(t(key)),
+            isFalse,
+            reason: '$id/$key still renders its own markup',
           );
         }
       }

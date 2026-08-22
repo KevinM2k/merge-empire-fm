@@ -30,19 +30,25 @@ too late:
 
 ## Where we are
 
-**4,418 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,491 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
-**The count went DOWN this pass and that is the point** — 4,426 to 4,418. New
-tests went in for everything built, and more came out with the code they pinned:
-**fourteen of them belonged to a keeper nothing drew**, and the rest to a penalty
-model nothing took. A suite that only ever grows is a suite that has stopped
-being asked whether what it proves is still reachable.
+**4,418 to 4,491 across this session's ten passes**, and the first fourteen of
+those are the fourteen that went the pass before.
+The pass before this one took the suite DOWN — 4,426 to 4,418 — because fourteen
+of its tests belonged to a keeper nothing drew and the rest to a penalty model
+nothing took. Deleting them was right; what came with them was `keeperKits`, and
+this pass put those back on the live rig with fourteen tests of their own. The
+symmetry is a coincidence, but the lesson is not: **a suite that only ever grows
+has stopped being asked whether what it proves is still reachable, and a
+deletion that takes shipped behaviour with it will not announce itself.** The
+only reason this one was caught is that the last pass wrote down what it could
+no longer see.
 
 **START HERE if you are picking this up cold:**
 
 ```bash
-bash tool/unreached.sh        # 70 rows — engines nothing calls
+bash tool/unreached.sh        # 65 rows — engines nothing calls
 bash tool/unreached_ui.sh     # 2 rows — UI files nothing imports; it LOOPS
 ```
 
@@ -120,11 +126,355 @@ item looking honest for as long as it sat there, which is the second-order cost
 of leaving a superseded screen in the tree. `PARITY.md` now carries it as `[~]`
 with the git incantation to recover the palettes:
 
-- [ ] **Dress the penalty keeper from the division.** `keeperKits` is at
-      `git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart`, eight
-      entries of shirt/shirtShade/trim/shorts/socks/glove/hair/skin. `PenaltyView`
-      already knows the division twice over — both its ramps are derived from
-      `keeperDivisionIndex` — so this is a third argument, not a new lookup.
+- [x] **Dress the penalty keeper from the division.** Done, and it was the
+      third argument the row said it would be: `keeperKits` and
+      `keeperKitForDivision` sit in `penalty_view.dart` beside the two ramps,
+      `PenaltyView` takes a `kit`, and `PenaltyPainter` paints it. See
+      **The keeper wears the division again** below for the two things it turned
+      up that the row could not have known.
+
+**SIX MINI-GAMES RAMP OFF ONE DIVISION INDEX AND THERE WERE TWO OF IT.**
+`keeperDivisionIndex` was documented as shared — "two ways of resolving it would
+be two ways of disagreeing" — and a character-for-character copy called
+`divisionIndexOf` lived in `boot_room_screen.dart`, which four sibling mini-game
+screens imported it FROM. **A screen exporting a state accessor to other screens
+is the tell**: the rule is about the save, so it belongs beside the ladder it
+indexes into. `currentDivisionIndex` in `data/divisions.dart` now, and both old
+names are gone rather than one delegating to the other.
+
+**And routing around a named entry point is how you create the next one of
+these.** Hoisting the index tempted a rewrite of the penalty screen's read
+chance through `penaltyKeeperSmartChance`, which would have left
+`keeperSmartChanceFor` — the engine's own named accessor — with no caller in
+`lib/`. Caught before it landed; it is the exact fault this sweep exists to find.
+
+**EVERY STRING THE LEAGUE TABLE OWNS WAS UNREACHABLE**, all fifteen, and three
+different faults were sitting in the one gap.
+
+**The column letters were translated and the table printed English.** The
+micro-line under the points read `P12 · 7W 3D 2L` to everybody; German is
+S/S/U/N and French is M/V/N/D. The mechanism will happen again: the port
+deliberately dropped the JS's four-column header for that micro-line — the
+reasoning is in the widget's own doc and it is right — and **the LETTERS came
+off with the header they were attached to**, then got typed back in as literals.
+A layout divergence is where translated strings go to die.
+
+**The last-season badge was a whole feature.** `season_end` has stamped
+`lastSeasonStatus` every rollover since M1 — who went up, who came down, who won
+it — and nothing has ever read it. ↑, ↓ and 🏆 beside the club name now, with a
+legend under the table. The glyphs are not a choice: `play.zone_promo` already
+carries ↑ and this file already strips it off for the band labels, where colour
+and position say it instead. The catalogue ships each label twice and that is
+the design — `table.was_promoted` is a sentence and `table.legend_promoted` is a
+word — so the sentence is the tooltip and the word is the legend.
+
+**And the table was meant to be the whole LADDER.** `table.swipe_to_cycle` and
+`table.back_to_league` only mean anything if you can look at leagues you are not
+in — and `buildPyramidTable`, which plays every AI fixture in any division
+through the same sampler the player's own season is pre-simulated with, had no
+caller either. Engine, copy and control all shipped; only the join was missing.
+That is the third time this queue has found a whole feature one call short.
+
+**Your own division is still not drawn by that function, deliberately.**
+`buildLeagueTable` writes movement back into the save — `prevPos` and `posDelta`,
+which the next-match card reads — so swiping to a neighbour must not stamp a
+"position last round" for a league you were only looking at. The pager asks the
+provider for your league and the engine for everyone else's, and there is a test
+for exactly that.
+
+**Two test assumptions were wrong and both are worth carrying.** A fresh save is
+round ZERO, so the whole pyramid honestly reads P0 all the way down — a test
+that forgets to advance `seasonMatchesPlayed` proves nothing about the
+simulation it claims to check. And `ensureLeaguePyramid` legitimately writes the
+ladder on first browse, so "browsing stores nothing" is false as stated; what
+the engine actually promises is that a league renders IDENTICALLY every time,
+seeded off (season, division), and that is what is pinned.
+
+**A third: the club names cannot be hardcoded.** A fresh `createDefaultState()`
+and the same save after `GameState.load()` name the division's clubs
+DIFFERENTLY, because the pyramid is reseeded on the way in. Three badges keyed
+to "Anchor Athletic" badged nobody, and the test proved the empty case twice
+while claiming to prove the full one. It reads the rows off the loaded save now.
+
+`table.col_club` and `table.col_pts` stay unreachable and should: they are the
+JS's column header, which the port replaced on purpose.
+
+**PRO MODE WAS UNREACHABLE, and it is a whole difficulty mode.** `hardMode` had
+FOURTEEN readers across ten engines — player fatigue, squad rotation, live subs,
+a different trait pool, different daily rewards, different quests, no auto-pick,
+a quieter coach — and exactly ONE writer: `false`, in `createDefaultState`.
+Nothing in the app could ever turn it on, so every one of those branches was
+dead for every player who has ever installed the port.
+
+**The control was there and inert**, both choices carrying `onTap: null`, with a
+comment saying why: "the JS changes it only through the new-team flow". That
+reading was right and the conclusion was not — **switching HERE starts the
+career over**, which `difficulty.switch.toHard` says in as many words, so this
+IS that flow, entered from the one row that names the mode. `resetState` has
+been wired since the pass that found both reset rows confirming into an empty
+handler, so the flow existed; what was missing was the CHOICE on the way in.
+
+The flag is written BEFORE the reset, not after: `resetState` copies `settings`
+forward, so the new career starts in the mode that was chosen — and the other
+order leaves a window where the save is reset but still in the old mode.
+
+**A test was asserting the gap**, and replacing it rather than deleting it is
+the point: what survives is why the row is on the tab at all (which mode you are
+playing is the single biggest thing about a save, so it is shown rather than
+hidden), and what goes is the claim that neither half of it does anything.
+
+**AND A POOLED KEY'S VARIANTS DO NOT ALL TAKE THE SAME PLACEHOLDERS.** This cost
+an intermittent failure and it is the most transferable thing in this pass.
+`manager_hint.streak.win.3plus` has four sentences; the fourth ("{n} unbeaten
+runs against these, gaffer") never names the club, and one variant of
+`streak.loss.2` takes no params at all. A caller supplying what ONE variant
+needs leaves literal braces in the others — and since `tPoolStable` picks off a
+seed that includes the opponent's NAME, which is itself drawn from the seeded
+stream, it surfaces as a test that fails one run in four rather than as a broken
+screen.
+
+So: **the params a pooled key needs are the UNION across its variants**, and
+there is now a test that checks the engine supplies that union for every key it
+can emit — plus a check that every one of those keys was actually exercised, so
+a key nobody reached cannot pass by never being looked at. The screen-level test
+asserts only that nothing is left unresolved, which is the invariant that
+actually holds.
+
+**THE COACH HAD NOTHING TO SAY ABOUT THE FIXTURE**, only about the squad.
+Fourteen `manager_hint.*` strings, translated ten times over, with nothing able
+to print one — and the surface they belong to has existed since the home screen
+was written. `coach_bubble.dart`'s own header says it is the port of
+`_computeManagerTips`, which is the JS function these ARE the output of. Its
+pool had the grudge and the rating gap and nothing about the two clubs.
+
+**The data was all there as well.** `fixtureResults` is keyed `s{season}_m{n}`,
+every entry carries the opponent, the score and the outcome, and it is cleared
+only by a PRESTIGE reset rather than by a season rollover — which is exactly
+what "last season" and "{n} seasons back" need in order to mean anything.
+
+**Only what the keys themselves specify is built.** `streak.win.3plus` against
+`streak.win.2` is a threshold the key NAMES, and a last meeting is a fact rather
+than a judgement. `record.dominant` and `record.struggling` are NOT built: they
+need a sample size and a margin before an all-time record counts as either, and
+those numbers are in the spec repo. That line — build what the copy specifies,
+leave what it does not — is the difference between this and `squadstate.*`,
+which is thresholds all the way down and stays blocked.
+
+**IT IS POOLED COPY AND THE FIRST VERSION PRINTED THE WHOLE POOL.** Every
+`streak.*` and `last_meeting.*` string is three or four sentences separated by
+pipes, so a straight `t()` reads all four at the player in one line. The test
+caught it. `tPoolStable` rather than `tPool`, too: the pool is rebuilt on every
+change to the save, so a random pick would have Colin rephrasing himself while
+the bubble is open — the seed is the fixture and the run, so his wording holds
+until the thing he is talking about changes.
+
+**And a test whose expectation moves with its neighbours is worse than no
+test.** One assertion counted sentences in the chosen line; it passed in a
+full-file run and failed a filtered one, because the opponent's NAME is drawn
+from the seeded stream and which pooled line the seed lands on therefore depends
+on how many tests ran first. Gone, and the reason is in the test.
+
+Sorting is the other thing worth carrying: `meetingsWith` sorts by (season,
+match) off the KEY rather than trusting map order, because a save's map order is
+whatever the JSON round-trip produced — and "our last two against them" read off
+an unsorted list is two arbitrary matches that would pass any test whose fixture
+happened to be in order.
+
+**`<strong>` WAS NOT THE ONLY TAG IN THERE**, and the boundary now strips the
+CLASS rather than a list somebody maintains. Nine more entries carry markup
+`t()` never covered: seven `offseason.*`, whose whole report is built on
+`<b>{n}</b> players recovered`, plus `tut.welcome.body`, plus `squad.subtext`
+with a `<span style="color:#4ade80">` around the form arrows.
+
+**None of the nine has a caller today, which is the entire point.** That is
+exactly the position `cup.win_reward.body` was in until a screen reached for it
+and started printing `<strong>Nike</strong>` at players. Handling one tag and
+not its synonym is a boundary that only works for the strings somebody has
+already looked at — and both of the features those nine belong to (the offseason
+report, the tutorial) are open items on this list, so the call sites are coming.
+
+So `<b>`, `<i>`, `<em>`, `<u>`, `<small>` and `<span …>` — attributes included —
+all come off, and `<br>` stays the one tag that means something a `String` can
+hold. **Stripping the span leaves `▲▲` behind**, which is right twice over: it is
+what the sentence is about, and a glyph is what this port reaches for where the
+DOM reached for a colour.
+
+The test that matters is not the nine keys, it is the sweep: **every key in
+every one of the ten catalogues, checked against the tag pattern.** A per-key
+list is how the first version of this got to nine unnoticed strings.
+
+- [~] **`tier.*` (4 keys) is NOT the same bug as `division.*`**, and was checked
+      rather than assumed. `card_theme.dart`'s `tierLabel` has NINE entries —
+      Bronze, Bronze+, Silver, Silver★, Gold, Gold★, Legend, WORLD CLASS, ⚡ ICON
+      — and the catalogue has four, matching tiers 1, 3, 5 and 7 only. Routing
+      the port's labels through `tName('tier', …)` would translate four of nine
+      and lose the ★ and + distinctions on the rest. Whether the JS ships nine
+      and the generator caught four, or the port enriched a four-tier scheme,
+      cannot be answered from here.
+
+**THE SHIPPED-COPY SWEEP IS NOW MECHANISED, and it found four things in one
+pass.** The technique this queue keeps rewarding — grep the catalogue for a key
+prefix, then grep for a caller, and the gap is a work queue — run over every
+prefix at once rather than one hunch at a time. Two lessons about running it:
+
+- **Group by what the CALL SITE looks like, not by the key.** `tName('division',
+  d.id)` never contains the string `'division.'`, so a naive sweep reports the
+  whole prefix as unreachable when two screens are already using it. The
+  interesting state is not "no callers" but **PARTIAL adoption**, which is
+  strictly harder to see: grep says the prefix is used, the screens that matter
+  are the ones not using it, and nothing fails.
+- **Most of a big number is keys built from ids at render time** — `ach.title.
+  ${id}`, `quest.${id}`, `product.${id}`. `call_sites_test` already covers
+  those. Filter them out first or the sweep reports 148 unreachable event
+  strings and buries the four real ones.
+
+**1. THE LEAGUE YOU PLAY IN WAS CALLED BY ITS ENGLISH NAME.** All seven division
+names ship translated in ten catalogues — German reads Sonntagsliga,
+Regionalliga, Champions-Liga — and `Division.name` is the English literal on the
+data record. That is what the table header, the season-end promotion card and
+the match clock all printed. The helper was already there, already used by the
+trophy room and the pyramid editor, and its own doc names divisions FIRST:
+`tName`. This is the partial-adoption case above, on the most-shown proper noun
+in the game.
+
+The match clock is localised at the SCREEN deliberately: `match_orchestration`
+stamps `divisionName` into a result map the parity harness compares field for
+field, so the engine keeps the English name and the screen resolves it off the
+`divisionId` beside it. A cup tie puts its own already-localised string in that
+field under a cup id, which has no `division.` key and falls straight back — so
+one call site covers both paths without a branch.
+
+**2. GEMS ARRIVED IN SILENCE, from four faucets, and one of them had never
+fired.** `grantTutorialGems` is the onboarding grant and its only caller in the
+JS is the scripted tutorial, which the port does not have — so **every save this
+port has ever written started with no gems**, meeting the gem shop with an empty
+wallet. It is paid at boot now.
+
+**And the parity harness picked the place.** The first attempt put it beside
+`settleTutorial` in `load()` — where the port already admits the tutorial cannot
+run — and `game_state_test`'s reset fixtures failed: they load a save, reset it,
+and compare the result to the JS's field for field, so a grant on that path is
+the port inventing currency the JS never gave. `GameRunner.boot` is where sweeps
+the port owes the player live, and the harness does not compare it.
+
+**Every grant announces itself now, and that is a STATED EXCEPTION to the toast
+layer's quiet-by-default rule.** That rule exists because `coins:updated` fires
+on every tick; gems are the opposite case — premium currency, arriving a handful
+of times in a whole run — and a player handed some without being told has been
+given something they do not know they have. Occasion decides the WORDS, never
+whether there are any: three occasions have copy, the rest get the glyph and the
+number, which is what `toast.cup_gems` already does and needs no new key. Gold
+rather than the club's accent, heavier, held a second longer, and audible on
+`newDiscovery` — `coin` is the sound of every idle tick's income.
+
+**3. AND THE SWEEP'S OWN LEFTOVERS ARE A QUEUE.** Eighteen prefixes have no
+mention in `lib/` at all. Most are M4 services that do not exist yet — `agegate`,
+`cloud`, `cloudsave`, `feedback`, `notif`, `rating` (Rate Us, which wants a store
+URL). Three are real and are their own items:
+
+- [ ] **`squadstate.*` (13 keys, 3-4 pooled variants each)** — Coach Colin's
+      read on your squad: too few players, low energy, poor form, a run-in with
+      {n} left, bronze-heavy, tier-one facilities, stronger or weaker than the
+      league. There is NO engine for it — no file in `lib/` mentions
+      `squadstate` — and the keys name their conditions but not their THRESHOLDS
+      or their priority order. "Six in ten isn't bad" is a threshold somebody
+      chose. Blocked on the spec repo for the same reason the tutorial is.
+- [~] **`champ.*` (9 keys)** — the Champions League celebration: a title, a
+      body, a prestige teaser, a Pro Mode teaser, and **`champ.defend` — "⚽
+      Defend the Title"**, an option the prestige card does not offer. The
+      prestige card built last pass covers the same moment with `prestige.*`, so
+      building this is either finishing the endgame or shipping a second one,
+      and which cannot be answered from here.
+- [x] **`fixtures.opp_rating` and `.opp_rating_est`** — the opponent's rating is
+      a bare number in an unlabelled 34px column between a club name and a
+      score, and the sentences identifying it (including the one explaining what
+      the tilde means) shipped in ten languages with no caller. They are the
+      tooltip now, the same shape as the table's last-season markers.
+      **`ratingEstimated` is only true on a save whose ratings have not been
+      drawn** — the boot sweep materialises `seasonOpponentRatings` for the
+      whole season — so the test builds that state rather than hoping a fresh
+      save is in it.
+- [ ] **`fixtures.played`** ('Played') duplicates `play.previousMatches`
+      ('Previous Matches'), which the sheet already uses for that heading. One
+      of the two is the JS's and the other is not; which cannot be told from
+      here.
+- [ ] **`prize.win` / `.draw` / `.loss` / `.boost`** (4) and
+      **`boost.tv_deal_chip` / `.kit_sponsor_chip`** (2) — the boost chips read
+      "TV Deal ×1.5 · {n} left" and both boosts are scoped to the season they
+      were bought in, so `{n}` is almost certainly matches left in the season —
+      but "almost certainly" is the problem, and the SURFACE they sit on does
+      not exist. The income breakdown card already lists `hud.income.kit_sponsor`
+      as a multiplier row, so the chip is a different control, not that one.
+- [ ] **`offseason.*` (11)** — an "Offseason Report" card: how many injured
+      players recovered over the break, how many had time taken off, how many
+      sponsorships expired, veterans in decline, who retired. Needs an engine
+      that diffs the squad across a season rollover; `season_end` does the work
+      but does not report it. Its `<b>` markup is handled now, so the copy is
+      printable the day the card exists.
+- [x] **`manager_hint.*` — eleven of the fourteen**, built as
+      `engine/manager_hint_engine.dart` and wired into Colin's existing pool.
+      See **The coach had nothing to say about the fixture** below.
+- [ ] **`manager_hint.record.dominant` / `.record.struggling`** are the three
+      left (with `aria.head` / `aria.dismiss`, which are DOM accessibility
+      labels and want a Flutter `Semantics` rather than a string). The record
+      pair needs a SAMPLE SIZE and a MARGIN before an all-time head-to-head
+      counts as either, and those numbers are in `../merge-empire-fc`.
+      Deliberately not guessed — see the engine's own header.
+- [x] **`difficulty.switch.*` (5)** — built, and it turned out to be the door
+      into a whole difficulty mode nobody could reach. See **Pro Mode was
+      unreachable** below.
+
+**THE KEEPER WEARS THE DIVISION AGAIN**, which was the row the last pass left
+behind, and it cost two decisions the row could not have predicted.
+
+**Seven kits, not the sprite's eight.** Its ramp was `2 + divisionIndex.clamp(0,
+6)`, so tiers two through eight are every kit that was ever worn and the first
+was never on the ramp at all — an olive club top no division could select. The
+table is indexed by DIVISION now rather than by a tier the division has to be
+converted into, which is one lookup instead of two and makes the dead entry
+impossible to reintroduce by accident. Every colour a division actually wore is
+unchanged; the olive one stays in git with the rest of the file. Carrying it
+here would have been shipping a palette nothing can pick, which is the fault
+this whole queue keeps finding.
+
+**AND THE SKIN COMING OFF THE KIT BROKE THE FACE.** The mouth was a fixed
+`0xFF9C6B4E` — which is the old hardcoded skin, shaded, and was correct for
+exactly as long as the skin was hardcoded too. Two of the seven kits are darker
+than that, so the moment the skin became the division's those keepers would have
+had a mouth LIGHTER than the face around it. It is `Color.lerp(skin, black,
+0.36)` now. The general shape is worth carrying: **turning a constant into a
+parameter breaks every other constant that was derived from it by eye**, and
+those are invisible because nothing names the relationship. The brows were the
+same find and the sprite had already answered it — it drew them in `kit.hair`,
+so they follow the hair here too.
+
+**One thing the sprite got right for the wrong frame.** It shaded its torso
+top-left to bottom-right, which is an axis of the SCREEN — fine for a sprite
+that never rotated, wrong here, where a full dive lays the whole figure flat and
+that gradient would light his back. The shade runs shoulder-to-hip along the
+stroke instead (`ui.Gradient.linear` on two rig points), so his chest is lit at
+every angle of the dive. **A gradient ported from a rig that could not turn has
+to be re-expressed in the body's frame, not copied.**
+
+**The test that mattered is the one that goes through the SCREEN.** Six of the
+new fourteen are data invariants — one kit per division, seven distinct shirts,
+no glove the colour of its own sleeve, a shade darker than its shirt — and every
+one of them could pass with the scene still painting a hardcoded shirt. So seven
+more pump `PenaltyScreen` on a save sitting in each named division and read the
+kit back off the built `PenaltyView` *and* off the `PenaltyPainter` under it.
+The sprite's palettes were reachable too, right up until they were not.
+
+**And two traps in writing those, both costing a wrong diagnosis first:**
+
+- **Seven pumps in one test body is one pump.** The save is a process-lifetime
+  map whose contents a load REPLACES, so the second division read back as the
+  first and it looked exactly like the wiring not working. One `testWidgets` per
+  division; a failure names the division rather than the loop.
+- **`addTearDown` is too late for a pending `Timer`.** The screen's debounced
+  save leaves one outstanding, `flutter_test` asserts on it — and reports it at
+  the TOP of the body, so all seven read as the expectation having failed when
+  the scene had simply never been shut. `closePenalty(tester)` at the end of the
+  body, the same shape as `goalkeeper_practice_test`'s `closeGame`.
 
 **Two rows in the current tree, both left alone deliberately** — they are the
 expected kinds the script's header describes, and neither is a second
@@ -190,7 +540,7 @@ than rebuilding it:
 
 ```bash
 bash tool/unreached.sh            # file :: function :: test-files=N
-bash tool/unreached.sh | wc -l    # 70 as this pass ends; was 79
+bash tool/unreached.sh | wc -l    # 65 as this pass ends; was 79
 ```
 
 A HIGH test-file count is the interesting case, not the safe one: it means the
@@ -268,9 +618,19 @@ status is "only its own test":
 - [x] **`refreshCupAvailability`** (`cup_engine.dart`) — `season_end` wrote the
       flag by hand in both the rollover and the prestige reset, and guarded on
       the branch existing, so a save without one silently got no cup.
-- [ ] **`grantTutorialGems`** (`gem_engine.dart`), and with it the whole tutorial:
-      no file in `lib/` references a `tut.` key, so forty-odd tutorial strings and
-      every step of it are unreachable. Much the biggest thing left on this list.
+- [x] **`grantTutorialGems`** (`gem_engine.dart`) — paid at boot now, and it had
+      never been paid at all. See **Gems arrived in silence** below.
+- [ ] **The tutorial itself, all 56 strings of it**, and it is the biggest thing
+      left on this list. **The copy is not the blocker; the CHOREOGRAPHY is.**
+      Every `tut.` string ships in ten languages, and `migration.dart` pins more
+      than it looks: nine steps (0..8), two of them inserted at old indices 3 and
+      6, and a `borrowedPlayers` mechanic the tutorial lends and takes back. What
+      is NOT recoverable from this repo is which key is which step, what each
+      step anchors to, and when the borrowed players come and go. That is in
+      `../merge-empire-fc`, so writing a nine-step script from here would be
+      reconstructing a rule from memory and presenting it as the spec's, which
+      `CLAUDE.md` forbids for good reason. Blocked on the spec repo, not on
+      effort.
 - [x] **`isTrophyPolishActive`** (`coin_sink_engine.dart`) — one of five copies
       of the rule, and the only one with a name. All four readers go through it.
 - [~] **`purchaseCoinSink`** (`coin_sink_engine.dart`) — a shelf that cannot be
@@ -286,15 +646,41 @@ status is "only its own test":
 - [x] **`takePenalty`** (`penalty_game_engine.dart`) — checked, and the physics
       is right. It went, and so did the two UI files nobody had noticed went with
       it. See **The penalty's predecessor** below.
-- [ ] **`describeOffer`** (`negotiation_engine.dart`), **`seasonStatusFor`**
-      (`league_table.dart`), **`getCardSplit`** (`player_rating.dart`),
-      **`traitLabelPlain`** (`trait_engine.dart`), **`peekGrudge`**
-      (`transfer_engine.dart`), **`hasEnoughPlayers`** and
-      **`retirementMultiplier`** (`goal_model.dart`), **`tapsForTier`**
-      (`club_assets.dart`), **`getNextDivision`** (`divisions.dart`) — smaller,
-      and several may be genuine dead ends in the JS. Check the JS for a caller
-      before building a UI for one: some functions are a dead end THERE, and
-      building a screen for one is adding a feature rather than porting it.
+- [x] **`seasonStatusFor`** (`league_table.dart`) — a whole feature, and it took
+      the rest of the league table's copy with it. See **Every string the league
+      table owns** below.
+- [x] **`getCardSplit`** (`player_rating.dart`) — a strict subset of
+      `getCardStats`, which has five callers and is what every screen showing an
+      ATK/DEF pair goes through. Gone; its tests moved to the live one, where
+      they pass unchanged, which is also the proof the two agreed. The rule it
+      named that WAS duplicated is the attack-ratio precedence, written out
+      three more times in `squad_rating.dart` and now `_attackRatio` there.
+- [x] **`traitLabelPlain`** (`trait_engine.dart`) — the port's own addition, not
+      the JS's, written so a caller supplying its own glyph would not render
+      two. That caller arrived as `TraitBadge` plus `traitName`, through the
+      CATALOGUE, and the untranslated helper sat unreachable behind it.
+      `traitLabel` beside it stays and now says why: it is a parity function
+      whose output is pinned against the JS's.
+- [x] **`retirementMultiplier`** (`goal_model.dart`) — the port's own doc said
+      "deprecated in the JS, kept so any future caller does not silently break",
+      and a caller that never came is not one that breaks.
+- [ ] **`describeOffer`** (`negotiation_engine.dart`), **`peekGrudge`**
+      (`transfer_engine.dart`), **`hasEnoughPlayers`** (`goal_model.dart`),
+      **`tapsForTier`** (`club_assets.dart`), **`getNextDivision`**
+      (`divisions.dart`) — what is left of that row, and each has been LOOKED at
+      rather than only listed:
+      - `hasEnoughPlayers` counts GRID cells and excludes the injured, while the
+        two live copies of "can we field a side" (`canPlayMatch`,
+        `matchStartBlocked`) count filled LINEUP slots and do not. Three shapes
+        of one question, over two different collections. Worth resolving, but
+        which is right is a rules question the JS answers.
+      - `tapsForTier` is a public accessor over `_tapsPerTier`, which the file
+        already uses internally; the club UI shows progress as coins invested
+        over the tier threshold, not as taps, so nothing wants it. No catalogue
+        copy mentions taps either.
+      - `getNextDivision` is not the helper `season_end` wants — both its
+        anonymous `divisions[divIdx + 1]` sites already hold the INDEX and also
+        need the down direction.
 - [x] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) — both
       the per-match economy the port replaced, and between them they found a live
       one: the end-of-night ledger was printing a per-match wage bill with a
@@ -320,7 +706,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**91 items are open**, plus fourteen carrying a `[~]` — answered, but with a decision
+**92 items are open**, plus fifteen carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. **Read the audit block above
 first** — nine of the open items came out of it and each is a whole engine
 nobody can reach, which is a different kind of gap from the playtesting
@@ -655,7 +1041,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,418 passing
+flutter test             # 4,491 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 

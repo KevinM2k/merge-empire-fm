@@ -358,16 +358,4 @@ void main() {
       expect(modeOf(poissonPmf(2.8)), greaterThan(1));
     });
   });
-
-  group('retirementMultiplier', () {
-    test('is neutral before the decline', () {
-      expect(retirementMultiplier(0), 1.0);
-      expect(retirementMultiplier(10), 1.0);
-    });
-
-    test('falls past the peak but never below half', () {
-      expect(retirementMultiplier(11), closeTo(0.9, 1e-9));
-      expect(retirementMultiplier(99), 0.5);
-    });
-  });
 }

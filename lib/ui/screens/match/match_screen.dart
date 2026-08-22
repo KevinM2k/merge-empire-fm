@@ -1149,8 +1149,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     key: const ValueKey('match-clock-card'),
                     minute: f.minute,
                     finished: f.finished,
+                    // **Localised HERE, not in the engine.** The result
+                    // map is stamped by `match_orchestration`, whose fields
+                    // the parity harness compares against the JS's — so
+                    // `divisionName` stays the English one there and the
+                    // screen resolves it. A CUP tie puts its own already-
+                    // localised, decorated string in that field under a cup
+                    // id, which has no `division.` key, so it falls straight
+                    // back to what the launcher built.
                     label:
-                        '${widget.result['divisionName'] ?? ''} · '
+                        '${tName('division', {
+                          'id': widget.result['divisionId'],
+                          'name': widget.result['divisionName'] ?? '',
+                        })} · '
                         '${t(home ? 'play.home' : 'play.away')}',
                   ),
                   // THE STAGE: one band, fixed for the whole match, holding the

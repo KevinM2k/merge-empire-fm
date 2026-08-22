@@ -35,14 +35,6 @@ const List<Color> kitTileColours = [
   Color(0xFF00BCD4),
 ];
 
-int divisionIndexOf(Map<String, dynamic>? state) {
-  final progression = state?['progression'];
-  final id = progression is Map<String, dynamic>
-      ? progression['currentDivision']
-      : null;
-  return math.max(0, divisions.indexWhere((d) => d.id == id));
-}
-
 class BootRoomScreen extends ConsumerStatefulWidget {
   const BootRoomScreen({super.key});
 
@@ -74,7 +66,7 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen> {
     super.initState();
     _gates = ref.read(tickGatesProvider.notifier);
     final game = ref.read(gameProvider);
-    _difficulty = bootRoomDifficulty(divisionIndexOf(game.state));
+    _difficulty = bootRoomDifficulty(currentDivisionIndex(game.state));
     _movesLeft = _difficulty.moves;
     // createBoard settles the opening board itself — nothing already matching,
     // so the session starts on the player's move rather than a free cascade.
