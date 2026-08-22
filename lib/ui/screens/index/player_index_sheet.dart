@@ -426,10 +426,18 @@ class _IndexCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final light = Theme.of(context).brightness == Brightness.light;
     final theme = tierThemes[entry.def.tier] ?? tierThemes[1]!;
     final accent = cssColor(theme.accent);
     final accentLight = cssColor(theme.accentLight);
     final name = indexCardName(entry);
+    // **THE INDEX IS THE PLAYERS PAGE'S CARD, and it has to know which theme it
+    // is in.** Every colour on this card was fixed: the tier's DARK body
+    // gradient and a 70% black caption in both themes, so a light-mode index
+    // was a page of dark tiles under a light sheet — the one screen that had
+    // not been told. `tierBodyGradient` has carried a light half all along;
+    // [PlayerCard] has read it since the grid was fixed.
+    const captionInk = Color(0xFF1A1F26);
 
     return GestureDetector(
       key: ValueKey('pi-card-${_key(entry)}'),
@@ -440,7 +448,9 @@ class _IndexCard extends StatelessWidget {
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          gradient: discovered ? tierBodyGradient(theme.bg) : null,
+          gradient: discovered
+              ? tierBodyGradient(light ? theme.bgLight : theme.bg)
+              : null,
           color: discovered ? null : kit.surface2,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: discovered ? accent : kit.border),
@@ -454,111 +464,132 @@ class _IndexCard extends StatelessWidget {
                 ]
               : null,
         ),
-        child: Column(
-          children: [
-            Container(
-              height: 3,
-              decoration: BoxDecoration(
-                gradient: discovered
-                    ? LinearGradient(colors: [accent, accentLight, accent])
-                    : null,
-                color: discovered ? null : kit.border,
+        // **CLIPPED TO THE INSIDE OF THE BORDER**, the same fault the player
+        // card's caption scrim had: `Container.clipBehavior` clips to the
+        // decoration's OUTER path, so an opaque child paints over the border's
+        // own curve at the corners. Invisible while the caption was black on a
+        // dark card; a light one shows it.
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: Column(
+            children: [
+              Container(
+                // Two, not three: the tier stripe is a hint of which family the
+                // card belongs to, and at three it was a bar across the top.
+                height: 2,
+                decoration: BoxDecoration(
+                  gradient: discovered
+                      ? LinearGradient(colors: [accent, accentLight, accent])
+                      : null,
+                  color: discovered ? null : kit.border,
+                ),
               ),
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    // An undiscovered card is a SILHOUETTE, not a dimmed
-                    // portrait: the whole point of the index is that you cannot
-                    // see who it is until you find them.
-                    child: Opacity(
-                      opacity: discovered ? 1 : 0.22,
-                      child: ColorFiltered(
-                        colorFilter: discovered
-                            ? const ColorFilter.mode(
-                                Colors.transparent,
-                                BlendMode.dst,
-                              )
-                            : const ColorFilter.mode(
-                                Colors.black,
-                                BlendMode.srcIn,
-                              ),
-                        child: ArtImage(
-                          path: playerImagePath(
-                            entry.def.position,
-                            entry.def.tier,
-                            _variantFor(entry.female),
-                          ),
-                          fit: BoxFit.contain,
-                          fallback: PlayerPortrait(
-                            variantIndex: _variantFor(entry.female),
-                            kitColor: accent,
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      // An undiscovered card is a SILHOUETTE, not a dimmed
+                      // portrait: the whole point of the index is that you cannot
+                      // see who it is until you find them.
+                      child: Opacity(
+                        opacity: discovered ? 1 : 0.22,
+                        child: ColorFiltered(
+                          colorFilter: discovered
+                              ? const ColorFilter.mode(
+                                  Colors.transparent,
+                                  BlendMode.dst,
+                                )
+                              : const ColorFilter.mode(
+                                  Colors.black,
+                                  BlendMode.srcIn,
+                                ),
+                          child: ArtImage(
+                            path: playerImagePath(
+                              entry.def.position,
+                              entry.def.tier,
+                              _variantFor(entry.female),
+                            ),
+                            fit: BoxFit.contain,
+                            fallback: PlayerPortrait(
+                              variantIndex: _variantFor(entry.female),
+                              kitColor: accent,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: 3,
-                    left: 3,
-                    child: _Badge(
-                      text: entry.female ? '♀' : '♂',
-                      color: entry.female
-                          ? const Color(0xFFFF80AB)
-                          : const Color(0xFF80D8FF),
+                    Positioned(
+                      top: 3,
+                      left: 3,
+                      child: _Badge(
+                        text: entry.female ? '♀' : '♂',
+                        color: entry.female
+                            ? const Color(0xFFFF80AB)
+                            : const Color(0xFF80D8FF),
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    top: 3,
-                    right: 3,
-                    child: _Badge(
-                      text: '${entry.def.position} T${entry.def.tier}',
-                      color: discovered ? accentLight : kit.textMuted,
+                    Positioned(
+                      top: 3,
+                      right: 3,
+                      child: _Badge(
+                        text: '${entry.def.position} T${entry.def.tier}',
+                        color: discovered ? accentLight : kit.textMuted,
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    bottom: 3,
-                    right: 3,
-                    child: _Badge(
-                      text: '×$count',
-                      color: count > 0 ? accentLight : kit.textMuted,
+                    Positioned(
+                      bottom: 3,
+                      right: 3,
+                      child: _Badge(
+                        text: '×$count',
+                        color: count > 0 ? accentLight : kit.textMuted,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(5, 4, 5, 5),
-              color: Colors.black.withValues(alpha: 0.7),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    (discovered ? name : '???').toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: discovered ? Colors.white : kit.textMuted,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(5, 4, 5, 5),
+                // A scrim's job is contrast, and white does that for dark ink
+                // exactly as well as black does for light.
+                color: light
+                    ? Colors.white.withValues(alpha: 0.82)
+                    : Colors.black.withValues(alpha: 0.7),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (discovered ? name : '???').toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: discovered
+                            ? (light ? captionInk : Colors.white)
+                            : kit.textMuted,
+                      ),
                     ),
-                  ),
-                  Text(
-                    discovered
-                        ? '${entry.def.position} · T${entry.def.tier}'
-                        : 'T${entry.def.tier}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: discovered ? accentLight : kit.textMuted,
+                    Text(
+                      discovered
+                          ? '${entry.def.position} · T${entry.def.tier}'
+                          : 'T${entry.def.tier}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        // `accentLight` is a PALE tier colour — it is the tier
+                        // read off a black scrim. On a white one it is the
+                        // accent itself that carries.
+                        color: discovered
+                            ? (light ? accent : accentLight)
+                            : kit.textMuted,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

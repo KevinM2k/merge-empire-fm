@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,390 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,392 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**102 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**100 items are open**, plus eight carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3310,12 +3310,36 @@ is wrong in six places.
 
 ### Light and dark
 
-- [ ] **The card bottoms are still dark in light mode** on the squad page.
+- [~] **The card bottoms are still dark in light mode** on the squad page.
+      **Could not reproduce, and the mechanism is gone**: `PlayerCard`'s caption
+      scrim follows the theme (white under dark ink in light mode), the squad
+      page's bench passes `light` explicitly, and rendering the cards in both
+      themes shows light feet on a light page. What IS dark on a high-tier card
+      in light mode is the ARTWORK — the generated portraits carry their own
+      near-black background from tier 6 up, and on a pale card that reads as a
+      dark top rather than a dark bottom. If the report is about that, it is an
+      art change, not a colour one. Wants a screenshot before anyone guesses
+      again.
 - [ ] **Anywhere the top has a background, both themes have to work.** Not by
       recolouring the icons — by finding the opacity that holds against whatever
       is behind it. Dark mode is already right.
-- [ ] **The index cards should be light in light mode**, with a smaller border —
-      the player screen's card, without the progress bar or the income.
+- [x] **The index cards are light in light mode**, and they were the last screen
+      that had not been told which theme it was in. Every colour on the card was
+      FIXED: the tier's dark body gradient in both themes and a 70% black
+      caption band under white text. `tierBodyGradient` has carried a light half
+      (`bgLight`) all along and `PlayerCard` has read it since the grid was
+      fixed; this one never did. **And light mode is the DEFAULT** — see
+      `lightModeProvider` — so a page of dark tiles under a light sheet is what
+      most players were looking at.
+      The tier stripe is 2 rather than 3 (at three it is a bar across the top,
+      not a hint of which family the card belongs to), the tier line under the
+      name uses the ACCENT on a white scrim rather than `accentLight`, which is
+      the pale version meant to be read off black — and the card is clipped to
+      the INSIDE of its border, which is the same fault the player card's
+      caption scrim and the trophy tiles both had: `Container.clipBehavior`
+      clips to the decoration's outer path, so an opaque child paints over the
+      border's own curve at the corners. Invisible while the caption was black
+      on a dark card.
 
 ### The home screen
 
