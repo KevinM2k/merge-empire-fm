@@ -60,22 +60,12 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
               padding: EdgeInsets.zero,
             ),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.bolt, color: kit.accent),
-                const SizedBox(width: 6),
-                Text(
-                  '${status.current}/${status.max}',
-                  key: const ValueKey('energy-count'),
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: kit.accentBright,
-                  ),
-                ),
-              ],
-            ),
+            // **THE TANK, AS PIPS.** It was the bare figure `3/6` beside a
+            // bolt, which is the one thing on an energy sheet that could be a
+            // picture and was a fraction. A row of bolts says how much is left
+            // AND how much the tank holds in one look, which is what the
+            // fraction was asking the player to work out.
+            _PipRow(status: status),
             const SizedBox(height: 8),
             Center(
               child: Text(
@@ -88,32 +78,47 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
                 style: TextStyle(color: kit.textMuted, fontSize: 12),
               ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              key: const ValueKey('energy-watch-ad'),
-              onPressed: null,
-              icon: const Icon(Icons.play_circle_outline, size: 18),
-              label: Text(
-                t('energy.reward.up_to', {
-                  'amount': Energy.adReward,
-                  'coin': t('shop.section.energy'),
-                }),
+            const SizedBox(height: 18),
+            // **THE TWO ROUTES, SIDE BY SIDE.** They were stacked full-width
+            // buttons with their refusals printed underneath, so the sheet read
+            // as a column of things that do not work. They are two OPTIONS —
+            // watch something, or pay — and options that are alternatives
+            // belong beside each other, which is also what makes the greyed-out
+            // one read as the other half of a choice rather than as a broken
+            // control.
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _EnergyOption(
+                      optionKey: const ValueKey('energy-watch-ad'),
+                      glyph: '📺',
+                      title: t('energy.reward.up_to', {
+                        'amount': Energy.adReward,
+                        'coin': t('shop.section.energy'),
+                      }),
+                      note: paidDisabledReason(),
+                      tint: kit.accentBright,
+                      onTap: null,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // BUY IT HERE. The refill is a gem item that already exists,
+                  // is already priced and already works — and the only way to
+                  // reach it was to close this sheet, land on the Shop's gems
+                  // shelf, scroll to Boosts and find it. Someone who has opened
+                  // the energy sheet has already said what they want.
+                  Expanded(
+                    child: _RefillButton(
+                      sheetContext: sheetContext,
+                      sheetRef: sheetRef,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Center(
-              child: Text(
-                paidDisabledReason(),
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // BUY IT HERE. The refill is a gem item that already exists, is
-            // already priced and already works — and the only way to reach it
-            // was to close this sheet, land on the Shop's gems shelf, scroll to
-            // Boosts and find it. Someone who has opened the energy sheet has
-            // already said what they want.
-            _RefillButton(sheetContext: sheetContext, sheetRef: sheetRef),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             OutlinedButton(
               key: const ValueKey('energy-to-shop'),
               onPressed: () {
@@ -155,37 +160,146 @@ class _RefillButton extends ConsumerWidget {
     ref.watch(saveRevisionProvider);
     final blocked = gemItemBlocked(state, _itemId);
 
+    return _EnergyOption(
+      optionKey: const ValueKey('energy-buy-refill'),
+      glyph: '💎',
+      title: '${t('gem.$_itemId.name')}  ${item.cost}',
+      note: blocked == null
+          ? null
+          : blocked == 'insufficient_gems'
+          ? t('shop.toast.not_enough_gems')
+          : t('settings.comingSoon'),
+      tint: kit.accent,
+      onTap: blocked != null
+          ? null
+          : () {
+              ref.read(gameProvider).update((s) => buyGemItem(s, _itemId));
+              Navigator.of(sheetContext).pop();
+            },
+    );
+  }
+}
+
+/// The tank, drawn.
+class _PipRow extends StatelessWidget {
+  const _PipRow({required this.status});
+
+  final EnergyStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    // A tank can be tiered up a long way; past a dozen the pips stop being
+    // countable and the figure is the honest answer.
+    final pips = status.max <= 12;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ElevatedButton.icon(
-          key: const ValueKey('energy-buy-refill'),
-          onPressed: blocked != null
-              ? null
-              : () {
-                  ref.read(gameProvider).update((s) => buyGemItem(s, _itemId));
-                  Navigator.of(sheetContext).pop();
-                },
-          icon: const Icon(Icons.bolt, size: 18),
-          label: Text(
-            '${t('gem.$_itemId.name')}  ${item.cost}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        if (pips)
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 5,
+            runSpacing: 5,
+            children: [
+              for (var i = 0; i < status.max; i++)
+                Icon(
+                  i < status.current ? Icons.bolt : Icons.bolt_outlined,
+                  size: 26,
+                  color: i < status.current ? kit.accentBright : kit.border,
+                ),
+            ],
+          ),
+        if (pips) const SizedBox(height: 6),
+        Text(
+          '${status.current}/${status.max}',
+          key: const ValueKey('energy-count'),
+          style: TextStyle(
+            fontSize: pips ? 15 : 28,
+            fontWeight: FontWeight.w900,
+            color: pips ? kit.textMuted : kit.accentBright,
           ),
         ),
-        if (blocked != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Center(
-              child: Text(
-                blocked == 'insufficient_gems'
-                    ? t('shop.toast.not_enough_gems')
-                    : t('settings.comingSoon'),
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
-              ),
+      ],
+    );
+  }
+}
+
+/// One way to get more energy: a glyph, what it gives, and why it cannot.
+///
+/// **A box, not a full-width button with its refusal underneath.** The routes
+/// are alternatives, so they sit beside each other — and a dead one inside a box
+/// of its own reads as the half of a choice that is not available yet, rather
+/// than as a broken control in a column of them.
+class _EnergyOption extends StatelessWidget {
+  const _EnergyOption({
+    required this.optionKey,
+    required this.glyph,
+    required this.title,
+    required this.note,
+    required this.tint,
+    required this.onTap,
+  });
+
+  final Key optionKey;
+  final String glyph;
+  final String title;
+
+  /// Why it cannot be taken, or null when it can.
+  final String? note;
+  final Color tint;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final live = onTap != null;
+    return Material(
+      key: optionKey,
+      color: live ? tint.withValues(alpha: 0.13) : kit.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: live ? tint.withValues(alpha: 0.6) : kit.border,
             ),
           ),
-      ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Opacity(
+                opacity: live ? 1 : 0.45,
+                child: Text(glyph, style: const TextStyle(fontSize: 28)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: live ? kit.accentBright : kit.textMuted,
+                ),
+              ),
+              if (note != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  note!,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: kit.textMuted, fontSize: 10),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

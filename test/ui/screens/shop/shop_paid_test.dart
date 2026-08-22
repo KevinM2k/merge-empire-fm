@@ -9,6 +9,7 @@ import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
+import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
@@ -157,6 +158,41 @@ void main() {
     });
   });
 
+  group('the gem shelf', () {
+    testWidgets('EACH PACK GETS ITS OWN PICTURE, not one gem three times', (
+      tester,
+    ) async {
+      // Every bundle on the shelf wore the same 34px `GameIcon('gem')`, so
+      // Pocket of Gems, Casket of Gems and Hoard of Gems were three prices
+      // under three identical images — the tile said nothing at all about
+      // which of them was the big one. The names are the brief, the same way
+      // they were for the coin packs on the shelf beside it.
+      await pumpShopWidget(tester, (_) {}, GemPacksSection.new);
+      final drawn = tester
+          .widgetList<GemPackPicture>(find.byType(GemPackPicture))
+          .map((g) => g.art)
+          .toList();
+      expect(drawn, [GemPackArt.pocket, GemPackArt.casket, GemPackArt.hoard]);
+      // And no two of them are the same drawing.
+      expect(drawn.toSet(), hasLength(drawn.length));
+    });
+
+    test('every gem product in the catalogue has a picture of its own', () {
+      // A pack added to the catalogue ahead of its art would silently fall back
+      // to the pocket, which is the one-icon-for-everything bug coming back.
+      final ids = getShopProducts()
+          .where((p) => p.category == 'gems')
+          .map((p) => p.id)
+          .toList();
+      expect(ids, isNotEmpty);
+      expect(
+        ids.map(gemPackArtFor).toSet(),
+        hasLength(ids.length),
+        reason: 'two gem packs share a picture: $ids',
+      );
+    });
+  });
+
   group('the coin shelf', () {
     testWidgets('each bundle gets a PICTURE of what it is called', (
       tester,
@@ -193,7 +229,8 @@ void main() {
           find.descendant(
             of: find.byKey(ValueKey('shop-tile-${product.id}')),
             matching: find.byWidgetPredicate(
-              (w) => w is GameIcon || w is CoinPackPicture,
+              (w) =>
+                  w is GameIcon || w is CoinPackPicture || w is GemPackPicture,
             ),
           ),
           findsWidgets,

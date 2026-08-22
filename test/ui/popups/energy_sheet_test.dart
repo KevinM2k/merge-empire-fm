@@ -121,10 +121,18 @@ void main() {
     await pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
     await tester.pumpAndSettle();
+    // A BOX now, not a full-width button with its refusal printed underneath —
+    // the two routes to more energy are alternatives and sit side by side. The
+    // thing that must still hold is that this one cannot be taken.
     expect(
       tester
-          .widget<ElevatedButton>(find.byKey(const ValueKey('energy-watch-ad')))
-          .onPressed,
+          .widget<InkWell>(
+            find.descendant(
+              of: find.byKey(const ValueKey('energy-watch-ad')),
+              matching: find.byType(InkWell),
+            ),
+          )
+          .onTap,
       isNull,
     );
   });
@@ -139,5 +147,44 @@ void main() {
 
     expect(find.byKey(const ValueKey('energy-sheet')), findsNothing);
     expect(find.byKey(const ValueKey('shop-scroll')), findsOneWidget);
+  });
+
+  testWidgets('THE TANK IS PIPS, not a fraction on its own', (tester) async {
+    // The one thing on an energy sheet that could be a picture was `3/6` beside
+    // a bolt, which asks the player to do the arithmetic the picture does for
+    // them. A row of bolts says how much is left AND how big the tank is.
+    await pumpShell(tester, energy: 2);
+    await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+    await tester.pumpAndSettle();
+    // Scoped to the SHEET: the HUD's own energy chip wears a bolt too.
+    final bolts = tester
+        .widgetList<Icon>(
+          find.descendant(
+            of: find.byKey(const ValueKey('energy-sheet')),
+            matching: find.byType(Icon),
+          ),
+        )
+        .where((i) => i.icon == Icons.bolt || i.icon == Icons.bolt_outlined);
+    expect(bolts.where((i) => i.icon == Icons.bolt).length, 2);
+    expect(bolts.length, greaterThan(2), reason: 'the empty pips are missing');
+    // And the figure is still there, as the caption rather than the headline.
+    expect(find.byKey(const ValueKey('energy-count')), findsOneWidget);
+  });
+
+  testWidgets('and the two routes are BOXES SIDE BY SIDE', (tester) async {
+    // Stacked full-width buttons with their refusals printed underneath read as
+    // a column of things that do not work. They are alternatives — watch
+    // something, or pay — so they sit beside each other, which is what makes the
+    // dead one the other half of a choice instead of a broken control.
+    await pumpShell(tester);
+    await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+    await tester.pumpAndSettle();
+    final ad = find.byKey(const ValueKey('energy-watch-ad'));
+    final buy = find.byKey(const ValueKey('energy-buy-refill'));
+    expect(ad, findsOneWidget);
+    expect(buy, findsOneWidget);
+    // Level with each other, and one to the left of the other.
+    expect(tester.getTopLeft(ad).dy, closeTo(tester.getTopLeft(buy).dy, 0.5));
+    expect(tester.getTopLeft(ad).dx, lessThan(tester.getTopLeft(buy).dx));
   });
 }

@@ -24,8 +24,10 @@ const String _foundKey = '$_defId:m';
 Map<String, dynamic> _save({
   List<String> discovered = const [],
   Map<String, int> counts = const {},
+  bool light = true,
 }) {
   final s = createDefaultState();
+  (s['settings'] as Map<String, dynamic>)['lightMode'] = light;
   // No boot popup competing for the screen.
   s['dailyReward'] = <String, dynamic>{
     'cycleDay': 1,
@@ -257,6 +259,52 @@ void main() {
       expect(find.text(t('pi.stats_title').toUpperCase()), findsOneWidget);
       expect(find.text('${def.rating}'), findsOneWidget);
       expect(find.text('+${def.idleIncomePerSec}/s'), findsOneWidget);
+    });
+  });
+
+  group('light and dark', () {
+    /// The card's caption band — the strip of colour under the portrait.
+    Color captionOf(WidgetTester tester) {
+      final card = find.byKey(const ValueKey('pi-card-$_foundKey'));
+      expect(card, findsOneWidget);
+      final band = tester
+          .widgetList<Container>(
+            find.descendant(of: card, matching: find.byType(Container)),
+          )
+          .where((c) => c.color != null && c.color!.a > 0.5)
+          .toList();
+      expect(band, isNotEmpty, reason: 'the card has no caption band');
+      return band.last.color!;
+    }
+
+    testWidgets('THE INDEX CARD IS LIGHT IN LIGHT MODE', (tester) async {
+      // Every colour on this card was fixed: the tier's DARK body gradient and
+      // a 70% black caption in both themes. Light mode is the DEFAULT — see
+      // `lightModeProvider` — so a page of dark tiles under a light sheet is
+      // what most players were looking at.
+      await _pump(
+        tester,
+        _save(discovered: [_foundKey], counts: {_foundKey: 2}),
+      );
+      final caption = captionOf(tester);
+      expect(
+        caption.r + caption.g + caption.b,
+        greaterThan(2.4),
+        reason: 'the caption band is $caption, which is not a light scrim',
+      );
+    });
+
+    testWidgets('and dark in dark mode, which it always was', (tester) async {
+      await _pump(
+        tester,
+        _save(discovered: [_foundKey], counts: {_foundKey: 2}, light: false),
+      );
+      final caption = captionOf(tester);
+      expect(
+        caption.r + caption.g + caption.b,
+        lessThan(0.6),
+        reason: 'the caption band is $caption, which is not a dark scrim',
+      );
     });
   });
 

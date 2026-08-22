@@ -1135,11 +1135,23 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     // put our score under their name for every away fixture.
                     leftGoals: home ? f.ourGoals : f.theirGoals,
                     rightGoals: home ? f.theirGoals : f.ourGoals,
-                    minute: f.minute,
-                    finished: f.finished,
                     result: widget.result,
                     isHome: home,
                     standings: _standings,
+                  ),
+                  // **THE CLOCK IS ITS OWN CARD, under the score.** It opened
+                  // the scoreboard — the competition, the minute and the bar
+                  // stacked above the clubs — which put the one band that
+                  // changes every tick at the top of the one card that must
+                  // hold still. They are different questions: the board is who
+                  // and what the score is, and this is how far in.
+                  _ClockCard(
+                    key: const ValueKey('match-clock-card'),
+                    minute: f.minute,
+                    finished: f.finished,
+                    label:
+                        '${widget.result['divisionName'] ?? ''} · '
+                        '${t(home ? 'play.home' : 'play.away')}',
                   ),
                   // THE STAGE: one band, fixed for the whole match, holding the
                   // pitch's aspect. At rest it shows the stat board; a chance cuts in
@@ -2090,6 +2102,85 @@ const clearScreenGates = (
 /// markup would drift apart the first time either surface was touched.
 ///
 /// Home on the LEFT, as on the card and as football writes a scoreline.
+/// The competition, the minute and the bar — a card of its own.
+///
+/// **Split off the scoreboard.** It used to be the board's opening band, which
+/// put the one thing that changes every tick at the top of the one card whose
+/// job is to hold still: every minute the whole score card was a widget whose
+/// contents had moved. They are also different questions. The board is WHO and
+/// what the score is; this is HOW FAR IN, and it belongs with the bar that says
+/// the same thing without arithmetic.
+class _ClockCard extends StatelessWidget {
+  const _ClockCard({
+    super.key,
+    required this.minute,
+    required this.finished,
+    required this.label,
+  });
+
+  final int minute;
+  final bool finished;
+
+  /// The competition and which end we are — `SUNDAY LEAGUE · HOME`.
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Padding(
+      // The board's own horizontal inset, and only a hair of gap above: the two
+      // cards are one object read top to bottom, not two panels on a page.
+      padding: const EdgeInsets.fromLTRB(13, 0, 13, 0),
+      child: GlassPanel(
+        density: GlassDensity.deep,
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 7),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: kit.textMuted,
+                  ),
+                ),
+                Text(
+                  finished ? t('match.full_time') : "$minute'",
+                  key: const ValueKey('match-clock'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: kit.accentBright,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // The clock as a bar, so how far through the match is readable
+            // without doing arithmetic on the minute.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: SizedBox(
+                height: 3,
+                child: LinearProgressIndicator(
+                  value: (minute / 90).clamp(0.0, 1.0),
+                  backgroundColor: kit.border,
+                  valueColor: AlwaysStoppedAnimation(kit.accentBright),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Scoreboard extends StatelessWidget {
   const _Scoreboard({
     super.key,
@@ -2097,8 +2188,6 @@ class _Scoreboard extends StatelessWidget {
     required this.right,
     required this.leftGoals,
     required this.rightGoals,
-    required this.minute,
-    required this.finished,
     required this.result,
     required this.isHome,
     required this.standings,
@@ -2108,8 +2197,6 @@ class _Scoreboard extends StatelessWidget {
   final String right;
   final int leftGoals;
   final int rightGoals;
-  final int minute;
-  final bool finished;
   final Map<String, dynamic> result;
   final bool isHome;
 
@@ -2169,46 +2256,6 @@ class _Scoreboard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
         child: Column(
           children: [
-            // What this is, and how far in.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${result['divisionName'] ?? ''} · '
-                  '${t(isHome ? 'play.home' : 'play.away')}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                    color: kit.textMuted,
-                  ),
-                ),
-                Text(
-                  finished ? t('match.full_time') : "$minute'",
-                  key: const ValueKey('match-clock'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: kit.accentBright,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            // The clock as a bar, so how far through the match is readable without
-            // doing arithmetic on the minute.
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: SizedBox(
-                height: 3,
-                child: LinearProgressIndicator(
-                  value: (minute / 90).clamp(0.0, 1.0),
-                  backgroundColor: kit.border,
-                  valueColor: AlwaysStoppedAnimation(kit.accentBright),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
             // **THE SAME BAND THE NEXT-MATCH CARD OPENS WITH.** It is the same
             // fixture ten seconds later and the home page's version is the one
             // that got the design work — so the standings come with it, on their

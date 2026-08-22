@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,366 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,404 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,14 +50,96 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**109 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**93 items are open**, plus nine carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
 what is open now came out of them.
 
-**The newest work is the SUMMARY, the replay and the bid window.** Five things
-whoever picks this up next will want to know before reading the queue:
+**The newest pass cleared the PENALTY SCENE and then went round the screens a
+player had called boring or wrong.** Fourteen commits; what a next session
+actually needs from it is the six findings, not the list of changes.
+
+**1. The penalty scene is done bar taste** — seven of its eight items. Four of
+them were the same shape, which is worth knowing before touching it again: the
+scene was right about the goal and wrong about everything around it.
+
+- **`standBaseY` is the seam, not `goalLineY`.** The pitch runs on past the goal
+  line — dead ball area, run-off — and handing that strip to the photograph is
+  what stood the backdrop's own flat green field up behind the crossbar. With
+  the seam moved back and `backdropRect` SIZING the art so its ground line falls
+  on it, the goal stands in a ground instead of on a lawn.
+- **The spot never moved: `_eyeZ` did.** Eleven metres is regulation and the
+  physics is balanced around it. A 2.62m camera was what made eleven metres look
+  like three, and the ball-to-line gap scales with the camera's HEIGHT alone —
+  the focal length and the camera's distance are both pinned by the goal having
+  to fill three quarters of the width.
+- **The framing is derived, so it survives a view it did not choose.** The
+  horizon was a fraction of the HEIGHT while every projected offset is a
+  fraction of the WIDTH. It anchors on the ball now, gives way only to the
+  crossbar, and `_focalFor` opens the lens on a view too short to hold both.
+- **A goal is a box.** `sideVertex` and `roofVertex` string the two sides and
+  the roof off the rear stanchions the frame was already drawing.
+- **`_settle` is the picture after the whistle, and the ball is in it.** A goal
+  pinned the ball to the cords and stopped stepping it, so it hung at head
+  height for the whole 1.9s hold.
+
+**2. A LIMB CONNECTS WHEN IT HANGS OFF A BAR THAT IS DRAWN**, and this is the
+one to carry to any other figure in the game. Reported as four separate faults
+on both the keeper and the taker — limbs not joining the body, necks too long,
+arms too long, faces blank — and the first three were ONE cause: every arm and
+leg started at a single point on the centreline, under a torso stroke whose
+ROUND cap domed past it. The shirt painted over the tops of the legs and
+swallowed the necks. Flat torso cap, a drawn pelvis and a drawn shoulder
+girdle, one limb off each end. The necks were only long because they had been
+sized to clear that dome.
+
+**3. A rig's invariant belongs on the BONES, not on the joint-to-joint span.**
+Twice now: the keeper's arm was pinned to the reach circle, which forced two
+bones summing to the length of his own leg, and the taker's leg was pinned
+hip-to-boot, which is what stopped it ever having a knee. Both distances SHOULD
+vary — a folded limb is a shorter limb — and it is the thigh and the shin, the
+upper arm and the forearm, that may never change. See `kneeBetween`.
+
+**4. The reach circle is the PHYSICS' truth and the figure in front of it is a
+person.** Making the drawn glove land on the circle is what produced the ape.
+A save at the very edge of the reach may now show the glove a hand short for a
+frame; that is the better trade, and it is deliberate.
+
+**5. Light mode is the DEFAULT** (`lightModeProvider` returns true unless the
+save says otherwise), so a screen that hardcodes a dark scrim is what MOST
+players see, not an edge case. The Player Index was the last one doing it. If
+another turns up, the fault to look for is `Colors.black.withValues(...)` and a
+tier gradient that never reads `bgLight`.
+
+**6. Measure the lag before fixing it.** "The customise button comes up laggy"
+was 209ms on the tapped frame and 23ms for everything after — one build, not a
+slow sheet. The first guess (twenty walkers' animation clocks) was WRONG:
+twenty still walkers register zero tickers and run twenty frames in 2ms. It was
+the building. And picking a choice was already free at 91 microseconds, so an
+afternoon spent optimising that would have bought nothing.
+
+**Three things this pass could not do, all for the same reason** — the spec repo
+is not in a cloud container, and they are marked `[~]` rather than done:
+
+- **The gem pack art is NOT a port.** `assets/gemArt.js` is 146 lines in
+  `../merge-empire-fc`, and `../merge-empire-match-day` — which the queue points
+  at for the shop — is not cloned either. What landed is this repo's own
+  coin-pack pattern carried one shelf across. Check the three compositions
+  against the JS when you can read it.
+- **"Card bottoms still dark in light mode on the squad page" could not be
+  reproduced.** The mechanism is gone — `PlayerCard`'s scrim follows the theme
+  and the bench passes `light`. What IS dark on a high-tier card is the
+  generated PORTRAIT, which carries its own near-black background from tier 6
+  up. If that is the report, it is an art change. Wants a screenshot.
+- **"Minimise" still cannot say "Review"**, and nor can anything else needing
+  new copy: `en.js` is in the other repo and the catalogues are generated from
+  it. Every fix in this pass that wanted a word used a glyph instead — the
+  drill faces, the quest medallion, the fixtures' W/D/L — which is the move to
+  reach for, not a new key.
+
+**The pass before this one was the SUMMARY, the replay and the bid window.** Five
+things whoever picks this up next will want to know before reading the queue:
 
 - **`summary_league_move.dart` is the table moving**, and it invents nothing:
   `buildLeagueTable` stamps `prevPos` and `posDelta` on every row for the
@@ -253,7 +335,7 @@ Measured, not estimated: `101,906` lines of non-test JS in
 | `data/` | 6,357 | done — `managerAvatar.js`'s SVG half is now `manager_art.g.dart` |
 | `utils/` | 3,396 | done bar 1,170 (`sound` 782, `ageVerification` 134, `devTools` 114, `adConsent` 63, `wakeLock` 54, `openUrl` 15, `network` 8) |
 | `state/` + `main.js` | 2,333 | done |
-| `assets/` | 853 | `playerArt`, `clubArt` and `svgCache`'s path half done; `gemArt` (146) left |
+| `assets/` | 853 | `playerArt`, `clubArt` and `svgCache`'s path half done; `gemArt` (146) left — but see `gem_pack_art.dart`, which draws the shelf's three packs WITHOUT it |
 | `i18n/` | 29,163 | done — the lookup layer and all ten catalogues |
 | `services/` | 4,144 | none — this is M4 |
 | `ui/` | 40,329 | roughly 20,000: the shell, HUD, theme, popups, all five tabs, the events, the cutaway and the sheets behind the burger |
@@ -301,8 +383,19 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 3,473 passing, 2 skipped
-TZ=UTC flutter test      # one parity group needs UTC — see below
+flutter test             # 4,404 passing
+TZ=UTC flutter test      # two parity groups skip themselves outside UTC
+```
+
+**In a CLOUD session there is no Flutter yet**, and that is the first thing to
+do rather than the thing you discover twenty minutes in — the install is in
+`CLAUDE.md`'s Commands section and takes about three minutes:
+
+```bash
+curl -sSo /tmp/f.tar.xz https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.44.9-stable.tar.xz
+mkdir -p ~/sdk && tar xf /tmp/f.tar.xz -C ~/sdk
+git config --global --add safe.directory ~/sdk/flutter
+export PATH=~/sdk/flutter/bin:$PATH && flutter pub get
 ```
 
 **Do not run `dart format lib/ test/`.** It reformats ~186 files, collapses
@@ -3279,12 +3372,36 @@ is wrong in six places.
 
 ### Light and dark
 
-- [ ] **The card bottoms are still dark in light mode** on the squad page.
+- [~] **The card bottoms are still dark in light mode** on the squad page.
+      **Could not reproduce, and the mechanism is gone**: `PlayerCard`'s caption
+      scrim follows the theme (white under dark ink in light mode), the squad
+      page's bench passes `light` explicitly, and rendering the cards in both
+      themes shows light feet on a light page. What IS dark on a high-tier card
+      in light mode is the ARTWORK — the generated portraits carry their own
+      near-black background from tier 6 up, and on a pale card that reads as a
+      dark top rather than a dark bottom. If the report is about that, it is an
+      art change, not a colour one. Wants a screenshot before anyone guesses
+      again.
 - [ ] **Anywhere the top has a background, both themes have to work.** Not by
       recolouring the icons — by finding the opacity that holds against whatever
       is behind it. Dark mode is already right.
-- [ ] **The index cards should be light in light mode**, with a smaller border —
-      the player screen's card, without the progress bar or the income.
+- [x] **The index cards are light in light mode**, and they were the last screen
+      that had not been told which theme it was in. Every colour on the card was
+      FIXED: the tier's dark body gradient in both themes and a 70% black
+      caption band under white text. `tierBodyGradient` has carried a light half
+      (`bgLight`) all along and `PlayerCard` has read it since the grid was
+      fixed; this one never did. **And light mode is the DEFAULT** — see
+      `lightModeProvider` — so a page of dark tiles under a light sheet is what
+      most players were looking at.
+      The tier stripe is 2 rather than 3 (at three it is a bar across the top,
+      not a hint of which family the card belongs to), the tier line under the
+      name uses the ACCENT on a white scrim rather than `accentLight`, which is
+      the pale version meant to be read off black — and the card is clipped to
+      the INSIDE of its border, which is the same fault the player card's
+      caption scrim and the trophy tiles both had: `Container.clipBehavior`
+      clips to the decoration's outer path, so an opaque child paints over the
+      border's own curve at the corners. Invisible while the caption was black
+      on a dark card.
 
 ### The home screen
 
@@ -3292,7 +3409,20 @@ is wrong in six places.
       its child, and a bare `ArtImage` under loose constraints sizes to its own
       aspect — so his portrait sat in the middle of the disc with a band of dark
       glass above and below.
-- [ ] **The customise button comes up laggy.**
+- [x] **The customise button comes up laggy — and it is ONE FRAME, measured.**
+      209ms on the frame the button is tapped, 23ms for everything after it. So
+      the whole complaint is a single build twelve frames long, happening while
+      the sheet is trying to slide up.
+      **The grid is the expensive half and the half nobody is looking at yet.**
+      Twenty chips, each a full `ManagerWalker` rig: ~60ms together, against
+      ~18ms for an empty grid of the same shape — measured, not guessed, and
+      it is not the animation clocks (a still walker starts none; twenty of
+      them run twenty frames in 2ms). Holding the grid back one frame takes the
+      opening frame to 107ms, and the chips arrive sixteen milliseconds later,
+      which is not a wait.
+      **Picking is already free** — 91 MICROseconds for a frame that rebuilds
+      every chip — so nothing needed doing there, and the measurement is written
+      down so nobody optimises it.
 - [x] **The manager was walking in the sky, and the grass was the reason.** The
       strip under him was a `FractionallySizedBox` with a `heightFactor` and no
       `widthFactor` — which passes the incoming width constraint straight
@@ -3316,8 +3446,24 @@ is wrong in six places.
 - [ ] **Quick-fire matches and the free lucky boot say both "already ready" and
       "coming soon".** They should be playable, and they should trigger an
       advert.
-- [ ] **The gems look wrong** — one gem per image, whatever the pack. Look at
-      `../merge-empire-match-day`'s shop.
+- [~] **The gems look wrong — one gem per image, whatever the pack.** Every
+      bundle on the gems shelf wore the same 34px `GameIcon('gem')`, so Pocket
+      of Gems, Casket of Gems and Hoard of Gems were three prices under three
+      identical pictures, and the tile said nothing about which was the big one
+      — on the shelf where that is the only question.
+      **`gem_pack_art.dart` is a picture per pack**, and the names are the brief
+      exactly the way they were for the coin packs beside it: a pouch with
+      stones spilling from the neck, an open casket with a clasp, and a hoard
+      with no container at all, because what is being bought is the gems and a
+      hoard is a quantity that has outgrown anything you would keep it in. Two
+      primitives — a cut gem and a container — against a 100×100 box and scaled,
+      so nothing is bundled and it costs one painter.
+      **This is NOT a port of the spec's art and does not claim to be.**
+      `assets/gemArt.js` (146 lines) is in `../merge-empire-fc`, and neither
+      that repo nor `../merge-empire-match-day` — which this entry points at —
+      is in a cloud container. What landed is this repo's OWN coin-pack pattern
+      carried one shelf across. When the JS can be read, these three
+      compositions are what to check against it, which is why this stays `[~]`.
 - [x] **The manager-customisation packs have tiny grey buttons with a blue gem in
       them.** They are meant to be a blue button with a WHITE gem. It was a
       near-black pill with the gem's own colour on it at 11px, which reads as a
@@ -3333,8 +3479,23 @@ is wrong in six places.
 
 ### Everywhere else
 
-- [ ] **Fixtures: the design is not right.**
-- [~] **Season quests do not look good, and do not show the reward** — neither
+- [x] **Fixtures: four things, and the biggest was that a result had no shape.**
+      How a fixture went was carried by the SCORE'S COLOUR and nothing else — a
+      green `2 - 1` against a red `0 - 3` — which asks the player to read a hue
+      off two digits, and says nothing at all about a row they have not played.
+      It wears the **form dot** now: this file's own `_FormDot`, three classes
+      up, already used by the standings and already the green-amber-red the
+      summary and the HUD read. No new copy — W, D and L are the letters the
+      table prints anyway.
+      **The next fixture is a CARD**, not a full-bleed `surface2` band with no
+      rounding and no edge, which on a column of otherwise identical rows reads
+      as a highlight that has gone wrong. **Every other row gets a hairline**,
+      so a season is a list of fixtures rather than a paragraph of club names.
+      **The rating has its own slot** — jammed against the score, `31` and
+      `2 - 1` ran together into one number. And an unplayed fixture says `—`
+      rather than `-:-`, which is a placeholder shaped like a score and so reads
+      as a score that failed to load.
+- [x] **Season quests do not look good, and do not show the reward** — neither
       for one of them nor for all of them. **The rewards are on now**: every
       quest carries what it pays, resolved for THIS division (the bank's figure
       is a percentage of one league win, not a literal), and the track carries
@@ -3342,8 +3503,33 @@ is wrong in six places.
       which is the only gem in the game that is not a purchase and which nothing
       on screen had ever mentioned. `quests.capstone_title` and
       `quests.capstone_reward` were translated ten times over with no caller.
-      **The LOOK is still open**: the tiles are still plain cards with a bar.
-- [ ] **The training popup has no images and is boring.**
+      **And the LOOK is done too.** The tile was a line of text, a full-width
+      bar and a fraction — the SAME THREE ROWS whether the quest was untouched,
+      half done, or had money waiting on it, which is exactly why a season's
+      worth of them read as a chore list rather than as a track.
+      There are three states and they look like three things now. **The bar is a
+      RING**, wrapped round the quest's own medallion: a bar under the text is a
+      second row saying what the fraction beside it already said, and round the
+      dial it is the same reading in no extra height — the tile is one row now
+      rather than three. The medallion carries the state's own face: a
+      percentage while it is live, a parcel when it is ready, a tick when it is
+      claimed. Glyphs rather than strings, because no new `t()` key can be added
+      from a cloud session and none is needed — all three say it in every
+      language.
+      **And a claimable quest is the only one with colour in the card.** It is
+      the one thing on the sheet with something owed on it, and it was drawn on
+      the same surface as the two that want nothing, so it had to be hunted for.
+- [x] **The training popup has images: seven drills, seven faces.** Every row
+      wore the same `Icons.sports_soccer` on a bare `ListTile`, which is a list
+      that says nothing about what is in it. Each drill gets the thing it is
+      ABOUT, on a tile washed in its own colour — and the colour is the KIT's
+      accent walked round the wheel (`drillTint`), because the whole palette is
+      derived from the club and a fixed hue would be the one thing on screen
+      that is not. A locked drill keeps its glyph and loses the colour, which is
+      the difference between "not yet" and "not for you" said without a word.
+      **Emoji rather than icons**, for the reason the trait badges are: the
+      glyph is the same in every language and needs no `t()` key, which is a
+      catalogue away from a cloud session.
 - [x] **Daily: the boxes should be equal**, there is much more room than it uses,
       and the tick should cross the WHOLE box rather than sit in a corner where
       it does not read as done. They were fixed at 84px in a `Wrap`, so seven
@@ -3361,8 +3547,20 @@ is wrong in six places.
       at the FOOT is why it was the two bottom corners. The child is clipped to
       the outer radius less the border width, and the band's own guessed-at
       third radius has gone. The achievement tiles had it too.
-- [ ] **The energy popup's "up to +3 energy" is greyed out and says coming
-      soon.** It wants to be boxes side by side, with graphics.
+- [x] **The energy popup is two boxes side by side now, with graphics.** The
+      two routes to more energy were stacked full-width buttons with their
+      refusals printed underneath, so the sheet read as a column of things that
+      do not work. They are ALTERNATIVES — watch something, or pay — and
+      options that are alternatives belong beside each other: a dead one inside
+      a box of its own reads as the half of a choice that is not available yet
+      rather than as a broken control. (It is still dead. The ad half is M4's
+      AdMob and nothing here changes that.)
+      **And the tank is PIPS.** It was `3/6` beside a bolt — the one thing on an
+      energy sheet that could be a picture, drawn as a fraction, asking the
+      player to do the arithmetic the picture does for them. A row of bolts says
+      how much is left and how big the tank is in one look; the figure stays as
+      the caption. Past a dozen pips they stop being countable and the figure is
+      the honest answer again.
 
 ### The Play Match screen
 
@@ -3521,8 +3719,15 @@ already done are marked; the rest are the queue.
       nothing. Off for a cup tie, which changes no standing.
 - [ ] **The commentary has very little room left.** Worth a rethink rather than a
       nudge.
-- [ ] **The Sunday League header — the timer and the progress bar — goes UNDER
-      the score card on the Play screen**, as a card of its own.
+- [x] **The Sunday League header — the timer and the progress bar — is a card of
+      its own, under the score.** It was the scoreboard's OPENING band, which
+      put the one thing that changes every tick at the top of the one card whose
+      job is to hold still: every minute, the whole score card was a widget
+      whose contents had moved. They are also different questions — the board is
+      WHO and what the score is, and this is HOW FAR IN, which is what the bar
+      says without arithmetic. `_ClockCard`, same `GlassPanel`, same inset, a
+      hair of gap: two cards read top to bottom as one object rather than two
+      panels on a page.
 
 ### The bid window
 
@@ -3561,16 +3766,154 @@ already done are marked; the rest are the queue.
 
 Its own list, because almost none of it is right yet.
 
-- [ ] **The figures and the net still do not read as real.**
-- [ ] **The background is at the wrong height** — it is all grass, as though
-      there were a mountain behind them.
-- [ ] **The turf's horizontal lines are barely visible.**
-- [ ] **The goal has no SIDE netting.**
-- [ ] **The penalty spot is too close to the goal** — move it back.
-- [ ] **The kicker swings his leg oddly.**
-- [ ] **The keeper's arms are huge.**
-- [ ] **There is no physics at all**: the ball sticks in the net and the keeper
-      sticks in the air.
+- [~] **The figures and the net still do not read as real** — reported more
+      precisely from the couch mid-pass: **the problem is the BODIES**. The
+      kicker had no neck, tiny arms coming out of his waist, and no football
+      kit — shirt, shorts or socks; the keeper had monkey arms, no neck, and a
+      top that did not read as a keeper's, with no socks, boots or feet. All of
+      that is addressed below; what remains of this line is taste — say what
+      still looks wrong after playing it.
+      - **The arms came out of the waist because of where they were DRAWN
+        from**: both hung off the torso's centreline, so the 0.30-wide torso
+        stroke swallowed their top third and they surfaced at hip height,
+        tiny. They hang off the girdle's edges now, over a two-bone elbow,
+        with a sleeve to the elbow and skin to the hand.
+      - **The kit is a kit**: the whole leg was one dark stroke, which is
+        trousers. Shorts stop at the knee, socks run into the boots, the boots
+        are boots; the taker's shirt has short sleeves; the keeper wears the
+        classic strip — long sleeves in one loud colour, black shorts,
+        matching socks, and WHITE gloves.
+
+      **Reported again after that pass, and this is the round that answers
+      it**: the limbs still did not CONNECT on either figure, both necks were
+      too long, the keeper's arms were still too long and bent backwards, and
+      the faces were blank.
+      - **A limb connects when it hangs off a bar that is DRAWN.** Every arm
+        and leg started at a single centreline point under a torso stroke whose
+        ROUND cap domed past it — so the shirt painted over the tops of the
+        legs and the limbs surfaced out of the body instead of joining it. The
+        torso ends flat now (butt cap), and there is a pelvis
+        (`_keeperHip` / `_takerHip`) and a shoulder girdle, both painted, with
+        one limb off each end. That is the whole fix and it is four strokes.
+      - **The necks were long because of the cap they were sized to clear.**
+        0.34 was solved against the round cap's dome; with the torso ending
+        flat the head sits at 0.25 and the neck is the sliver it should be.
+      - **The keeper's arm is a BODY's arm now, not the reach circle's
+        radius.** Pinning the glove to the circle at full stretch forced the
+        two bones to sum to `keeperReach` less the girdle — 0.88m of arm on a
+        man 1.8m tall, which is the length of his own leg. The circle is the
+        PHYSICS' truth and it already includes what it includes; the figure in
+        front of it is a person. 0.33 + 0.34 now, and a save at the very edge
+        of the reach may show the glove a hand short for a frame — which is a
+        better trade than an ape in every frame of every kick.
+      - **"Bent backwards" was the rest-angle, not the elbow.** At 104 degrees
+        from vertical the arm was near-horizontal, so an elbow bowing below the
+        chord sent the forearm back UP to the glove. At 132 both bones point
+        downward and the same kink reads as a relaxed hang — gloves at his
+        hips, where a set keeper's are.
+      - **The taker's forearm folds IN.** It turned further OUT, so the two
+        bones straightened into one splayed stick and his arms reached
+        sideways nearly as far as his legs reached down. From directly behind,
+        a running arm is an elbow at the ribs with the hand tucked in front.
+      - **The faces**: the keeper has brows, eyes, a mouth, ears, hair over the
+        crown and down the nape, and a collar; the taker, seen from behind, has
+        the hair, the ears and the collar and no face, because there is none to
+        see. Two or three pixels each at a keeper's size on screen, and the
+        difference between a person and a blank.
+- [x] **The background was at the wrong height, and the goal line was why.**
+      The seam between the painter's turf and the photograph behind it was
+      `goalLineY`, so the band handed to the art started ON the line — and the
+      Kenney backdrops are a square drawing with a flat green field filling
+      their bottom third, cropped to exactly that band. What stood behind the
+      crossbar was the ART's grass, at the art's own scale, which is the
+      mountain. **Ground does not stop at the goal line**: there is the dead
+      ball area and the run-off first, and all of it is the painter's turf in
+      the painter's perspective. `standBaseY` is the seam now, 7.5m past the
+      line.
+      **And the art is PLACED rather than fitted**, which is the half that a
+      new seam alone would not have fixed. `BoxFit.cover` shows whichever slice
+      the alignment picks, and on a tall view the band is nearly as tall as the
+      drawing — so no alignment exists that shows only what is above its ground
+      line, and asking for one gets a clamp and the field back. `backdropRect`
+      SIZES it so the drawing's own ground line lands on the seam. The treeline
+      stands on the grass.
+- [x] **The turf's horizontal lines are barely visible** — they were one shade,
+      on every other band. Five per cent white on the odd bands and nothing on
+      the even ones is a single faint edge rather than a stripe; a mown pitch is
+      light against DARK. Both cuts now, and the ground pass is CLIPPED to the
+      seam — a band laid beyond the run-off projects above it, which at five per
+      cent nobody could see and at ten is grass painted in the sky.
+- [x] **The goal has SIDE netting, and a roof.** It had a back and nothing else,
+      so a ball along the inside of a post passed through open air and the goal
+      had no depth in it — the side panels are the only surface in the picture
+      running away from the camera. `sideVertex` and `roofVertex` hang off the
+      rear stanchions the frame has been drawing all along. Static rather than
+      sprung, which is honest: taut between post and stanchion is why side
+      netting is the part of a net that does not billow, and the back plane
+      still takes the shot.
+- [x] **The penalty spot is ELEVEN METRES and did not move — the camera did.**
+      `spotDistance` is regulation and every number the physics is balanced
+      around rests on it. What was too close was the PICTURE: from a 2.62m
+      camera the gap between the ball and the goal line was barely a third of
+      the goal's own width, with the bottom half of the frame empty grass, so
+      eleven metres read as three. The separation is
+      `f · h · (1/back − 1/(back + spotDistance))` — it scales with the camera's
+      HEIGHT and with nothing else that is free, because the focal length and
+      the camera's distance are both pinned by the goal filling three quarters
+      of the width. Up to 3.9m opens it by half again and costs the scene
+      nothing: same goal, same shape, same run-up depth.
+      **And the framing is derived now rather than solved for one window.** The
+      horizon was a constant fraction of the HEIGHT while every offset the
+      projection produces is a fraction of the WIDTH, so the whole picture slid
+      up and down the frame as the aspect changed — and the view is an
+      `Expanded` in a column of score lines, so its shape is whatever is left
+      over. It anchors on the ball, gives way only to the crossbar, and
+      `_focalFor` opens the lens when the view is too short to hold both. A
+      widget test's own 800×600 surface is already past that aspect, which is
+      how the wide case was caught.
+- [x] **The kicker's odd swing was a leg with no knee in it.** One rigid
+      segment from hip to boot, pivoting through 45 degrees, with no backlift at
+      all — the angle ran from 0.36 radians to 1.14 and that was the whole kick.
+      It is two bones over a knee now (`kneeBetween`, a two-bone solve), and the
+      strike is TWO BEATS: back with the knee folded (`_takerCock`), then an
+      eased snap through that STRAIGHTENS into the ball, which is the part that
+      lands on it. The thigh and the shin are what may never change length —
+      the hip-to-boot distance is what SHOULD, because a folded leg is a shorter
+      leg, and pinning that distance is exactly what forced the bones to
+      stretch.
+- [x] **The keeper's arms were huge in two ways, and only one was the length.**
+      `keeperHand` is the centre of the reach and the centre is his CHEST, so an
+      arm drawn from there to the glove is the whole of `keeperReach` — 1.05m of
+      limb on a figure whose entire leg is 0.88m, radiating out of his sternum
+      with no joint in it. The glove has to stay on that circle, because the
+      circle is what decides saves; where the arm STARTS does not.
+      `_keeperShoulder` puts the joint a girdle's half width out and there is an
+      elbow between it and the glove.
+      **Displaced along the arm's own direction, not square across the chest** —
+      a fixed sideways offset leaves a tucked arm longer than an outstretched
+      one, which is exactly the stretching this rig was rebuilt to kill. Along
+      the arm, every limb is `keeperReach` less the girdle and none of them
+      moves.
+      The other half was the POSE. `_armRest` was 52 degrees from straight up: a
+      man signalling a touchdown, holding two full-reach limbs in a V above his
+      shoulders. A keeper set for a penalty has them out to the sides and a
+      little below, which is also the pose the dive leaves from.
+- [x] **The keeper was fixed first; this is the BALL.** "No physics at all: the
+      ball sticks in the net and the keeper sticks in the air" — he stopped
+      sticking when the dive got its landing, and the ball did not. A goal pinned
+      it against the cords and left every component of its velocity untouched,
+      and then `done` stopped stepping it: the frame the word went up was the
+      frame the ball stopped, and the screen holds on the goalmouth for 1.9s
+      after that. It hung at head height for all of it.
+      `_settle` is the picture after the kick is decided, and everything that
+      stops moving in it is something the player watches not move. The net TAKES
+      the pace — a ball into a net is stopped by it and then drops — and gravity,
+      the turf and rolling friction do the rest, so a goal ends with the ball on
+      the ground inside the net. It cannot come back out through the cords and it
+      cannot roll out through the SIDE of the goal either: an angled shot carries
+      most of a metre of drift across the hold, which put it through the side
+      netting and out past the post. A ball he CAUGHT still goes down with his
+      gloves, and none of it can reach `result` — the outcome is set once.
 
 ## M0 — foundation and save bridge ✅
 
@@ -3839,7 +4182,8 @@ back while five of them were unbuilt.
 - **The rest of `MergeAnimation.js`** (928): the centre-screen reveal, floating
   income labels, the promotion celebration. The merge burst is done.
 - The dugout cam, gestures and moods — the rest of the manager rig.
-- The remaining art: `gemArt` (146) and `svgCache`'s SVG half (54).
+- The remaining art: `gemArt` (146) and `svgCache`'s SVG half (54). The shop's
+  gem packs no longer wait on the first of these — see `gem_pack_art.dart`.
 
 **Depth inside screens that DO exist.**
 
@@ -4251,6 +4595,12 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 - [ ] **The SVG art that is not player art**: `assets/gemArt` (146), which the
       gem icons read from. `playerArt`, `clubArt` and `svgCache`'s path half are
       done.
+      **The shop's three gem packs are no longer waiting on this.**
+      `gem_pack_art.dart` draws a pouch, a casket and a hoard from two
+      primitives, because every bundle wearing one identical gem icon was a
+      reported fault and the JS could not be read from a cloud session. So this
+      item is now about the OTHER gem art, and about checking those three
+      compositions against `gemArt.js` — not about an empty shelf.
       **Worth knowing:** `svg_canvas.dart` could not draw cubics, arcs or
       gradients until this was looked at, and it failed SILENTLY — a `C` command
       had its numbers eaten by the command before it, and a `url(#id)` fill left

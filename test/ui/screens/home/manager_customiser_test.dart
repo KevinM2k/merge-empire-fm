@@ -313,4 +313,38 @@ void main() {
       await settleSave(tester);
     });
   });
+
+  testWidgets('THE GRID IS NOT BUILT ON THE FRAME THE SHEET OPENS', (
+    tester,
+  ) async {
+    // Measured on the tap: 209ms on the frame the button is pressed and 23ms
+    // for everything after it, which is the whole of "the customise button
+    // comes up laggy" — one build twelve frames long while the sheet is trying
+    // to slide up.
+    //
+    // The grid is the expensive half and the half nobody is looking at yet:
+    // twenty chips, each a full `ManagerWalker` rig, measured at ~60ms together
+    // against ~18ms for an empty grid of the same shape. Holding it back one
+    // frame took the opening frame to 107ms. The chips are sixteen
+    // milliseconds late, which is not a wait.
+    phone(tester);
+    await pumpHome(tester);
+    await tester.tap(find.byKey(const ValueKey('dock-customise')));
+    await tester.pump();
+
+    // The sheet is there, with its header and its stage.
+    expect(find.byKey(const ValueKey('manager-customiser')), findsOneWidget);
+    expect(find.byKey(const ValueKey('customise-preview')), findsOneWidget);
+    // And no chip rigs in it yet.
+    final grid = find.byKey(ValueKey('customise-grid-${lookAxes.first.kind}'));
+    expect(
+      grid,
+      findsNothing,
+      reason: 'the grid was built on the opening frame after all',
+    );
+
+    // One frame later, they are there.
+    await tester.pumpAndSettle();
+    expect(grid, findsOneWidget);
+  });
 }

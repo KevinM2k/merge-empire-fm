@@ -361,14 +361,56 @@ class PenaltyKick {
   }
 
   /// One step of a kick that is over: the landing, and nothing else.
+  /// The picture after the kick is decided.
+  ///
+  /// **A ball that has stopped being simulated is a ball hanging in the air**,
+  /// and the screen holds on the goalmouth for nearly two seconds after the word
+  /// goes up — so everything that stops moving here is something the player
+  /// watches not move. It was reported as no physics at all: the ball stuck in
+  /// the net and the keeper stuck in the air.
+  ///
+  /// He was fixed first; this is the ball. Gravity, the turf and whatever the
+  /// net left it with, which is what makes a goal end with the ball on the
+  /// ground inside the net rather than pinned to the cords at head height.
   void _settle(double dt) {
     elapsed += dt;
     _moveKeeper();
     if (held) {
+      // Pinned to his gloves, and it goes down with him.
       position
         ..x = keeperHand.x
         ..y = keeperHand.y
         ..z = keeperHand.z;
+      return;
+    }
+    velocity.z -= gravity * dt;
+    position
+      ..x += velocity.x * dt
+      ..y += velocity.y * dt
+      ..z += velocity.z * dt;
+    if (position.z < ballRadius && velocity.z < 0) {
+      position.z = ballRadius;
+      velocity.z = -velocity.z * groundRestitution;
+      // Rolling friction. Without it a ball that has come to rest slides across
+      // the goalmouth for the whole hold.
+      velocity
+        ..x *= 0.66
+        ..y *= 0.66;
+    }
+    // It cannot come back out through the net it is already in, and it cannot
+    // roll out through the SIDE of one either — a ball that went in at an angle
+    // carries most of a metre of drift across the hold, which put it through
+    // the side netting and out past the post.
+    if (netContact != null) {
+      if (position.y > goalDepth - ballRadius) {
+        position.y = goalDepth - ballRadius;
+        velocity.y = 0;
+      }
+      final edge = goalHalfWidth - ballRadius;
+      if (position.x.abs() > edge) {
+        position.x = position.x.isNegative ? -edge : edge;
+        velocity.x = -velocity.x * 0.3;
+      }
     }
   }
 
@@ -432,7 +474,20 @@ class PenaltyKick {
     // is in the picture when the word goes up.
     if (crossedInside && position.y >= goalDepth - ballRadius) {
       position.y = goalDepth - ballRadius;
-      netContact ??= position.clone();
+      if (netContact == null) {
+        netContact = position.clone();
+        // **THE NET TAKES THE PACE.** It used to pin the ball against the net
+        // and leave every component of its velocity untouched, which did not
+        // show while the kick was being stepped and showed for the whole of the
+        // hold afterwards: the ball stopped dead the instant the word went up
+        // and hung there in mid-air. A ball into a net is stopped by it and then
+        // DROPS. What is left is a little sideways and a little down, and
+        // gravity does the rest in [_settle].
+        velocity
+          ..x *= 0.18
+          ..y = 0
+          ..z *= 0.18;
+      }
       result ??= PenaltyResult.goal;
     }
     // Behind the goal, one way or the other. It used to call anything back there

@@ -93,6 +93,17 @@ void main() {
       final smooth = at(1 / 120);
       final janky = at(1 / 12);
       expect(janky.result, smooth.result);
+      expect(janky.decidedAt, closeTo(smooth.decidedAt!, 0.1));
+      // **Compared at the SAME elapsed, not at the same call.** The loop stops
+      // on `done`, and a caller handing over a tenth of a second at a time
+      // overshoots that moment by up to a tenth — which is a tenth of a second
+      // of settling the fine-grained one has not done yet. That is the caller's
+      // clock, not the integrator: the ball keeps falling after the word goes
+      // up, so where it is depends on WHEN you look.
+      while (smooth.elapsed < janky.elapsed) {
+        smooth.advance(1 / 120);
+      }
+      expect(smooth.elapsed, closeTo(janky.elapsed, 1 / 100));
       expect(janky.position.x, closeTo(smooth.position.x, 0.05));
     });
   });
@@ -530,6 +541,79 @@ void main() {
         settled(_corner, plan: reads(_corner)).result,
         PenaltyResult.saved,
       );
+    });
+  });
+
+  group('AND THE BALL COMES DOWN TOO', () {
+    /// Past [PenaltyKick.done] and on through the hold the screen keeps.
+    PenaltyKick held(PenaltyAim aim, {KeeperPlan? plan}) {
+      final k = kick(aim, plan: plan);
+      for (var i = 0; i < 300; i++) {
+        k.advance(1 / 120);
+      }
+      return k;
+    }
+
+    const scored = (across: 0.55, lift: 0.5, power: 0.85, curl: 0.0);
+
+    test('IT DOES NOT HANG IN THE NET AT HEAD HEIGHT', () {
+      // Reported from the couch as no physics at all: the ball stuck in the net.
+      // The goal pinned it against the cords and left every component of its
+      // velocity untouched, and then `done` stopped stepping it — so the frame
+      // the word went up was the frame the ball stopped, and the screen holds on
+      // the goalmouth for nearly two seconds after that.
+      final k = held(scored, plan: guessesWrong(scored));
+      expect(k.result, PenaltyResult.goal);
+      expect(k.netContact, isNotNull);
+      // It went in high and it is on the floor.
+      expect(k.netContact!.z, greaterThan(0.9));
+      expect(k.position.z, closeTo(ballRadius, 0.01));
+    });
+
+    test('and it comes to REST rather than rolling for ever', () {
+      final k = held(scored, plan: guessesWrong(scored));
+      final where = k.position.clone();
+      for (var i = 0; i < 120; i++) {
+        k.advance(1 / 120);
+      }
+      expect((k.position.x - where.x).abs(), lessThan(0.02));
+      expect((k.position.z - where.z).abs(), lessThan(0.02));
+    });
+
+    test('IT STAYS IN THE GOAL — not out through the side netting', () {
+      // A ball that went in at an angle carries most of a metre of drift across
+      // the hold, and there is nothing but the post to stop it.
+      final k = held(scored, plan: guessesWrong(scored));
+      expect(k.position.x.abs(), lessThanOrEqualTo(goalHalfWidth));
+      expect(k.position.y, closeTo(goalDepth - ballRadius, 1e-9));
+    });
+
+    test('a ball he CAUGHT stays in his gloves, not on the floor', () {
+      // The one thing that must not fall: a gathered ball is pinned to the
+      // keeper's hands and goes down with him.
+      const middle = (across: 0.0, lift: 0.2, power: 0.45, curl: 0.0);
+      final k = held(middle);
+      expect(k.result, PenaltyResult.saved);
+      if (k.held) {
+        expect(k.position.x, closeTo(k.keeperHand.x, 1e-9));
+        expect(k.position.z, closeTo(k.keeperHand.z, 1e-9));
+      }
+    });
+
+    test('THE OUTCOME IS UNCHANGED — falling decides nothing', () {
+      // The ball moving after the whistle must not be able to score, save or
+      // miss anything: `result` is set once and the settle cannot reach it.
+      for (final aim in <PenaltyAim>[
+        scored,
+        (across: 0.0, lift: 0.25, power: 0.5, curl: 0.0),
+        (across: 1.15, lift: 0.5, power: 0.9, curl: 0.0),
+        (across: 0.1, lift: 1.1, power: 0.9, curl: 0.0),
+      ]) {
+        final quick = kick(aim);
+        final long = held(aim);
+        expect(long.result, quick.result, reason: 'aim $aim');
+        expect(long.decidedAt, closeTo(quick.decidedAt!, 1e-9));
+      }
     });
   });
 }

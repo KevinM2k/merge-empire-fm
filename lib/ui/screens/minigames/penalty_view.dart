@@ -37,23 +37,98 @@ import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 /// lens wide enough to fill the frame with the goal throws the ball off the
 /// bottom of it — which is exactly what the first set of numbers did.
 ///
-/// Two constraints pin all four values: the goal has to be about three quarters
-/// of the width, and the ball at the spot has to sit near the bottom of the frame
-/// rather than under it. Writing both out and solving gives a camera 10m behind
-/// the spot at 2.6m — a cameraman standing behind the taker, which is where the
-/// shot comes from on television — and a horizon near the top, because a 2.6m
-/// camera twenty-one metres from a 2.44m crossbar genuinely does see the bar just
-/// below eye level.
+/// THREE constraints pin them, and the third is the one that was missing. The
+/// goal has to fill about three quarters of the width; the ball at the spot has
+/// to sit near the bottom of the frame rather than under it; and **eleven metres
+/// has to LOOK like eleven metres.** The first two were solved for and gave a
+/// camera 10m back at 2.6m — and the third was not asked, which is how a
+/// regulation spot came to be reported from the couch as too close to the goal.
 ///
-/// Move any of them and the other three have to be re-solved. They are not taste.
-const double _eyeY = -spotDistance - 10;
-const double _eyeZ = 2.62;
+/// Only the height is free once the first constraint is met, and the height is
+/// exactly what the third one wants: see [_eyeZ].
+///
+/// Move any of them and the others have to be re-solved. They are not taste.
+/// How far behind the spot the camera stands.
+const double _cameraBack = 10;
+const double _eyeY = -spotDistance - _cameraBack;
+
+/// How high it stands.
+///
+/// **RAISED, and that is what answers "the spot is too close to the goal".**
+/// The spot is eleven metres out and always was — it is regulation, and moving
+/// it would move every number [PenaltyKick] is balanced around. What was too
+/// close was the PICTURE: from 2.62m the ball sat barely a goal's-height above
+/// the line with the bottom half of the frame empty grass, so eleven metres
+/// read as three.
+///
+/// The separation between the ball and the line is
+/// `f · h · (1/back − 1/(back + spotDistance))`, so it scales with the camera's
+/// HEIGHT and with nothing else that is free — the focal length and the camera's
+/// distance are both pinned by the goal having to fill about three quarters of
+/// the width. Going up to 3.9m opens that gap by half again, and it costs
+/// nothing else in the scene: the goal is the same size, the frame is the same
+/// shape, and the run-up is at the same depth. A gantry four metres up behind
+/// the goal is also where the shot comes from on television.
+const double _eyeZ = 3.9;
 
 /// Focal length, as a fraction of the view's width.
+///
+/// Pinned by the goal filling about three quarters of the frame at
+/// [spotDistance] plus [_cameraBack]. Not taste — but see [_focalFor], which is
+/// allowed to open the lens when the view is too short to hold the shot.
 const double _focal = 2.15;
 
-/// Where eye level lands, as a fraction of the height.
-const double _horizon = 0.094;
+/// How tall the scene is, per unit of focal length: the crossbar down to the
+/// ball on the spot.
+///
+/// Every offset the projection produces is a multiple of `f · width`, so this is
+/// the one number that says whether the shot FITS — and it is derived from the
+/// camera rather than measured off a screenshot, so moving the camera moves it.
+const double _sceneSpan =
+    (_eyeZ - ballRadius) / _cameraBack -
+    (_eyeZ - goalHeight) / (_cameraBack + spotDistance);
+
+/// The most of the view's height the scene may take, and the air above it.
+const double _maxSpan = 0.72;
+const double _topMargin = 0.06;
+
+/// Where the ball on the spot sits, as a fraction of the height.
+const double _ballHeight = 0.70;
+
+/// The lens this view can afford.
+///
+/// **A short, wide view cannot hold a long lens**, and that is not a taste
+/// judgement: the scene is [_sceneSpan] · `f` · `width` tall whatever the height
+/// is, so past a certain aspect the crossbar is simply above the top edge. It is
+/// reachable — the view is an `Expanded` in a column of score lines, so on a
+/// short screen it gets whatever is left. Opening the lens is the only answer
+/// that keeps the goal and the ball in the same picture; it costs the goal some
+/// width, which is the right thing to give up.
+double _focalFor(Size view) =>
+    math.min(_focal, _maxSpan * view.height / (_sceneSpan * view.width));
+
+/// Where eye level lands.
+///
+/// **Derived from the BALL rather than fixed, because the scene has to frame
+/// itself on a view whose shape it does not choose.** It used to be a constant
+/// fraction of the height, and every offset in the projection is a fraction of
+/// the WIDTH — so the whole picture slid up or down the frame as the aspect
+/// changed, and the four camera numbers had been solved for one shape of window.
+///
+/// Anchoring on the ball fixes the one thing that must not move: it is what the
+/// player aims from, it is the lowest thing in the scene that matters, and
+/// everything else is placed relative to it by the projection anyway. The ball
+/// gives way only to the CROSSBAR — it drops no lower than the point that keeps
+/// the bar [_topMargin] inside the top edge, which with [_focalFor] holding the
+/// span down is a limit a portrait view never reaches.
+double _horizonY(Size view) {
+  final f = _focalFor(view) * view.width;
+  final ball = math.max(
+    _ballHeight * view.height,
+    _topMargin * view.height + _sceneSpan * f,
+  );
+  return ball - f * (_eyeZ - ballRadius) / _cameraBack;
+}
 
 /// The projection.
 ///
@@ -63,10 +138,10 @@ const double _horizon = 0.094;
 Offset? project(Vec3 point, Size view) {
   final depth = point.y - _eyeY;
   if (depth < 0.4) return null;
-  final f = _focal * view.width;
+  final f = _focalFor(view) * view.width;
   return Offset(
     view.width / 2 + f * point.x / depth,
-    view.height * _horizon - f * (point.z - _eyeZ) / depth,
+    _horizonY(view) - f * (point.z - _eyeZ) / depth,
   );
 }
 
@@ -74,7 +149,7 @@ Offset? project(Vec3 point, Size view) {
 double scaleAt(double y, Size view, double size) {
   final depth = y - _eyeY;
   if (depth < 0.4) return 0;
-  return _focal * view.width * size / depth;
+  return _focalFor(view) * view.width * size / depth;
 }
 
 /// Where the goal line lands on screen.
@@ -84,7 +159,65 @@ double scaleAt(double y, Size view, double size) {
 /// gap — so it is one function both the widget and the painter read rather than
 /// two that agree by hand.
 double goalLineY(Size view) =>
-    project(Vec3(0, 0, 0), view)?.dy ?? view.height * _horizon;
+    project(Vec3(0, 0, 0), view)?.dy ?? _horizonY(view);
+
+/// How far past the goal line the pitch runs before whatever is behind it
+/// starts, in metres.
+///
+/// **The goal line is not the horizon**, and treating it as one is what put a
+/// wall of green above the crossbar. The seam used to be [goalLineY], so the
+/// photograph — whose own field fills its bottom third — was cropped to the band
+/// directly above the line and the pitch appeared to RISE behind the goal like a
+/// hill. Ground does not stop at the line: there is the dead ball area, the
+/// run-off and the hoardings before anything vertical begins, and all of that is
+/// the painter's turf in the painter's perspective.
+///
+/// Seven and a half metres is the run-off behind a goal at this level. It is
+/// small on screen — the band above the line is a couple of dozen pixels on a
+/// phone — and that is the point: the goal stands on a pitch that carries on
+/// past it rather than against a backdrop propped up on the line.
+const double _beyondGoal = 7.5;
+
+/// Where the ground gives way to what is behind it.
+///
+/// The photograph goes above it and the turf starts on it, and they have to be
+/// the same number or there is a gap — so it is one function both the widget and
+/// the painter read rather than two that agree by hand.
+double standBaseY(Size view) =>
+    project(Vec3(0, _beyondGoal, 0), view)?.dy ?? _horizonY(view);
+
+/// Where the backdrop art's own ground line sits, as a fraction of its height.
+///
+/// All four Kenney backdrops are the same square layout: sky and cloud above, a
+/// treeline, then a flat field filling the bottom. That field is the part that
+/// must NOT be seen — the painter draws the ground, and a second ground behind
+/// it at a different perspective is the hill the couch reported.
+const double _artHorizon = 0.62;
+
+/// Where the square backdrop art is laid inside its band.
+///
+/// **The art is PLACED, not fitted**, and that is the difference between the
+/// treeline landing on the seam and the art's own field standing up behind the
+/// goal. `BoxFit.cover` shows whichever slice the alignment picks, and on a tall
+/// view the band is nearly as tall as the drawing — so no alignment exists that
+/// shows only the part above the ground line, and asking for one gets you a
+/// clamp and the field back.
+///
+/// Sizing it is what solves it. The drawing goes down far enough that its own
+/// ground line, at [_artHorizon], is exactly the foot of the band; if that would
+/// make it narrower than the view it is scaled up to fit the width instead and
+/// the surplus goes off the top, which is sky. Either way the seam is a treeline
+/// standing on grass rather than a green edge.
+Rect backdropRect(Size view) {
+  final band = math.max(0.0, standBaseY(view));
+  final drawn = math.max(view.width, band / _artHorizon);
+  return Rect.fromLTWH(
+    (view.width - drawn) / 2,
+    band - _artHorizon * drawn,
+    drawn,
+    drawn,
+  );
+}
 
 /// The net, as a grid that can be pushed.
 ///
@@ -115,6 +248,39 @@ class NetMesh {
     -goalHalfWidth + goalWidth * c / columns,
     goalDepth + _bulge[_index(c, r)],
     goalHeight * (1 - r / rows),
+  );
+
+  /// How many cells the side and roof panels are strung across their depth.
+  ///
+  /// Fewer than [columns], because they run AWAY from the camera: seven and a
+  /// half metres of goal mouth gets fifteen cords and one metre eighty-five of
+  /// depth does not need them.
+  static const int depthCells = 4;
+
+  /// A vertex of one side panel, [side] being −1 for the left post and +1 for
+  /// the right.
+  ///
+  /// **A goal is a box and it had only a back.** The mouth was strung and
+  /// nothing else, so a ball rolled along the inside of a post passed through
+  /// open air where the side netting is — and from behind the spot the side
+  /// panels are most of what says the goal has DEPTH, because they are the only
+  /// surface in the picture running away from the camera.
+  ///
+  /// Static rather than sprung, and that is honest: the panels are pulled taut
+  /// between the post and the stanchion, which is why they are the part of a net
+  /// that does not billow. The back plane takes the shot and the back plane is
+  /// what moves — see [strike].
+  Vec3 sideVertex(int side, int c, int r) => Vec3(
+    side * goalHalfWidth,
+    goalDepth * c / depthCells,
+    goalHeight * (1 - r / rows),
+  );
+
+  /// A vertex of the roof panel, from the crossbar back to the rear stanchion.
+  Vec3 roofVertex(int c, int r) => Vec3(
+    -goalHalfWidth + goalWidth * c / columns,
+    goalDepth * r / depthCells,
+    goalHeight,
   );
 
   /// A ball into the net at [at], carrying [speed].
@@ -244,7 +410,23 @@ class PenaltyFrame {
 /// a card.
 const double _keeperLeg = 0.88;
 const double _keeperTorso = 0.64;
-const double _keeperNeck = 0.22;
+
+/// Head centre above the shoulder.
+///
+/// A neck is a HINT, not a limb: 0.34 — sized so a skin stroke could clear the
+/// torso cap's dome — read as a head on a stick. The torso ends FLAT now (butt
+/// cap, with the shoulder bar giving the figure its shoulders), so the head can
+/// sit close and the sliver of skin between bar and chin is all the neck a
+/// figure this size wants.
+const double _keeperNeck = 0.25;
+
+/// Half the pelvis: how far each leg's hip joint sits off the centreline.
+///
+/// **Legs come off a PELVIS, not a point.** Both hung from the same centre
+/// pixel, and the torso's rounded end painted over their tops — so the legs
+/// read as detached from the body, with the shirt covering the crotch like a
+/// leotard. Each leg hangs off its own side of a hip bar now.
+const double _keeperHip = 0.07;
 
 /// How far the legs open, from straight down, at rest and at full stretch.
 const double _legSplitRest = 6.5 * math.pi / 180;
@@ -252,9 +434,47 @@ const double _legSplitDive = 30 * math.pi / 180;
 
 /// Where the arms point, measured from straight up. The leading one swings out
 /// past horizontal as he reaches; the trailing one tucks in.
-const double _armRest = 52 * math.pi / 180;
+///
+/// **At rest they hang DOWN and out, bent at the elbow.** 52 degrees was a man
+/// signalling a touchdown; 104 was near-horizontal, and with the elbow bowing
+/// below the chord the forearm rose back up to the glove, which read as an arm
+/// bent backwards. Steep enough that both bones point downward, the same kink
+/// reads as a relaxed arm — a set keeper's gloves are at his hips, not at his
+/// shoulders.
+const double _armRest = 132 * math.pi / 180;
 const double _armLead = 96 * math.pi / 180;
 const double _armTrail = 22 * math.pi / 180;
+
+/// Half the shoulder girdle: how far out of the centreline each arm hangs.
+///
+/// A fixed lateral joint, the same as the taker's, joined by a drawn shoulder
+/// bar — which is what makes the arm CONNECT to the body instead of surfacing
+/// out of the torso stroke.
+const double _keeperShoulder = 0.16;
+
+/// The two bones of a keeper's arm, in metres.
+///
+/// **A body's arm, not the reach's.** They summed to 0.88 — the length of his
+/// whole leg — because the glove was still required to land on the reach circle
+/// at full stretch, and the circle is [keeperReach] from his chest. That
+/// requirement is the monkey arms: the circle is the PHYSICS' truth and it
+/// already includes what it includes; the figure in front of it is a person,
+/// and a person's arm is about three quarters of his leg. A save at the very
+/// edge of the reach may show the glove a hand short of the ball for a frame,
+/// and that is the right trade.
+const double _keeperUpperArm = 0.33;
+const double _keeperForeArm = 0.34;
+
+/// How much of the arm's full length the shoulder-to-glove span covers at rest.
+///
+/// **A set keeper's arms are BENT.** The gloves used to sit at full extension
+/// in every pose — a wingspan of dead-straight limb held out at rest, which is
+/// what was reported as arms like a monkey's. The dive straightens the arm to
+/// nearly its whole length, because that is what full stretch means; at rest it
+/// is folded at the elbow — but only to about four fifths, because folded to
+/// three fifths his gloves sat at his waist and the arms read as stubby rather
+/// than as ready.
+const double _gloveTuck = 0.80;
 
 /// The keeper's figure, solved in SCREEN space from the one point the physics
 /// actually knows.
@@ -282,8 +502,22 @@ typedef KeeperRig = ({
   /// The leading glove. On the projected hand, by construction.
   Offset glove,
   Offset trailGlove,
+
+  /// Where each arm leaves the body, and where it bends. The gloves are on the
+  /// reach circle centred on [shoulder]; these are what make the limb between
+  /// them an arm rather than a spoke. See [_keeperShoulder].
+  Offset leadJoint,
+  Offset trailJoint,
+  Offset leadElbow,
+  Offset trailElbow,
+
+  /// His CHEST, and the centre of the reach circle — see `keeperHand`.
   Offset shoulder,
   Offset hip,
+
+  /// The pelvis: where each leg actually hangs. See [_keeperHip].
+  Offset leftHip,
+  Offset rightHip,
   Offset head,
   Offset leftBoot,
   Offset rightBoot,
@@ -318,31 +552,53 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   // Local frame, hip at the origin, head up. Every length below is a constant.
   final torso = unit * _keeperTorso;
   final legLen = unit * _keeperLeg;
-  // **The arm is the PHYSICS' own reach.** `keeperReach` is what the save test
-  // measures with, so the drawn arm and the arm that saves it are one number.
-  final armLen = unit * keeperReach;
 
   final localHip = Offset.zero;
   final localShoulder = Offset(0, -torso);
   final localHead = Offset(0, -torso - unit * _keeperNeck);
 
+  // Legs off a PELVIS: each hangs from its own side of the hip bar, which is
+  // what makes them part of the body rather than two strokes meeting the
+  // torso's centreline at a point.
+  final hipOff = unit * _keeperHip;
+  final localHipL = Offset(-hipOff, 0);
+  final localHipR = Offset(hipOff, 0);
   final split = _legSplitRest + (_legSplitDive - _legSplitRest) * dive;
   final legOut = math.sin(split) * legLen;
   final legDown = math.cos(split) * legLen;
-  final localLeft = Offset(-legOut, legDown);
-  final localRight = Offset(legOut, legDown);
+  final localLeft = localHipL + Offset(-legOut, legDown);
+  final localRight = localHipR + Offset(legOut, legDown);
 
   final leadAngle = _armRest + (_armLead - _armRest) * dive;
   final trailAngle = _armRest + (_armTrail - _armRest) * dive;
-  final localLead =
-      localShoulder +
-      Offset(math.sin(leadAngle) * armLen * out, -math.cos(leadAngle) * armLen);
-  final localTrail =
-      localShoulder +
-      Offset(
-        -math.sin(trailAngle) * armLen * out,
-        -math.cos(trailAngle) * armLen,
-      );
+  final leadWay = Offset(math.sin(leadAngle) * out, -math.cos(leadAngle));
+  final trailWay = Offset(-math.sin(trailAngle) * out, -math.cos(trailAngle));
+
+  // Where the arm starts, where it bends, and where the glove is. Each arm
+  // hangs off its own side of the shoulder bar; the dive straightens it to
+  // nearly its full length and at rest it is folded — see [_gloveTuck]. The
+  // elbow is a two-bone solve, so neither bone ever changes length; it bows
+  // toward his feet, which with both bones pointing downward at rest is a
+  // relaxed hang rather than a backwards bend.
+  final girdle = unit * _keeperShoulder;
+  final upper = unit * _keeperUpperArm;
+  final fore = unit * _keeperForeArm;
+  final span = (upper + fore) * (_gloveTuck + (0.98 - _gloveTuck) * dive);
+  (Offset, Offset, Offset) armFrom(Offset way, double side) {
+    final joint = localShoulder + Offset(side * girdle, 0);
+    final glove = joint + way * span;
+    final reach = (span * span + upper * upper - fore * fore) / (2 * span);
+    final drop = math.sqrt(math.max(0, upper * upper - reach * reach));
+    var perp = Offset(-way.dy, way.dx);
+    if (perp.dy < 0) perp = -perp;
+    return (joint, joint + way * reach + perp * drop, glove);
+  }
+
+  final (localLeadJoint, localLeadElbow, localLead) = armFrom(leadWay, out);
+  final (localTrailJoint, localTrailElbow, localTrail) = armFrom(
+    trailWay,
+    -out,
+  );
 
   // **`keeperHand` IS THE CENTRE OF HIS REACH, not a fingertip**, whatever its
   // name says — `_keeperGotIt` tests the ball against it and then allows another
@@ -367,8 +623,14 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   return (
     glove: at(localLead),
     trailGlove: at(localTrail),
+    leadJoint: at(localLeadJoint),
+    trailJoint: at(localTrailJoint),
+    leadElbow: at(localLeadElbow),
+    trailElbow: at(localTrailElbow),
     shoulder: at(localShoulder),
     hip: at(localHip),
+    leftHip: at(localHipL),
+    rightHip: at(localHipR),
     head: at(localHead),
     leftBoot: leftBoot,
     rightBoot: rightBoot,
@@ -422,8 +684,58 @@ Path dashedPath(
 /// The taker's own proportions, in metres.
 const double _takerLeg = 0.90;
 const double _takerTorso = 0.64;
-const double _takerNeck = 0.22;
-const double _takerArm = 0.45;
+
+/// Head centre above the shoulder. Short, for the same reason as [_keeperNeck]:
+/// the torso ends flat now, so the head sits close and the neck is a sliver
+/// rather than a stalk.
+const double _takerNeck = 0.25;
+
+/// Half his pelvis: how far each leg hangs off the centreline.
+///
+/// Both legs used to start at the same point, under a torso stroke whose round
+/// cap domed over their tops — so they read as detached, which is exactly what
+/// was reported. Each hangs off its own side of a drawn hip bar now.
+const double _takerHip = 0.07;
+
+/// Half his shoulder girdle, and the two bones of an arm.
+///
+/// **The arms used to come out of his waist**, and it was an artefact of where
+/// they were drawn from: both hung from the torso's centreline, so the torso
+/// stroke — 0.30 wide — swallowed their top third and they surfaced at hip
+/// height, tiny. They hang off the girdle's edges now, where shoulders are.
+const double _takerGirdle = 0.16;
+const double _takerUpperArm = 0.29;
+const double _takerForeArm = 0.27;
+
+/// How far out of vertical the upper arm hangs while he runs, and how far the
+/// forearm turns back IN from it.
+///
+/// **A runner's forearm comes in, not out.** Both were splayed: the upper arm
+/// sat 35 degrees off vertical and the forearm added another 20 on top, so the
+/// arms reached out sideways nearly as far as his legs reached down — a man
+/// walking a tightrope. Seen from directly behind, a running arm is an elbow
+/// out at the ribs with the hand tucked in front of it, which is the upper arm
+/// near-vertical and the forearm folded back across.
+const double _takerArmHang = 0.30;
+const double _takerArmFold = 0.85;
+
+/// The two bones the leg is actually made of.
+///
+/// **A KICK IS A KNEE**, and the leg had none: one rigid segment from hip to
+/// boot, pivoting through 45 degrees, which is what was reported as an odd
+/// swing. These are what bend, and they are what may never change length —
+/// unlike the hip-to-boot distance, which SHOULD change, because a folded leg is
+/// a shorter leg. That is the difference between the two-bone solve here and the
+/// fixed-length stick it replaces.
+const double _takerThigh = 0.47;
+const double _takerShin = _takerLeg - _takerThigh;
+
+/// How far through the strike he cocks it before it comes through.
+///
+/// He had no backlift at all: the leg ran from 0.36 radians to 1.14 and that was
+/// the whole kick. A leg goes BACK with the knee folded and then snaps through
+/// and straightens into the ball, and the straightening is what lands on it.
+const double _takerCock = 0.42;
 
 /// The man taking it, solved in screen space.
 ///
@@ -442,6 +754,21 @@ typedef TakerRig = ({
   Offset head,
   Offset plantBoot,
   Offset kickBoot,
+
+  /// The knees. A kicking leg with no joint in it is a stick pivoting at the
+  /// hip, which is what an odd swing looks like — see [_takerThigh].
+  Offset plantKnee,
+  Offset kickKnee,
+
+  /// The pelvis: where each leg actually hangs. See [_takerHip].
+  Offset plantHip,
+  Offset kickHip,
+
+  /// The arms: where each hangs off the girdle, where it bends, and the hand.
+  Offset leftJoint,
+  Offset rightJoint,
+  Offset leftElbow,
+  Offset rightElbow,
   Offset leftHand,
   Offset rightHand,
   double unit,
@@ -449,6 +776,37 @@ typedef TakerRig = ({
   /// 1 while he is on screen, easing to 0 as he leaves it.
   double fade,
 });
+
+double _mix(double a, double b, double t) => a + (b - a) * t;
+
+/// Where the knee goes, given a hip and a boot.
+///
+/// **A two-bone solve, which is the only way both bones keep their length.**
+/// The thigh and the shin are fixed at [_takerThigh] and [_takerShin]; the
+/// distance between hip and boot is what varies, because a folded leg is a
+/// shorter leg. Turning that round — pinning hip to boot and letting the bones
+/// stretch — is what the old rig did, and it is what a leg growing 31% across a
+/// strike looks like.
+///
+/// The knee sits along the hip-to-boot line at the point where the two circles
+/// meet, offset square to it. [bow] picks which side, and it is the direction
+/// the leg is swinging: seen from directly behind him a knee's own forward bend
+/// projects to nearly nothing, so the kink that reads is the one in the plane of
+/// the swing.
+Offset kneeBetween(Offset hip, Offset boot, double unit, double bow) {
+  final thigh = unit * _takerThigh;
+  final shin = unit * _takerShin;
+  final line = boot - hip;
+  // Never quite locked and never folded past the bones: a leg at full stretch
+  // still has a knee in it, and one that cannot reach has to stop somewhere.
+  final span = line.distance.clamp((thigh - shin).abs() + 1e-6, thigh + shin);
+  if (span <= 0) return hip;
+  final along = line / line.distance;
+  final reach = (span * span + thigh * thigh - shin * shin) / (2 * span);
+  final drop = math.sqrt(math.max(0, thigh * thigh - reach * reach));
+  final side = bow.isNegative ? -1.0 : 1.0;
+  return hip + along * reach + Offset(-along.dy, along.dx) * drop * side;
+}
 
 TakerRig? takerRigFor(double t, Size view) {
   if (t <= 0) return null;
@@ -474,7 +832,6 @@ TakerRig? takerRigFor(double t, Size view) {
   if (unit <= 0) return null;
 
   final legLen = unit * _takerLeg;
-  final armLen = unit * _takerArm;
   final torso = unit * _takerTorso;
 
   // The stride, and then the STRIKE. Up to the plant his legs alternate on a
@@ -482,35 +839,107 @@ TakerRig? takerRigFor(double t, Size view) {
   // through, which is the follow-through that says the ball has been hit.
   final striking = (t - 0.82).clamp(0.0, 1.0) / 0.18;
   final cycle = math.sin(run * 3.4 * math.pi);
-  // Angles from straight down, so a swing is a rotation about the hip.
-  final kickAngle = striking > 0 ? 0.36 + striking * 0.78 : cycle * 0.36;
-  final plantAngle = striking > 0 ? -0.16 : -cycle * 0.34;
 
-  Offset fromHip(Offset hip, double angle) =>
-      hip + Offset(math.sin(angle) * legLen, math.cos(angle) * legLen);
+  // **THE STRIKE IS TWO BEATS, NOT ONE ROTATION.** The kicking leg used to run
+  // straight from 0.36 radians to 1.14 with nothing else happening — no
+  // backlift, no knee, a stick pivoting at the hip. It goes BACK first with the
+  // knee folded ([_takerCock]), then snaps through and STRAIGHTENS into the
+  // ball, which is the part that reads as a kick rather than a step.
+  final cock = (striking / _takerCock).clamp(0.0, 1.0);
+  final swing = ((striking - _takerCock) / (1 - _takerCock)).clamp(0.0, 1.0);
+  // Eased, so it accelerates out of the backlift instead of sweeping evenly.
+  final through = swing * swing * (3 - 2 * swing);
 
-  // The hip is wherever it has to be for the PLANT boot to be on the turf.
+  // Angles from straight down, so a swing is a rotation about the hip; reach is
+  // how far the boot is from the hip, which is what a folded knee shortens.
+  final (kickAngle, kickReach) = striking <= 0
+      ? (cycle * 0.36, 0.96 - 0.14 * math.max(0.0, cycle))
+      : swing <= 0
+      ? (_mix(0.36, -0.5, cock), _mix(0.96, 0.7, cock))
+      : (_mix(-0.5, 1.12, through), _mix(0.7, 1.0, math.min(1, swing / 0.7)));
+  // The plant leg takes his weight, so it is nearly straight and stays there.
+  final (plantAngle, plantReach) = striking > 0
+      ? (-0.16, 0.98)
+      : (-cycle * 0.34, 0.96 + 0.02 * math.max(0.0, cycle));
+
+  // The hip is wherever it has to be for the PLANT boot to be on the turf —
+  // and the plant boot hangs off the pelvis, not off the centreline, so the
+  // half-pelvis has to come back out of it or the whole figure slides a hip's
+  // width off the ground it is running over.
+  final pelvis = unit * _takerHip;
   final hip =
-      ground -
-      Offset(math.sin(plantAngle) * legLen, math.cos(plantAngle) * legLen);
+      ground +
+      Offset(pelvis, 0) -
+      Offset(
+        math.sin(plantAngle) * legLen * plantReach,
+        math.cos(plantAngle) * legLen * plantReach,
+      );
   final shoulder = hip + Offset(0, -torso);
 
+  // Each leg hangs off its own side of the pelvis.
+  final plantHip = hip + Offset(-pelvis, 0);
+  final kickHip = hip + Offset(pelvis, 0);
+
+  Offset bootAt(Offset from, double angle, double reach) =>
+      from +
+      Offset(
+        math.sin(angle) * legLen * reach,
+        math.cos(angle) * legLen * reach,
+      );
+
+  final plantBoot = bootAt(plantHip, plantAngle, plantReach);
+  final kickBoot = bootAt(kickHip, kickAngle, kickReach);
+
   // Arms counter-swing, which is most of what makes a run read as a run — by
-  // angle, at a length that never moves.
-  final swingArm = 0.62 + cycle * 0.22;
-  final other = 0.62 - cycle * 0.22;
+  // angle, at lengths that never move. They hang off the GIRDLE's edges, where
+  // shoulders are: from the torso's centreline the 0.30-wide stroke swallowed
+  // their top third and they surfaced at hip height, which read as tiny arms
+  // out of his waist. The strike throws both up and out — a taker's arms fly
+  // for balance as the leg goes through.
+  final fling = striking > 0
+      ? 0.62 * math.min(1.0, striking / _takerCock)
+      : 0.0;
+  final swingArm = _takerArmHang + cycle * 0.20 + fling;
+  final other = _takerArmHang - cycle * 0.20 + fling;
+  final girdle = unit * _takerGirdle;
+  final upperArm = unit * _takerUpperArm;
+  final foreArm = unit * _takerForeArm;
+  (Offset, Offset, Offset) armAt(double side, double angle) {
+    final joint = shoulder + Offset(side * girdle, 0);
+    final way = Offset(side * math.sin(angle), math.cos(angle));
+    // A fixed bend AT the elbow: the forearm is the upper arm's direction
+    // turned back INWARD, so both bones keep their length by construction and
+    // the arm still has a joint in it. Inward is the direction that matters —
+    // turned further OUT, which is what it did, the two bones straightened
+    // into one splayed stick. See [_takerArmFold].
+    final fore = angle - _takerArmFold;
+    final foreWay = Offset(side * math.sin(fore), math.cos(fore));
+    final elbow = joint + way * upperArm;
+    return (joint, elbow, elbow + foreWay * foreArm);
+  }
+
+  final (leftJoint, leftElbow, leftHand) = armAt(-1, swingArm);
+  final (rightJoint, rightElbow, rightHand) = armAt(1, other);
   return (
     ground: ground,
     hip: hip,
     shoulder: shoulder,
     head: hip + Offset(0, -torso - unit * _takerNeck),
-    plantBoot: fromHip(hip, plantAngle),
-    kickBoot: fromHip(hip, kickAngle),
-    leftHand:
-        shoulder +
-        Offset(-math.sin(swingArm) * armLen, math.cos(swingArm) * armLen),
-    rightHand:
-        shoulder + Offset(math.sin(other) * armLen, math.cos(other) * armLen),
+    plantBoot: plantBoot,
+    kickBoot: kickBoot,
+    // Bowed the way the leg is SWINGING: from directly behind him a knee's own
+    // forward bend projects to almost nothing, and what the eye reads is the
+    // kink in the plane of the swing.
+    plantKnee: kneeBetween(plantHip, plantBoot, unit, plantAngle),
+    kickKnee: kneeBetween(kickHip, kickBoot, unit, kickAngle),
+    plantHip: plantHip,
+    kickHip: kickHip,
+    leftJoint: leftJoint,
+    rightJoint: rightJoint,
+    leftElbow: leftElbow,
+    rightElbow: rightElbow,
+    leftHand: leftHand,
+    rightHand: rightHand,
     unit: unit,
     fade: fade,
   );
@@ -543,18 +972,27 @@ class PenaltyPainter extends CustomPainter {
   /// markings — the six-yard box, the penalty area, the arc and the spot. Every
   /// one of them is projected, so all of it agrees about where the camera is.
   void _paintGround(Canvas canvas, Size size) {
-    // **NOTHING ABOVE THE GOAL LINE.** It used to paint a flat sky gradient
-    // across the whole frame and then turf from the horizon down, which left the
-    // goal standing against grass and a wash of blue — so the net had to be a
-    // sheet to read as a hole at all. The band above the line is the STADIUM's
-    // now: a photograph of the ground, behind the painter, showing through
-    // wherever this does not paint. See [goalLineY] for the seam.
+    // **NOTHING ABOVE THE RUN-OFF.** It used to paint a flat sky gradient across
+    // the whole frame and then turf from the horizon down, which left the goal
+    // standing against grass and a wash of blue — so the net had to be a sheet
+    // to read as a hole at all. The band above the seam is the STADIUM's now: a
+    // photograph, behind the painter, showing through wherever this does not
+    // paint. See [standBaseY] for the seam, and [_beyondGoal] for why it is not
+    // the goal line: the pitch runs on past the goal, and stopping it on the
+    // line stood the photograph's own field up behind the crossbar.
     final ground = Rect.fromLTRB(
       0,
-      goalLineY(size) - 1,
+      standBaseY(size) - 1,
       size.width,
       size.height,
     );
+    // **CLIPPED, because the markings run past the seam.** Bands and chalk are
+    // projected quads, and a band laid beyond the run-off projects ABOVE it —
+    // which, painted over the photograph, is grass in the sky. It did not show
+    // while the stripes were at five per cent alpha; it is exactly what would
+    // show now they can be seen.
+    canvas.save();
+    canvas.clipRect(ground);
     canvas.drawRect(
       ground,
       Paint()
@@ -572,8 +1010,16 @@ class PenaltyPainter extends CustomPainter {
 
     // Mown bands, 5m wide, running away from the camera. They converge because
     // they are projected, which is the single cheapest depth cue there is.
-    final band = Paint()..color = Colors.white.withValues(alpha: 0.05);
-    for (var i = -6; i <= 6; i += 2) {
+    //
+    // **BOTH shades, and every band.** Every other band got a five per cent
+    // white wash and the ones between it got nothing, so the stripe was one
+    // barely-there edge rather than a pattern — from the couch the pitch read as
+    // flat green. A mown pitch is light against DARK, so the alternate bands are
+    // cut the other way and both are strong enough to survive the turf gradient
+    // over them.
+    final light = Paint()..color = Colors.white.withValues(alpha: 0.10);
+    final dark = Paint()..color = Colors.black.withValues(alpha: 0.07);
+    for (var i = -6; i <= 6; i++) {
       final quad = _quad(
         size,
         Vec3(-30, -spotDistance - 12 + i * 5, 0),
@@ -581,7 +1027,7 @@ class PenaltyPainter extends CustomPainter {
         Vec3(30, -spotDistance - 12 + (i + 1) * 5, 0),
         Vec3(-30, -spotDistance - 12 + (i + 1) * 5, 0),
       );
-      if (quad != null) canvas.drawPath(quad, band);
+      if (quad != null) canvas.drawPath(quad, i.isEven ? light : dark);
     }
 
     // Tufts. Seeded, so the pitch is the same pitch every kick — a lawn that
@@ -642,6 +1088,7 @@ class PenaltyPainter extends CustomPainter {
         Paint()..color = Colors.white.withValues(alpha: 0.85),
       );
     }
+    canvas.restore();
   }
 
   /// A projected quad, or null if any corner is behind the camera.
@@ -674,29 +1121,83 @@ class PenaltyPainter extends CustomPainter {
     // stadium back there the cords are enough, and a net you can see the crowd
     // through is what a net looks like. The strung mesh is the only thing drawn.
 
-    for (var r = 0; r <= mesh.rows; r++) {
+    // One strand, projected. Every cord in the goal is drawn through this, so
+    // the back plane, the two sides and the roof cannot end up strung in
+    // different weights by hand.
+    void strand(Iterable<Vec3> points, Paint under, Paint over) {
       final path = Path();
       var started = false;
-      for (var c = 0; c <= mesh.columns; c++) {
-        final p = project(mesh.vertex(c, r), size);
+      for (final v in points) {
+        final p = project(v, size);
         if (p == null) continue;
         started ? path.lineTo(p.dx, p.dy) : path.moveTo(p.dx, p.dy);
         started = true;
       }
-      canvas.drawPath(path, shade);
-      canvas.drawPath(path, cord);
+      if (!started) return;
+      canvas.drawPath(path, under);
+      canvas.drawPath(path, over);
+    }
+
+    // **The sides and the roof first, and DIMMER.** They are behind the mouth's
+    // own cords from this camera and they run away from it, so at the back
+    // plane's weight they crowd the picture instead of describing it. Knocked
+    // back, they read as what they are: the depth the goal has.
+    final sideShade = Paint()
+      ..color = Colors.black.withValues(alpha: 0.22)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    final sideCord = Paint()
+      ..color = Colors.white.withValues(alpha: 0.30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (final side in [-1, 1]) {
+      for (var r = 0; r <= mesh.rows; r++) {
+        strand(
+          [
+            for (var c = 0; c <= NetMesh.depthCells; c++)
+              mesh.sideVertex(side, c, r),
+          ],
+          sideShade,
+          sideCord,
+        );
+      }
+      for (var c = 0; c <= NetMesh.depthCells; c++) {
+        strand(
+          [for (var r = 0; r <= mesh.rows; r++) mesh.sideVertex(side, c, r)],
+          sideShade,
+          sideCord,
+        );
+      }
+    }
+    for (var r = 0; r <= NetMesh.depthCells; r++) {
+      strand(
+        [for (var c = 0; c <= mesh.columns; c++) mesh.roofVertex(c, r)],
+        sideShade,
+        sideCord,
+      );
     }
     for (var c = 0; c <= mesh.columns; c++) {
-      final path = Path();
-      var started = false;
-      for (var r = 0; r <= mesh.rows; r++) {
-        final p = project(mesh.vertex(c, r), size);
-        if (p == null) continue;
-        started ? path.lineTo(p.dx, p.dy) : path.moveTo(p.dx, p.dy);
-        started = true;
-      }
-      canvas.drawPath(path, shade);
-      canvas.drawPath(path, cord);
+      strand(
+        [for (var r = 0; r <= NetMesh.depthCells; r++) mesh.roofVertex(c, r)],
+        sideShade,
+        sideCord,
+      );
+    }
+
+    for (var r = 0; r <= mesh.rows; r++) {
+      strand(
+        [for (var c = 0; c <= mesh.columns; c++) mesh.vertex(c, r)],
+        shade,
+        cord,
+      );
+    }
+    for (var c = 0; c <= mesh.columns; c++) {
+      strand(
+        [for (var r = 0; r <= mesh.rows; r++) mesh.vertex(c, r)],
+        shade,
+        cord,
+      );
     }
   }
 
@@ -767,9 +1268,18 @@ class PenaltyPainter extends CustomPainter {
     if (rig == null) return;
     final unit = rig.unit;
 
+    // **A goalkeeper's kit, not a colour scheme.** He was a yellow stroke on two
+    // dark strokes — no neck, no socks, no boots, gloves the colour of the
+    // shorts — which does not read as a footballer, let alone a keeper. The
+    // long-sleeved shirt in one loud colour with black shorts is the classic
+    // keeper strip, the socks match the shirt the way keepers' do, and the
+    // gloves are WHITE, because white gloves against a coloured sleeve is the
+    // single most goalkeeper-looking thing a figure this size can wear.
     const shirtColour = Color(0xFFFFC63D);
-    const shortsColour = Color(0xFF23303F);
-    const gloveColour = Color(0xFF1F2A37);
+    const shortsColour = Color(0xFF1E242E);
+    const sockColour = Color(0xFFE8B93C);
+    const bootColour = Color(0xFF15181D);
+    const gloveColour = Color(0xFFF2F4F7);
     const skin = Color(0xFFE8B78E);
 
     Paint limb(Color c, double w) => Paint()
@@ -777,30 +1287,118 @@ class PenaltyPainter extends CustomPainter {
       ..strokeWidth = unit * w
       ..strokeCap = StrokeCap.round;
 
-    // Legs, hip to boot. They SPLIT with the dive — a keeper at full stretch has
-    // one leg trailing — and they do it by ANGLE, at a length that never moves.
-    canvas.drawLine(rig.hip, rig.leftBoot, limb(shortsColour, 0.17));
-    canvas.drawLine(rig.hip, rig.rightBoot, limb(shortsColour, 0.17));
-    // Torso.
-    canvas.drawLine(rig.hip, rig.shoulder, limb(shirtColour, 0.30));
-    // Both arms out, and both exactly `keeperReach` long: the leading one swings
-    // out past horizontal as he reaches and the trailing one tucks in, which is
-    // where the reach visibly is. Neither grows.
-    canvas.drawLine(rig.shoulder, rig.glove, limb(shirtColour, 0.14));
-    canvas.drawLine(rig.shoulder, rig.trailGlove, limb(shirtColour, 0.13));
+    // **The order is the anatomy.** Torso first with a FLAT end — its round cap
+    // used to dome past both the hip and the shoulder, painting shirt over the
+    // leg tops and swallowing the neck — then the hip bar and the legs off it,
+    // the shoulder bar and the arms off that, and the head last. Every limb
+    // starts on a bar that is drawn, which is what connects it to the body.
+    canvas.drawLine(
+      rig.hip,
+      rig.shoulder,
+      Paint()
+        ..color = shirtColour
+        ..strokeWidth = unit * 0.30
+        ..strokeCap = StrokeCap.butt,
+    );
+    // The pelvis, and the legs off it: shorts down the thigh, sock from there
+    // to the boot, and a BOOT — the whole leg used to be one dark stroke,
+    // which is trousers.
+    canvas.drawLine(rig.leftHip, rig.rightHip, limb(shortsColour, 0.24));
+    for (final (hip, foot) in [
+      (rig.leftHip, rig.leftBoot),
+      (rig.rightHip, rig.rightBoot),
+    ]) {
+      final knee = Offset.lerp(hip, foot, 0.48)!;
+      canvas.drawLine(hip, knee, limb(shortsColour, 0.16));
+      canvas.drawLine(knee, foot, limb(sockColour, 0.12));
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: foot + Offset(0, unit * 0.02),
+          width: unit * 0.20,
+          height: unit * 0.11,
+        ),
+        Paint()..color = bootColour,
+      );
+    }
+    // The shoulders, and the arms off them, folded at rest and straightening
+    // into the dive. Long sleeves, because keepers wear them; forearms thinner
+    // than upper arms.
+    canvas.drawLine(rig.leadJoint, rig.trailJoint, limb(shirtColour, 0.18));
+    for (final (joint, elbow, glove, w) in [
+      (rig.leadJoint, rig.leadElbow, rig.glove, 0.13),
+      (rig.trailJoint, rig.trailElbow, rig.trailGlove, 0.12),
+    ]) {
+      canvas.drawLine(joint, elbow, limb(shirtColour, w));
+      canvas.drawLine(elbow, glove, limb(shirtColour, w * 0.8));
+    }
     for (final glove in [rig.glove, rig.trailGlove]) {
-      canvas.drawCircle(glove, unit * 0.10, Paint()..color = gloveColour);
+      canvas.drawCircle(glove, unit * 0.085, Paint()..color = gloveColour);
     }
-    // Head, and a face — two dots are enough at this size, and without them he
-    // is a ball on a stick. The eyes turn with him.
-    canvas.drawCircle(rig.head, unit * 0.13, Paint()..color = skin);
-    final eye = Paint()..color = const Color(0xFF20262E);
-    final c = math.cos(rig.lean);
-    final sn = math.sin(rig.lean);
+    // A sliver of neck, and a head with a FACE on it — hair, eyes, a mouth.
+    // Two dots alone were a ball on a stick. Drawn in the head's own rotated
+    // frame so the whole face turns with the dive.
+    canvas.drawLine(rig.shoulder, rig.head, limb(skin, 0.09));
+    canvas.save();
+    canvas.translate(rig.head.dx, rig.head.dy);
+    canvas.rotate(rig.lean);
+    // The collar, in the head's frame so it turns with him.
+    canvas.drawLine(
+      Offset(-unit * 0.085, unit * 0.155),
+      Offset(unit * 0.085, unit * 0.155),
+      Paint()
+        ..color = const Color(0xFFE0A21F)
+        ..strokeWidth = unit * 0.05
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(Offset.zero, unit * 0.14, Paint()..color = skin);
+    // Ears, then hair over the crown and down the nape — a flat lid on a disc
+    // is what a head with no detail looks like.
     for (final side in [-1.0, 1.0]) {
-      final dx = side * unit * 0.045;
-      canvas.drawCircle(rig.head + Offset(dx * c, dx * sn), unit * 0.02, eye);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(side * unit * 0.135, unit * 0.015),
+          width: unit * 0.045,
+          height: unit * 0.07,
+        ),
+        Paint()..color = skin,
+      );
     }
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(0, unit * 0.01), radius: unit * 0.14),
+      math.pi * 1.02,
+      math.pi * 0.96,
+      true,
+      Paint()..color = const Color(0xFF4A3620),
+    );
+    final eye = Paint()..color = const Color(0xFF20262E);
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawCircle(
+        Offset(side * unit * 0.052, -unit * 0.005),
+        unit * 0.024,
+        eye,
+      );
+    }
+    // Brows and a mouth. At a keeper's size on screen these are two or three
+    // pixels each, and they are the difference between a face and a blank.
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawLine(
+        Offset(side * unit * 0.085, -unit * 0.055),
+        Offset(side * unit * 0.022, -unit * 0.045),
+        Paint()
+          ..color = const Color(0xFF4A3620)
+          ..strokeWidth = unit * 0.018
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    canvas.drawLine(
+      Offset(-unit * 0.032, unit * 0.078),
+      Offset(unit * 0.032, unit * 0.078),
+      Paint()
+        ..color = const Color(0xFF9C6B4E)
+        ..strokeWidth = unit * 0.022
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.restore();
   }
 
   /// The man taking it.
@@ -825,8 +1423,14 @@ class PenaltyPainter extends CustomPainter {
     if (rig == null) return;
     final unit = rig.unit;
 
+    // **A footballer's kit.** The whole leg was one dark stroke — trousers —
+    // and the arms were shirt-coloured to the wrist. Shorts stop at the knee,
+    // the sock runs from the knee into the boot, and the shirt has SHORT
+    // sleeves: upper arm in the shirt, forearm in skin, which is most of what
+    // says football kit at this size.
     const shirt = Color(0xFFE9EEF5);
     const shorts = Color(0xFF1E2A38);
+    const sock = Color(0xFFEDF1F6);
     const skin = Color(0xFFD9A277);
     const boot = Color(0xFF15181D);
 
@@ -840,24 +1444,89 @@ class PenaltyPainter extends CustomPainter {
       Paint()..color = Colors.white.withValues(alpha: rig.fade),
     );
 
-    // Legs, hip to boot, both the same length however far they swing.
-    for (final foot in [rig.plantBoot, rig.kickBoot]) {
-      canvas.drawLine(rig.hip, foot, limb(shorts, 0.17));
-      canvas.drawCircle(foot, unit * 0.075, Paint()..color = boot);
+    // Legs, hip to knee to boot. The BONES are what never change length — the
+    // distance from his hip to his boot does, because a folded leg is a shorter
+    // leg, and folding it is most of what makes the strike a kick. Shorts on
+    // the thigh, sock on the shin, and a boot that is a boot rather than a dot.
+    // **The order is the anatomy**, the same as the keeper's: torso first with
+    // a FLAT end — a round cap domes past both the hip and the shoulder,
+    // painting shirt over the leg tops and swallowing the neck — then the hip
+    // bar with the legs off it, the shoulder bar with the arms off that, and
+    // the head last. A limb that starts on a bar that is drawn is a limb that
+    // is attached.
+    canvas.drawLine(
+      rig.hip,
+      rig.shoulder,
+      Paint()
+        ..color = shirt
+        ..strokeWidth = unit * 0.30
+        ..strokeCap = StrokeCap.butt,
+    );
+    canvas.drawLine(rig.plantHip, rig.kickHip, limb(shorts, 0.24));
+    for (final (hip, knee, foot) in [
+      (rig.plantHip, rig.plantKnee, rig.plantBoot),
+      (rig.kickHip, rig.kickKnee, rig.kickBoot),
+    ]) {
+      canvas.drawLine(hip, knee, limb(shorts, 0.16));
+      canvas.drawLine(knee, foot, limb(sock, 0.12));
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: foot + Offset(0, unit * 0.02),
+          width: unit * 0.19,
+          height: unit * 0.10,
+        ),
+        Paint()..color = boot,
+      );
     }
-    canvas.drawLine(rig.hip, rig.shoulder, limb(shirt, 0.30));
-    for (final hand in [rig.leftHand, rig.rightHand]) {
-      canvas.drawLine(rig.shoulder, hand, limb(shirt, 0.13));
-      canvas.drawCircle(hand, unit * 0.065, Paint()..color = skin);
+    // Arms off the girdle, over an elbow: sleeve to the elbow, skin to the
+    // hand. From the torso's centreline the 0.30-wide stroke swallowed their
+    // top third and they surfaced at hip height, tiny.
+    canvas.drawLine(rig.leftJoint, rig.rightJoint, limb(shirt, 0.18));
+    for (final (joint, elbow, hand) in [
+      (rig.leftJoint, rig.leftElbow, rig.leftHand),
+      (rig.rightJoint, rig.rightElbow, rig.rightHand),
+    ]) {
+      canvas.drawLine(joint, elbow, limb(shirt, 0.12));
+      canvas.drawLine(elbow, hand, limb(skin, 0.09));
+      canvas.drawCircle(hand, unit * 0.055, Paint()..color = skin);
     }
-    // The back of his head — no face, because we are behind him.
+    // A collar, a sliver of neck, and the BACK of his head — no face, because
+    // we are behind him, so the detail has to be the things you can see from
+    // there: hair over the crown and down the nape, and an ear each side.
+    canvas.drawLine(rig.shoulder, rig.head, limb(skin, 0.09));
+    canvas.drawLine(
+      rig.shoulder + Offset(-unit * 0.09, 0),
+      rig.shoulder + Offset(unit * 0.09, 0),
+      limb(const Color(0xFFC7D2E0), 0.05),
+    );
+    const hairColour = Color(0xFF2B2118);
     canvas.drawCircle(rig.head, unit * 0.135, Paint()..color = skin);
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: rig.head + Offset(side * unit * 0.13, unit * 0.015),
+          width: unit * 0.05,
+          height: unit * 0.075,
+        ),
+        Paint()..color = skin,
+      );
+    }
+    // The hair: the crown, plus the nape below it, which is what stops the head
+    // reading as a disc with a lid on.
     canvas.drawArc(
       Rect.fromCircle(center: rig.head, radius: unit * 0.135),
-      math.pi,
-      math.pi,
+      math.pi * 0.86,
+      math.pi * 1.28,
       true,
-      Paint()..color = const Color(0xFF2B2118),
+      Paint()..color = hairColour,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: rig.head + Offset(0, unit * 0.055),
+        width: unit * 0.20,
+        height: unit * 0.11,
+      ),
+      Paint()..color = hairColour,
     );
     canvas.restore();
   }
@@ -1295,23 +1964,34 @@ class PenaltyViewState extends State<PenaltyView>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // **BEHIND the painter, and only down to the goal line.** The band
-            // above it is sky and the strip of pitch beyond the goal, neither of
-            // which the painter draws any more — see [goalLineY], which is the
-            // one number the two of them share so there is no seam.
+            // **BEHIND the painter, and only down to the run-off.** The band
+            // above it is what stands behind the ground; the strip of pitch
+            // beyond the goal is the PAINTER's turf, in the painter's
+            // perspective — see [standBaseY], the one number the two of them
+            // share so there is no seam, and [_beyondGoal] for why it is not the
+            // goal line.
             Positioned(
               left: 0,
               right: 0,
               top: 0,
-              height: goalLineY(view),
-              child: ArtImage(
-                key: const ValueKey('penalty-backdrop'),
-                path: backdropPath(widget.backdrop),
-                fit: BoxFit.cover,
-                // Anchored to the BOTTOM: the treeline is at the foot of the
-                // drawing and the sky above it is the part worth cropping.
-                alignment: Alignment.bottomCenter,
-                fallback: const ColoredBox(color: Color(0xFF6DB3E8)),
+              height: standBaseY(view),
+              // Laid so the art's own ground line falls on the seam, and clipped
+              // to the band by the Stack. Fitted to the band instead — which is
+              // what it did — the band was the art's flat green field and
+              // nothing else, standing up behind the crossbar like a hill. See
+              // [backdropRect].
+              child: Stack(
+                children: [
+                  Positioned.fromRect(
+                    rect: backdropRect(view),
+                    child: ArtImage(
+                      key: const ValueKey('penalty-backdrop'),
+                      path: backdropPath(widget.backdrop),
+                      fit: BoxFit.fill,
+                      fallback: const ColoredBox(color: Color(0xFF6DB3E8)),
+                    ),
+                  ),
+                ],
               ),
             ),
             CustomPaint(

@@ -462,6 +462,38 @@ void main() {
         }
       });
 
+      testWidgets('A PLAYED ONE WEARS THE FORM DOT the standings use', (
+        tester,
+      ) async {
+        // How a fixture went was carried by the SCORE'S COLOUR and nothing else —
+        // a green `2 - 1` against a red `0 - 3`, which asks the player to read a
+        // hue off two digits and says nothing at all on a row they have not
+        // played. The dot is the same green-amber-red the standings, the summary
+        // and the HUD all read, and it needs no copy: W, D and L are the letters
+        // the table already prints.
+        final container = await pumpHome(tester, mutate: ourSeason);
+        await openFromMenu(tester, 'subnav.fixtures');
+
+        final ours = container.read(ourFixturesProvider);
+        final played = ours.where((f) => f.played).toList();
+        expect(played, isNotEmpty, reason: 'this save has played no fixtures');
+        for (final f in played) {
+          expect(
+            find.byKey(ValueKey('fixture-result-${f.matchNum}')),
+            findsOneWidget,
+            reason: 'fixture ${f.matchNum} has no result dot',
+          );
+        }
+        // And an unplayed one does NOT get one — an empty slot is what keeps the
+        // scores above and below it in one column.
+        for (final f in ours.where((f) => !f.played)) {
+          expect(
+            find.byKey(ValueKey('fixture-result-${f.matchNum}')),
+            findsNothing,
+          );
+        }
+      });
+
       testWidgets('THE SCORE IS ORIENTED to the ground it was played on', (
         tester,
       ) async {
