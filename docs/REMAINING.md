@@ -2428,12 +2428,18 @@ has a trap in it that is worth stating before the first line is written.
       **What is already in place:** the clock now STOPS while a chance is on the
       pitch (it did not, which is why the minute lurched), and `cutaway_stage`
       already owns a clip with an outcome.
-- [ ] **THE PENALTY GAME WANTS A PHYSICS PASS.** The ball should turn as it is
-      struck, arc and fall properly, and bounce off the frame; the keeper should
-      fall rather than translate. Building the goal, the frame and the net as
-      geometry rather than using the flat art is explicitly fine, and is probably
-      the way in — a net that can be deformed by the ball is most of what sells
-      it.
+- [x] **THE PENALTY GAME WANTS A PHYSICS PASS.** **Every item on this list is
+      done**, across four passes, and the list is worth reading as the record of
+      one:
+      the ball TURNS as it is struck (`spin`, with side-spin that bends the
+      flight and is a real choice from the spot); it ARCS AND FALLS properly
+      (`_settle` — gravity, the turf and rolling friction, so a goal ends with
+      the ball on the ground inside the net); it BOUNCES off the frame (a
+      reflection about the surface hit, so a ball can come down off the bar and
+      go in); the keeper FALLS rather than translating (`keeperLand`, and as of
+      this pass his limbs fall with him); and the goal, the frame and the net
+      are GEOMETRY — `NetMesh` is a sprung mesh the shot deforms, with the side
+      panels static because taut netting is the part that does not billow.
       **SUPERSEDED — the scene was rebuilt and this constraint went with it.**
       `takePenalty` is gone; the shot is simulated in `engine/penalty_physics.dart`
       and the outcome falls out of the flight rather than being decided before it.
@@ -2697,9 +2703,17 @@ findings were arithmetic rather than taste and one is a reversal.
       **And the SPEED button** is in: the setting decides how a match opens, the
       button is for the moment ten minutes in when the manager has seen enough
       of this one.
-- [ ] **A PHYSICS pass, and it wants a real decision first.** The ask is to be
-      more creative with a physics engine for the cutaway, the penalty game and
-      the character drawing. The honest position:
+- [x] **A PHYSICS pass, and it wants a real decision first.** **The decision was
+      made and the plan below has been BUILT** — no new dependency, purpose-built
+      integration, deterministic. The penalty went further than the plan
+      allowed for: its outcome is genuinely emergent now (a swipe sets a launch
+      velocity and a spin, and the result falls out of the flight), so it is the
+      one place the argument against a solver stopped applying and a solver
+      still was not needed. The cutaway keeps its decided outcome, so the
+      argument holds there exactly as written.
+      Kept in full because it is the standing answer to "why not Box2D", and the
+      last line of it is the condition under which that answer changes.
+      **The position, as it read:**
       **Flame ships no physics; `flame_forge2d` (Box2D) is another dependency**,
       and it is the wrong shape for two of the three. The cutaway and the penalty
       both have an outcome ALREADY DECIDED by an engine that is pinned against the
