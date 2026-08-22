@@ -31,7 +31,7 @@ too late:
 ## Where we are
 
 **THE PLAYTEST QUEUE IS EMPTY.** Every row a player reported has been either
-fixed or answered, and the forty-four boxes still open below are all of one of
+fixed or answered, and the forty-three boxes still open below are all of one of
 five kinds, none of which can be closed by writing Dart in this repo:
 
 - **M4 services** — AdMob, Firebase, Play Billing, StoreKit, cloud save,
@@ -6278,10 +6278,14 @@ of buttons that error.
 - [ ] `cloudSaveService` (498), `firestoreRest` (334), `firestoreRestAuth` (83)
 - [ ] `leaderboardService` (1,831)
 - [ ] `feedbackService` (195) — dormant; the Settings button is hidden
-- [ ] `weatherService` (157) — and with it the device's IANA timezone, which the
-      JS reads from `Intl`. Dart has no equivalent without a plugin, so
-      `data/geo_zones` takes the zone as an argument and this is the half that
-      has to supply it
+- [x] `weatherService` (157) — **DONE, and this row was stale too.**
+      `services/weather_service.dart` is the Open-Meteo reader and it is WIRED:
+      `providers/game_host.dart` polls it and hands it `DateTime.now().timeZoneName`,
+      which is the half this row said was missing. No key, no account and no
+      location permission — the coordinates come from the zone via
+      `data/geo_zones.dart`, which is a city rather than a person. What is left
+      of it is the accepted limitation above: a timezone is one coordinate for a
+      whole country.
 - [ ] Local notifications — four of them, all `allowWhileIdle`
 - [x] `util/sound.js` (782) — **DONE, and this row was stale.** Both halves are
       in: `util/audio_render.dart` is the offline Web Audio graph rendered in
