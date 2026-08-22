@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
+import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
@@ -87,7 +88,12 @@ Widget shopProductGlyph(IapProduct product) {
     return CoinPackPicture(art: coinPackArtFor(product.id), size: 44);
   }
   if (product.category == 'gems') {
-    return const GameIcon('gem', size: 34, color: Color(0xFF7FD4FF));
+    // **A PICTURE PER PACK, not one gem for all three.** Every bundle on the
+    // gems shelf wore the same 34px icon, so Pocket, Casket and Hoard were
+    // three prices under three identical images. See [GemPackPicture] — and
+    // the note there about `gemArt.js`, which is in a repo a cloud session
+    // cannot read.
+    return GemPackPicture(art: gemPackArtFor(product.id), size: 44);
   }
   return GameIcon(
     _productIcons[product.id] ?? 'tag',
