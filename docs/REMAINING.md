@@ -5087,9 +5087,12 @@ picked against a dark surface, printed unchanged on a light one.** Dark mode is
 right every time, which is the tell — these are not colour choices, they are
 missing second choices.
 
-- [ ] **An incoming offer is TOO MUCH YELLOW and hard to read in light mode.**
-      Dark mode is good. Be careful changing it: the fix is a light-mode value,
-      not a new hue.
+- [x] **An incoming offer is TOO MUCH YELLOW and hard to read in light mode.**
+      Two things went. The card's band chip took the theme-aware pair with the
+      rest of the reds and greens — and the paragraph of yellow under it, the
+      fair-value percentage and the grudge warning in `#FFB74D`, is gone
+      entirely; see the bid window below. What is left on that card is Colin's
+      read, in the muted ink every other sentence in the game uses.
 - [x] **The quests' badges: yellow on yellow, and blue on blue.** The hues are
       the CURRENCIES and were never the problem — a 14% wash of the ink is a
       pale tint of it on white with the ink itself on top. The badge is a dark
