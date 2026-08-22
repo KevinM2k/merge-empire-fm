@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,535 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,565 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **The newest pass also ran green on 3.38.3**, which is the version that happened
@@ -185,6 +185,56 @@ flight, after the offseason report, and it feeds the same prestige flow the dock
 card does. Which makes it and `offseason.*` one piece of work — **the port has
 no season-end popup chain** — and that is the biggest thing this pass leaves
 open with a known shape.
+
+**THE NEWEST SECTION IS `From playtesting — 28 Aug`, and two of its items
+REVERSE decisions recorded here as done** — the match clock's own card, and
+Colin's head filling its orb. Both reversals say so in place, because a session
+that reads only the older entry will helpfully put them back.
+
+**THE SEASON ENDED AND NOTHING SAID WHAT THE BREAK DID.** The port had a
+season-end SCREEN and no season-end CHAIN: `endSeason` has returned an injury
+report, a sponsor report and an ageing report since M1, emitted all three on
+`season:ended`, and **every reader of them was a test**. Twenty translated
+strings — eleven `offseason.*` and nine `champ.*` — with nothing able to print
+one, over data the engine was already producing.
+
+Both cards go through `enqueuePopup`, which is what puts them in the JS's order
+without either knowing about the other: the offseason report, then the
+celebration, because **the celebration is the card that offers to end the career
+the report is about**.
+
+**The celebration is not a second prestige card and the JS proves it.** There
+are two surfaces: `_showPrestigeColin` is the dock star, which the port already
+had, and `_showChampionsCelebration` fires once from the season-end chain when
+the top flight has been won. Both call the same `_doPrestige`, so
+`confirmAndPrestige` was split out of `showPrestigeOffer` rather than a second
+reset being written — the failure mode being a celebration that wipes a career
+without warning anybody or asking the new club its name.
+
+**`wonTheTitle` reads the OUTCOME, never `wonChampionsCup`.** The flag is
+permanent — it is what keeps the prestige orb on the dock for ever after — so a
+save that won the title three seasons ago would have celebrated again every May.
+
+**Only what can happen is drawn.** The JS's ageing rows carry a
+`fromTierName → toTierName` decline and a rating-penalty note, and neither can
+ever fire: `processAgeRegression` is character-for-character identical in both
+codebases and reports nothing but retirements, always with a zero penalty.
+Porting the branch would have been porting a screen state the shipped game
+cannot reach.
+
+**AND SIX OF THE NINE `champ.*` STRINGS ARE STILL ENGLISH IN EVERY LOCALE.**
+`champ.title`, `.subtitle`, `.body`, `.prestige_teaser`, `.new_adventure` and
+`.defend` are character-for-character English in German while `.pro_title`,
+`.pro_teaser` and `.pro_cta` are properly translated — which is what makes it a
+gap in `../merge-empire-fc`'s own catalogue rather than a decision. Nothing a
+call site can fix; the test pins that every key RESOLVES and that the three
+which are translated actually change.
+
+**A fixture trap worth carrying: a veteran cannot be older than the career.**
+`migration.dart` clamps every card's `seasonsPlayed` to `seasonCount` — written
+for an old multi-click season-end bug — so a fourteen-season man dropped into a
+season-one save loads as a rookie and never retires. The test that could not
+make anybody retire was right about the engine and wrong about the save.
 
 **START HERE if you are picking this up cold:**
 
@@ -4792,6 +4842,84 @@ Its own list, because almost none of it is right yet.
       most of a metre of drift across the hold, which put it through the side
       netting and out past the post. A ball he CAUGHT still goes down with his
       gloves, and none of it can reach `result` — the outcome is set once.
+
+## From playtesting — 28 Aug
+
+Reported from the couch in one sitting. **Two of these REVERSE decisions this
+file records as done**, and both reversals are marked as such — a next session
+that reads only the older entry will put them back.
+
+### The full-time summary
+
+- [ ] **THE TABLE HAS TO BE ABOVE THE FOLD.** It is the thing the player scrolls
+      to and the one part of the screen that moves on its own, so it may not be
+      the part that needs finding. `summary_league_move.dart` animates every
+      club to where the round left it and it is currently below what fits.
+      **The quests can go below it**, and the verdict/2× block is what has to
+      make room.
+
+### The match screen — it needs ROOM, and here is where it comes from
+
+- [ ] **The clock and the progress bar go INTO the scoreboard card.**
+      **This reverses `_ClockCard`**, which was split out on 27 Aug for a good
+      reason — "the one thing that changes every tick at the top of the one card
+      whose job is to hold still" — and the reason is overruled by the space.
+      Two cards stacked is a rule and a gap that buy nothing; the minute is
+      small and the bar is a hairline, and neither has to move the score.
+- [ ] **The Quests and Stats TABS should find another home, and then the tab bar
+      goes too.** That bar is a full row of chrome serving two panels the player
+      does not watch during a match. **Quests are welcome to live only on the
+      end screen** — confirmed — which is where the money is paid anyway, and
+      the count already rides the Quests tab elsewhere. Stats wants a home; if
+      one cannot be found, the honest answer may be that a live match does not
+      need them. Everything that comes off goes to the COMMENTARY, which the
+      27 Aug entry already records as having very little room left.
+- [ ] **The pitch should be in PERSPECTIVE, and it has to be DRAWN.** Not a
+      photograph and not a PNG laid down in a trapezoid — the same call the
+      penalty scene made and for the same reason: the markings, the arrow and
+      the players all have to sit in that projection, and only a painter can put
+      them there. `CutawayStage` already owns the markings.
+
+### The arrow has to mean something
+
+- [ ] **THE ARROW SHOULD PREDICT THE CHANCE, not just describe the half.** As
+      it stands it drifts with possession and a chance can still fall to a side
+      the arrow says is pinned back. If it is pointing hard right, a chance the
+      other way should be a surprise — **and the exception is the one that makes
+      it read as football: a COUNTER ATTACK.** So the rule is not "possession
+      decides", it is: the side with the run of play takes most of the chances,
+      the other side's chances arrive as counters, and **the team with most
+      possession most of the time wins — just not always.**
+      This is a change to how chances are ALLOCATED, not to the arrow, and it
+      wants pinning against the JS's own possession model before anything is
+      rebalanced.
+
+### The home screen
+
+- [ ] **Colin's head fills the circle now and that reads wrong.**
+      **This reverses the 27 Aug entry** that made the image fill the orb: it
+      fixed a portrait floating in a band of dark glass, and it has overshot —
+      a face cropped to the rim has no air round it. What is wanted is between
+      the two, so it is an inset and an alignment rather than a `BoxFit` swap.
+- [ ] **THE CUSTOMISE SHEET DROPS FRAMES, and this is the third report of it.**
+      See the two entries above under `The home screen` (27 Aug) and the
+      follow-up beside them: the first pass measured a single 209ms BUILD and
+      concluded the grid was the cost. **The reporter's reading both times since
+      is that it is ANIMATION, not building** — several rigs running at once —
+      and the fixes named are to **pause the ones nobody is looking at**, or,
+      better, **to drive the manager rig from a Lottie clip instead**.
+      Two things to know before starting. The measurement that exists only
+      covers the grid's twenty STILL walkers, which register no tickers at all;
+      it says nothing about the hero rig in the sheet or the one on the screen
+      behind it, and `TickerMode` for the covered route is the first thing to
+      check. And the walker entry under `The walker` (27 Aug) is the argument
+      against Lottie *for the walk* — the current rig is SOLVED, which is why
+      the planted foot does not slip and why the ground and his legs share one
+      clock; a recorded clip gives that up and the ground would have to be
+      driven off the clip's timeline. **That argument is about the walk. It is
+      not an argument against a Lottie clip for a manager who is standing
+      still**, which is what the customiser's chips are, and that is the cheap
+      half of this if the diagnosis holds.
 
 ## M0 — foundation and save bridge ✅
 
