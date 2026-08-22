@@ -403,4 +403,45 @@ void main() {
       expect(container.read(tickGatesProvider).miniGameOpen, isFalse);
     });
   });
+
+  group('the drills look like drills', () {
+    testWidgets('EACH ONE WEARS ITS OWN GLYPH, not the same football', (
+      tester,
+    ) async {
+      // The sheet was reported as having no images and being boring, and seven
+      // rows of `Icons.sports_soccer` is what that looks like: a list that says
+      // nothing about what is in it. Emoji rather than icons for the reason the
+      // trait badges are — the glyph is the same in every language and needs no
+      // `t()` key, which is a catalogue away from a cloud session.
+      await pumpTraining(tester, saveWith());
+      final seen = <String>{};
+      for (final kind in MiniGameKind.all) {
+        final glyph = drillGlyphs[kind];
+        expect(glyph, isNotNull, reason: '$kind has no glyph');
+        seen.add(glyph!);
+      }
+      expect(
+        seen,
+        hasLength(MiniGameKind.all.length),
+        reason: 'two drills share a glyph: $seen',
+      );
+      // And they are actually on screen, not merely defined.
+      expect(find.text(drillGlyphs[MiniGameKind.penalty]!), findsOneWidget);
+    });
+
+    test('and each has its own tint, off the KIT rather than a fixed hue', () {
+      // The whole palette is derived from the club's colours; a fixed hue would
+      // be the one tile on screen that is not.
+      const green = Color(0xFF4CAF50);
+      const blue = Color(0xFF1E63D0);
+      final tints = {
+        for (final kind in MiniGameKind.all) drillTint(green, kind),
+      };
+      expect(tints, hasLength(MiniGameKind.all.length));
+      // A different kit moves every one of them.
+      for (final kind in MiniGameKind.all) {
+        expect(drillTint(blue, kind), isNot(drillTint(green, kind)));
+      }
+    });
+  });
 }

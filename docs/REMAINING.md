@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,393 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,397 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**99 items are open**, plus eight carrying a `[~]` — answered, but with a decision
+**97 items are open**, plus eight carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3398,7 +3398,17 @@ is wrong in six places.
       on screen had ever mentioned. `quests.capstone_title` and
       `quests.capstone_reward` were translated ten times over with no caller.
       **The LOOK is still open**: the tiles are still plain cards with a bar.
-- [ ] **The training popup has no images and is boring.**
+- [x] **The training popup has images: seven drills, seven faces.** Every row
+      wore the same `Icons.sports_soccer` on a bare `ListTile`, which is a list
+      that says nothing about what is in it. Each drill gets the thing it is
+      ABOUT, on a tile washed in its own colour — and the colour is the KIT's
+      accent walked round the wheel (`drillTint`), because the whole palette is
+      derived from the club and a fixed hue would be the one thing on screen
+      that is not. A locked drill keeps its glyph and loses the colour, which is
+      the difference between "not yet" and "not for you" said without a word.
+      **Emoji rather than icons**, for the reason the trait badges are: the
+      glyph is the same in every language and needs no `t()` key, which is a
+      catalogue away from a cloud session.
 - [x] **Daily: the boxes should be equal**, there is much more room than it uses,
       and the tick should cross the WHOLE box rather than sit in a corner where
       it does not read as done. They were fixed at 84px in a `Wrap`, so seven
@@ -3416,8 +3426,20 @@ is wrong in six places.
       at the FOOT is why it was the two bottom corners. The child is clipped to
       the outer radius less the border width, and the band's own guessed-at
       third radius has gone. The achievement tiles had it too.
-- [ ] **The energy popup's "up to +3 energy" is greyed out and says coming
-      soon.** It wants to be boxes side by side, with graphics.
+- [x] **The energy popup is two boxes side by side now, with graphics.** The
+      two routes to more energy were stacked full-width buttons with their
+      refusals printed underneath, so the sheet read as a column of things that
+      do not work. They are ALTERNATIVES — watch something, or pay — and
+      options that are alternatives belong beside each other: a dead one inside
+      a box of its own reads as the half of a choice that is not available yet
+      rather than as a broken control. (It is still dead. The ad half is M4's
+      AdMob and nothing here changes that.)
+      **And the tank is PIPS.** It was `3/6` beside a bolt — the one thing on an
+      energy sheet that could be a picture, drawn as a fraction, asking the
+      player to do the arithmetic the picture does for them. A row of bolts says
+      how much is left and how big the tank is in one look; the figure stays as
+      the caption. Past a dozen pips they stop being countable and the figure is
+      the honest answer again.
 
 ### The Play Match screen
 

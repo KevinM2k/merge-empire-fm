@@ -22,6 +22,48 @@ import 'package:merge_empire_fc/ui/screens/minigames/through_ball_screen.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
+/// The face of each drill.
+///
+/// **Seven drills wore the same football.** `Icons.sports_soccer` on every row
+/// is a list that says nothing about what is in it — the sheet was reported as
+/// having no images and being boring, and one repeated glyph is what that looks
+/// like. Each drill gets the thing it is ABOUT, and they are emoji rather than
+/// icons for the reason the trait badges are: the glyph is the same in every
+/// language and needs no `t()` key, which is a catalogue away from here.
+const Map<String, String> drillGlyphs = {
+  MiniGameKind.penalty: '🥅',
+  MiniGameKind.training: '🧤',
+  MiniGameKind.keepyUppys: '⚽',
+  MiniGameKind.throughBall: '🎯',
+  MiniGameKind.whack: '👟',
+  MiniGameKind.pairs: '🃏',
+  MiniGameKind.bootRoom: '🏆',
+};
+
+/// A tint per drill, so the column is seven cards and not one repeated.
+///
+/// Off the kit's own accent rather than a fixed palette — the whole scheme is
+/// derived from the club's colours, and a fixed hue would be the one tile on
+/// screen that is not.
+const Map<String, double> _drillHueShift = {
+  MiniGameKind.penalty: 0,
+  MiniGameKind.training: 42,
+  MiniGameKind.keepyUppys: 84,
+  MiniGameKind.throughBall: 126,
+  MiniGameKind.whack: 168,
+  MiniGameKind.pairs: 210,
+  MiniGameKind.bootRoom: 252,
+};
+
+/// The drill's own colour: the kit's accent, walked round the wheel.
+Color drillTint(Color accent, String kind) {
+  final hsl = HSLColor.fromColor(accent);
+  return hsl
+      .withHue((hsl.hue + (_drillHueShift[kind] ?? 0)) % 360)
+      .withSaturation(hsl.saturation.clamp(0.35, 0.8))
+      .toColor();
+}
+
 class TrainingView extends ConsumerWidget {
   const TrainingView({super.key});
 
@@ -103,16 +145,55 @@ class _GameRow extends ConsumerWidget {
     final reason = _reason;
     final skipsLeft = ref.watch(skipsLeftTodayProvider);
 
+    final tint = drillTint(kit.accent, game.kind);
+    final open = reason == null;
+
     return Card(
       key: ValueKey('training-${game.kind}'),
       color: kit.surface,
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
-        leading: Icon(
-          Icons.sports_soccer,
-          color: reason == null ? kit.accent : kit.textMuted,
+        contentPadding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+        // **A TILE, not a repeated icon.** The drill's own glyph on its own
+        // wash of the kit's accent — a locked one keeps the glyph and loses the
+        // colour, which is the difference between "not yet" and "not for you"
+        // said without a word of copy.
+        leading: Container(
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: open
+                  ? [tint.withValues(alpha: 0.34), tint.withValues(alpha: 0.14)]
+                  : [
+                      kit.textMuted.withValues(alpha: 0.14),
+                      kit.textMuted.withValues(alpha: 0.06),
+                    ],
+            ),
+            border: Border.all(
+              color: open
+                  ? tint.withValues(alpha: 0.55)
+                  : kit.border.withValues(alpha: 0.8),
+            ),
+          ),
+          child: Opacity(
+            // A drill that is resting is still YOURS: it dims, it does not
+            // grey out the way a locked one does.
+            opacity: open ? 1 : (_resting ? 0.75 : 0.4),
+            child: Text(
+              drillGlyphs[game.kind] ?? '⚽',
+              style: const TextStyle(fontSize: 22),
+            ),
+          ),
         ),
-        title: Text(t(game.titleKey)),
+        title: Text(
+          t(game.titleKey),
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
         subtitle: reason == null
             ? null
             : Text(
@@ -127,7 +208,7 @@ class _GameRow extends ConsumerWidget {
         // it starts working is a surprise, and one that explains itself is a
         // feature that is coming.
         trailing: reason == null
-            ? const Icon(Icons.play_arrow)
+            ? Icon(Icons.play_arrow, color: tint)
             : _resting
             ? StoreButton(
                 key: ValueKey('training-skip-${game.kind}'),
