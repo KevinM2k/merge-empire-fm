@@ -238,6 +238,15 @@ typedef MergeAllRun = ({
   String? reason,
   int merges,
   int cost,
+
+  /// Which squares the sweep's new cards ended up in, AFTER the gaps closed.
+  ///
+  /// **A sweep was invisible.** The grid simply arrived at its answer: no
+  /// burst, no slide, nothing to say which pairs had gone. One merge has had
+  /// the JS's full set-piece since it was ported and twelve at once had none of
+  /// it — and the indices could not be taken from `mergeAll` directly, because
+  /// closing the holes moves every card after them.
+  List<int> landedAt,
 });
 
 /// Merge every pair on the grid, for a flat fee.
@@ -250,23 +259,31 @@ MergeAllRun runMergeAll(Map<String, dynamic> state, {int? maxTier}) {
   final tier = maxTier ?? _divisionTier(state);
   final cost = mergeAllCost(state);
   if (mergeablePairs(state, maxTier: tier) == 0) {
-    return (ok: false, reason: 'no_pairs', merges: 0, cost: cost);
+    return (ok: false, reason: 'no_pairs', merges: 0, cost: cost, landedAt: const []);
   }
 
   final resources = _map(state['resources']);
   final coins = _num(resources?['fanCoins']) ?? 0;
   if (coins < cost) {
     emit('merge:refused', {'reason': 'insufficient_coins', 'coins': cost});
-    return (ok: false, reason: 'insufficient_coins', merges: 0, cost: cost);
+    return (
+      ok: false,
+      reason: 'insufficient_coins',
+      merges: 0,
+      cost: cost,
+      landedAt: const [],
+    );
   }
 
+  final made = <String>{};
   final merges = mergeAll(
     _cells(state),
     stats: _map(state['stats']),
     maxTier: tier,
+    mergedIds: made,
   );
   if (merges == 0) {
-    return (ok: false, reason: 'no_pairs', merges: 0, cost: cost);
+    return (ok: false, reason: 'no_pairs', merges: 0, cost: cost, landedAt: const []);
   }
 
   if (resources != null) {
@@ -281,5 +298,19 @@ MergeAllRun runMergeAll(Map<String, dynamic> state, {int? maxTier}) {
   // player took.
   emit('merge:happened');
 
-  return (ok: true, reason: null, merges: merges, cost: cost);
+  // Read AFTER everything above has moved the grid about, which is the whole
+  // reason ids came out of `mergeAll` rather than indices.
+  final cells = _cells(state);
+  return (
+    ok: true,
+    reason: null,
+    merges: merges,
+    cost: cost,
+    landedAt: [
+      for (var i = 0; i < cells.length; i++)
+        if (CardInstance.from(cells[i]) case final c?
+            when made.contains(c.instanceId))
+          i,
+    ],
+  );
 }

@@ -94,8 +94,13 @@ class MergeGridState extends ConsumerState<MergeGrid>
     duration: const Duration(milliseconds: 1200),
   );
 
-  /// The cell a merge just landed in, so exactly one card celebrates.
-  int? _burstAt;
+  /// The cells a merge just landed in.
+  ///
+  /// **A SET, because Merge All is a dozen of them at once.** One drag is one
+  /// card celebrating and a sweep is twelve, in unison — which is the whole
+  /// difference between a grid that arrives at its answer and one you watch
+  /// solve itself.
+  Set<int> _burstAt = const {};
   int _burstTier = 1;
 
   /// How long a card takes to slide to a new index, and the one card that is
@@ -130,6 +135,19 @@ class MergeGridState extends ConsumerState<MergeGrid>
   final Map<int, GlobalKey> _slotKeys = {};
 
   GlobalKey _slotKey(int index) => _slotKeys.putIfAbsent(index, GlobalKey.new);
+
+  /// **A SWEEP, WATCHED.** Merge All used to arrive at its answer — the grid
+  /// simply changed. Every pair bursts at once and the survivors slide into the
+  /// holes, which is the same set-piece one drag has had since it was ported,
+  /// played twelve times over.
+  void burstSweep(List<int> at, int tier) {
+    if (at.isEmpty) return;
+    animateNextSlide();
+    setState(() {
+      _burstAt = at.toSet();
+      _burstTier = tier;
+    });
+  }
 
   /// Let EVERY card glide. Called by the sort, which reorders the whole grid and
   /// so has no card the player put anywhere.
@@ -318,7 +336,7 @@ class MergeGridState extends ConsumerState<MergeGrid>
       // Where the card LANDED, not where it was dropped: closing the gaps
       // behind a merge slides it down past any hole ahead of it, and a burst at
       // the drop index would go off over whatever card slid up into it.
-      _burstAt = result.landedAt ?? to;
+      _burstAt = {result.landedAt ?? to};
       _burstTier = result.tier;
     });
 
@@ -475,7 +493,7 @@ class MergeGridState extends ConsumerState<MergeGrid>
                                             _dragging != null &&
                                             _dragging != cell.index &&
                                             !_targets.contains(cell.index),
-                                        bursting: _burstAt == cell.index,
+                                        bursting: _burstAt.contains(cell.index),
                                         burstTier: _burstTier,
                                         onDragStart: () => setState(() {
                                           _dragging = cell.index;
@@ -489,9 +507,15 @@ class MergeGridState extends ConsumerState<MergeGrid>
                                           _targets = const {};
                                         }),
                                         onBurstDone: () {
+                                          // Each square clears its OWN mark, so
+                                          // a sweep's dozen do not have to
+                                          // finish in step to stop.
                                           if (mounted &&
-                                              _burstAt == cell.index) {
-                                            setState(() => _burstAt = null);
+                                              _burstAt.contains(cell.index)) {
+                                            setState(
+                                              () => _burstAt = {..._burstAt}
+                                                ..remove(cell.index),
+                                            );
                                           }
                                         },
                                       ),

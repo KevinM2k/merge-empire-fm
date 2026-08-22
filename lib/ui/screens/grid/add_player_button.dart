@@ -21,6 +21,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart'
+    show MergeGridState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
@@ -409,7 +411,20 @@ class _MergeAllButton extends ConsumerWidget {
             ink: ink,
             onTap: dead
                 ? null
-                : () => game.update((s) => runMergeAll(s, maxTier: maxTier)),
+                // **AND IT IS WATCHABLE.** The sweep used to change the grid
+                // and say nothing: no burst, no slide. The same set-piece one
+                // drag has had since it was ported, played over every pair at
+                // once — see `MergeGridState.burstSweep`.
+                : () {
+                    final run = game.update(
+                      (s) => runMergeAll(s, maxTier: maxTier),
+                    );
+                    if (!run.ok) return;
+                    context.findAncestorStateOfType<MergeGridState>()?.burstSweep(
+                      run.landedAt,
+                      maxTier,
+                    );
+                  },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

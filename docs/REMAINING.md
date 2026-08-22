@@ -4147,10 +4147,19 @@ by a test.
       matters: `rollMarketMult` runs on every open, so closing and reopening the
       sheet shops for a better price. Either the roll wants pinning per player
       per period, or the reroll should be the mechanic and said out loud.
-- [ ] **MERGE ALL should still be watchable.** The animation of one player
-      becoming another should play — in unison across every pair — and the sort
-      should still slide the survivors into the gaps. Right now the grid simply
-      arrives at its answer.
+- [x] **MERGE ALL should still be watchable.** Both halves. The burst plays over
+      every pair at once — `_burstAt` is a SET now, because one drag is one card
+      celebrating and a sweep is twelve — and the survivors slide into the holes
+      through `animateNextSlide`, which is the seam the sort button has used
+      since it was written.
+      **The indices could not come out of `mergeAll` directly**, and that is the
+      part worth carrying: closing the holes moves every card after them, so an
+      index recorded during the sweep names a different square by the time
+      anything can use it. Ids come out instead and the squares are read at the
+      end — which also means `landedAt` is at most one per merge and often
+      fewer, because a survivor can merge AGAIN and the card it was is then gone.
+      What it names is what is still on the grid to celebrate, which is the only
+      thing a burst can go off over.
 
 ### The club
 

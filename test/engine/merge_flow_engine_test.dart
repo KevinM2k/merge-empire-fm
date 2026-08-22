@@ -361,4 +361,59 @@ void main() {
       expect(cells[3], isNotNull, reason: 'it was dragged there on purpose');
     });
   });
+  group('A SWEEP SAYS WHERE IT LANDED', () {
+    // **Merge All used to arrive at its answer** — the grid simply changed: no
+    // burst, no slide, nothing to say which pairs had gone. One drag has had
+    // the full set-piece since it was ported and twelve at once had none of it.
+
+    test('it names a square for every card it made', () {
+      final s = _state(
+        cells: [
+          for (var i = 0; i < 3; i++) ...[
+            _card(_baseDefId, 'a$i'),
+            _card(_baseDefId, 'b$i'),
+          ],
+        ],
+      );
+      final run = runMergeAll(s);
+      expect(run.ok, isTrue);
+      expect(run.landedAt, isNotEmpty);
+      // **At most one per merge, and often fewer** — a survivor can merge
+      // AGAIN on a later pass, and when it does the card it was is gone. What
+      // `landedAt` names is what is still on the grid to celebrate, which is
+      // the only thing a burst can go off over.
+      expect(run.landedAt.length, lessThanOrEqualTo(run.merges));
+    });
+
+    test('AND THE SQUARES ARE THE ONES THE CARDS ARE IN, after the gaps close',
+        () {
+      // The indices could not be taken from `mergeAll` directly: closing the
+      // holes moves every card after them, so an index recorded during the
+      // sweep names a different square by the time anything can use it. Ids
+      // come out instead and the squares are read at the end.
+      final s = _state(
+        cells: [
+          for (var i = 0; i < 3; i++) ...[
+            _card(_baseDefId, 'a$i'),
+            _card(_baseDefId, 'b$i'),
+          ],
+        ],
+      );
+      final run = runMergeAll(s);
+      final cells = _cells(s);
+      for (final i in run.landedAt) {
+        expect(cells[i], isNotNull, reason: 'square $i is empty');
+      }
+      // And they are contiguous from the top, because the gaps closed.
+      expect(run.landedAt, run.landedAt.toList()..sort());
+    });
+
+    test('a refused sweep names nothing', () {
+      final s = _state(cells: [_card(_baseDefId, 'lonely')]);
+      final run = runMergeAll(s);
+      expect(run.ok, isFalse);
+      expect(run.landedAt, isEmpty);
+    });
+  });
+
 }

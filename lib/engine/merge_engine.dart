@@ -287,7 +287,19 @@ int findFirstEmpty(List<dynamic> cells) => cells.indexWhere((c) => c == null);
 ///
 /// Sponsored cards are included — the sponsor is dropped on the merged result,
 /// exactly as a manual drag-merge does. Returns the number of merges performed.
-int mergeAll(List<dynamic> cells, {Map<String, dynamic>? stats, int? maxTier}) {
+/// [mergedIds] collects the instance id of every card a merge PRODUCED.
+///
+/// **Ids rather than indices, because the grid moves underneath them.** A sweep
+/// leaves holes and the caller closes them afterwards, so an index recorded here
+/// names a different square by the time anyone can use it. The id survives the
+/// slide, which is what lets the screen burst the cards that actually merged —
+/// see `MergeAllRun.landedAt`.
+int mergeAll(
+  List<dynamic> cells, {
+  Map<String, dynamic>? stats,
+  int? maxTier,
+  Set<String>? mergedIds,
+}) {
   var totalMerges = 0;
   var keepGoing = true;
 
@@ -332,6 +344,16 @@ int mergeAll(List<dynamic> cells, {Map<String, dynamic>? stats, int? maxTier}) {
         );
         if (result.ok && result.action == MergeAction.merge) {
           totalMerges++;
+          if (mergedIds != null) {
+            // The survivor is in the TARGET's cell — `attemptMerge` merges into
+            // `j` — and it may itself merge again on a later pass, which is why
+            // the old id comes out as the new one goes in.
+            mergedIds
+              ..remove(a.instanceId)
+              ..remove(b.instanceId);
+            final made = CardInstance.from(cells[j]);
+            if (made != null) mergedIds.add(made.instanceId);
+          }
           keepGoing = true;
           break;
         }
