@@ -487,37 +487,39 @@ class _IndexCard extends StatelessWidget {
               Expanded(
                 child: Stack(
                   children: [
-                    Positioned.fill(
-                      // An undiscovered card is a SILHOUETTE, not a dimmed
-                      // portrait: the whole point of the index is that you cannot
-                      // see who it is until you find them.
-                      child: Opacity(
-                        opacity: discovered ? 1 : 0.22,
-                        child: ColorFiltered(
-                          colorFilter: discovered
-                              ? const ColorFilter.mode(
-                                  Colors.transparent,
-                                  BlendMode.dst,
-                                )
-                              : const ColorFilter.mode(
-                                  Colors.black,
-                                  BlendMode.srcIn,
-                                ),
-                          child: ArtImage(
-                            path: playerImagePath(
-                              entry.def.position,
-                              entry.def.tier,
-                              _variantFor(entry.female),
-                            ),
-                            fit: BoxFit.contain,
-                            fallback: PlayerPortrait(
-                              variantIndex: _variantFor(entry.female),
-                              kitColor: accent,
-                            ),
+                    // **AN UNFOUND CARD IS A LOCKED SLOT, not a dark portrait.**
+                    // A silhouette is still the card: its build, its stance and
+                    // its haircut all read at a glance, which gives away the
+                    // thing the page exists to make you want. The recipe dialog
+                    // one tap behind this had already settled it — it draws `❓`
+                    // for exactly this case — and the tile was the half that
+                    // never got the decision.
+                    if (!discovered)
+                      Center(
+                        child: Text(
+                          '❓',
+                          key: const ValueKey('pi-locked'),
+                          style: TextStyle(
+                            fontSize: 30,
+                            color: kit.textMuted,
+                          ),
+                        ),
+                      )
+                    else
+                      Positioned.fill(
+                        child: ArtImage(
+                          path: playerImagePath(
+                            entry.def.position,
+                            entry.def.tier,
+                            _variantFor(entry.female),
+                          ),
+                          fit: BoxFit.contain,
+                          fallback: PlayerPortrait(
+                            variantIndex: _variantFor(entry.female),
+                            kitColor: accent,
                           ),
                         ),
                       ),
-                    ),
                     Positioned(
                       top: 3,
                       left: 3,
@@ -531,19 +533,30 @@ class _IndexCard extends StatelessWidget {
                     Positioned(
                       top: 3,
                       right: 3,
+                      // **The TIER and the gender are all an unfound slot
+                      // says**, which is what makes it worth chasing without
+                      // being the answer. The POSITION comes off with the
+                      // portrait — the caption below already dropped it and the
+                      // badge was still printing it beside a silhouette in the
+                      // shape of a keeper.
                       child: _Badge(
-                        text: '${entry.def.position} T${entry.def.tier}',
+                        text: discovered
+                            ? '${entry.def.position} T${entry.def.tier}'
+                            : 'T${entry.def.tier}',
                         color: discovered ? accentLight : kit.textMuted,
                       ),
                     ),
-                    Positioned(
-                      bottom: 3,
-                      right: 3,
-                      child: _Badge(
-                        text: '×$count',
-                        color: count > 0 ? accentLight : kit.textMuted,
+                    // A count of nothing is not a fact worth a badge; every
+                    // unfound card carried a `×0` in the corner.
+                    if (discovered)
+                      Positioned(
+                        bottom: 3,
+                        right: 3,
+                        child: _Badge(
+                          text: '×$count',
+                          color: count > 0 ? accentLight : kit.textMuted,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),

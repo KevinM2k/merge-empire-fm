@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/index/player_index_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -176,6 +177,76 @@ void main() {
       expect(
         find.descendant(of: unfound, matching: find.text('???')),
         findsOneWidget,
+      );
+    });
+
+    testWidgets('AN UNFOUND CARD IS A LOCKED SLOT, not a dark portrait', (
+      tester,
+    ) async {
+      // A silhouette is still the card: its build, its stance and its haircut
+      // all read at a glance, which gives away the thing the page exists to
+      // make you want. The recipe dialog one tap behind this had already
+      // settled it — it draws `❓` — and the tile never got the decision.
+      await _pump(
+        tester,
+        _save(discovered: [_foundKey], counts: {_foundKey: 2}),
+      );
+
+      final unfound = find.byKey(const ValueKey('pi-card-$_defId:f'));
+      await _reveal(tester, unfound);
+      expect(
+        find.descendant(of: unfound, matching: find.text('❓')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: unfound, matching: find.byType(ArtImage)),
+        findsNothing,
+        reason: 'the portrait is the spoiler',
+      );
+
+      final found = find.byKey(const ValueKey('pi-card-$_foundKey'));
+      await _reveal(tester, found);
+      expect(
+        find.descendant(of: found, matching: find.text('❓')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('and it says the TIER and the gender, and nothing else', (
+      tester,
+    ) async {
+      // The two things that make a slot worth chasing. The position came off
+      // with the portrait — the caption had already dropped it and the badge
+      // was still printing it beside a silhouette in the shape of a keeper.
+      await _pump(
+        tester,
+        _save(discovered: [_foundKey], counts: {_foundKey: 2}),
+      );
+      final def = players.firstWhere((p) => p.id == _defId);
+
+      final unfound = find.byKey(const ValueKey('pi-card-$_defId:f'));
+      await _reveal(tester, unfound);
+      // Twice: the corner badge and the caption's second line, which has read
+      // the bare tier for an unfound card since it was written.
+      expect(
+        find.descendant(of: unfound, matching: find.text('T${def.tier}')),
+        findsNWidgets(2),
+      );
+      expect(
+        find.descendant(of: unfound, matching: find.text('♀')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: unfound,
+          matching: find.text('${def.position} T${def.tier}'),
+        ),
+        findsNothing,
+      );
+      // A count of nothing is not a fact worth a badge.
+      expect(
+        find.descendant(of: unfound, matching: find.text('×0')),
+        findsNothing,
       );
     });
 

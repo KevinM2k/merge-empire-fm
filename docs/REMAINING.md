@@ -4894,6 +4894,22 @@ that reads only the older entry will put them back.
       wants pinning against the JS's own possession model before anything is
       rebalanced.
 
+### The squad page, and the index
+
+- [ ] **THE CARD BOTTOMS ARE STILL DARK IN LIGHT MODE**, reported again and
+      specifically about the BOTTOM of the card. **The 27 Aug entry closed this
+      as "could not reproduce"** and offered the generated portrait's near-black
+      background as the likely culprit — which is the TOP of a card, so that
+      answer does not fit this report. Treat the earlier `[~]` as wrong rather
+      than as evidence: something on the squad page is still painting a dark
+      caption band on a light page, and the place to start is every caller of
+      `PlayerCard` on that page and what each passes for `light`.
+- [ ] **THE INDEX'S UNKNOWN CARDS ARE TOO DETAILED.** An undiscovered player is
+      currently drawn as a player. It should read as a locked slot — **a
+      question mark or a padlock over it**, and at most the TIER and the
+      GENDER, which are the two things that make the slot worth chasing. Drawing
+      the rest gives away the card the page exists to make you want.
+
 ### The home screen
 
 - [ ] **Colin's head fills the circle now and that reads wrong.**

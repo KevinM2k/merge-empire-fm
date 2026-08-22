@@ -235,6 +235,27 @@ class PlayerCard extends StatelessWidget {
     // over a white scrim, light ink over a black one; the bars' tracks follow.
     final captionInk = light ? const Color(0xFF1A1F26) : Colors.white;
     final captionTrack = light ? Colors.black26 : Colors.white24;
+    // **THE CHIPS WERE DARK IN BOTH THEMES, and they are what a light-mode card
+    // still reads as dark at the foot of.** The scrim under them was fixed a
+    // pass ago and the report kept coming back, which is the tell: the band is
+    // white and the TIER CHIP sitting on it is `#3d2000`.
+    //
+    // The old pairing is coupled and the note above it says so — the ink is
+    // `accentLight`, a PALE tier colour, which needs a dark ground to be read
+    // off. **Swapping the two does not work either**: four of the nine accents
+    // are `#ffaa00`, `#00c8ff` and friends, and none of them carries on white.
+    //
+    // So light mode inverts the JOB of the two rather than their values. The
+    // contrast comes from near-black INK — the same `captionInk` the name
+    // beside it already uses — and the tier is carried by a pale TINT of its
+    // own colour. Dark mode is untouched: there the tint would vanish and the
+    // pale ink is what carries.
+    final chipBg = light
+        ? Color.lerp(Colors.white, accentLight, 0.35)!
+        : cssColor(theme.labelBg);
+    final chipInk = light ? captionInk : accentLight;
+    // Red on a white chip at `redAccent` is the same fault one shade along.
+    final chipRed = light ? const Color(0xFFB3261E) : Colors.redAccent;
 
     return RepaintBoundary(
       child: GestureDetector(
@@ -308,8 +329,8 @@ class PlayerCard extends StatelessWidget {
                       Flexible(
                         child: _Chip(
                           label: '${view.rating}',
-                          background: cssColor(theme.labelBg),
-                          foreground: accentLight,
+                          background: chipBg,
+                          foreground: chipInk,
                           bold: true,
                         ),
                       ),
@@ -317,8 +338,8 @@ class PlayerCard extends StatelessWidget {
                       Flexible(
                         child: _Chip(
                           label: positionLabel[view.position] ?? view.position,
-                          background: cssColor(theme.labelBg),
-                          foreground: accentLight,
+                          background: chipBg,
+                          foreground: chipInk,
                         ),
                       ),
                     ],
@@ -368,10 +389,8 @@ class PlayerCard extends StatelessWidget {
                                       ? t('card.inj_short')
                                       : (tierLabel[view.tier] ??
                                             'T${view.tier}'),
-                                  background: cssColor(theme.labelBg),
-                                  foreground: view.injured
-                                      ? Colors.redAccent
-                                      : accentLight,
+                                  background: chipBg,
+                                  foreground: view.injured ? chipRed : chipInk,
                                   bold: true,
                                 ),
                               ),
@@ -382,11 +401,7 @@ class PlayerCard extends StatelessWidget {
                               if (view.injured || view.onLoan) ...[
                                 const SizedBox(width: 3),
                                 if (view.injured)
-                                  const Icon(
-                                    Icons.healing,
-                                    size: 12,
-                                    color: Colors.redAccent,
-                                  ),
+                                  Icon(Icons.healing, size: 12, color: chipRed),
                                 if (view.onLoan)
                                   const Icon(
                                     Icons.swap_horiz,
