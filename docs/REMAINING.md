@@ -5652,8 +5652,12 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       own comment. Placing `listing.card` instead would change which card arrives
       AND consume fewer draws, shifting every later listing in the window.
       See `_acceptSigning` in `engine/deadline_day_engine.dart`.
-- [ ] **Achievements can never be re-unlocked, though the engine is built to let
-      them.** `checkAchievements` gates on ids earned THIS RUN — a list cleared on
+- [~] **Achievements can never be re-unlocked, though the engine is built to let
+      them.** **Verified against the spec: the JS is identical**, both guards and
+      the same comment, so the port is faithful and the decision is the shipped
+      game's. It stays open as an ECONOMY question rather than a port bug —
+      removing the second guard turns every achievement into a coin faucet on
+      every reset. The original note follows. `checkAchievements` gates on ids earned THIS RUN — a list cleared on
       prestige or reset, with a comment saying that is what makes them
       re-unlockable — and then ALSO on ids earned ever. The second guard subsumes
       the first, so clearing the per-run list achieves nothing, the branch that
@@ -5661,15 +5665,27 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       always 1 and false. Removing the guard turns every achievement into a coin
       faucet on every reset, so it needs a decision about the economy first.
       See `checkAchievements` in `engine/achievement_engine.dart`.
-- [ ] **`hard_100_wins` pays 100 coins; `win_100_matches` pays 1,000.** Every cup,
-      Pro-mode, mini-game, reset and event achievement is missing from
-      `ACHIEVEMENT_COIN_REWARDS` and falls to the default of 100. Reads like an
-      oversight rather than a decision, but it is tuning.
-- [ ] **Two achievements are both called "Living Legend"** — `prestige_level_10`
-      and `merge_to_legend`. Cosmetic, and a one-word fix, but it is user-facing
-      copy so it wants a chosen replacement rather than an invented one.
-- [ ] **`vipPrestigeLinked` is dead code, and the comment above `vip_pass`
-      describes it as live.** That comment says the pass runs until the next
+- [~] **`hard_100_wins` pays 100 coins; `win_100_matches` pays 1,000.**
+      **Verified: it is the JS's own table and the JS's own `?? 100` fallback**,
+      so the port is faithful and this is tuning in `../merge-empire-fc` rather
+      than anything to change here. Worth noting the table is not simply
+      incomplete — the prestige achievements are explicitly zeroed with a
+      comment saying why, so somebody has been through it and the gaps may be
+      deliberate. It stays open as a balance question for the manager.
+- [~] **Two achievements are both called "Living Legend"** — `prestige_level_10`
+      and `merge_to_legend`. **Verified: the clash is the JS's.**
+      `data/achievements.js` gives `prestige_level_10` the literal title and
+      `en.js` gives `ach.title.merge_to_legend` the same words, so the port
+      carries it faithfully. Fixing it is a change to `en.js` plus a
+      `gen_i18n.mjs` run and nine translations — a spec-repo change, not a port
+      one.
+- [~] **`vipPrestigeLinked` is dead code, and the comment above `vip_pass`
+      describes it as live.** **Verified against the spec and the port is right
+      about the contradiction**: `iapEngine.js` has both branches, and the
+      product carries `vipDays: 30` — so the wall-clock timer is what actually
+      runs and the prestige-linked branch is unreachable there too. Which of the
+      two is intended is a decision for whoever priced the pass. The original
+      note follows. That comment says the pass runs until the next
       prestige with "no wall-clock timer"; the product actually carries
       `vipDays: 30`. One of the two is wrong. The branch is ported and unreachable,
       so switching it on is a data change.
