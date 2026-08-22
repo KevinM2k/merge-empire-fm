@@ -364,6 +364,7 @@ class KeeperPose {
     required this.hand,
     required this.dive,
     required this.side,
+    this.land = 0,
   });
 
   final Vec3 hand;
@@ -373,6 +374,13 @@ class KeeperPose {
 
   /// Which way, -1 to 1.
   final double side;
+
+  /// **0 still flying, 1 down.** `penalty_physics` has tracked `keeperLand`
+  /// since the dive got its landing, and the RIG never read it: the hand came
+  /// down and the limbs held the shape the dive left them in, so he hit the
+  /// floor as a posed figure. A body that has stopped flying goes slack, and
+  /// gravity takes the arms and legs with it.
+  final double land;
 }
 
 /// Everything the painter needs, so the widget can be rebuilt without it.
@@ -698,14 +706,29 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   final hipOff = unit * _keeperHip;
   final localHipL = Offset(-hipOff, 0);
   final localHipR = Offset(hipOff, 0);
-  final split = _legSplitRest + (_legSplitDive - _legSplitRest) * dive;
+  // **HOW MUCH OF THE POSE IS STILL HIS.** On the way down the dive's shape is
+  // something he is holding; on the floor it is something that has stopped
+  // being held. `slack` is what is left of it, and every limb angle below eases
+  // back through it — the two-bone solves are untouched, so no bone changes
+  // length and the invariant the rig was rebuilt around still holds.
+  final land = pose.land.clamp(0.0, 1.0);
+  final slack = 1 - land;
+  // Straight DOWN in the world, which in his own frame is back through the
+  // lean: a man lying on his side has arms that hang toward the turf, not
+  // toward his own feet.
+  final gravity = -lean;
+
+  final split =
+      _legSplitRest + (_legSplitDive - _legSplitRest) * dive * slack;
   final legOut = math.sin(split) * legLen;
   final legDown = math.cos(split) * legLen;
   final localLeft = localHipL + Offset(-legOut, legDown);
   final localRight = localHipR + Offset(legOut, legDown);
 
-  final leadAngle = _armRest + (_armLead - _armRest) * dive;
-  final trailAngle = _armRest + (_armTrail - _armRest) * dive;
+  final leadAngle =
+      _mix(_armRest + (_armLead - _armRest) * dive, _armRest + gravity, land);
+  final trailAngle =
+      _mix(_armRest + (_armTrail - _armRest) * dive, _armRest + gravity, land);
   final leadWay = Offset(math.sin(leadAngle) * out, -math.cos(leadAngle));
   final trailWay = Offset(-math.sin(trailAngle) * out, -math.cos(trailAngle));
 
@@ -718,7 +741,10 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   final girdle = unit * _keeperShoulder;
   final upper = unit * _keeperUpperArm;
   final fore = unit * _keeperForeArm;
-  final span = (upper + fore) * (_gloveTuck + (0.98 - _gloveTuck) * dive);
+  // A slack arm FOLDS: the reach is something he was holding out, and the last
+  // thing to go when a body stops flying is the thing it was reaching with.
+  final span =
+      (upper + fore) * (_gloveTuck + (0.98 - _gloveTuck) * dive * slack);
   (Offset, Offset, Offset) armFrom(Offset way, double side) {
     final joint = localShoulder + Offset(side * girdle, 0);
     final glove = joint + way * span;
@@ -2174,6 +2200,8 @@ class PenaltyViewState extends State<PenaltyView>
                     hand: hand,
                     dive: dive,
                     side: kick?.plan.side ?? 0,
+                    // The half the rig never read. See [KeeperPose.land].
+                    land: kick?.keeperLand ?? 0,
                   ),
                   net: _net,
                   taker: taker,

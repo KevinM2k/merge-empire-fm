@@ -3826,11 +3826,18 @@ by a test.
 
 ### Penalty training
 
-- [ ] **THE KEEPER HITS THE FLOOR AND HIS LIMBS DO NOT.** When he lands, the
-      arms and legs should fall with him — gravity taking a body that has
-      stopped flying — rather than holding the shape the dive left them in. The
-      ask is a physics pass **on him AND on the ball** so the landing reads as
-      real.
+- [x] **THE KEEPER HITS THE FLOOR AND HIS LIMBS DO NOT.** **`keeperLand` has
+      existed in `penalty_physics` since the dive got its landing and the RIG
+      never read it** — the hand came down and the limbs held the shape the dive
+      left them in, so he arrived on the turf as a posed figure. `KeeperPose`
+      takes it now: the split closes, the reaching arm folds, and the arms ease
+      to straight DOWN IN THE WORLD, which in his own frame is back through the
+      lean — a man lying on his side hangs toward the turf, not toward his own
+      feet.
+      **And no bone changes length**, which is the rig's own invariant: only the
+      joint-to-joint spans move, the two-bone solves are untouched, and there is
+      a test that says so. The BALL half of this ask was already done — `_settle`
+      gives it gravity, the turf and rolling friction (27 Aug).
       Two things this touches that are already written down. `_settle` (27 Aug)
       is the picture after the whistle and it already gives the BALL gravity,
       the turf and rolling friction — so half of this exists and the other half

@@ -958,6 +958,64 @@ void main() {
       mesh.reset();
     });
   });
+  group('WHEN HE HITS THE FLOOR, GRAVITY TAKES HIM', () {
+    // `penalty_physics` has tracked `keeperLand` since the dive got its
+    // landing, and the RIG never read it: the hand came down and the limbs held
+    // the shape the dive left them in, so he arrived as a posed figure.
+    const view = Size(360, 640);
+    final flying = KeeperPose(hand: Vec3(1.6, -0.2, 0.9), dive: 1, side: 1);
+    final down = KeeperPose(
+      hand: Vec3(1.6, -0.2, 0.9),
+      dive: 1,
+      side: 1,
+      land: 1,
+    );
+
+    test('THE LEGS COME BACK TOGETHER', () {
+      // The split is something he was holding; on the floor it is not held.
+      final a = keeperRigFor(flying, view)!;
+      final b = keeperRigFor(down, view)!;
+      expect(
+        (b.leftBoot - b.rightBoot).distance,
+        lessThan((a.leftBoot - a.rightBoot).distance),
+      );
+    });
+
+    test('AND THE REACHING ARM FOLDS', () {
+      // The last thing to go when a body stops flying is the thing it was
+      // reaching with.
+      final a = keeperRigFor(flying, view)!;
+      final b = keeperRigFor(down, view)!;
+      expect(
+        (b.glove - b.leadJoint).distance,
+        lessThan((a.glove - a.leadJoint).distance),
+      );
+    });
+
+    test('but NO BONE CHANGES LENGTH, which is the rig\'s own invariant', () {
+      // A folded limb is a shorter limb, and that is the joint-to-joint span.
+      // The bones either side of the elbow may never move.
+      for (final pose in [flying, down]) {
+        final rig = keeperRigFor(pose, view)!;
+        final upperA = (rig.leadElbow - rig.leadJoint).distance;
+        final foreA = (rig.glove - rig.leadElbow).distance;
+        final upperB = (rig.trailElbow - rig.trailJoint).distance;
+        final foreB = (rig.trailGlove - rig.trailElbow).distance;
+        expect(upperA, closeTo(upperB, 0.5));
+        expect(foreA, closeTo(foreB, 0.5));
+      }
+    });
+
+    test('and a keeper still in the air is untouched', () {
+      final a = keeperRigFor(flying, view)!;
+      final b = keeperRigFor(
+        KeeperPose(hand: Vec3(1.6, -0.2, 0.9), dive: 1, side: 1),
+        view,
+      )!;
+      expect((a.glove - b.glove).distance, lessThan(0.001));
+    });
+  });
+
 }
 
 /// The run-off behind the goal, mirroring the view's own `_beyondGoal`.
