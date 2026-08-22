@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,426 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,433 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -42,7 +42,47 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
-**THE NEWEST PASS WAS AN AUDIT, NOT A PLAYTEST**, and it is a different shape
+**THE NEWEST PASS WORKED THE AUDIT'S OWN QUEUE**, and four of its rows came off.
+Three of the four were the same shape and it is the shape to expect from the rest
+of that list: **an engine with no caller is usually not a missing feature, it is
+the only NAMED copy of a rule the port had already written out again somewhere
+else.** `isTrophyPolishActive` was one of five copies of "is the polish stamped
+for this season" — the other four anonymous, in `idle_engine` twice, in
+`income_breakdown` and in `gem_engine`'s shop guard — and they had ALREADY
+drifted on a missing `seasonCount`. `refreshCupAvailability` was two copies, both
+in `season_end`, one of which skipped a save with no cups branch entirely.
+`liveListingsBySide` was the Deadline Day board splitting the feed inline.
+
+**The fourth was a real hole, and shipped copy found it again.**
+`acceptSellerCounter` had no caller and neither did five of the six
+`event.deadline.counter*` strings, so a club that countered an offer got a
+snackbar reading "They want more" with no number in it and no way to take the
+deal — over a card still quoting the price that club had just refused. It is
+built: a dialog in the confirm's shape, and the card goes on offering the number
+afterwards, which is what `counter_keeps` promises. **The peek is the part worth
+carrying**: their figure is a TOTAL and the cash is what is left after the swap
+already on the table, so `sellerCounter` was pulled out of the accept rather than
+the subtraction being written a second time in the UI.
+
+**Two more rows on that list should not be built as written**, and both were
+checked rather than assumed:
+
+- **`purchaseCoinSink` is blocked on `en.js`, not on the port.** There is no
+  `coin_sink` copy in the catalogues at all — not a name, not a description, for
+  any of the four — and `coin_sinks.dart` carries raw English in the data field
+  instead. A shelf needs eight strings that do not exist in ten languages, so it
+  is blocked on the spec repo like every other new-copy item. Whether the JS
+  prints that raw data field or has keys the port's generator missed is the thing
+  to check first, and it cannot be checked from here.
+  (`isTrophyPolishActive`, bundled with it in the old row, was never about the
+  shelf: the polish is a GEM item now, bought through `gem_engine`.)
+- **`getBadgeChoices` has no caller because nothing needs the list.** The badge
+  picker is not missing — the trophy room equips a badge from each achievement's
+  own card, through `setEquippedBadge`, which is a picker with the achievement in
+  front of you rather than a grid of emblems. `getBadgeChoices` is the grid's
+  data source. Check the JS for which shape it ships before building the second.
+
+**THE AUDIT ITSELF WAS NOT A PLAYTEST**, and it is a different shape
 from everything below: nobody watched a screen and disliked it. A reachability
 sweep over every public top-level function in `lib/engine`, `lib/data` and
 `lib/state` asked one question — does anything in `lib/` name this apart from
@@ -54,7 +94,7 @@ than rebuilding it:
 
 ```bash
 bash tool/unreached.sh            # file :: function :: test-files=N
-bash tool/unreached.sh | wc -l    # 79 as this pass ends
+bash tool/unreached.sh | wc -l    # 75 as this pass ends; was 79
 ```
 
 A HIGH test-file count is the interesting case, not the safe one: it means the
@@ -129,17 +169,24 @@ the measurement says they are not bugs:
 notice — each one is an engine with no caller in `lib/`, so the module's real
 status is "only its own test":
 
-- [ ] **`refreshCupAvailability`** (`cup_engine.dart`) — nothing refreshes whether
-      a cup may be entered this season.
+- [x] **`refreshCupAvailability`** (`cup_engine.dart`) — `season_end` wrote the
+      flag by hand in both the rollover and the prestige reset, and guarded on
+      the branch existing, so a save without one silently got no cup.
 - [ ] **`grantTutorialGems`** (`gem_engine.dart`), and with it the whole tutorial:
       no file in `lib/` references a `tut.` key, so forty-odd tutorial strings and
       every step of it are unreachable. Much the biggest thing left on this list.
-- [ ] **`purchaseCoinSink` and `isTrophyPolishActive`** (`coin_sink_engine.dart`)
-      — a shelf that cannot be bought from.
-- [ ] **`acceptSellerCounter` and `liveListingsBySide`** (`deadline_day_engine.dart`)
-      — Deadline Day HAS a screen, so this is a control missing from a screen
-      that exists rather than a screen missing.
-- [ ] **`getBadgeChoices`** (`badge_engine.dart`) — the badge picker.
+- [x] **`isTrophyPolishActive`** (`coin_sink_engine.dart`) — one of five copies
+      of the rule, and the only one with a name. All four readers go through it.
+- [~] **`purchaseCoinSink`** (`coin_sink_engine.dart`) — a shelf that cannot be
+      bought from, and cannot be BUILT from here: the four sinks have no
+      catalogue copy at all. Blocked on `en.js`.
+- [x] **`acceptSellerCounter` and `liveListingsBySide`** (`deadline_day_engine.dart`)
+      — the counter had a figure, six translated strings and nothing on screen
+      able to take it. Both wired; `sellerCounter` is the new peek the button
+      needs, so the cash is worked out once.
+- [~] **`getBadgeChoices`** (`badge_engine.dart`) — the badge picker EXISTS, one
+      achievement at a time, in the trophy room. This is the grid's data source,
+      and which shape the JS ships is the question to answer before building it.
 - [ ] **`takePenalty`** (`penalty_game_engine.dart`) — the penalty screen does not
       go through it. Worth checking which of the two is right before wiring it.
 - [ ] **`describeOffer`** (`negotiation_engine.dart`), **`seasonStatusFor`**
@@ -174,7 +221,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**96 items are open**, plus ten carrying a `[~]` — answered, but with a decision
+**92 items are open**, plus twelve carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. **Read the audit block above
 first** — nine of the open items came out of it and each is a whole engine
 nobody can reach, which is a different kind of gap from the playtesting
