@@ -45,15 +45,26 @@ class SeasonEndScreen extends ConsumerWidget {
 
   final VoidCallback? onContinue;
 
+  /// The league you have just moved into, in the player's own language.
+  ///
+  /// This card is the one screen a promotion exists for, and it named the
+  /// league in English to every player in the world — `Division.name` is the
+  /// data record's literal and `division.<id>` is translated in all ten
+  /// catalogues. See `divisionNameProvider`.
+  String get _newDivisionName {
+    final div = getDivision(outcome.newDivision);
+    return tName('division', {'id': div.id, 'name': div.name});
+  }
+
   String get _headline => switch (outcome.outcome) {
     'promoted' => t('season.end.promoted', {
-      'div': getDivision(outcome.newDivision).name,
+      'div': _newDivisionName,
     }),
     'relegated' => t('season.end.relegated', {
-      'div': getDivision(outcome.newDivision).name,
+      'div': _newDivisionName,
     }),
     _ => t('season.end.stayed', {
-      'div': getDivision(outcome.newDivision).name,
+      'div': _newDivisionName,
     }),
   };
 

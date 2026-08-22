@@ -123,6 +123,55 @@ List<String> markersOn(WidgetTester tester) => tester
 void main() {
   tearDown(resetLocale);
 
+  /// **`Division.name` is the English literal on the data record**, and all
+  /// seven names have shipped translated in ten catalogues since the generator
+  /// first ran — German reads Sonntagsliga, Regionalliga, Champions-Liga.
+  /// `tName` exists for exactly this and its own doc names divisions first; the
+  /// trophy room and the pyramid editor already went through it, and the header
+  /// a player looks at most did not.
+  ///
+  /// The same fault as `trait_copy.dart`'s — "every trait in the game was
+  /// untranslatable and a French player's Finisher was still called Finisher" —
+  /// on the most-shown proper noun in the game.
+  group('the division is NAMED in the player\'s language', () {
+    testWidgets('the header and the way back both go through the catalogue', (
+      tester,
+    ) async {
+      setLocale('de');
+      await pumpTable(tester);
+      expect(find.text('SONNTAGSLIGA'), findsOneWidget);
+      expect(find.text('SUNDAY LEAGUE'), findsNothing);
+
+      await tester.drag(find.byType(PageView), const Offset(-400, 0));
+      await tester.pumpAndSettle();
+      expect(find.text('AMATEURLIGA'), findsOneWidget);
+      final back = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('league-back-to-own')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(back.data, contains('Sonntagsliga'));
+    });
+
+    test('and every division on the ladder has a translated name', () {
+      // The gap between the catalogue's count and the caller's is the work
+      // queue; here they have to match exactly, or a division somewhere down
+      // the pyramid quietly reverts to English.
+      for (final locale in ['de', 'fr', 'es']) {
+        setLocale(locale);
+        for (final d in divisions) {
+          final named = tName('division', {'id': d.id, 'name': d.name});
+          expect(
+            named,
+            isNot(d.name),
+            reason: '$locale still calls ${d.id} by its English name',
+          );
+        }
+      }
+    });
+  });
+
   group('browsing the pyramid', () {
     testWidgets('IT OPENS ON YOUR OWN DIVISION', (tester) async {
       // Seven leagues in the pager and only one of them is yours. Opening

@@ -160,9 +160,19 @@ final lastSeasonStatusProvider = savePick<Map<String, Map<String, String>>>((
   return byDivision;
 });
 
+/// **Through the catalogue, not off the record.**
+///
+/// `Division.name` is the English literal on the data object, and all seven
+/// division names have shipped translated in ten catalogues the whole time —
+/// German reads Sonntagsliga, Regionalliga, Champions-Liga. `tName` exists for
+/// exactly this and its own doc names divisions first; the trophy room and the
+/// pyramid editor already went through it, and everything else — this header,
+/// the season-end card, the match clock — printed English at every player in
+/// the world.
 final divisionNameProvider = savePick<String>((s) {
   final id = _map(s['progression'])?['currentDivision'] as String?;
-  return getDivision(id ?? divisions.first.id).name;
+  final div = getDivision(id ?? divisions.first.id);
+  return tName('division', {'id': div.id, 'name': div.name});
 });
 
 final seasonNumberProvider = savePick<int>(

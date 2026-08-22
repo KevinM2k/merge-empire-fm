@@ -76,6 +76,14 @@ class LeagueTableView extends ConsumerWidget {
 /// neighbour must not stamp a "position last round" for a league you were only
 /// looking at, so the pager asks the provider for your league and the engine
 /// for everyone else's.
+/// The division's name in the player's own language.
+///
+/// `Division.name` is the English literal on the data record and
+/// `division.<id>` has shipped translated in all ten catalogues since the
+/// generator first ran. See `divisionNameProvider`.
+String _divisionName(Division d) =>
+    tName('division', {'id': d.id, 'name': d.name});
+
 class _PyramidPager extends ConsumerStatefulWidget {
   const _PyramidPager({required this.start});
 
@@ -112,7 +120,7 @@ class _PyramidPagerState extends ConsumerState<_PyramidPager> {
       key: const ValueKey('league-table'),
       children: [
         SheetHeader(
-          title: getDivision(divisions[_page].id).name,
+          title: _divisionName(divisions[_page]),
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
         ),
         // The hint sits under the heading and says the same thing the dots do,
@@ -153,7 +161,10 @@ class _PyramidPagerState extends ConsumerState<_PyramidPager> {
                 child: Text(
                   t(
                     'table.back_to_league',
-                  ).replaceAll('{division}', divisions[widget.start].name),
+                  ).replaceAll(
+                    '{division}',
+                    _divisionName(divisions[widget.start]),
+                  ),
                 ),
               ),
             ),
