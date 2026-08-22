@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,403 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,404 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**95 items are open**, plus eight carrying a `[~]` — answered, but with a decision
+**94 items are open**, plus eight carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3347,7 +3347,20 @@ is wrong in six places.
       its child, and a bare `ArtImage` under loose constraints sizes to its own
       aspect — so his portrait sat in the middle of the disc with a band of dark
       glass above and below.
-- [ ] **The customise button comes up laggy.**
+- [x] **The customise button comes up laggy — and it is ONE FRAME, measured.**
+      209ms on the frame the button is tapped, 23ms for everything after it. So
+      the whole complaint is a single build twelve frames long, happening while
+      the sheet is trying to slide up.
+      **The grid is the expensive half and the half nobody is looking at yet.**
+      Twenty chips, each a full `ManagerWalker` rig: ~60ms together, against
+      ~18ms for an empty grid of the same shape — measured, not guessed, and
+      it is not the animation clocks (a still walker starts none; twenty of
+      them run twenty frames in 2ms). Holding the grid back one frame takes the
+      opening frame to 107ms, and the chips arrive sixteen milliseconds later,
+      which is not a wait.
+      **Picking is already free** — 91 MICROseconds for a frame that rebuilds
+      every chip — so nothing needed doing there, and the measurement is written
+      down so nobody optimises it.
 - [x] **The manager was walking in the sky, and the grass was the reason.** The
       strip under him was a `FractionallySizedBox` with a `heightFactor` and no
       `widthFactor` — which passes the incoming width constraint straight
