@@ -57,9 +57,24 @@ List<({CardInstance card, int idx})> activeLoans(Map<String, dynamic>? state) {
   ];
 }
 
-/// Total wage bill for one match.
-num totalLoanWages(Map<String, dynamic>? state) => activeLoans(state)
-    .fold<num>(0, (sum, l) => sum + (_num(l.card.raw['loanWage']) ?? 0));
+/// What a loanee of this definition would cost per second.
+///
+/// **Priced off the DEFINITION**, so a listing can be quoted before the card
+/// exists — see `loanWagePerSec` for why the card's own income is the wrong
+/// number. Both the Deadline Day card and its end-of-night summary need exactly
+/// this, and each was building the throwaway instance itself.
+///
+/// A per-MATCH total used to live here instead, summing the `loanWage` stamped
+/// on each card. Nothing has charged that field since wages became a drain on
+/// the income rate: it is the terms, not the bill.
+double loanWageRateFor(Map<String, dynamic>? state, Object? definitionId) =>
+    loanWagePerSec(
+      state,
+      CardInstance(<String, dynamic>{
+        'loanMatchesLeft': 1,
+        'definitionId': definitionId,
+      }),
+    );
 
 num _matchIncome(Map<String, dynamic>? state) =>
     getDivision(_map(state?['progression'])?['currentDivision'] as String? ?? '')
@@ -306,11 +321,6 @@ List<({CardInstance card, int idx})> loansOut(Map<String, dynamic>? state) {
       if (isLoanedOut(cells[i])) (card: cells[i]!, idx: i),
   ];
 }
-
-num totalLoanOutFees(Map<String, dynamic>? state) => loansOut(state).fold<num>(
-  0,
-  (sum, l) => sum + (_num(_map(l.card.loanedOut)?['feePerMatch']) ?? 0),
-);
 
 /// A card's fair value before any premium — the same anchor the sell screen and
 /// Deadline Day price off, so a loan sits in one economy.

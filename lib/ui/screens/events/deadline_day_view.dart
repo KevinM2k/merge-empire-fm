@@ -40,7 +40,7 @@ import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/deadline_day_engine.dart';
 import 'package:merge_empire_fc/engine/deal_advice_engine.dart';
 import 'package:merge_empire_fc/engine/negotiation_engine.dart';
-import 'package:merge_empire_fc/engine/idle_engine.dart';
+import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -1076,8 +1076,7 @@ class DeadlineListingCard extends StatelessWidget {
     if (l['kind'] == 'loan') {
       return t('event.deadline.loan_terms', {
         'matches': matches,
-        'wage':
-            '-${formatRate(loanWagePerSec(state, CardInstance(<String, dynamic>{'loanMatchesLeft': 1, 'definitionId': l['definitionId']})))}',
+        'wage': '-${formatRate(loanWageRateFor(state, l['definitionId']))}',
       });
     }
     if (l['kind'] == 'loanOut') {

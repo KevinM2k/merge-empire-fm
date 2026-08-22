@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/loans.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -104,6 +105,30 @@ void main() {
     test('never prices below one coin', () {
       expect(loanFee(_state(division: 'sunday_league')), greaterThanOrEqualTo(1));
       expect(loanWage(_state(division: 'sunday_league')), greaterThanOrEqualTo(1));
+    });
+
+    test('the RATE can be quoted before the card exists', () {
+      // A listing has a definition and no instance, and both the Deadline Day
+      // card and its end-of-night summary have to name the drain in the same
+      // currency the income bar visibly slows by. Two per-MATCH totals used to
+      // sit here uncalled instead — the wage bill and the loan-out fees — and
+      // nothing has charged per match since.
+      final state = _state();
+      final quoted = loanWageRateFor(state, 'player_t5_mid');
+      expect(quoted, greaterThan(0));
+      // Same figure the live card is charged, so a quote cannot flatter a loan.
+      expect(
+        quoted,
+        loanWagePerSec(
+          state,
+          CardInstance(_card('x', loanMatchesLeft: 5)),
+        ),
+      );
+    });
+
+    test('an unknown definition is quoted nothing, not a crash', () {
+      expect(loanWageRateFor(_state(), 'no-such-player'), 0);
+      expect(loanWageRateFor(_state(), null), 0);
     });
   });
 

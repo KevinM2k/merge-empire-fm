@@ -1345,6 +1345,10 @@ Map<String, dynamic>? endSession(Map<String, dynamic> state, [int? nowMs]) {
     },
     'income': income,
     'spend': spend,
+    // Per-MATCH, because this map is compared against the JS's whole summary
+    // object field for field. It is the JS's arithmetic, not a figure to print:
+    // the port charges wages as a drain on the income rate, so the recap quotes
+    // that instead and leaves this to the parity harness.
     'wageBill': loans.fold<num>(0, (sum, l) => sum + (_num(l['wage']) ?? 0)),
     'missed': listings.where((l) => l['status'] == 'expired').length,
     'score': sales.length * scorePerSale +

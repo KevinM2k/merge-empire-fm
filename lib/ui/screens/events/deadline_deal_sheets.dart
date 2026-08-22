@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/events.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/deadline_day_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/negotiation_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -680,17 +681,26 @@ class DeadlineSummaryView extends ConsumerWidget {
 }
 
 /// One evening's business, as a table.
-class DeadlineLedger extends StatelessWidget {
+///
+/// **The wage line is the one figure NOT read off the summary.** That map is
+/// compared against the JS's own summary object field for field, so its
+/// `wageBill` is the JS's per-match arithmetic — and nothing has charged per
+/// match since wages became a drain on the income rate. The row used to print it
+/// with a "/ match" suffix: a number in a currency the player is never billed
+/// in, next to a spend and an income they are. It asks the squad what the drain
+/// actually is instead, which is the figure the income bar visibly slows by and
+/// the one the loan card quoted on the way in.
+class DeadlineLedger extends ConsumerWidget {
   const DeadlineLedger({required this.summary, super.key});
 
   final Map<String, dynamic> summary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final net = _num(summary['net']);
     final offers = _map(summary['offers']);
-    final wageBill = _num(summary['wageBill']);
+    final wageBill = totalLoanWagePerSec(ref.watch(gameProvider).state);
     final loanOuts = _num(summary['loanOuts']);
 
     Widget row(String label, String value, {Color? colour}) => Padding(
@@ -746,10 +756,10 @@ class DeadlineLedger extends StatelessWidget {
         if (loanOuts > 0)
           row(t('event.deadline.sum_loanouts'), '${loanOuts.toInt()}'),
         if (wageBill > 0)
-          row(
-            t('event.deadline.sum_wages'),
-            '${formatCoins(wageBill)}${t('event.deadline.per_match_suffix')}',
-          ),
+          // `formatRate` carries its own unit, so the row needs no suffix — and
+          // the one it used to wear, `per_match_suffix`, belongs to the retired
+          // per-match wage along with the figure it was labelling.
+          row(t('event.deadline.sum_wages'), '-${formatRate(wageBill)}'),
         row(t('event.deadline.sum_spend'), formatCoins(_num(summary['spend']))),
         row(
           t('event.deadline.sum_income'),

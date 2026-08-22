@@ -1,4 +1,5 @@
-/// Arriving on the trading floor, and taking the number a club comes back with.
+/// Arriving on the trading floor, taking the number a club comes back with, and
+/// reading the night back in the currency the wallet is billed in.
 ///
 /// The window being open IS the invitation, so the screen opens the session on
 /// the way in — and it used to do that from `initState`, which is DURING a
@@ -20,6 +21,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_day_view.dart';
+import 'package:merge_empire_fc/ui/screens/events/deadline_deal_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -194,5 +196,80 @@ void main() {
     await tester.pump();
     expect(countered, 1, reason: 'the button did not offer the counter');
     expect(took, 0, reason: 'it took the old price instead');
+  });
+
+  testWidgets("the ledger's wage line is a RATE, not a per-match figure", (
+    tester,
+  ) async {
+    // The summary map is compared against the JS's own object field for field,
+    // so its `wageBill` is the JS's per-match arithmetic — and nothing has
+    // charged per match since wages became a drain on the income rate. The row
+    // printed it anyway, with a "/ match" suffix, beside a spend and an income
+    // the player really is billed. It asks the squad now.
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final state = createDefaultState();
+    (state['grid'] as Map<String, dynamic>)['cells'] = <dynamic>[
+      <String, dynamic>{
+        'instanceId': 'loanee',
+        'definitionId': 'player_t5_mid',
+        'seasonsPlayed': 0,
+        'loanMatchesLeft': 6,
+        // The terms the listing carried. Deliberately absurd, so a row reading
+        // it instead of the squad is unmistakable.
+        'loanWage': 999999,
+      },
+    ];
+
+    final container = ProviderContainer(
+      overrides: [
+        saveStoreProvider.overrideWithValue(
+          MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(gameProvider).load();
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                child: DeadlineLedger(
+                  summary: <String, dynamic>{
+                    'sales': 0,
+                    'signings': 0,
+                    'loans': 1,
+                    'loanOuts': 0,
+                    'offers': <String, dynamic>{},
+                    'income': 0,
+                    'spend': 0,
+                    'wageBill': 999999,
+                    'net': 0,
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // A rate carries its own unit, and the retired suffix is gone with the
+    // figure it labelled.
+    expect(find.textContaining('/s'), findsWidgets);
+    expect(find.textContaining('/ match'), findsNothing);
+    expect(
+      find.textContaining('999,999'),
+      findsNothing,
+      reason: "the row is reading the JS's per-match arithmetic",
+    );
   });
 }
