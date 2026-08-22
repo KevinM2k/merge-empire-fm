@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/sub_tab_coach_line.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 Future<void> showLeagueTableSheet(BuildContext context) =>
@@ -142,6 +143,19 @@ class _PyramidPagerState extends ConsumerState<_PyramidPager> {
           ),
         ),
         _RungDots(count: divisions.length, active: _page, home: widget.start),
+        // **Only over your OWN division.** His read is about where YOU are in
+        // the table; over a league you are merely browsing it would be a
+        // sentence about somebody else's season.
+        // Reserved, so the sheet does not grow and shrink under the finger as
+        // the pager moves off your own division and back.
+        SubTabCoachLine(
+          which: CoachLineFor.table,
+          // Only over your OWN division — his read is about where YOU are — and
+          // reserved either way, so the sheet does not grow and shrink under
+          // the finger as the pager moves off it and back.
+          enabled: home,
+          reserve: true,
+        ),
         Expanded(
           child: PageView.builder(
             controller: _controller,
@@ -686,7 +700,10 @@ class FixturesView extends ConsumerWidget {
     return ListView(
       key: const ValueKey('league-fixtures'),
       padding: const EdgeInsets.symmetric(vertical: 8),
-      children: rows,
+      children: [
+        const SubTabCoachLine(which: CoachLineFor.fixtures),
+        ...rows,
+      ],
     );
   }
 }

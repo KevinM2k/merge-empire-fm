@@ -3239,12 +3239,23 @@ The weather, drawn. Everything else on this list was in the way of that.
 
 ### Still open from the session
 
-- [ ] **The league sub-tab pools have nowhere to go yet.** `coach.table.*`,
-      `coach.fixtures.*`, `coach.minigames.*` and the per-sub-tab
-      `coach.cup_due.*` / `coach.low_energy.*` lines belong to what the JS has as
-      League sub-tabs and the port has as SHEETS — and a sheet is a route, so it
-      covers him. They want an inline coach inside those sheets rather than the
-      floating one, which is a design call before it is a port.
+- [x] **The league sub-tab pools have nowhere to go yet.** Fifteen strings, and
+      the design call is made: **the line goes INSIDE the sheet**, because a
+      sheet is a route and covers the floating coach by construction — that is
+      what the shell's own `Stack` is for and it is why these were stranded.
+      `engine/sub_tab_coach.dart` is the three reads (pure, ported branch for
+      branch) and `SubTabCoachLine` is the row.
+      **Quiet by design**, because he is annotating a list the player opened
+      rather than interrupting — except the CUP and ENERGY lines, which wear the
+      accent because both are things to act on before anything on the list
+      matters. Six of those, not two: the JS's own note is that "no energy" on
+      the table must not read the same as on the fixtures.
+      **Two things the port had to decide that the JS did not.** The table's
+      line shows only over your OWN division — over one you are browsing it
+      would be a sentence about somebody else's season — and it RESERVES its
+      height either way, because without that the sheet grew and shrank under
+      the finger as the pager moved off your division and back, which reads as
+      the swipe fighting you.
 
 ## From playtesting — 25 Aug
 

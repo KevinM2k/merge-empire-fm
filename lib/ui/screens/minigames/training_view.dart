@@ -9,6 +9,7 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/home/sub_tab_coach_line.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
@@ -83,6 +84,11 @@ class TrainingView extends ConsumerWidget {
           title: t('training.title'),
           padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
         ),
+        // **He only speaks here when a cup tie is due.** Training is free, so a
+        // tank at nought is not a reason to stay off a sheet full of games that
+        // cost none — which is why the JS gives this sub-tab the cup branch
+        // alone and nothing else.
+        const SubTabCoachLine(which: CoachLineFor.minigames),
         for (final game in games) _GameRow(game: game),
       ],
     );
