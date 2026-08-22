@@ -5052,17 +5052,30 @@ missing second choices.
 - [ ] **An incoming offer is TOO MUCH YELLOW and hard to read in light mode.**
       Dark mode is good. Be careful changing it: the fix is a light-mode value,
       not a new hue.
-- [ ] **The quests' badges: yellow on yellow, and blue on blue.** **Keep the
-      yellow and the blue** — they are the quest states — and DARKEN THE BADGE
-      so the ink on it clears. Same inversion the player card's chips just took.
-- [ ] **The home page's reds and greens do not match dark mode's, and should.**
-      The 27 Aug entry looked for a mismatched pair and found only single fixed
-      values (`#4ADE80` / `#F87171`) used in both themes — so this is the
-      opposite finding: one value used in both is exactly what is wrong, because
-      the pair was chosen for a dark ground. **Name the screen when reporting
-      it**; the entry above could not find it.
-- [ ] **The match screen's reds and greens are wrong too**, same cause, and its
-      whole palette should read as the dark version does.
+- [x] **The quests' badges: yellow on yellow, and blue on blue.** The hues are
+      the CURRENCIES and were never the problem — a 14% wash of the ink is a
+      pale tint of it on white with the ink itself on top. The badge is a dark
+      plate in light mode now, the way a scoreboard does it, which is the same
+      move the coin figure's halo already makes on this theme. Gold and blue
+      unchanged.
+- [x] **The home page's reds and greens do not match dark mode's, and should.**
+      **The 27 Aug entry found the cause and drew the wrong conclusion from it**:
+      it looked for a mismatched pair, found one fixed value used in both
+      themes, and read that as evidence there was nothing wrong. One value used
+      in both is exactly the bug — the pair was chosen for a dark ground.
+      Twenty-eight sites across thirteen files, and the theme-aware pair
+      (`vsRedOn` / `vsGreenOn`) had existed the whole time with the stat rows as
+      its only caller.
+- [x] **The match screen's reds and greens are wrong too**, same cause, same
+      fix — the verdict, the table's movement arrows and the energy ladder all
+      go through the pair now.
+      **And `semanticInk` is the part worth carrying.** Some of those colours
+      arrive as DATA — a provider's rows, a table keyed by tier — where there is
+      no `BuildContext` at the point the colour is chosen, and those are the
+      sites that could not simply call `vsRedOn`. It maps the known dark-mode
+      semantics to their light counterparts and hands anything else back
+      untouched, so a whole column can be run through it: a gold, a club accent
+      and a tier colour are all deliberate and none of them is this bug.
 
 ### The squad page
 
