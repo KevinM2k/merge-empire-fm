@@ -1903,7 +1903,13 @@ section. Nothing on the list below is blocked for want of art any more.
       the point of them is what they leave out. And a goal is DESCRIBED now:
       eight `commentary.goal.*` pools were unreachable while the feed printed
       the scorer's name alone.
-- [ ] **And the styling throughout it needs sorting.**
+- [x] **And the styling throughout it needs sorting.** Done across the passes
+      since, and the 28 Aug one finished it: the scoreboard is a card at the
+      same density as the fixture card, `matchInset`/`matchGap` are the one
+      inset and the one gap for every band, the radius belongs to `GlassPanel`
+      so nothing draws its own, the commentary is on glass, the tab bar has
+      gone, Colin is legible, the palette is theme-aware and the pitch is in
+      perspective.
 
 ### The squad, and the player sheet
 
@@ -4473,9 +4479,15 @@ list of what that change was answering.
       dark top rather than a dark bottom. If the report is about that, it is an
       art change, not a colour one. Wants a screenshot before anyone guesses
       again.
-- [ ] **Anywhere the top has a background, both themes have to work.** Not by
-      recolouring the icons — by finding the opacity that holds against whatever
-      is behind it. Dark mode is already right.
+- [x] **Anywhere the top has a background, both themes have to work.** The
+      answer is the one the row proposed and it was already half true: the BAND
+      is opaque, in both themes, so nothing behind it can show through and the
+      icons never have to be recoloured for one screen. The blur is a texture
+      rather than a see-through.
+      **Pinned as an invariant** in `hud_contrast_test.dart` rather than checked
+      by eye, because an alpha creeping into one stop of one theme is invisible
+      until somebody opens the one screen with a bright thing under the bar —
+      plus a check that light mode is not silently the same band as dark.
 - [x] **The index cards are light in light mode**, and they were the last screen
       that had not been told which theme it was in. Every colour on the card was
       FIXED: the tier's dark body gradient in both themes and a 70% black

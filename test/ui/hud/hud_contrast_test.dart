@@ -192,4 +192,67 @@ void main() {
       );
     });
   });
+  group('AND WHATEVER IS BEHIND IT CANNOT SHOW THROUGH', () {
+    // **"Anywhere the top has a background, both themes have to work."** The
+    // HUD sits over the sky on the Play tab, over a page everywhere else, and
+    // over whatever the customiser is drawing while its sheet slides up — and
+    // the answer is not to recolour the icons for each of them, it is for the
+    // BAND to be opaque. The blur behind it is a texture, not a see-through.
+    //
+    // Pinned as an invariant rather than checked by eye, because an alpha
+    // creeping into one stop of one theme is invisible until somebody opens
+    // the one screen with a bright thing under the bar.
+    Future<LinearGradient> chromeIn(
+      WidgetTester tester, {
+      required bool light,
+    }) async {
+      late LinearGradient out;
+      await tester.pumpWidget(
+        MaterialApp(
+          key: ValueKey(light),
+          theme: buildAppTheme(kitId: '#4caf50', light: light),
+          home: Builder(
+            builder: (context) {
+              out = hudChrome(
+                Theme.of(context).extension<KitTheme>()!,
+                context,
+              );
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      return out;
+    }
+
+    testWidgets('every stop of the chrome is OPAQUE, in both themes', (
+      tester,
+    ) async {
+      for (final light in [true, false]) {
+        final chrome = await chromeIn(tester, light: light);
+        for (final colour in chrome.colors) {
+          expect(
+            colour.a,
+            1.0,
+            reason: 'light: $light — the page shows through the bar',
+          );
+        }
+      }
+    });
+
+    testWidgets('and the two themes are genuinely different bands', (
+      tester,
+    ) async {
+      // Dark mode is already right, which the report says — so the check that
+      // matters is that light mode is not silently the same thing.
+      final light = await chromeIn(tester, light: true);
+      final dark = await chromeIn(tester, light: false);
+      expect(light.colors.first, isNot(dark.colors.first));
+      expect(
+        light.colors.first.computeLuminance(),
+        greaterThan(dark.colors.first.computeLuminance()),
+      );
+    });
+  });
+
 }
