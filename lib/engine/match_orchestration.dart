@@ -953,6 +953,12 @@ MatchResult simulateMatch(
           ),
   ];
 
+  // **THE CHANCE ATTRIBUTION IS THE JS'S AND STAYS THE JS'S.** Weighting it on
+  // possession instead — so the momentum arrow could be believed — broke
+  // thirty-two rows of `match_orchestration_parity_test`, which compares the
+  // event feed against the JS's own. That failure is the harness doing its job:
+  // the arrow was the thing disagreeing, and the arrow is the port's, so the
+  // arrow is what moved. See `dangerHome` in `match_statboard.dart`.
   final chanceWeights = isHome
       ? (home: effectiveSquadRating, away: effectiveOppRating)
       : (home: effectiveOppRating, away: effectiveSquadRating);

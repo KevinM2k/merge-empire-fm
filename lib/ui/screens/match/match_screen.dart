@@ -1228,7 +1228,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                             if (_clip == null)
                               MomentumArrow(
                                 bias: momentumBias(
-                                  possHome: stats.possHome,
+                                  dangerHome: stats.dangerHome,
                                   isHome: home,
                                 ),
                                 attackingRight: home,

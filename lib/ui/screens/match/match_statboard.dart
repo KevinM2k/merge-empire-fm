@@ -32,6 +32,17 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 typedef LiveStats = ({
   int possHome,
   int possAway,
+
+  /// **Where the chances are coming from, 0..100 home-positive.** Not the same
+  /// question as possession, and that was the bug: the momentum arrow read the
+  /// possession figure — rating gap, TACTIC and swing — while the engine
+  /// attributes chances on the RATINGS alone, so the arrow could point hard one
+  /// way because of a tactic the events knew nothing about.
+  ///
+  /// Weighting the CHANCES on possession instead broke thirty-two rows of
+  /// `match_orchestration_parity_test`, which compares the feed against the
+  /// JS's own — the harness doing its job. So the arrow moved, not the engine.
+  double dangerHome,
   List<({String key, String labelKey, int home, int away})> rows,
 });
 
@@ -117,7 +128,38 @@ LiveStats liveStatsFor({
   final stratBias = (strat.possession - 50).toDouble();
   final stratBiasHome = (isHome ? 1 : -1) * stratBias;
 
-  final homePct = 50 + ratingDiffHome * 0.3 + stratBiasHome * 0.5 + swing * 22;
+  // **THE SAME FORMULA THE CHANCES ARE WEIGHTED ON.** It was written out here
+  // and the chance attribution used the RATINGS alone, so the arrow could point
+  // hard one way — because of a tactic it knew about — while the chances went
+  // on falling the other. `restingPossessionHome` is the one of it; the swing
+  // is what this caller knows and the kickoff weighting cannot.
+  final homePct =
+      restingPossessionHome(
+        ratingDiffHome: ratingDiffHome.toDouble(),
+        possessionBiasHome: stratBiasHome,
+      ) +
+      swing * 22;
+
+  // **THE ARROW'S OWN FIGURE, off the same ratings the chances are.** Plus the
+  // counter exception, which is what stops it reading as a foregone
+  // conclusion: only the side with LESS of the ball can counter, and how much
+  // it is worth to them is how far they are set up for it. So the side with the
+  // run of play takes most of the chances — just not all of them.
+  final rating = 50 + ratingDiffHome * 0.5;
+  final ourCounter = counterLeanFor(strategyId);
+  final theirRatio =
+      (result['oppAttackRatio'] as num?)?.toDouble() ?? oppBaseAtkShare;
+  final theirCounter = ((oppBaseAtkShare - theirRatio) / 0.2).clamp(0.0, 1.0);
+  final danger = chanceWeightsFor(
+    possHome: rating.clamp(0.0, 100.0).toDouble(),
+    counterHome: isHome ? ourCounter : theirCounter,
+    counterAway: isHome ? theirCounter : ourCounter,
+  );
+  final dangerHome =
+      (danger.home / (danger.home + danger.away) * 100 + swing * 12).clamp(
+        20.0,
+        80.0,
+      );
   // Clamped hard: a 72/28 split is already a rout, and the numbers stop reading
   // as football past it.
   final possHome = homePct.clamp(28.0, 72.0).round();
@@ -127,6 +169,7 @@ LiveStats liveStatsFor({
   return (
     possHome: possHome,
     possAway: 100 - possHome,
+    dangerHome: dangerHome,
     rows: [
       for (final row in <(String, String, (int, int))>[
         (

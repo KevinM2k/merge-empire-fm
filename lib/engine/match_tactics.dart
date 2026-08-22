@@ -425,3 +425,64 @@ double rollSwingFactor(Strategy? strat) {
   if (s == 0) return 1;
   return seeded.random() < 0.5 ? 1 - s : 1 + s;
 }
+
+/// Where the run of play sits before a ball is kicked, home-positive, 0..100.
+///
+/// **THE ARROW AND THE CHANCES WERE TWO DIFFERENT FORMULAS.** The momentum
+/// arrow reads the stat board's possession — rating gap, tactic and the swing of
+/// the goals so far — while `generateMatchEvents` weighted chance attribution on
+/// the RATINGS alone. So the arrow could point hard one way, because of a tactic
+/// or a swing it knew about, and the chances went on falling the other way. That
+/// is exactly the thing a player calls "the arrow doesn't mean anything".
+///
+/// Unclamped: the caller clamps once, after adding whatever it knows that this
+/// does not — the board adds the live swing, and the kickoff weighting has no
+/// swing to add.
+double restingPossessionHome({
+  required double ratingDiffHome,
+  required double possessionBiasHome,
+}) => 50 + ratingDiffHome * 0.3 + possessionBiasHome * 0.5;
+
+/// How much of the GAP a counter closes for the side without the ball.
+///
+/// A share of the gap rather than a share of the leader's play: at 0.5 of the
+/// leader's figure a countering underdog overtook the side dominating the game,
+/// which is not a counter attack, it is a different match.
+const double counterLift = 0.5;
+
+/// How the chances split between the two sides.
+///
+/// **The side with the run of play takes most of them — just not all of them**,
+/// and the exception is the one that makes it read as football: a COUNTER
+/// ATTACK. Only the side with LESS of the ball can counter, because that is
+/// what the word means, and how much it is worth to them is how far they are
+/// set up for it.
+///
+/// So: the team with most possession most of the time wins, and a side pinned
+/// back and playing on the break is still dangerous — which is the whole shape
+/// of the report this came from.
+({double home, double away}) chanceWeightsFor({
+  required double possHome,
+  required double counterHome,
+  required double counterAway,
+}) {
+  final home = possHome.clamp(0.0, 100.0);
+  final away = 100 - home;
+  final gap = (home - away).abs();
+  double lift(double counter) => gap * counter.clamp(0.0, 1.0) * counterLift;
+  return (
+    home: math.max(0.1, home + (home < away ? lift(counterHome) : 0)),
+    away: math.max(0.1, away + (away < home ? lift(counterAway) : 0)),
+  );
+}
+
+/// How far a tactic is set up to play on the break, 0..1.
+///
+/// Read off the tactic's own possession figure rather than named by id: a side
+/// that expects 30% of the ball is playing for the moment it wins it back, and
+/// one expecting 62% is not countering anything.
+double counterLeanFor(String? strategyId) {
+  final strat = strategies[strategyId ?? defaultStrategy];
+  if (strat == null) return 0;
+  return ((50 - strat.possession) / 20).clamp(0.0, 1.0);
+}

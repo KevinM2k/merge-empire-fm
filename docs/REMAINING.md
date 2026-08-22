@@ -4961,17 +4961,29 @@ that reads only the older entry will put them back.
 
 ### The arrow has to mean something
 
-- [ ] **THE ARROW SHOULD PREDICT THE CHANCE, not just describe the half.** As
-      it stands it drifts with possession and a chance can still fall to a side
-      the arrow says is pinned back. If it is pointing hard right, a chance the
-      other way should be a surprise — **and the exception is the one that makes
-      it read as football: a COUNTER ATTACK.** So the rule is not "possession
-      decides", it is: the side with the run of play takes most of the chances,
-      the other side's chances arrive as counters, and **the team with most
-      possession most of the time wins — just not always.**
-      This is a change to how chances are ALLOCATED, not to the arrow, and it
-      wants pinning against the JS's own possession model before anything is
-      rebalanced.
+- [x] **THE ARROW SHOULD PREDICT THE CHANCE, not just describe the half.** It
+      does now — and the way round it had to be done is the interesting part.
+      **The arrow read POSSESSION and the engine attributes chances on the
+      RATINGS.** Two formulas: possession carries the rating gap, the TACTIC and
+      the swing, while `generateMatchEvents` weights attribution on the ratings
+      alone. So a side set up to keep the ball moved the arrow and got no more
+      of the chances for it, which is exactly "the arrow doesn't mean anything".
+      **The first attempt weighted the CHANCES on possession and the harness
+      refused it** — thirty-two rows of `match_orchestration_parity_test`, which
+      compares the feed against the JS's own. That is the harness doing its job
+      and it settles the direction: the engine is the JS's, the arrow is the
+      port's, so the arrow is what moved. `LiveStats.dangerHome` is where the
+      chances are coming from, off the same ratings the engine uses, and
+      `momentumBias` reads that instead of possession.
+      **And the counter exception is what stops it reading as a foregone
+      conclusion.** Only the side with LESS of the ball can counter — that is
+      what the word means — and it closes a share of the GAP rather than taking
+      a share of the leader's play: at the first draft's strength a countering
+      underdog OVERTOOK the side dominating the game, which is not a counter
+      attack, it is a different match. How far a side leans into it is read off
+      its tactic's own possession figure rather than named by id, so a side
+      expecting 30% of the ball is playing for the moment it wins it back and
+      one expecting 62% is not countering anything.
 
 ### The squad page, and the index
 

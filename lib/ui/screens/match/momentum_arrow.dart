@@ -24,13 +24,19 @@ const Color momentumTheirs = Color(0xFF1C4A22);
 
 /// How much of the game is OURS, from -1 (all theirs) to 1 (all ours).
 ///
-/// [possHome] is the stat board's own possession, home-positive and already
+/// [dangerHome] is where the CHANCES are coming from, home-positive — see
+/// `LiveStats.dangerHome`. **Not possession**, which is the bug this arrow had:
+/// possession carries the tactic and the chance attribution does not, so the
+/// arrow could point hard one way while the chances went on falling the other.
+///
+/// The old doc, for the figure it used to read: the stat board's own possession,
+/// home-positive and already
 /// clamped to 28–72; [isHome] turns that into our share. It says nothing about
 /// which way the arrow points — that is [MomentumArrow.attackingRight], because
 /// which end we are shooting at is a fact about the fixture rather than about
 /// who is on top.
-double momentumBias({required int possHome, required bool isHome}) {
-  final ourShare = isHome ? possHome : 100 - possHome;
+double momentumBias({required double dangerHome, required bool isHome}) {
+  final ourShare = isHome ? dangerHome : 100 - dangerHome;
   return ((ourShare - 50) / 22).clamp(-1.0, 1.0);
 }
 
