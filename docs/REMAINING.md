@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,397 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,400 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**97 items are open**, plus eight carrying a `[~]` — answered, but with a decision
+**97 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3389,7 +3389,7 @@ is wrong in six places.
 ### Everywhere else
 
 - [ ] **Fixtures: the design is not right.**
-- [~] **Season quests do not look good, and do not show the reward** — neither
+- [x] **Season quests do not look good, and do not show the reward** — neither
       for one of them nor for all of them. **The rewards are on now**: every
       quest carries what it pays, resolved for THIS division (the bank's figure
       is a percentage of one league win, not a literal), and the track carries
@@ -3397,7 +3397,22 @@ is wrong in six places.
       which is the only gem in the game that is not a purchase and which nothing
       on screen had ever mentioned. `quests.capstone_title` and
       `quests.capstone_reward` were translated ten times over with no caller.
-      **The LOOK is still open**: the tiles are still plain cards with a bar.
+      **And the LOOK is done too.** The tile was a line of text, a full-width
+      bar and a fraction — the SAME THREE ROWS whether the quest was untouched,
+      half done, or had money waiting on it, which is exactly why a season's
+      worth of them read as a chore list rather than as a track.
+      There are three states and they look like three things now. **The bar is a
+      RING**, wrapped round the quest's own medallion: a bar under the text is a
+      second row saying what the fraction beside it already said, and round the
+      dial it is the same reading in no extra height — the tile is one row now
+      rather than three. The medallion carries the state's own face: a
+      percentage while it is live, a parcel when it is ready, a tick when it is
+      claimed. Glyphs rather than strings, because no new `t()` key can be added
+      from a cloud session and none is needed — all three say it in every
+      language.
+      **And a claimable quest is the only one with colour in the card.** It is
+      the one thing on the sheet with something owed on it, and it was drawn on
+      the same surface as the two that want nothing, so it had to be hunted for.
 - [x] **The training popup has images: seven drills, seven faces.** Every row
       wore the same `Icons.sports_soccer` on a bare `ListTile`, which is a list
       that says nothing about what is in it. Each drill gets the thing it is

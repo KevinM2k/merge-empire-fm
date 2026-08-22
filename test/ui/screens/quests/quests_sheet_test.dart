@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -352,6 +353,73 @@ void main() {
             .widget<OutlinedButton>(find.byKey(const ValueKey('quests-reroll')))
             .onPressed,
         isNull,
+      );
+    });
+  });
+
+  group('the tiles look like three different things', () {
+    testWidgets('A QUEST WEARS ITS PROGRESS AS A RING, not a bar', (
+      tester,
+    ) async {
+      // The tile was a line of text, a full-width bar and a fraction — the same
+      // three rows whether the quest was untouched, half done, or had money
+      // waiting on it. A bar under the text says what the fraction beside it
+      // already said; round the medallion it is the same reading in no extra
+      // height.
+      await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      final tile = find.byKey(ValueKey('quest-season-$_questId'));
+      expect(tile, findsOneWidget);
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.byType(LinearProgressIndicator),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a LIVE one is the sheet\'s plain surface', (tester) async {
+      await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      final kit = Theme.of(
+        tester.element(find.byKey(ValueKey('quest-season-$_questId'))),
+      ).extension<KitTheme>()!;
+      expect(
+        tester
+            .widget<Card>(find.byKey(ValueKey('quest-season-$_questId')))
+            .color,
+        kit.surface,
+      );
+    });
+
+    testWidgets('and a CLAIMABLE one is the only one with colour in it', (
+      tester,
+    ) async {
+      // It is the one thing on the sheet with something owed on it. Same
+      // surface as the other two and it has to be hunted for.
+      await pumpShell(tester, saveWithQuests(completed: true));
+      await openQuests(tester);
+      expect(
+        find.byKey(ValueKey('quest-claim-season-$_questId')),
+        findsOneWidget,
+        reason: 'this save is not claimable, so the test proves nothing',
+      );
+      final kit = Theme.of(
+        tester.element(find.byKey(ValueKey('quest-season-$_questId'))),
+      ).extension<KitTheme>()!;
+      expect(
+        tester
+            .widget<Card>(find.byKey(ValueKey('quest-season-$_questId')))
+            .color,
+        isNot(kit.surface),
       );
     });
   });

@@ -345,82 +345,168 @@ class _QuestTile extends StatelessWidget {
         ? 0.0
         : (quest.progress / quest.target).clamp(0.0, 1.0);
 
+    // **THE STATE IS THE DESIGN.** The tile was a line of text, a full-width
+    // bar and a fraction — one shape for a quest you have not started, one you
+    // are halfway through and one with money waiting on it, which is why a
+    // season's worth of them read as a chore list. There are three states and
+    // they look like three things now: live, READY (the only one anybody has to
+    // act on, so it is the only one with colour in the card), and claimed.
+    final ready = onClaim != null && !quest.claimed;
+    final ink = quest.claimed
+        ? kit.textMuted
+        : ready
+        ? kit.accentBright
+        : kit.accent;
+
     return Card(
       key: ValueKey('quest-$track-${quest.id}'),
-      color: kit.surface,
+      // A claimable quest is the one thing on this sheet with something owed on
+      // it. Same surface as the other two and it has to be hunted for.
+      color: ready ? kit.accentBright.withValues(alpha: 0.11) : kit.surface,
       margin: const EdgeInsets.symmetric(vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: ready
+              ? kit.accentBright.withValues(alpha: 0.55)
+              : Colors.transparent,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
+        child: Row(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(quest.text, style: const TextStyle(fontSize: 13)),
-                ),
-                if (quest.coins > 0) ...[
-                  const SizedBox(width: 8),
-                  // **WHAT IT PAYS, on the row that asks for the work.** The
-                  // figure is a percentage of one league win rather than a
-                  // literal, so it is worth different money in every division
-                  // — which is the other half of why it has to be shown.
-                  Opacity(
-                    opacity: quest.claimed ? 0.5 : 1,
-                    child: _RewardChip(
-                      key: ValueKey('quest-reward-$track-${quest.id}'),
-                      icon: 'coin',
-                      ink: coinFigureInk(context),
-                      label: t('quests.reward_coins', {'n': quest.coins}),
+            // **THE BAR IS A RING, round the thing it describes.** A full-width
+            // bar under the text is a second row saying what the fraction beside
+            // it already said; wrapped round the quest's own medallion it is the
+            // same reading in no extra height, and it leaves the tile one row
+            // rather than three.
+            _QuestDial(
+              pct: pct,
+              ink: ink,
+              track: kit.surface2,
+              claimed: quest.claimed,
+              ready: ready,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    quest.text,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: quest.claimed ? kit.textMuted : null,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        '${quest.progress.toInt()} / ${quest.target.toInt()}',
+                        style: TextStyle(color: kit.textMuted, fontSize: 11),
+                      ),
+                      if (quest.coins > 0) ...[
+                        const SizedBox(width: 8),
+                        // **WHAT IT PAYS, on the row that asks for the work.**
+                        // The figure is a percentage of one league win rather
+                        // than a literal, so it is worth different money in
+                        // every division — which is the other half of why it has
+                        // to be shown.
+                        Opacity(
+                          opacity: quest.claimed ? 0.5 : 1,
+                          child: _RewardChip(
+                            key: ValueKey('quest-reward-$track-${quest.id}'),
+                            icon: 'coin',
+                            ink: coinFigureInk(context),
+                            label: t('quests.reward_coins', {'n': quest.coins}),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: pct,
-                minHeight: 5,
-                backgroundColor: kit.surface2,
-                valueColor: AlwaysStoppedAnimation(
-                  quest.completed ? kit.accentBright : kit.accent,
-                ),
               ),
             ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${quest.progress.toInt()} / ${quest.target.toInt()}',
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
-                  ),
-                ),
-                if (quest.claimed)
-                  Text(
-                    t('quests.done'),
-                    key: ValueKey('quest-done-$track-${quest.id}'),
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
-                  )
-                else if (onClaim != null)
-                  ElevatedButton(
-                    key: ValueKey('quest-claim-$track-${quest.id}'),
-                    onPressed: onClaim,
-                    child: Text(t('quests.claim')),
-                  )
-                else
-                  Text(
-                    quest.completed ? t('quests.done') : t('quests.live'),
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
-                  ),
-              ],
-            ),
+            const SizedBox(width: 8),
+            if (quest.claimed)
+              Text(
+                t('quests.done'),
+                key: ValueKey('quest-done-$track-${quest.id}'),
+                style: TextStyle(color: kit.textMuted, fontSize: 11),
+              )
+            else if (onClaim != null)
+              ElevatedButton(
+                key: ValueKey('quest-claim-$track-${quest.id}'),
+                onPressed: onClaim,
+                child: Text(t('quests.claim')),
+              )
+            else
+              Text(
+                quest.completed ? t('quests.done') : t('quests.live'),
+                style: TextStyle(color: kit.textMuted, fontSize: 11),
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+/// A quest's medallion: how far through it you are, drawn round its own face.
+///
+/// Three faces for three states, and each is a glyph rather than a string — the
+/// catalogues are generated from the JS repo and no new `t()` key can be added
+/// from here, which is also why none is needed: a tick, a parcel and a
+/// percentage say it in every language.
+class _QuestDial extends StatelessWidget {
+  const _QuestDial({
+    required this.pct,
+    required this.ink,
+    required this.track,
+    required this.claimed,
+    required this.ready,
+  });
+
+  final double pct;
+  final Color ink;
+  final Color track;
+  final bool claimed;
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 44,
+    height: 44,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        SizedBox.expand(
+          child: CircularProgressIndicator(
+            value: pct,
+            strokeWidth: 4,
+            backgroundColor: track,
+            valueColor: AlwaysStoppedAnimation(ink),
+          ),
+        ),
+        if (claimed)
+          Icon(Icons.check, size: 20, color: ink)
+        else if (ready)
+          const Text('🎁', style: TextStyle(fontSize: 18))
+        else
+          Text(
+            '${(pct * 100).round()}%',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: ink,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+      ],
+    ),
+  );
 }
