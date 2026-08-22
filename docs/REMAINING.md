@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,433 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,418 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -42,9 +42,9 @@ and analyze stays clean. 3.44.9 is still the number CI runs and the number to
 develop against; this only means a machine that has not got it yet can still run
 the app.
 
-**THE NEWEST PASS WORKED THE AUDIT'S OWN QUEUE**, and four of its rows came off.
-Three of the four were the same shape and it is the shape to expect from the rest
-of that list: **an engine with no caller is usually not a missing feature, it is
+**THE NEWEST PASS WORKED THE AUDIT'S OWN QUEUE**, and six of its rows came off.
+Three of the first four were the same shape, and it is the shape to expect from
+the rest of that list: **an engine with no caller is usually not a missing feature, it is
 the only NAMED copy of a rule the port had already written out again somewhere
 else.** `isTrophyPolishActive` was one of five copies of "is the polish stamped
 for this season" — the other four anonymous, in `idle_engine` twice, in
@@ -63,6 +63,43 @@ afterwards, which is what `counter_keeps` promises. **The peek is the part worth
 carrying**: their figure is a TOTAL and the cash is what is left after the swap
 already on the table, so `sellerCounter` was pulled out of the accept rather than
 the subtraction being written a second time in the UI.
+
+**The penalty's predecessor was still in the tree, all three pieces of it.**
+`takePenalty` was on the list as "worth checking which of the two is right". The
+port's own headers answer it: `planKeeper` says a read is no longer an automatic
+save, "which is the change from the old game, where a read was an automatic save
+and aim was therefore worth nothing", and `penalty_view.dart` says the old scene
+was "a flat photograph of a goalmouth with a keeper sprite slid across it". The
+rebuild replaced the arcade model and then left every part of it behind:
+`takePenalty` and its enum, `penalty_scene.dart` (313 lines, imported by nothing),
+and `keeper_figure.dart` (768 lines and **18 passing tests**) — whose `KeeperPose`
+and `KeeperRig` share their names with the live rig in `penalty_view.dart`. All
+gone. `assets/bg/penalty_goal.jpeg` is orphaned too, 105KB still shipping because
+`assets/bg/` is declared as a directory; art is not a thing to bin on a whim, so
+it is left for someone who can look at it.
+
+**`tool/unreached.sh` could not have found the UI half, and that is the gap in
+the sweep.** It scans `lib/engine`, `lib/data` and `lib/state`, so a dead SCREEN
+is invisible to it — and a dead screen with a test file looks healthiest of all.
+A second sweep over `lib/ui` for files nothing imports is the obvious next tool,
+and it would have found 1,081 lines here on its own.
+
+**The wage bill was a dead pair pointing at a live bug.** `totalLoanWages` summed
+the `loanWage` stamped on each card — the TERMS, which nothing debits, because
+`loanWagePerSec` charges a share of the definition's income every second instead.
+`totalLoanOutFees` summed `feePerMatch`, annotated in the port's own code as
+"Display only — what they paid, expressed per game", since `grantLoanOut` pays the
+whole spell up front. Neither is owed by anybody.
+
+What they were pointing at: the end-of-night ledger printed `summary['wageBill']`
+with a `/ match` suffix — the same per-match arithmetic, in a currency the wallet
+is never billed in, in a table whose other rows are real money. **And that field
+could not just be fixed**: the summary map is compared against the JS's own
+summary object field for field by `deadline_day_parity_test`, so its arithmetic
+belongs to the harness. The ledger is the port's screen, so it asks the squad
+instead. `loanWageRateFor` is the new shared bit — it prices a DEFINITION, so a
+listing can be quoted before the card exists, which the board was doing by
+building a throwaway `CardInstance` inline.
 
 **Two more rows on that list should not be built as written**, and both were
 checked rather than assumed:
@@ -94,7 +131,7 @@ than rebuilding it:
 
 ```bash
 bash tool/unreached.sh            # file :: function :: test-files=N
-bash tool/unreached.sh | wc -l    # 75 as this pass ends; was 79
+bash tool/unreached.sh | wc -l    # 70 as this pass ends; was 79
 ```
 
 A HIGH test-file count is the interesting case, not the safe one: it means the
@@ -187,8 +224,9 @@ status is "only its own test":
 - [~] **`getBadgeChoices`** (`badge_engine.dart`) — the badge picker EXISTS, one
       achievement at a time, in the trophy room. This is the grid's data source,
       and which shape the JS ships is the question to answer before building it.
-- [ ] **`takePenalty`** (`penalty_game_engine.dart`) — the penalty screen does not
-      go through it. Worth checking which of the two is right before wiring it.
+- [x] **`takePenalty`** (`penalty_game_engine.dart`) — checked, and the physics
+      is right. It went, and so did the two UI files nobody had noticed went with
+      it. See **The penalty's predecessor** below.
 - [ ] **`describeOffer`** (`negotiation_engine.dart`), **`seasonStatusFor`**
       (`league_table.dart`), **`getCardSplit`** (`player_rating.dart`),
       **`traitLabelPlain`** (`trait_engine.dart`), **`peekGrudge`**
@@ -198,8 +236,10 @@ status is "only its own test":
       and several may be genuine dead ends in the JS. Check the JS for a caller
       before building a UI for one: some functions are a dead end THERE, and
       building a screen for one is adding a feature rather than porting it.
-- [ ] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) have no
-      test either, so they are not ported so much as typed in.
+- [x] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) — both
+      the per-match economy the port replaced, and between them they found a live
+      one: the end-of-night ledger was printing a per-match wage bill with a
+      `/ match` suffix. See **The wage bill** below.
 - [ ] **`prestige.season_income` is the one prestige string still unreachable**,
       and it is blocked on PLACEMENT rather than on anything else. "Season
       {season} · Income ×{mult}" is a standing header line, not a beat in the
@@ -221,7 +261,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**92 items are open**, plus twelve carrying a `[~]` — answered, but with a decision
+**90 items are open**, plus twelve carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. **Read the audit block above
 first** — nine of the open items came out of it and each is a whole engine
 nobody can reach, which is a different kind of gap from the playtesting
@@ -1684,9 +1724,13 @@ has a trap in it that is worth stating before the first line is written.
       geometry rather than using the flat art is explicitly fine, and is probably
       the way in — a net that can be deformed by the ball is most of what sells
       it.
-      **The trap: the OUTCOME is already decided** by `takePenalty` before
-      anything moves, and it must stay that way (the engine is proven against the
-      JS). So this is not a simulation — it is an animation that has to be
+      **SUPERSEDED — the scene was rebuilt and this constraint went with it.**
+      `takePenalty` is gone; the shot is simulated in `engine/penalty_physics.dart`
+      and the outcome falls out of the flight rather than being decided before it.
+      Kept because the note below it is still the argument against a solver.
+      **The trap, as it read:** the OUTCOME is already decided by `takePenalty`
+      before anything moves, and it must stay that way (the engine is proven
+      against the JS). So this is not a simulation — it is an animation that has to be
       constrained to end in a known state, which means solving for the flight
       that reaches the given corner and the given result rather than integrating
       forces and seeing what happens.
@@ -1951,7 +1995,9 @@ findings were arithmetic rather than taste and one is a reversal.
       **Flame ships no physics; `flame_forge2d` (Box2D) is another dependency**,
       and it is the wrong shape for two of the three. The cutaway and the penalty
       both have an outcome ALREADY DECIDED by an engine that is pinned against the
-      JS — `takePenalty` knows whether it is a goal before anything moves — so a
+      JS — `takePenalty` knew whether it was a goal before anything moved, and it
+      is gone now: the penalty rebuild simulates the flight. The cutaway still has
+      a decided outcome, so what follows holds for that one — so a
       rigid-body simulation is not a simulation here, it is an animation that must
       terminate in a known state. Forge2D gives you "let go and see what happens",
       which is exactly what neither can have.
