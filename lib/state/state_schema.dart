@@ -36,9 +36,42 @@ import 'package:merge_empire_fc/util/time.dart';
 /// This is the same argument `tutorialDoneProvider` already makes about saves
 /// written before the flag existed: a save that is not mid-tutorial is not
 /// mid-tutorial, and one that cannot leave the tutorial never was.
+/// **AND IT ONLY SETTLES A SAVE THAT HAS PLAYED.** This used to mark every save
+/// finished on the way in, unconditionally, because there was no tutorial to be
+/// in the middle of — the port had the fifty-six strings and no script. There is
+/// one now (`engine/tutorial_engine.dart`), so a genuinely NEW save has to be
+/// left alone or it would be walked past the only run of it that matters.
+///
+/// The test is EVIDENCE OF PLAY rather than a version stamp: a save with cards
+/// on the grid, a match behind it or a merge in the ledger has been played, and
+/// a player who has been playing for weeks must not be handed a welcome screen.
+/// A stamp would have to guess when the tutorial landed; this cannot be wrong
+/// about a save it has never seen.
 void settleTutorial(Map<String, dynamic>? state) {
   final tutorial = state?['tutorial'];
-  if (tutorial is Map<String, dynamic>) tutorial['done'] = true;
+  if (tutorial is! Map<String, dynamic>) return;
+  if (tutorial['done'] == true) return;
+  if (!_hasPlayed(state)) return;
+  tutorial['done'] = true;
+}
+
+bool _hasPlayed(Map<String, dynamic>? state) {
+  final progression = state?['progression'];
+  if (progression is Map<String, dynamic>) {
+    final played = progression['matchesPlayed'];
+    if (played is num && played > 0) return true;
+    final seasons = progression['seasonCount'];
+    if (seasons is num && seasons > 1) return true;
+  }
+  final stats = state?['stats'];
+  if (stats is Map<String, dynamic>) {
+    final merges = stats['totalMerges'];
+    if (merges is num && merges > 0) return true;
+  }
+  final grid = state?['grid'];
+  final cells = grid is Map<String, dynamic> ? grid['cells'] : null;
+  if (cells is List && cells.any((c) => c != null)) return true;
+  return false;
 }
 
 Map<String, dynamic> createDefaultState() {

@@ -29,6 +29,12 @@ Future<ProviderContainer> pumpShell(
   void Function(Map<String, dynamic> state)? mutate,
 }) async {
   final state = createDefaultState();
+  // **And the tutorial already finished.** `settleTutorial` used to mark every
+  // save done on the way in, so this was true without being said; there is a
+  // script now and it settles only a save with evidence of play. A tip that
+  // fires on arriving at a tab is not a thing a brand new save should be shown
+  // — it is nine steps into being told what the tabs are.
+  (state['tutorial'] as Map<String, dynamic>)['done'] = true;
   // **Today's reward already claimed.** Boot queues it unconditionally, and a
   // sheet on screen is exactly what a tip is not allowed to open over — so a
   // shell that still owes one can never show a tip, correctly, and this test

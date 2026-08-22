@@ -880,17 +880,38 @@ status is "only its own test":
       the branch existing, so a save without one silently got no cup.
 - [x] **`grantTutorialGems`** (`gem_engine.dart`) — paid at boot now, and it had
       never been paid at all. See **Gems arrived in silence** below.
-- [ ] **The tutorial itself, all 56 strings of it**, and it is the biggest thing
-      left on this list. **The copy is not the blocker; the CHOREOGRAPHY is.**
-      Every `tut.` string ships in ten languages, and `migration.dart` pins more
-      than it looks: nine steps (0..8), two of them inserted at old indices 3 and
-      6, and a `borrowedPlayers` mechanic the tutorial lends and takes back. What
-      is NOT recoverable from this repo is which key is which step, what each
-      step anchors to, and when the borrowed players come and go. That is in
-      `../merge-empire-fc`, so writing a nine-step script from here would be
-      reconstructing a rule from memory and presenting it as the spec's, which
-      `CLAUDE.md` forbids for good reason. Blocked on the spec repo, not on
-      effort.
+- [x] **The tutorial itself** — **built**, and it was blocked on the spec repo
+      exactly as this row said rather than on effort. `Tutorial.js`'s `STEPS`
+      carries the whole choreography and it is a port of it:
+      `engine/tutorial_engine.dart` for the script and the loan, and
+      `ui/screens/tutorial/tutorial_overlay.dart` for the beats.
+      **NINE steps, not fifty-six strings.** Thirty of the `tut.*` keys belong
+      to steps the JS has since cut — `tut.merge`, `tut.sort`, `tut.tier_lock`,
+      `tut.squad_formation`, `tut.buy_asset`, `tut.go_players`,
+      `tut.league_tabs`, `tut.league_progression`, `tut.training_games`,
+      `tut.sell` — and nothing in `src/` references one of them either. The
+      catalogue carries the corpses of a longer script; porting them would be
+      inventing a tutorial the shipped game does not have.
+      **A step ends one of two ways and never both**: a button the player taps,
+      or a CONDITION the save satisfies, with `tut.complete_above` under it
+      saying which. `tut.skip` is on every step, because a tutorial you cannot
+      leave is a trap — and skipping deliberately leaves the borrowed players
+      where they are, because the step that takes them back also pays the 500.
+      **It is Colin's card**, which is the port's standing rule and right for a
+      second reason: the JS anchors each step to a DOM selector, and what this
+      port has instead is the one character who explains the game.
+      **`settleTutorial` had to change, and that is the interesting part.** It
+      marked EVERY save finished on the way in — the honest answer when there
+      was no script — so a new save could never run one. It settles on EVIDENCE
+      OF PLAY now: cards on the grid, a match behind it, a merge in the ledger.
+      Evidence rather than a version stamp, because a stamp would have to guess
+      when the tutorial landed and this cannot be wrong about a save it has
+      never seen.
+      **And that exposed a parameter that had been a lie in twenty-eight
+      tests.** `pumpGrid(tutorialDone: false)` was inert while `settleTutorial`
+      overrode it, so none of those tests was mid-tutorial however they were
+      written. The auto-tier sheet's "no save is left mid-tutorial" assertion is
+      INVERTED now, with the reason in place.
 - [x] **`isTrophyPolishActive`** (`coin_sink_engine.dart`) — one of five copies
       of the rule, and the only one with a name. All four readers go through it.
 - [x] **`purchaseCoinSink`** (`coin_sink_engine.dart`) — checked against the

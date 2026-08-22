@@ -159,17 +159,34 @@ void main() {
       );
     });
 
-    testWidgets('no save is left mid-tutorial, so the rules are live', (
+    testWidgets('A SAVE MID-TUTORIAL IS DORMANT AGAIN, because there is one', (
       tester,
     ) async {
-      // The dormant state is still built and still correct — every Sunday
-      // League draw is bronze, so a live bronze rule would soft-lock "scout
-      // until you have three". What no longer exists is a save that can BE in
-      // it: the scripted tutorial is the one part of the JS that is not ported,
-      // so nothing here has ever set `tutorial.done`, and a save asking to wait
-      // for it would wait for ever. The migration writes it done and this is
-      // the assertion that it does.
+      // **This assertion has been inverted, and the inversion is the news.**
+      // It used to say no save could BE mid-tutorial: the script was the one
+      // part of the JS not ported, so `settleTutorial` marked every save
+      // finished on the way in and the dormant state was unreachable.
+      //
+      // The script is ported now (`engine/tutorial_engine.dart`), so
+      // `settleTutorial` settles only a save with EVIDENCE OF PLAY — and a
+      // brand new one is genuinely mid-tutorial. The dormant state is what it
+      // should see: every Sunday League draw is bronze, so a live bronze rule
+      // would soft-lock "scout until you have three", which is step two.
       await pumpRow(tester, _save(tutorialDone: false));
+      await tester.tap(find.byKey(const ValueKey('auto-tier-row')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('auto-tier-dormant')), findsOneWidget);
+    });
+
+    testWidgets('and a PLAYED save is live, whatever its flag says', (
+      tester,
+    ) async {
+      // Evidence of play rather than a version stamp: a save with a match
+      // behind it has been played, and a player who has been playing for weeks
+      // must not be handed a welcome screen or have their rules turned off.
+      final save = _save(tutorialDone: false);
+      (save['progression'] as Map<String, dynamic>)['matchesPlayed'] = 3;
+      await pumpRow(tester, save);
       await tester.tap(find.byKey(const ValueKey('auto-tier-row')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('auto-tier-dormant')), findsNothing);

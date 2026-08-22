@@ -11,6 +11,7 @@ import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/ui/popups/achievement_unlock.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/popups/toast_host.dart';
+import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/services/prefs_save_store.dart';
@@ -64,7 +65,21 @@ class MergeEmpireApp extends ConsumerWidget {
           // achievement banner is inside both for the same reason, and it is the
           // innermost of the three: it is the one that is purely a celebration.
           child: PopupHost(
-            child: ToastHost(child: AchievementUnlockHost(child: AppShell())),
+            // **THE TUTORIAL IS THE APP'S, not the shell's.** It draws nothing
+            // itself — it opens Colin's card and switches tabs — and it hangs
+            // here rather than inside `AppShell` for a reason worth keeping:
+            // a shell built for a test is a save that has never been played,
+            // which IS a save the tutorial should run for. Seventy-nine tests
+            // about the HUD, the tabs and the popups are not about that, and a
+            // widget that opens a card over all of them belongs at the app's
+            // own root where they never reach it.
+            child: ToastHost(
+              child: AchievementUnlockHost(
+                child: Stack(
+                  children: [AppShell(), TutorialHost()],
+                ),
+              ),
+            ),
           ),
         ),
       ),

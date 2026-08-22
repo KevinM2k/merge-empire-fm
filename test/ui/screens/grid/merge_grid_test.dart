@@ -59,7 +59,12 @@ Map<String, dynamic> _card(String id, String instanceId, {int variant = 0}) => {
 Future<ProviderContainer> pumpGridAnimated(
   WidgetTester tester, {
   Map<int, Map<String, dynamic>> cards = const {},
-  bool tutorialDone = false,
+  // **TRUE by default, and it used to be false and INERT.** `settleTutorial`
+  // marked every save finished on the way in, so this parameter said `false`
+  // in twenty-eight tests and none of them was mid-tutorial. It settles only a
+  // save with evidence of play now — there is a tutorial to be in the middle
+  // of — so the default has to say what these tests actually mean.
+  bool tutorialDone = true,
 }) async {
   final state = createDefaultState();
   final cells =
@@ -97,7 +102,12 @@ Future<ProviderContainer> pumpGridAnimated(
 Future<ProviderContainer> pumpGrid(
   WidgetTester tester, {
   Map<int, Map<String, dynamic>> cards = const {},
-  bool tutorialDone = false,
+  // **TRUE by default, and it used to be false and INERT.** `settleTutorial`
+  // marked every save finished on the way in, so this parameter said `false`
+  // in twenty-eight tests and none of them was mid-tutorial. It settles only a
+  // save with evidence of play now — there is a tutorial to be in the middle
+  // of — so the default has to say what these tests actually mean.
+  bool tutorialDone = true,
 }) async {
   final state = createDefaultState();
   final cells =
