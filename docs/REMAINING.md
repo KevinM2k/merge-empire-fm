@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,387 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,390 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**103 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**102 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3599,26 +3599,53 @@ Its own list, because almost none of it is right yet.
       top that did not read as a keeper's, with no socks, boots or feet. All of
       that is addressed below; what remains of this line is taste — say what
       still looks wrong after playing it.
-      - **The necks did not exist by arithmetic**: the torso stroke's round cap
-        covers 0.15 past the shoulder and the head is 0.13 around its centre,
-        so a 0.22 neck put the head straight onto the shirt. Both necks are
-        0.34 now with a drawn skin stroke.
       - **The arms came out of the waist because of where they were DRAWN
         from**: both hung off the torso's centreline, so the 0.30-wide torso
         stroke swallowed their top third and they surfaced at hip height,
-        tiny. They hang off the girdle's edges now, over a fixed-bend elbow,
+        tiny. They hang off the girdle's edges now, over a two-bone elbow,
         with a sleeve to the elbow and skin to the hand.
-      - **The keeper's monkey arms were the reach circle worn as a pose**: the
-        gloves sat ON the circle in every pose, a wingspan of dead-straight
-        limb held out at rest. The circle is the ball-side truth, so the
-        gloves are on it only when the dive is FULL; short of that the arm is
-        folded at the elbow (`_gloveTuck`, a two-bone solve so neither bone
-        ever changes length).
       - **The kit is a kit**: the whole leg was one dark stroke, which is
         trousers. Shorts stop at the knee, socks run into the boots, the boots
         are boots; the taker's shirt has short sleeves; the keeper wears the
         classic strip — long sleeves in one loud colour, black shorts,
         matching socks, and WHITE gloves.
+
+      **Reported again after that pass, and this is the round that answers
+      it**: the limbs still did not CONNECT on either figure, both necks were
+      too long, the keeper's arms were still too long and bent backwards, and
+      the faces were blank.
+      - **A limb connects when it hangs off a bar that is DRAWN.** Every arm
+        and leg started at a single centreline point under a torso stroke whose
+        ROUND cap domed past it — so the shirt painted over the tops of the
+        legs and the limbs surfaced out of the body instead of joining it. The
+        torso ends flat now (butt cap), and there is a pelvis
+        (`_keeperHip` / `_takerHip`) and a shoulder girdle, both painted, with
+        one limb off each end. That is the whole fix and it is four strokes.
+      - **The necks were long because of the cap they were sized to clear.**
+        0.34 was solved against the round cap's dome; with the torso ending
+        flat the head sits at 0.25 and the neck is the sliver it should be.
+      - **The keeper's arm is a BODY's arm now, not the reach circle's
+        radius.** Pinning the glove to the circle at full stretch forced the
+        two bones to sum to `keeperReach` less the girdle — 0.88m of arm on a
+        man 1.8m tall, which is the length of his own leg. The circle is the
+        PHYSICS' truth and it already includes what it includes; the figure in
+        front of it is a person. 0.33 + 0.34 now, and a save at the very edge
+        of the reach may show the glove a hand short for a frame — which is a
+        better trade than an ape in every frame of every kick.
+      - **"Bent backwards" was the rest-angle, not the elbow.** At 104 degrees
+        from vertical the arm was near-horizontal, so an elbow bowing below the
+        chord sent the forearm back UP to the glove. At 132 both bones point
+        downward and the same kink reads as a relaxed hang — gloves at his
+        hips, where a set keeper's are.
+      - **The taker's forearm folds IN.** It turned further OUT, so the two
+        bones straightened into one splayed stick and his arms reached
+        sideways nearly as far as his legs reached down. From directly behind,
+        a running arm is an elbow at the ribs with the hand tucked in front.
+      - **The faces**: the keeper has brows, eyes, a mouth, ears, hair over the
+        crown and down the nape, and a collar; the taker, seen from behind, has
+        the hair, the ears and the collar and no face, because there is none to
+        see. Two or three pixels each at a keeper's size on screen, and the
+        difference between a person and a blank.
 - [x] **The background was at the wrong height, and the goal line was why.**
       The seam between the painter's turf and the photograph behind it was
       `goalLineY`, so the band handed to the art started ON the line — and the
@@ -3670,7 +3697,16 @@ Its own list, because almost none of it is right yet.
       `_focalFor` opens the lens when the view is too short to hold both. A
       widget test's own 800×600 surface is already past that aspect, which is
       how the wide case was caught.
-- [ ] **The kicker swings his leg oddly.**
+- [x] **The kicker's odd swing was a leg with no knee in it.** One rigid
+      segment from hip to boot, pivoting through 45 degrees, with no backlift at
+      all — the angle ran from 0.36 radians to 1.14 and that was the whole kick.
+      It is two bones over a knee now (`kneeBetween`, a two-bone solve), and the
+      strike is TWO BEATS: back with the knee folded (`_takerCock`), then an
+      eased snap through that STRAIGHTENS into the ball, which is the part that
+      lands on it. The thigh and the shin are what may never change length —
+      the hip-to-boot distance is what SHOULD, because a folded leg is a shorter
+      leg, and pinning that distance is exactly what forced the bones to
+      stretch.
 - [x] **The keeper's arms were huge in two ways, and only one was the length.**
       `keeperHand` is the centre of the reach and the centre is his CHEST, so an
       arm drawn from there to the glove is the whole of `keeperReach` — 1.05m of

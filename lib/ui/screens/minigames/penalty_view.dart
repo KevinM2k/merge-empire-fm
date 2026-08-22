@@ -411,11 +411,22 @@ class PenaltyFrame {
 const double _keeperLeg = 0.88;
 const double _keeperTorso = 0.64;
 
-/// Head centre above the shoulder. **Big enough to leave a visible neck**: the
-/// torso stroke's round cap covers 0.15 past the shoulder and the head is 0.13
-/// around its centre, so anything under 0.28 puts the head straight onto the
-/// shirt and the figure has no neck at all — which it did not.
-const double _keeperNeck = 0.34;
+/// Head centre above the shoulder.
+///
+/// A neck is a HINT, not a limb: 0.34 — sized so a skin stroke could clear the
+/// torso cap's dome — read as a head on a stick. The torso ends FLAT now (butt
+/// cap, with the shoulder bar giving the figure its shoulders), so the head can
+/// sit close and the sliver of skin between bar and chin is all the neck a
+/// figure this size wants.
+const double _keeperNeck = 0.25;
+
+/// Half the pelvis: how far each leg's hip joint sits off the centreline.
+///
+/// **Legs come off a PELVIS, not a point.** Both hung from the same centre
+/// pixel, and the torso's rounded end painted over their tops — so the legs
+/// read as detached from the body, with the shirt covering the crotch like a
+/// leotard. Each leg hangs off its own side of a hip bar now.
+const double _keeperHip = 0.07;
 
 /// How far the legs open, from straight down, at rest and at full stretch.
 const double _legSplitRest = 6.5 * math.pi / 180;
@@ -424,47 +435,46 @@ const double _legSplitDive = 30 * math.pi / 180;
 /// Where the arms point, measured from straight up. The leading one swings out
 /// past horizontal as he reaches; the trailing one tucks in.
 ///
-/// **At rest they are OUT, not UP.** Fifty-two degrees is a man signalling a
-/// touchdown, and two full-reach limbs held in a V above the shoulders is most
-/// of what was reported as huge arms — the length was reasonable, the pose was
-/// not. A keeper set for a penalty has them out to the sides and a little below
-/// the shoulder, which is also the pose the dive leaves from.
-const double _armRest = 104 * math.pi / 180;
+/// **At rest they hang DOWN and out, bent at the elbow.** 52 degrees was a man
+/// signalling a touchdown; 104 was near-horizontal, and with the elbow bowing
+/// below the chord the forearm rose back up to the glove, which read as an arm
+/// bent backwards. Steep enough that both bones point downward, the same kink
+/// reads as a relaxed arm — a set keeper's gloves are at his hips, not at his
+/// shoulders.
+const double _armRest = 132 * math.pi / 180;
 const double _armLead = 96 * math.pi / 180;
 const double _armTrail = 22 * math.pi / 180;
 
-/// Half the shoulder girdle: how far out of his chest an arm actually starts.
+/// Half the shoulder girdle: how far out of the centreline each arm hangs.
 ///
-/// **The other half of the huge arms, and it is the reach circle's fault.**
-/// `keeperHand` is the centre of the reach and the centre is his CHEST, so an
-/// arm drawn from there to the glove is [keeperReach] long — 1.05m of limb on a
-/// figure whose whole leg is 0.88m, radiating from his sternum with no shoulder
-/// to hang off. The glove has to reach the circle when he is at full stretch;
-/// where the arm STARTS does not.
-///
-/// Displaced along the arm's own direction rather than square across the chest,
-/// which is what keeps every arm the same length. A fixed sideways offset would
-/// leave the drawn limb longer for a tucked arm than for an outstretched one,
-/// which is the stretching this rig was rebuilt to kill.
-const double _keeperShoulder = 0.19;
+/// A fixed lateral joint, the same as the taker's, joined by a drawn shoulder
+/// bar — which is what makes the arm CONNECT to the body instead of surfacing
+/// out of the torso stroke.
+const double _keeperShoulder = 0.16;
 
 /// The two bones of a keeper's arm, in metres.
 ///
-/// Their sum barely exceeds the full-stretch span ([keeperReach] less the
-/// girdle), so a committed dive very nearly straightens the arm — which is what
-/// full stretch means — while anything short of it leaves a visible elbow.
-const double _keeperUpperArm = 0.45;
-const double _keeperForeArm = 0.43;
+/// **A body's arm, not the reach's.** They summed to 0.88 — the length of his
+/// whole leg — because the glove was still required to land on the reach circle
+/// at full stretch, and the circle is [keeperReach] from his chest. That
+/// requirement is the monkey arms: the circle is the PHYSICS' truth and it
+/// already includes what it includes; the figure in front of it is a person,
+/// and a person's arm is about three quarters of his leg. A save at the very
+/// edge of the reach may show the glove a hand short of the ball for a frame,
+/// and that is the right trade.
+const double _keeperUpperArm = 0.33;
+const double _keeperForeArm = 0.34;
 
-/// How much of the reach the gloves sit at when he has not gone.
+/// How much of the arm's full length the shoulder-to-glove span covers at rest.
 ///
-/// **A set keeper's arms are BENT.** The gloves used to sit on the reach circle
+/// **A set keeper's arms are BENT.** The gloves used to sit at full extension
 /// in every pose — a wingspan of dead-straight limb held out at rest, which is
-/// what was reported as arms like a monkey's. The circle is the ball-side truth
-/// and the gloves are on it when the dive is full, because that is what the
-/// save at full stretch looks like; at rest the arm is folded at the elbow and
-/// the glove is most of the way in.
-const double _gloveTuck = 0.62;
+/// what was reported as arms like a monkey's. The dive straightens the arm to
+/// nearly its whole length, because that is what full stretch means; at rest it
+/// is folded at the elbow — but only to about four fifths, because folded to
+/// three fifths his gloves sat at his waist and the arms read as stubby rather
+/// than as ready.
+const double _gloveTuck = 0.80;
 
 /// The keeper's figure, solved in SCREEN space from the one point the physics
 /// actually knows.
@@ -504,6 +514,10 @@ typedef KeeperRig = ({
   /// His CHEST, and the centre of the reach circle — see `keeperHand`.
   Offset shoulder,
   Offset hip,
+
+  /// The pelvis: where each leg actually hangs. See [_keeperHip].
+  Offset leftHip,
+  Offset rightHip,
   Offset head,
   Offset leftBoot,
   Offset rightBoot,
@@ -538,41 +552,40 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   // Local frame, hip at the origin, head up. Every length below is a constant.
   final torso = unit * _keeperTorso;
   final legLen = unit * _keeperLeg;
-  // **The arm is the PHYSICS' own reach.** `keeperReach` is what the save test
-  // measures with, so the drawn arm and the arm that saves it are one number.
-  final armLen = unit * keeperReach;
 
   final localHip = Offset.zero;
   final localShoulder = Offset(0, -torso);
   final localHead = Offset(0, -torso - unit * _keeperNeck);
 
+  // Legs off a PELVIS: each hangs from its own side of the hip bar, which is
+  // what makes them part of the body rather than two strokes meeting the
+  // torso's centreline at a point.
+  final hipOff = unit * _keeperHip;
+  final localHipL = Offset(-hipOff, 0);
+  final localHipR = Offset(hipOff, 0);
   final split = _legSplitRest + (_legSplitDive - _legSplitRest) * dive;
   final legOut = math.sin(split) * legLen;
   final legDown = math.cos(split) * legLen;
-  final localLeft = Offset(-legOut, legDown);
-  final localRight = Offset(legOut, legDown);
+  final localLeft = localHipL + Offset(-legOut, legDown);
+  final localRight = localHipR + Offset(legOut, legDown);
 
   final leadAngle = _armRest + (_armLead - _armRest) * dive;
   final trailAngle = _armRest + (_armTrail - _armRest) * dive;
   final leadWay = Offset(math.sin(leadAngle) * out, -math.cos(leadAngle));
   final trailWay = Offset(-math.sin(trailAngle) * out, -math.cos(trailAngle));
 
-  // Where the arm starts, where it bends, and where the glove is. The reach
-  // circle — centred on his chest, because that is what decides saves — is
-  // where the glove lands when the dive is FULL; short of it the arm is folded
-  // at the elbow and the glove is inside the circle. See [_gloveTuck]. The
+  // Where the arm starts, where it bends, and where the glove is. Each arm
+  // hangs off its own side of the shoulder bar; the dive straightens it to
+  // nearly its full length and at rest it is folded — see [_gloveTuck]. The
   // elbow is a two-bone solve, so neither bone ever changes length; it bows
-  // toward his feet, which is the way an elbow hangs.
+  // toward his feet, which with both bones pointing downward at rest is a
+  // relaxed hang rather than a backwards bend.
   final girdle = unit * _keeperShoulder;
   final upper = unit * _keeperUpperArm;
   final fore = unit * _keeperForeArm;
-  final gloveOut = armLen * (_gloveTuck + (1 - _gloveTuck) * dive);
-  (Offset, Offset, Offset) armFrom(Offset way) {
-    final joint = localShoulder + way * girdle;
-    final span = (gloveOut - girdle).clamp(
-      (upper - fore).abs() + 1e-6,
-      upper + fore,
-    );
+  final span = (upper + fore) * (_gloveTuck + (0.98 - _gloveTuck) * dive);
+  (Offset, Offset, Offset) armFrom(Offset way, double side) {
+    final joint = localShoulder + Offset(side * girdle, 0);
     final glove = joint + way * span;
     final reach = (span * span + upper * upper - fore * fore) / (2 * span);
     final drop = math.sqrt(math.max(0, upper * upper - reach * reach));
@@ -581,8 +594,11 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
     return (joint, joint + way * reach + perp * drop, glove);
   }
 
-  final (localLeadJoint, localLeadElbow, localLead) = armFrom(leadWay);
-  final (localTrailJoint, localTrailElbow, localTrail) = armFrom(trailWay);
+  final (localLeadJoint, localLeadElbow, localLead) = armFrom(leadWay, out);
+  final (localTrailJoint, localTrailElbow, localTrail) = armFrom(
+    trailWay,
+    -out,
+  );
 
   // **`keeperHand` IS THE CENTRE OF HIS REACH, not a fingertip**, whatever its
   // name says — `_keeperGotIt` tests the ball against it and then allows another
@@ -613,6 +629,8 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
     trailElbow: at(localTrailElbow),
     shoulder: at(localShoulder),
     hip: at(localHip),
+    leftHip: at(localHipL),
+    rightHip: at(localHipR),
     head: at(localHead),
     leftBoot: leftBoot,
     rightBoot: rightBoot,
@@ -667,21 +685,39 @@ Path dashedPath(
 const double _takerLeg = 0.90;
 const double _takerTorso = 0.64;
 
-/// Head centre above the shoulder — sized to leave a NECK past the torso
-/// stroke's cap and the head's own radius, for the same reason as
-/// [_keeperNeck].
-const double _takerNeck = 0.34;
+/// Head centre above the shoulder. Short, for the same reason as [_keeperNeck]:
+/// the torso ends flat now, so the head sits close and the neck is a sliver
+/// rather than a stalk.
+const double _takerNeck = 0.25;
+
+/// Half his pelvis: how far each leg hangs off the centreline.
+///
+/// Both legs used to start at the same point, under a torso stroke whose round
+/// cap domed over their tops — so they read as detached, which is exactly what
+/// was reported. Each hangs off its own side of a drawn hip bar now.
+const double _takerHip = 0.07;
 
 /// Half his shoulder girdle, and the two bones of an arm.
 ///
 /// **The arms used to come out of his waist**, and it was an artefact of where
 /// they were drawn from: both hung from the torso's centreline, so the torso
 /// stroke — 0.30 wide — swallowed their top third and they surfaced at hip
-/// height, tiny. They hang off the girdle's edges now, where shoulders are,
-/// and at 0.56 of bone they are arms rather than flippers.
+/// height, tiny. They hang off the girdle's edges now, where shoulders are.
 const double _takerGirdle = 0.16;
-const double _takerUpperArm = 0.28;
-const double _takerForeArm = 0.28;
+const double _takerUpperArm = 0.29;
+const double _takerForeArm = 0.27;
+
+/// How far out of vertical the upper arm hangs while he runs, and how far the
+/// forearm turns back IN from it.
+///
+/// **A runner's forearm comes in, not out.** Both were splayed: the upper arm
+/// sat 35 degrees off vertical and the forearm added another 20 on top, so the
+/// arms reached out sideways nearly as far as his legs reached down — a man
+/// walking a tightrope. Seen from directly behind, a running arm is an elbow
+/// out at the ribs with the hand tucked in front of it, which is the upper arm
+/// near-vertical and the forearm folded back across.
+const double _takerArmHang = 0.30;
+const double _takerArmFold = 0.85;
 
 /// The two bones the leg is actually made of.
 ///
@@ -723,6 +759,10 @@ typedef TakerRig = ({
   /// hip, which is what an odd swing looks like — see [_takerThigh].
   Offset plantKnee,
   Offset kickKnee,
+
+  /// The pelvis: where each leg actually hangs. See [_takerHip].
+  Offset plantHip,
+  Offset kickHip,
 
   /// The arms: where each hangs off the girdle, where it bends, and the hand.
   Offset leftJoint,
@@ -822,24 +862,33 @@ TakerRig? takerRigFor(double t, Size view) {
       ? (-0.16, 0.98)
       : (-cycle * 0.34, 0.96 + 0.02 * math.max(0.0, cycle));
 
-  // The hip is wherever it has to be for the PLANT boot to be on the turf.
+  // The hip is wherever it has to be for the PLANT boot to be on the turf —
+  // and the plant boot hangs off the pelvis, not off the centreline, so the
+  // half-pelvis has to come back out of it or the whole figure slides a hip's
+  // width off the ground it is running over.
+  final pelvis = unit * _takerHip;
   final hip =
-      ground -
+      ground +
+      Offset(pelvis, 0) -
       Offset(
         math.sin(plantAngle) * legLen * plantReach,
         math.cos(plantAngle) * legLen * plantReach,
       );
   final shoulder = hip + Offset(0, -torso);
 
-  Offset bootAt(double angle, double reach) =>
-      hip +
+  // Each leg hangs off its own side of the pelvis.
+  final plantHip = hip + Offset(-pelvis, 0);
+  final kickHip = hip + Offset(pelvis, 0);
+
+  Offset bootAt(Offset from, double angle, double reach) =>
+      from +
       Offset(
         math.sin(angle) * legLen * reach,
         math.cos(angle) * legLen * reach,
       );
 
-  final plantBoot = bootAt(plantAngle, plantReach);
-  final kickBoot = bootAt(kickAngle, kickReach);
+  final plantBoot = bootAt(plantHip, plantAngle, plantReach);
+  final kickBoot = bootAt(kickHip, kickAngle, kickReach);
 
   // Arms counter-swing, which is most of what makes a run read as a run — by
   // angle, at lengths that never move. They hang off the GIRDLE's edges, where
@@ -848,10 +897,10 @@ TakerRig? takerRigFor(double t, Size view) {
   // out of his waist. The strike throws both up and out — a taker's arms fly
   // for balance as the leg goes through.
   final fling = striking > 0
-      ? 0.42 * math.min(1.0, striking / _takerCock)
+      ? 0.62 * math.min(1.0, striking / _takerCock)
       : 0.0;
-  final swingArm = 0.62 + cycle * 0.22 + fling;
-  final other = 0.62 - cycle * 0.22 + fling;
+  final swingArm = _takerArmHang + cycle * 0.20 + fling;
+  final other = _takerArmHang - cycle * 0.20 + fling;
   final girdle = unit * _takerGirdle;
   final upperArm = unit * _takerUpperArm;
   final foreArm = unit * _takerForeArm;
@@ -859,14 +908,12 @@ TakerRig? takerRigFor(double t, Size view) {
     final joint = shoulder + Offset(side * girdle, 0);
     final way = Offset(side * math.sin(angle), math.cos(angle));
     // A fixed bend AT the elbow: the forearm is the upper arm's direction
-    // turned a few degrees further out, so both bones keep their length by
-    // construction and the arm still has a joint in it. Outward is how a
-    // swinging arm hangs when seen from behind.
-    const bend = 0.35;
-    final foreWay = Offset(
-      side * math.sin(angle + bend),
-      math.cos(angle + bend),
-    );
+    // turned back INWARD, so both bones keep their length by construction and
+    // the arm still has a joint in it. Inward is the direction that matters —
+    // turned further OUT, which is what it did, the two bones straightened
+    // into one splayed stick. See [_takerArmFold].
+    final fore = angle - _takerArmFold;
+    final foreWay = Offset(side * math.sin(fore), math.cos(fore));
     final elbow = joint + way * upperArm;
     return (joint, elbow, elbow + foreWay * foreArm);
   }
@@ -883,8 +930,10 @@ TakerRig? takerRigFor(double t, Size view) {
     // Bowed the way the leg is SWINGING: from directly behind him a knee's own
     // forward bend projects to almost nothing, and what the eye reads is the
     // kink in the plane of the swing.
-    plantKnee: kneeBetween(hip, plantBoot, unit, plantAngle),
-    kickKnee: kneeBetween(hip, kickBoot, unit, kickAngle),
+    plantKnee: kneeBetween(plantHip, plantBoot, unit, plantAngle),
+    kickKnee: kneeBetween(kickHip, kickBoot, unit, kickAngle),
+    plantHip: plantHip,
+    kickHip: kickHip,
     leftJoint: leftJoint,
     rightJoint: rightJoint,
     leftElbow: leftElbow,
@@ -1238,13 +1287,29 @@ class PenaltyPainter extends CustomPainter {
       ..strokeWidth = unit * w
       ..strokeCap = StrokeCap.round;
 
-    // Legs, hip to boot. They SPLIT with the dive — a keeper at full stretch has
-    // one leg trailing — and they do it by ANGLE, at a length that never moves.
-    // Shorts down the thigh, sock from there to the boot, and a BOOT: the whole
-    // leg used to be one dark stroke, which is trousers.
-    for (final foot in [rig.leftBoot, rig.rightBoot]) {
-      final knee = Offset.lerp(rig.hip, foot, 0.48)!;
-      canvas.drawLine(rig.hip, knee, limb(shortsColour, 0.17));
+    // **The order is the anatomy.** Torso first with a FLAT end — its round cap
+    // used to dome past both the hip and the shoulder, painting shirt over the
+    // leg tops and swallowing the neck — then the hip bar and the legs off it,
+    // the shoulder bar and the arms off that, and the head last. Every limb
+    // starts on a bar that is drawn, which is what connects it to the body.
+    canvas.drawLine(
+      rig.hip,
+      rig.shoulder,
+      Paint()
+        ..color = shirtColour
+        ..strokeWidth = unit * 0.30
+        ..strokeCap = StrokeCap.butt,
+    );
+    // The pelvis, and the legs off it: shorts down the thigh, sock from there
+    // to the boot, and a BOOT — the whole leg used to be one dark stroke,
+    // which is trousers.
+    canvas.drawLine(rig.leftHip, rig.rightHip, limb(shortsColour, 0.24));
+    for (final (hip, foot) in [
+      (rig.leftHip, rig.leftBoot),
+      (rig.rightHip, rig.rightBoot),
+    ]) {
+      final knee = Offset.lerp(hip, foot, 0.48)!;
+      canvas.drawLine(hip, knee, limb(shortsColour, 0.16));
       canvas.drawLine(knee, foot, limb(sockColour, 0.12));
       canvas.drawOval(
         Rect.fromCenter(
@@ -1255,17 +1320,10 @@ class PenaltyPainter extends CustomPainter {
         Paint()..color = bootColour,
       );
     }
-    // Torso, and a NECK — without one the head sat on the shirt like a ball on
-    // a post.
-    canvas.drawLine(rig.hip, rig.shoulder, limb(shirtColour, 0.30));
-    canvas.drawLine(rig.shoulder, rig.head, limb(skin, 0.08));
-    // Both arms over an elbow, gloves on the reach circle only at full stretch.
-    //
-    // **Drawn from the SHOULDER, over an elbow.** Straight from the chest they
-    // were the full reach of limb radiating out of his sternum — longer than
-    // his own leg, with no joint in either — which is what a player watching
-    // called huge arms. Long sleeves, because keepers wear them; forearms are
-    // thinner than upper arms, which is most of the rest.
+    // The shoulders, and the arms off them, folded at rest and straightening
+    // into the dive. Long sleeves, because keepers wear them; forearms thinner
+    // than upper arms.
+    canvas.drawLine(rig.leadJoint, rig.trailJoint, limb(shirtColour, 0.18));
     for (final (joint, elbow, glove, w) in [
       (rig.leadJoint, rig.leadElbow, rig.glove, 0.13),
       (rig.trailJoint, rig.trailElbow, rig.trailGlove, 0.12),
@@ -1276,16 +1334,71 @@ class PenaltyPainter extends CustomPainter {
     for (final glove in [rig.glove, rig.trailGlove]) {
       canvas.drawCircle(glove, unit * 0.085, Paint()..color = gloveColour);
     }
-    // Head, and a face — two dots are enough at this size, and without them he
-    // is a ball on a stick. The eyes turn with him.
-    canvas.drawCircle(rig.head, unit * 0.13, Paint()..color = skin);
-    final eye = Paint()..color = const Color(0xFF20262E);
-    final c = math.cos(rig.lean);
-    final sn = math.sin(rig.lean);
+    // A sliver of neck, and a head with a FACE on it — hair, eyes, a mouth.
+    // Two dots alone were a ball on a stick. Drawn in the head's own rotated
+    // frame so the whole face turns with the dive.
+    canvas.drawLine(rig.shoulder, rig.head, limb(skin, 0.09));
+    canvas.save();
+    canvas.translate(rig.head.dx, rig.head.dy);
+    canvas.rotate(rig.lean);
+    // The collar, in the head's frame so it turns with him.
+    canvas.drawLine(
+      Offset(-unit * 0.085, unit * 0.155),
+      Offset(unit * 0.085, unit * 0.155),
+      Paint()
+        ..color = const Color(0xFFE0A21F)
+        ..strokeWidth = unit * 0.05
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(Offset.zero, unit * 0.14, Paint()..color = skin);
+    // Ears, then hair over the crown and down the nape — a flat lid on a disc
+    // is what a head with no detail looks like.
     for (final side in [-1.0, 1.0]) {
-      final dx = side * unit * 0.045;
-      canvas.drawCircle(rig.head + Offset(dx * c, dx * sn), unit * 0.02, eye);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(side * unit * 0.135, unit * 0.015),
+          width: unit * 0.045,
+          height: unit * 0.07,
+        ),
+        Paint()..color = skin,
+      );
     }
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(0, unit * 0.01), radius: unit * 0.14),
+      math.pi * 1.02,
+      math.pi * 0.96,
+      true,
+      Paint()..color = const Color(0xFF4A3620),
+    );
+    final eye = Paint()..color = const Color(0xFF20262E);
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawCircle(
+        Offset(side * unit * 0.052, -unit * 0.005),
+        unit * 0.024,
+        eye,
+      );
+    }
+    // Brows and a mouth. At a keeper's size on screen these are two or three
+    // pixels each, and they are the difference between a face and a blank.
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawLine(
+        Offset(side * unit * 0.085, -unit * 0.055),
+        Offset(side * unit * 0.022, -unit * 0.045),
+        Paint()
+          ..color = const Color(0xFF4A3620)
+          ..strokeWidth = unit * 0.018
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    canvas.drawLine(
+      Offset(-unit * 0.032, unit * 0.078),
+      Offset(unit * 0.032, unit * 0.078),
+      Paint()
+        ..color = const Color(0xFF9C6B4E)
+        ..strokeWidth = unit * 0.022
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.restore();
   }
 
   /// The man taking it.
@@ -1335,11 +1448,26 @@ class PenaltyPainter extends CustomPainter {
     // distance from his hip to his boot does, because a folded leg is a shorter
     // leg, and folding it is most of what makes the strike a kick. Shorts on
     // the thigh, sock on the shin, and a boot that is a boot rather than a dot.
-    for (final (knee, foot) in [
-      (rig.plantKnee, rig.plantBoot),
-      (rig.kickKnee, rig.kickBoot),
+    // **The order is the anatomy**, the same as the keeper's: torso first with
+    // a FLAT end — a round cap domes past both the hip and the shoulder,
+    // painting shirt over the leg tops and swallowing the neck — then the hip
+    // bar with the legs off it, the shoulder bar with the arms off that, and
+    // the head last. A limb that starts on a bar that is drawn is a limb that
+    // is attached.
+    canvas.drawLine(
+      rig.hip,
+      rig.shoulder,
+      Paint()
+        ..color = shirt
+        ..strokeWidth = unit * 0.30
+        ..strokeCap = StrokeCap.butt,
+    );
+    canvas.drawLine(rig.plantHip, rig.kickHip, limb(shorts, 0.24));
+    for (final (hip, knee, foot) in [
+      (rig.plantHip, rig.plantKnee, rig.plantBoot),
+      (rig.kickHip, rig.kickKnee, rig.kickBoot),
     ]) {
-      canvas.drawLine(rig.hip, knee, limb(shorts, 0.17));
+      canvas.drawLine(hip, knee, limb(shorts, 0.16));
       canvas.drawLine(knee, foot, limb(sock, 0.12));
       canvas.drawOval(
         Rect.fromCenter(
@@ -1350,12 +1478,10 @@ class PenaltyPainter extends CustomPainter {
         Paint()..color = boot,
       );
     }
-    // Torso, and a NECK — the head used to sit straight on the shirt.
-    canvas.drawLine(rig.hip, rig.shoulder, limb(shirt, 0.30));
-    canvas.drawLine(rig.shoulder, rig.head, limb(skin, 0.08));
     // Arms off the girdle, over an elbow: sleeve to the elbow, skin to the
     // hand. From the torso's centreline the 0.30-wide stroke swallowed their
     // top third and they surfaced at hip height, tiny.
+    canvas.drawLine(rig.leftJoint, rig.rightJoint, limb(shirt, 0.18));
     for (final (joint, elbow, hand) in [
       (rig.leftJoint, rig.leftElbow, rig.leftHand),
       (rig.rightJoint, rig.rightElbow, rig.rightHand),
@@ -1364,14 +1490,43 @@ class PenaltyPainter extends CustomPainter {
       canvas.drawLine(elbow, hand, limb(skin, 0.09));
       canvas.drawCircle(hand, unit * 0.055, Paint()..color = skin);
     }
-    // The back of his head — no face, because we are behind him.
+    // A collar, a sliver of neck, and the BACK of his head — no face, because
+    // we are behind him, so the detail has to be the things you can see from
+    // there: hair over the crown and down the nape, and an ear each side.
+    canvas.drawLine(rig.shoulder, rig.head, limb(skin, 0.09));
+    canvas.drawLine(
+      rig.shoulder + Offset(-unit * 0.09, 0),
+      rig.shoulder + Offset(unit * 0.09, 0),
+      limb(const Color(0xFFC7D2E0), 0.05),
+    );
+    const hairColour = Color(0xFF2B2118);
     canvas.drawCircle(rig.head, unit * 0.135, Paint()..color = skin);
+    for (final side in [-1.0, 1.0]) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: rig.head + Offset(side * unit * 0.13, unit * 0.015),
+          width: unit * 0.05,
+          height: unit * 0.075,
+        ),
+        Paint()..color = skin,
+      );
+    }
+    // The hair: the crown, plus the nape below it, which is what stops the head
+    // reading as a disc with a lid on.
     canvas.drawArc(
       Rect.fromCircle(center: rig.head, radius: unit * 0.135),
-      math.pi,
-      math.pi,
+      math.pi * 0.86,
+      math.pi * 1.28,
       true,
-      Paint()..color = const Color(0xFF2B2118),
+      Paint()..color = hairColour,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: rig.head + Offset(0, unit * 0.055),
+        width: unit * 0.20,
+        height: unit * 0.11,
+      ),
+      Paint()..color = hairColour,
     );
     canvas.restore();
   }

@@ -62,24 +62,44 @@ void main() {
       }
     });
 
-    test('and his gloves reach exactly the circle when the dive is full', () {
-      // The reach circle is what decides saves, so at full stretch the drawn
-      // glove has to be ON it — a shorter sweep would show a keeper failing to
-      // touch balls he saved. Short of full stretch the arm is FOLDED at the
-      // elbow and the glove sits inside the circle: gloves pinned to the circle
-      // in every pose was a wingspan of dead-straight limb held out at rest,
-      // which is what read as arms like a monkey's.
-      final arm = scaleAt(-0.25, view, keeperReach);
+    test('HIS ARM IS A BODY\'S ARM, not the reach circle\'s radius', () {
+      // **The circle is the PHYSICS' truth and the figure is a person.** The
+      // glove used to be pinned to the reach circle at full stretch, which
+      // forced the two bones to sum to [keeperReach] less the girdle — 0.88m of
+      // arm, the length of his whole leg, on a man 1.8m tall. That is the
+      // monkey arms, and the pinning is what caused it.
+      //
+      // So the arm is sized like an arm and the glove lands where an arm's
+      // glove lands. A save at the very edge of the reach may show the glove a
+      // hand short of the ball for a frame; a keeper built like an ape shows in
+      // every frame of every kick.
+      final circle = scaleAt(-0.25, view, keeperReach);
       for (final pose in poses) {
         final rig = keeperRigFor(pose, view)!;
-        for (final glove in [rig.glove, rig.trailGlove]) {
+        final leg = (rig.leftBoot - rig.leftHip).distance;
+        for (final (joint, glove) in [
+          (rig.leadJoint, rig.glove),
+          (rig.trailJoint, rig.trailGlove),
+        ]) {
+          final arm = (glove - joint).distance;
+          expect(
+            arm,
+            lessThan(leg * 0.85),
+            reason:
+                'side ${pose.side} dive ${pose.dive}: his arm is '
+                '${(arm / leg).toStringAsFixed(2)} of his leg',
+          );
+          // Inside the circle always, and folded well inside it at rest.
           final sweep = (glove - rig.shoulder).distance;
-          expect(sweep, lessThanOrEqualTo(arm + 1e-6));
-          if (pose.dive >= 1) {
-            expect(sweep, closeTo(arm, 1e-6));
-          } else if (pose.dive == 0) {
-            expect(sweep, lessThan(arm * 0.75));
-          }
+          expect(sweep, lessThan(circle));
+          if (pose.dive == 0) expect(sweep, lessThan(circle * 0.72));
+        }
+        // The dive still STRAIGHTENS it, which is what full stretch means.
+        if (pose.dive >= 1) {
+          expect(
+            (rig.glove - rig.leadJoint).distance,
+            greaterThan((rig.glove - rig.leadElbow).distance * 1.9),
+          );
         }
       }
     });
@@ -105,33 +125,6 @@ void main() {
       }
       expect(upper, hasLength(1), reason: 'an upper arm changed: $upper');
       expect(fore, hasLength(1), reason: 'a forearm changed: $fore');
-    });
-
-    test('THE ARM HE IS DRAWN WITH IS SHORTER THAN HIS REACH', () {
-      // Reported from the couch as huge arms. `keeperHand` is the centre of the
-      // reach and the centre is his CHEST, so an arm drawn from there to the
-      // glove is the full [keeperReach] — 1.05m of limb on a figure whose whole
-      // leg is 0.88m, radiating out of his sternum. The glove has to stay on the
-      // circle, because that circle is what decides saves; where the arm STARTS
-      // does not.
-      for (final pose in poses) {
-        final rig = keeperRigFor(pose, view)!;
-        final leg = (rig.leftBoot - rig.hip).distance;
-        for (final (joint, glove) in [
-          (rig.leadJoint, rig.glove),
-          (rig.trailJoint, rig.trailGlove),
-        ]) {
-          final arm = (glove - joint).distance;
-          expect((glove - rig.shoulder).distance, greaterThan(arm));
-          expect(
-            arm,
-            lessThan(leg),
-            reason:
-                'side ${pose.side} dive ${pose.dive}: his arm is longer '
-                'than his leg',
-          );
-        }
-      }
     });
 
     test('and the DRAWN limb does not stretch either', () {
@@ -199,16 +192,36 @@ void main() {
     });
 
     test('and his legs keep their length too', () {
+      // Measured from the PELVIS each hangs off, not from his centreline. Both
+      // legs used to start at the same point under a torso stroke whose round
+      // cap domed over their tops, so they read as detached from the body.
       final thighs = <double>{};
       for (final pose in poses) {
         final rig = keeperRigFor(pose, view)!;
-        for (final boot in [rig.leftBoot, rig.rightBoot]) {
-          thighs.add(
-            double.parse((boot - rig.hip).distance.toStringAsFixed(6)),
-          );
+        for (final (hip, boot) in [
+          (rig.leftHip, rig.leftBoot),
+          (rig.rightHip, rig.rightBoot),
+        ]) {
+          thighs.add(double.parse((boot - hip).distance.toStringAsFixed(6)));
         }
       }
       expect(thighs, hasLength(1), reason: 'a leg changed length: $thighs');
+    });
+
+    test('and each leg hangs off its own side of the pelvis', () {
+      for (final pose in poses) {
+        final rig = keeperRigFor(pose, view)!;
+        expect(
+          (rig.leftHip - rig.rightHip).distance,
+          greaterThan(rig.unit * 0.1),
+        );
+        // The bar is centred on the hip the whole figure is built from.
+        final mid = Offset(
+          (rig.leftHip.dx + rig.rightHip.dx) / 2,
+          (rig.leftHip.dy + rig.rightHip.dy) / 2,
+        );
+        expect((mid - rig.hip).distance, lessThan(0.001));
+      }
     });
 
     test('the body stays a body: head above shoulder above hip', () {
@@ -277,14 +290,12 @@ void main() {
       for (final t in moments) {
         final rig = takerRigFor(t, view);
         if (rig == null) continue;
-        for (final (knee, boot) in [
-          (rig.plantKnee, rig.plantBoot),
-          (rig.kickKnee, rig.kickBoot),
+        for (final (hip, knee, boot) in [
+          (rig.plantHip, rig.plantKnee, rig.plantBoot),
+          (rig.kickHip, rig.kickKnee, rig.kickBoot),
         ]) {
           thighs.add(
-            double.parse(
-              ((knee - rig.hip).distance / rig.unit).toStringAsFixed(5),
-            ),
+            double.parse(((knee - hip).distance / rig.unit).toStringAsFixed(5)),
           );
           shins.add(
             double.parse(
@@ -404,6 +415,70 @@ void main() {
       expect(takerRigFor(1.0, view)!.fade, 1);
       expect(takerRigFor(1.5, view)!.fade, lessThan(1));
       expect(takerRigFor(2.0, view), isNull, reason: 'he never left');
+    });
+
+    test('HIS LIMBS HANG OFF JOINTS, not off his centreline', () {
+      // Reported from the couch: the arms and legs did not connect properly.
+      // Both legs started at one point and both arms at another, under a torso
+      // stroke whose round cap domed past each of them — so the shirt painted
+      // over the tops of the legs and the limbs surfaced out of the body
+      // instead of joining it. Every limb starts on a bar that is drawn.
+      for (final t in moments) {
+        final rig = takerRigFor(t, view);
+        if (rig == null) continue;
+        for (final (a, b) in [
+          (rig.plantHip, rig.kickHip),
+          (rig.leftJoint, rig.rightJoint),
+        ]) {
+          expect((a - b).distance, greaterThan(rig.unit * 0.1));
+          // Centred on the body, so the bar the limbs hang off is the bar the
+          // torso is drawn to.
+          final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+          expect(mid.dx, closeTo(rig.hip.dx, 0.001));
+        }
+        // And the shoulder bar is at the shoulder, the hip bar at the hip.
+        expect(
+          Offset(
+            (rig.leftJoint.dx + rig.rightJoint.dx) / 2,
+            (rig.leftJoint.dy + rig.rightJoint.dy) / 2,
+          ),
+          within(distance: 0.001, from: rig.shoulder),
+        );
+      }
+    });
+
+    test('and his standing boot is STILL on the turf, pelvis and all', () {
+      // The plant boot hangs off the pelvis rather than the centreline now, so
+      // the half-pelvis has to come back out of the hip or the whole figure
+      // slides a hip's width off the ground it is running over.
+      for (final t in moments) {
+        final rig = takerRigFor(t, view);
+        if (rig == null) continue;
+        expect((rig.plantBoot - rig.ground).distance, lessThan(0.5));
+      }
+    });
+
+    test('HIS FOREARM COMES IN, not further out', () {
+      // Both bones used to splay: the upper arm sat 35 degrees off vertical and
+      // the forearm added another 20 on top, so his arms reached out sideways
+      // nearly as far as his legs reached down. Seen from behind, a running arm
+      // is an elbow out at the ribs with the hand tucked in front of it.
+      for (final t in [0.3, 0.5, 0.7]) {
+        final rig = takerRigFor(t, view)!;
+        for (final (joint, elbow, hand) in [
+          (rig.leftJoint, rig.leftElbow, rig.leftHand),
+          (rig.rightJoint, rig.rightElbow, rig.rightHand),
+        ]) {
+          final side = joint.dx < rig.hip.dx ? -1.0 : 1.0;
+          // The hand is no further out than the elbow — the forearm folded
+          // back across rather than continuing the splay.
+          expect(
+            (hand.dx - rig.hip.dx) * side,
+            lessThanOrEqualTo((elbow.dx - rig.hip.dx) * side + 0.001),
+            reason: 'at $t the forearm carries on outward',
+          );
+        }
+      }
     });
   });
 
