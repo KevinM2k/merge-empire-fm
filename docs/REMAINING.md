@@ -4953,11 +4953,21 @@ that reads only the older entry will put them back.
       one cannot be found, the honest answer may be that a live match does not
       need them. Everything that comes off goes to the COMMENTARY, which the
       27 Aug entry already records as having very little room left.
-- [ ] **The pitch should be in PERSPECTIVE, and it has to be DRAWN.** Not a
-      photograph and not a PNG laid down in a trapezoid — the same call the
-      penalty scene made and for the same reason: the markings, the arrow and
-      the players all have to sit in that projection, and only a painter can put
-      them there. `CutawayStage` already owns the markings.
+- [x] **The pitch should be in PERSPECTIVE, and it has to be DRAWN.** It is —
+      and the way it is done is the answer to why it could not be a photograph.
+      **Everything on the grass has to sit in the SAME projection**, and the way
+      to get that without teaching each of them about it is to apply the
+      projection ONCE, over all of them: the markings, the twenty-two bodies,
+      the ball and the arrow go through one `Transform` together, and
+      `CutawayGame` and the marking painter go on working in the flat
+      coordinates they always did.
+      **The overlays deliberately stay flat** — the verdict word and the
+      scorer's badge are a broadcast graphic laid over the picture, not
+      something standing on the pitch, and a headline that leans away from the
+      reader is a headline nobody reads.
+      **The tilt is small on purpose**: a high wide, not a corner-flag camera.
+      Past about fifteen degrees the far half stops being a place a chance can
+      be understood in, which is the one thing that band is for.
 
 ### The arrow has to mean something
 

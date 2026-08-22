@@ -10,7 +10,7 @@
 /// keeps for the feed.
 library;
 
-import 'package:flame/game.dart';
+import 'package:flame/game.dart' show GameWidget;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
@@ -179,14 +179,30 @@ class _CutawayStageState extends State<CutawayStage> {
         child: ColoredBox(
           color: PitchBackdrop.turf,
           child: game == null
-              ? const CustomPaint(
-                  key: ValueKey('cutaway-idle'),
-                  painter: _IdlePitchPainter(),
-                  size: Size.infinite,
+              ? const _InPerspective(
+                  child: CustomPaint(
+                    key: ValueKey('cutaway-idle'),
+                    painter: _IdlePitchPainter(),
+                    size: Size.infinite,
+                  ),
                 )
               : Stack(
                   fit: StackFit.expand,
                   children: [
+                    // **THE PITCH IS IN PERSPECTIVE, and the markings, the
+                    // players and the ball are all IN it** — because it is one
+                    // transform over the layers that are the pitch, rather than
+                    // a picture of a pitch with flat things standing on it.
+                    // That is the whole reason it could not be a photograph or
+                    // a PNG in a trapezoid: everything on the grass has to sit
+                    // in the same projection, and the only way to get that for
+                    // free is for the projection to be applied once, to all of
+                    // it.
+                    //
+                    // The overlays — the verdict, the scorer's badge — stay
+                    // FLAT. They are a broadcast graphic laid over the picture,
+                    // not something on the pitch, and a headline that leans
+                    // away from the reader is a headline nobody reads.
                     // The markings, painted UNDER the game.
                     //
                     // `onLoad` is async however warm the cache is, so there is
@@ -194,16 +210,23 @@ class _CutawayStageState extends State<CutawayStage> {
                     // bare background that frame is a flat green flash; on the
                     // same pitch the clip is about to draw it is invisible,
                     // because it is already the picture.
-                    const CustomPaint(
-                      painter: _IdlePitchPainter(),
-                      size: Size.infinite,
-                    ),
-                    GameWidget(
-                      key: ValueKey('cutaway-${game.seed}'),
-                      game: game,
-                      // Transparent, so the markings underneath show through
-                      // until the world has something in it.
-                      backgroundBuilder: (_) => const SizedBox.shrink(),
+                    _InPerspective(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          const CustomPaint(
+                            painter: _IdlePitchPainter(),
+                            size: Size.infinite,
+                          ),
+                          GameWidget(
+                            key: ValueKey('cutaway-${game.seed}'),
+                            game: game,
+                            // Transparent, so the markings underneath show
+                            // through until the world has something in it.
+                            backgroundBuilder: (_) => const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
                     ),
                     // The word, over the top. In FLUTTER rather than in Flame: a
                     // headline wants the app's own type and a spring, and Flame's
@@ -365,4 +388,50 @@ class _Verdict extends StatelessWidget {
             ),
     );
   }
+}
+
+/// How far the camera is raised behind the pitch, in radians.
+///
+/// **Small on purpose.** This is a broadcast's high wide, not a corner-flag
+/// camera: the far touchline foreshortens, the near one opens out, and every
+/// marking stays readable. Past about fifteen degrees the far half stops being
+/// a place a chance can be understood in, which is the one thing this band is
+/// for.
+const double pitchTilt = 0.22;
+
+/// How strong the vanishing is. A gentle value: the pitch is wide and short in
+/// this band, so a strong perspective turns it into a wedge.
+const double pitchVanish = 0.0011;
+
+/// The pitch, seen from a camera rather than from directly above.
+///
+/// **DRAWN, not a photograph laid in a trapezoid.** Everything on the grass —
+/// the markings, the twenty-two bodies, the ball, the momentum arrow — has to
+/// sit in the same projection, and the only way to get that without teaching
+/// each of them about it is to apply the projection ONCE, to all of them
+/// together. `CutawayGame` and `_IdlePitchPainter` go on working in the same
+/// flat coordinates they always did.
+Matrix4 _tilted() => Matrix4.identity()
+  ..setEntry(3, 2, pitchVanish)
+  ..rotateX(pitchTilt);
+
+class _InPerspective extends StatelessWidget {
+  const _InPerspective({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Transform(
+    // About the CENTRE, so the pitch keeps its band rather than sliding up out
+    // of it — a rotation about the top edge would take the far half off screen.
+    alignment: Alignment.center,
+    // Built through `Transform`'s own helpers rather than naming `Matrix4`:
+    // `flame/game.dart` re-exports the 32-bit one and Flutter's transforms want
+    // the 64-bit one, and this file imports both.
+    transform: _tilted(),
+    // Filtered: the mown stripes are hairlines and nearest-neighbour on a tilted
+    // plane is a staircase.
+    filterQuality: FilterQuality.medium,
+    child: child,
+  );
 }

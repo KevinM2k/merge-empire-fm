@@ -6,6 +6,7 @@
 /// and is invisible until someone watches a match from the other end.
 library;
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
@@ -341,6 +342,36 @@ void main() {
         meetPace(distance: 30, seconds: 0.6, basePace: 0.1),
         greaterThan(exact),
       );
+    });
+  });
+
+  group('THE PITCH IS IN PERSPECTIVE, and everything on it with it', () {
+    test('the camera is RAISED, not hung over the corner flag', () {
+      // A broadcast's high wide: the far touchline foreshortens, the near one
+      // opens out, and every marking stays readable. Past about fifteen degrees
+      // the far half stops being a place a chance can be understood in, which
+      // is the one thing this band is for.
+      expect(pitchTilt, greaterThan(0));
+      expect(pitchTilt, lessThan(0.27));
+      expect(pitchVanish, greaterThan(0));
+    });
+
+    testWidgets('ONE TRANSFORM over the markings AND the game', (tester) async {
+      // **The reason it could not be a photograph in a trapezoid.** Everything
+      // on the grass has to sit in the same projection, and the only way to get
+      // that without teaching each of them about it is to apply the projection
+      // once, to all of them together.
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: CutawayStage(clip: null)),
+        ),
+      );
+      await tester.pump();
+      final tilted = find.ancestor(
+        of: find.byKey(const ValueKey('cutaway-idle')),
+        matching: find.byType(Transform),
+      );
+      expect(tilted, findsWidgets);
     });
   });
 
