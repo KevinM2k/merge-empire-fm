@@ -13,18 +13,16 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart' show PlayerEnergy;
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
-import 'package:merge_empire_fc/data/quests.dart' show questBank;
 import 'package:merge_empire_fc/engine/match_coach.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
     show isProMode;
 import 'package:merge_empire_fc/engine/tactic_coach.dart'
     show baselineInjuryRisk, injuryCostPoints;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
-import 'package:merge_empire_fc/engine/quest_match.dart'
-    show QuestLive, liveMatchQuestStatus, partialMatchResult;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
@@ -49,8 +47,6 @@ import 'package:merge_empire_fc/engine/lineup_engine.dart'
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
-import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart'
-    show QuestRow, matchQuestsProvider;
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart'
     show pitchSlotsProvider;
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
@@ -176,7 +172,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// The STATISTICS used to be the stage's resting state, which is what made
   /// the pitch flip in and out; they are a tab now. `match.tab.stats` was in
   /// all ten catalogues with nothing able to reach it.
-  MatchTab _tab = MatchTab.commentary;
 
   /// Double speed, starting from the player's own setting.
   ///
@@ -851,6 +846,28 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (mounted) setState(() => _paused = false);
   }
 
+  /// The statistics, on demand, from the board's own chart button.
+  ///
+  /// **The tab bar they used to live behind has gone** — a full row of chrome on
+  /// a screen with none to spare, serving a panel nobody watches while a match
+  /// is running. Deleting them outright would have stranded `MatchStatboard`
+  /// and `match.tab.stats`, which is precisely the fault this repo's sweeps
+  /// exist to find, so they moved rather than went.
+  ///
+  /// **It does NOT pause the match**, which the subs panel does: subs are a
+  /// decision the manager makes about what happens next, and this is a look at
+  /// what has already happened. Stopping the clock to read a number would make
+  /// checking possession a way to buy time.
+  Future<void> _showStats(LiveStats stats, bool home) => showBottomSheetPopup<void>(
+    context,
+    heightFraction: 0.6,
+    child: SingleChildScrollView(
+      key: const ValueKey('match-stats-sheet'),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
+      child: MatchStatboard(stats: stats, isHome: home),
+    ),
+  );
+
   /// **AN INJURY STOPS THE MATCH AND PUTS YOU IN FRONT OF THE BENCH.**
   ///
   /// Nobody is ever subbed on automatically — that is the manager's call — so
@@ -1039,7 +1056,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final f = frame;
     final home = widget.result['isHome'] == true;
     final us = '${widget.result['clubName'] ?? ''}';
@@ -1047,9 +1063,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // Only what has been SHOWN, so the feed can never run ahead of the clock —
     // and built off the whole shown list, because whether a chance earns a line
     // depends on how long it has been since the last one did.
-    final questRows = ref.watch(matchQuestsProvider);
-    // Read once and used twice — by the arrow on the pitch and by the Stats
-    // tab, which must not be able to disagree about the same match.
+    // Read once and used twice — by the arrow on the pitch and by the statistics
+    // sheet, which must not be able to disagree about the same match.
     final stats = liveStatsFor(
       frame: f,
       result: widget.result,
@@ -1059,35 +1074,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // than watched.
       strategyId: '${widget.result['strategyId'] ?? 'balanced'}',
     );
-    final raw = widget.result['events'];
     final events = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
-    // The quests as they stand right now, read once: the TAB carries the count
-    // and the panel behind it carries the three, and two readings of the same
-    // question would be able to disagree.
-    final partial = partialMatchResult(
-      widget.result,
-      [
-        for (final e in raw is List ? raw : const [])
-          if (e is Map<String, dynamic> &&
-              ((e['minute'] as num?) ?? 0) <= f.minute)
-            e,
-      ],
-      f.minute,
-      _end,
-    );
-    final save = ref.read(gameProvider).state;
-    final questsDone = questRows
-        .where(
-          (row) =>
-              liveMatchQuestStatus(
-                save,
-                questBank.where((q) => q.id == row.id).firstOrNull,
-                row.target.toInt(),
-                partial,
-              ) ==
-              QuestLive.done,
-        )
-        .length;
+    // **THE LIVE QUEST TRACKER IS GONE FROM THIS SCREEN, deliberately.** The
+    // three quests auto-pay at the whistle and the summary reports all three —
+    // winners and misses — so a running count here bought a tab bar's worth of
+    // height to tell the player something nobody can act on mid-match.
+    // `partialMatchResult` and `liveMatchQuestStatus` keep their caller in the
+    // summary's own track; nothing was stranded by this.
 
     // The tactic changes, merged in by minute. A stable merge rather than a
     // sort: `_notes` is already in order, and a note belongs AFTER the events
@@ -1138,17 +1131,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     result: widget.result,
                     isHome: home,
                     standings: _standings,
-                  ),
-                  // **THE CLOCK IS ITS OWN CARD, under the score.** It opened
-                  // the scoreboard — the competition, the minute and the bar
-                  // stacked above the clubs — which put the one band that
-                  // changes every tick at the top of the one card that must
-                  // hold still. They are different questions: the board is who
-                  // and what the score is, and this is how far in.
-                  _ClockCard(
-                    key: const ValueKey('match-clock-card'),
                     minute: f.minute,
                     finished: f.finished,
+                    onStats: () => _showStats(stats, home),
                     // **Localised HERE, not in the engine.** The result
                     // map is stamped by `match_orchestration`, whose fields
                     // the parity harness compares against the JS's — so
@@ -1278,63 +1263,28 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // surface under it, on a page where the scoreboard, the stage and
                   // the tactic strip are all panels. It read as the background
                   // having text on it rather than as a thing being read.
+                  // **THE TAB BAR HAS GONE, and the commentary is what it
+                  // paid for.** It was a full row of chrome serving two panels
+                  // nobody watches during a match: the QUESTS auto-pay at the
+                  // whistle and are reported on the summary, which is where the
+                  // money is, and the STATISTICS are behind the board's own
+                  // chart button now. What is left in this box is the one thing
+                  // on the screen a player actually reads, in the whole box.
+                  //
+                  // **And it is a `GlassPanel`**, which is what every other
+                  // surface on this screen and on the summary is. It was a
+                  // hand-rolled `DecoratedBox` with its own colour, radius and
+                  // border — one pane of glass and one painted box, side by
+                  // side, on a page whose backdrop is a sky.
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: kit.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: kit.border),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(13),
-                          child: Column(
+                      padding: const EdgeInsets.fromLTRB(13, 0, 13, 6),
+                      child: GlassPanel(
+                        density: GlassDensity.deep,
+                        padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+                        child: Column(
                             children: [
-                              // **THE LIVE QUEST TRACKER.** `partialMatchResult` and
-                              // `liveMatchQuestStatus` are ported, documented and tested, and
-                              // had no caller — so the three quests a match is being played FOR
-                              // were invisible until the whistle told the player how they did.
-                              _BodyTabs(
-                                tab: _tab,
-                                withQuests: questRows.isNotEmpty,
-                                done: questsDone,
-                                total: questRows.length,
-                                onPick: (tab) => setState(() => _tab = tab),
-                              ),
-                              if (_tab == MatchTab.stats)
-                                Expanded(
-                                  // Scrolls, because the board was built for a
-                                  // band of the pitch's aspect and this is
-                                  // whatever height the body has left.
-                                  child: SingleChildScrollView(
-                                    // The board was built for a band of the
-                                    // pitch's aspect and this is a whole tab —
-                                    // it should fill it rather than sit in the
-                                    // top inch of it.
-                                    padding: const EdgeInsets.fromLTRB(
-                                      18,
-                                      16,
-                                      18,
-                                      18,
-                                    ),
-                                    child: MatchStatboard(
-                                      stats: stats,
-                                      isHome: home,
-                                    ),
-                                  ),
-                                )
-                              else if (_tab == MatchTab.quests &&
-                                  questRows.isNotEmpty)
-                                Expanded(
-                                  child: _LiveQuests(
-                                    rows: questRows,
-                                    partial: partial,
-                                    state: ref.read(gameProvider).state,
-                                  ),
-                                )
-                              else
-                                Expanded(
+                              Expanded(
                                   child: ListView.builder(
                                     key: const ValueKey('match-feed'),
                                     padding: const EdgeInsets.fromLTRB(
@@ -1404,9 +1354,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                       );
                                     },
                                   ),
-                                ),
+                              ),
                             ],
-                          ),
                         ),
                       ),
                     ),
@@ -1776,178 +1725,6 @@ class _ScorerBadge extends StatelessWidget {
 }
 
 /// What the body of the screen is showing.
-enum MatchTab { commentary, quests, stats }
-
-/// The commentary, the three quests this match is being played for, or the
-/// numbers.
-class _BodyTabs extends StatelessWidget {
-  const _BodyTabs({
-    required this.tab,
-    required this.withQuests,
-    required this.done,
-    required this.total,
-    required this.onPick,
-  });
-
-  final MatchTab tab;
-
-  /// Quests only earns a tab when there are some.
-  final bool withQuests;
-
-  /// How many of this match's three have landed, and how many there are.
-  final int done;
-  final int total;
-  final void Function(MatchTab) onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    Widget one(String label, MatchTab mine, Key key) {
-      final on = tab == mine;
-      return Expanded(
-        child: GestureDetector(
-          key: key,
-          behavior: HitTestBehavior.opaque,
-          onTap: () => onPick(mine),
-          child: Container(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: on ? kit.accentBright : kit.border,
-                  width: on ? 2 : 1,
-                ),
-              ),
-            ),
-            child: Text(
-              label.toUpperCase(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w800,
-                color: on ? kit.accentBright : kit.textMuted,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      key: const ValueKey('match-tabs'),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          one(
-            t('match.tab.commentary'),
-            MatchTab.commentary,
-            const ValueKey('tab-feed'),
-          ),
-          if (withQuests)
-            one(
-              // **THE COUNT IS THE POINT OF THE TAB.** The three outcomes used
-              // to be listed at the foot of the screen at full time, under the
-              // feed, where they were a block nobody scrolled to. On the tab it
-              // is one figure that moves during the match — and it is still one
-              // tap to see which three.
-              '${t('quests.title')} ($done/$total)',
-              MatchTab.quests,
-              const ValueKey('tab-quests'),
-            ),
-          one(
-            t('match.tab.stats'),
-            MatchTab.stats,
-            const ValueKey('tab-stats'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The three quests, as they stand right now.
-///
-/// **Only two answers can be given early**, and that is `liveMatchQuestStatus`'s
-/// whole design: something that HAPPENED cannot un-happen, and something that
-/// can no longer happen is gone. Everything else is undecided — "win by two" is
-/// not missed at 0-0 in the 89th — and putting a cross against a quest the
-/// player then goes on to win is worse than saying nothing.
-class _LiveQuests extends StatelessWidget {
-  const _LiveQuests({
-    required this.rows,
-    required this.partial,
-    required this.state,
-  });
-
-  final List<QuestRow> rows;
-  final Map<String, dynamic> partial;
-  final Map<String, dynamic>? state;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return ListView(
-      key: const ValueKey('match-live-quests'),
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-      children: [
-        for (final row in rows)
-          () {
-            final def = questBank.where((q) => q.id == row.id).firstOrNull;
-            final status = liveMatchQuestStatus(
-              state,
-              def,
-              row.target.toInt(),
-              partial,
-            );
-            final (mark, colour) = switch (status) {
-              QuestLive.done => ('✓', kit.accentBright),
-              QuestLive.missed => ('✕', Colors.redAccent),
-              QuestLive.pending => ('·', kit.textMuted),
-            };
-            return Padding(
-              key: ValueKey('live-quest-${row.id}'),
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    child: Text(
-                      mark,
-                      key: ValueKey('live-quest-mark-${row.id}'),
-                      style: TextStyle(
-                        color: colour,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      row.text,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: status == QuestLive.missed
-                            ? kit.textMuted
-                            : null,
-                        decoration: status == QuestLive.missed
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }(),
-      ],
-    );
-  }
-}
-
 /// How long the strip stays shut after a change.
 ///
 /// The JS's second, and its reason: the remainder is genuinely re-rolled on
@@ -1966,15 +1743,6 @@ const List<String> strategyStrip = [
   'highPress',
 ];
 
-/// Five buttons and a cooldown bar.
-///
-/// **Every tactic carries its own hue, lit or not.** The strip reads as five
-/// distinct options rather than one lit cell in a row of grey — and the icons
-/// are 14px line art on a mid-tone panel, so dimming the inactive ones on top
-/// of that took them below readable, which is all the hue had to work with.
-///
-/// The ATK/DEF deltas are deliberately left off: this is a quick switcher, and
-/// the full breakdown lives on the Squad page.
 class _TacticStrip extends StatelessWidget {
   const _TacticStrip({
     required this.active,
@@ -2121,77 +1889,6 @@ const clearScreenGates = (
 /// contents had moved. They are also different questions. The board is WHO and
 /// what the score is; this is HOW FAR IN, and it belongs with the bar that says
 /// the same thing without arithmetic.
-class _ClockCard extends StatelessWidget {
-  const _ClockCard({
-    super.key,
-    required this.minute,
-    required this.finished,
-    required this.label,
-  });
-
-  final int minute;
-  final bool finished;
-
-  /// The competition and which end we are — `SUNDAY LEAGUE · HOME`.
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return Padding(
-      // The board's own horizontal inset, and only a hair of gap above: the two
-      // cards are one object read top to bottom, not two panels on a page.
-      padding: const EdgeInsets.fromLTRB(13, 0, 13, 0),
-      child: GlassPanel(
-        density: GlassDensity.deep,
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 7),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                    color: kit.textMuted,
-                  ),
-                ),
-                Text(
-                  finished ? t('match.full_time') : "$minute'",
-                  key: const ValueKey('match-clock'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: kit.accentBright,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            // The clock as a bar, so how far through the match is readable
-            // without doing arithmetic on the minute.
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: SizedBox(
-                height: 3,
-                child: LinearProgressIndicator(
-                  value: (minute / 90).clamp(0.0, 1.0),
-                  backgroundColor: kit.border,
-                  valueColor: AlwaysStoppedAnimation(kit.accentBright),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _Scoreboard extends StatelessWidget {
   const _Scoreboard({
     super.key,
@@ -2202,6 +1899,10 @@ class _Scoreboard extends StatelessWidget {
     required this.result,
     required this.isHome,
     required this.standings,
+    required this.minute,
+    required this.finished,
+    required this.label,
+    required this.onStats,
   });
 
   final String left;
@@ -2213,6 +1914,29 @@ class _Scoreboard extends StatelessWidget {
 
   /// Where the two clubs stood at kick-off, home side first once laid out.
   final ({PosStanding ours, PosStanding theirs}) standings;
+
+  /// **THE CLOCK IS BACK INSIDE THE BOARD, and that reverses a decision this
+  /// repo recorded as done.** It was split into `_ClockCard` on the reasoning
+  /// that the one band changing every tick should not sit on the one card whose
+  /// job is holding still — which is true, and is overruled by the SPACE. Two
+  /// panels with a rule and a gap between them cost a match screen that has
+  /// none to spare, and the minute is small and the bar is a hairline; neither
+  /// moves the score.
+  ///
+  /// It goes at the FOOT rather than where it used to be at the head, so the
+  /// half of the card that ticks is the half furthest from the half that does
+  /// not.
+  final int minute;
+  final bool finished;
+
+  /// The competition and which end we are — `SUNDAY LEAGUE · HOME`.
+  final String label;
+
+  /// **The statistics' only door now that the tab bar has gone.** They were a
+  /// full row of chrome on a screen with no room, serving a panel nobody watches
+  /// during a match — but deleting them outright would strand `MatchStatboard`
+  /// and `match.tab.stats`, which is the fault this whole queue exists to find.
+  final VoidCallback onStats;
 
   @override
   Widget build(BuildContext context) {
@@ -2353,6 +2077,60 @@ class _Scoreboard extends StatelessWidget {
                 leftRating: isHome ? ourRating : theirRating,
                 rightRating: isHome ? theirRating : ourRating,
               ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  key: const ValueKey('match-stats-button'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onStats,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(
+                      Icons.bar_chart,
+                      size: 16,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                ),
+                Text(
+                  finished ? t('match.full_time') : "$minute'",
+                  key: const ValueKey('match-clock'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: kit.accentBright,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // The clock as a bar, so how far through the match is readable
+            // without doing arithmetic on the minute.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: SizedBox(
+                height: 3,
+                child: LinearProgressIndicator(
+                  value: (minute / 90).clamp(0.0, 1.0),
+                  backgroundColor: kit.border,
+                  valueColor: AlwaysStoppedAnimation(kit.accentBright),
+                ),
+              ),
+            ),
           ],
         ),
       ),

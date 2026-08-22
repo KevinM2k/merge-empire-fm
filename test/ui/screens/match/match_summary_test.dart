@@ -63,6 +63,21 @@ Map<String, dynamic> result({
   'questResults': ?questResults,
 };
 
+/// Scroll the report down to whatever is below the fold.
+///
+/// **The table is second on this screen and everything else moved under it**,
+/// which is the point — the animation is the reason the screen exists and it
+/// was playing to nobody. So a test about the manager, the scorers or the quest
+/// list has to go and find them, exactly as a player does.
+Future<void> scrollReport(WidgetTester tester, Key target) async {
+  await tester.scrollUntilVisible(
+    find.byKey(target),
+    240,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<MatchSummaryScreenState> pumpSummary(
   WidgetTester tester,
   Map<String, dynamic> res, {
@@ -143,7 +158,9 @@ void main() {
     expect(find.byKey(const ValueKey('summary-score')), findsOneWidget);
     expect(find.text('2–0'), findsOneWidget);
     // Who scored, even for a man the save has never heard of: the name is on
-    // the event whether or not there is a card to draw.
+    // the event whether or not there is a card to draw. Below the table now,
+    // so it has to be scrolled to.
+    await scrollReport(tester, const ValueKey('summary-scorers'));
     expect(find.text('Bobby'), findsOneWidget);
   });
 
@@ -173,10 +190,69 @@ void main() {
     }
   });
 
-  testWidgets('IT IS ONE BOX, not four notes on the sky', (tester) async {
-    // The verdict, the money and the quest outcomes each sat loose on the
-    // gradient with only the scoreline in a panel — four halves of the same
-    // statement, reading as four unrelated notes.
+  testWidgets('WHAT HAPPENED IS ONE BOX, and the score is in it', (
+    tester,
+  ) async {
+    // The verdict and the score are one statement and share one pane; the
+    // money and the quests used to be in there with them and are not any more.
+    // See the two tests below for where each went and why.
+    await pumpSummary(tester, result());
+    final card = find.ancestor(
+      of: find.byKey(const ValueKey('summary-verdict')),
+      matching: find.byType(GlassPanel),
+    );
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.byKey(const ValueKey('summary-score'))),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('THE TABLE IS ABOVE THE FOLD, which is why it is second', (
+    tester,
+  ) async {
+    // It is the one thing on this screen that MOVES, and it was under the
+    // manager, the scorers and the quest list — which is to say the animation
+    // played to nobody.
+    await pumpSummary(tester, result(), boot: true);
+    final table = find.byKey(const ValueKey('summary-table'));
+    expect(table, findsOneWidget);
+    final view = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    expect(
+      tester.getTopLeft(table).dy,
+      lessThan(view),
+      reason: 'the table starts below the fold',
+    );
+  });
+
+  testWidgets('THE MONEY SITS WITH THE BUTTON THAT CHANGES IT', (
+    tester,
+  ) async {
+    // The figure was at the top of the scroll and the offer to double it at the
+    // foot — one decision split across a page, so the player had to remember a
+    // number to understand the button. Both are in the footer now, which is
+    // also the half of the screen that does not scroll.
+    await pumpSummary(tester, result(coins: 500));
+    final payout = find.byKey(const ValueKey('summary-payout'));
+    expect(payout, findsOneWidget);
+    // Not inside the scroll view at all.
+    expect(
+      find.ancestor(of: payout, matching: find.byType(ListView)),
+      findsNothing,
+    );
+    final button = tester.getTopLeft(
+      find.byKey(const ValueKey('summary-double')),
+    );
+    expect(
+      (button.dy - tester.getBottomLeft(payout).dy).abs(),
+      lessThan(40),
+      reason: 'the figure and the button that doubles it are one control',
+    );
+  });
+
+  testWidgets('AND THE QUESTS ARE LAST, under everything', (tester) async {
+    // A report rather than a claim — the coins are already banked — which is
+    // what makes it the thing to scroll to rather than the thing in the way.
     await pumpSummary(
       tester,
       result(
@@ -191,22 +267,12 @@ void main() {
         ],
       ),
     );
-    final card = find.ancestor(
-      of: find.byKey(const ValueKey('summary-verdict')),
-      matching: find.byType(GlassPanel),
-    );
-    expect(card, findsOneWidget);
-    for (final part in [
-      const ValueKey('summary-score'),
-      const ValueKey('summary-payout'),
-      const ValueKey('match-quests'),
-    ]) {
-      expect(
-        find.descendant(of: card, matching: find.byKey(part)),
-        findsOneWidget,
-        reason: '$part is not in the box the score is in',
-      );
-    }
+    // Off the bottom on the frame the screen opens — the verdict is what is
+    // there — and reachable by scrolling, which is the whole claim.
+    expect(find.byKey(const ValueKey('summary-verdict')), findsOneWidget);
+    expect(find.byKey(const ValueKey('match-quests')), findsNothing);
+    await scrollReport(tester, const ValueKey('match-quests'));
+    expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
   });
 
   testWidgets('THE TABLE MOVES ON IT', (tester) async {
@@ -300,6 +366,7 @@ void main() {
       // The misses are the point of showing all three: they are what makes the
       // next set worth reading.
       await pumpSummary(tester, result(questResults: outcomes()));
+      await scrollReport(tester, const ValueKey('match-quests'));
       expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('match-quest-match_clean_sheet')),
@@ -373,6 +440,7 @@ void main() {
           ],
         ),
       );
+      await scrollReport(tester, const ValueKey('match-quests'));
       expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-quests-total')), findsNothing);
     });

@@ -180,13 +180,21 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                           '${isHome ? result['opponentName'] : result['clubName'] ?? ''}',
                       leftGoals: isHome ? ourGoals : theirGoals,
                       rightGoals: isHome ? theirGoals : ourGoals,
-                      base: _base,
-                      quests: _quests,
-                      doubled: canDouble && _answering,
                       trophies: trophies,
-                      result: result,
                     ),
                     const SizedBox(height: 12),
+                    // **THE TABLE IS SECOND, and that is the whole ordering
+                    // decision on this screen.** It is the one thing here that
+                    // MOVES — every club sliding to where the round left it —
+                    // and it was below the manager, the scorers and the quest
+                    // list, which is to say below the fold, which is to say the
+                    // animation played to nobody. A league match is only half
+                    // told by its own scoreline; this is the other half, and it
+                    // now sits directly under the half it completes.
+                    if (result['isCup'] != true) ...[
+                      const LeagueMove(key: ValueKey('summary-table')),
+                      const SizedBox(height: 12),
+                    ],
                     // **The manager, reacting to it.** The full-time shot used
                     // to be laid into the head of the commentary feed, where it
                     // sat above a wall of text nobody scrolls back to.
@@ -198,18 +206,42 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     ),
                     const SizedBox(height: 14),
                     _Scorers(result: result),
-                    const SizedBox(height: 12),
-                    // **THE TABLE, MOVING.** A league match is only half told
-                    // by its own scoreline: the other half is what it did to
-                    // the standings, and the other clubs played too.
-                    if (result['isCup'] != true)
-                      const LeagueMove(key: ValueKey('summary-table')),
+                    // **The quests go LAST, and they are a report.** All three
+                    // are shown, winners and misses both, and the coins are
+                    // already banked — a match quest auto-pays at the whistle —
+                    // so nothing here is waiting on the player. That is exactly
+                    // what makes it the thing to scroll to rather than the
+                    // thing in the way.
+                    if (result['questResults'] case final List<dynamic> q
+                        when q.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      GlassPanel(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                        child: QuestOutcomes(result: result),
+                      ),
+                    ],
                   ],
                 ),
               ),
+              // **THE MONEY SITS WITH THE BUTTON THAT CHANGES IT.** The
+              // figure was at the top of the scroll and the offer to double it
+              // at the foot, which is one decision split across a page — the
+              // player had to remember a number to understand the button. It
+              // is the same `_Payout`, moved, and the strike-through it draws
+              // while the video runs is now a hand's width from the control
+              // that started it.
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-                child: canDouble
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _Payout(
+                      base: _base,
+                      quests: _quests,
+                      doubled: canDouble && _answering,
+                    ),
+                    const SizedBox(height: 8),
+                    canDouble
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -289,6 +321,8 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                           child: Text(t('common.continue')),
                         ),
                       ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -313,11 +347,7 @@ class _ResultCard extends StatelessWidget {
     required this.right,
     required this.leftGoals,
     required this.rightGoals,
-    required this.base,
-    required this.quests,
-    required this.doubled,
     required this.trophies,
-    required this.result,
   });
 
   final bool won;
@@ -326,22 +356,10 @@ class _ResultCard extends StatelessWidget {
   final String right;
   final int leftGoals;
   final int rightGoals;
-
-  /// The match fee, which is the figure the doubling offer is about.
-  final int base;
-
-  /// What the three quests paid at the whistle. Already banked.
-  final int quests;
-
-  /// Struck through and doubled while the video runs.
-  final bool doubled;
   final int trophies;
-  final Map<String, dynamic> result;
 
   @override
   Widget build(BuildContext context) {
-    final ink = verdictInk(won: won, drawn: drawn);
-    final paid = base > 0 || quests > 0;
     return GlassPanel(
       density: GlassDensity.deep,
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
@@ -356,22 +374,15 @@ class _ResultCard extends StatelessWidget {
             leftGoals: leftGoals,
             rightGoals: rightGoals,
           ),
-          if (paid || trophies > 0) ...[
+          if (trophies > 0) ...[
             // The rule wears the verdict's colour rather than the pane's
-            // hairline grey: it is the seam between what happened and what it
-            // was worth, and both halves are about the same result.
-            _Rule(ink: ink),
-            if (paid) _Payout(base: base, quests: quests, doubled: doubled),
-            if (trophies > 0) ...[
-              const SizedBox(height: 8),
-              // A figure and the glyph, not a sentence: there is no shipped
-              // copy for "you won N trophies", and inventing a key the
-              // catalogues have never seen would print English in ten
-              // languages.
-              _Trophies(trophies: trophies),
-            ],
+            // hairline grey: both halves are about the same result.
+            _Rule(ink: verdictInk(won: won, drawn: drawn)),
+            // A figure and the glyph, not a sentence: there is no shipped copy
+            // for "you won N trophies", and inventing a key the catalogues have
+            // never seen would print English in ten languages.
+            _Trophies(trophies: trophies),
           ],
-          QuestOutcomes(result: result, rule: ink),
         ],
       ),
     );

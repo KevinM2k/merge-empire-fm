@@ -27,6 +27,7 @@ import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show PosChip;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show MatchRow;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -635,13 +636,26 @@ void main() {
       expect(find.byKey(const ValueKey('match-statboard')), findsNothing);
     });
 
-    testWidgets('and the numbers are one tab away', (tester) async {
-      // `match.tab.stats` was in all ten catalogues with nothing able to reach
-      // it.
+    testWidgets('AND THE NUMBERS ARE BEHIND THE BOARD\'S OWN BUTTON', (
+      tester,
+    ) async {
+      // **The tab bar has gone** — a full row of chrome on a screen with none
+      // to spare, serving two panels nobody watches while a match runs. The
+      // statistics MOVED rather than went: deleting them would have stranded
+      // `MatchStatboard` and `match.tab.stats`, which is the fault this repo's
+      // sweeps exist to find.
       await pumpMatch(tester, played());
-      await tester.tap(find.byKey(const ValueKey('tab-stats')));
+      expect(find.byKey(const ValueKey('match-tabs')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('match-stats-button')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('match-statboard')), findsOneWidget);
+      // **It does NOT pause the match**, which the subs panel does: subs decide
+      // what happens next and this is a look at what already has.
+      expect(stateOf(tester).paused, isFalse);
+      Navigator.of(
+        tester.element(find.byKey(const ValueKey('match-stats-sheet'))),
+      ).pop();
+      await tester.pumpAndSettle();
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
     });
@@ -1053,53 +1067,39 @@ void main() {
     });
   });
 
-  group('THE CLOCK IS ITS OWN CARD', () {
-    testWidgets('THE MINUTE AND THE BAR ARE UNDER THE SCORE, not in it', (
+  group('THE CLOCK IS BACK IN THE BOARD, at the foot of it', () {
+    testWidgets('THE MINUTE AND THE BAR ARE IN THE CARD, not beside it', (
       tester,
     ) async {
-      // The clock opened the scoreboard, which put the one band that changes
-      // every tick at the top of the one card whose job is to hold still. They
-      // are different questions: the board is who and what the score is, and
-      // the clock is how far in.
+      // **This reverses `_ClockCard`**, which was split out on the reasoning
+      // that the one band changing every tick should not sit on the one card
+      // whose job is holding still. That reasoning is right and is overruled by
+      // the SPACE: two panels with a rule and a gap cost a match screen that
+      // has none, and the minute is small and the bar is a hairline. They go at
+      // the FOOT, so the half that ticks is furthest from the half that does
+      // not.
       await pumpMatch(tester, matchResult());
       final board = find.byKey(const ValueKey('match-scoreboard'));
-      final clock = find.byKey(const ValueKey('match-clock-card'));
       expect(board, findsOneWidget);
+      expect(find.byKey(const ValueKey('match-clock-card')), findsNothing);
+      final clock = find.descendant(
+        of: board,
+        matching: find.byKey(const ValueKey('match-clock')),
+      );
       expect(clock, findsOneWidget);
-      // The minute went WITH it — it is not left behind on the board.
-      expect(
-        find.descendant(
-          of: board,
-          matching: find.byKey(const ValueKey('match-clock')),
-        ),
-        findsNothing,
-      );
-      expect(
-        find.descendant(
-          of: clock,
-          matching: find.byKey(const ValueKey('match-clock')),
-        ),
-        findsOneWidget,
-      );
-      // And so did the bar.
       expect(
         find.descendant(
           of: board,
           matching: find.byType(LinearProgressIndicator),
         ),
-        findsNothing,
-      );
-      expect(
-        find.descendant(
-          of: clock,
-          matching: find.byType(LinearProgressIndicator),
-        ),
         findsOneWidget,
       );
-      // Under, not over.
+      // At the foot: below the score it must not move.
       expect(
         tester.getTopLeft(clock).dy,
-        greaterThan(tester.getTopLeft(board).dy),
+        greaterThan(
+          tester.getTopLeft(find.byKey(const ValueKey('match-score-left'))).dy,
+        ),
       );
     });
   });
@@ -1765,125 +1765,38 @@ void main() {
     });
   });
 
-  group('THE LIVE QUEST TRACKER', () {
-    /// A save carrying the three quests this match is being played for.
-    Map<String, dynamic> withQuests(List<String> ids) {
-      final state = squadSave();
-      state['quests'] = {
-        'match': {
-          'active': [
-            for (final id in ids)
-              {'id': id, 'target': 1, 'progress': 0, 'completed': false},
-          ],
-        },
-        'season': <Object?>[],
-      };
-      return state;
-    }
-
-    Future<void> openQuests(WidgetTester tester) async {
-      await tester.tap(find.byKey(const ValueKey('tab-quests')));
+  group('THE LIVE QUEST TRACKER HAS GONE, and so has the tab bar', () {
+    testWidgets('NOTHING ON THE SCREEN IS A TAB ANY MORE', (tester) async {
+      // The bar was a full row of chrome serving two panels nobody watches
+      // while a match runs. The quests auto-pay at the whistle and the summary
+      // reports all three — winners and misses — so a running count here bought
+      // height to say something nobody can act on; the statistics moved behind
+      // the board's own chart button.
+      await pumpMatch(tester, matchResult());
+      expect(find.byKey(const ValueKey('match-tabs')), findsNothing);
+      expect(find.byKey(const ValueKey('tab-quests')), findsNothing);
+      expect(find.byKey(const ValueKey('tab-stats')), findsNothing);
+      expect(find.byKey(const ValueKey('match-live-quests')), findsNothing);
+      // And the commentary has the whole box.
+      expect(find.byKey(const ValueKey('match-feed')), findsOneWidget);
+      stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
-    }
+    });
 
-    String markFor(WidgetTester tester, String id) =>
-        tester.widget<Text>(find.byKey(ValueKey('live-quest-mark-$id'))).data!;
-
-    testWidgets('IS REACHABLE — a tab, not a full-time surprise', (
+    testWidgets('AND THE FEED SITS ON GLASS, like everything else here', (
       tester,
     ) async {
-      // `partialMatchResult` and `liveMatchQuestStatus` are ported, documented
-      // and tested, and had no caller: the three quests a match is being played
-      // FOR were invisible until the whistle said how they went.
-      await pumpMatch(
-        tester,
-        matchResult(),
-        save: withQuests(['match_score_2', 'match_clean_sheet']),
-      );
-      expect(find.byKey(const ValueKey('match-tabs')), findsOneWidget);
-      await openQuests(tester);
-      expect(find.byKey(const ValueKey('match-live-quests')), findsOneWidget);
-      expect(find.byKey(const ValueKey('live-quest-match_score_2')), findsOne);
-      stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('a quest that has HAPPENED cannot un-happen', (tester) async {
-      await pumpMatch(
-        tester,
-        matchResult(
-          events: [
-            {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
-          ],
-        ),
-        save: withQuests(['match_score_2']),
-      );
-      await openQuests(tester);
-      expect(markFor(tester, 'match_score_2'), '·');
-
-      await tester.pump(minuteDurationFor(11));
-      await tester.pumpAndSettle();
-      expect(markFor(tester, 'match_score_2'), '✓');
-      stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('and one that can NO LONGER happen is gone', (tester) async {
-      await pumpMatch(
-        tester,
-        matchResult(
-          events: [
-            {'minute': 10, 'type': 'goal', 'team': 'away'},
-          ],
-        ),
-        save: withQuests(['match_clean_sheet']),
-      );
-      await openQuests(tester);
-      expect(markFor(tester, 'match_clean_sheet'), '·');
-
-      await tester.pump(minuteDurationFor(11));
-      await tester.pumpAndSettle();
+      // It was a hand-rolled `DecoratedBox` with its own colour, radius and
+      // border — one pane of glass and one painted box side by side, on a page
+      // whose backdrop is a sky.
+      await pumpMatch(tester, matchResult());
       expect(
-        markFor(tester, 'match_clean_sheet'),
-        '✕',
-        reason: 'the clean sheet survived a goal',
-      );
-      stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('THE TRACKER CANNOT RUN AHEAD OF THE CLOCK', (tester) async {
-      // The sim writes all ninety minutes up front, so a tracker reading the
-      // result would tick a quest off for a goal nobody has watched yet.
-      await pumpMatch(
-        tester,
-        matchResult(
-          events: [
-            {'minute': 80, 'type': 'goal', 'team': 'home', 'scorer': 'Late'},
-          ],
+        find.ancestor(
+          of: find.byKey(const ValueKey('match-feed')),
+          matching: find.byType(GlassPanel),
         ),
-        save: withQuests(['match_score_2']),
+        findsWidgets,
       );
-      await openQuests(tester);
-      await tester.pump(minuteDurationFor(20));
-      await tester.pumpAndSettle();
-      expect(
-        markFor(tester, 'match_score_2'),
-        '·',
-        reason: 'a goal that has not been played yet was counted',
-      );
-      stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('with NO quests there is no QUESTS tab', (tester) async {
-      // A tab that opens an empty panel is a control for nothing. The strip
-      // itself stays: the statistics live on it now, and every match has those.
-      await pumpMatch(tester, matchResult(), save: withQuests([]));
-      expect(find.byKey(const ValueKey('match-tabs')), findsOneWidget);
-      expect(find.byKey(const ValueKey('tab-quests')), findsNothing);
-      expect(find.byKey(const ValueKey('tab-stats')), findsOneWidget);
-      expect(find.byKey(const ValueKey('match-feed')), findsOneWidget);
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
     });
