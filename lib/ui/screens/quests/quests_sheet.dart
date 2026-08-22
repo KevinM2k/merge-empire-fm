@@ -263,9 +263,17 @@ class _RewardChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    // **THE BADGE DARKENS IN LIGHT MODE; the gold and the blue do not change.**
+    // A 14% wash of the ink is a pale tint of it on white, with the ink itself
+    // on top — yellow on yellow, and blue on blue. The hues are the currencies
+    // and they are not the problem, so the contrast is bought with the SURFACE:
+    // a dark plate, the way a scoreboard does it, which is the same move the
+    // coin figure's halo already makes on this theme.
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(999),
-      color: ink.withValues(alpha: 0.14),
+      color: Theme.of(context).brightness == Brightness.light
+          ? const Color(0xFF1A1F26).withValues(alpha: 0.88)
+          : ink.withValues(alpha: 0.14),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,

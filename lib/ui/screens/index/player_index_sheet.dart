@@ -16,6 +16,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
@@ -731,7 +733,7 @@ class _RecipeDialog extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             color: discovered
                                 ? kit.accentBright
-                                : const Color(0xFFF87171),
+                                : vsRedOn(context),
                           ),
                         ),
                       ],

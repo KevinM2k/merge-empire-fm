@@ -6,6 +6,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -351,8 +353,10 @@ class PitchCornerActions extends ConsumerWidget {
           onTap: () => clearLineup(ref),
           icon: 'cross',
           label: t('squad.formation.clear'),
-          ink: const Color(0xFFF87171),
-          edge: const Color(0x80F87171),
+          // Theme-aware: `#F87171` is the DARK red, and on a light sheet it
+          // is a pink nobody reads a destructive action off.
+          ink: vsRedOn(context),
+          edge: vsRedOn(context).withValues(alpha: 0.5),
         ),
         _CornerPill(
           pillKey: 'squad-auto',

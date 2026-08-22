@@ -13,6 +13,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
@@ -148,7 +150,7 @@ class _TablePositionBadge extends ConsumerWidget {
       LeagueZone.promotion => Theme.of(
         context,
       ).extension<KitTheme>()!.accentBright,
-      LeagueZone.relegation => const Color(0xFFF87171),
+      LeagueZone.relegation => vsRedOn(context),
       // The THEME's ink, not a hard white: a mid-table position on a light-mode
       // tile was white on near-white, which is the one row in the table nobody
       // could read.

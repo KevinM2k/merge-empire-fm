@@ -8,6 +8,8 @@ library;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsAmberOn, vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
@@ -62,14 +64,19 @@ const Color hudGemInk = Color(0xFF22D3EE);
 /// the Pro-mode fitness figure: green while there is plenty, amber when it is
 /// getting thin, red when it is nearly gone. At the cap it takes the kit's own
 /// accent — a full tank is the club's colour rather than a warning of any kind.
-Color energyInk(num current, int max, Color full) {
+/// **THE PAIR IS THEME-AWARE, and takes a context for it.** The green and the
+/// red were the DARK values, printed unchanged on a light page — which is the
+/// same bug in four places this queue reported at once, always with dark mode
+/// right. `vsGreenOn` / `vsRedOn` have carried both halves since the stat rows
+/// were written; the call sites were the half nobody had gone round.
+Color energyInk(BuildContext context, num current, int max, Color full) {
   if (max <= 0 || current >= max) return full;
   final pct = current / max * 100;
   return pct > 50
-      ? const Color(0xFF4ADE80)
+      ? vsGreenOn(context)
       : pct > 20
-      ? const Color(0xFFFBBF24)
-      : const Color(0xFFF87171);
+      ? vsAmberOn(context)
+      : vsRedOn(context);
 }
 
 /// The badge the player is wearing. The JS hangs it off the manager avatar in
@@ -282,6 +289,7 @@ class Hud extends ConsumerWidget {
                               color: glassAccent(
                                 context,
                                 energyInk(
+                                  context,
                                   ref.watch(energyProvider),
                                   ref.watch(energyMaxProvider),
                                   kit.accentBright,

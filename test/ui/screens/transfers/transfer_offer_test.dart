@@ -369,7 +369,14 @@ void main() {
             )
             .style
             ?.color,
-        transferBand(120).colour,
+        // Theme-aware now: `#4ADE80` is the dark-mode green and does not carry
+        // on a light card, so the band is asked in the same theme it drew in.
+        transferBand(
+          120,
+          tester.element(
+            find.byKey(const ValueKey('transfer-band-transfer.market.great')),
+          ),
+        ).colour,
       );
     });
 

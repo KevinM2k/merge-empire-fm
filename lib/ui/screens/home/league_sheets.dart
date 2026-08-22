@@ -11,6 +11,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsAmberOn, vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -341,6 +343,10 @@ class _ZoneLabel extends StatelessWidget {
 ({String glyph, Color colour, String legendKey, String longKey})? _marker(
   String? status,
   KitTheme kit,
+  // **The drop's red is theme-aware and was not.** `#F87171` is the DARK
+  // value, printed unchanged on a light page — the same bug this queue
+  // reported on four screens at once, always with dark mode right.
+  BuildContext context,
 ) => switch (status) {
   'champion' => (
     glyph: '🏆',
@@ -356,7 +362,7 @@ class _ZoneLabel extends StatelessWidget {
   ),
   'relegated' => (
     glyph: '↓',
-    colour: const Color(0xFFF87171),
+    colour: vsRedOn(context),
     legendKey: 'table.legend_relegated',
     longKey: 'table.was_relegated',
   ),
@@ -388,7 +394,7 @@ class _LastSeasonLegend extends StatelessWidget {
             ),
           ),
           for (final status in ['champion', 'promoted', 'relegated'])
-            if (_marker(status, kit) case final m?)
+            if (_marker(status, kit, context) case final m?)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -446,7 +452,7 @@ class _TableRow extends StatelessWidget {
     final posColour = switch (zone) {
       LeagueZone.champion => const Color(0xFFFFD700),
       LeagueZone.promotion => kit.accentBright,
-      LeagueZone.relegation => const Color(0xFFF87171),
+      LeagueZone.relegation => vsRedOn(context),
       LeagueZone.midtable => kit.textMuted,
     };
 
@@ -508,7 +514,7 @@ class _TableRow extends StatelessWidget {
                     // AFTER the name and inside the same Row, so a long club
                     // name ellipsises around the marker rather than pushing it
                     // off the row.
-                    if (_marker(lastSeason, kit) case final m?) ...[
+                    if (_marker(lastSeason, kit, context) case final m?) ...[
                       const SizedBox(width: 5),
                       Tooltip(
                         message: t(m.longKey),
@@ -600,9 +606,9 @@ class _FormDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colour = switch (result) {
-      'W' => const Color(0xFF4ADE80),
-      'D' => const Color(0xFFFBBF24),
-      _ => const Color(0xFFF87171),
+      'W' => vsGreenOn(context),
+      'D' => vsAmberOn(context),
+      _ => vsRedOn(context),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 2),

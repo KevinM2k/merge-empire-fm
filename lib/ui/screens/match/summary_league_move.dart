@@ -22,6 +22,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
@@ -264,7 +266,7 @@ class _Delta extends StatelessWidget {
       );
     }
     final up = delta > 0;
-    final colour = up ? const Color(0xFF4ADE80) : const Color(0xFFF87171);
+    final colour = up ? vsGreenOn(context) : vsRedOn(context);
     return Row(
       key: isPlayer
           ? ValueKey(up ? 'summary-table-climbed' : 'summary-table-fell')

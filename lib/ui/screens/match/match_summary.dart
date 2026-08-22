@@ -16,6 +16,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsAmberOn, vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
@@ -62,11 +64,19 @@ int questCoins(Map<String, dynamic> result) {
 /// **Not the kit accent.** The verdict wore `accentBright`, which is the CLUB's
 /// colour: a side in red shirts was told it had won in the same red the game
 /// uses for a goal against, and a green-shirted defeat looked like a win.
-Color verdictInk({required bool won, required bool drawn}) => won
-    ? const Color(0xFF4ADE80)
+///
+/// **And it is theme-aware**, which it was not: `#4ADE80` and `#F87171` are the
+/// dark-mode pair and neither of them carries on a light card — the same fault
+/// this queue reported on four screens at once, always with dark mode right.
+Color verdictInk(
+  BuildContext context, {
+  required bool won,
+  required bool drawn,
+}) => won
+    ? vsGreenOn(context)
     : drawn
-    ? const Color(0xFFFBBF24)
-    : const Color(0xFFF87171);
+    ? vsAmberOn(context)
+    : vsRedOn(context);
 
 /// The AdMob placement this screen asks for.
 const String doubleMatchPlacement = 'double_match';
@@ -401,7 +411,7 @@ class _ResultCard extends StatelessWidget {
           if (trophies > 0) ...[
             // The rule wears the verdict's colour rather than the pane's
             // hairline grey: both halves are about the same result.
-            _Rule(ink: verdictInk(won: won, drawn: drawn)),
+            _Rule(ink: verdictInk(context, won: won, drawn: drawn)),
             // A figure and the glyph, not a sentence: there is no shipped copy
             // for "you won N trophies", and inventing a key the catalogues have
             // never seen would print English in ten languages.
@@ -478,7 +488,7 @@ class _Verdict extends StatelessWidget {
         // dots, the pitch tokens and the HUD all read. It wore the kit accent,
         // which belongs to the CLUB: a side in red was told it had won in the
         // same red this game uses for a goal against.
-        color: verdictInk(won: won, drawn: drawn),
+        color: verdictInk(context, won: won, drawn: drawn),
       ),
     );
   }

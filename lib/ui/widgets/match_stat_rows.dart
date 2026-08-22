@@ -111,6 +111,28 @@ Color vsGreenOn(BuildContext context) =>
 Color vsAmberOn(BuildContext context) =>
     _dark(context) ? const Color(0xFFFF9800) : const Color(0xFFB45309);
 
+/// The light-mode counterpart of a colour that was chosen against a dark one.
+///
+/// **For semantics that arrive as DATA**, where there is no `BuildContext` at
+/// the point the colour is picked — a provider's rows, a table keyed by tier.
+/// Those are the sites that could not simply call [vsRedOn], and they are why
+/// "the reds and greens are wrong in light mode" kept being reported after the
+/// obvious call sites had been fixed.
+///
+/// Anything it does not recognise comes back untouched, so it is safe to run a
+/// whole column through: a gold, a club accent and a tier colour are all
+/// deliberate and none of them is this bug.
+Color semanticInk(BuildContext context, Color ink) {
+  if (_dark(context)) return ink;
+  return switch (ink.toARGB32()) {
+    0xFF4ADE80 || 0xFF76E876 => _vsGreenLight,
+    0xFFF87171 || 0xFFFF6B70 => _vsRedLight,
+    0xFFFBBF24 => const Color(0xFFB45309),
+    0xFF60A5FA => _vsLevelLight,
+    _ => ink,
+  };
+}
+
 /// Green when this figure beats the one it faces, red when it loses, blue level.
 Color vsColor(BuildContext context, int mine, int opp) {
   final dark = _dark(context);

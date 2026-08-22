@@ -47,7 +47,7 @@ void main() {
             out['cog'] = glassAccent(context, kit.accentBright);
             out['energyFigure'] = glassAccent(
               context,
-              energyInk(energy, 10, kit.accentBright),
+              energyInk(context, energy, 10, kit.accentBright),
             );
             out['cap'] = glassMuted(context);
             return const SizedBox.shrink();

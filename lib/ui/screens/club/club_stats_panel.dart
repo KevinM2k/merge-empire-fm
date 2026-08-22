@@ -16,6 +16,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show semanticInk;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
@@ -198,7 +200,7 @@ class _StatRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          GameIcon(stat.icon, size: 13, color: stat.ink),
+          GameIcon(stat.icon, size: 13, color: semanticInk(context, stat.ink)),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -242,7 +244,7 @@ class _HintCard extends StatelessWidget {
       ),
       title: Row(
         children: [
-          GameIcon(stat.icon, size: 17, color: stat.ink),
+          GameIcon(stat.icon, size: 17, color: semanticInk(context, stat.ink)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

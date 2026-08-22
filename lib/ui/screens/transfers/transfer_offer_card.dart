@@ -20,6 +20,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -63,16 +65,20 @@ enum TransferAnswer { accepted, declined }
 /// The thresholds are Colin's own, so the chip and his read can never disagree:
 /// he calls 200% incredible and 60% a good deal, and below fair value he starts
 /// talking about what the player is worth instead.
-({String key, Color colour}) transferBand(int premiumPct) =>
+/// [context] only decides the LIGHTNESS of the two ends of the scale: `#4ADE80`
+/// and `#F87171` are the dark-mode pair and neither carries on a light card.
+({String key, Color colour}) transferBand(int premiumPct, [BuildContext? context]) =>
     switch (premiumPct) {
       >= 200 => (
         key: 'transfer.market.jackpot',
         colour: const Color(0xFFFFD700),
       ),
-      >= 60 => (key: 'transfer.market.great', colour: const Color(0xFF4ADE80)),
+      >= 60 => (key: 'transfer.market.great', colour: context == null ? const Color(0xFF4ADE80) : vsGreenOn(context),
+      ),
       >= 20 => (key: 'transfer.market.fair', colour: const Color(0xFFFBBF24)),
       >= 1 => (key: 'transfer.market.modest', colour: const Color(0xFFFB923C)),
-      _ => (key: 'transfer.market.below', colour: const Color(0xFFF87171)),
+      _ => (key: 'transfer.market.below', colour: context == null ? const Color(0xFFF87171) : vsRedOn(context),
+      ),
     };
 
 /// Colin's read on the bid.
@@ -226,7 +232,7 @@ class _TransferOfferCard extends ConsumerWidget {
       t('transfer.they_want', {'player': name}),
       '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.',
     ].join(' ');
-    final band = transferBand(premiumPct);
+    final band = transferBand(premiumPct, context);
 
     return CoachCardFrame(
       key: const ValueKey('transfer-offer'),

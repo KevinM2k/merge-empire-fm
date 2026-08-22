@@ -185,7 +185,11 @@ void main() {
       );
       expect(
         text.style?.color,
-        verdictInk(won: won, drawn: drawn),
+        verdictInk(
+          tester.element(find.byKey(const ValueKey('summary-verdict'))),
+          won: won,
+          drawn: drawn,
+        ),
         reason: 'won: $won, drawn: $drawn',
       );
     }

@@ -17,6 +17,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsRedOn;
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -244,7 +246,10 @@ class PitchToken extends StatelessWidget {
     final theme = tierThemes[card.tier] ?? tierThemes[1]!;
     final accent = cssColor(theme.accent);
     final accentLight = cssColor(theme.accentLight);
-    final ring = card.injured ? const Color(0xFFF87171) : accentLight;
+    // The ring sits on the page, not on the token's own dark plate, so it
+    // takes the theme's red. The CHIPS below keep theirs: they carry a
+    // `0xB8000000` ground of their own and are dark in both themes by design.
+    final ring = card.injured ? vsRedOn(context) : accentLight;
     final pColor = penaltyColor(slot.penalty);
     final pBg = penaltyBg(slot.penalty);
 
