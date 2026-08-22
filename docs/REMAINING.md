@@ -142,6 +142,50 @@ not carry the check there either.
 passes every test the wider one would — so nothing failed and nothing could.
 `unreached.sh` found it by asking a completely different question.
 
+**AND FOUR MORE BLOCKS OF SHIPPED COPY TURNED OUT TO BE THE JS'S OWN
+ORPHANS.** `fixtures.played`, `prestige.season_income`, the four `prize.*` and
+the two `boost.*_chip` all have no caller in `src/` either — and one of them,
+`_prizeHtml`, is a whole panel (WIN/DRAW/LOSS prize figures, the boost
+multiplier column, both boost chips) sitting fully written in `LeagueScreen.js`
+with nothing calling it. **So an unreachable string is not automatically a
+feature the port dropped**, and the gap between "translated ten times over" and
+"the shipped game draws it" is real. Grep the JS for a caller before building a
+surface, every time; three of this pass's answers cost a single grep each.
+
+**One of them also killed a guess this file had written down as "almost
+certainly".** `boost.tv_deal_chip`'s `{n}` was read here as matches left in the
+season; it is `matchRevBoostMatchesLeft`, a match COUNTER, and the port deleted
+both counters in `migration.dart` when it moved those boosts to season scoping.
+The number the string names does not exist in this port at all.
+
+**PRO MODE HAD A DOOR IN THE JS AND NONE HERE.** `_showPrestigeColin` is the
+dock star's card and it is the port's card exactly — except that on a save NOT
+already in Pro the JS offers TWO buttons, `prestige.button_standard` and
+`champ.pro_cta`, and the second prestiges straight into Pro. That is why
+`prestige.button_standard` had no caller: **a card with one button has no reason
+for a shorter label on it**, and the short label was the tell that a second one
+was missing.
+
+**The warning moved to where the JS keeps it.** `prestige.pro_note` now also
+rides the CONFIRM card when the Pro route was the answer, which is where
+`_doPrestige(true)` appends it — choosing the harder game and being told what it
+costs are two beats, and the second is the last card before the career goes.
+
+**And the flag is written AFTER the reset here, which is the opposite of the
+difficulty-switch rule three sections up.** Both are one line saying
+`hardMode = true` and the order is opposite, because what is downstream is
+different: `resetState` COPIES settings forward, so the New Team flow has to
+write before it; `performPrestige` mutates in place and never touches
+`settings`, so this one writes after — which is also the JS's order. The rule is
+about the function, not about the sentence.
+
+**And `champ.*` is answered without being built.** It is not a second prestige
+card: the JS's celebration is a SEASON-END popup fired on winning the top
+flight, after the offseason report, and it feeds the same prestige flow the dock
+card does. Which makes it and `offseason.*` one piece of work — **the port has
+no season-end popup chain** — and that is the biggest thing this pass leaves
+open with a known shape.
+
 **START HERE if you are picking this up cold:**
 
 ```bash
@@ -475,12 +519,24 @@ URL). Three are real and are their own items:
       `LeagueScreen.js` carries every threshold AND the priority order, which is
       the half that could not have been guessed at all. See **His read on our
       own squad** below.
-- [~] **`champ.*` (9 keys)** — the Champions League celebration: a title, a
-      body, a prestige teaser, a Pro Mode teaser, and **`champ.defend` — "⚽
-      Defend the Title"**, an option the prestige card does not offer. The
-      prestige card built last pass covers the same moment with `prestige.*`, so
-      building this is either finishing the endgame or shipping a second one,
-      and which cannot be answered from here.
+- [~] **`champ.*` (9 keys) — ANSWERED: it is not a second prestige card.** The
+      JS has TWO surfaces here and they are different moments.
+      `_showPrestigeColin` is the dock star's Coach Colin card — `prestige.title`
+      / `.body` / `.body_pro_hint`, one button in Pro and TWO otherwise — and
+      **that is the port's card exactly**, which is also why
+      `prestige.button_standard` had no caller: a card with one button has no
+      reason for a shorter label. The second button is `champ.pro_cta`, and it
+      is built now; see **Pro mode had a door in the JS** below.
+      **The other eight are the CELEBRATION**, `_showChampionsCelebration`, and
+      it is a season-end popup rather than a dock one — auto-opened 500ms after
+      the season-end flow when `isChampion`, after the offseason report and
+      never racing the promotion rating prompt (the two outcomes are mutually
+      exclusive). Its three buttons are New Adventure, 🔥 Pro and **⚽ Defend the
+      Title**, and all three feed the same `_doPrestige` the dock card does.
+      So it is not a second endgame — it is the moment the endgame is WON, on a
+      surface the port has not built, and the trigger is
+      `LeagueScreen.js:3581`. Left `[~]` because the port's season-end chain is
+      the thing to build first and it wants the offseason report beside it.
 - [x] **`fixtures.opp_rating` and `.opp_rating_est`** — the opponent's rating is
       a bare number in an unlabelled 34px column between a club name and a
       score, and the sentences identifying it (including the one explaining what
@@ -495,19 +551,32 @@ URL). Three are real and are their own items:
       prints `play.previousMatches` over the played block and **nothing in the
       JS references `fixtures.played` at all**. The port is already on the right
       one; the other is the JS's own orphan and wants no call site.
-- [ ] **`prize.win` / `.draw` / `.loss` / `.boost`** (4) and
-      **`boost.tv_deal_chip` / `.kit_sponsor_chip`** (2) — the boost chips read
-      "TV Deal ×1.5 · {n} left" and both boosts are scoped to the season they
-      were bought in, so `{n}` is almost certainly matches left in the season —
-      but "almost certainly" is the problem, and the SURFACE they sit on does
-      not exist. The income breakdown card already lists `hud.income.kit_sponsor`
-      as a multiplier row, so the chip is a different control, not that one.
+- [x] **`prize.win` / `.draw` / `.loss` / `.boost`** (4) and
+      **`boost.tv_deal_chip` / `.kit_sponsor_chip`** (2) — **checked against the
+      spec and it says do not build them**, for two independent reasons.
+      `_prizeHtml` — the whole panel, WIN/DRAW/LOSS at `matchRevenueBase × mult`,
+      `× 0.4` and `× 0.1`, the boost column when `mult > 1` and both chips under
+      it — is in `LeagueScreen.js:5162` and **has no caller in `src/` either**.
+      It is a surface the shipped game does not draw.
+      **And the guess about `{n}` was wrong**, which is the part worth carrying.
+      The chips read `matchRevBoostMatchesLeft` and `kitSponsorMatchesLeft` — a
+      MATCH COUNTER — and the port deliberately replaced both with season
+      scoping and `migration.dart` DELETES the counters on the way in. So `{n}`
+      names a number this port does not have and would have to be reinterpreted
+      to print at all. Two reasons, either one sufficient.
 - [ ] **`offseason.*` (11)** — an "Offseason Report" card: how many injured
       players recovered over the break, how many had time taken off, how many
       sponsorships expired, veterans in decline, who retired. Needs an engine
       that diffs the squad across a season rollover; `season_end` does the work
       but does not report it. Its `<b>` markup is handled now, so the copy is
       printable the day the card exists.
+      **UNBLOCKED, and it is `_showOffseasonReport` in `LeagueScreen.js`.** It
+      takes `{ injuryReport, sponsorReport, ageingReport, onClose }` and is
+      fired from the season-end flow BEFORE the promotion rating prompt and
+      before the champions celebration — `hasOffseasonNews` gates it, and when
+      there is none the rest of the chain runs on an 800ms timer instead. So
+      this and `champ.*` are one piece of work: **the port has no season-end
+      popup CHAIN**, and both of these are links in it.
 - [x] **`manager_hint.*` — eleven of the fourteen**, built as
       `engine/manager_hint_engine.dart` and wired into Colin's existing pool.
       See **The coach had nothing to say about the fixture** below.
@@ -793,18 +862,15 @@ status is "only its own test":
       the per-match economy the port replaced, and between them they found a live
       one: the end-of-night ledger was printing a per-match wage bill with a
       `/ match` suffix. See **The wage bill** below.
-- [ ] **`prestige.season_income` is the one prestige string still unreachable**,
-      and it is blocked on PLACEMENT rather than on anything else. "Season
-      {season} · Income ×{mult}" is a standing header line, not a beat in the
-      prestige flow, and where the JS puts it cannot be read from a cloud
-      container. Two halves of it are sitting ready: `seasonNumberProvider`
-      (`home/league_providers.dart`) has no caller either — **the season number
-      is never shown to the player at all outside the season-end card and a
-      trophy subtitle** — and `formatPrestigeMultiplier` (`prestige_card.dart`)
-      is the figure. A helper for the line lived in `prestige_card.dart` briefly
-      with nothing calling it and was deleted, which is the rule this whole
-      block is about: shipping a function with no caller is the fault, not the
-      fix.
+- [x] **`prestige.season_income` is unreachable in the JS TOO**, which is the
+      answer and not a placement problem. "Season {season} · Income ×{mult}" has
+      no caller anywhere in `src/` — it is the JS's own orphan, like
+      `fixtures.played` and the four `prize.*` — so there is no header line to
+      find and nothing to place. `seasonNumberProvider`
+      (`home/league_providers.dart`) is still uncalled and that is still true:
+      **the season number is never shown to the player outside the season-end
+      card and a trophy subtitle.** Worth a surface on its own merits; it is not
+      this string's.
 
 **READ `CLAUDE.md`'s Commands section before touching anything in a cloud
 session.** Two facts about that environment are not obvious and both cost a
