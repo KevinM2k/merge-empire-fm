@@ -4298,8 +4298,10 @@ never CALLED; this one is almost entirely things that are called and look wrong.
       the nearest thing to a "tick" in the coach popup is the bubble's TAIL
       wedge, and its top edge is covered by the painter on one surface and not
       the other. Worth a screenshot before guessing.
-- [ ] **Keep the scrim.** The slight overlay behind the card while it is up is
-      right — it should survive whatever the anchor fix touches.
+- [x] **Keep the scrim.** It survived: `showCoachBubble` still opens on
+      `barrierColor: Colors.black26`, and the two other overlays in the app are
+      deliberately heavier — the quick-nav menu at 0.32 and the feature-unlock
+      card at 0.72, which is a takeover rather than a bubble.
 
 ### The squad sheet, redesigned
 
@@ -4374,20 +4376,14 @@ list of what that change was answering.
       **Picking is already free** — 91 MICROseconds for a frame that rebuilds
       every chip — so nothing needed doing there, and the measurement is written
       down so nobody optimises it.
-- [ ] **REPORTED AGAIN, AFTER that measurement: the customise popup under the
-      manager rig still opens slowly**, and the reporter's own reading is that
-      it is **the second ANIMATED screen** — the manager rig running here while
-      one is already running behind it — rather than the build cost the entry
-      above chased. Which is a different hypothesis and it was not the one
-      tested: the 209ms above was measured with the previous frame's tickers
-      whatever they were, and "twenty still walkers register zero tickers" only
-      answers for the walkers in the GRID. The one the sheet opens over, and
-      the hero rig inside the sheet, are neither of them still.
-      **So measure the second screen rather than the build again**: what is
-      ticking on the frame the sheet opens, whether the home screen's own rig
-      keeps its clock while the sheet is up, and whether `TickerMode` is
-      switched off for what is behind the route. A screen that is covered and
-      still animating is the cost that a build-time profile cannot see.
+- [x] **REPORTED AGAIN, AFTER that measurement: the customise popup under the
+      manager rig still opens slowly** — and **the reporter's reading was right
+      both times.** A modal bottom sheet is a `PopupRoute`: it rises over the
+      current route without pushing it out, so nothing tells the home screen it
+      has stopped being looked at and its pitch scene, weather, ball and walking
+      manager all keep their clocks behind something opaque. Counted in
+      `showBottomSheetPopup` and `TickerMode` off in the shell, which fixes
+      every sheet in the game rather than this one. See the 28 Aug section.
 - [x] **The manager was walking in the sky, and the grass was the reason.** The
       strip under him was a `FractionallySizedBox` with a `heightFactor` and no
       `widthFactor` — which passes the incoming width constraint straight
@@ -4408,9 +4404,10 @@ list of what that change was answering.
       highest-converting slot in the game the same size as a consumable — with
       the third alone in a half-width tile beside a gap.
 - [ ] **And they should WORK** rather than say coming soon.
-- [ ] **Quick-fire matches and the free lucky boot say both "already ready" and
-      "coming soon".** They should be playable, and they should trigger an
-      advert.
+- [x] **Quick-fire matches and the free lucky boot say both "already ready" and
+      "coming soon".** The contradiction is gone — both statements were true and
+      the gate's badge goes while the button is dead; see the 28 Aug shop
+      entries. Them being PLAYABLE is the ad SDK, which is M4.
 - [~] **The gems look wrong — one gem per image, whatever the pack.** Every
       bundle on the gems shelf wore the same 34px `GameIcon('gem')`, so Pocket
       of Gems, Casket of Gems and Hoard of Gems were three prices under three
@@ -4593,16 +4590,21 @@ list of what that change was answering.
       feed about, which is the fault the pitch had. **Casual only**: pro mode
       buys the numbers and gives up the advice, which is the same bargain the
       subs panel strikes.
-- [ ] **The play card should be the home page's card** — see the 26 Aug entry
-      that says it already is; whatever is on screen is not it.
+- [x] **The play card should be the home page's card** — **checked, and there is
+      only one of it.** The Play page IS the home tab and it draws
+      `NextMatchCard`; there is no second card anywhere in `lib/`. What did not
+      match was the MATCH screen's scoreboard, which drew the same rows loose on
+      the sky, and that is now the same `GlassPanel` at the same density and the
+      same inset, with the clock folded back into it.
 - [x] **Commentary and quests are in a box.** They sat loose on the sky
       gradient — the one band on the screen with no surface under it, on a page
       where the scoreboard, the stage and the tactic strip are all panels.
-- [ ] **The end-of-match reward is an AD OFFER, and it has a shape.** "You have
-      won X", the figure struck through with DOUBLE beside it — but only if the
-      ad is watched. Yellow button for the ad; under it a "No thanks" TEXT link,
-      which is the continue button without the emphasis. `../merge-empire-fc` has
-      it built.
+- [x] **The end-of-match reward is an AD OFFER, and it has a shape.** Built to
+      that shape exactly: the figure struck through with the doubled one beside
+      it while the video runs, a yellow button, and "No thanks" as a text link
+      under it carrying the walk-away total. The 28 Aug pass moved the figure
+      down beside the button that changes it and gave it a surface — one
+      decision, one place.
 - [x] **A stat going up PULSES rather than grows.** `Transform.scale` out to
       1.35 and back shoves the row about, on a board whose whole job is holding
       still while the commentary moves. The kit colour says the same thing and
@@ -4701,8 +4703,11 @@ already done are marked; the rest are the queue.
       than invent one — a round the engine cannot honestly compare against (a
       rollover, or a round nobody rendered) draws the settled table and claims
       nothing. Off for a cup tie, which changes no standing.
-- [ ] **The commentary has very little room left.** Worth a rethink rather than a
-      nudge.
+- [x] **The commentary has very little room left.** It got the rethink: the tab
+      bar has gone entirely — the quests report on the summary and the stats are
+      behind the board's chart button — and the clock came off its own card into
+      the scoreboard. The feed has the whole box, on glass. See the 28 Aug
+      match-screen entries.
 - [x] **The Sunday League header — the timer and the progress bar — is a card of
       its own, under the score.** It was the scoreboard's OPENING band, which
       put the one thing that changes every tick at the top of the one card whose
