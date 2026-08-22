@@ -62,6 +62,7 @@ class LeagueTableView extends ConsumerWidget {
     final divisionId = ref.watch(currentDivisionProvider);
     final division = getDivision(divisionId);
     final form = ref.watch(leagueFormProvider);
+    final lastSeason = ref.watch(lastSeasonStatusProvider);
 
     final isTop = divisionId == 'champions_cup';
     final isBottom = divisionId == 'sunday_league';
@@ -94,9 +95,99 @@ class LeagueTableView extends ConsumerWidget {
             zone: leagueZoneFor(i + 1, rows.length, divisionId),
             divisionColour: cssColor(division.color),
             form: form[rows[i].name] ?? const [],
+            lastSeason: lastSeason[rows[i].name],
           ),
         ],
+        // **Only when a marker is actually on the table.** Season one has no
+        // last season, and a key to symbols nobody can see is furniture.
+        if (lastSeason.isNotEmpty) const _LastSeasonLegend(),
       ],
+    );
+  }
+}
+
+/// What a club did last season, as one glyph.
+///
+/// **A glyph rather than a word, and the arrows are already the game's.**
+/// `play.zone_promo` and `play.zone_relegation` carry ↑ and ↓ — the strings the
+/// bands above strip them OFF, because there the colour and the position
+/// already say which way. On a row they are the whole message. The trophy is
+/// the same one `play.champion_spot` uses.
+///
+/// The long string is the tooltip and the short one is the legend, which is
+/// what the catalogue ships: `table.was_promoted` is a sentence, `table.
+/// legend_promoted` is a word.
+({String glyph, Color colour, String legendKey, String longKey})? _marker(
+  String? status,
+  KitTheme kit,
+) => switch (status) {
+  'champion' => (
+    glyph: '🏆',
+    colour: const Color(0xFFFFD700),
+    legendKey: 'table.legend_champion',
+    longKey: 'table.was_champion',
+  ),
+  'promoted' => (
+    glyph: '↑',
+    colour: kit.accentBright,
+    legendKey: 'table.legend_promoted',
+    longKey: 'table.was_promoted',
+  ),
+  'relegated' => (
+    glyph: '↓',
+    colour: const Color(0xFFF87171),
+    legendKey: 'table.legend_relegated',
+    longKey: 'table.was_relegated',
+  ),
+  _ => null,
+};
+
+/// The key to the glyphs, under the table.
+class _LastSeasonLegend extends StatelessWidget {
+  const _LastSeasonLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Padding(
+      key: const ValueKey('league-last-season-legend'),
+      padding: const EdgeInsets.fromLTRB(10, 14, 10, 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            t('table.last_season').toUpperCase(),
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+              color: kit.textMuted,
+            ),
+          ),
+          for (final status in ['champion', 'promoted', 'relegated'])
+            if (_marker(status, kit) case final m?)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    m.glyph,
+                    style: TextStyle(fontSize: 11, color: m.colour),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    t(m.legendKey),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+        ],
+      ),
     );
   }
 }
@@ -140,6 +231,7 @@ class _TableRow extends StatelessWidget {
     required this.zone,
     required this.divisionColour,
     required this.form,
+    this.lastSeason,
   });
 
   final int position;
@@ -147,6 +239,9 @@ class _TableRow extends StatelessWidget {
   final LeagueZone zone;
   final Color divisionColour;
   final List<String> form;
+
+  /// `champion`, `promoted`, `relegated`, or null for a club that stayed put.
+  final String? lastSeason;
 
   @override
   Widget build(BuildContext context) {
@@ -206,16 +301,36 @@ class _TableRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  row.name,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: row.isPlayer
-                        ? FontWeight.w900
-                        : FontWeight.w700,
-                    color: row.isPlayer ? kit.accentBright : ink,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        row.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: row.isPlayer
+                              ? FontWeight.w900
+                              : FontWeight.w700,
+                          color: row.isPlayer ? kit.accentBright : ink,
+                        ),
+                      ),
+                    ),
+                    // AFTER the name and inside the same Row, so a long club
+                    // name ellipsises around the marker rather than pushing it
+                    // off the row.
+                    if (_marker(lastSeason, kit) case final m?) ...[
+                      const SizedBox(width: 5),
+                      Tooltip(
+                        message: t(m.longKey),
+                        child: Text(
+                          m.glyph,
+                          key: ValueKey('league-last-season-$position'),
+                          style: TextStyle(fontSize: 11, color: m.colour),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 if (form.isNotEmpty) ...[
                   const SizedBox(height: 5),
@@ -255,16 +370,26 @@ class _TableRow extends StatelessWidget {
                     color: kit.textMuted,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
+                  // **The letters are TRANSLATED and this printed English.**
+                  // `table.col_played`, `col_won`, `col_drawn` and `col_lost`
+                  // sit in all ten catalogues — German is S/S/U/N, French
+                  // M/V/N/D — and a German player was reading `7W 3D 2L`. The
+                  // port dropped the JS's four-column header for this
+                  // micro-line deliberately, which is why nothing referenced
+                  // the keys; the letters came with the header.
                   children: [
-                    TextSpan(text: 'P${row.played} · '),
+                    TextSpan(text: '${t('table.col_played')}${row.played} · '),
                     TextSpan(
-                      text: '${row.won}',
+                      text: '${row.won}${t('table.col_won')}',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         color: ink.withValues(alpha: 0.82),
                       ),
                     ),
-                    TextSpan(text: 'W ${row.drawn}D ${row.lost}L'),
+                    TextSpan(
+                      text: ' ${row.drawn}${t('table.col_drawn')}'
+                          ' ${row.lost}${t('table.col_lost')}',
+                    ),
                   ],
                 ),
               ),

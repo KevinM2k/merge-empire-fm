@@ -115,6 +115,28 @@ final leagueTableProvider = savePick<List<LeagueRow>>((s) {
   return buildLeagueTable(s);
 });
 
+/// What each club in this division DID last season: `champion`, `promoted`,
+/// `relegated`, keyed by club name.
+///
+/// **`season_end` has written `lastSeasonStatus` every rollover since M1 and
+/// nothing has ever read it.** `seasonStatusFor` is the engine's own accessor
+/// and had no caller either, while seven `table.*` strings sat translated in
+/// ten languages with nothing able to print one — the marker's three labels,
+/// its three long forms and the legend's heading.
+///
+/// Keyed on the division a club is in NOW, which `seasonStatusFor` enforces:
+/// a promotion badge lights up in the league the club moved INTO, never in the
+/// one it left, so the table you are looking at only ever shows moves that
+/// ended here.
+final lastSeasonStatusProvider = savePick<Map<String, String>>((s) {
+  final divId = _map(s['progression'])?['currentDivision'] as String?;
+  if (divId == null) return const {};
+  return <String, String>{
+    for (final row in buildLeagueTable(s))
+      row.name: ?seasonStatusFor(s, divId, row),
+  };
+});
+
 final divisionNameProvider = savePick<String>((s) {
   final id = _map(s['progression'])?['currentDivision'] as String?;
   return getDivision(id ?? divisions.first.id).name;
