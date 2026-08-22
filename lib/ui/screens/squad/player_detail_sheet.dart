@@ -49,6 +49,7 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/player_name_card.dart';
+import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -1165,10 +1166,28 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
         curve: Curves.easeOutCubic,
       ),
     ]);
-    if (mounted) {
-      setState(() => _spinning = false);
-      widget.onHold(null);
-    }
+    if (!mounted) return;
+    setState(() => _spinning = false);
+    widget.onHold(null);
+
+    // **AND THEN IT ANNOUNCES IT.** The reels stopping is the reveal and it is
+    // over in a frame — the player has just spent coins on the most
+    // interesting thing about this card and the sheet simply carried on. A club
+    // asset unlock has had the payoff beat since it was ported; this is the
+    // same one, with the trait's own glyph and what it DOES underneath.
+    //
+    // After the spin rather than with it: a splash over a moving reel would be
+    // the answer arriving before the question finished being asked.
+    final trait = getTrait(roll.id);
+    if (trait == null) return;
+    await showFeatureUnlock(
+      context,
+      title: traitTitle({'id': roll.id, 'level': roll.level}),
+      subtitle: traitDesc(trait),
+      icon: Text(trait.icon, style: const TextStyle(fontSize: 44)),
+      accent: Theme.of(context).extension<KitTheme>()!.accentBright,
+      starCount: roll.level.clamp(1, 3),
+    );
   }
 
   @override

@@ -4072,10 +4072,16 @@ by a test.
       moved, the whole Attributes block is repeating what is already on screen.
       **Market value goes with it**: Sell has left this sheet, so what he would
       fetch is no longer a decision being made here.
-- [ ] **What is left is the trait and his STATS** — goals, tackles, saves for a
-      keeper. Not a list of label/value rows: they want a shape.
-- [ ] **The trait box needs designing.** It is the most interesting thing on the
-      sheet and it is drawn as the least.
+- [x] **What is left is the trait and his STATS** — checked, and both are
+      built. `_CareerStats` is a row of columns, each a glyph, a label and a
+      figure, and which columns show is by POSITION rather than by whether the
+      number is non-zero: a striker on nought goals is information, and hiding
+      it would read as the stat not existing. That is the shape the entry asked
+      for rather than the label/value rows it feared.
+- [x] **The trait box needs designing.** It is a MEDAL now — a radial gradient
+      lit from the top left, a rim in the accent, a glow, and the level stamped
+      on its corner. See the 28 Aug entry: a 1.4px outlined disc is the shape
+      this app uses for a filter chip.
 - [x] **THE RATINGS MUST NOT MOVE UNTIL THE REELS STOP.** Half-fixed already —
       the trait's NAME was held for the spin — but every other number on the
       sheet reads the save, and the save is written before the reels move, so the
@@ -4088,8 +4094,15 @@ by a test.
       in it, never written back, since the save's key order is pinned against the
       fixture. `TraitHold` is a box rather than a bare map for the reason the old
       flag existed: null means he had NOTHING before the roll.
-- [ ] **And then it should ANNOUNCE it**, the way a club asset unlock does: a
-      window with what he just got.
+- [x] **And then it should ANNOUNCE it**, the way a club asset unlock does — and
+      it is literally that window: `showFeatureUnlock`, with the trait's own
+      glyph, its title and what it DOES underneath, and a star per level. AFTER
+      the reels stop rather than with them: a splash over a moving wheel is the
+      answer arriving before the question has finished being asked.
+      **The test for it has to PUMP, not settle.** The splash takes itself away
+      after `featureUnlockHold`, so `pumpAndSettle` walks straight past it and
+      finds nothing — which is what the first version of that assertion did, and
+      it cost a wrong diagnosis before the print statement went in.
 
 ### The sell sheet, again
 

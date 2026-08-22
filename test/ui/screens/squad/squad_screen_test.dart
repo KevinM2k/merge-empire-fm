@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -772,7 +773,21 @@ void main() {
       await tester.pump(
         TraitBlockState.spin + const Duration(milliseconds: 400),
       );
+      // **AND IT ANNOUNCES IT.** The reels stopping is over in a frame, and the
+      // player has just spent coins on the most interesting thing about this
+      // card. A club asset unlock has had the payoff beat since it was ported;
+      // this is the same one. AFTER the spin — a splash over a moving reel is
+      // the answer arriving before the question finished being asked.
+      //
+      // **Pumped rather than SETTLED, and asserted BEFORE the settle**: the
+      // splash takes itself away after `featureUnlockHold`, so a
+      // `pumpAndSettle` walks straight past it and finds nothing. The first
+      // version of this assertion did exactly that and cost a wrong diagnosis.
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const ValueKey('feature-unlock')), findsOneWidget);
+      await tester.pump(featureUnlockHold);
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('feature-unlock')), findsNothing);
       expect(
         find.text(t('trait.name.none')),
         findsNothing,
