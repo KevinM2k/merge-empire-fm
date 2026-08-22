@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
+import 'package:merge_empire_fc/engine/manager_hint_engine.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -49,6 +50,49 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
     // outranks the rating comparison rather than sitting under it.
     if (preview.grudgeBoost > 0) {
       tips.add((id: 'grudge', text: t('manager.grudge', {'opp': opponent})));
+    }
+
+    // **WHAT HAPPENED LAST TIME THESE TWO MET.** Fourteen `manager_hint.*`
+    // strings sat translated in ten catalogues with nothing able to print one,
+    // and this file's own header says it is the port of `_computeManagerTips` —
+    // the JS function they are the output of. The pool had the grudge and the
+    // rating gap and nothing about the fixture itself.
+    //
+    // Directly under the grudge, and above the rating comparison, because it is
+    // the same KIND of thing: both are about this opponent rather than about
+    // our squad, and a run of results against a club is what a manager checks
+    // before he checks anyone's rating.
+    //
+    // `{when}` is a phrase inside a sentence, so the engine hands back the key
+    // for it and the catalogue layer finishes the job here.
+    final history = headToHeadHint(
+      s,
+      opponent,
+      currentSeason: _num(_map(s['progression'])?['seasonCount']).toInt(),
+    );
+    if (history != null) {
+      // **POOLED copy, and `t()` would have printed the whole pool.** Every
+      // `streak.*` and `last_meeting.*` string is three or four sentences
+      // separated by pipes, so a straight `t()` reads all of them at the player
+      // in one line — which is what the first version of this did, and what the
+      // test caught.
+      //
+      // `tPoolStable` rather than `tPool`: the pool is rebuilt on every change
+      // to the save, and a random pick would have Colin rephrasing himself
+      // while the bubble is open. Seeded on the fixture and the run, so his
+      // wording holds until the thing he is talking about changes.
+      final when = history.params['when'];
+      tips.add((
+        id: 'head_to_head',
+        text: tPoolStable(
+          history.key,
+          '$opponent|${history.key}|${history.params['n'] ?? ''}',
+          {
+            ...history.params,
+            if (when is ManagerHint) 'when': t(when.key, when.params),
+          },
+        ),
+      ));
     }
 
     if (theirRating != null) {

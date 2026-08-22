@@ -30,10 +30,10 @@ too late:
 
 ## Where we are
 
-**4,464 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,485 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
-**4,418 to 4,464 across this session's eight passes**, and the first fourteen of
+**4,418 to 4,485 across this session's nine passes**, and the first fourteen of
 those are the fourteen that went the pass before.
 The pass before this one took the suite DOWN — 4,426 to 4,418 — because fourteen
 of its tests belonged to a keeper nothing drew and the rest to a penalty model
@@ -199,6 +199,46 @@ while claiming to prove the full one. It reads the rows off the loaded save now.
 `table.col_club` and `table.col_pts` stay unreachable and should: they are the
 JS's column header, which the port replaced on purpose.
 
+**THE COACH HAD NOTHING TO SAY ABOUT THE FIXTURE**, only about the squad.
+Fourteen `manager_hint.*` strings, translated ten times over, with nothing able
+to print one — and the surface they belong to has existed since the home screen
+was written. `coach_bubble.dart`'s own header says it is the port of
+`_computeManagerTips`, which is the JS function these ARE the output of. Its
+pool had the grudge and the rating gap and nothing about the two clubs.
+
+**The data was all there as well.** `fixtureResults` is keyed `s{season}_m{n}`,
+every entry carries the opponent, the score and the outcome, and it is cleared
+only by a PRESTIGE reset rather than by a season rollover — which is exactly
+what "last season" and "{n} seasons back" need in order to mean anything.
+
+**Only what the keys themselves specify is built.** `streak.win.3plus` against
+`streak.win.2` is a threshold the key NAMES, and a last meeting is a fact rather
+than a judgement. `record.dominant` and `record.struggling` are NOT built: they
+need a sample size and a margin before an all-time record counts as either, and
+those numbers are in the spec repo. That line — build what the copy specifies,
+leave what it does not — is the difference between this and `squadstate.*`,
+which is thresholds all the way down and stays blocked.
+
+**IT IS POOLED COPY AND THE FIRST VERSION PRINTED THE WHOLE POOL.** Every
+`streak.*` and `last_meeting.*` string is three or four sentences separated by
+pipes, so a straight `t()` reads all four at the player in one line. The test
+caught it. `tPoolStable` rather than `tPool`, too: the pool is rebuilt on every
+change to the save, so a random pick would have Colin rephrasing himself while
+the bubble is open — the seed is the fixture and the run, so his wording holds
+until the thing he is talking about changes.
+
+**And a test whose expectation moves with its neighbours is worse than no
+test.** One assertion counted sentences in the chosen line; it passed in a
+full-file run and failed a filtered one, because the opponent's NAME is drawn
+from the seeded stream and which pooled line the seed lands on therefore depends
+on how many tests ran first. Gone, and the reason is in the test.
+
+Sorting is the other thing worth carrying: `meetingsWith` sorts by (season,
+match) off the KEY rather than trusting map order, because a save's map order is
+whatever the JSON round-trip produced — and "our last two against them" read off
+an unsorted list is two arbitrary matches that would pass any test whose fixture
+happened to be in order.
+
 **`<strong>` WAS NOT THE ONLY TAG IN THERE**, and the boundary now strips the
 CLASS rather than a list somebody maintains. Nine more entries carry markup
 `t()` never covered: seven `offseason.*`, whose whole report is built on
@@ -330,11 +370,15 @@ URL). Three are real and are their own items:
       that diffs the squad across a season rollover; `season_end` does the work
       but does not report it. Its `<b>` markup is handled now, so the copy is
       printable the day the card exists.
-- [ ] **`manager_hint.*` (14)** — head-to-head history against the next
-      opponent, pooled 3-4 ways: "Three-plus wins in a row over {opp}", plus a
-      `when.*` set that says how long ago ("earlier this season", "last season",
-      "{n} seasons back"). Needs a fixture-history reader; `fixtureResults` is
-      keyed `s{season}_m{n}` and carries the opponent, so the data is there.
+- [x] **`manager_hint.*` — eleven of the fourteen**, built as
+      `engine/manager_hint_engine.dart` and wired into Colin's existing pool.
+      See **The coach had nothing to say about the fixture** below.
+- [ ] **`manager_hint.record.dominant` / `.record.struggling`** are the three
+      left (with `aria.head` / `aria.dismiss`, which are DOM accessibility
+      labels and want a Flutter `Semantics` rather than a string). The record
+      pair needs a SAMPLE SIZE and a MARGIN before an all-time head-to-head
+      counts as either, and those numbers are in `../merge-empire-fc`.
+      Deliberately not guessed — see the engine's own header.
 - [ ] **`difficulty.switch.*` (5)** — the Pro-mode switch confirmation, which
       warns that switching starts you over.
 
@@ -955,7 +999,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,464 passing
+flutter test             # 4,485 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 
