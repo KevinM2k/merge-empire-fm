@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,401 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,403 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**96 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**95 items are open**, plus eight carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3371,8 +3371,24 @@ is wrong in six places.
 - [ ] **Quick-fire matches and the free lucky boot say both "already ready" and
       "coming soon".** They should be playable, and they should trigger an
       advert.
-- [ ] **The gems look wrong** — one gem per image, whatever the pack. Look at
-      `../merge-empire-match-day`'s shop.
+- [~] **The gems look wrong — one gem per image, whatever the pack.** Every
+      bundle on the gems shelf wore the same 34px `GameIcon('gem')`, so Pocket
+      of Gems, Casket of Gems and Hoard of Gems were three prices under three
+      identical pictures, and the tile said nothing about which was the big one
+      — on the shelf where that is the only question.
+      **`gem_pack_art.dart` is a picture per pack**, and the names are the brief
+      exactly the way they were for the coin packs beside it: a pouch with
+      stones spilling from the neck, an open casket with a clasp, and a hoard
+      with no container at all, because what is being bought is the gems and a
+      hoard is a quantity that has outgrown anything you would keep it in. Two
+      primitives — a cut gem and a container — against a 100×100 box and scaled,
+      so nothing is bundled and it costs one painter.
+      **This is NOT a port of the spec's art and does not claim to be.**
+      `assets/gemArt.js` (146 lines) is in `../merge-empire-fc`, and neither
+      that repo nor `../merge-empire-match-day` — which this entry points at —
+      is in a cloud container. What landed is this repo's OWN coin-pack pattern
+      carried one shelf across. When the JS can be read, these three
+      compositions are what to check against it, which is why this stays `[~]`.
 - [x] **The manager-customisation packs have tiny grey buttons with a blue gem in
       them.** They are meant to be a blue button with a WHITE gem. It was a
       near-black pill with the gem's own colour on it at 11px, which reads as a
