@@ -94,6 +94,70 @@ Future<bool?> showDeadlineConfirm(
   );
 }
 
+/// Their counter, and the two answers to it.
+///
+/// **The body quotes THEIR number and the button quotes OURS.** The two are the
+/// same figure only when no players are on the table; once a swap is in the deal
+/// their total is part-paid in players, and a button offering to "pay" the total
+/// would name coins the deal never asked for. `sellerCounter` hands over both so
+/// neither is worked out here — see the note on it about the subtraction only
+/// existing once.
+///
+/// **"Not now" is not a refusal**, which is why it is not called one. The number
+/// stands for the rest of the fuse and the card goes on offering it, which is
+/// what `counter_keeps` promises the manager underneath. Without that line the
+/// only reading of "they want more" is pay-or-lose-him, and a player who wanted
+/// a moment to find the money would take the dialog at its word and let the
+/// deal go.
+Future<bool?> showSellerCounter(
+  BuildContext context,
+  Listing listing,
+  SellerCounter counter,
+) => showDialog<bool>(
+  context: context,
+  builder: (dialogContext) {
+    final kit = Theme.of(dialogContext).extension<KitTheme>()!;
+    return AlertDialog(
+      key: const ValueKey('dd-counter'),
+      title: Text(t('event.deadline.counter_title')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t('event.deadline.counter_body', {
+              'team': '${listing['fromTeam'] ?? ''}',
+              'name': '${listing['playerName'] ?? ''}',
+              'amount': formatCoins(counter.price),
+            }),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            t('event.deadline.counter_keeps'),
+            style: TextStyle(fontSize: 12, height: 1.4, color: kit.textMuted),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('dd-counter-no'),
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text(t('event.deadline.counter_walk')),
+        ),
+        ElevatedButton(
+          key: const ValueKey('dd-counter-yes'),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text(
+            t('event.deadline.counter_accept', {
+              'amount': formatCoins(counter.cash),
+            }),
+          ),
+        ),
+      ],
+    );
+  },
+);
+
 /// The negotiation sheet. Returns true when the board changed.
 ///
 /// Two shapes behind one door, because they are the same conversation from

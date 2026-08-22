@@ -1003,6 +1003,39 @@ DealResult submitOffer(
   };
 }
 
+/// The figure a seller has come back with, and what taking it would cost.
+///
+/// [price] is THEIR number and [cash] is what leaves the wallet: the two differ
+/// whenever players are already on the table, and both are needed to say the
+/// thing honestly — the body of the offer quotes what they will do the deal at,
+/// the button quotes what the manager actually pays.
+typedef SellerCounter = ({num price, num cash});
+
+/// What the counter on this listing says, or null when there is not one.
+///
+/// The button that offers to take a counter has to name the cash BEFORE the
+/// player commits, and the only other way to get that number is to write the
+/// subtraction out again in the UI — where it would drift from the one
+/// [acceptSellerCounter] charges. So the arithmetic lives here once and both
+/// read it.
+SellerCounter? sellerCounter(Map<String, dynamic> state, String listingId) {
+  final counter = _map(_find(state, listingId)?['sellerCounter']);
+  if (counter == null) return null;
+  return (
+    price: _num(counter['price']) ?? 0,
+    cash: _counterCash(state, counter),
+  );
+}
+
+/// Their total, less what the players already offered are worth to them.
+num _counterCash(Map<String, dynamic> state, Map<String, dynamic> counter) {
+  final price = _num(counter['price']) ?? 0;
+  final offer = _map(counter['offer']) ?? <String, dynamic>{};
+  final playersWorth =
+      offerValue(state, {'players': offer['players'] ?? <Object?>[]});
+  return math.max(0, _jsRound(price - playersWorth));
+}
+
 /// Takes the seller's counter.
 ///
 /// Their number is a TOTAL — the players we already put on the table stay in the
@@ -1026,9 +1059,7 @@ DealResult acceptSellerCounter(
 
   final price = _num(counter['price']) ?? 0;
   final offer = _map(counter['offer']) ?? <String, dynamic>{};
-  final playersWorth =
-      offerValue(state, {'players': offer['players'] ?? <Object?>[]});
-  final cashNeeded = math.max(0, _jsRound(price - playersWorth));
+  final cashNeeded = _counterCash(state, counter);
   if ((_num(_map(state['resources'])?['fanCoins']) ?? 0) < cashNeeded) {
     return {
       'ok': false,
