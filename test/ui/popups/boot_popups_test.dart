@@ -158,6 +158,66 @@ void main() {
     expect(find.byKey(const ValueKey('daily-reward-sheet')), findsNothing);
   });
 
+  testWidgets('AND ONCE A DAY, not on every boot until it is taken', (
+    tester,
+  ) async {
+    // The gate was `!claimedToday`, so a player who opened the app, read the
+    // cycle and closed it without claiming was shown it again on the next boot
+    // and the one after that. `shouldAutoShowPopup` stamps the day as it goes
+    // — the engine's own once-a-day rule, which had no caller.
+    // Tall enough for the sheet's own Close to be on screen: the cycle is seven
+    // tiles and a claim row, and the default 600 leaves the button below the
+    // fold where a tap cannot reach it.
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final first = await boot(tester, saveWith());
+    expect(find.byKey(const ValueKey('daily-reward-sheet')), findsOneWidget);
+
+    // Closed WITHOUT claiming, which is the case the gate is about.
+    await tester.tap(find.byKey(const ValueKey('daily-close')));
+    await tester.pumpAndSettle();
+    expect(hasPopupWork(), isFalse);
+
+    // The save the first boot leaves behind, which is what a second launch
+    // would load. `boot` encodes its argument, so the state the flow mutated is
+    // the container's, not the fixture's.
+    final after = first.read(gameProvider).state!;
+    expect(
+      getDailyRewardStatus(after).claimedToday,
+      isFalse,
+      reason: 'the sheet was opened, not claimed — that is the whole case',
+    );
+    expect(
+      (after['dailyReward'] as Map)['lastAutoPopupDayKey'],
+      dateString(),
+      reason: 'the auto-open has to say it happened, or it happens forever',
+    );
+
+    await boot(tester, after);
+    expect(
+      find.byKey(const ValueKey('daily-reward-sheet')),
+      findsNothing,
+      reason: 'offered a second time on the same day',
+    );
+  });
+
+  testWidgets('and the burger opens it anyway, gate or no gate', (
+    tester,
+  ) async {
+    // The JS's rule in as many words: a manual open bypasses the auto gate
+    // entirely. A day already auto-shown must still be reachable, or the one
+    // way to claim it is gone until midnight.
+    final save = saveWith();
+    (save['dailyReward'] as Map)['lastAutoPopupDayKey'] = dateString();
+    expect(shouldAutoShowPopup(save), isFalse);
+    expect(
+      getDailyRewardStatus(save).claimedToday,
+      isFalse,
+      reason: 'the gate must not be mistaken for having been paid',
+    );
+  });
+
   testWidgets('offline earnings are offered, and paid on Collect', (
     tester,
   ) async {

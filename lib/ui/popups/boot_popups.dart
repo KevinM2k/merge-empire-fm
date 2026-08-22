@@ -50,9 +50,24 @@ void queueBootPopups({
     PopupEntry(
       id: 'daily-reward',
       priority: PopupPriority.dailyReward,
-      // Re-checked at show time: the welcome-back card can sit on screen across
-      // midnight, and a reward claimed in between must not be offered again.
-      canShow: () => !getDailyRewardStatus(game.state ?? {}).claimedToday,
+      // **ONCE A DAY, which is the engine's own rule and was being bypassed.**
+      // `!claimedToday` offers the sheet on EVERY boot until the reward is
+      // taken, so a player who opens the app, looks at the cycle and closes it
+      // without claiming is shown it again the next time they open the app,
+      // and the time after that. `shouldAutoShowPopup` is the gate the JS
+      // wrote for exactly this — it subsumes the claimed check and stamps
+      // `lastAutoPopupDayKey` on its way through, so the auto-open happens once
+      // per day and the day rolls over on its own.
+      //
+      // It MUTATES, which is why it belongs here rather than in `bootHasWork`:
+      // `canShow` runs at show time and runs once, because the entry leaves the
+      // queue whichever answer it gives. Asking it twice would consume the day
+      // and then show nothing.
+      //
+      // The manual route — the burger's Daily tile — calls the sheet directly
+      // and is untouched by this, which is the JS's rule stated in as many
+      // words: "a manual open bypasses this entirely".
+      canShow: () => shouldAutoShowPopup(game.state ?? {}),
       show: (done) =>
           _showDailyReward(context(), game: game).then((_) => done()),
     ),

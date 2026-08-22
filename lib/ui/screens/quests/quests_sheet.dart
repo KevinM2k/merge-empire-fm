@@ -76,13 +76,13 @@ final matchQuestsProvider = savePick<List<QuestRow>>((s) {
 });
 
 /// How many season quests are sitting there completed and unclaimed.
-final claimableQuestsProvider = savePick<int>((s) {
-  final season = ensureQuests(s)['season'];
-  return _rowsFrom(
-    s,
-    season is List ? season : const [],
-  ).where((q) => q.completed && !q.claimed).length;
-});
+/// **The ENGINE'S count, not a second one.** `unclaimedCount` in
+/// `quest_engine.dart` is "completed and not yet claimed" and had no caller in
+/// `lib/`; this provider was the same rule written out again, so the badge on
+/// the burger and the badge on the Quests tile were two readings that happened
+/// to agree. They are one now — see the standing rule about building a second
+/// of anything.
+final claimableQuestsProvider = savePick<int>(unclaimedCount);
 
 /// What the WHOLE track is worth, and how much of it is banked.
 ///
