@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,565 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,571 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **The newest pass also ran green on 3.38.3**, which is the version that happened
@@ -186,10 +186,25 @@ card does. Which makes it and `offseason.*` one piece of work — **the port has
 no season-end popup chain** — and that is the biggest thing this pass leaves
 open with a known shape.
 
-**THE NEWEST SECTION IS `From playtesting — 28 Aug`, and two of its items
-REVERSE decisions recorded here as done** — the match clock's own card, and
-Colin's head filling its orb. Both reversals say so in place, because a session
-that reads only the older entry will helpfully put them back.
+**THE NEWEST SECTION IS `From playtesting — 28 Aug` AND IT IS THE LONGEST ONE
+IN THIS FILE.** Read it before anything else. Three things about its shape:
+
+**Two of its items REVERSE decisions recorded here as done** — the match clock's
+own card, and Colin's head filling its orb. Both reversals say so in place,
+because a session that reads only the older entry will helpfully put them back.
+
+**Four of its items are the SAME bug on four screens**, and it is worth seeing
+as one: a colour picked against a dark surface, printed unchanged on a light
+one. Dark mode is right in every one of the four reports, which is the tell —
+these are not colour choices, they are missing SECOND choices. The player card's
+chips were the fifth and are fixed; the pattern that fixed them (contrast from
+near-black ink, identity from a pale tint) is the shape to reach for, because
+swapping a dark pair's two values almost never works.
+
+**And "could not reproduce" was wrong once already.** The dark card bottoms were
+closed on 27 Aug after checking the caption scrim, which really had been fixed;
+the dark thing was the CHIP on top of it. **A report that comes back after a fix
+is usually a second cause in the same place**, not a player misremembering.
 
 **THE SEASON ENDED AND NOTHING SAID WHAT THE BREAK DID.** The port had a
 season-end SCREEN and no season-end CHAIN: `endSeason` has returned an injury
@@ -4896,19 +4911,140 @@ that reads only the older entry will put them back.
 
 ### The squad page, and the index
 
-- [ ] **THE CARD BOTTOMS ARE STILL DARK IN LIGHT MODE**, reported again and
-      specifically about the BOTTOM of the card. **The 27 Aug entry closed this
-      as "could not reproduce"** and offered the generated portrait's near-black
-      background as the likely culprit — which is the TOP of a card, so that
-      answer does not fit this report. Treat the earlier `[~]` as wrong rather
-      than as evidence: something on the squad page is still painting a dark
-      caption band on a light page, and the place to start is every caller of
-      `PlayerCard` on that page and what each passes for `light`.
-- [ ] **THE INDEX'S UNKNOWN CARDS ARE TOO DETAILED.** An undiscovered player is
-      currently drawn as a player. It should read as a locked slot — **a
-      question mark or a padlock over it**, and at most the TIER and the
-      GENDER, which are the two things that make the slot worth chasing. Drawing
-      the rest gives away the card the page exists to make you want.
+- [x] **THE CARD BOTTOMS ARE STILL DARK IN LIGHT MODE — and it was the CHIPS,
+      not the scrim.** The 27 Aug entry closed this as "could not reproduce"
+      because it checked the caption scrim, which really had been fixed and
+      really does follow the theme. What is dark at the foot of a light card is
+      the TIER CHIP sitting on that white band: `#3d2000`, in both themes, with
+      a note above it explaining that the chips stay dark so the pale rarity ink
+      reads on top.
+      **Swapping ground and ink does not work**, which is why the note was
+      written in the first place: four of the nine tier accents are `#ffaa00`,
+      `#00c8ff` and friends, and none of them carries on white. So light mode
+      inverts the JOB of the pair instead — contrast comes from near-black ink,
+      the same `captionInk` the name beside it already uses, and the tier is
+      carried by a pale TINT of its own colour. Dark mode is untouched.
+      **The lesson is the diagnosis, not the fix**: "could not reproduce" was
+      reached by checking the thing the previous fix had touched. A report that
+      comes back after a fix is usually a second cause in the same place.
+- [x] **THE INDEX'S UNKNOWN CARDS ARE TOO DETAILED.** They are a locked slot
+      now — `❓` over the art, the TIER and the GENDER and nothing else. A
+      silhouette is still the card: its build, its stance and its haircut all
+      read at a glance, which gives away the thing the page exists to make you
+      want. **The recipe dialog one tap behind it had already settled this** and
+      drew `❓` for exactly this case; the tile was the half that never got the
+      decision. The POSITION came off with the portrait — the caption had
+      already dropped it while the corner badge went on printing it beside a
+      silhouette in the shape of a keeper — and the `×0` went with it, a count
+      of nothing not being a fact worth a badge.
+
+### The shop
+
+- [ ] **The manager-customisation gem buttons are the wrong blue AND the wrong
+      shape.** They were made "a blue button with a white gem" on 27 Aug and
+      that fixed the wrong half — the colour is not the shop's blue and the pill
+      is not the shop's button. **Match the other buy buttons on the same
+      screen** rather than picking a blue.
+- [ ] **And the confirm should say what the pack UNLOCKS.** "Spend these gems?"
+      over a pack whose contents are on the tile behind the sheet is a
+      confirmation the player has to close to answer. `purchase_flow.dart`'s
+      confirm takes a body; the pack knows its own items.
+- [ ] **Quick-fire matches and the free lucky boot say BOTH "already ready" AND
+      "coming soon".** Two states on one tile, which is one of them being drawn
+      by something that does not know about the other. (Recorded on 27 Aug and
+      still true.)
+- [ ] **They are AD buttons, so they should look like one**: the ad icon and the
+      yellow, which the summary's watch-to-double already establishes as the
+      colour of "watch something". A rewarded action that looks like a purchase
+      is a purchase as far as the player is concerned.
+- [ ] **The starter pack, VIP and the Energy Director are SPECIAL OFFERS and do
+      not look it.** They were made full width on 27 Aug — the shelf the shop
+      opens on — and width alone did not make them special. This is the
+      highest-converting slot in the game.
+
+### Motion, and how static things read
+
+- [ ] **The exclamation mark should almost BOUNCE.** Every unread marker in the
+      game is a static glyph; the one thing it is for is being noticed. A small
+      looping bounce, and it wants to be ONE widget — there is more than one
+      exclamation in the app and two implementations would drift.
+- [ ] **THE MANAGER NEEDS TO BE MUCH MORE ANIMATED.** Standing said as much on
+      26 Aug (`standing`, `idle`, `poseOverIdle` were added for exactly this)
+      and the answer on screen is still too still. See the Lottie note under
+      the customiser: a manager who is planted rather than walking is the case
+      where a recorded clip costs nothing, because there is no foot contact to
+      solve.
+
+### Light mode, again, and it is a pattern now
+
+Four separate reports this sitting, all the same shape: **a colour that was
+picked against a dark surface, printed unchanged on a light one.** Dark mode is
+right every time, which is the tell — these are not colour choices, they are
+missing second choices.
+
+- [ ] **An incoming offer is TOO MUCH YELLOW and hard to read in light mode.**
+      Dark mode is good. Be careful changing it: the fix is a light-mode value,
+      not a new hue.
+- [ ] **The quests' badges: yellow on yellow, and blue on blue.** **Keep the
+      yellow and the blue** — they are the quest states — and DARKEN THE BADGE
+      so the ink on it clears. Same inversion the player card's chips just took.
+- [ ] **The home page's reds and greens do not match dark mode's, and should.**
+      The 27 Aug entry looked for a mismatched pair and found only single fixed
+      values (`#4ADE80` / `#F87171`) used in both themes — so this is the
+      opposite finding: one value used in both is exactly what is wrong, because
+      the pair was chosen for a dark ground. **Name the screen when reporting
+      it**; the entry above could not find it.
+- [ ] **The match screen's reds and greens are wrong too**, same cause, and its
+      whole palette should read as the dark version does.
+
+### The squad page
+
+- [ ] **The player's image is not big enough.** It is the subject of the card
+      and it is the smallest thing on it.
+- [ ] **The trait should look much nicer than it does.** It was given an accent
+      wash and a level chip on 27 Aug and it is still the least interesting-
+      looking thing on a card it is the point of.
+
+### The daily popup
+
+- [ ] **It is a bit rubbish, and there is far more room than it uses.** The
+      27 Aug pass fixed the LAYOUT — seven equal tiles, four and three, a stamp
+      across a claimed one — and stopped there. What is missing is the reason to
+      come back tomorrow: the STREAK. `getDailyStreak` has been sitting uncalled
+      through two audits for exactly this.
+
+### The match screen — continued
+
+- [ ] **Every item wants the same vertical and horizontal margin, and one
+      radius.** A page of panels at four insets and three corner radii reads as
+      unfinished before anything on it is read.
+- [ ] **Colin is at the bottom of the play screen and is hard to see.** He was
+      floated over the footer on 27 Aug so a strip appearing and disappearing
+      could not shove the feed about; that reasoning holds and the placement
+      still loses him. The third option from 26 Aug — a bigger head — is the one
+      not yet tried.
+- [ ] **The commentary wants the GLASS of the end screen.** `GlassPanel` is what
+      the summary is built from and the commentary box is not using it.
+- [ ] **THE BALL GOES TO AN INVISIBLE PLAYER, who then scores or misses.** The
+      passage is drawing a receiver that is not on the pitch. This is a
+      correctness bug in the clip builder rather than a look: whatever
+      `CutawayGame` picks as the target has to be one of the bodies it drew.
+- [ ] **THE DUGOUT CAM COVERS THE PITCH, and a chance straight after is missed.**
+      It is drawn over the one thing the player is watching. Either it takes its
+      own space or it is refused while a passage can still start — and note the
+      27 Aug arithmetic (`camFitsBeforeFullTime`, a 90-minute match being 10.8
+      real seconds) says the window is already most of what is left; this is a
+      second reason to shorten or reposition it rather than a new one.
+
+### The full-time summary — continued
+
+- [ ] **The 2× offer, with its coins, belongs at the BOTTOM beside the button
+      that answers it.** A figure at the top and the button that changes it at
+      the foot is one decision split across a scroll.
+- [ ] **The quests go to the very bottom**, under everything.
+- [ ] **Which is all so THE TABLE IS VISIBLE** — see the top of this section.
+      The point of the animation is watching your club shove everyone else down,
+      and it cannot be the part below the fold.
 
 ### The home screen
 
