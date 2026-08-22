@@ -279,7 +279,7 @@ class _TableRow extends StatelessWidget {
 /// One result in the last five. Tinted fill plus a colour hairline, so a run
 /// reads as a shape before any letter is parsed.
 class _FormDot extends StatelessWidget {
-  const _FormDot({required this.result});
+  const _FormDot({required this.result, super.key});
 
   final String result;
 
@@ -420,14 +420,49 @@ class _FixtureRow extends StatelessWidget {
       score = t('common.vs');
       scoreInk = kit.accentBright;
     } else {
-      score = '-:-';
+      // An em dash, not `-:-`: a placeholder shaped like a score reads as a
+      // score that failed to load.
+      score = '—';
       scoreInk = kit.textMuted;
     }
 
+    // **HOW IT WENT, as the dot the standings already use.** The result was
+    // carried by the SCORE'S COLOUR and nothing else — a green `2 - 1` against
+    // a red `0 - 3` — which asks the player to read a hue off two digits, and
+    // says nothing at all on a row they have not played. The form dot is this
+    // file's own widget, three rows up, and it is the same green-amber-red the
+    // standings, the summary and the HUD all read. No new copy: W, D and L are
+    // the letters the table already prints.
+    final String? outcome = !fixture.played
+        ? null
+        : fixture.won
+        ? 'W'
+        : fixture.drawn
+        ? 'D'
+        : 'L';
+
     return Container(
       key: ValueKey('league-fixture-${fixture.matchNum}'),
-      color: fixture.isNext ? kit.surface2 : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      // **THE NEXT ONE IS A CARD, not a grey band across the sheet.** It was a
+      // full-bleed `surface2` fill with no rounding and no edge, which on a
+      // column of otherwise identical rows reads as a highlight that has gone
+      // wrong rather than as the fixture you are about to play.
+      margin: EdgeInsets.symmetric(horizontal: fixture.isNext ? 8 : 0),
+      decoration: BoxDecoration(
+        color: fixture.isNext ? kit.accentBright.withValues(alpha: 0.1) : null,
+        borderRadius: BorderRadius.circular(fixture.isNext ? 10 : 0),
+        border: fixture.isNext
+            ? Border.all(color: kit.accentBright.withValues(alpha: 0.5))
+            // A hairline under every other row, so a season of them is a list
+            // of fixtures rather than a paragraph of club names.
+            : Border(
+                bottom: BorderSide(color: kit.border.withValues(alpha: 0.45)),
+              ),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: fixture.isNext ? 8 : 12,
+        vertical: 8,
+      ),
       child: Row(
         children: [
           // FIXED WIDTH, always first: the chip is scanned down the column
@@ -467,15 +502,20 @@ class _FixtureRow extends StatelessWidget {
           ),
           // Their rating, tilde'd until we have actually played them — an
           // estimate that does not say it is one is a number the player will
-          // hold the game to.
-          Text(
-            fixture.ratingEstimated
-                ? '~${fixture.rating}'
-                : '${fixture.rating}',
-            style: TextStyle(color: kit.textMuted, fontSize: 11),
+          // hold the game to. In its own slot, because jammed against the score
+          // the two numbers ran together into one.
+          SizedBox(
+            width: 34,
+            child: Text(
+              fixture.ratingEstimated
+                  ? '~${fixture.rating}'
+                  : '${fixture.rating}',
+              textAlign: TextAlign.right,
+              style: TextStyle(color: kit.textMuted, fontSize: 11),
+            ),
           ),
           SizedBox(
-            width: 52,
+            width: 48,
             child: Text(
               score,
               key: ValueKey('fixture-score-${fixture.matchNum}'),
@@ -484,8 +524,23 @@ class _FixtureRow extends StatelessWidget {
                 color: scoreInk,
                 fontWeight: FontWeight.w800,
                 fontSize: 12,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
+          ),
+          // A fixed slot whether or not there is a dot in it, so the scores
+          // above and below an unplayed fixture stay in one column.
+          SizedBox(
+            width: 24,
+            child: outcome == null
+                ? null
+                : Align(
+                    alignment: Alignment.centerRight,
+                    child: _FormDot(
+                      key: ValueKey('fixture-result-${fixture.matchNum}'),
+                      result: outcome,
+                    ),
+                  ),
           ),
         ],
       ),

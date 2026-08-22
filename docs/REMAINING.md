@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,400 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,401 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**97 items are open**, plus seven carrying a `[~]` — answered, but with a decision
+**96 items are open**, plus seven carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3388,7 +3388,22 @@ is wrong in six places.
 
 ### Everywhere else
 
-- [ ] **Fixtures: the design is not right.**
+- [x] **Fixtures: four things, and the biggest was that a result had no shape.**
+      How a fixture went was carried by the SCORE'S COLOUR and nothing else — a
+      green `2 - 1` against a red `0 - 3` — which asks the player to read a hue
+      off two digits, and says nothing at all about a row they have not played.
+      It wears the **form dot** now: this file's own `_FormDot`, three classes
+      up, already used by the standings and already the green-amber-red the
+      summary and the HUD read. No new copy — W, D and L are the letters the
+      table prints anyway.
+      **The next fixture is a CARD**, not a full-bleed `surface2` band with no
+      rounding and no edge, which on a column of otherwise identical rows reads
+      as a highlight that has gone wrong. **Every other row gets a hairline**,
+      so a season is a list of fixtures rather than a paragraph of club names.
+      **The rating has its own slot** — jammed against the score, `31` and
+      `2 - 1` ran together into one number. And an unplayed fixture says `—`
+      rather than `-:-`, which is a placeholder shaped like a score and so reads
+      as a score that failed to load.
 - [x] **Season quests do not look good, and do not show the reward** — neither
       for one of them nor for all of them. **The rewards are on now**: every
       quest carries what it pays, resolved for THIS division (the bank's figure
