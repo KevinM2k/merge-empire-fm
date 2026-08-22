@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/manager_hint_engine.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 
 /// A save with these results already played, in the order given.
 Map<String, dynamic> saveWith(
@@ -231,6 +232,113 @@ void main() {
         [loss(1, 1)],
       ]) {
         expect(hint(p)?.params['opp'], 'Rivals');
+      }
+    });
+  });
+
+  group('the all-time record', () {
+    ({String? key, int wins, int draws, int losses}) rec(
+      List<({int season, int match, String opp, int ours, int theirs})> p,
+    ) => recordFor(meetingsWith(saveWith(p), 'Rivals'));
+
+    test('counts what happened, whatever it says about it', () {
+      final r = rec([win(1, 1), draw(1, 2), loss(1, 3), win(1, 4)]);
+      expect((r.wins, r.draws, r.losses), (2, 1, 1));
+    });
+
+    test('THE MARGIN IS TWO CLEAR, and one ahead is not a record', () {
+      // `wins > losses + 1` is the spec's, and one either way is a club you
+      // have shared the points with rather than one you own.
+      expect(rec([win(1, 1), win(1, 2), loss(1, 3)]).key, isNull);
+      expect(rec([win(1, 1), win(1, 2), win(1, 3)]).key,
+          'manager_hint.record.dominant');
+      expect(rec([loss(1, 1), loss(1, 2), win(1, 3)]).key, isNull);
+      expect(rec([loss(1, 1), loss(1, 2), loss(1, 3)]).key,
+          'manager_hint.record.struggling');
+    });
+
+    test('and the SAMPLE SIZE is three meetings', () {
+      // Two wins out of two is a run, not a record, and `streak.win.2` is
+      // already the sentence for it.
+      expect(rec([win(1, 1), win(1, 2)]).key, isNull);
+      expect(rec([win(1, 1), win(1, 2)]).wins, 2);
+    });
+
+    test('a draw counts against neither side of the margin', () {
+      // Three draws is a record of nothing, and it may not read as either.
+      expect(rec([draw(1, 1), draw(1, 2), draw(1, 3)]).key, isNull);
+      expect(rec([draw(1, 1), draw(1, 2), draw(1, 3)]).draws, 3);
+    });
+
+    test('an empty history is a record of nothing', () {
+      final r = recordFor(const []);
+      expect((r.key, r.wins, r.draws, r.losses), (null, 0, 0, 0));
+    });
+  });
+
+  group('the pool the bubble picks from', () {
+    ({List<String> keys, Map<String, Object?> params})? pool(
+      List<({int season, int match, String opp, int ours, int theirs})> p,
+    ) => fixtureHintPool(saveWith(p), 'Rivals', currentSeason: 3);
+
+    test('IS THE FIXTURE\'S OWN LINE, and the record only JOINS it', () {
+      // The JS concatenates rather than replacing, so a run of four still gets
+      // to be the headline most of the times it exists. Four meetings with
+      // Rivals is where the one-in-three roll lands on yes — pinned, because a
+      // test that hopes for a roll is a test that fails one run in three.
+      final p = pool([win(1, 1), win(1, 2), win(1, 3), win(1, 4)])!;
+      expect(p.keys.first, 'manager_hint.streak.win.3plus');
+      expect(p.keys, contains('manager_hint.record.dominant'));
+    });
+
+    test('and the roll can say no, with the same record in front of it', () {
+      // Three meetings, same seed shape, and the record is dominant either
+      // way — the only thing that changed is the roll.
+      final p = pool([win(1, 1), win(1, 2), win(1, 3)])!;
+      expect(p.keys, ['manager_hint.streak.win.3plus']);
+      expect(recordFor(meetingsWith(saveWith([win(1, 1), win(1, 2), win(1, 3)]),
+          'Rivals')).key, 'manager_hint.record.dominant');
+    });
+
+    test('an EVEN record never joins, however the roll falls', () {
+      final p = pool([win(1, 1), win(1, 2), loss(1, 3), loss(1, 4)])!;
+      expect(p.keys, hasLength(1));
+    });
+
+    test('THE COUNTS ARE ALWAYS THERE, key or no key', () {
+      // The params a pooled key needs are the union across its variants, and a
+      // caller that never prints a record pays nothing for carrying three ints.
+      final p = pool([win(1, 1), loss(1, 2)])!;
+      expect((p.params['wins'], p.params['draws'], p.params['losses']),
+          (1, 0, 1));
+    });
+
+    test('a club we have never played gets no pool at all', () {
+      expect(fixtureHintPool(saveWith([win(1, 1)]), 'Strangers',
+          currentSeason: 3), isNull);
+    });
+
+    test('AND EVERY SENTENCE IN THE POOL RESOLVES, both keys\' worth', () {
+      // The record variants ask for {wins}/{draws}/{losses} and the fixture's
+      // own ask for {opp}/{n}/{lastScore}/{when} — one params map has to
+      // satisfy all of them, because which sentence a player sees is a seed.
+      // W W L W is a streak of one with a 3-1 record, so the pool is a last
+      // meeting AND the record, which is the case that exercises both shapes.
+      final p = pool([win(1, 1), win(1, 2), loss(1, 3), win(1, 4)])!;
+      expect(p.keys, [
+        'manager_hint.last_meeting.won',
+        'manager_hint.record.dominant',
+      ]);
+      final when = p.params['when'];
+      final params = {
+        ...p.params,
+        if (when is ManagerHint) 'when': t(when.key, when.params),
+      };
+      for (final key in p.keys) {
+        for (final sentence in t(key, params).split('|')) {
+          expect(sentence, isNot(contains('{')), reason: key);
+          expect(sentence, isNot(contains('}')), reason: key);
+        }
       }
     });
   });

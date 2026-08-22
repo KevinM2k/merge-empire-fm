@@ -132,16 +132,47 @@ String tPoolStable(
   String key,
   String seed, [
   Map<String, Object?> params = const {},
+]) => tPoolStableOf([key], seed, params);
+
+/// The same pick, over the pools of SEVERAL keys at once.
+///
+/// The JS builds one array and concatenates onto it — `_opponentHistoryTip`
+/// widens the fixture's pool with the all-time record's variants — so the two
+/// keys' sentences compete rather than one replacing the other. A caller that
+/// picked a key first and a line second would give a two-variant key the same
+/// weight as a four-variant one.
+///
+/// A key the catalogue does not carry contributes nothing, which is what lets a
+/// caller offer an optional second key without checking for it; if none of them
+/// resolve the first key is returned, matching [t]'s own fallback.
+String tPoolStableOf(
+  List<String> keys,
+  String seed, [
+  Map<String, Object?> params = const {},
 ]) {
-  final raw = t(key, params);
-  if (raw == key) return raw;
-  final lines = raw.split('|');
+  final lines = <String>[];
+  for (final key in keys) {
+    final raw = t(key, params);
+    if (raw != key) lines.addAll(raw.split('|'));
+  }
+  if (lines.isEmpty) return keys.isEmpty ? '' : keys.first;
   if (lines.length == 1) return lines.first;
+  return lines[stableIndex(seed, lines.length)];
+}
+
+/// The JS's `_pickStable` index — `h * 31 + charCode` truncated to 32 signed
+/// bits — so the two runtimes pick the same entry out of the same list.
+///
+/// Public because the choice is not always a sentence: `manager_hint_engine`
+/// rolls the JS's one-in-three on whether the all-time record joins the pool at
+/// all, and a second hash would be a second answer to "which one is stable".
+int stableIndex(String seed, int length) {
+  if (length <= 1) return 0;
   var h = 0;
   for (final unit in seed.codeUnits) {
     h = (h * 31 + unit).toSigned(32);
   }
-  return lines[h.abs() % lines.length];
+  return h.abs() % length;
 }
 
 /// Resolve a division, cup or tier by its data-file id, falling back to the

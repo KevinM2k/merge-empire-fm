@@ -68,6 +68,96 @@ void main() {
     });
   });
 
+  group('tPoolStableOf()', () {
+    setUp(() => setLocale('en'));
+
+    test('TWO KEYS MAKE ONE POOL, and every sentence in both can win', () {
+      // The JS concatenates onto the array rather than choosing a key and then
+      // a line, so a two-variant key does not get the same weight as a
+      // four-variant one. Colin's all-time record joins his read on the fixture
+      // exactly this way.
+      const keys = [
+        'manager_hint.streak.win.3plus',
+        'manager_hint.record.dominant',
+      ];
+      const params = {
+        'opp': 'Rivals',
+        'n': 4,
+        'wins': 4,
+        'draws': 0,
+        'losses': 0,
+      };
+      final all = [
+        for (final k in keys) ...t(k, params).split('|'),
+      ];
+      expect(all.length, 6, reason: 'four sentences plus two');
+
+      final seen = <String>{};
+      for (var i = 0; i < 400; i++) {
+        final line = tPoolStableOf(keys, 'seed-$i', params);
+        expect(all, contains(line));
+        seen.add(line);
+      }
+      expect(seen.length, all.length, reason: 'a sentence nothing can reach');
+    });
+
+    test('and one key is the single-key call, unchanged', () {
+      for (var i = 0; i < 20; i++) {
+        expect(
+          tPoolStableOf(['manager_hint.record.dominant'], 'seed-$i'),
+          tPoolStable('manager_hint.record.dominant', 'seed-$i'),
+        );
+      }
+    });
+
+    test('a key the catalogue does not carry contributes NOTHING', () {
+      // Which is what lets a caller offer an optional second key without
+      // checking for it first.
+      const params = {'opp': 'Rivals', 'wins': 4, 'draws': 0, 'losses': 0};
+      final real = t('manager_hint.record.dominant', params).split('|');
+      for (var i = 0; i < 40; i++) {
+        expect(
+          real,
+          contains(
+            tPoolStableOf(
+              ['manager_hint.record.dominant', 'not.a.key'],
+              'seed-$i',
+              params,
+            ),
+          ),
+        );
+      }
+    });
+
+    test('and when none of them resolve, the first key is the answer', () {
+      expect(tPoolStableOf(['not.a.key', 'nor.this'], 'seed'), 'not.a.key');
+      expect(tPoolStableOf([], 'seed'), '');
+    });
+  });
+
+  group('stableIndex()', () {
+    test('is the JS hash, so both runtimes pick the same entry', () {
+      // `h * 31 + charCode` truncated to 32 signed bits. Pinned rather than
+      // described: it is the one thing in here two implementations must agree
+      // on, and it now answers for sentences AND for the roll on whether the
+      // record is mentioned at all.
+      expect(stableIndex('rec|Rivals|3|4', 3), 2);
+      expect(stableIndex('rec|Rivals|3|3', 3), 0);
+      expect(stableIndex('rec|Rivals|3|5', 3), 1);
+    });
+
+    test('holds still for the same seed', () {
+      for (var i = 0; i < 10; i++) {
+        expect(stableIndex('a seed', 7), stableIndex('a seed', 7));
+      }
+    });
+
+    test('a list of one has only one answer', () {
+      expect(stableIndex('anything', 1), 0);
+      expect(stableIndex('anything', 0), 0);
+    });
+  });
+
   group('tName() matches the JS', () {
     setUp(() => setLocale('en'));
 

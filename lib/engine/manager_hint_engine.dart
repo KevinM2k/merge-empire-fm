@@ -11,17 +11,17 @@
 /// it is cleared only by a PRESTIGE reset, not by a season rollover, which is
 /// exactly what "last season" and "{n} seasons back" need to mean anything.
 ///
-/// **What is built here is the part the keys themselves specify, and no more.**
-/// `streak.win.3plus` against `streak.win.2` is a threshold the key NAMES, and a
-/// last meeting is a fact rather than a judgement. `record.dominant` and
-/// `record.struggling` are NOT built: they need a sample size and a margin
-/// before an all-time record counts as either, and those numbers are in
-/// `../merge-empire-fc`, not recoverable from this repo. Inventing them would
-/// be inventing balance and calling it a port. Those two keys stay unreachable
-/// and the queue says so.
+/// **`record.dominant` and `record.struggling` are built now, off the spec.**
+/// They wanted a sample size and a margin before an all-time record counts as
+/// either, and both were in `../merge-empire-fc` rather than in this repo — so
+/// they sat unreachable rather than being guessed at. See [fixtureHintPool] for
+/// the three numbers and for the shape the JS gives them, which is a pool the
+/// record JOINS rather than a line it replaces.
 ///
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
+
+import 'package:merge_empire_fc/i18n/i18n.dart' show stableIndex;
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
@@ -159,4 +159,79 @@ ManagerHint? headToHeadHint(
       'when': whenPlayed(last.season, currentSeason),
     },
   );
+}
+
+/// The keys whose sentences compete for this fixture's line, and the params any
+/// of them could ask for.
+///
+/// **The all-time record JOINS the pool rather than replacing what is in it.**
+/// That is the JS's shape (`_opponentHistoryTip` concatenates onto the array it
+/// has already built) and it is the reason `record.dominant` reads as an
+/// occasional aside rather than as a scoreboard: a run of three still gets to
+/// be the headline most of the time it exists.
+///
+/// Three numbers come out of `../merge-empire-fc` and none of them was
+/// guessable, which is why these two keys sat unreachable for as long as the
+/// spec repo was unreadable — a SAMPLE SIZE (three meetings), a MARGIN (two
+/// clear, so `wins > losses + 1`) and a ONE-IN-THREE roll on whether the record
+/// is mentioned at all.
+///
+/// The roll is seeded on the record itself rather than on the JS's match index:
+/// its whole job is to hold still while the player looks at the bubble, and a
+/// head-to-head line has nothing new to say until these two meet again.
+({List<String> keys, Map<String, Object?> params})? fixtureHintPool(
+  Map<String, dynamic>? state,
+  String? opponentName, {
+  required int currentSeason,
+}) {
+  final hint = headToHeadHint(state, opponentName, currentSeason: currentSeason);
+  if (hint == null) return null;
+
+  final meetings = meetingsWith(state, opponentName);
+  final keys = [hint.key];
+  final params = {...hint.params};
+
+  final record = recordFor(meetings);
+  final recordKey = record.key;
+  if (recordKey != null &&
+      stableIndex('rec|$opponentName|$currentSeason|${meetings.length}', 3) ==
+          2) {
+    keys.add(recordKey);
+  }
+  // The counts go in whether or not the key did: the params a pooled key needs
+  // are the UNION across its variants, and offering them costs a caller that
+  // never prints one absolutely nothing.
+  params['wins'] = record.wins;
+  params['draws'] = record.draws;
+  params['losses'] = record.losses;
+  return (keys: keys, params: params);
+}
+
+/// The all-time record, and which of the two record keys it reads as.
+///
+/// [key] is null when the record is too short or too even to be worth a
+/// sentence — the numbers are still returned, because the caller supplies them
+/// either way.
+({String? key, int wins, int draws, int losses}) recordFor(
+  List<Meeting> meetings,
+) {
+  var wins = 0;
+  var draws = 0;
+  for (final m in meetings) {
+    if (m.won) {
+      wins++;
+    } else if (m.drawn) {
+      draws++;
+    }
+  }
+  final losses = meetings.length - wins - draws;
+  String? key;
+  if (meetings.length >= 3) {
+    if (wins > losses + 1) {
+      key = 'manager_hint.record.dominant';
+    } else if (losses > wins + 1) {
+      key = 'manager_hint.record.struggling';
+    }
+  }
+  return (key: key, wins: wins, draws: draws, losses: losses);
 }

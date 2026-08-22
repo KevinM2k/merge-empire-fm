@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/manager_hint_engine.dart';
+import 'package:merge_empire_fc/engine/squad_state_engine.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -65,7 +66,7 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
     //
     // `{when}` is a phrase inside a sentence, so the engine hands back the key
     // for it and the catalogue layer finishes the job here.
-    final history = headToHeadHint(
+    final history = fixtureHintPool(
       s,
       opponent,
       currentSeason: _num(_map(s['progression'])?['seasonCount']).toInt(),
@@ -81,12 +82,16 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
       // to the save, and a random pick would have Colin rephrasing himself
       // while the bubble is open. Seeded on the fixture and the run, so his
       // wording holds until the thing he is talking about changes.
+      //
+      // `tPoolStableOf` rather than `tPoolStable` because the pool can be TWO
+      // keys: the all-time record joins the fixture's own sentences rather than
+      // replacing them, which is the JS's shape — see `fixtureHintPool`.
       final when = history.params['when'];
       tips.add((
         id: 'head_to_head',
-        text: tPoolStable(
-          history.key,
-          '$opponent|${history.key}|${history.params['n'] ?? ''}',
+        text: tPoolStableOf(
+          history.keys,
+          '$opponent|${history.keys.join('+')}|${history.params['n'] ?? ''}',
           {
             ...history.params,
             if (when is ManagerHint) 'when': t(when.key, when.params),
@@ -122,6 +127,26 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
     // [coachSuggestedTacticProvider] the same question — so a tip carrying that
     // sentence put the identical advice in one window twice. The pool is for
     // the things the header cannot say.
+  }
+
+  // **HIS READ ON OUR OWN SQUAD, which is thirteen keys and forty-odd
+  // sentences that nothing in `lib/` could reach.** Last, and only when there
+  // is room, which is the JS's own rule: everything above it is about the
+  // fixture in front of us, and a squad note is what he falls back on when
+  // there is not enough to say about the opponent. `squadStateHint` is allowed
+  // to answer null, and that is a real answer rather than a gap to fill.
+  if (tips.length < 3) {
+    final squadState = squadStateHint(s);
+    if (squadState != null) {
+      tips.add((
+        id: 'squad_state',
+        text: tPoolStable(
+          squadState.key,
+          squadState.seed,
+          squadState.params,
+        ),
+      ));
+    }
   }
 
   if (tips.isEmpty) {

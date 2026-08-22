@@ -45,6 +45,68 @@ deletion that takes shipped behaviour with it will not announce itself.** The
 only reason this one was caught is that the last pass wrote down what it could
 no longer see.
 
+**THE PASS THAT WROTE THIS RAN WITH `../merge-empire-fc` ON DISK.** Most of
+this file was written from a cloud container, where the spec repo is not cloned
+and a dozen items are recorded as blocked on it. **They are blocked on the
+ENVIRONMENT, not on the work** — on the author's own machine the spec is a
+sibling directory and every one of those items is simply open. Two came off this
+way in one sitting, and the pattern in both is the same: **what was missing was
+never the copy or the surface, it was the NUMBERS**, and a number invented here
+would have been balance passed off as a port.
+
+So if you are running where `../merge-empire-fc` exists, read the blocked list
+above as a work queue rather than as a wall. The ones that stay blocked there are
+the ones that need NEW COPY — `en.js` plus a `gen_i18n.mjs` run — which is a
+different kind of blocked and is called out where it applies.
+
+**HIS READ ON OUR OWN SQUAD** — `squadstate.*`, thirteen keys and forty-odd
+sentences in ten languages, with no file in `lib/` so much as mentioning the
+prefix. It is `engine/squad_state_engine.dart` now, last in Colin's pool and
+only when there is room for it, which is the JS's own rule: everything above it
+is about the fixture in front of you, and a squad note is what he falls back on.
+
+**The ORDER was as much of the spec as the thresholds were**, and it is the half
+nobody could have reconstructed. Every branch below the first true one is
+something he could also have said, so a moved branch changes what he talks about
+far more often than it looks like it would — `assets_t1` sits above `thin_squad`,
+so a club with both problems is told about the one an upgrade fixes.
+
+**And the first branch is the only one that asks whether the advice is
+ACTIONABLE.** `few_players` fires on a squad under three *and* enough coin to
+scout — telling a manager with an empty wallet to go shopping is naming the
+problem twice. Nothing else in the chain does this, which is worth knowing before
+adding to it.
+
+**He is allowed to say NOTHING, and that is a branch rather than a gap.** The
+last case returns null instead of reaching for filler, because the floating coach
+appears when there is real advice and a head that always has an opinion is one
+nobody opens. The port's own `manager.default_tip` still covers a pool that is
+empty for other reasons.
+
+**Two things about the port's own state layer that the JS did not have to say.**
+`seasonAwardedPlayed` rather than `seasonMatchesPlayed` is what the win RATE is
+read against — the rate has to come off the counter the wins were added to — and
+an UNOWNED club asset is not a tier-one asset, so it is filtered out rather than
+counted as one. Counted, every fresh save would have been told its facilities
+were basic before it owned any.
+
+**THE RECORD JOINS THE POOL, it does not replace what is in it.** The other item
+the spec unblocked was `manager_hint.record.dominant` / `.struggling`, and the
+three numbers were a SAMPLE SIZE (three meetings), a MARGIN (two clear, so
+`wins > losses + 1`) and a ONE-IN-THREE roll on whether the record is mentioned
+at all. Miss any of the three and the line is either never seen or seen every
+time.
+
+**The shape is the part worth carrying.** The JS concatenates the record's
+sentences onto the fixture's own and then picks once from the combined list, so
+a run of four still gets to be the headline most of the times it exists — and a
+two-variant key does not get the same weight as a four-variant one. That needed
+`tPoolStableOf`, which takes a LIST of keys; `tPoolStable` is now one line of
+delegation to it, so there is still one implementation of the pick. The hash came
+out with it as `stableIndex`, because the roll on whether the record joins is the
+same stable choice over something that is not a sentence, and a second hash would
+have been a second answer to "which one is stable".
+
 **START HERE if you are picking this up cold:**
 
 ```bash
@@ -372,13 +434,12 @@ mention in `lib/` at all. Most are M4 services that do not exist yet — `agegat
 `cloud`, `cloudsave`, `feedback`, `notif`, `rating` (Rate Us, which wants a store
 URL). Three are real and are their own items:
 
-- [ ] **`squadstate.*` (13 keys, 3-4 pooled variants each)** — Coach Colin's
-      read on your squad: too few players, low energy, poor form, a run-in with
-      {n} left, bronze-heavy, tier-one facilities, stronger or weaker than the
-      league. There is NO engine for it — no file in `lib/` mentions
-      `squadstate` — and the keys name their conditions but not their THRESHOLDS
-      or their priority order. "Six in ten isn't bad" is a threshold somebody
-      chose. Blocked on the spec repo for the same reason the tutorial is.
+- [x] **`squadstate.*` (13 keys, 3-4 pooled variants each)** — built as
+      `engine/squad_state_engine.dart` and last in Colin's pool. It was blocked
+      on the spec repo and the spec repo answered it: `_squadStateTip` in
+      `LeagueScreen.js` carries every threshold AND the priority order, which is
+      the half that could not have been guessed at all. See **His read on our
+      own squad** below.
 - [~] **`champ.*` (9 keys)** — the Champions League celebration: a title, a
       body, a prestige teaser, a Pro Mode teaser, and **`champ.defend` — "⚽
       Defend the Title"**, an option the prestige card does not offer. The
@@ -414,12 +475,14 @@ URL). Three are real and are their own items:
 - [x] **`manager_hint.*` — eleven of the fourteen**, built as
       `engine/manager_hint_engine.dart` and wired into Colin's existing pool.
       See **The coach had nothing to say about the fixture** below.
-- [ ] **`manager_hint.record.dominant` / `.record.struggling`** are the three
-      left (with `aria.head` / `aria.dismiss`, which are DOM accessibility
-      labels and want a Flutter `Semantics` rather than a string). The record
-      pair needs a SAMPLE SIZE and a MARGIN before an all-time head-to-head
-      counts as either, and those numbers are in `../merge-empire-fc`.
-      Deliberately not guessed — see the engine's own header.
+- [x] **`manager_hint.record.dominant` / `.record.struggling`** — built off the
+      spec. Three numbers, none of them guessable: a SAMPLE SIZE of three
+      meetings, a MARGIN of two clear (`wins > losses + 1`), and a one-in-three
+      roll on whether the record is mentioned at all. See **The record joins
+      the pool** below.
+- [ ] **`manager_hint.aria.head` / `.aria.dismiss`** are what is left of that
+      row, and they are DOM accessibility labels that want a Flutter
+      `Semantics` rather than a printed string.
 - [x] **`difficulty.switch.*` (5)** — built, and it turned out to be the door
       into a whole difficulty mode nobody could reach. See **Pro Mode was
       unreachable** below.
@@ -4094,6 +4157,20 @@ list of what that change was answering.
       **Picking is already free** — 91 MICROseconds for a frame that rebuilds
       every chip — so nothing needed doing there, and the measurement is written
       down so nobody optimises it.
+- [ ] **REPORTED AGAIN, AFTER that measurement: the customise popup under the
+      manager rig still opens slowly**, and the reporter's own reading is that
+      it is **the second ANIMATED screen** — the manager rig running here while
+      one is already running behind it — rather than the build cost the entry
+      above chased. Which is a different hypothesis and it was not the one
+      tested: the 209ms above was measured with the previous frame's tickers
+      whatever they were, and "twenty still walkers register zero tickers" only
+      answers for the walkers in the GRID. The one the sheet opens over, and
+      the hero rig inside the sheet, are neither of them still.
+      **So measure the second screen rather than the build again**: what is
+      ticking on the frame the sheet opens, whether the home screen's own rig
+      keeps its clock while the sheet is up, and whether `TickerMode` is
+      switched off for what is behind the route. A screen that is covered and
+      still animating is the cost that a build-time profile cannot see.
 - [x] **The manager was walking in the sky, and the grass was the reason.** The
       strip under him was a `FractionallySizedBox` with a `heightFactor` and no
       `widthFactor` — which passes the incoming width constraint straight
