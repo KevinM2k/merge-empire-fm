@@ -647,7 +647,10 @@ URL). Three are real and are their own items:
       scoping and `migration.dart` DELETES the counters on the way in. So `{n}`
       names a number this port does not have and would have to be reinterpreted
       to print at all. Two reasons, either one sufficient.
-- [ ] **`offseason.*` (11)** — an "Offseason Report" card: how many injured
+- [x] **`offseason.*` (11)** — **built**, as `ui/popups/offseason_report_card.dart`,
+      and queued after the season summary. See **The season ended and nothing
+      said what the break did**. The original note follows.
+      An "Offseason Report" card: how many injured
       players recovered over the break, how many had time taken off, how many
       sponsorships expired, veterans in decline, who retired. Needs an engine
       that diffs the squad across a season rollover; `season_end` does the work
@@ -3613,7 +3616,7 @@ by a test.
 
 ### Seen only in a test — 26 Aug
 
-- [ ] **MOST OF WHAT CHANGED THIS PASS IS VISUAL, and a widget test cannot say
+- [~] **MOST OF WHAT CHANGED THIS PASS IS VISUAL, and a widget test cannot say
       whether it reads right.** The suite proves the geometry and the rules; it
       says nothing about whether a thing looks like the thing. Three to put in
       front of an eye, in order:
@@ -4090,7 +4093,13 @@ by a test.
       floating one `#E23B3B`; two reds a shade apart is two badges, so both take
       `coachAlert` and the floating one takes the home badge's white ring and drop
       shadow with it.
-- [ ] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Confirmed wanted; the
+- [x] **WHEN HE HAS SOMETHING TO SAY IT HAS TO BE VISIBLE.** Two of the three
+      options are now taken: the unread badge BOUNCES on every surface (there
+      were two of it and only the dock's moved), and his head on the play screen
+      went 44px to 60 and clear of the buttons. The third — him opening himself
+      unprompted — stays untaken deliberately: the queue records it as the most
+      intrusive of the three. The original note follows.
+      Confirmed wanted; the
       SHAPE of it is not settled. Three readings, and they are three different
       games: a stronger badge and a bigger pulse; a bigger head; or him opening
       himself unprompted. The first is the least intrusive and is what to do
@@ -4116,7 +4125,10 @@ by a test.
 
 ### The player sheet, and the trait roll — 26 Aug, later still
 
-- [ ] **The numbers belong ON the card, and then the box goes.** ATK/DEF under the
+- [x] **The numbers belong ON the card, and then the box goes.** Done on 27 Aug —
+      the ruled panel is gone and the figures are two glass plates on the
+      portrait (`_HeaderPlate`). The original note follows.
+      ATK/DEF under the
       main rating in the hero's top-left, income top-right — and with those two
       moved, the whole Attributes block is repeating what is already on screen.
       **Market value goes with it**: Sell has left this sheet, so what he would
@@ -4205,7 +4217,11 @@ by a test.
       weighing an offer wants is the number they are giving up, which is the
       income he pays every second. The old line survives for a view with no rate
       to show, because then there is nothing honest to put in its place.
-- [ ] **The market REROLLS on reopen.** Kept as SELL rather than release, so this
+- [x] **The market REROLLS on reopen.** Done on 27 Aug: `marketQuote` holds one
+      roll for `marketWindow` and `MarketOffer` ticks the countdown down to it,
+      so closing and reopening the sheet cannot shop for a better price. The
+      original note follows.
+      Kept as SELL rather than release, so this
       matters: `rollMarketMult` runs on every open, so closing and reopening the
       sheet shops for a better price. Either the roll wants pinning per player
       per period, or the reroll should be the mechanic and said out loud.
@@ -4310,7 +4326,12 @@ by a test.
 
 ### The walker
 
-- [ ] **Lottie for the walking man.** No MCP needed — `lottie` is a Flutter
+- [~] **Lottie for the walking man.** **Largely answered by `ManagerIdle`**: the
+      ask behind it was "the manager needs to be much more animated", and what
+      was missing turned out to be a driver that already existed one directory
+      away rather than a recorded clip. What stands is the original argument —
+      a clip would look smoother and would give up the SOLVED contact, and it is
+      worth doing only with a file in hand. The original note follows. No MCP needed — `lottie` is a Flutter
       package and the format is open; what is actually missing is the FILE. The
       current walker is not an SVG played back either, it is a solved rig
       (`walker_figure.dart` + `groundEase`), which is why the planted foot does
