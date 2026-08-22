@@ -17,12 +17,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -39,7 +41,11 @@ late String relegatedClub;
 late String championClub;
 late String elsewhereClub;
 
-Future<void> pumpTable(WidgetTester tester, {bool lastSeason = false}) async {
+Future<void> pumpTable(
+  WidgetTester tester, {
+  bool lastSeason = false,
+  int matchesPlayed = 0,
+}) async {
   tester.view.physicalSize = const Size(420 * 3, 900 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -53,6 +59,13 @@ Future<void> pumpTable(WidgetTester tester, {bool lastSeason = false}) async {
   );
   addTearDown(container.dispose);
   final save = container.read(gameProvider).load();
+  // Every division's table is played out to the round YOU are on — a fresh save
+  // is round zero, so the whole pyramid honestly reads P0 and a test that
+  // forgets to advance it proves nothing about the simulation.
+  if (matchesPlayed > 0) {
+    (save['progression'] as Map<String, dynamic>)['seasonMatchesPlayed'] =
+        matchesPlayed;
+  }
 
   if (lastSeason) {
     // Read the division's real clubs off the loaded save, then give four of
@@ -109,6 +122,142 @@ List<String> markersOn(WidgetTester tester) => tester
 
 void main() {
   tearDown(resetLocale);
+
+  group('browsing the pyramid', () {
+    testWidgets('IT OPENS ON YOUR OWN DIVISION', (tester) async {
+      // Seven leagues in the pager and only one of them is yours. Opening
+      // anywhere else would make the control that exists to show you the rest
+      // of the ladder cost a swipe to get back from.
+      await pumpTable(tester);
+      expect(
+        find.byKey(const ValueKey('league-table-sunday_league')),
+        findsOneWidget,
+      );
+      // `SheetHeader` upper-cases the title itself.
+      expect(
+        find.text(divisions.first.name.toUpperCase()),
+        findsOneWidget,
+      );
+      // And there is nothing to go back to, so nothing offers it.
+      expect(find.byKey(const ValueKey('league-back-to-own')), findsNothing);
+    });
+
+    testWidgets('a swipe shows the league above, played out in full', (
+      tester,
+    ) async {
+      // `buildPyramidTable` plays every AI fixture through the same sampler the
+      // player's own league pre-simulates with — it had no caller at all, so
+      // the whole ladder was invisible. A table of clubs on zero points is what
+      // a table nobody simulated looks like.
+      await pumpTable(tester, matchesPlayed: 6);
+      await tester.drag(find.byType(PageView), const Offset(-400, 0));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('league-table-amateur_cup')),
+        findsOneWidget,
+      );
+      expect(find.text(divisions[1].name.toUpperCase()), findsOneWidget);
+      final lines = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((w) => w.textSpan?.toPlainText() ?? '')
+          .where((t) => t.contains('·'))
+          .toList();
+      expect(lines, isNotEmpty);
+      expect(
+        lines.where((l) => l.startsWith('P0 ')),
+        isEmpty,
+        reason: 'a division nobody played reads P0 all the way down',
+      );
+    });
+
+    testWidgets('AND THE WAY BACK NAMES THE LEAGUE IT GOES TO', (tester) async {
+      await pumpTable(tester);
+      await tester.drag(find.byType(PageView), const Offset(-400, 0));
+      await tester.pumpAndSettle();
+
+      final back = find.byKey(const ValueKey('league-back-to-own'));
+      expect(back, findsOneWidget);
+      // `table.back_to_league` is '⚽ Back to {division}' — the placeholder is
+      // the point, and a button reading "Back to {division}" is the bug that
+      // shape of string invites.
+      final label = tester.widget<Text>(
+        find.descendant(of: back, matching: find.byType(Text)),
+      );
+      expect(label.data, contains(divisions.first.name));
+      expect(label.data, isNot(contains('{division}')));
+
+      await tester.tap(back);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('league-table-sunday_league')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('league-back-to-own')), findsNothing);
+    });
+
+    testWidgets('the hint says what the dots only imply', (tester) async {
+      await pumpTable(tester);
+      expect(find.byKey(const ValueKey('league-swipe-hint')), findsOneWidget);
+      expect(find.text(t('table.swipe_to_cycle')), findsOneWidget);
+    });
+
+    testWidgets('AND A LEAGUE RENDERS THE SAME EVERY TIME YOU LOOK', (
+      tester,
+    ) async {
+      // The engine's own promise, and the reason it seeds off (season,
+      // division) rather than drawing from the shared stream: "a table that
+      // reshuffled itself on each visit would be worse than the rounding ever
+      // was". Nothing about the sampled table is stored, so the only thing
+      // holding it still is that seed.
+      await pumpTable(tester, matchesPlayed: 6);
+      Future<List<String>> browseToAmateurCup() async {
+        await tester.drag(find.byType(PageView), const Offset(-400, 0));
+        await tester.pumpAndSettle();
+        final rows = tester
+            .widgetList<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('league-table-amateur_cup')),
+                matching: find.byType(Text),
+              ),
+            )
+            .map((w) => w.data ?? w.textSpan?.toPlainText() ?? '')
+            .toList();
+        await tester.drag(find.byType(PageView), const Offset(400, 0));
+        await tester.pumpAndSettle();
+        return rows;
+      }
+
+      final first = await browseToAmateurCup();
+      expect(first, isNotEmpty);
+      expect(await browseToAmateurCup(), first);
+    });
+
+    testWidgets('and browsing never stamps movement on your own table', (
+      tester,
+    ) async {
+      // `buildLeagueTable` writes `prevPos` and `posDelta` back into the save
+      // for the next-match card to read. `buildPyramidTable` stores nothing —
+      // which is why the pager asks the provider for YOUR league and the engine
+      // for everyone else's. Six leagues browsed must not leave six leagues'
+      // worth of movement behind.
+      await pumpTable(tester, matchesPlayed: 6);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(LeagueTableView)),
+      );
+      List<int?> deltas() => container
+          .read(leagueTableProvider)
+          .map((r) => r.posDelta)
+          .toList();
+
+      final before = deltas();
+      for (var i = 0; i < 3; i++) {
+        await tester.drag(find.byType(PageView), const Offset(-400, 0));
+        await tester.pumpAndSettle();
+      }
+      expect(deltas(), before);
+    });
+  });
 
   group('the P/W/D/L micro-line', () {
     testWidgets('IS DRAWN IN THE PLAYER\'S LANGUAGE, not in English', (

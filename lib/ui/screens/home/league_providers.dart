@@ -115,8 +115,7 @@ final leagueTableProvider = savePick<List<LeagueRow>>((s) {
   return buildLeagueTable(s);
 });
 
-/// What each club in this division DID last season: `champion`, `promoted`,
-/// `relegated`, keyed by club name.
+/// What each club DID last season, by division and then by club name.
 ///
 /// **`season_end` has written `lastSeasonStatus` every rollover since M1 and
 /// nothing has ever read it.** `seasonStatusFor` is the engine's own accessor
@@ -124,17 +123,41 @@ final leagueTableProvider = savePick<List<LeagueRow>>((s) {
 /// ten languages with nothing able to print one — the marker's three labels,
 /// its three long forms and the legend's heading.
 ///
-/// Keyed on the division a club is in NOW, which `seasonStatusFor` enforces:
-/// a promotion badge lights up in the league the club moved INTO, never in the
-/// one it left, so the table you are looking at only ever shows moves that
-/// ended here.
-final lastSeasonStatusProvider = savePick<Map<String, String>>((s) {
-  final divId = _map(s['progression'])?['currentDivision'] as String?;
-  if (divId == null) return const {};
-  return <String, String>{
-    for (final row in buildLeagueTable(s))
-      row.name: ?seasonStatusFor(s, divId, row),
-  };
+/// **Keyed by division because the table browses all seven.** The record stamps
+/// each club with the league its move landed IN, so a promotion badge lights up
+/// where the club arrived and never where it left; indexing by division is that
+/// rule made structural, and it also means one pass over the record serves
+/// every page of the pager.
+///
+/// Only the moves themselves are here — a club that stayed put has no entry
+/// rather than a null one, so `isNotEmpty` is the question the legend asks.
+final lastSeasonStatusProvider = savePick<Map<String, Map<String, String>>>((
+  s,
+) {
+  final rec = _map(_map(s['progression'])?['lastSeasonStatus']);
+  if (rec == null) return const {};
+
+  final byDivision = <String, Map<String, String>>{};
+  void note(String? divId, String? name, String? status) {
+    if (divId == null || name == null || status == null) return;
+    (byDivision[divId] ??= <String, String>{})[name] = status;
+  }
+
+  final teams = _map(rec['teams']);
+  if (teams != null) {
+    for (final entry in teams.entries) {
+      final e = _map(entry.value);
+      note(e?['division'] as String?, entry.key, e?['status'] as String?);
+    }
+  }
+  // The player's own move is recorded apart from the AI clubs, under the
+  // division they landed in and the club name they were carrying at the time.
+  note(
+    rec['playerDivision'] as String?,
+    _map(s['club'])?['name'] as String? ?? 'Your Club',
+    rec['player'] as String?,
+  );
+  return byDivision;
 });
 
 final divisionNameProvider = savePick<String>((s) {
