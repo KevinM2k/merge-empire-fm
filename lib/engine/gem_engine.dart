@@ -125,6 +125,13 @@ int addGems(Map<String, dynamic>? state, num amount, [String reason = 'unknown']
   final resources = _branch(state, 'resources');
   resources['gems'] = getGems(state) + n;
   emit('gems:updated', resources['gems']);
+  // **`gems:updated` carries a BALANCE and nothing else**, so no listener could
+  // tell a welcome gift from a purchase and the three `gems.toast.*` strings
+  // sat translated in ten languages with nothing able to reach one — a player
+  // could be handed gems by four different faucets and never be told by any of
+  // them. This one carries the reason; `toastFor` decides which reasons are
+  // worth a line, and the answer is most of them are not.
+  emit('gems:granted', {'amount': n, 'reason': reason});
   logAppEvent('gems_earned', {
     'amount': n,
     'reason': reason,

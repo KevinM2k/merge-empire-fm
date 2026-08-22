@@ -16,6 +16,7 @@ library;
 import 'dart:async';
 
 import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/engine/season_fixtures.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -61,6 +62,27 @@ class GameRunner {
     // Anything unlocked by an older build gets its achievement row and its
     // badge now, rather than on the next thing that happens to fire a sweep.
     wiring.bootSweep();
+    // **The welcome gift, which nothing has ever paid.** `grantTutorialGems` is
+    // the onboarding faucet and its own doc says why it is load-bearing rather
+    // than generous: cups are the only other route to gems and they do not
+    // start until the third division, so without it a new player meets the gem
+    // shop with an empty wallet and no idea what the currency is for. Its only
+    // caller in the JS is the scripted tutorial, which is the one part of that
+    // game the port does not have — `settleTutorial` is where the port already
+    // admits it — so every save this port has ever written started with
+    // nothing.
+    //
+    // **HERE rather than in `load`, and the parity harness is why.** The first
+    // attempt put it beside `settleTutorial`, and
+    // `game_state_test`'s reset fixtures failed: they load a save, reset it and
+    // compare the result to the JS's, field for field, so a grant on that path
+    // is the port inventing gems the JS never gave. Boot is a sweep the port
+    // owes the player before the first frame, which is what this is, and it is
+    // not a path the harness compares.
+    //
+    // The grant flags itself in the gem ledger, and the ledger survives both
+    // resets, so it pays once per player rather than once per boot.
+    grantTutorialGems(state);
     // The season quest track, which nothing rolled outside the season boundary:
     // a fresh save reached the Quests sheet with an empty season track and the
     // "no quests" line, and stayed that way until its first season ended. Both

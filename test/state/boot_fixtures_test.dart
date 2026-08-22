@@ -33,6 +33,51 @@ void main() {
     return c;
   }
 
+  /// **Every save this port has ever written started with no gems.**
+  /// `grantTutorialGems` is the onboarding faucet — load-bearing rather than
+  /// generous, since cups are the only other route and they do not start until
+  /// the third division — and its only caller in the JS is the scripted
+  /// tutorial, the one part of that game the port does not have.
+  group('the welcome gift', () {
+    test('A NEW PLAYER BOOTS WITH GEMS TO SPEND', () {
+      final fresh = createDefaultState();
+      expect(
+        (fresh['resources'] as Map<String, dynamic>)['gems'],
+        0,
+        reason: 'the default state is the JS\'s and stays that way',
+      );
+      final c = boot(fresh);
+      final gems =
+          (c.read(gameProvider).state!['resources']
+              as Map<String, dynamic>)['gems'];
+      expect(gems, isA<num>());
+      expect(gems as num, greaterThan(0));
+    });
+
+    test('and it pays ONCE PER PLAYER, not once per boot', () {
+      // The ledger flag is what stops a relaunch being a faucet, and the ledger
+      // survives both resets — so this is also what stops New Team being one.
+      final store = MemorySaveStore({
+        saveKeyPrimary: jsonEncode(createDefaultState()),
+      });
+      num gemsAfterBoot() {
+        final c = ProviderContainer(
+          overrides: [saveStoreProvider.overrideWithValue(store)],
+        );
+        addTearDown(c.dispose);
+        c.read(gameRunnerProvider).boot();
+        final state = c.read(gameProvider).state!;
+        c.read(gameProvider).saveNow();
+        return (state['resources'] as Map<String, dynamic>)['gems'] as num;
+      }
+
+      final first = gemsAfterBoot();
+      expect(first, greaterThan(0));
+      expect(gemsAfterBoot(), first);
+      expect(gemsAfterBoot(), first);
+    });
+  });
+
   test('a fresh save has a schedule after boot', () {
     final c = boot(createDefaultState());
     final prog =
