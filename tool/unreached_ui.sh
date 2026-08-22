@@ -18,7 +18,7 @@
 # are.** A single pass finds a dead screen; it does NOT find what that screen
 # was the last importer of. On the pass this was written for, one pass found
 # `penalty_scene.dart` (313 lines) and stopped — while `keeper_figure.dart`, 768
-# lines and EIGHTEEN passing tests, looked alive because the dead scene imported
+# lines and FOURTEEN passing tests, looked alive because the dead scene imported
 # it. So the sweep drops what it found and asks again, until a round finds
 # nothing. Both went in the end, and only the loop gets the second one.
 #
@@ -62,7 +62,7 @@ while :; do
     # `lib/` only. A test importing a file is not reachability — the sibling
     # sweep's header says it in one line, "a green fixture test is not a caller",
     # and counting one here would have kept `keeper_figure.dart` alive on its own
-    # eighteen tests after the only screen that drew it had gone.
+    # fourteen tests after the only screen that drew it had gone.
     importers=$(grep -rl --include='*.dart' \
       -e "package:merge_empire_fc/${f#lib/}" \
       -e "'\(\.\./\)*[A-Za-z0-9_/]*$base'" \

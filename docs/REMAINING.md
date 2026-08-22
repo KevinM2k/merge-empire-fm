@@ -33,6 +33,23 @@ too late:
 **4,418 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
+**The count went DOWN this pass and that is the point** — 4,426 to 4,418. New
+tests went in for everything built, and more came out with the code they pinned:
+**fourteen of them belonged to a keeper nothing drew**, and the rest to a penalty
+model nothing took. A suite that only ever grows is a suite that has stopped
+being asked whether what it proves is still reachable.
+
+**START HERE if you are picking this up cold:**
+
+```bash
+bash tool/unreached.sh        # 70 rows — engines nothing calls
+bash tool/unreached_ui.sh     # 2 rows — UI files nothing imports; it LOOPS
+```
+
+Both have headers listing the hits that are expected and are NOT bugs. Read the
+header before acting on a row — most rows are not work, and telling which is
+which is most of the job.
+
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
 `TickerMode.valuesOf`, which does not exist before 3.44, so a clone on anything
 earlier failed to BUILD rather than failing to lint — every test file that loads
@@ -72,7 +89,8 @@ and aim was therefore worth nothing", and `penalty_view.dart` says the old scene
 was "a flat photograph of a goalmouth with a keeper sprite slid across it". The
 rebuild replaced the arcade model and then left every part of it behind:
 `takePenalty` and its enum, `penalty_scene.dart` (313 lines, imported by nothing),
-and `keeper_figure.dart` (768 lines and **18 passing tests**) — whose `KeeperPose`
+and `keeper_figure.dart` (768 lines and **14 passing tests** — commit `25ab12c`'s
+message says eighteen, which was the net suite drop, not the file) — whose `KeeperPose`
 and `KeeperRig` share their names with the live rig in `penalty_view.dart`. All
 gone. `assets/bg/penalty_goal.jpeg` is orphaned too, 105KB still shipping because
 `assets/bg/` is declared as a directory; art is not a thing to bin on a whim, so
@@ -86,11 +104,27 @@ structurally invisible to it. The new one asks what IMPORTS the file.
 
 **It loops, and round 2 is the whole reason.** A single pass found
 `penalty_scene.dart` and stopped — `keeper_figure.dart` looked alive because the
-dead scene imported it, which is 768 lines and eighteen tests hidden behind 313.
+dead scene imported it, which is 768 lines and fourteen tests hidden behind 313.
 So it drops what it found and asks again until a round comes back empty. Liveness
 is a `lib/` importer only: the sibling sweep's header already says a green test is
 not a caller, and counting one here would have kept the keeper alive on his own
 tests after the only screen that drew him had gone.
+
+**And it left one thing behind that the sweep could not tell you about.**
+Deleting `keeper_figure.dart` took `keeperKits` with it — eight kit palettes
+indexed by division — and `PARITY.md` had that ticked as done. It is not:
+`penalty_view.dart` draws its own rig and takes only `readChance` and
+`keeperSpread`, so **the keeper gets harder as you climb and looks exactly the
+same**. The rebuild dropped it, not the cleanup; the dead file kept the parity
+item looking honest for as long as it sat there, which is the second-order cost
+of leaving a superseded screen in the tree. `PARITY.md` now carries it as `[~]`
+with the git incantation to recover the palettes:
+
+- [ ] **Dress the penalty keeper from the division.** `keeperKits` is at
+      `git show 25ab12c^:lib/ui/screens/minigames/keeper_figure.dart`, eight
+      entries of shirt/shirtShade/trim/shorts/socks/glove/hair/skin. `PenaltyView`
+      already knows the division twice over — both its ramps are derived from
+      `keeperDivisionIndex` — so this is a third argument, not a new lookup.
 
 **Two rows in the current tree, both left alone deliberately** — they are the
 expected kinds the script's header describes, and neither is a second
@@ -286,7 +320,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**90 items are open**, plus twelve carrying a `[~]` — answered, but with a decision
+**91 items are open**, plus fourteen carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. **Read the audit block above
 first** — nine of the open items came out of it and each is a whole engine
 nobody can reach, which is a different kind of gap from the playtesting
@@ -621,7 +655,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,404 passing
+flutter test             # 4,418 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 
