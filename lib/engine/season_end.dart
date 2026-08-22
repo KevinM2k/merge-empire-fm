@@ -102,8 +102,10 @@ Set<String> _directPromoteRelegate(
   final divIdx = divisions.indexWhere((d) => d.id == divId);
   if (!table.any((r) => !r.isPlayer)) return moved;
 
-  List<LeagueRow> aiIn(Iterable<LeagueRow> rows) =>
-      [for (final r in rows) if (!r.isPlayer) r];
+  List<LeagueRow> aiIn(Iterable<LeagueRow> rows) => [
+    for (final r in rows)
+      if (!r.isPlayer) r,
+  ];
 
   // `bump` is a THUNK, not a number, because the JS draws its random nudge
   // INSIDE the found-the-club branch. A table row can name a club that isn't in
@@ -187,19 +189,21 @@ SeasonOutcome endSeason(Map<String, dynamic> state) {
   final pos = table.indexWhere((r) => r.isPlayer) + 1;
   // Captured before the stats are reset below, and derived the same way the
   // table derives it, so the record the summary shows adds up.
-  final seasonLosses = table.firstWhere(
-    (r) => r.isPlayer,
-    orElse: () => LeagueRow(
-      name: '',
-      isPlayer: true,
-      played: 0,
-      won: 0,
-      drawn: 0,
-      lost: 0,
-      pts: 0,
-      gd: 0,
-    ),
-  ).lost;
+  final seasonLosses = table
+      .firstWhere(
+        (r) => r.isPlayer,
+        orElse: () => LeagueRow(
+          name: '',
+          isPlayer: true,
+          played: 0,
+          won: 0,
+          drawn: 0,
+          lost: 0,
+          pts: 0,
+          gd: 0,
+        ),
+      )
+      .lost;
 
   final divId = '${prog['currentDivision']}';
   final divIdx = divisions.indexWhere((d) => d.id == divId);
@@ -227,8 +231,12 @@ SeasonOutcome endSeason(Map<String, dynamic> state) {
   // of the pyramid — skipping this division, which is already handled. The
   // moved set stops the shuffle bouncing a just-relegated club straight back.
   final seasonStatuses = <String, dynamic>{};
-  final movedByDirect =
-      _directPromoteRelegate(state, table, divId, seasonStatuses);
+  final movedByDirect = _directPromoteRelegate(
+    state,
+    table,
+    divId,
+    seasonStatuses,
+  );
   shufflePyramid(
     state,
     skipDivId: divId,
@@ -391,11 +399,7 @@ void _stampLastSeasonStatus(
 /// one in the division below because you failed, and mid-table adds one because
 /// nothing happened. The Champions League is skipped entirely — it has no
 /// promotion to escape by, so the buff would accumulate for ever.
-void _applyStagnation(
-  Map<String, dynamic> prog,
-  String divId,
-  String outcome,
-) {
+void _applyStagnation(Map<String, dynamic> prog, String divId, String outcome) {
   final buffs = _branch(prog, 'stagnationBuffs');
   final current = _num(buffs[divId])?.toInt() ?? 0;
   if (divId != 'champions_cup') {
@@ -566,6 +570,21 @@ const double _prestigeIncomeBonus = 1.1;
 bool canPrestige(Map<String, dynamic>? state) =>
     _map(state?['progression'])?['wonChampionsCup'] == true;
 
+/// How many adventures this save has already finished. Zero on one that has
+/// never prestiged, which is also what an un-migrated save reads as.
+int prestigeLevel(Map<String, dynamic>? state) =>
+    _num(_map(state?['prestige'])?['level'])?.toInt() ?? 0;
+
+/// The permanent income multiplier at [level] — the engine's own arithmetic,
+/// exposed rather than restated.
+///
+/// A screen offering the NEXT adventure has to name the number it will pay, and
+/// a card that computed `1.1 ^ (level + 1)` for itself would sooner or later
+/// promise a multiplier the reset did not hand over. [performPrestige] reads
+/// this too, so there is one power in the game.
+double prestigeMultiplierFor(int level) =>
+    math.pow(_prestigeIncomeBonus, level).toDouble();
+
 /// What a prestige did.
 typedef PrestigeResult = ({
   bool ok,
@@ -583,9 +602,10 @@ PrestigeResult performPrestige(Map<String, dynamic> state) {
 
   final prestige = _map(state['prestige']);
   final newLevel = (_num(prestige?['level'])?.toInt() ?? 0) + 1;
-  final newMultiplier = math.pow(_prestigeIncomeBonus, newLevel).toDouble();
+  final newMultiplier = prestigeMultiplierFor(newLevel);
   final resources = _branch(state, 'resources');
-  final totalTrophies = (_num(prestige?['totalTrophies'])?.toInt() ?? 0) +
+  final totalTrophies =
+      (_num(prestige?['totalTrophies'])?.toInt() ?? 0) +
       (_num(resources['trophies'])?.toInt() ?? 0);
   // Accrue-only for now — a future perk tree will spend them.
   final points = (_num(prestige?['points'])?.toInt() ?? 0) + 1;
@@ -708,6 +728,10 @@ PrestigeResult performPrestige(Map<String, dynamic> state) {
   emit('prestige:complete', {
     'level': newLevel,
     'multiplier': newMultiplier,
+    // The season the new adventure starts in — always one, and carried anyway
+    // so the line that announces it reads the event rather than reaching back
+    // into a save the reset has just rewritten.
+    'season': _num(prog['seasonCount'])?.toInt() ?? 1,
   });
 
   return (

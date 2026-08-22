@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 import 'package:merge_empire_fc/util/time.dart';
@@ -151,6 +152,20 @@ void main() {
         coinsOf(booted.runner) - before,
         achievementCoinRewards['first_merge'],
       );
+    });
+
+    test('A PRESTIGE SWEEPS, so its own achievements can finally unlock', () {
+      // `prestige_level_1` and `prestige_level_3` read a level nothing raised —
+      // `performPrestige` had no caller in `lib/` at all — and `prestige:complete`
+      // was not in the sweep list either, so even once it did they had nothing
+      // to fire them. It clears `achievementIdsThisRun` on its way out and
+      // emits LAST, so the sweep sees the new adventure rather than the
+      // finished one.
+      final booted = _booted();
+      final state = booted.runner.game.state!;
+      (state['progression'] as Map)['wonChampionsCup'] = true;
+      performPrestige(state);
+      expect(getUnlockedIds(state), contains('prestige_level_1'));
     });
 
     test('and only once, however many times the event fires', () {

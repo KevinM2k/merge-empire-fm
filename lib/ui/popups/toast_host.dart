@@ -15,6 +15,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -48,6 +49,23 @@ Toast? toastFor(String event, Object? args) {
         );
       }
       return (text: cup, good: true);
+
+    // **A new adventure announces itself.** `performPrestige` empties the grid,
+    // the club and the division and hands back a coin balance scaled by the new
+    // multiplier — from the outside that is indistinguishable from something
+    // having gone wrong, and the one sentence saying otherwise
+    // (`prestige.season_begin_toast`) was translated ten times over with
+    // nothing able to reach it. Good news, so it is the green toast.
+    case 'prestige:complete':
+      final mult = data?['multiplier'];
+      if (mult is! num) return null;
+      return (
+        text: t('prestige.season_begin_toast', {
+          'season': (data?['season'] as num?)?.toInt() ?? 1,
+          'mult': formatPrestigeMultiplier(mult.toDouble()),
+        }),
+        good: true,
+      );
 
     // A rename says so, both ways round. It is the only confirmation there is:
     // the card closes on success, and the name it changed is behind it.
@@ -166,6 +184,7 @@ const List<String> toastEvents = [
   'cup:sponsor-signed',
   'transfer:grudge',
   'loan:expired',
+  'prestige:complete',
 ];
 
 /// `loan:departed` is deliberately absent: its payload is a Dart RECORD rather

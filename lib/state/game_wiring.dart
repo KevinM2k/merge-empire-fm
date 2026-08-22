@@ -150,6 +150,13 @@ class GameWiring {
       'sponsor:declined',
       'coins:updated',
       'cup:won',
+      // **Three achievements could never unlock**, because nothing swept after
+      // a reset: `prestige_level_1`, `prestige_level_3` and
+      // `reset_after_prestige` are all read off the level `performPrestige`
+      // has just written. It clears `achievementIdsThisRun` on its way out and
+      // emits last, so a sweep on this event sees the new adventure rather
+      // than the finished one.
+      'prestige:complete',
     ]) {
       _listen(event, (args) {
         final state = _game.state;

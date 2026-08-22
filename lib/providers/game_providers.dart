@@ -19,6 +19,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
+import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
@@ -119,6 +120,11 @@ final currentDivisionProvider = savePick<String>((s) {
 final hardModeProvider = savePick<bool>(
   (s) => _map(s['settings'])['hardMode'] == true,
 );
+
+/// Whether a new adventure is on offer — the Champions League won, and not yet
+/// taken. The home dock's Prestige orb exists only while this is true, and the
+/// flag clears inside `performPrestige`, so the orb takes itself away.
+final canPrestigeProvider = savePick<bool>(canPrestige);
 
 /// How grand the ground is, 1..[maxAssetTier].
 ///

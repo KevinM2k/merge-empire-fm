@@ -40,19 +40,35 @@ void resetLocale() => setLocale(fallbackLocale);
 
 /// Active catalogue, then English, then the key itself — a missing translation
 /// shows `ach.title.foo`, never blank UI.
-/// `<br>` in the catalogue, as a line break.
+/// `<br>` in the catalogue, as a line break, and `<strong>` as nothing at all.
 ///
-/// **The copy was written for a DOM and three strings still say so**, so the
-/// port printed a literal `<br>` in the middle of a sentence. It is fixed here
-/// rather than in the ten catalogues because the catalogues are GENERATED from
-/// the JS — patching the output would be undone by the next `gen_i18n.mjs` run —
-/// and because doing it at the boundary covers every locale and any string that
-/// grows one later.
+/// **The copy was written for a DOM and it still says so**, so the port printed
+/// the markup in the middle of a sentence. It is fixed here rather than in the
+/// ten catalogues because the catalogues are GENERATED from the JS — patching
+/// the output would be undone by the next `gen_i18n.mjs` run — and because
+/// doing it at the boundary covers every locale and any string that grows one
+/// later.
+///
+/// **`<strong>` is STRIPPED rather than honoured, and that is the whole of the
+/// decision.** Twenty-three entries carry it and one of them is on screen
+/// today: `cup.win_reward.body` is the cup sponsor offer's line, and it read
+/// `<strong>Nike</strong> wants to sponsor <strong>Smith</strong>.` to the
+/// player. Emphasis inside a run of text is a DOM affordance — a Dart `String`
+/// cannot carry it, so honouring the tag would mean every one of those call
+/// sites taking spans instead of a string, which is a different signature for
+/// twenty-three strings to buy bold on two of them. The port's cards get their
+/// emphasis from their own typography instead: `CoachLine.strong` is a whole
+/// LINE at 15px and w800, which is the same reading with none of the markup.
 final RegExp _htmlBreak = RegExp(r'<br\s*/?>', caseSensitive: false);
+final RegExp _htmlStrong = RegExp(r'</?strong>', caseSensitive: false);
 
 String t(String key, [Map<String, Object?> params = const {}]) {
   final raw = _catalog[key] ?? _fallbackCatalog[key] ?? key;
-  final template = raw.contains('<') ? raw.replaceAll(_htmlBreak, '\n') : raw;
+  // The `contains('<')` guard means the common case — a string with no markup
+  // in it at all — does no work for either pattern.
+  final template = raw.contains('<')
+      ? raw.replaceAll(_htmlBreak, '\n').replaceAll(_htmlStrong, '')
+      : raw;
   if (params.isEmpty) return template;
   // Literal replace, matching the JS split/join: a param with no placeholder is
   // ignored, and a placeholder with no param is left standing. Neither is an

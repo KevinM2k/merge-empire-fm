@@ -25,6 +25,38 @@ void main() {
   });
 
   group('what it says', () {
+    test('A NEW ADVENTURE ANNOUNCES ITSELF', () {
+      // `prestige.season_begin_toast` was translated ten times over with
+      // nothing able to reach it, and from the outside a prestige is
+      // indistinguishable from the save having been wiped: an empty grid, a
+      // Sunday League badge and a coin balance that changed. This is the one
+      // sentence that says otherwise.
+      final toast = toastFor('prestige:complete', {
+        'level': 1,
+        'multiplier': 1.1,
+        'season': 1,
+      });
+      expect(toast?.good, isTrue);
+      expect(toast?.text, contains('1.1'));
+      expect(toast?.text, isNot(contains('{mult}')));
+      expect(toast?.text, isNot(contains('{season}')));
+    });
+
+    test('and a deep run does not print its floating point at the player', () {
+      // `1.1 ^ 7` is 1.9487171000000004.
+      final toast = toastFor('prestige:complete', {
+        'level': 7,
+        'multiplier': 1.9487171000000004,
+        'season': 1,
+      });
+      expect(toast?.text, contains('1.95'));
+      expect(toast?.text, isNot(contains('1.9487')));
+    });
+
+    test('a prestige event with no multiplier stays quiet', () {
+      expect(toastFor('prestige:complete', {'level': 1}), isNull);
+    });
+
     test('an achievement is NOT said here', () {
       // It has its own banner — `achievement_unlock.dart`. A reward that
       // arrives in the same slot as a refused merge is not a reward.
