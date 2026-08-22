@@ -119,8 +119,18 @@ gaps are in this list.
 - [ ] The parallax scene behind him, evolving with the division
 - [ ] **CUSTOMISE badge** → the manager customiser. Its parts are generated
       already (`data/manager_art.g.dart`): hair, beard, hat, outfit, neck.
-- [ ] Prestige orb, when a prestige is available
-- [ ] Daily-reward orb with its streak count
+- [x] **Prestige orb, when a prestige is available.** Built — and this line and
+      `home_dock.dart`'s own header agreed about it independently, which is what
+      made it safe to place from a container that cannot read the JS. The whole
+      system was unreachable behind it: `canPrestige` and `performPrestige` had
+      no caller in `lib/`, fourteen `prestige.*` strings were translated ten
+      times over with nothing able to print one, and three achievements read a
+      level that could never rise. `ui/popups/prestige_card.dart`.
+- [ ] Daily-reward orb with its streak count. **`getDailyStreak`
+      (`daily_reward_engine.dart`) is the count and has no caller** — its doc
+      names a HUD chip, this line names an orb, and the port has neither: the
+      daily lives in the burger, where the sheet prints the streak once it is
+      open. So the engine is not dead, it is waiting on this.
 - [ ] The news ticker
 
 ## Club — `screens/ClubScreen.js`

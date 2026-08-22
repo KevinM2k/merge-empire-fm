@@ -36,7 +36,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
-import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -147,14 +146,11 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
   return result.level;
 }
 
-/// The season-and-income line, for anything that wants to say which adventure
-/// this is. Empty on a save that has never prestiged: `Season 3 · Income ×1` is
-/// a multiplier that is not multiplying.
-String prestigeSeasonLine(Map<String, dynamic>? state, int season) {
-  final mult = prestigeMultiplierFor(prestigeLevel(state));
-  if (mult <= 1) return '';
-  return t('prestige.season_income', {
-    'season': season,
-    'mult': formatPrestigeMultiplier(mult),
-  });
-}
+// **`prestige.season_income` STILL HAS NO CALLER, and that is recorded rather
+// than papered over.** "Season {season} · Income ×{mult}" is a standing header
+// line, not a beat in this flow — and where the JS puts it cannot be read from
+// a cloud container. A helper for it lived here briefly with nothing calling
+// it, which is precisely the fault this file exists to fix, so it has gone.
+// Whoever places it will want `seasonNumberProvider` (`home/league_providers.dart`),
+// which is sitting uncalled for the same reason, and
+// `formatPrestigeMultiplier` above. See docs/REMAINING.md.

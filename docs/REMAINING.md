@@ -46,11 +46,24 @@ the app.
 from everything below: nobody watched a screen and disliked it. A reachability
 sweep over every public top-level function in `lib/engine`, `lib/data` and
 `lib/state` asked one question — does anything in `lib/` name this apart from
-its own declaration — and the answer for eighty-four of them was no. Five
-findings are worth carrying, and the sweep itself is worth re-running: it is
-twenty lines of shell (`grep -oP` for the declarations, `grep -rlw` for the
-callers) and it has now caught six engines that were ported, tested and never
-once asked.
+its own declaration — and for a great many the answer was no.
+
+**The sweep is `tool/unreached.sh`, committed rather than described**, so the
+number is reproducible instead of asserted and a next session re-runs it rather
+than rebuilding it:
+
+```bash
+bash tool/unreached.sh            # file :: function :: test-files=N
+bash tool/unreached.sh | wc -l    # 79 as this pass ends
+```
+
+A HIGH test-file count is the interesting case, not the safe one: it means the
+thing is ported, proven and unreachable. The script's own header lists the four
+kinds of hit that are EXPECTED and are not bugs, so read that before acting on a
+row. Five findings from this run are worth carrying, and between them they take
+the tally of engines caught this way to six: `recordDiscovery`,
+`maybeGenerateOffer`, `trackEvent`, `club_asset_tiers`, `grantLookPack` and now
+the whole of prestige.
 
 **1. PRESTIGE WAS THE WHOLE SYSTEM, and none of it could be reached.**
 `canPrestige` and `performPrestige` had no caller in `lib/` at all; fourteen
@@ -96,11 +109,16 @@ the measurement says they are not bugs:
   stale flag pays nobody anything. It is housekeeping, not a live bug. The one
   reader that checks the flag alone is `season_end.dart:645`, which is the
   `vipPrestigeLinked` branch the queue already lists as dead.
-- **`getDailyStreak` has no caller and needs none.** Its doc says "for the HUD
-  chip"; the port has no daily chip in the HUD — the daily lives in the burger —
-  and the sheet already prints the streak off `status.streak`.
+- **`getDailyStreak` has no caller, and "needs none" was wrong** — `PARITY.md`
+  says so, which is the argument for reading both queues rather than one. Its
+  own doc names a HUD chip and PARITY names a daily-reward ORB "with its streak
+  count"; the port has neither, and the daily lives in the burger where the
+  sheet prints the streak only once it is open. So the engine is not dead, it is
+  waiting on a control that is still an open PARITY item — and the streak, which
+  is the whole reason to come back tomorrow, is currently invisible until you
+  open the thing it is meant to draw you to.
 - **`setXRandom` / `resetXRandom` are test seams** and are supposed to look like
-  this. Twelve of the eighty-four are those.
+  this. A dozen of the rows are those.
 - **`listPlayer`, `unlistPlayer` and `listedCards`** are the transfer list, which
   the queue already records as a dead end in the JS too.
 - **`reset_after_prestige` still cannot unlock**, and prestige is not why: it
@@ -135,6 +153,18 @@ status is "only its own test":
       building a screen for one is adding a feature rather than porting it.
 - [ ] **`totalLoanOutFees` and `totalLoanWages`** (`loan_engine.dart`) have no
       test either, so they are not ported so much as typed in.
+- [ ] **`prestige.season_income` is the one prestige string still unreachable**,
+      and it is blocked on PLACEMENT rather than on anything else. "Season
+      {season} · Income ×{mult}" is a standing header line, not a beat in the
+      prestige flow, and where the JS puts it cannot be read from a cloud
+      container. Two halves of it are sitting ready: `seasonNumberProvider`
+      (`home/league_providers.dart`) has no caller either — **the season number
+      is never shown to the player at all outside the season-end card and a
+      trophy subtitle** — and `formatPrestigeMultiplier` (`prestige_card.dart`)
+      is the figure. A helper for the line lived in `prestige_card.dart` briefly
+      with nothing calling it and was deleted, which is the rule this whole
+      block is about: shipping a function with no caller is the fault, not the
+      fix.
 
 **READ `CLAUDE.md`'s Commands section before touching anything in a cloud
 session.** Two facts about that environment are not obvious and both cost a
@@ -144,7 +174,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**95 items are open**, plus ten carrying a `[~]` — answered, but with a decision
+**96 items are open**, plus ten carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. **Read the audit block above
 first** — nine of the open items came out of it and each is a whole engine
 nobody can reach, which is a different kind of gap from the playtesting
