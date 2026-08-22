@@ -3950,9 +3950,15 @@ by a test.
 
 ### Goalkeeper Practice
 
-- [ ] **It is meant to be the ball coming AT you, with no time to react.** The
-      drill exists and plays; the pressure does not. Check the timing against
-      the source before retuning it.
+- [x] **It is meant to be the ball coming AT you, with no time to react.** Both
+      halves, from the 28 Aug pass. It IS a ball now — one football, no disc, no
+      rim, where it was five faces in rotation inside a coloured button — and it
+      GROWS from 0.28 to full over its window, eased out, which is the only cue
+      a flat scene has for something travelling toward the camera. The
+      PRESSURE is the window jittering per shot rather than per session:
+      identical timing is a metronome, and after two of them the player is
+      counting rather than reacting. It jitters DOWN only, so the division's own
+      ramp still sets the pace.
 
 ### Sound
 
@@ -4214,9 +4220,18 @@ by a test.
       sheet's Sell; that button has gone, so the guard moved to the one that
       remains — as Colin, with the shipped copy, including what the sale COSTS in
       its own right: the bonuses go with him.
-- [ ] **A coach tip on whether to accept**, and whether the flow should be SELL at
-      all rather than RELEASE for nothing. Both are design decisions rather than
-      bugs — see the note to the manager.
+- [~] **A coach tip on whether to accept**, and whether the flow should be SELL at
+      all rather than RELEASE for nothing. **The second half is decided** — the
+      manager confirmed SELL stays — and the first is **blocked on copy, which
+      is worth saying precisely.** There is no sell-advice string in any
+      catalogue: `sell.*` is a title, a figure, a warning about bonuses, the five
+      market bands and `sell.tier_category`. Colin's `manager.transfer.*` lines
+      are about a BID somebody has made, not about a price the market is
+      offering, and putting them on this sheet would have him answering a
+      different question.
+      So it needs new copy in `en.js` and a `gen_i18n.mjs` run, like every other
+      new-copy item. **And `sell.tier_category` is unreachable in the JS too**,
+      checked — so it is not the missing line either.
 
 ### The players page
 
