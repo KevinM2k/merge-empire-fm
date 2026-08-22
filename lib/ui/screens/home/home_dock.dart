@@ -296,14 +296,21 @@ class CustomiseDock extends ConsumerWidget {
                 color: Colors.white.withValues(alpha: 0.72),
               ),
               const SizedBox(width: 5),
-              Text(
-                t('league.customise_label'),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  height: 1,
-                  color: Colors.white,
+              // Flexible: the pill is now inside a `Flexible` on the dock rail
+              // — see `home_screen.dart` — so on a 320pt phone in German the
+              // word gives rather than the row reporting an overflow.
+              Flexible(
+                child: Text(
+                  t('league.customise_label'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    height: 1,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],

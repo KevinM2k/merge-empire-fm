@@ -93,6 +93,8 @@ class LooksSection extends ConsumerWidget {
                     child: Text(
                       t('shop.looks.case_label', {'total': tiles.length}),
                       key: const ValueKey('shop-vault-case-label'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: kit.textMuted,
                         fontSize: 11,
@@ -102,12 +104,18 @@ class LooksSection extends ConsumerWidget {
                     ),
                   ),
                   if (!vaultOwned)
-                    Text(
-                      t('shop.vault.progress', {
-                        'n': owned,
-                        'total': tiles.length,
-                      }),
-                      style: TextStyle(color: kit.textMuted, fontSize: 11),
+                    // Flexible: the label beside it already takes what it can,
+                    // and in German the pair is wider than a 320pt phone.
+                    Flexible(
+                      child: Text(
+                        t('shop.vault.progress', {
+                          'n': owned,
+                          'total': tiles.length,
+                        }),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: kit.textMuted, fontSize: 11),
+                      ),
                     ),
                 ],
               ),

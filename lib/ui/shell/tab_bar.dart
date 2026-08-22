@@ -35,16 +35,35 @@ class ShellTabBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
+        // **THE FOUR LABELLED TABS SHARE WHAT IS LEFT.** They were laid out at
+        // their natural widths, so five buttons plus a 60pt disc overflowed a
+        // 320pt phone by sixty pixels — in ENGLISH, and worse in German, where
+        // "Mannschaft" is the label. Found by the long-language sweep in
+        // `test/i18n/long_language_layout_test.dart`, which is the whole reason
+        // that sweep exists.
+        //
+        // The disc does NOT flex: it is a fixed 60 by design — the one tab with
+        // any weight in the bar — and letting it shrink with the others is what
+        // would make it stop being that.
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             for (final tab in tabOrder)
-              _TabButton(
-                key: ValueKey('tab-${tab.name}'),
-                tab: tab,
-                active: tab == active,
-                onTap: () => onTap(tab),
-              ),
+              if (tab == ShellTab.home)
+                _TabButton(
+                  key: ValueKey('tab-${tab.name}'),
+                  tab: tab,
+                  active: tab == active,
+                  onTap: () => onTap(tab),
+                )
+              else
+                Expanded(
+                  child: _TabButton(
+                    key: ValueKey('tab-${tab.name}'),
+                    tab: tab,
+                    active: tab == active,
+                    onTap: () => onTap(tab),
+                  ),
+                ),
           ],
         ),
       ),
@@ -116,13 +135,22 @@ class _TabButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(tabIcons[tab], size: 22, color: colour),
               const SizedBox(height: 2),
-              Text(label, style: TextStyle(fontSize: 11, color: colour)),
+              // Shrunk rather than cut: a tab called "Mannsch…" is a tab
+              // nobody can read, and one point of type is cheaper than an
+              // ellipsis on a word this short.
+              Text(
+                label,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: colour),
+              ),
             ],
           ),
         ),

@@ -6158,10 +6158,23 @@ could not render at all without a lookup layer. See
 - [x] The guard suite, ported from `i18n.test.js` — key parity, no invented
       placeholders, the call-site scan, the id-built keys the scan cannot see,
       and the gendered-pronoun check on English
-- [ ] Check the long-language layouts (German is the measured worst case) —
-      needs screens, so it stays here rather than moving
-- [ ] The Settings language picker, and the JS guard that asserts it lists
-      exactly `supportedLocales`. Lands with the Settings screen in M3
+- [x] Check the long-language layouts (German is the measured worst case) —
+      **mechanised rather than done by eye**, in
+      `test/i18n/long_language_layout_test.dart`: every tab, in all ten
+      languages, on a 320pt phone. Flutter reports an overflow as a framework
+      exception and an exception fails a widget test, so PUMPING is the
+      assertion.
+      **It found seven, and the first one was in ENGLISH.** The tab bar
+      overflowed a 320pt phone by sixty pixels before a single translation was
+      involved — five buttons laid out at their natural widths — and the rest
+      were the stat rows' fixed 19pt figure, the shop's section header and case
+      label, the grid's pill, and the home dock rail. The narrow viewport is
+      what did it: the default test surface is 800×600, which is wider than most
+      phones and exactly the shape that hides this.
+- [x] The Settings language picker, and the JS guard that asserts it lists
+      exactly `supportedLocales` — both built. `settingsLanguages` is the ten
+      with their flags, and `settings_screen_test.dart` pins its ids against
+      `supportedLocales` sorted, which is the JS's own assertion.
 
 ---
 

@@ -80,12 +80,19 @@ class ShopSectionFrame extends StatelessWidget {
               // to pay for it. Bigger glyph, no box.
               Icon(id.icon, size: 20, color: id.ink),
               const SizedBox(width: 8),
-              Text(
-                t(id.titleKey).toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.6,
+              // Flexible: "MANAGER-ANPASSUNG" is wider than a 320pt phone
+              // once the glyph and the rule either side are paid for. Found by
+              // the long-language sweep.
+              Flexible(
+                child: Text(
+                  t(id.titleKey).toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),

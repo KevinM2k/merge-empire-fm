@@ -388,21 +388,31 @@ class _Side extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final figure = SizedBox(
-      width: 19,
-      child: Text(
-        '$value',
-        key: ValueKey('nm-stat-$statKey'),
-        textAlign: mirrored ? TextAlign.left : TextAlign.right,
-        style: TextStyle(
-          fontSize: 12,
-          height: 1,
-          fontWeight: FontWeight.w900,
-          color: colour,
+    // **Flexible, not fixed.** 19 + the gap is wider than the half a stat row
+    // gets on a 320pt phone, so the pair overflowed its own side — found by the
+    // long-language sweep, in every language including English. Loose fit, so
+    // it is 19 wherever there is room and only gives when there is not; the bar
+    // keeps the lion's share either way.
+    final figure = Flexible(
+      flex: 2,
+      child: SizedBox(
+        width: 19,
+        child: Text(
+          '$value',
+          key: ValueKey('nm-stat-$statKey'),
+          maxLines: 1,
+          textAlign: mirrored ? TextAlign.left : TextAlign.right,
+          style: TextStyle(
+            fontSize: 12,
+            height: 1,
+            fontWeight: FontWeight.w900,
+            color: colour,
+          ),
         ),
       ),
     );
     final bar = Expanded(
+      flex: 5,
       child: _Bar(
         // 10% floor: the track is short, so a single-figure stat would round to
         // a sub-pixel sliver and read as an empty bar rather than a low one.

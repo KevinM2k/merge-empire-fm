@@ -150,17 +150,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // Bottom-aligned, because the orbs are a disc plus a caption
                   // and the pill is neither — it is their FEET that have to line
                   // up.
+                  // **The three docks give before the row does.** Each is a
+                  // disc plus a caption and the captions are translated, so on
+                  // a 320pt phone in German the rail was four points wider than
+                  // the screen. `Flexible` lets a caption ellipsise rather than
+                  // the row reporting an overflow; the discs themselves are
+                  // fixed and unaffected. Found by the long-language sweep.
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const CoachDock(),
+                      const Flexible(child: CoachDock()),
                       const Spacer(),
-                      Padding(
-                        // Clear of the orbs' own captions, and lifted so the
-                        // pill's bottom sits on the discs' bottom rather than
-                        // under the labels that ride over them.
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: CustomiseDock(anchorKey: _customiseKey),
+                      Flexible(
+                        child: Padding(
+                          // Clear of the orbs' own captions, and lifted so the
+                          // pill's bottom sits on the discs' bottom rather than
+                          // under the labels that ride over them.
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: CustomiseDock(anchorKey: _customiseKey),
+                        ),
                       ),
                       const Spacer(),
                       // **A COLUMN, not a second orb in the row.** Prestige
@@ -170,13 +178,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // a career came up for renewal. It builds nothing at all
                       // on a save that cannot prestige, so the common case is
                       // the burger alone and the row is unchanged.
-                      const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          PrestigeDock(),
-                          SizedBox(height: 8),
-                          MenuDock(),
-                        ],
+                      const Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PrestigeDock(),
+                            SizedBox(height: 8),
+                            MenuDock(),
+                          ],
+                        ),
                       ),
                     ],
                   ),
