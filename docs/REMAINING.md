@@ -6050,13 +6050,27 @@ The plumbing a screen needs already exists. Use it rather than reaching past it.
 - [x] **The look and the mood are on him** — `data/manager_art.dart` recolours
       the generated parts per look, and the five mood mouths come out of the
       JS's own `mouthPath`. Both were ported data with no reader.
-- [ ] The rest of the manager rig — dugout cam, gestures (the walker shows the
-      MOOD; `gestures` and `ballPlays` in `data/manager_mood.dart` still have no
-      caller)
-- [ ] The manager CUSTOMISER, which is what the generated parts are for
-- [ ] **The SVG art that is not player art**: `assets/gemArt` (146), which the
-      gem icons read from. `playerArt`, `clubArt` and `svgCache`'s path half are
-      done.
+- [x] The rest of the manager rig — **all of it, and this note is stale.** The
+      dugout cam is built and reported on twice since; `gestures` is reached
+      through `pickGesture` / `getGesture` / `nextGestureDelay`, which
+      `home_screen.dart` and `dugout_cam_policy.dart` both call; and `ballPlays`
+      is reached through `pickBallPlay`, which `pitch_ball.dart` calls. Verified
+      by grep rather than assumed — the sweep the rest of this file runs on.
+- [x] The manager CUSTOMISER, which is what the generated parts are for —
+      built, opened from the home dock, and reported on three times since
+      (the packs, the preview stage, and its frame rate).
+- [x] **The SVG art that is not player art**: `assets/gemArt` (146). **Read, and
+      the port's shelf is deliberately a different answer.** The JS draws FIVE
+      tiers of the SAME stone in escalating piles — two loose, a handful, a
+      heap, a three-row pyramid — with only the top one a container, and its own
+      note says the stone size stays constant while the FOOTPRINT grows, because
+      packing more stones into the same area reads as denser rather than bigger.
+      This shelf has three bundles and they are NAMED (Pocket, Casket, Hoard),
+      so the container is the brief rather than a top-tier flourish and the
+      piles have nowhere to escalate through. The footprint note is the part of
+      the JS's reasoning that survives, and it is carried in the file's own
+      header for whoever adds a fourth bundle.
+      `playerArt`, `clubArt` and `svgCache`'s path half are done.
       **The shop's three gem packs are no longer waiting on this.**
       `gem_pack_art.dart` draws a pouch, a casket and a hoard from two
       primitives, because every bundle wearing one identical gem icon was a

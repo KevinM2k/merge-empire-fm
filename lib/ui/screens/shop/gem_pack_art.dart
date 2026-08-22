@@ -13,11 +13,25 @@
 /// these and nothing needs to be: they scale to any tile, they theme with
 /// nothing, and they cost one painter.
 ///
-/// **The real gem art is `assets/gemArt.js` in `../merge-empire-fc`, and that
-/// repo is not in a cloud container** — so this is not a port of the spec's
-/// pictures and does not claim to be. It is this repo's own coin-pack pattern
-/// carried across to the shelf beside it. When the JS can be read, the
-/// compositions here are what should be checked against it.
+/// **CHECKED AGAINST `assets/gemArt.js`, and it is deliberately a different
+/// answer.** The JS draws FIVE tiers of the same stone in escalating PILES —
+/// two loose, a handful, a heap, a three-row pyramid — and only the top tier is
+/// a container, a chest, "because the jump from a lot to a container full is
+/// what sells the best-value tile". Its own note says the stone SIZE stays
+/// constant and the FOOTPRINT grows, because packing more stones into the same
+/// area reads as denser rather than bigger.
+///
+/// This shelf has THREE bundles, not five, and they are NAMED — Pocket, Casket,
+/// Hoard — so the container is the brief rather than a top-tier flourish, and
+/// the piles the JS escalates through have nowhere to go. What is worth taking
+/// from it and IS taken: the stone is faceted rather than flat (a table and a
+/// lit crown, which is what makes it read as a cut gem at 34px), and the hoard
+/// grows its footprint rather than its stones.
+///
+/// So: not a port of the spec's pictures, checked against them, and different
+/// on purpose. The one thing to re-read if a fourth bundle is ever added is
+/// that footprint note — it is the part of the JS's reasoning that survives
+/// whatever the containers do.
 library;
 
 import 'package:flutter/material.dart';
