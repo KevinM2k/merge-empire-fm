@@ -30,10 +30,10 @@ too late:
 
 ## Where we are
 
-**4,461 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,464 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
-**4,418 to 4,461 across this session's seven passes**, and the first fourteen of
+**4,418 to 4,464 across this session's eight passes**, and the first fourteen of
 those are the fourteen that went the pass before.
 The pass before this one took the suite DOWN — 4,426 to 4,418 — because fourteen
 of its tests belonged to a keeper nothing drew and the rest to a penalty model
@@ -199,6 +199,38 @@ while claiming to prove the full one. It reads the rows off the loaded save now.
 `table.col_club` and `table.col_pts` stay unreachable and should: they are the
 JS's column header, which the port replaced on purpose.
 
+**`<strong>` WAS NOT THE ONLY TAG IN THERE**, and the boundary now strips the
+CLASS rather than a list somebody maintains. Nine more entries carry markup
+`t()` never covered: seven `offseason.*`, whose whole report is built on
+`<b>{n}</b> players recovered`, plus `tut.welcome.body`, plus `squad.subtext`
+with a `<span style="color:#4ade80">` around the form arrows.
+
+**None of the nine has a caller today, which is the entire point.** That is
+exactly the position `cup.win_reward.body` was in until a screen reached for it
+and started printing `<strong>Nike</strong>` at players. Handling one tag and
+not its synonym is a boundary that only works for the strings somebody has
+already looked at — and both of the features those nine belong to (the offseason
+report, the tutorial) are open items on this list, so the call sites are coming.
+
+So `<b>`, `<i>`, `<em>`, `<u>`, `<small>` and `<span …>` — attributes included —
+all come off, and `<br>` stays the one tag that means something a `String` can
+hold. **Stripping the span leaves `▲▲` behind**, which is right twice over: it is
+what the sentence is about, and a glyph is what this port reaches for where the
+DOM reached for a colour.
+
+The test that matters is not the nine keys, it is the sweep: **every key in
+every one of the ten catalogues, checked against the tag pattern.** A per-key
+list is how the first version of this got to nine unnoticed strings.
+
+- [~] **`tier.*` (4 keys) is NOT the same bug as `division.*`**, and was checked
+      rather than assumed. `card_theme.dart`'s `tierLabel` has NINE entries —
+      Bronze, Bronze+, Silver, Silver★, Gold, Gold★, Legend, WORLD CLASS, ⚡ ICON
+      — and the catalogue has four, matching tiers 1, 3, 5 and 7 only. Routing
+      the port's labels through `tName('tier', …)` would translate four of nine
+      and lose the ★ and + distinctions on the rest. Whether the JS ships nine
+      and the generator caught four, or the port enriched a four-tier scheme,
+      cannot be answered from here.
+
 **THE SHIPPED-COPY SWEEP IS NOW MECHANISED, and it found four things in one
 pass.** The technique this queue keeps rewarding — grep the catalogue for a key
 prefix, then grep for a caller, and the gap is a work queue — run over every
@@ -292,8 +324,19 @@ URL). Three are real and are their own items:
       but "almost certainly" is the problem, and the SURFACE they sit on does
       not exist. The income breakdown card already lists `hud.income.kit_sponsor`
       as a multiplier row, so the chip is a different control, not that one.
-- [ ] **`difficulty.switch.*` (5), `tier.*` (4), `offseason.*` (11),
-      `manager_hint.*` (14)** — not looked at beyond existing.
+- [ ] **`offseason.*` (11)** — an "Offseason Report" card: how many injured
+      players recovered over the break, how many had time taken off, how many
+      sponsorships expired, veterans in decline, who retired. Needs an engine
+      that diffs the squad across a season rollover; `season_end` does the work
+      but does not report it. Its `<b>` markup is handled now, so the copy is
+      printable the day the card exists.
+- [ ] **`manager_hint.*` (14)** — head-to-head history against the next
+      opponent, pooled 3-4 ways: "Three-plus wins in a row over {opp}", plus a
+      `when.*` set that says how long ago ("earlier this season", "last season",
+      "{n} seasons back"). Needs a fixture-history reader; `fixtureResults` is
+      keyed `s{season}_m{n}` and carries the opponent, so the data is there.
+- [ ] **`difficulty.switch.*` (5)** — the Pro-mode switch confirmation, which
+      warns that switching starts you over.
 
 **THE KEEPER WEARS THE DIVISION AGAIN**, which was the row the last pass left
 behind, and it cost two decisions the row could not have predicted.
@@ -912,7 +955,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,461 passing
+flutter test             # 4,464 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 
