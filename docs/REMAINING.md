@@ -30,7 +30,7 @@ too late:
 
 ## Where we are
 
-**4,392 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,393 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **AND IT COMPILES ON AN OLDER SDK AGAIN.** `home_screen.dart` used
@@ -50,7 +50,7 @@ also means the generated catalogues cannot be regenerated and **no new `t()` key
 can be added from here**. Anything in this queue that needs new COPY is blocked
 on that repo, not on the port; say so rather than inventing a key.
 
-**100 items are open**, plus eight carrying a `[~]` — answered, but with a decision
+**99 items are open**, plus eight carrying a `[~]` — answered, but with a decision
 left for the manager rather than a line of code. The two newest sections,
 `From playtesting — 27 Aug` and `From the whistle back — 27 Aug, later`, are the
 ones to read first: they are a single sitting's worth of playtesting and most of
@@ -3576,8 +3576,15 @@ already done are marked; the rest are the queue.
       nothing. Off for a cup tie, which changes no standing.
 - [ ] **The commentary has very little room left.** Worth a rethink rather than a
       nudge.
-- [ ] **The Sunday League header — the timer and the progress bar — goes UNDER
-      the score card on the Play screen**, as a card of its own.
+- [x] **The Sunday League header — the timer and the progress bar — is a card of
+      its own, under the score.** It was the scoreboard's OPENING band, which
+      put the one thing that changes every tick at the top of the one card whose
+      job is to hold still: every minute, the whole score card was a widget
+      whose contents had moved. They are also different questions — the board is
+      WHO and what the score is, and this is HOW FAR IN, which is what the bar
+      says without arithmetic. `_ClockCard`, same `GlassPanel`, same inset, a
+      hair of gap: two cards read top to bottom as one object rather than two
+      panels on a page.
 
 ### The bid window
 

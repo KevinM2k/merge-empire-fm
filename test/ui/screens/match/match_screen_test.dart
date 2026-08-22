@@ -1053,6 +1053,57 @@ void main() {
     });
   });
 
+  group('THE CLOCK IS ITS OWN CARD', () {
+    testWidgets('THE MINUTE AND THE BAR ARE UNDER THE SCORE, not in it', (
+      tester,
+    ) async {
+      // The clock opened the scoreboard, which put the one band that changes
+      // every tick at the top of the one card whose job is to hold still. They
+      // are different questions: the board is who and what the score is, and
+      // the clock is how far in.
+      await pumpMatch(tester, matchResult());
+      final board = find.byKey(const ValueKey('match-scoreboard'));
+      final clock = find.byKey(const ValueKey('match-clock-card'));
+      expect(board, findsOneWidget);
+      expect(clock, findsOneWidget);
+      // The minute went WITH it — it is not left behind on the board.
+      expect(
+        find.descendant(
+          of: board,
+          matching: find.byKey(const ValueKey('match-clock')),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: clock,
+          matching: find.byKey(const ValueKey('match-clock')),
+        ),
+        findsOneWidget,
+      );
+      // And so did the bar.
+      expect(
+        find.descendant(
+          of: board,
+          matching: find.byType(LinearProgressIndicator),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: clock,
+          matching: find.byType(LinearProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      // Under, not over.
+      expect(
+        tester.getTopLeft(clock).dy,
+        greaterThan(tester.getTopLeft(board).dy),
+      );
+    });
+  });
+
   group('THE BOARD IS THE FIXTURE CARD', () {
     /// The `PosChip` on our side of the board, or null if there is none.
     PosChip? ourChip(WidgetTester tester) {
