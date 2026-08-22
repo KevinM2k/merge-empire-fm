@@ -5697,17 +5697,25 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       **The clamp stays and the CAP moves**, which is the distinction: the grant
       is a tunable and a future one must not be able to overfill the tank. What
       was wrong was clamping to ten when the player had paid for fifteen.
-- [ ] **Two of Coach Colin's reasons can never fire.** `too_dear` needs a price
+- [~] **Two of Coach Colin's reasons can never fire.** **Verified: both are in
+      `dealAdviceEngine.js` and unreachable there too**, for the same two
+      reasons the port records — so this is the shipped game's shape, not a
+      porting slip, and deleting them is a decision about whether the gates
+      might ever diverge from the advice. The original note follows.
+      `too_dear` needs a price
       above the balance on a deal that is NOT blocked, but both buy-side kinds
       gate on the same comparison, so that state does not exist. `no_room` needs
       zero free slots on a signing that is still allowed, and the squad cap (30)
       is twice the grid (15), so it cannot happen either. Both are ported and
       commented; deleting them is a decision about whether the gates might ever
       diverge from the advice.
-- [ ] Two smaller dead ends, ported as defensive and worth deleting if nothing is
-      going to use them: `product.energy` (no product carries it — every energy
-      product uses `energyAdd`), and `WC_RATING_BY_NATION` in `achievements.js`,
-      which is declared and never read. The latter is simply not ported.
+- [x] Two smaller dead ends, ported as defensive — **both verified as the JS's
+      own and left alone.** `iapEngine.js:435` reads `product.energy ||
+      product.energyAdd` while no product carries the first, and
+      `WC_RATING_BY_NATION` is declared at `achievements.js:7` and never read.
+      The port carries the first defensively (it costs nothing and matches the
+      JS's own guard) and simply does not port the second, which is the right
+      answer for a constant with no reader.
 - [x] **The transfer LIST is a dead end in the JS too.** Re-checked with the spec
       repo on disk: `listPlayer` and `unlistPlayer` are declared in
       `negotiationEngine.js` and called by nothing but their own test, exactly
