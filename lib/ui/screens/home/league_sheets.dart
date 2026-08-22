@@ -818,14 +818,32 @@ class _FixtureRow extends StatelessWidget {
           // estimate that does not say it is one is a number the player will
           // hold the game to. In its own slot, because jammed against the score
           // the two numbers ran together into one.
+          //
+          // **And the tilde was the ONLY thing saying so.** A bare number in an
+          // unlabelled column, in a row of other numbers, is a number nobody
+          // can identify — and the catalogue has shipped the sentence that
+          // identifies it, in ten languages, since the generator first ran:
+          // `fixtures.opp_rating` and `fixtures.opp_rating_est`, the second of
+          // which explains the tilde in as many words. Both had no caller.
+          // Sentences do not fit a 34px slot, so they are what it says when you
+          // hold it — the same shape as the table's last-season markers.
           SizedBox(
             width: 34,
-            child: Text(
-              fixture.ratingEstimated
-                  ? '~${fixture.rating}'
-                  : '${fixture.rating}',
-              textAlign: TextAlign.right,
-              style: TextStyle(color: kit.textMuted, fontSize: 11),
+            child: Tooltip(
+              message: t(
+                fixture.ratingEstimated
+                    ? 'fixtures.opp_rating_est'
+                    : 'fixtures.opp_rating',
+                {'rating': fixture.rating},
+              ),
+              child: Text(
+                fixture.ratingEstimated
+                    ? '~${fixture.rating}'
+                    : '${fixture.rating}',
+                key: ValueKey('fixture-rating-${fixture.matchNum}'),
+                textAlign: TextAlign.right,
+                style: TextStyle(color: kit.textMuted, fontSize: 11),
+              ),
             ),
           ),
           SizedBox(

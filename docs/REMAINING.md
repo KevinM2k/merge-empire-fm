@@ -30,10 +30,10 @@ too late:
 
 ## Where we are
 
-**4,458 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**4,461 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
-**4,418 to 4,458 across this session's six passes**, and the first fourteen of
+**4,418 to 4,461 across this session's seven passes**, and the first fourteen of
 those are the fourteen that went the pass before.
 The pass before this one took the suite DOWN — 4,426 to 4,418 — because fourteen
 of its tests belonged to a keeper nothing drew and the rest to a penalty model
@@ -272,12 +272,28 @@ URL). Three are real and are their own items:
       prestige card built last pass covers the same moment with `prestige.*`, so
       building this is either finishing the endgame or shipping a second one,
       and which cannot be answered from here.
-- [ ] **`fixtures.opp_rating` / `.opp_rating_est` / `.played`**, **`prize.win` /
-      `.draw` / `.loss` / `.boost`**, **`boost.tv_deal_chip` /
-      `.kit_sponsor_chip`**, **`difficulty.switch.*` (5), `tier.*` (4),
-      `offseason.*` (11), `manager_hint.*` (14)** — small, and none of them
-      checked yet beyond existing. The fixtures three sit next to `FixturesView`,
-      which already has the ratings in `ourFixturesProvider`.
+- [x] **`fixtures.opp_rating` and `.opp_rating_est`** — the opponent's rating is
+      a bare number in an unlabelled 34px column between a club name and a
+      score, and the sentences identifying it (including the one explaining what
+      the tilde means) shipped in ten languages with no caller. They are the
+      tooltip now, the same shape as the table's last-season markers.
+      **`ratingEstimated` is only true on a save whose ratings have not been
+      drawn** — the boot sweep materialises `seasonOpponentRatings` for the
+      whole season — so the test builds that state rather than hoping a fresh
+      save is in it.
+- [ ] **`fixtures.played`** ('Played') duplicates `play.previousMatches`
+      ('Previous Matches'), which the sheet already uses for that heading. One
+      of the two is the JS's and the other is not; which cannot be told from
+      here.
+- [ ] **`prize.win` / `.draw` / `.loss` / `.boost`** (4) and
+      **`boost.tv_deal_chip` / `.kit_sponsor_chip`** (2) — the boost chips read
+      "TV Deal ×1.5 · {n} left" and both boosts are scoped to the season they
+      were bought in, so `{n}` is almost certainly matches left in the season —
+      but "almost certainly" is the problem, and the SURFACE they sit on does
+      not exist. The income breakdown card already lists `hud.income.kit_sponsor`
+      as a multiplier row, so the chip is a different control, not that one.
+- [ ] **`difficulty.switch.*` (5), `tier.*` (4), `offseason.*` (11),
+      `manager_hint.*` (14)** — not looked at beyond existing.
 
 **THE KEEPER WEARS THE DIVISION AGAIN**, which was the row the last pass left
 behind, and it cost two decisions the row could not have predicted.
@@ -896,7 +912,7 @@ something was skipped.
 ```bash
 cd ~/code/github/kevinm2k/merge-empire-fm
 flutter analyze          # must be clean
-flutter test             # 4,458 passing
+flutter test             # 4,461 passing
 TZ=UTC flutter test      # two parity groups skip themselves outside UTC
 ```
 
