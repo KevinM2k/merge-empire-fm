@@ -264,6 +264,7 @@ class GlassPanel extends StatelessWidget {
     this.density = GlassDensity.panel,
     this.blur = true,
     this.darkGlass,
+    this.sheen = true,
   });
 
   final Widget child;
@@ -275,6 +276,15 @@ class GlassPanel extends StatelessWidget {
 
   /// Off for anything small or numerous — the tint stands alone by design.
   final bool blur;
+
+  /// The vertical highlight down the pane.
+  ///
+  /// **Off for a TALL one.** The sheen is bright at the top, clear at 58% and
+  /// faintly bright again at the foot, which on a card is a lit top edge and on
+  /// a panel that fills the rest of the screen is a band across the middle of
+  /// it — reported on the commentary, where it also sat behind the minute down
+  /// the left. It is a highlight on a small surface, not a wash for a big one.
+  final bool sheen;
 
   /// Force the DARK glass stops whatever the theme is.
   ///
@@ -318,7 +328,9 @@ class GlassPanel extends StatelessWidget {
         ),
       ),
       child: DecoratedBox(
-        decoration: BoxDecoration(gradient: night ? _darkSheen : _lightSheen),
+        decoration: BoxDecoration(
+          gradient: sheen ? (night ? _darkSheen : _lightSheen) : null,
+        ),
         child: Padding(
           padding: padding,
           // **THE PANE PUBLISHES ITS OWN INK, and this is back on purpose.** An

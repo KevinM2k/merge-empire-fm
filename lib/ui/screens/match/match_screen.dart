@@ -1391,6 +1391,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                       child: GlassPanel(
                         darkGlass: true,
                         density: GlassDensity.deep,
+                        // **NO SHEEN ON THIS ONE.** It fills the rest of the
+                        // screen, so the pane's highlight — a lit top edge on a
+                        // card — stretched into a band across the middle of the
+                        // feed and sat behind the minute down the left. See
+                        // [GlassPanel.sheen].
+                        sheen: false,
                         padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
                         child: Column(
                             children: [
@@ -2276,7 +2282,15 @@ class _FeedLine extends StatelessWidget {
           width: 30,
           child: Text(
             "${line.minute}'",
-            style: TextStyle(color: kit.textMuted, fontSize: 11),
+            // **READABLE.** It was `textMuted` at 11 over a pane with a
+            // gradient behind it, which is the one column a player scans the
+            // feed by.
+            style: TextStyle(
+              color: kit.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ),
         // The face stands IN FOR the ball glyph rather than beside it: two marks
@@ -2467,10 +2481,20 @@ class _FeedLine extends StatelessWidget {
       );
     }
 
+    // **EACH LINE IS ITS OWN ROW.** They were a run of text down one pane with
+    // three points between them, so ninety minutes of commentary read as a
+    // paragraph — asked for directly. A plate of its own and a rule under it is
+    // what makes a line a line, and it gives the minute down the left a ground
+    // to be read off.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 3),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 2),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        ),
         child: row,
       ),
     );

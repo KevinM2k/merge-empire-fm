@@ -6274,10 +6274,15 @@ that is not off the extension is the bug, not the symptom.
       pitch's left it two-fifths dead green.
 - [ ] **The 2D match view is not scaled correctly at all**, which is the same
       family and may be the same cause.
-- [ ] **The commentary box has a nasty middle gradient**, and it makes the
-      minute down the left unreadable.
-- [ ] **Each commentary line should be its own separated row**, rather than a
-      run of text down the panel.
+- [x] **The commentary box has a nasty middle gradient**, and it makes the
+      minute down the left unreadable. `GlassPanel`'s sheen: bright at the top,
+      clear at 58%, faintly bright again at the foot. On a card that is a lit
+      top edge; on a panel that fills the rest of the screen it stretches into a
+      band across the middle. Off for that one pane, and the minute is a
+      tabular, heavier figure now.
+- [x] **Each commentary line should be its own separated row**, rather than a
+      run of text down the panel. Three points of gap and nothing else made
+      ninety minutes read as a paragraph.
 - [ ] **Light mode on the Play screen still does not really work.** The dark
       takeover landed the INK; this is the surface under it.
 - [ ] **The subs list should lead with the BEST matches** — the best players for
@@ -6404,7 +6409,11 @@ that is not off the extension is the bug, not the symptom.
       the fix is not what the report is about or the band it is placed in is
       the wrong shape. Get a shot of the seam before changing the placement
       again — this is the third pass at it.
-- [ ] **The dark sky should not be PURPLE.** Just darker is fine.
+- [x] **The dark sky should not be PURPLE.** Both night ramps climbed to a
+      violet at the horizon — `#6A4A8C` at the park, `#3A2470` at the arena —
+      which is a dusk sky rather than a night one and put a cast behind every
+      dark-mode panel on the match page. The horizon lift stays, in the same
+      blue as the sky above it.
 - [x] **The club's assets have no background**, so they blend into the page
       instead of standing out. The tier drawings are transparent and sat
       straight on the card. A shallow wash of the tile's own ink with an edge —

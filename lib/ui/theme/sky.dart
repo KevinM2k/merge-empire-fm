@@ -52,17 +52,26 @@ const List<Color> _dayArena = [
 ];
 
 /// A floodlit night at a modest ground — the JS's `data-tier="5"`.
+///
+/// **NOT PURPLE.** The ramp climbed to `#6A4A8C` at the horizon, which is a
+/// dusk sky rather than a night one and put a violet cast behind every dark-mode
+/// panel on the match page. Asked for directly: darker is what was wanted, not
+/// a hue. The lift at the horizon stays — a floodlit ground does glow — it is
+/// simply the same blue as the sky above it.
 const List<Color> _nightPark = [
-  Color(0xFF141C50),
-  Color(0xFF3A3070),
-  Color(0xFF6A4A8C),
+  Color(0xFF0B1226),
+  Color(0xFF162140),
+  Color(0xFF2C3E63),
 ];
 
 /// The Champions League night — its `data-tier="8"`.
+///
+/// The same correction as [_nightPark], and further down: a big ground under
+/// floodlights is the darkest sky in the game.
 const List<Color> _nightArena = [
   Color(0xFF02030F),
-  Color(0xFF0A1029),
-  Color(0xFF3A2470),
+  Color(0xFF08101F),
+  Color(0xFF16233C),
 ];
 
 /// Where the three stops fall.
