@@ -6235,8 +6235,20 @@ that is not off the extension is the bug, not the symptom.
       wanting to come up from the bottom, dim everything slightly, and go away
       on a tap anywhere — which is what `coachScrim` and the floating coach
       already do, so this is a call site rather than a fourth popup shape.
-- [ ] **On Fixtures he pops wherever there is room.** Always bottom left, in the
-      same place and the same format as everywhere else.
+- [x] **On Fixtures he pops wherever there is room.** He was a portrait and two
+      lines of grey text at the TOP of the list — the JS puts them on a panel
+      beside it and a DOM panel became a header row here — so the same man
+      arrived in a different place, at a different size and in a different voice
+      depending which list you opened, and pushed the fixture you came to look
+      at down the page. `CoachCorner` is the floating coach's own rig, and the
+      table, the fixtures and the training sheets all mount it now.
+      In a sheet he holds STILL: no ring, no unread badge. He is not
+      interrupting there, and it keeps a perpetual animation out of every screen
+      that mounts one.
+- [x] **Fixtures needs more padding between the rows.** Eight top and bottom on
+      a row carrying a venue chip, two club names and a scoreline is a list
+      nobody can pick a line out of. Twelve now, and the next-match card takes a
+      gap of its own rather than sitting flush against its neighbours.
 
 ### The match screen
 

@@ -113,50 +113,103 @@ class CoachFloating extends ConsumerStatefulWidget {
 }
 
 class _CoachFloatingState extends ConsumerState<CoachFloating> {
-  /// The tip the bubble is showing, captured when it opened.
-  ///
-  /// **Held, not re-read.** A tip that changed under an open bubble would swap
-  /// the sentence somebody is halfway through, which reads as the app losing
-  /// interest in its own advice.
-  FloatingTip? _open;
-
-  /// The head's own gentle pulse. Its own clock rather than an implicit
-  /// animation, because it is a loop.
-  late final Widget _head = const _CoachHead();
-
-  @override
-  void didUpdateWidget(CoachFloating old) {
-    super.didUpdateWidget(old);
-    // **WHAT HE SAID WAS ABOUT THE PAGE YOU WERE ON.** Carrying an open bubble
-    // to the next screen is a caption for the wrong picture — and the pool it
-    // came from is per-tab, so the sentence on screen would not even be one this
-    // tab has to offer. Closed rather than dismissed: the player has not said
-    // they are finished with it, so it must not be muted for ten minutes.
-    if (old.tab != widget.tab && _open != null) {
-      setState(() => _open = null);
-    }
-  }
-
+  /// **Through `update`, so the tree hears about it.** The mute lands in the
+  /// save and the head has to go with it — writing the map directly and only
+  /// scheduling a save left him standing there, dismissed, until something else
+  /// happened to move the revision.
   void _dismiss(FloatingTip tip) {
-    dismissCoachTip(ref.read(gameProvider).state, tip, now());
-    ref.read(gameProvider).scheduleSave();
-    setState(() => _open = null);
+    ref.read(gameProvider).update((s) => dismissCoachTip(s, tip, now()));
   }
 
   @override
   Widget build(BuildContext context) {
+    // **The REVISION, not the game object.** `gameProvider` hands out the same
+    // instance forever, so watching it never rebuilds anything — and the mute
+    // this reads is written into that same map. Without this a dismissal left
+    // him standing there until something else happened to move the tree.
+    ref.watch(saveRevisionProvider);
     final tip = ref.watch(coachFloatingTipProvider(widget.tab));
-    // Once it is open it stays open, whatever the pool does underneath.
-    final showing = _open ?? tip;
-    if (showing == null) return const SizedBox.shrink();
-    if (_open == null &&
-        coachTipMuted(ref.watch(gameProvider).state, showing, now())) {
+    if (tip == null) return const SizedBox.shrink();
+    if (coachTipMuted(ref.watch(gameProvider).state, tip, now())) {
       return const SizedBox.shrink();
     }
+    return CoachCorner(
+      // **Keyed on the TAB.** What he said was about the page you were on, so
+      // carrying an open bubble to the next screen is a caption for the wrong
+      // picture — and the pool it came from is per-tab, so the sentence would
+      // not even be one this tab has to offer. A new key is a new corner, which
+      // closes the old one without dismissing it: the player has not said they
+      // are finished with it, so it must not be muted for ten minutes.
+      key: ValueKey('coach-floating-${widget.tab}'),
+      idPrefix: 'coach-floating',
+      text: tip.text,
+      onDismissed: () => _dismiss(tip),
+    );
+  }
+}
 
+/// **THE ONE SHAPE COLIN TAKES when he is annotating a screen** rather than
+/// asking a question: a head in the BOTTOM-LEFT corner that says nothing until
+/// it is tapped, and his line over it in the bubble every other surface uses.
+///
+/// One of it, because there were two and they agreed about nothing. The shell's
+/// floating coach was this; the League and Training sheets printed a portrait
+/// and two lines of grey text at the TOP of the list, so the same man arrived
+/// in a different place, in a different size, in a different voice, depending
+/// which list you had opened — reported as not liking where he pops on
+/// Fixtures, and as wanting him always bottom left in the same format.
+///
+/// **A sheet is a route, so it covers the shell's own corner** — which is why
+/// the sheets cannot simply rely on `CoachFloating` and mount one of these
+/// instead. See [withSubTabCoach].
+class CoachCorner extends StatefulWidget {
+  const CoachCorner({
+    required this.text,
+    required this.idPrefix,
+    this.onDismissed,
+    this.pulse = true,
+    super.key,
+  });
+
+  /// His line. Captured when the bubble opens and held until it closes —
+  /// swapping the sentence under somebody reading it looks like the tip
+  /// auto-dismissing after a few seconds.
+  final String text;
+
+  /// Names this corner's head, bubble and X, so two of them in one tree are
+  /// still separable by a test.
+  final String idPrefix;
+
+  /// The player has said they are FINISHED with it, which is a different thing
+  /// from the bubble closing. Null simply closes.
+  final VoidCallback? onDismissed;
+
+  /// The head's ring, expanding and fading on a loop.
+  ///
+  /// **Off inside a sheet, and that is not a performance note.** In the shell he
+  /// is a NUDGE — something has come up and nobody has looked at it — so the
+  /// ring is the whole point. In a sheet the player has just opened the list he
+  /// is annotating; he is not interrupting, so he holds still. It also keeps a
+  /// perpetual animation out of every screen that mounts one, which is what a
+  /// `pumpAndSettle` in any of their tests would otherwise hang on.
+  final bool pulse;
+
+  @override
+  State<CoachCorner> createState() => _CoachCornerState();
+}
+
+class _CoachCornerState extends State<CoachCorner> {
+  String? _open;
+
+  void _dismiss() {
+    setState(() => _open = null);
+    widget.onDismissed?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Stack(
-      key: const ValueKey('coach-floating'),
       children: [
         // The tap-outside catcher, and only while the bubble is open: an
         // unrelated tap must not clear the quiet nudge, only a read one.
@@ -164,11 +217,11 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => _dismiss(_open!),
-              // **AND IT DIMS THE PAGE, like the home one.** This was a fully
-              // transparent layer, so the same speech bubble pushed the page
-              // back on the home tab and floated on a live screen everywhere
-              // else — see [coachScrim].
+              onTap: _dismiss,
+              // **AND IT DIMS THE PAGE.** This was a fully transparent layer,
+              // so the same speech bubble pushed the page back on the home tab
+              // and floated on a live screen everywhere else — see
+              // [coachScrim].
               child: const ColoredBox(
                 color: coachScrim,
                 child: SizedBox.expand(),
@@ -182,24 +235,21 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
           child: SafeArea(
             top: false,
             // **ABOVE HIM, NOT BESIDE HIM**, and the tail is why. The wedge
-            // drops out of the bubble's bottom-left toward his face — beside him
-            // it was pointing past his shoulder into the HUD, which is a bubble
-            // attributed to the coin counter. He goes at the foot of the stack
-            // and what he says goes over his head, the way the home page has it.
+            // drops out of the bubble's bottom-left toward his face — beside
+            // him it was pointing past his shoulder into the HUD, which is a
+            // bubble attributed to the coin counter.
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_open != null) ...[
                   _Bubble(
-                    key: const ValueKey('coach-floating-bubble'),
-                    text: _open!.text,
-                    onClose: () => _dismiss(_open!),
+                    key: ValueKey('${widget.idPrefix}-bubble'),
+                    text: _open!,
+                    onClose: _dismiss,
                   ),
-                  // **The tail, so it reads as him SAYING it.** Every screen but
-                  // the home page had a plain panel with no speaker, which is a
-                  // caption rather than a line of dialogue. Same wedge the home
-                  // page draws — see [CoachBubbleTail].
+                  // **The tail, so it reads as him SAYING it.** Same wedge the
+                  // home page draws — see [CoachBubbleTail].
                   Padding(
                     // **The POINT over the middle of the head below it**, which
                     // is the wedge's [coachTailTipX] rather than its box — the
@@ -207,7 +257,7 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
                     // starts at 22 minus the tip's own offset.
                     padding: const EdgeInsets.only(left: 22 - coachTailTipX),
                     child: CustomPaint(
-                      key: const ValueKey('coach-floating-tail'),
+                      key: ValueKey('${widget.idPrefix}-tail'),
                       size: coachTailSize,
                       painter: CoachBubbleTail(
                         fill: kit.surface,
@@ -220,13 +270,13 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
                   button: true,
                   label: t('coach.aria.has_message'),
                   child: GestureDetector(
-                    key: const ValueKey('coach-floating-head'),
+                    key: ValueKey('${widget.idPrefix}-head'),
+                    // Reading it is a state change; being finished with it is a
+                    // dismissal. Same as the X.
                     onTap: () => _open == null
-                        // Reading it is a state change; being finished with it
-                        // is a dismissal. Same as the X.
-                        ? setState(() => _open = showing)
-                        : _dismiss(_open!),
-                    child: _head,
+                        ? setState(() => _open = widget.text)
+                        : _dismiss(),
+                    child: _CoachHead(pulse: widget.pulse),
                   ),
                 ),
               ],
@@ -241,7 +291,9 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
 /// The head: his portrait in a ringed disc, pulsing so it reads as waiting to be
 /// tapped rather than as furniture.
 class _CoachHead extends StatefulWidget {
-  const _CoachHead();
+  const _CoachHead({this.pulse = true});
+
+  final bool pulse;
 
   @override
   State<_CoachHead> createState() => _CoachHeadState();
@@ -258,7 +310,7 @@ class _CoachHeadState extends State<_CoachHead>
   );
 
   void _sync() {
-    final run = !MediaQuery.of(context).disableAnimations;
+    final run = widget.pulse && !MediaQuery.of(context).disableAnimations;
     if (run == _pulse.isAnimating) return;
     if (run) {
       _pulse.repeat();
@@ -329,11 +381,18 @@ class _CoachHeadState extends State<_CoachHead>
               // The badge. A single character, because a count would imply
               // there is a list of them — and it is the DOCK's badge, shared,
               // because there were two of these and only the dock's moved.
-              const Positioned(
-                right: 0,
-                top: 0,
-                child: CoachAlertBadge(),
-              ),
+              //
+              // **On the same switch as the ring**, and for the same reason: an
+              // unread mark on a line the player opened a list to see is a
+              // notification for something they are already looking at. It
+              // bounces on a loop of its own, so it is also the second thing a
+              // `pumpAndSettle` in a sheet's test would hang on.
+              if (widget.pulse)
+                const Positioned(
+                  right: 0,
+                  top: 0,
+                  child: CoachAlertBadge(),
+                ),
             ],
           ),
         );

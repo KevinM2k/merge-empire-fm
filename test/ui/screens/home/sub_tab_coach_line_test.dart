@@ -25,7 +25,6 @@ Future<ProviderContainer> pumpLine(
   CoachLineFor which, {
   void Function(Map<String, dynamic>)? mutate,
   bool enabled = true,
-  bool reserve = false,
 }) async {
   final state = createDefaultState();
   (state['progression'] as Map<String, dynamic>)
@@ -48,12 +47,14 @@ Future<ProviderContainer> pumpLine(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
+          // His head PULSES, which is a loop — `pumpAndSettle` never returns
+          // under one. Same policy the floating coach's own tests run under.
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
           home: Scaffold(
-            body: SubTabCoachLine(
-              which: which,
-              enabled: enabled,
-              reserve: reserve,
-            ),
+            body: SubTabCoachLine(which: which, enabled: enabled),
           ),
         ),
       ),
@@ -74,6 +75,8 @@ void main() {
   testWidgets('AND IT IS ONE LINE, not the whole pool', (tester) async {
     // Every one of these keys is two or three sentences separated by pipes.
     await pumpLine(tester, CoachLineFor.table);
+    await tester.tap(find.byKey(const ValueKey('coach-line-table-head')));
+    await tester.pumpAndSettle();
     final text = tester
         .widgetList<Text>(
           find.descendant(
@@ -103,26 +106,36 @@ void main() {
     expect(find.byKey(const ValueKey('coach-line-table')), findsNothing);
   });
 
-  testWidgets('AND RESERVED HOLDS THE HEIGHT EITHER WAY', (tester) async {
-    // The league table swipes between divisions; without this the sheet grew
-    // and shrank under the finger mid-drag, which reads as the swipe fighting
-    // back.
-    await pumpLine(tester, CoachLineFor.table, reserve: true);
-    final on = tester.getSize(find.byType(SubTabCoachLine)).height;
-    await pumpLine(
-      tester,
-      CoachLineFor.table,
-      enabled: false,
-      reserve: true,
+  testWidgets('HE IS BOTTOM LEFT, and says nothing until he is tapped', (
+    tester,
+  ) async {
+    // He was a portrait and two lines of grey text at the TOP of the list, so
+    // the same man arrived in a different place, at a different size and in a
+    // different voice depending which list you had opened — and pushed the
+    // fixture you came to look at down the page. Reported twice.
+    await pumpLine(tester, CoachLineFor.table);
+    final head = find.byKey(const ValueKey('coach-line-table-head'));
+    expect(head, findsOneWidget);
+    expect(find.byKey(const ValueKey('coach-line-table-bubble')), findsNothing);
+
+    final screen = tester.getSize(find.byType(MaterialApp));
+    final at = tester.getRect(head);
+    expect(at.left, lessThan(screen.width / 3), reason: 'not on the left');
+    expect(at.bottom, greaterThan(screen.height * 0.7), reason: 'not at the foot');
+
+    await tester.tap(head);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('coach-line-table-bubble')),
+      findsOneWidget,
     );
-    final off = tester.getSize(find.byType(SubTabCoachLine)).height;
-    expect(off, on);
-    expect(on, greaterThan(0));
   });
 
   testWidgets('and the line is in the player\'s language', (tester) async {
     setLocale('de');
     await pumpLine(tester, CoachLineFor.table);
+    await tester.tap(find.byKey(const ValueKey('coach-line-table-head')));
+    await tester.pumpAndSettle();
     final text = tester
         .widgetList<Text>(
           find.descendant(

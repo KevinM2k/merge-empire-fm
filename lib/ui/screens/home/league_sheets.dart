@@ -149,25 +149,20 @@ class _PyramidPagerState extends ConsumerState<_PyramidPager> {
           ),
         ),
         _RungDots(count: divisions.length, active: _page, home: widget.start),
-        // **Only over your OWN division.** His read is about where YOU are in
-        // the table; over a league you are merely browsing it would be a
-        // sentence about somebody else's season.
-        // Reserved, so the sheet does not grow and shrink under the finger as
-        // the pager moves off your own division and back.
-        SubTabCoachLine(
-          which: CoachLineFor.table,
-          // Only over your OWN division — his read is about where YOU are — and
-          // reserved either way, so the sheet does not grow and shrink under
-          // the finger as the pager moves off it and back.
-          enabled: home,
-          reserve: true,
-        ),
+        // **Only over your OWN division**, and in the bottom-left corner every
+        // other screen puts him in — see [withSubTabCoach]. As a row in this
+        // column it had to reserve its own height or the sheet grew and shrank
+        // under a finger mid-swipe; an overlay cannot.
         Expanded(
-          child: PageView.builder(
+          child: withSubTabCoach(
+            which: CoachLineFor.table,
+            enabled: home,
+            child: PageView.builder(
             controller: _controller,
             itemCount: divisions.length,
             onPageChanged: (i) => setState(() => _page = i),
             itemBuilder: (context, i) => _DivisionTable(divisionIndex: i),
+            ),
           ),
         ),
         // **Only when you have swiped away.** On your own rung it would be a
@@ -713,13 +708,18 @@ class FixturesView extends ConsumerWidget {
       rows.add(_FixtureRow(fixture: fixture));
     }
 
-    return ListView(
-      key: const ValueKey('league-fixtures'),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      children: [
-        const SubTabCoachLine(which: CoachLineFor.fixtures),
-        ...rows,
-      ],
+    // **HE IS IN THE CORNER, not at the head of the list.** A portrait and two
+    // lines of grey text pushed the fixture you came to look at down the page,
+    // and put the same man in a different place from every other screen.
+    return withSubTabCoach(
+      which: CoachLineFor.fixtures,
+      child: ListView(
+        key: const ValueKey('league-fixtures'),
+        // Room at the foot for the corner to sit over, so the last fixture is
+        // not underneath him.
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 84),
+        children: rows,
+      ),
     );
   }
 }
@@ -800,7 +800,12 @@ class _FixtureRow extends StatelessWidget {
       // full-bleed `surface2` fill with no rounding and no edge, which on a
       // column of otherwise identical rows reads as a highlight that has gone
       // wrong rather than as the fixture you are about to play.
-      margin: EdgeInsets.symmetric(horizontal: fixture.isNext ? 8 : 0),
+      // The card wants a gap of its own; the rows are separated by a hairline
+      // and want the air INSIDE them rather than between them.
+      margin: EdgeInsets.symmetric(
+        horizontal: fixture.isNext ? 8 : 0,
+        vertical: fixture.isNext ? 6 : 0,
+      ),
       decoration: BoxDecoration(
         color: fixture.isNext ? kit.accentBright.withValues(alpha: 0.1) : null,
         borderRadius: BorderRadius.circular(fixture.isNext ? 10 : 0),
@@ -812,9 +817,12 @@ class _FixtureRow extends StatelessWidget {
                 bottom: BorderSide(color: kit.border.withValues(alpha: 0.45)),
               ),
       ),
+      // **MORE AIR.** Eight top and bottom on a row carrying a chip, two club
+      // names and a scoreline is a list nobody can pick a line out of —
+      // reported as needing more padding between the fixtures.
       padding: EdgeInsets.symmetric(
         horizontal: fixture.isNext ? 8 : 12,
-        vertical: 8,
+        vertical: 12,
       ),
       child: Row(
         children: [

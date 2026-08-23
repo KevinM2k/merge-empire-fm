@@ -74,7 +74,13 @@ class TrainingView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final games = ref.watch(miniGamesProvider);
 
-    return ListView(
+    // **He only speaks here when a cup tie is due.** Training is free, so a tank
+    // at nought is not a reason to stay off a sheet full of games that cost
+    // none — which is why the JS gives this sub-tab the cup branch alone. In
+    // the corner every other screen puts him in; see [withSubTabCoach].
+    return withSubTabCoach(
+      which: CoachLineFor.minigames,
+      child: ListView(
       key: const ValueKey('training-view'),
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       children: [
@@ -86,13 +92,11 @@ class TrainingView extends ConsumerWidget {
           title: t('training.title'),
           padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
         ),
-        // **He only speaks here when a cup tie is due.** Training is free, so a
-        // tank at nought is not a reason to stay off a sheet full of games that
-        // cost none — which is why the JS gives this sub-tab the cup branch
-        // alone and nothing else.
-        const SubTabCoachLine(which: CoachLineFor.minigames),
         for (final game in games) _GameRow(game: game),
+        // Room at the foot for the corner to sit over.
+        const SizedBox(height: 76),
       ],
+      ),
     );
   }
 }
