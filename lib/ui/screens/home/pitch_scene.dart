@@ -765,7 +765,20 @@ class PitchScene extends StatelessWidget {
                   // ON the ad boards, not behind them: the stand's foot is the
                   // back of the board, which is what puts the perimeter in front
                   // of the front row instead of across its knees.
-                  top: horizon - standHeightFor(tier) - hoardingHeight,
+                  //
+                  // **AND THE LIFT IS THE BOARDS' OWN HEIGHT, so when there are
+                  // no boards there is no lift.** Below `firstHoardingTier`
+                  // nothing is drawn in that band and the strip was still being
+                  // raised out of it, which left a `hoardingHeight` ribbon of
+                  // bare SKY between the park's fence and the top of the grass
+                  // — reported as the backdrop being cut off and the grass not
+                  // meeting the fence. The park's foot is the horizon, and the
+                  // horizon is where the turf starts, so there is now nowhere
+                  // for a gap to be.
+                  top:
+                      horizon -
+                      standHeightFor(tier) -
+                      (tier >= firstHoardingTier ? hoardingHeight : 0),
                   height: standHeightFor(tier),
                   // Tapping the terrace gets the crowd up — the JS's own
                   // interaction, and the one thing on this screen that answers a

@@ -4208,23 +4208,28 @@ by a test.
 
 ### The diorama, still
 
-- [ ] **The grass does not meet the fence, and the backdrop is cut off.** There
+- [x] **The grass does not meet the fence, and the backdrop is cut off.** There
       is a pale band of sky between the bottom of the park strip and the top of
       the pitch on tier 1 — the backdrop is being bottom-aligned inside a box
       that ends above where the grass starts. Same fault as the one closed on
       29 Aug and it has come back at a different seam: the fix has to be that
       the park's box and the pitch's top edge are the SAME line, not two numbers
-      that happen to agree at one screen height.
+      that happen to agree at one screen height. It was the HOARDINGS' height:
+      the stand strip is lifted by it so the terrace's foot sits behind the
+      boards, and below `firstHoardingTier` there are no boards but the lift was
+      still being taken — a ribbon of bare sky exactly one board tall.
 
 ### The home page
 
-- [ ] **Coach's face is not a circle.** The avatar is clipped to something
+- [x] **Coach's face is not a circle.** The avatar is clipped to something
       between a circle and a squircle and the head is cropped at the top — it is
-      meant to be a round chip with the whole head inside it.
+      meant to be a round chip with the whole head inside it. It is a head shot
+      now: the 512-square portrait scaled 1.5× about his eyes rather than
+      inscribed whole, under a `ClipOval`.
 
 ### The squad
 
-- [ ] **The pitch tokens are dark at the bottom IN LIGHT MODE.** The name plate
+- [x] **The pitch tokens are dark at the bottom IN LIGHT MODE.** The name plate
       under each figure is drawn on the dark card face while everything round it
       is light. Reported before and it is back — `PlayerCard.light` resolves
       from the theme, so a `PitchToken` reaching for its own colour is the bug.

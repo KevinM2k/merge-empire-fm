@@ -253,6 +253,17 @@ class PitchToken extends StatelessWidget {
     final pColor = penaltyColor(slot.penalty);
     final pBg = penaltyBg(slot.penalty);
 
+    // **THE TOKEN FOLLOWS THE THEME, exactly as `PlayerCard` does.** It drew
+    // `theme.bg` and a `0x8C000000` name plate in both themes, so a light-mode
+    // eleven was eleven dark cards with black feet on a bright pitch while
+    // every other card on the page was pale — reported that way, and it is the
+    // same fault `PlayerCard` was fixed for. A scrim's job is contrast, and
+    // white does that for dark ink exactly as well as black does for light.
+    final light = Theme.of(context).brightness == Brightness.light;
+    final body = light ? theme.bgLight : theme.bg;
+    final plate = light ? const Color(0xE6FFFFFF) : const Color(0x8C000000);
+    final plateInk = light ? const Color(0xFF1A1F26) : Colors.white;
+
     // Shrink the name to fit rather than clipping it — a cut-off name reads
     // worse than a small one.
     final surname = card.name.split(' ').last;
@@ -271,7 +282,7 @@ class PitchToken extends StatelessWidget {
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
-              color: cssColor(theme.bg.stops.last.$1),
+              color: cssColor(body.stops.last.$1),
               borderRadius: const BorderRadius.all(Radius.circular(10)),
               border: Border.all(
                 color: highlighted ? Colors.white : ring,
@@ -397,7 +408,7 @@ class PitchToken extends StatelessWidget {
                   ),
                   Container(
                     width: double.infinity,
-                    color: const Color(0x8C000000),
+                    color: plate,
                     padding: const EdgeInsets.fromLTRB(2, 2, 2, 3),
                     child: Text(
                       surname,
@@ -409,7 +420,7 @@ class PitchToken extends StatelessWidget {
                         fontSize: nameSize,
                         height: 1.4,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: plateInk,
                       ),
                     ),
                   ),
