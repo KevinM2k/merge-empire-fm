@@ -40,6 +40,8 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
 import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
@@ -160,6 +162,24 @@ Future<void> pumpLight(WidgetTester tester, Widget screen) async {
   await tester.pump();
 }
 
+/// A finished match, enough to draw the screen from.
+Map<String, dynamic> _result() => {
+  'clubName': 'Testville',
+  'opponentName': 'Ayton',
+  'isHome': true,
+  'won': true,
+  'drawn': false,
+  'addedTime': 2,
+  'events': const <Map<String, dynamic>>[],
+  'homeGoals': 2,
+  'awayGoals': 1,
+  'coinsEarned': 300,
+};
+
+Widget matchScreen() => MatchScreen(result: _result());
+
+Widget summaryScreen() => MatchSummaryScreen(result: _result());
+
 void main() {
   for (final (name, screen) in <(String, Widget)>[
     ('the shop', const ShopScreen()),
@@ -168,6 +188,12 @@ void main() {
     ('settings', const SettingsScreen()),
     ('the grid', const GridScreen()),
     ('the home page', const HomeScreen()),
+    // **The match and its summary are a DARK takeover in both themes** — see
+    // `darkTakeoverThemeProvider`. Swept in light mode anyway, and that is the
+    // point: the page forces its own theme, so what this proves is that the
+    // forcing actually reaches every ink on it.
+    ('the match', matchScreen()),
+    ('the full-time report', summaryScreen()),
   ]) {
     testWidgets('$name reads in LIGHT MODE', (tester) async {
       await pumpLight(tester, screen);

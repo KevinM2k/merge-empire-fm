@@ -6293,8 +6293,17 @@ that is not off the extension is the bug, not the symptom.
 - [x] **Each commentary line should be its own separated row**, rather than a
       run of text down the panel. Three points of gap and nothing else made
       ninety minutes read as a paragraph.
-- [ ] **Light mode on the Play screen still does not really work.** The dark
-      takeover landed the INK; this is the surface under it.
+- [x] **Light mode on the Play screen still does not really work.** Found by
+      extending the contrast sweep to the match and the report, and it is a
+      Flutter trap worth writing down: **a `Theme` wraps what has already been
+      BUILT.** The takeover returns `Theme(data: dark, child: page)`, so every
+      `Theme.of(context)` made while building `page` — in the State's own build,
+      not a child's — still read the theme OUTSIDE it. `matchBackdrop` was one:
+      in light mode the sky came out a daylight blue under dark-glass panels
+      wearing dark-theme ink, which is exactly the report. It takes the
+      takeover's brightness explicitly now. The child widgets were always fine —
+      they build inside the `Theme` — which is why this survived a pass that
+      looked like it had fixed everything.
 - [x] **The subs list should lead with the BEST matches** — the best players for
       the slot first, then the rest in that order. It came off the grid cells in
       whatever order they happened to be laid out, so the man who plays where
@@ -6465,7 +6474,8 @@ that is not off the extension is the bug, not the symptom.
       The JS's block is claimable because it renders BEFORE the settle; the
       port's page renders after, and reordering that chain would move the rating
       prompt, the offseason report and the champions card with it.
-- [ ] **The home backdrop is still cropping, and quite low.** Third re-report.
+- [ ] **The home backdrop is still cropping, and quite low.** Third re-report,
+      and filed twice in the same sitting — one row, not two.
       The place-by-its-ground-line fix assumed the art's own ground sits at 62%
       of the drawing; if it crops low, that number is wrong for this image or
       the band it is placed in is not the band being seen.
@@ -6540,11 +6550,6 @@ that is not off the extension is the bug, not the symptom.
       is already `surface` is very nearly the card again. It is a STAGE now: a
       ground that clearly differs from the card, a spotlight behind where the
       drawing sits, and a rim in the tile's own colour once it is built.
-- [ ] **The home screen still cuts off the backdrop, and it looks bad.**
-      Re-reported after the place-by-its-ground-line fix on 31 Aug, so either
-      the fix is not what the report is about or the band it is placed in is
-      the wrong shape. Get a shot of the seam before changing the placement
-      again — this is the third pass at it.
 - [x] **The dark sky should not be PURPLE.** Both night ramps climbed to a
       violet at the horizon — `#6A4A8C` at the park, `#3A2470` at the arena —
       which is a dusk sky rather than a night one and put a cast behind every

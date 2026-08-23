@@ -117,12 +117,21 @@ LinearGradient skyGradient({
 /// theme, so in dark mode they were thin enough to let the night sky's violet
 /// through and in light mode they were pale panes on a bright sky. Pinning the
 /// glass is what makes the sky right — see `GlassPanel.darkGlass`.
+/// **[brightness] OVERRIDES the context's**, for a page that forces its own.
+///
+/// The match and its full-time report wrap themselves in the kit's DARK theme —
+/// they are dark glass in both, and the ink has to match. But a `Theme` wraps
+/// what has already been BUILT, so a `Theme.of(context)` made while building
+/// the page still reads the theme outside it: in light mode the sky came out a
+/// daylight blue under dark-glass panels with dark-theme ink on them. That is
+/// the "Play screen is hard to read in light mode" that survived the takeover.
 Decoration matchBackdrop({
   required BuildContext context,
   required int tier,
+  Brightness? brightness,
 }) => BoxDecoration(
   gradient: skyGradient(
-    brightness: Theme.of(context).brightness,
+    brightness: brightness ?? Theme.of(context).brightness,
     tier: tier,
   ),
 );

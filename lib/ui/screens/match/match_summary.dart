@@ -183,6 +183,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
     // see [darkTakeoverThemeProvider]. Every panel here is dark glass on the
     // match's own sky and the ink over them was the app's, which in light mode
     // is near-black. Reported as the end-of-game screen being unreadable.
+    final takeover = ref.watch(darkTakeoverThemeProvider);
     final page = Scaffold(
       key: const ValueKey('match-summary'),
       backgroundColor: Colors.transparent,
@@ -192,6 +193,8 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
         decoration: matchBackdrop(
           context: context,
           tier: ref.watch(stadiumTierProvider),
+          // The takeover's own, not the app's — see [matchBackdrop].
+          brightness: takeover.brightness,
         ),
         child: SafeArea(
           child: Column(
@@ -384,7 +387,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
         ),
       ),
     );
-    return Theme(data: ref.watch(darkTakeoverThemeProvider), child: page);
+    return Theme(data: takeover, child: page);
   }
 }
 

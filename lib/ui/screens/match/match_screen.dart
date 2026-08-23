@@ -1145,6 +1145,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // was the app's own, so in light mode the commentary was near-black on
     // near-black. Held in a local rather than wrapped inline: the page below is
     // four hundred lines and re-indenting all of it would bury the change.
+    final takeover = ref.watch(darkTakeoverThemeProvider);
     final page = Scaffold(
       key: const ValueKey('match-screen'),
       // ON THE SKY, not on the app's page colour. This page is a takeover — it
@@ -1157,6 +1158,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         decoration: matchBackdrop(
           context: context,
           tier: ref.watch(stadiumTierProvider),
+          // The takeover's own, not the app's — see [matchBackdrop].
+          brightness: takeover.brightness,
         ),
         child: SafeArea(
           child: Stack(
@@ -1552,7 +1555,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ),
       ),
     );
-    return Theme(data: ref.watch(darkTakeoverThemeProvider), child: page);
+    return Theme(data: takeover, child: page);
   }
 
   /// One row of the feed, with a replay on it when there is one to play.
