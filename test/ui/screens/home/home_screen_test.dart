@@ -303,9 +303,17 @@ void main() {
 
       expect(coach.left, closeTo(rail.left, 1), reason: 'the coach drifted in');
       expect(menu.right, closeTo(rail.right, 1), reason: 'the burger drifted in');
-      // And the pill is the widest thing on the rail rather than the narrowest.
-      expect(pill.width, greaterThan(coach.width));
-      expect(pill.width, greaterThan(menu.width));
+      // **And the pill is its OWN size, not its slot's.** Its row is
+      // `MainAxisSize.min`, but a tight slot stretches the container round it —
+      // a lozenge four times the length of the word in it. It sits between the
+      // orbs without touching either.
+      expect(pill.left, greaterThan(coach.right));
+      expect(pill.right, lessThan(menu.left));
+      expect(
+        pill.width,
+        lessThan((rail.width - coach.width - menu.width) * 0.9),
+        reason: 'the pill filled its slot',
+      );
     });
 
     testWidgets('THE PRESTIGE ORB IS NOT THERE until the cup is won', (

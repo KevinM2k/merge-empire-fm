@@ -22,8 +22,6 @@ import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
-import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
-    show leagueTableProvider;
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show PosChip;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
@@ -469,7 +467,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(stateOf(tester).frame.finished, isTrue);
-    expect(find.text(t('match.full_time')), findsOneWidget);
+    // **In the FOOTER, not in the gutter.** The gutter is a fixed 34px — what
+    // makes the ratings line up under the club names — and "Full Time" wraps
+    // inside it and grows the row, which moved the whole pitch band down a line
+    // at the whistle. The minute stays between the clubs; the label goes where
+    // there is width for it.
+    expect(find.byKey(const ValueKey('match-full-time')), findsOneWidget);
+    expect(find.text(t('match.full_time').toUpperCase()), findsOneWidget);
     expect(finished, 1);
   });
 
@@ -1125,16 +1129,14 @@ void main() {
   });
 
   group('THE CLOCK IS BACK IN THE BOARD, at the foot of it', () {
-    testWidgets('THE MINUTE AND THE BAR ARE IN THE CARD, not beside it', (
-      tester,
-    ) async {
-      // **This reverses `_ClockCard`**, which was split out on the reasoning
-      // that the one band changing every tick should not sit on the one card
-      // whose job is holding still. That reasoning is right and is overruled by
-      // the SPACE: two panels with a rule and a gap cost a match screen that
-      // has none, and the minute is small and the bar is a hairline. They go at
-      // the FOOT, so the half that ticks is furthest from the half that does
-      // not.
+    testWidgets('THE MINUTE IS BETWEEN THE TWO CLUBS, and the bar is the '
+        'card\'s bottom edge', (tester) async {
+      // **This moves the clock a second time and the reason is the same both
+      // times: SPACE.** It came into the board off its own `_ClockCard`, and
+      // sat at the foot beside the competition label — the quietest strip on
+      // the card. The gutter above the `VS` is the widest empty space on the
+      // screen, and the bar is a hairline that was costing a gap and a row of
+      // its own. Both asked for directly.
       await pumpMatch(tester, matchResult());
       final board = find.byKey(const ValueKey('match-scoreboard'));
       expect(board, findsOneWidget);
@@ -1151,10 +1153,14 @@ void main() {
         ),
         findsOneWidget,
       );
-      // At the foot: below the score it must not move.
+      // Between the two clubs: level with the names, and above the score.
+      expect(
+        tester.getCenter(clock).dx,
+        closeTo(tester.getCenter(board).dx, 2),
+      );
       expect(
         tester.getTopLeft(clock).dy,
-        greaterThan(
+        lessThan(
           tester.getTopLeft(find.byKey(const ValueKey('match-score-left'))).dy,
         ),
       );
@@ -1162,63 +1168,25 @@ void main() {
   });
 
   group('THE BOARD IS THE FIXTURE CARD', () {
-    /// The `PosChip` on our side of the board, or null if there is none.
-    PosChip? ourChip(WidgetTester tester) {
-      final chips = tester
-          .widgetList<PosChip>(
-            find.descendant(
-              of: find.byKey(const ValueKey('match-scoreboard')),
-              matching: find.byType(PosChip),
-            ),
-          )
-          .where((c) => c.ours);
-      return chips.isEmpty ? null : chips.first;
-    }
-
-    testWidgets('IT OPENS WITH THE STANDINGS, like the home page does', (
-      tester,
-    ) async {
-      // The same fixture, described twice in two different shapes — and the
-      // home page's is the one that got the design work. The chip is the card's
-      // own, and it sits on the card's own three-track row.
-      final container = await pumpMatch(tester, matchResult());
+    testWidgets('AND THE POSITION CHIPS HAVE GONE', (tester) async {
+      // **This reverses "it opens with the standings, like the home page
+      // does".** The chips came across from the next-match card, where they
+      // answer "who am I playing"; once the match is running that question is
+      // answered, and the table is a tap away on the full-time screen. Asked
+      // for directly, and the row they cost is the room the clock moved into.
+      await pumpMatch(tester, matchResult());
       final board = find.byKey(const ValueKey('match-scoreboard'));
       expect(board, findsOneWidget);
-
-      final table = container.read(leagueTableProvider);
       expect(
-        ourChip(tester)?.position,
-        table.indexWhere((r) => r.isPlayer) + 1,
-        reason: 'the board does not say where we stand',
+        find.descendant(of: board, matching: find.byType(PosChip)),
+        findsNothing,
       );
-      // Standings, names and score: three bands on ONE row, which is what makes
-      // the ratings line up under the club names.
+      // Names and score: two bands on the card's own three-track row, which is
+      // what makes the ratings line up under the club names.
       expect(
         find.descendant(of: board, matching: find.byType(MatchRow)),
-        findsNWidgets(3),
+        findsNWidgets(2),
       );
-    });
-
-    testWidgets('AND THEY DO NOT MOVE UNDER THE FINAL WHISTLE', (tester) async {
-      // `finalizeMatchOutcome` runs at full time with this screen still up, so
-      // a live table would slide the chips under the player at the whistle. A
-      // fixture card describes the fixture as it was PLAYED.
-      final container = await pumpMatch(tester, matchResult());
-      final before = ourChip(tester)?.position;
-      expect(before, isNotNull);
-
-      container.read(gameProvider).update((s) {
-        final prog = s['progression'] as Map<String, dynamic>;
-        prog['seasonAwardedPlayed'] = 8;
-        prog['seasonWins'] = 8;
-        prog['seasonDraws'] = 0;
-      });
-      await tester.pump();
-      // The table really did move, or this proves nothing.
-      final moved = container.read(leagueTableProvider);
-      expect(moved.indexWhere((r) => r.isPlayer) + 1, isNot(before));
-      expect(ourChip(tester)?.position, before);
-      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
     });
   });
 

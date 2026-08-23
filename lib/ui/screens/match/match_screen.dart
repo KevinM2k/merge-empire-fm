@@ -42,7 +42,7 @@ import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show leagueTableProvider, managerLookProvider;
 import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
-    show PosChip, PosStanding;
+    show PosStanding;
 import 'package:merge_empire_fc/engine/lineup_engine.dart'
     show refillLineupFromBench;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
@@ -88,6 +88,14 @@ typedef _CamShot = ({
 /// `GlassPanel`, so nothing here draws its own.
 const double matchInset = 13;
 const double matchGap = 8;
+
+/// The commentary's own side inset.
+///
+/// **Half what it was.** Every line carried 14 either side INSIDE a panel that
+/// is already inset 13 from the page, so a line of commentary started 27 points
+/// in on a 320pt phone — a quarter of the screen gone before the first word,
+/// on the one band here that is read rather than looked at.
+const double feedInset = 7;
 
 class MatchScreen extends ConsumerStatefulWidget {
   const MatchScreen({
@@ -1821,26 +1829,39 @@ class _TacticStrip extends StatelessWidget {
       // The page's own 13 either side. The strip ran edge to edge while every
       // other band on the screen was inset, so the one control that is ABOUT
       // the pitch above it was the one thing not lined up with it.
-      padding: const EdgeInsets.symmetric(horizontal: matchInset),
+      //
+      // **And a gap under it, the same one that is above it.** It sat directly
+      // on the commentary panel, so a control and the thing being read below it
+      // were one block — the strip has to end before the reading starts. The
+      // gap is `matchGap`, which is what the pitch band above already uses, so
+      // the strip sits in equal air rather than being pushed down onto nothing.
+      padding: const EdgeInsets.fromLTRB(matchInset, 0, matchInset, matchGap),
       child: Column(
         key: const ValueKey('match-tactics'),
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            height: 46,
-            child: Row(
-              children: [
-                for (final id in strategyStrip)
-                  Expanded(
-                    child: _TacticButton(
-                      id: id,
-                      active: id == active,
-                      last: id == strategyStrip.last,
-                      enabled: !cooldown,
-                      onTap: () => onPick(id),
+          // **ROUNDED AT BOTH ENDS.** Five square segments in a row read as a
+          // slab rather than as one control; the outer two corners are the
+          // strip's own and the clip is what closes them. The cooldown hairline
+          // is inside the clip too, so it cannot square off what it runs under.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              height: 46,
+              child: Row(
+                children: [
+                  for (final id in strategyStrip)
+                    Expanded(
+                      child: _TacticButton(
+                        id: id,
+                        active: id == active,
+                        last: id == strategyStrip.last,
+                        enabled: !cooldown,
+                        onTap: () => onPick(id),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           // Only while it is shut. A bar that is always there, empty, is a
@@ -2031,9 +2052,6 @@ class _Scoreboard extends StatelessWidget {
     // A cup tie or an older save may carry no split at all, and four zeroes
     // would be worse than nothing.
     final hasSplit = result['ourAttackRating'] != null;
-    // The board is laid out HOME SIDE LEFT, the same way the fixture card is.
-    final leftStanding = isHome ? standings.ours : standings.theirs;
-    final rightStanding = isHome ? standings.theirs : standings.ours;
 
     return Padding(
       // **TIGHTER THAN IT WAS, because it grew a band.** The standings row is
@@ -2051,29 +2069,22 @@ class _Scoreboard extends StatelessWidget {
       // it was drawing them loose on the sky with no pane behind them, so the
       // fixture you accepted and the fixture you are watching did not look like
       // the same object. Same `GlassPanel`, same density, same insets.
+      // **THE PROGRESS BAR IS THE CARD'S BOTTOM BORDER**, not a strip inside
+      // it. It is a hairline and it was costing a gap above it and a row of its
+      // own; run along the panel's own edge it says the same thing and costs
+      // nothing. The panel's bottom padding goes with it, and the bar takes the
+      // panel's radius on its two bottom corners so it follows the shape rather
+      // than squaring it off.
       child: GlassPanel(
         density: GlassDensity.deep,
-        padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
         child: Column(
           children: [
-            // **THE SAME BAND THE NEXT-MATCH CARD OPENS WITH.** It is the same
-            // fixture ten seconds later and the home page's version is the one
-            // that got the design work — so the standings come with it, on their
-            // own row, through the same chip.
-            MatchRow(
-              left: PosChip(
-                position: leftStanding.position,
-                delta: leftStanding.delta,
-                ours: isHome,
-              ),
-              right: PosChip(
-                position: rightStanding.position,
-                delta: rightStanding.delta,
-                ours: !isHome,
-              ),
-              gutter: const SizedBox.shrink(),
-              bottomSpacing: 4,
-            ),
+            // **THE POSITION CHIPS ARE GONE.** They came across from the
+            // next-match card, where they answer "who am I playing"; during the
+            // match that question is answered and the table is a tap away on
+            // the full-time screen. Asked for directly, and the row they cost
+            // is the room the clock moved into.
             MatchRow(
               left: Text(
                 left,
@@ -2087,7 +2098,29 @@ class _Scoreboard extends StatelessWidget {
                   color: isHome ? kit.accentBright : ink,
                 ),
               ),
-              gutter: const SizedBox.shrink(),
+              // **THE CLOCK GOES BETWEEN THE TWO CLUBS.** It was in the footer
+              // beside the competition label, which is the quietest strip on
+              // the card — and the gutter above the `VS` is the widest empty
+              // space on the whole screen. Asked for directly.
+              // **THE MINUTE ONLY — "Full Time" does not fit here and must not
+              // try.** The gutter is a fixed `nmGutter` 34px, which is what
+              // makes the ratings line up under the club names; a two-word
+              // label wraps inside it and grows the row, which moved the whole
+              // pitch band down by a line at the whistle. The label goes in the
+              // footer strip, where there is width for it.
+              gutter: Text(
+                "$minute'",
+                key: const ValueKey('match-clock'),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  color: kit.accentBright,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
               right: Text(
                 right,
                 textAlign: TextAlign.center,
@@ -2158,6 +2191,17 @@ class _Scoreboard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (finished)
+                  Text(
+                    t('match.full_time').toUpperCase(),
+                    key: const ValueKey('match-full-time'),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
+                      color: kit.accentBright,
+                    ),
+                  ),
                 GestureDetector(
                   key: const ValueKey('match-stats-button'),
                   behavior: HitTestBehavior.opaque,
@@ -2171,22 +2215,14 @@ class _Scoreboard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Text(
-                  finished ? t('match.full_time') : "$minute'",
-                  key: const ValueKey('match-clock'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: kit.accentBright,
-                  ),
-                ),
               ],
             ),
-            const SizedBox(height: 4),
-            // The clock as a bar, so how far through the match is readable
-            // without doing arithmetic on the minute.
+            const SizedBox(height: 8),
             ClipRRect(
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(14),
+                bottomRight: Radius.circular(14),
+              ),
               child: SizedBox(
                 height: 3,
                 child: LinearProgressIndicator(
@@ -2290,7 +2326,7 @@ class _FeedLine extends StatelessWidget {
     final goal = line.goal;
     if (goal != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 4),
         child: Container(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
           // **THEIRS IS RED.** The kit's green is what the game uses for a thing
@@ -2450,7 +2486,7 @@ class _FeedLine extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 3),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: row,

@@ -196,7 +196,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           // pill's bottom sits on the discs' bottom rather than
                           // under the labels that ride over them.
                           padding: const EdgeInsets.only(bottom: 6),
-                          child: CustomiseDock(anchorKey: _customiseKey),
+                          // **CENTRED, so the pill is its own size.** Its `Row`
+                          // is `MainAxisSize.min`, but a tight slot stretches
+                          // the `Container` round it to the full width — a
+                          // lozenge four times the length of the word in it.
+                          // The slot's job is to reserve the room; the pill's
+                          // job is to be the size of its own contents.
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: CustomiseDock(anchorKey: _customiseKey),
+                          ),
                         ),
                       ),
                       // **A COLUMN, not a second orb in the row.** Prestige
