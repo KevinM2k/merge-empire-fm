@@ -14,8 +14,9 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 ProviderContainer shopContainer(
-  void Function(Map<String, dynamic> state) mutate,
-) {
+  void Function(Map<String, dynamic> state) mutate, {
+  List<Override> overrides = const [],
+}) {
   final state = createDefaultState();
   mutate(state);
   final container = ProviderContainer(
@@ -23,6 +24,10 @@ ProviderContainer shopContainer(
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      // **On the CONTAINER, not a nested `ProviderScope`.** A scope inside an
+      // `UncontrolledProviderScope` starts its own container, so the widget
+      // under it reads a different save from the one the test just wrote.
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);

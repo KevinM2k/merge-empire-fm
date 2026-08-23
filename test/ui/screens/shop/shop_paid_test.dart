@@ -332,14 +332,19 @@ void main() {
   });
 
   group('the free shelf', () {
-    testWidgets('shows both rows and cannot be watched yet', (tester) async {
+    testWidgets('shows both rows, AND THEY CAN BE WATCHED NOW', (tester) async {
+      // **This assertion has been inverted, and the inversion is the news.** It
+      // used to say every button on the shelf was dead, because there was no
+      // AdMob behind it; `services/admob_ads.dart` is that AdMob, so the two
+      // tiles pay out again. What decides whether one is live is the GATE and
+      // the cap, which is what the rest of this group covers.
       await pumpShopWidget(tester, (_) {}, FreeShelfSection.new);
       expect(find.text(t('shop.lucky_boot_ad_name')), findsOneWidget);
       expect(find.text(t('shop.match_cooldown_ad_name')), findsOneWidget);
       for (final b in tester.widgetList<StoreButton>(
         find.byType(StoreButton),
       )) {
-        expect(b.onTap, isNull);
+        expect(b.onTap, isNotNull);
       }
     });
 

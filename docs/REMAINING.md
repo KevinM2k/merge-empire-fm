@@ -1712,9 +1712,20 @@ things a player could see:
       packs and the coin packs all sit behind `paidDisabledReason()`. They can
       be wired to grant their contents for testing, but that is giving away paid
       content and is a product call, not a porting one.
-- [ ] **The rewarded-video buttons are the same.** `ad_gate_engine` is live and
-      the gate, the cap and the countdown are all correct — there is no AdMob
-      behind the button. Same two options, same call to make.
+- [x] **The rewarded-video buttons are the same.** **NOT ANY MORE — there is
+      AdMob behind the button now**, and both tiles on the free shelf pay out.
+      The gate, the cap and the countdown were always correct; what was missing
+      was the grant, and both mechanics already existed in the engines —
+      `luckyBootReady` is read by the match, the cup and the fixture preview,
+      `matchCooldownFreeUntil` by the cooldown. `engine/free_shelf_engine.dart`
+      is the only thing that sets them, so the caps and the day boundary are
+      decided there rather than by a widget.
+      Two things came out of it. The tiles were behind `paidDisabledReason()`,
+      which is the IAP's block and not this shelf's — these cost a video, not
+      money. And the JS captures the calendar day BEFORE the ad; the port
+      re-reads it on the grant, so a video started at 23:59 and finished at
+      00:01 is charged to the day it finished rather than spending yesterday's
+      budget on a boost the player is holding today.
 
 ---
 

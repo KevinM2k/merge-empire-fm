@@ -1,19 +1,30 @@
 /// The free shelf — everything a rewarded video buys, in one place.
 ///
-/// The GATE is live: `ad_gate_engine` decides whether a row is ready or waiting,
-/// and a spent daily cap says so. The watch button is dead until M4 lands
-/// AdMob, because an ad button with no ad behind it grants nothing.
+/// **Both tiles are LIVE now.** The gate was always live — `ad_gate_engine`
+/// decides whether a row is ready or waiting and a spent daily cap says so —
+/// and what was dead was the button, because there was no AdMob behind it. It
+/// sat behind `paidDisabledReason()`, which is the IAP's block and not this
+/// shelf's: these two cost a video, not money.
+///
+/// The grants are `engine/free_shelf_engine.dart`, so the caps and the day
+/// boundary are decided there rather than by a widget.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
+import 'package:merge_empire_fc/engine/free_shelf_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
+
+/// The two placements this shelf spends. Keys from `ad_units.dart`.
+const String cooldownPlacement = 'skip_cooldown';
+const String luckyBootPlacement = 'lucky_boot';
 
 /// How many rewarded views the daily cap has left, and how long until the next.
 typedef AdGate = ({int remaining, bool ready, int waitMs});
@@ -26,26 +37,82 @@ final adGateProvider = savePick<AdGate>(
   ),
 );
 
+/// What the two tiles are holding, so each redraws when its own thing changes.
+typedef FreeShelfState = ({
+  bool cooldownActive,
+  int cooldownMinsLeft,
+  int cooldownUsed,
+  bool bootHeld,
+});
+
+final freeShelfProvider = savePick<FreeShelfState>(
+  (s) => (
+    cooldownActive: matchCooldownFree(s),
+    cooldownMinsLeft: matchCooldownFreeMinsLeft(s),
+    cooldownUsed: matchCooldownAdsUsed(s),
+    bootHeld: luckyBootHeld(s),
+  ),
+);
+
 class FreeShelfSection extends ConsumerWidget {
   const FreeShelfSection({super.key});
+
+  /// One video, one grant. Every other outcome leaves the save alone.
+  ///
+  /// **`unavailable` says so and `dismissed` does not.** A video that would not
+  /// fill is not the player's doing; one they closed early is a decision they
+  /// have already been told the terms of.
+  Future<void> _watch(
+    WidgetRef ref, {
+    required String placement,
+    required void Function(Map<String, dynamic>) grant,
+    required String toast,
+  }) async {
+    final outcome = await ref.read(rewardedAdsProvider).show(placement);
+    if (outcome == AdOutcome.rewarded) {
+      ref.read(gameProvider).update(grant);
+      emit('toast:success', toast);
+    } else if (outcome == AdOutcome.unavailable) {
+      emit('toast:info', t('toast.ad_unavailable'));
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gate = ref.watch(adGateProvider);
-    final blocked = paidDisabledReason();
+    final shelf = ref.watch(freeShelfProvider);
+
     // A cap that is spent says so; otherwise the row says how long until the
     // next view. Waiting is information, not a hidden row.
     //
-    // **"ALREADY READY" GOES WHILE THERE IS NO AD**, which is the one of the
-    // three that becomes a lie: the gate really is open and there is still
-    // nothing to watch, so the tile read "Already ready" with "Coming soon"
-    // directly under it. The cap and the countdown are facts about the gate and
-    // stay true whatever the SDK is doing.
-    final status = gate.remaining <= 0
+    // **"ALREADY READY" IS TRUE AGAIN.** It went while there was no ad, because
+    // the gate really was open and there was still nothing to watch — the tile
+    // read "Already ready" with "Coming soon" directly under it. There is
+    // something to watch now.
+    final gateStatus = gate.remaining <= 0
         ? t('shop.daily_cap')
         : gate.ready
-        ? (blocked == null ? t('shop.already_ready') : null)
+        ? t('shop.already_ready')
         : formatAdWait(gate.waitMs);
+    final gateBlocked = gate.ready ? null : gateStatus;
+
+    // The cooldown skip has a cap of its OWN — three a day — on top of the
+    // shared frequency gate, and while the boost is running there is nothing to
+    // buy.
+    final cooldownBadge = shelf.cooldownActive
+        ? t('shop.active_mins_left', {'mins': shelf.cooldownMinsLeft})
+        : shelf.cooldownUsed >= matchCooldownAdCapPerDay
+        ? t('shop.daily_cap')
+        : gateStatus;
+    final cooldownBlocked = shelf.cooldownActive
+        ? t('shop.active_mins_left', {'mins': shelf.cooldownMinsLeft})
+        : shelf.cooldownUsed >= matchCooldownAdCapPerDay
+        ? t('shop.daily_cap')
+        : gateBlocked;
+
+    // A boot already waiting is HELD, not capped: there is one on the shelf and
+    // a second would overwrite it.
+    final bootBlocked = shelf.bootHeld ? t('shop.active') : gateBlocked;
 
     return ShopSectionFrame(
       id: ShopSectionId.free,
@@ -57,8 +124,16 @@ class FreeShelfSection extends ConsumerWidget {
             subtitle: t('shop.match_cooldown_ad_desc'),
             price: t('shop.claim_cta'),
             tone: StoreTone.ad,
-            badge: status,
-            disabledReason: blocked,
+            badge: cooldownBadge,
+            disabledReason: cooldownBlocked,
+            onBuy: cooldownBlocked != null
+                ? null
+                : () => _watch(
+                    ref,
+                    placement: cooldownPlacement,
+                    grant: grantMatchCooldownAd,
+                    toast: t('shop.toast.no_match_cooldown'),
+                  ),
           ),
           ShopTile(
             tileKey: 'ad-lucky-boot',
@@ -66,8 +141,16 @@ class FreeShelfSection extends ConsumerWidget {
             subtitle: t('shop.lucky_boot_ad_desc'),
             price: t('shop.claim_cta'),
             tone: StoreTone.ad,
-            badge: status,
-            disabledReason: blocked,
+            badge: shelf.bootHeld ? t('shop.active') : gateStatus,
+            disabledReason: bootBlocked,
+            onBuy: bootBlocked != null
+                ? null
+                : () => _watch(
+                    ref,
+                    placement: luckyBootPlacement,
+                    grant: (s) => grantLuckyBootAd(s),
+                    toast: t('shop.toast.lucky_boot_active'),
+                  ),
           ),
         ],
       ),
