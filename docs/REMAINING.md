@@ -7565,7 +7565,32 @@ of buttons that error.
       this land with no plugin and no new dependency. `firestoreAuthToken` is
       the seam the auth port fills; until it does the token is null, which is
       the NORMAL case, because leaderboard reads are public
-- [ ] `leaderboardService` (1,831)
+- [x] `leaderboardService` (1,831) — **the SCHEMA half is PORTED**, which is
+      the half that has to agree with the shipped app: the rows on the server
+      are the JS's, so every key, field name and path in
+      `engine/leaderboard_policy.dart` is its rather than a tidier one. Pure,
+      and tested twice over — 22 cases plus a node fixture.
+      **Schema v2 is the interesting part.** One row per player per PERIOD at
+      `lb/{periodKey}/rows/{playerId}` carrying every metric as a field, with
+      the scope a `where` FILTER rather than a folder in the path — which is
+      what makes a finished match four document writes instead of forty-eight.
+      Prestige rides on `prestigeLevel`, not a score of its own; the three
+      legacy scope ids still parse because saves still hold them; a missing
+      division or region is a DEFAULT rather than a refusal, because an empty
+      board reads as broken where a slightly wrong one reads as a board.
+      **AND THE FIXTURE EARNED ITS KEEP ON THE FIRST RUN.** The ISO week is
+      "the year its THURSDAY falls in", and the JS computes the offset as
+      `(thursday - yearStart) / 86400000` — milliseconds, fraction kept. Dart's
+      `inDays` truncates it, and the clocks going forward make that interval a
+      day short of an hour: 30 March 2026 is W14 in the shipped app and came out
+      W13 here. One hour, once a year, and it would have put two runtimes'
+      players in different weekly buckets.
+- [ ] `leaderboardService`'s TRANSPORT half — the fetch with its client-side
+      inactivity filter and backfill pages, the four-period write on a finished
+      match, and the opt-out sweep that hides or deletes a player's rows. It
+      sits on `firestore_rest.dart`, which is ported, and it is blocked on a
+      UID: `authService`'s plugin is what supplies one, so this is downstream of
+      the M6 rows rather than of anything in this repo.
 - [x] `feedbackService` (195) — **PORTED, and still dormant, which is the spec's
       own arrangement rather than a gap.** It needs no account and no Firebase
       SDK: the Cloud Function records the message and emails it on, writes
