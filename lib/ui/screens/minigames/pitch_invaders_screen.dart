@@ -63,8 +63,16 @@ Invader pickInvader(double roll, double stewardPct, double dogPct) =>
     : Invader.invader;
 
 /// The mouth of the hole, as a fraction of the tile.
-const double mouthBottom = 0.06;
-const double mouthHeight = 0.28;
+///
+/// **BIGGER, because the hole and what came out of it were tiny.** A 28%-tall
+/// mouth inset 12% either side leaves a coin of a hole in the middle of a
+/// square of grass, and the figure standing in it was a third of the tile
+/// wide — reported as needing to fill the boxes they are in.
+const double mouthBottom = 0.07;
+const double mouthHeight = 0.40;
+
+/// How far in from the tile's sides the mouth starts.
+const double mouthInset = 0.05;
 
 /// Where the occluder starts: the mouth's WAIST. Above this line a figure paints
 /// over the hole — that is the pop-out; at or below it, nothing of the figure
@@ -417,22 +425,26 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                       for (var row = 0; row < 3; row++)
                         Padding(
                           padding: EdgeInsets.only(top: row == 0 ? 0 : 8),
+                          // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
+                          // them.** It was `Padding(left: 8)` inside each
+                          // `Expanded`, so the first column's tile was eight
+                          // points wider than the other two — and the tile is an
+                          // `AspectRatio`, so it was eight points TALLER as
+                          // well. Reported as the left boxes being bigger than
+                          // the rest.
                           child: Row(
                             children: [
-                              for (var col = 0; col < 3; col++)
+                              for (var col = 0; col < 3; col++) ...[
+                                if (col > 0) const SizedBox(width: 8),
                                 Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      left: col == 0 ? 0 : 8,
-                                    ),
-                                    child: _Hole(
-                                      index: row * 3 + col,
-                                      occupant: _holes[row * 3 + col],
-                                      struck: _struck.contains(row * 3 + col),
-                                      onTap: _tapHole,
-                                    ),
+                                  child: _Hole(
+                                    index: row * 3 + col,
+                                    occupant: _holes[row * 3 + col],
+                                    struck: _struck.contains(row * 3 + col),
+                                    onTap: _tapHole,
                                   ),
                                 ),
+                              ],
                             ],
                           ),
                         ),
@@ -544,8 +556,8 @@ class _Hole extends StatelessWidget {
                 ),
                 // 1. The mouth the figure rises out of.
                 Positioned(
-                  left: w * 0.12,
-                  right: w * 0.12,
+                  left: w * mouthInset,
+                  right: w * mouthInset,
                   bottom: h * mouthBottom,
                   height: h * mouthHeight,
                   child: const DecoratedBox(
@@ -573,7 +585,9 @@ class _Hole extends StatelessWidget {
                           occupant?.emoji ?? '',
                           key: ValueKey('pi-figure-$index'),
                           style: TextStyle(
-                            fontSize: math.min(46, w * 0.36),
+                            // It stands IN the mouth, so it is sized off the
+                            // mouth rather than off the tile.
+                            fontSize: math.min(96, w * 0.62),
                             height: 1,
                           ),
                         ),
@@ -597,8 +611,8 @@ class _Hole extends StatelessWidget {
                 // the hole still reads as a hole and the figure sinks behind an
                 // arc rather than a straight cut.
                 Positioned(
-                  left: w * 0.12,
-                  right: w * 0.12,
+                  left: w * mouthInset,
+                  right: w * mouthInset,
                   bottom: h * mouthBottom,
                   height: h * mouthHeight,
                   child: ClipRect(

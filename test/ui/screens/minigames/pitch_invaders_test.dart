@@ -321,4 +321,20 @@ void main() {
       reason: 'the session was counted twice',
     );
   });
+
+  testWidgets('EVERY HOLE IS THE SAME SIZE', (tester) async {
+    // The gutter was `Padding(left: 8)` INSIDE each `Expanded`, so the first
+    // column's tile was eight points narrower... on every column but the first.
+    // The tile is an `AspectRatio`, so it was eight points shorter as well.
+    // Reported as the left boxes being bigger than the rest.
+    await pumpGame(tester);
+    final sizes = [
+      for (var i = 0; i < 9; i++)
+        tester.getSize(find.byKey(ValueKey('pi-hole-$i'))),
+    ];
+    for (final size in sizes) {
+      expect(size.width, closeTo(sizes.first.width, 0.5));
+      expect(size.height, closeTo(sizes.first.height, 0.5));
+    }
+  });
 }

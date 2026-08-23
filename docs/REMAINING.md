@@ -6329,9 +6329,12 @@ that is not off the extension is the bug, not the symptom.
       it cannot promise what a session will not pay. Keepy Uppys shows nothing:
       taps are unbounded and there is no honest number. A coin and a figure, no
       copy — there is no key for "up to" and none can be added here.
-- [ ] **Pitch Invaders: the holes and what comes out of them are tiny.** They
-      should fill the boxes they are in. And the LEFT column of boxes is bigger
-      than the rest, which is a layout bug of its own.
+- [x] **Pitch Invaders: the holes and what comes out of them are tiny.** A
+      28%-tall mouth inset 12% either side is a coin of a hole in a square of
+      grass, with a figure a third of the tile wide standing in it. The LEFT
+      column was bigger because the gutter was `Padding` INSIDE each `Expanded`
+      rather than between them — and the tile is an `AspectRatio`, so it was
+      taller too.
 - [ ] **Penalty training: the keeper is about a metre off his line.**
 - [ ] **The net wants more verticals and horizontals.**
 - [ ] **The run-up crosses its own legs**, which reads as a broken rig.
