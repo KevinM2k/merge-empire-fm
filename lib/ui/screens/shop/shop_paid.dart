@@ -171,12 +171,243 @@ class OffersSection extends StatelessWidget {
 
 /// Hard currency, and the only way to buy it — there is deliberately no
 /// coin-to-gem exchange.
-class GemPacksSection extends StatelessWidget {
+///
+/// **The spec's own tiles, copied.** They were the shop's generic pane with a
+/// price under it; `ShopScreen.js` draws a blue three-dimensional tile with the
+/// pile on it, the number big, and the price as a green button — and an ODD
+/// count runs the biggest pack full width as a hero rather than leaving half a
+/// tile of dead space on the last row. Asked for by name, with the shipped
+/// version as the reference.
+class GemPacksSection extends ConsumerWidget {
   const GemPacksSection({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const _PaidShelf(id: ShopSectionId.gems, categories: {'gems'});
+  Widget build(BuildContext context, WidgetRef ref) {
+    final packs = [
+      for (final tile in ref.watch(paidTilesProvider))
+        if (tile.product.category == 'gems') tile,
+    ];
+    // The last one, when there is an odd number of them. The JS's own rule.
+    final hero = packs.length.isOdd ? packs.last : null;
+    final grid = hero == null ? packs : packs.sublist(0, packs.length - 1);
+    return ShopSectionFrame(
+      id: ShopSectionId.gems,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < grid.length; i += 2)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: GemPackTile(tile: grid[i])),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: i + 1 < grid.length
+                          ? GemPackTile(tile: grid[i + 1])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (hero != null) GemPackTile(tile: hero, hero: true),
+        ],
+      ),
+    );
+  }
+}
+
+/// One gem bundle, as `.gem-pack-tile` / `.store-3d--gem`.
+///
+/// Every number here is the stylesheet's. A three-dimensional tile is a face, a
+/// mid, a deep and an EDGE — the flat bar under it is what makes it read as
+/// something with thickness rather than a coloured rectangle — plus a sheen
+/// across the top third for a light source.
+class GemPackTile extends StatelessWidget {
+  const GemPackTile({super.key, required this.tile, this.hero = false});
+
+  final PaidTile tile;
+
+  /// Full width, laid out as a row. The chest needs the room, and an odd count
+  /// would otherwise leave half a tile of nothing beside it.
+  final bool hero;
+
+  /// `.store-3d--gem`, and the hero's own face.
+  static const Color _rim = Color(0xFF63B8EC);
+  static const Color _face = Color(0xFF2F86CB);
+  static const Color _mid = Color(0xFF1C62A4);
+  static const Color _deep = Color(0xFF114B81);
+  static const Color _edge = Color(0xFF0B3960);
+  static const Color _heroRim = Color(0xFFFFD257);
+  static const Color _heroFace = Color(0xFF3590D8);
+  static const Color _heroMid = Color(0xFF1D66AA);
+  static const Color _heroDeep = Color(0xFF0F4A82);
+
+  @override
+  Widget build(BuildContext context) {
+    final art = GemPackPicture(
+      art: gemPackArtFor(tile.product.id),
+      size: hero ? 96 : 74,
+    );
+    final words = Column(
+      crossAxisAlignment: hero
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '${tile.product.gems ?? 0}',
+          style: TextStyle(
+            fontSize: hero ? 30 : 23,
+            fontWeight: FontWeight.w900,
+            height: 1.05,
+            color: Colors.white,
+            shadows: const [
+              Shadow(color: Color(0x61000000), offset: Offset(0, 2)),
+            ],
+          ),
+        ),
+        Text(
+          t('shop.gems_label').toUpperCase(),
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+            color: Color(0xB8FFFFFF),
+          ),
+        ),
+        SizedBox(height: hero ? 6 : 8),
+        // The price reads as a BUTTON, not a caption: it is what the tile is
+        // selling.
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: hero ? 16 : 14,
+            vertical: hero ? 6 : 5,
+          ),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF4ECB59), Color(0xFF35A83F)],
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            boxShadow: [
+              BoxShadow(color: Color(0xFF22702A), offset: Offset(0, 3)),
+            ],
+          ),
+          child: Text(
+            tile.product.price,
+            style: TextStyle(
+              fontSize: hero ? 15 : 13,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              shadows: const [
+                Shadow(color: Color(0x47000000), offset: Offset(0, 1)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return Semantics(
+      button: true,
+      label: '${tile.name} ${tile.product.price}',
+      child: GestureDetector(
+        key: ValueKey('shop-tile-${tile.product.id}'),
+        // Dead until the billing bridge lands, like every other real-money
+        // control on this screen.
+        onTap: null,
+        child: Container(
+          padding: hero
+              ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
+              : const EdgeInsets.fromLTRB(8, 13, 8, 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: hero ? _heroRim : _rim, width: 2),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: hero
+                  ? const [_heroFace, _heroMid, _heroDeep]
+                  : const [_face, _mid, _deep],
+              stops: const [0, 0.55, 1],
+            ),
+            boxShadow: const [
+              // The flat bar under the tile: this is the thickness.
+              BoxShadow(color: _edge, offset: Offset(0, 4)),
+              BoxShadow(
+                color: Color(0x52000000),
+                blurRadius: 14,
+                offset: Offset(0, 7),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // The sheen across the top third, so the card has a light source.
+              const Positioned(
+                top: -13,
+                left: -16,
+                right: -16,
+                height: 62,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x29FFFFFF), Color(0x00FFFFFF)],
+                    ),
+                  ),
+                ),
+              ),
+              if (hero)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [art, const SizedBox(width: 20), words],
+                )
+              else
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [art, const SizedBox(height: 2), words],
+                ),
+              if (tile.bonus case final bonus?)
+                Positioned(
+                  top: -13,
+                  right: -8,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(9, 4, 9, 4),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFFFFD257), Color(0xFFF0A91B)],
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(13),
+                        bottomLeft: Radius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      bonus,
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
+                        color: Color(0xFF4A2C00),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Soft currency, and the one shelf with its own tile.

@@ -6430,6 +6430,15 @@ that is not off the extension is the bug, not the symptom.
 
 ### The shop and Pro mode
 
+- [x] **The gem packs want the shipped version's tiles, exactly.** `ShopScreen.js`
+      draws a blue three-dimensional tile — a face, a mid, a deep and a flat
+      EDGE bar under it, which is what gives it thickness — with the pile on it,
+      the number big, the price as a green button and a gold ribbon for a bonus.
+      And an ODD count runs the biggest pack FULL WIDTH as a hero rather than
+      leaving half a tile of dead space on the last row. Every number here is
+      `screens.css`'s. The port had the shop's generic pane with a price under
+      it.
+
 - [x] **Manager packs want TWO to a row, not three.** A pack is a face with a
       name under it; at a third of the width the face is a thumbnail and the
       name ellipsises.

@@ -8,6 +8,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -221,5 +222,38 @@ void main() {
     );
     expect(vip.accent, isNotNull);
     expect(director.accent, isNot(vip.accent));
+  });
+
+  testWidgets('THE GEM PACKS ARE THE SPEC\'S OWN TILES', (tester) async {
+    // Blue three-dimensional tiles with the pile on them, the number big and
+    // the price as a green button — and an ODD count runs the biggest pack
+    // full width as a hero rather than leaving half a tile of dead space on the
+    // last row. That is `_renderGemPacks` and `.gem-pack-hero` in
+    // `ShopScreen.js`; the port drew the shop's generic pane with a price under
+    // it. Asked for by name, with the shipped version as the reference.
+    await pumpShop(tester, (_) {});
+    await tester.tap(find.byKey(const ValueKey('shop-tab-premium')));
+    await tester.pumpAndSettle();
+
+    final tiles = tester.widgetList<GemPackTile>(find.byType(GemPackTile));
+    expect(tiles, isNotEmpty);
+    final heroes = tiles.where((t) => t.hero);
+    if (tiles.length.isOdd) {
+      expect(heroes, hasLength(1), reason: 'the last one runs full width');
+      expect(heroes.single.tile, tiles.last.tile);
+    } else {
+      expect(heroes, isEmpty);
+    }
+
+    // The hero is genuinely wider than the pair above it.
+    if (heroes.isNotEmpty) {
+      final wide = tester.getSize(
+        find.byKey(ValueKey('shop-tile-${heroes.single.tile.product.id}')),
+      );
+      final narrow = tester.getSize(
+        find.byKey(ValueKey('shop-tile-${tiles.first.tile.product.id}')),
+      );
+      expect(wide.width, greaterThan(narrow.width * 1.5));
+    }
   });
 }
