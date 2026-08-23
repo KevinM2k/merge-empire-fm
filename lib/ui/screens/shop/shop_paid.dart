@@ -22,6 +22,8 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
+import 'package:merge_empire_fc/services/iap_billing.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Said on every real-money control, so a player is told the feature is coming
@@ -32,7 +34,18 @@ import 'package:merge_empire_fc/util/format.dart';
 /// printing "Already ready" AND "Coming soon" on the same tile: the first is
 /// the ad GATE reporting itself open, the second is there being no ad SDK, and
 /// both were true statements that contradict each other to a player.
-String? paidDisabledReason() => t('settings.comingSoon');
+String? paidDisabledReason() => billingReady ? null : t('settings.comingSoon');
+
+/// What the store has told us about, or null when billing is not running.
+///
+/// **Null shows every tile and empty hides them all**, which is the rule
+/// `iapClient.js` argues for at length — see [StoreCatalogue]. It is null today
+/// because there is no plugin, so the shop is unchanged; what this buys is that
+/// the day one lands, a SKU created but not Active stops rendering a tile that
+/// can never complete.
+final storeCatalogueProvider = FutureProvider<StoreCatalogue>(
+  (ref) => storeCatalogue(),
+);
 
 /// The tiles for one paid category, without a shelf around them — the currency
 /// sheet draws its own frame around the same tiles the tab shows.
@@ -40,11 +53,20 @@ List<Widget> paidTilesFor(
   WidgetRef ref,
   Set<String> categories, {
   bool featured = false,
-}) => [
+}) {
+  // **A SKU THE STORE CANNOT SELL DOES NOT GET A TILE.** A product created in
+  // the console but not Active comes back with no purchasable offer and every
+  // `buy` fails `no_offer` forever, so a tile at the catalogue's fallback price
+  // is one that can never complete — the state a partial rollout leaves you in,
+  // because SKUs go live one at a time. Null is "nobody to ask", which offers
+  // everything; see [canOffer].
+  final known = ref.watch(storeCatalogueProvider).valueOrNull;
+  return [
   for (final tile
       in ref
           .watch(paidTilesProvider)
           .where((t) => categories.contains(t.product.category)))
+    if (canOffer(tile.product.sku, known))
     ShopTile(
       tileKey: tile.product.id,
       title: tile.name,
@@ -52,7 +74,10 @@ List<Widget> paidTilesFor(
       // The shelf's own art, which nothing had ever passed — so every shelf in
       // the shop was text with a price under it.
       glyph: shopProductGlyph(tile.product),
-      price: tile.product.price,
+      // The STORE's price when it has one: the catalogue's is a fallback in
+      // one currency, and a player in Japan being shown a pound sign is the
+      // whole reason the store is asked.
+      price: priceFor(tile.product.sku, tile.product.price, known),
       // Real money, and the only tone that leaves the game to be paid.
       tone: StoreTone.cash,
       badge: tile.product.popular ? t('shop.most_popular') : null,
@@ -69,7 +94,8 @@ List<Widget> paidTilesFor(
               : null),
       accent: _offerInk[tile.product.id],
     ),
-];
+  ];
+}
 
 /// Bought once and kept, so the ribbon says so. The spec badges both.
 const Set<String> _oneTime = {'starter_pack', 'energy_director'};

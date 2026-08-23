@@ -6256,6 +6256,10 @@ that is not off the extension is the bug, not the symptom.
 
 ### The match screen
 
+- [ ] **The pitch is not rendering in full — it looks letterboxed.** Reported
+      after the inset landed, so this is a fourth sighting on the same band.
+      Get a shot with the whole card in it: every pass so far has been measured
+      against a band shape guessed at from a crop.
 - [x] **The cutaway pitch is missing its top and bottom.** Measured rather than
       guessed at: the fitted quad sat at y 1.6 to 128.4 in a 130-tall band, so
       the far and near touchlines — one antialiased pixel each — landed half on
@@ -6332,8 +6336,10 @@ that is not off the extension is the bug, not the symptom.
       the bench, a high five — means new joint angles in `gesture_poses.dart`,
       and the sixteen there are the JS's own table. Adding one is inventing
       rather than porting, which is a call worth making deliberately.
-- [x] **The dugout cam and the quests block should be the same height.** They
-      share `summary-reaction-row` on the full-time report, and it was
+- [x] **The dugout cam and the quests block should be the same height.**
+      **Confirmed by the reporter as the end-of-match screen that pops up**,
+      which is the one this was fixed on. They share `summary-reaction-row` on
+      the full-time report, and it was
       top-aligned — so each finished at whatever height it happened to want and
       the pair read as two things dropped next to each other. `stretch` inside
       an `IntrinsicHeight`.
@@ -6412,6 +6418,24 @@ that is not off the extension is the bug, not the symptom.
       white to sit against it.
 
 ### The home page and the club
+
+- [ ] **The end of a season should open an END OF SEASON PAGE** with a season
+      overview. `../merge-empire-fc` has one — read it before building
+      anything; `season_end_screen.dart` exists here and may already be most of
+      it, in which case the row is about REACHABILITY rather than a new screen.
+- [ ] **The home backdrop is still cropping, and quite low.** Third re-report.
+      The place-by-its-ground-line fix assumed the art's own ground sits at 62%
+      of the drawing; if it crops low, that number is wrong for this image or
+      the band it is placed in is not the band being seen.
+- [ ] **The customise sheet is STILL slow to open.** Second re-report after
+      waiting for the route's animation. Measure it rather than guessing again:
+      the next pass wants a timeline, not another deferral.
+
+### The manager's rig
+
+- [ ] **Head in hands: the hands go BEHIND the head.** They should be over it.
+- [ ] **Hair comes out from under a hat.** Where a hat is worn the hair beneath
+      it has to be hidden, not drawn through.
 
 - [x] **The vertical gap between the boxes on the Play page should be 12px.**
       One `playPageGap` rather than a ten here and a ten there — the seams on
@@ -7338,8 +7362,25 @@ consent gate ships a compliance problem, a missing store product shows a shop fu
 of buttons that error.
 
 - [x] `iap_engine` — the catalogue and the grant step (M1)
-- [ ] `engine/iapClient` (195) — the native billing bridge. Play Billing and
-      StoreKit, via whichever plugin replaces cordova-plugin-purchase
+- [x] `engine/iapClient` (195) — **the portable half is PORTED; the bridge is
+      not, and cannot be from here.** That file is mostly the
+      `cordova-plugin-purchase` lifecycle, which a Flutter build will not have.
+      What survives a change of transport is everything it ARGUES for, and every
+      argument in it is a rule about state — so those are
+      `engine/iap_billing_policy.dart`, pure and tested (13 cases):
+      the six failure reasons with the JS's own wire strings, the 6500/6501
+      cancel codes that mean the player pressed Back rather than an error card,
+      the order the noes are checked in, and the two the file spends paragraphs
+      on — **a SKU created but not Active has no purchasable offer and every
+      `buy` fails `no_offer` forever**, so it must not render a tile; and **no
+      store at all offers EVERYTHING**, because there is nobody to ask and
+      hiding the shelf in a browser is worse than useless.
+      `services/iap_billing.dart` is the seam, `storeCatalogueProvider` is
+      wired into the shop, and the store's localised price beats the
+      catalogue's. Null today, so the shop is unchanged — what it buys is that
+      the day a plugin lands, a partial rollout stops rendering tiles that can
+      never complete.
+      **What is left is the plugin and the console**, which are the M6 rows.
 - [x] `utils/ageVerification` (134) — `isIapAllowed`, which blocks IAP for
       Play-verified minors without parental consent. **A legal requirement**
       (Texas SB 2420), not a nicety, and it gates the purchase flow.
