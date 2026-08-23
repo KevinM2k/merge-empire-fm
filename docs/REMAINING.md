@@ -6291,9 +6291,12 @@ that is not off the extension is the bug, not the symptom.
       the hole is could be anywhere in it. Two keys now — plays there, then
       rating — and fitness is deliberately not one of them: it is null in casual
       play, and in Pro a tired specialist is still the man for the slot.
-- [ ] **The players and the ball on the perspective pitch look flat.** They want
-      a little depth of their own — the plane is in perspective and the things
-      standing on it are not.
+- [x] **The players and the ball on the perspective pitch look flat.** The men
+      had no contact shadow at all, and the BALL's was drawn with `height` where
+      it meant `loft` — `height` is `PositionComponent`'s own and is the ball's
+      size, 3.4, so the alpha resolved negative and there was no shadow either.
+      The file's own note warns about that exact name; the shadow was the one
+      place it bit. Both have one now, and the men's tightens on each footfall.
 - [x] **The Play screen is hard to read in light mode**, the commentary feed
       worst of all. Every surface on the page is dark glass in BOTH themes on
       purpose — a pale panel on a pale page makes the match go flat — and the
@@ -6405,9 +6408,11 @@ that is not off the extension is the bug, not the symptom.
       fills from there, into frames nothing else is using. Each preview is its
       own `RepaintBoundary` too: twenty deep SVG trees in a scrollable grid
       otherwise repaint together on every scroll pixel.
-- [ ] **The club's items STILL need a background to stand out.** Re-reported
-      after the wash landed on 31 Aug, so the wash is not enough — it is a
-      shallow tint of the tile's own ink and the art is transparent over it.
+- [x] **The club's items STILL need a background to stand out.** The first pass
+      was a shallow wash of the tile's ink over `surface2`, which on a card that
+      is already `surface` is very nearly the card again. It is a STAGE now: a
+      ground that clearly differs from the card, a spotlight behind where the
+      drawing sits, and a rim in the tile's own colour once it is built.
 - [ ] **The home screen still cuts off the backdrop, and it looks bad.**
       Re-reported after the place-by-its-ground-line fix on 31 Aug, so either
       the fix is not what the report is about or the band it is placed in is

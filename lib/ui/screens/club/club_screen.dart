@@ -518,19 +518,30 @@ class _Art extends StatelessWidget {
             child: Container(
               height: 64,
               width: double.infinity,
+              // **A STAGE, not a tint.** The first pass was a shallow wash of
+              // the tile's own ink over `surface2`, which on a card that is
+              // already `surface` is very nearly the card again — re-reported
+              // as the assets still not standing out. This one is a plate the
+              // art is lit ON: a ground that clearly differs from the card, a
+              // spotlight behind where the drawing sits, and a rim.
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+                color: kit.bg,
+                gradient: RadialGradient(
+                  center: const Alignment(0, 0.35),
+                  radius: 1.1,
                   colors: [
                     Color.alphaBlend(
-                      ink.withValues(alpha: tile.owned ? 0.16 : 0.06),
-                      kit.surface2,
+                      ink.withValues(alpha: tile.owned ? 0.38 : 0.14),
+                      kit.bg,
                     ),
                     kit.bg,
                   ],
                 ),
-                border: Border.all(color: kit.border),
+                border: Border.all(
+                  color: tile.owned
+                      ? ink.withValues(alpha: 0.45)
+                      : kit.border,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: ArtImage(

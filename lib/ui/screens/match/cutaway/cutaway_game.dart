@@ -201,6 +201,19 @@ class Mover extends PositionComponent {
     final rock = math.sin(_stride * 2 * math.pi);
     // Two strides per bob: the body rises on each footfall, not on each pair.
     final bob = math.sin(_stride * 4 * math.pi);
+    // **A CONTACT SHADOW.** The pitch is in perspective and the men standing on
+    // it were flat sprites with nothing underneath — reported as the players
+    // looking flat. Drawn before the rotate, so it stays on the GROUND while he
+    // turns, and it tightens as he rises on each footfall, which is the whole
+    // of the depth in a running figure.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(size.x / 2, size.y * 0.88),
+        width: size.x * (0.60 - bob * 0.06),
+        height: size.y * (0.19 - bob * 0.03),
+      ),
+      Paint()..color = Colors.black.withValues(alpha: 0.30),
+    );
     canvas.save();
     canvas.translate(size.x / 2, size.y / 2);
     // The roll leads the heading by a few degrees either way, which is what
@@ -247,7 +260,11 @@ class Ball extends PositionComponent {
         height: size.y * 0.5,
       ),
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.28 * (1 - height * 0.4)),
+        // **`loft`, NOT `height`.** `height` is `PositionComponent`'s own and
+        // is the ball's SIZE — 3.4 — so this resolved to a negative alpha and
+        // the ball had no shadow at all. The file's own note warns about
+        // exactly this name and the shadow was the one place it bit.
+        ..color = Colors.black.withValues(alpha: 0.30 * (1 - loft * 0.4)),
     );
     canvas.save();
     canvas.translate(size.x / 2, size.y / 2);
