@@ -36,9 +36,20 @@ Future<ProviderContainer> pumpShop(
 void main() {
   tearDown(resetLocale);
 
-  testWidgets('all seven sections are present', (tester) async {
+  testWidgets('EVERY SHELF IS REACHABLE, one tab at a time', (tester) async {
+    // **The shop is tabbed now** — seven shelves on one page was too much, and
+    // the categories were left open. A tab is a GROUP of the shelves that
+    // already exist rather than a new taxonomy, so what this has to prove is
+    // that none of them fell out of the grouping: every section is on exactly
+    // one tab, and every tab can be reached.
     await pumpShop(tester, (_) {});
     for (final id in shopSectionOrder) {
+      final tab = shopTabOf(id);
+      expect(tab, greaterThanOrEqualTo(0), reason: '${id.name} has no tab');
+      await tester.tap(
+        find.byKey(ValueKey('shop-tab-${shopTabs[tab].label.name}')),
+      );
+      await tester.pumpAndSettle();
       expect(
         find.byKey(ValueKey('shop-section-${id.name}'), skipOffstage: false),
         findsOneWidget,
@@ -47,17 +58,29 @@ void main() {
     }
   });
 
-  testWidgets('and in the order the JS ships', (tester) async {
-    await pumpShop(tester, (_) {});
-    final seen = <ShopSectionId>[];
+  testWidgets('and each shelf is on exactly ONE tab', (tester) async {
+    // A shelf in two places is a shelf a player finds twice and trusts once.
     for (final id in shopSectionOrder) {
-      final finder = find.byKey(
-        ValueKey('shop-section-${id.name}'),
-        skipOffstage: false,
+      expect(
+        shopTabs.where((tab) => tab.sections.contains(id)).length,
+        1,
+        reason: id.name,
       );
-      if (finder.evaluate().isNotEmpty) seen.add(id);
     }
-    expect(seen, shopSectionOrder);
+  });
+
+  testWidgets('and the order inside a tab is the order the JS ships', (
+    tester,
+  ) async {
+    final flat = [for (final tab in shopTabs) ...tab.sections];
+    expect(flat.toSet(), shopSectionOrder.toSet());
+    for (final tab in shopTabs) {
+      final order = [
+        for (final id in shopSectionOrder)
+          if (tab.sections.contains(id)) id,
+      ];
+      expect(tab.sections, order, reason: tab.label.name);
+    }
   });
 
   testWidgets('the gems section survives owning the style vault', (
@@ -67,6 +90,8 @@ void main() {
     await pumpShop(tester, (s) {
       (s['shop'] as Map<String, dynamic>)['styleVault'] = true;
     });
+    await tester.tap(find.byKey(const ValueKey('shop-tab-gems')));
+    await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('shop-section-gems'), skipOffstage: false),
       findsOneWidget,
@@ -86,12 +111,14 @@ void main() {
     );
   });
 
-  testWidgets('a deep link leaves the heading CLEAR of the HUD', (
+  testWidgets('A DEEP LINK OPENS THE TAB, and lands clear of the HUD', (
     tester,
   ) async {
-    // `ensureVisible` puts the section at the top of the viewport, which is
-    // where the floating HUD is — so the heading the link was aimed at was the
-    // one thing behind the glass.
+    // **It used to scroll to a heading and then back off by the HUD's own
+    // clearance**, because `ensureVisible` puts its target at the top of the
+    // VIEWPORT and the top of the viewport is where the floating HUD is — so
+    // the heading the link was aimed at was the one thing behind the glass. A
+    // tab has no such problem: the shelf is the only thing on the page.
     final container = await pumpShop(tester, (_) {});
     container
         .read(shellControllerProvider.notifier)
@@ -108,6 +135,13 @@ void main() {
       heading.top,
       greaterThanOrEqualTo(clearance - 1),
       reason: 'under the glass, not behind it',
+    );
+    // **The two currencies get a tab each rather than sharing one**, precisely
+    // because they are the deep-link targets: a link landing on a tab holding
+    // both would still ask the player to find the half they came for.
+    expect(
+      find.byKey(const ValueKey('shop-section-gems'), skipOffstage: false),
+      findsNothing,
     );
   });
 

@@ -5488,9 +5488,26 @@ one everywhere it should not.
       **Still open: the unlock CELEBRATION.** A full popup when the top league
       is won, in the club-tier unlock's shape but premium-coloured — the blue
       the world-class players wear.
-- [ ] **SPLIT THE SHOP INTO TABS.** It is too much on one page. Roughly: special
-      offers, match boosts, currency, scout vouchers, customisations — the
-      categories can be adjusted, the split is the point.
+- [x] **SPLIT THE SHOP INTO TABS.** Five of them, and **a tab is a GROUP of the
+      shelves that already exist** rather than a new taxonomy: the sections keep
+      their headings, their colours and their order, and what changes is how
+      many you are looking at. That also means NO NEW COPY — every tab is
+      labelled with the `shop.section.*` key of the shelf it leads with, and the
+      catalogues are generated so a new key was not available anyway.
+      Offers takes the free shelf with it (both are a deal right now) and boosts
+      takes vouchers (both are "makes the next thing go better"). **The two
+      currencies get a tab EACH rather than sharing one**, precisely because
+      they are the deep-link targets: a link landing on a tab holding both would
+      still ask the player to find the half they came for.
+      And the deep link is simpler for it. It used to `ensureVisible` a heading
+      and then back the scroll off by the HUD's clearance, because
+      `ensureVisible` puts its target at the top of the VIEWPORT and the top of
+      the viewport is where the floating HUD is — so the thing the link was
+      aimed at was the one thing behind the glass. A tab has no such problem.
+      Each tab keeps its section's own colour, which is the whole reason the
+      sections have one: seven shelves in the club's accent is one
+      undifferentiated list, and a tab strip in one colour does the same to the
+      tabs.
 - [x] **TIER 1 AND 2 SHOULD HAVE A DIRTY PITCH.** Both halves ported.
       **The tufts scale with the tier**, which they never did — sixteen clumps
       at tier 0, eleven at tier 1, then `7 - tier` and none at all from

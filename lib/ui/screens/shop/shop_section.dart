@@ -46,6 +46,46 @@ enum ShopSectionId {
 
 const List<ShopSectionId> shopSectionOrder = ShopSectionId.values;
 
+/// **THE SHOP IS TABBED, because seven shelves on one page is too much.**
+/// Asked for directly, with the categories left open.
+///
+/// A tab is a GROUP of the shelves that already exist rather than a new
+/// taxonomy: the sections keep their headings, their colours and their order,
+/// and what changes is how many of them you are looking at. That also means no
+/// new copy — every tab is labelled with the `shop.section.*` key of the shelf
+/// it leads with, and the catalogues are generated so a new key was not
+/// available anyway.
+///
+/// The two currencies get a tab each rather than sharing one. They are the
+/// deep-link targets (`ShopSection.coins` and `.gems`), and a link that lands on
+/// a tab holding both would still be asking the player to find the half they
+/// came for.
+typedef ShopTab = ({ShopSectionId label, List<ShopSectionId> sections});
+
+const List<ShopTab> shopTabs = [
+  // Everything that is a deal right now: the three special offers, and the two
+  // things a video buys.
+  (
+    label: ShopSectionId.offers,
+    sections: [ShopSectionId.offers, ShopSectionId.free],
+  ),
+  (label: ShopSectionId.gems, sections: [ShopSectionId.gems]),
+  (label: ShopSectionId.coins, sections: [ShopSectionId.coins]),
+  // A boost and a voucher are the same purchase to a player: something that
+  // makes the next thing they do go better.
+  (
+    label: ShopSectionId.boosts,
+    sections: [ShopSectionId.boosts, ShopSectionId.vouchers],
+  ),
+  (label: ShopSectionId.looks, sections: [ShopSectionId.looks]),
+];
+
+/// Which tab holds a shelf. Every shelf is in exactly one, and a section added
+/// to the enum without a tab would be unreachable — so this throws rather than
+/// silently hiding it.
+int shopTabOf(ShopSectionId id) =>
+    shopTabs.indexWhere((tab) => tab.sections.contains(id));
+
 class ShopSectionFrame extends StatelessWidget {
   const ShopSectionFrame({
     super.key,
