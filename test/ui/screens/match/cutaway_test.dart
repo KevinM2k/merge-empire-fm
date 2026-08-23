@@ -405,6 +405,25 @@ void main() {
       }
     });
 
+    test('AND THE TOUCHLINES ARE INSIDE THE BOX, not on its edge', () {
+      // A line on the clip boundary is a line that is not there: the fit put
+      // the quad's corners at 0 and at the band's exact height, so the far and
+      // near touchlines — one antialiased pixel each — landed half on the
+      // `ClipRRect` and half off it. Reported as the pitch missing its top and
+      // bottom.
+      for (final band in const [Size(360, 130), Size(390, 96), Size(740, 270)]) {
+        final plane = Size(band.width, band.width / pitchAspect);
+        final quad = MatrixUtils.transformRect(
+          fittedTilt(plane, into: band),
+          Offset.zero & plane,
+        );
+        expect(quad.top, greaterThan(1), reason: '$band top');
+        expect(quad.bottom, lessThan(band.height - 1), reason: '$band bottom');
+        expect(quad.left, greaterThan(1), reason: '$band left');
+        expect(quad.right, lessThan(band.width - 1), reason: '$band right');
+      }
+    });
+
     test('and an empty box does not divide by zero', () {
       expect(fittedTilt(Size.zero), Matrix4.identity());
     });

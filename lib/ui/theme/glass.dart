@@ -434,12 +434,16 @@ class _GlassEdge extends CustomPainter {
     );
     canvas.save();
     canvas.clipRRect(rect);
-    // The SPECULAR line: the one hard highlight on the pane, and at a low tint it
-    // is most of what says the surface is glass rather than a hole in the scene.
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, 1.2),
-      Paint()..color = Colors.white.withValues(alpha: night ? 0.34 : 0.72),
-    );
+    // **NO SPECULAR LINE ALONG THE TOP.** It was the one hard highlight on the
+    // pane — a 1.2px white run at 0.34 on dark glass and 0.72 on light —
+    // and on a card with a uniform rim round the other three sides it reads as
+    // a border the top edge has and nothing else does. Reported as the top
+    // border being there across the board, with a shot of a fixture card.
+    //
+    // What it was for survives without it: the rim above still runs the whole
+    // perimeter, and the dark line under the bottom edge below still gives the
+    // pane its thickness. A highlight that has to be explained is not doing the
+    // job it was drawn for.
     canvas.drawRect(
       Rect.fromLTWH(0, size.height - 1, size.width, 1),
       Paint()

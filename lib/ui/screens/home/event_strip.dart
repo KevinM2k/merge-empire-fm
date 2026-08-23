@@ -26,6 +26,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/home/home_screen.dart' show playPageGap;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/events.dart';
 import 'package:merge_empire_fc/engine/deadline_news_engine.dart';
@@ -123,7 +124,8 @@ class _StripState extends ConsumerState<_Strip> {
     final clock = _clock(ms < 0 ? 0 : ms);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      // The Play page's own seam — see `playPageGap`.
+      padding: const EdgeInsets.only(bottom: playPageGap),
       child: GestureDetector(
         key: const ValueKey('home-event-strip'),
         onTap: () => openEventScreen(context, ref),

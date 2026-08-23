@@ -40,9 +40,11 @@ five kinds, none of which can be closed by writing Dart in this repo:
 - **M6 release and M7 cutover** — signing, both store consoles, staged rollout.
 - **Device passes** — the play button's pop, the crowd surge and the ear have
   never been seen on physical hardware, and nor has profile mode.
-- **One that asks for a screenshot** before anybody guesses: the tick with no
-  top border on the home page. There is no checkmark on that page in the port,
-  so guessing is all that is on offer without one.
+- ~~**One that asks for a screenshot**: the tick with no top border on the home
+  page.~~ **ANSWERED on 31 Aug, by the screenshot.** It was `_GlassEdge`'s
+  specular line — a 1.2px white run along the top of every glass pane — which on
+  a card with a uniform rim round the other three sides reads as a border only
+  the top has. See the 31 Aug block.
 - **An artwork BACKLOG rather than a defect list** — the Kenney packs for
   celebration sprites and backdrops. Read those rows before starting: the merge
   burst is procedural and draws in any tier's colours, which a sprite sheet
@@ -6254,6 +6256,13 @@ that is not off the extension is the bug, not the symptom.
 
 ### The match screen
 
+- [x] **The cutaway pitch is missing its top and bottom.** Measured rather than
+      guessed at: the fitted quad sat at y 1.6 to 128.4 in a 130-tall band, so
+      the far and near touchlines — one antialiased pixel each — landed half on
+      the `ClipRRect` and half off it. A line on the clip boundary is a line
+      that is not there. `pitchFitInset` gives the fit three points all round,
+      and the test that had only ever checked the one-box form of `fittedTilt`
+      now checks the two-box one.
 - [x] **THE CHANCE CUTAWAY IS WORSE THAN IT WAS.** The 30 Aug fix gave the
       layers a plane with the pitch's aspect — inside a `SizedBox`, under a
       tight `SizedBox.expand`, which a `SizedBox` cannot widen. So the layers
@@ -6265,6 +6274,17 @@ that is not off the extension is the bug, not the symptom.
       pitch's left it two-fifths dead green.
 - [ ] **The 2D match view is not scaled correctly at all**, which is the same
       family and may be the same cause.
+- [ ] **The commentary box has a nasty middle gradient**, and it makes the
+      minute down the left unreadable.
+- [ ] **Each commentary line should be its own separated row**, rather than a
+      run of text down the panel.
+- [ ] **Light mode on the Play screen still does not really work.** The dark
+      takeover landed the INK; this is the surface under it.
+- [ ] **The subs list should lead with the BEST matches** — the best players for
+      the slot first, then the rest in that order.
+- [ ] **The players and the ball on the perspective pitch look flat.** They want
+      a little depth of their own — the plane is in perspective and the things
+      standing on it are not.
 - [x] **The Play screen is hard to read in light mode**, the commentary feed
       worst of all. Every surface on the page is dark glass in BOTH themes on
       purpose — a pale panel on a pale page makes the match go flat — and the
@@ -6340,6 +6360,21 @@ that is not off the extension is the bug, not the symptom.
 
 ### The home page and the club
 
+- [x] **The vertical gap between the boxes on the Play page should be 12px.**
+      One `playPageGap` rather than a ten here and a ten there — the seams on
+      that page were each set on their own and did not agree.
+- [x] **The coach's little tick has a top border, and it is across the board.**
+      Found from the shot: `_GlassEdge`'s SPECULAR line, a 1.2px white run along
+      the top of every pane at 0.34 on dark glass and 0.72 on light. On a card
+      whose rim is uniform round the other three sides that reads as a border
+      the top edge has and nothing else does — and it is on every `GlassPanel`
+      in the game, which is the "across the board". Gone. What it was for
+      survives: the rim still runs the whole perimeter and the dark line under
+      the bottom edge still gives the pane its thickness.
+      **This also closes the long-standing "the tick with no top border on the
+      home page" row**, which had been open since 24 Aug waiting for exactly
+      this screenshot — it is the same line, described from the other side.
+
 - [x] **The Play page backdrop is cut off just above the trees.** `BoxFit.cover`
       on a wide, short strip scales a square drawing by its WIDTH and crops the
       rest — bottom-aligned, that leaves the drawing's own field on screen with
@@ -6361,12 +6396,31 @@ that is not off the extension is the bug, not the symptom.
       fills from there, into frames nothing else is using. Each preview is its
       own `RepaintBoundary` too: twenty deep SVG trees in a scrollable grid
       otherwise repaint together on every scroll pixel.
+- [ ] **The club's items STILL need a background to stand out.** Re-reported
+      after the wash landed on 31 Aug, so the wash is not enough — it is a
+      shallow tint of the tile's own ink and the art is transparent over it.
+- [ ] **The home screen still cuts off the backdrop, and it looks bad.**
+      Re-reported after the place-by-its-ground-line fix on 31 Aug, so either
+      the fix is not what the report is about or the band it is placed in is
+      the wrong shape. Get a shot of the seam before changing the placement
+      again — this is the third pass at it.
+- [ ] **The dark sky should not be PURPLE.** Just darker is fine.
 - [x] **The club's assets have no background**, so they blend into the page
       instead of standing out. The tier drawings are transparent and sat
       straight on the card. A shallow wash of the tile's own ink with an edge —
       a frame rather than a fill, so the art is still the thing in the box.
 
 ### The shop and Pro mode
+
+- [ ] **Manager packs want TWO to a row, not three.**
+- [ ] **"Manager customisations" ellipsises in the tab.** The label is too big
+      for the strip and cutting it off is worse than whatever it costs to fit.
+      No new `t()` key can be added from this repo, so the room has to come from
+      the strip rather than from shorter copy.
+- [ ] **Quick-fire matches and the free lucky boot go ABOVE the scout
+      vouchers.** They were moved into the boosts tab on 30 Aug; this is the
+      order inside it.
+- [ ] **The special offers are better but still too big.**
 
 - [x] **The special offers look bad.** Read against `ShopScreen.js`, and two
       things the spec has were missing. `.shop-hero__ribbon` is the loudest

@@ -45,6 +45,12 @@ import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
+/// The vertical seam between the stacked boxes on the Play page.
+///
+/// Asked for directly, and one number rather than a ten here and a ten there:
+/// the seams on this page were set independently and did not agree.
+const double playPageGap = 12;
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -139,7 +145,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(13, 0, 13, 10),
+              padding: const EdgeInsets.fromLTRB(13, 0, 13, playPageGap),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -231,7 +237,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  // **TWELVE BETWEEN THE BOXES ON THIS PAGE**, asked for
+                  // directly — see [playPageGap]. It was ten here and ten under
+                  // the event strip.
+                  const SizedBox(height: playPageGap),
                   const EventStrip(),
                   const PlayMatchButton(),
                 ],

@@ -554,18 +554,39 @@ double tiltedBandHeight(double width) {
   final plane = Size(width, width / pitchAspect);
   final bounds = MatrixUtils.transformRect(_about(plane), Offset.zero & plane);
   if (bounds.width <= 0) return plane.height;
-  return bounds.height * (width / bounds.width);
+  // The inset both ways, so the band it asks for is the one the fit will
+  // actually use.
+  final drawn = math.max(1.0, width - pitchFitInset * 2);
+  return bounds.height * (drawn / bounds.width) + pitchFitInset * 2;
 }
 
+/// The box the fit works inside: the band, less [pitchFitInset] all round.
+Size _inset(Size box) => Size(
+  math.max(0, box.width - pitchFitInset * 2),
+  math.max(0, box.height - pitchFitInset * 2),
+);
+
+/// How much room the fit leaves round the pitch, so the touchlines are drawn
+/// INSIDE the box rather than along its edge.
+///
+/// **A line on the clip boundary is a line that is not there.** The fit put the
+/// quad's corners at 0 and at the band's exact height, so the far and near
+/// touchlines — one antialiased pixel each — landed half on the `ClipRRect` and
+/// half off it. Reported as the pitch missing its top and bottom.
+const double pitchFitInset = 3;
+
 Matrix4 fittedTilt(Size plane, {Size? into}) {
-  final band = into ?? plane;
+  final band = _inset(into ?? plane);
   if (plane.isEmpty || band.isEmpty) return Matrix4.identity();
   final about = _about(plane);
   final bounds = MatrixUtils.transformRect(about, Offset.zero & plane);
   if (bounds.width <= 0 || bounds.height <= 0) return about;
   final fit = math.min(band.width / bounds.width, band.height / bounds.height);
+  // Centred on the FULL box, not on the inset one: the inset is room for the
+  // lines, not a margin to sit inside.
+  final whole = into ?? plane;
   return Matrix4.identity()
-    ..translateByDouble(band.width / 2, band.height / 2, 0, 1)
+    ..translateByDouble(whole.width / 2, whole.height / 2, 0, 1)
     ..scaleByDouble(fit, fit, 1, 1)
     ..translateByDouble(-bounds.center.dx, -bounds.center.dy, 0, 1)
     ..multiply(about);
