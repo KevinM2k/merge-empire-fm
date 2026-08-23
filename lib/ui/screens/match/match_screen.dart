@@ -1200,7 +1200,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // pitch only for a chance and took it away after, so the band itself
                   // appeared and vanished — which is what made the pitch look like it
                   // was flickering and jumping about.
-                  Padding(
+                  // **FLEXIBLE, so a short screen can take it back.** The old
+                  // `AspectRatio` shrank the WIDTH to whatever height was left,
+                  // which is what kept the column from overflowing; a fixed
+                  // height cannot, and on a short phone it pushed the
+                  // commentary off the bottom. Loose, so it never takes MORE
+                  // than the cap below.
+                  Flexible(
+                    child: Padding(
                     padding: const EdgeInsets.fromLTRB(
                       matchInset,
                       matchGap,
@@ -1215,14 +1222,21 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     // and the height is capped independently; a shallower box
                     // is a shallower pitch, which `fittedTilt` handles by
                     // construction.
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: math.min(
-                        MediaQuery.sizeOf(context).height * 0.20,
-                        // Never taller than its own natural aspect: past that
-                        // the band is padding rather than pitch.
-                        (MediaQuery.sizeOf(context).width - matchInset * 2) /
-                            pitchAspect,
+                    // **LOOSE, so a short screen can still take it back.** The
+                    // old `AspectRatio` shrank the WIDTH to fit whatever height
+                    // was left, which is what kept the column from overflowing;
+                    // a fixed height cannot, and on a short phone it pushed the
+                    // commentary off the bottom by 35 pixels.
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: math.min(
+                          MediaQuery.sizeOf(context).height * 0.20,
+                          // Never taller than its own natural aspect: past that
+                          // the band is padding rather than pitch.
+                          (MediaQuery.sizeOf(context).width - matchInset * 2) /
+                              pitchAspect,
+                        ),
+                        minWidth: double.infinity,
                       ),
                       child: Stack(
                         key: const ValueKey('match-stage'),
@@ -1290,14 +1304,28 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                   child: Align(
                                     alignment: Alignment.bottomRight,
                                     child: LayoutBuilder(
-                                      builder: (context, box) => SizedBox(
-                                        width: (box.maxWidth * camFloatFraction)
-                                            .clamp(
-                                              camFloatMinWidth,
-                                              camFloatMaxWidth,
-                                            )
-                                            .clamp(0.0, box.maxWidth),
-                                        child: _dugoutCam(shot),
+                                      // **CAPPED BY THE HEIGHT TOO.** The
+                                      // float sized itself off the WIDTH alone,
+                                      // and the band got shorter when the pitch
+                                      // gave its vertical space back — so the
+                                      // cam's own column ran 35 pixels out of
+                                      // the bottom of the stage. `FittedBox`
+                                      // shrinks it to whatever is actually
+                                      // there rather than clipping a man in
+                                      // half.
+                                      builder: (context, box) => FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.bottomRight,
+                                        child: SizedBox(
+                                          width:
+                                              (box.maxWidth * camFloatFraction)
+                                                  .clamp(
+                                                    camFloatMinWidth,
+                                                    camFloatMaxWidth,
+                                                  )
+                                                  .clamp(0.0, box.maxWidth),
+                                          child: _dugoutCam(shot),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1306,6 +1334,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                         ],
                       ),
                     ),
+                  ),
                   ),
                   // **DIRECTLY UNDER THE PITCH IT ACTS ON** — the JS's own band
                   // order, and the reason for it: a control for the thing above it
