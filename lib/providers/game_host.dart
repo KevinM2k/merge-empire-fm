@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
+import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/services/weather_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -139,6 +140,10 @@ class _GameHostState extends ConsumerState<GameHost>
         // decides whether it is worth a call, so this is cheap when it is not.
         _refreshWeather();
         _weather.start();
+        // **AND THE REMINDERS COME DOWN.** They are only ever useful while the
+        // app is away; one arriving while the player is looking at the game is
+        // the game interrupting itself.
+        unawaited(clearNotices());
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
@@ -148,6 +153,19 @@ class _GameHostState extends ConsumerState<GameHost>
         // behind a backgrounded app is a save read and a rebuild for something
         // nobody is looking at.
         _weather.stop();
+        // **AND THE FOUR REMINDERS GO OUT.** `engine/notification_plan.dart`
+        // decides which of them are worth sending; fourteen `notif.*` strings
+        // were translated into ten languages with nothing able to print one.
+        //
+        // **Re-laid on EVERY transition, deliberately.** The deadline
+        // appointment is for the next opening only, so opening the app at any
+        // point in the day is what covers that evening — see the plan.
+        unawaited(
+          armNotices(
+            _runner.game.state,
+            now: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
       case AppLifecycleState.inactive:
         // A banner, the app switcher, a phone call. The player has not left.
         break;

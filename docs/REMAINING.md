@@ -6295,7 +6295,24 @@ of buttons that error.
       `data/geo_zones.dart`, which is a city rather than a person. What is left
       of it is the accepted limitation above: a timezone is one coordinate for a
       whole country.
-- [ ] Local notifications — four of them, all `allowWhileIdle`
+- [x] Local notifications — four of them, all `allowWhileIdle`. **DONE, and the
+      fourteen `notif.*` strings translated into ten languages finally have a
+      caller** — the queue's own loudest tell, shipped copy nothing could print.
+      Split the way the rest of the port splits: `engine/notification_plan.dart`
+      decides (pure, sixteen tests) and `services/notifications.dart` delivers.
+      Armed on the app going to the background and withdrawn on resume, because
+      one arriving while the player is looking at the game is the game
+      interrupting itself.
+      **`allowWhileIdle` is `AndroidScheduleMode.inexactAllowWhileIdle`** — the
+      flag the plugin picks its `AlarmManager` call from, and without it an alarm
+      is plain `RTC` rather than `RTC_WAKEUP`: it does not wake a sleeping
+      device, so Doze defers it indefinitely. A phone asleep at 6pm is the NORMAL
+      case for a backgrounded game.
+      Two of the JS's hard-won corrections came across with it: the deadline
+      alert is ONE for the next opening rather than a batch of eight (the batch
+      never arrived on device while the identical single one always did), and it
+      is strictly future with NO SLACK (skipping the next minute threw tonight's
+      alert away every time the app was backgrounded at 17:59:30).
 - [x] `util/sound.js` (782) — **DONE, and this row was stale.** Both halves are
       in: `util/audio_render.dart` is the offline Web Audio graph rendered in
       plain Dart and `data/sound_defs.dart` is every effect's recipe, so the SFX

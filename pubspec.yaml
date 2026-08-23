@@ -43,12 +43,15 @@ dependencies:
   flame: ^1.35.1
   audioplayers: ^6.7.1
 
-  # The three platform seams the JS reaches for through Capacitor. Each is one
-  # small file in lib/services and nothing else in the app imports the plugin.
+  # The platform seams the JS reaches for through Capacitor. Each is behind one
+  # small file in lib/services and nothing else in the app imports the plugin —
+  # which is what lets a test replace the seam rather than the platform.
   url_launcher: ^6.3.2 # utils/openUrl.js — @capacitor/browser
   wakelock_plus: ^1.6.1 # utils/wakeLock.js — the Screen Wake Lock API
   connectivity_plus: ^7.3.1 # utils/network.js — navigator.onLine
   in_app_review: ^2.0.12 # engine/ratingEngine.js — @capacitor-community/in-app-review
+  flutter_local_notifications: ^22.3.0 # main.js's four — @capacitor/local-notifications
+  timezone: ^0.11.1 # its own transitive, named because notifications.dart imports it
 
 dev_dependencies:
   flutter_test:
