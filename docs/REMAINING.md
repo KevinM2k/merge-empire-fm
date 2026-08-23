@@ -6340,12 +6340,19 @@ that is not off the extension is the bug, not the symptom.
 
 ### The home page and the club
 
-- [ ] **The Play page backdrop is cut off just above the trees.** The park seam
-      below it was fixed on 30 Aug; this is the band above. **And whatever
-      backdrop tiers 1 and 2 end up with has to work in BOTH themes** — the
-      scene is not exempt from light mode just because it is a picture. **And
-      if working in both is awkward, DROPPING the backdrop at those tiers is an
-      accepted answer** — said explicitly.
+- [x] **The Play page backdrop is cut off just above the trees.** `BoxFit.cover`
+      on a wide, short strip scales a square drawing by its WIDTH and crops the
+      rest — bottom-aligned, that leaves the drawing's own field on screen with
+      the treeline chopped off above it, and no alignment fixes it because on a
+      strip that shape there is no slice that is all treeline and no field. The
+      art is PLACED now: it goes down far enough that its own ground line lands
+      on the foot of the strip and the surplus goes off the top, which is sky.
+      Same rule as the penalty scene's `backdropRect`.
+      **It works in both themes** — the park's aerial haze already went over it
+      either way, and a dark theme now takes the drawing itself down too, or a
+      daylit sky sits behind a night pitch. Keeping it rather than dropping it:
+      it costs one `LayoutBuilder` and three trees on bare sky was the hole it
+      replaced.
 - [ ] **The customise popup is still slow to open.** The row-a-frame fill took
       the freeze off the sheet's slide and did not make it quick.
 - [x] **The club's assets have no background**, so they blend into the page

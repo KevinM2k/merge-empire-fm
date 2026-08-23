@@ -1392,18 +1392,53 @@ class _StandSegment extends StatelessWidget {
         //
         // Already bundled: the customiser's own backdrop, so nothing new is
         // downloaded for it.
-        ? Stack(
-            fit: StackFit.expand,
-            children: [
-              const ArtImage(
-                key: ValueKey('pitch-park-backdrop'),
-                path: 'assets/bg/kenney/backgroundColorGrass.png',
-                fit: BoxFit.cover,
-                alignment: Alignment.bottomCenter,
-                fallback: SizedBox.shrink(),
-              ),
-              CustomPaint(painter: _ParkPainter(haze: haze, tier: tier)),
-            ],
+        ? LayoutBuilder(
+            // **THE ART IS PLACED, NOT FITTED.** `BoxFit.cover` on a wide,
+            // short strip scales a square drawing by its WIDTH and crops the
+            // rest, and bottom-aligned that leaves the drawing's own field on
+            // screen with the treeline chopped off above it — reported as the
+            // backdrop being cut off just above the trees. No alignment fixes
+            // it, because on a strip this shape there is no slice that is all
+            // treeline and no field.
+            //
+            // Sizing it is what solves it, and it is the same rule the penalty
+            // scene's `backdropRect` follows: the drawing goes down far enough
+            // that its OWN ground line lands on the foot of the strip, and the
+            // surplus goes off the top, which is sky. All four Kenney
+            // backdrops share that layout.
+            builder: (context, box) {
+              final drawn = math.max(
+                box.maxWidth,
+                box.maxHeight / _kenneyGroundLine,
+              );
+              // **AND IT HAS TO WORK IN BOTH THEMES.** It is a daylit drawing
+              // and the scene at these tiers is whatever the player has the app
+              // set to. The `_ParkPainter`'s aerial haze goes over it either
+              // way, which carries most of it; a dark theme takes the drawing
+              // itself down as well, or a bright sky sits behind a night pitch.
+              final night =
+                  Theme.of(context).brightness == Brightness.dark;
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned(
+                    left: (box.maxWidth - drawn) / 2,
+                    top: box.maxHeight - _kenneyGroundLine * drawn,
+                    width: drawn,
+                    height: drawn,
+                    child: ArtImage(
+                      key: const ValueKey('pitch-park-backdrop'),
+                      path: 'assets/bg/kenney/backgroundColorGrass.png',
+                      fit: BoxFit.fill,
+                      dimmed: night,
+                      dimBrightness: 0.55,
+                      fallback: const SizedBox.shrink(),
+                    ),
+                  ),
+                  CustomPaint(painter: _ParkPainter(haze: haze, tier: tier)),
+                ],
+              );
+            },
           )
         : CustomPaint(
             painter: _StandPainter(
@@ -1416,6 +1451,14 @@ class _StandSegment extends StatelessWidget {
           ),
   );
 }
+
+/// Where the Kenney backdrops' own ground line sits, as a fraction of the
+/// square drawing's height.
+///
+/// Sky and cloud above, a treeline, then a flat field filling the bottom. The
+/// field is the part that must NOT be seen: the scene draws its own ground, and
+/// a second one behind it at a different perspective is a hill.
+const double _kenneyGroundLine = 0.62;
 
 /// **THE BOTTOM TWO TIERS HAVE NO GROUND**, which is the art brief and which
 /// the port had dropped: a hedge line, three trees, a low white fence — and at
