@@ -36,9 +36,14 @@ void main() {
         (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
         BoostsSection.new,
       );
+      // Not the plain scout voucher: it is the bottom rung of the voucher
+      // LADDER and is deliberately not drawn among the gem items — see
+      // `_renderGemItems` in the JS, which filters it for the same reason.
       final live = container
           .read(gemItemTilesProvider)
-          .firstWhere((t) => t.blocked == null);
+          .firstWhere(
+            (t) => t.blocked == null && t.item.id != 'scout_voucher_gem',
+          );
       final before = container.read(gemsProvider);
 
       await buyRow(tester, 'gem-${live.item.id}');
@@ -63,7 +68,11 @@ void main() {
       final container = await pumpShopWidget(tester, (_) {}, BoostsSection.new);
       final broke = container
           .read(gemItemTilesProvider)
-          .firstWhere((t) => t.blocked == 'insufficient_gems');
+          .firstWhere(
+            (t) =>
+                t.blocked == 'insufficient_gems' &&
+                t.item.id != 'scout_voucher_gem',
+          );
       expect(
         tester
             .widget<StoreButton>(
@@ -79,7 +88,11 @@ void main() {
       final container = await pumpShopWidget(tester, (_) {}, BoostsSection.new);
       final broke = container
           .read(gemItemTilesProvider)
-          .firstWhere((t) => t.blocked == 'insufficient_gems');
+          .firstWhere(
+            (t) =>
+                t.blocked == 'insufficient_gems' &&
+                t.item.id != 'scout_voucher_gem',
+          );
       final before = container.read(gemsProvider);
 
       await buyRow(tester, 'gem-${broke.item.id}');
@@ -342,5 +355,20 @@ void main() {
       // And exactly ONE says it is the one being held.
       expect(after.where((t) => t.holding), hasLength(1));
     });
+  });
+
+  testWidgets('THE PLAIN SCOUT VOUCHER IS DRAWN ONCE, in the ladder', (
+    tester,
+  ) async {
+    // It is the bottom rung of the voucher ladder, not a loose consumable, and
+    // it was appearing twice — once among the gem items beside the TV
+    // broadcast deal and once in the section a player looking for a scout
+    // actually goes to. `_renderGemItems` filters it out and says why; the port
+    // did not. Reported as the same voucher showing up twice.
+    await pumpShopWidget(tester, (_) {}, BoostsSection.new);
+    expect(
+      find.byKey(const ValueKey('shop-tile-gem-scout_voucher_gem')),
+      findsNothing,
+    );
   });
 }

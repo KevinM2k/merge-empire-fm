@@ -309,7 +309,12 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     if (_base + _quests > 0 || canDouble)
                       GlassPanel(
                                                 key: const ValueKey('summary-payout-card'),
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        // **MORE ROOM UNDER THE BUTTON than over the figure.**
+                        // Ten and ten put the rewarded-video control hard
+                        // against the card's bottom edge, which on the one
+                        // control here that costs the player something reads as
+                        // the card having been cut off. Asked for directly.
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [

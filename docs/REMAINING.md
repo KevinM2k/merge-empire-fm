@@ -6270,8 +6270,9 @@ Written on arrival from here.
       takes the match with it — the tab is never revealed at all. The awaited
       push resolves at the replacement rather than at the end, so what
       `_play` waits on is the summary's own future, captured as it goes up.
-- [ ] **The "watch to keep 2x coins" box on the end-of-match screen wants more
-      padding at the bottom.**
+- [x] **The "watch to keep 2x coins" box on the end-of-match screen wants more
+      padding at the bottom.** Ten and ten put the rewarded-video control hard
+      against the card's edge.
 - [ ] **Privacy options does not link to the right place**, the way it does in
       the shipped app.
 - [ ] **Is the audio bug fixed?** Asked as a question; the bug is not named in
@@ -6349,6 +6350,12 @@ Written on arrival from here.
 - [ ] **And EVERY button wants the same 3D treatment** — the face, the mid, the
       deep and the flat edge bar under it that `.store-3d` draws. The gem tiles
       have it; nothing else does.
+
+- [x] **Get rid of the duplicate scout voucher** — the one beside the TV
+      broadcast deal, which is the same thing as the random voucher further
+      down. It is the bottom rung of the voucher LADDER and was being drawn
+      twice. `_renderGemItems` filters it out and says why in as many words;
+      the port did not.
 
 ### And the constraint has changed
 

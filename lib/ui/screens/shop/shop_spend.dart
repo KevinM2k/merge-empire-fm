@@ -108,7 +108,14 @@ class BoostsSection extends ConsumerWidget {
                           game.update((s) => buyConsumable(s, row.id)).reason,
                     )),
             ),
+          // **NOT THE PLAIN SCOUT VOUCHER.** It is the bottom rung of the
+          // voucher LADDER below and it was being drawn twice — once as a loose
+          // gem item beside the TV broadcast deal, once in the section a player
+          // looking for a scout actually goes to. `_renderGemItems` filters it
+          // out for exactly this reason and says so; the port did not. Reported
+          // as the same voucher appearing twice.
           for (final tile in gems)
+            if (tile.item.id != _scoutVoucherGemId)
             ShopTile(
               tileKey: 'gem-${tile.item.id}',
               title: t('gem.${tile.item.id}.name'),
