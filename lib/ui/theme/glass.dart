@@ -371,7 +371,19 @@ class GlassPanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: shape,
+        // **`passthrough`, or the GLASS DOES NOT FILL THE PANE.** A `Stack`
+        // hands its non-positioned children LOOSE constraints by default, so
+        // the tinted layer shrink-wrapped its content and sat in the top of a
+        // box that had been stretched taller — the rest of the pane was the
+        // page showing through a rim. Reported on the bid card, whose two
+        // panes are an `IntrinsicHeight` row and whose shorter side was the
+        // one with the offer in it.
+        //
+        // `passthrough` rather than `expand`: it hands on whatever this pane
+        // was itself given, so a panel under loose constraints still
+        // shrink-wraps and only a stretched one is made to fill.
         child: Stack(
+          fit: StackFit.passthrough,
           children: [
             panel,
             // The edge and the two inner hairlines, over everything: they are

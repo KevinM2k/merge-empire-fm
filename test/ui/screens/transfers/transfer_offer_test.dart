@@ -252,26 +252,27 @@ void main() {
   });
 
   group('THE PILL IS THE LOUDEST THING IN THE SHELL NOW', () {
-    testWidgets('it is FILLED in the accent, not outlined on the surface', (
-      tester,
-    ) async {
-      // A `surface`-filled stadium with a 55% accent hairline is the quietest
-      // thing the palette can draw, above a tab bar the eye already skips — so
-      // the one control between a player and an offer they parked read as
-      // chrome.
+    testWidgets('IT IS GOLD, not the club\'s own colour', (tester) async {
+      // A `surface`-filled stadium with a 55% accent hairline was the quietest
+      // thing the palette can draw. Filling it in `accentBright` fixed that and
+      // left the next one: the accent is what the PAGE is already wearing top
+      // to bottom, so the one thing on screen saying a bid is still waiting
+      // looked like part of the furniture — and something that covers content
+      // while looking like furniture reads as a bug. Gold is what money wears
+      // everywhere else in this game, the card this pill opens included.
       final c = await _pumpShell(tester, _saveWithOffer());
       final kit = _kitOf(tester);
       final pill = tester.widget<Material>(
         find.byKey(const ValueKey('transfer-pill')),
       );
-      expect(pill.color, kit.accentBright);
-      expect(
-        tester
-            .widget<Text>(find.text(t('transfer.pill_label')))
-            .style
-            ?.color,
-        kit.accentBrightInk,
-      );
+      expect(pill.color, gameGold);
+      expect(pill.color, isNot(kit.accentBright));
+      final ink = tester
+          .widget<Text>(find.text(t('transfer.pill_label')))
+          .style
+          ?.color;
+      // Gold is fixed in both themes, so what reads on it is too.
+      expect(ink!.computeLuminance(), lessThan(0.1));
       c.dispose;
     });
 

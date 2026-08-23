@@ -285,4 +285,36 @@ void main() {
       expect(0.2126 * ink.r + 0.7152 * ink.g + 0.0722 * ink.b, lessThan(0.2));
     });
   });
+
+  testWidgets('THE GLASS FILLS A PANE THAT WAS STRETCHED TALLER', (
+    tester,
+  ) async {
+    // A `Stack` hands its non-positioned children loose constraints, so the
+    // tinted layer shrink-wrapped its content and sat in the top of a box that
+    // had been stretched — the rest of the pane was the page through a rim.
+    // Reported on the bid card, whose two panes are an `IntrinsicHeight` row.
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              height: 240,
+              child: GlassPanel(child: Text('one line')),
+            ),
+          ),
+        ),
+      ),
+    );
+    final outer = tester.getSize(find.byType(GlassPanel));
+    final tint = tester.getSize(
+      find.descendant(
+        of: find.byType(GlassPanel),
+        matching: find.byType(BackdropFilter),
+      ),
+    );
+    expect(outer.height, 240);
+    expect(tint.height, outer.height, reason: 'glass in the top of the box');
+    expect(tint.width, outer.width);
+  });
 }

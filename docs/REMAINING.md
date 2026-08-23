@@ -6345,9 +6345,19 @@ that is not off the extension is the bug, not the symptom.
 
 ### Transfers
 
-- [ ] **The right-hand box on a bid does not have its background filled.**
-- [ ] **A minimised bid blends into everything and covers things.** It needs to
-      read as a live thing parked at the bottom of the screen.
+- [x] **The right-hand box on a bid does not have its background filled.** Not
+      the card: `GlassPanel` itself. A `Stack` hands its non-positioned children
+      LOOSE constraints, so the tinted layer shrink-wrapped its content and sat
+      in the top of a pane that had been stretched taller — the rest was the
+      page through a rim. `StackFit.passthrough`, so a panel under loose
+      constraints still shrink-wraps and only a stretched one is made to fill.
+      Every glass surface in the game was doing this.
+- [x] **A minimised bid blends into everything and covers things.** It was
+      filled in `accentBright` — the club's own colour, on pages already wearing
+      it top to bottom — so the one thing saying a bid is still waiting looked
+      like furniture, and something that covers content while looking like
+      furniture reads as a bug. Gold, a dark rim and a dark halo under the gold
+      one, so it separates from a light page as well as a dark one.
 
 ### Training
 

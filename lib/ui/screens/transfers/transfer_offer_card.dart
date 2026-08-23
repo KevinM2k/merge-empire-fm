@@ -586,8 +586,6 @@ class _TransferPillState extends ConsumerState<TransferPill>
       return const SizedBox.shrink();
     }
     _sync();
-    final kit = Theme.of(context).extension<KitTheme>()!;
-
     return Center(
       child: Padding(
         padding: const EdgeInsets.only(bottom: 8),
@@ -601,20 +599,36 @@ class _TransferPillState extends ConsumerState<TransferPill>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(40),
                 boxShadow: [
+                  // A dark halo under the gold one, so the pill separates from
+                  // a light page as well as from a dark one.
+                  const BoxShadow(
+                    color: Color(0x59000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 4),
+                  ),
                   BoxShadow(
-                    color: kit.accentBright.withValues(alpha: 0.20 + 0.28 * t),
-                    blurRadius: 10 + 10 * t,
-                    spreadRadius: 1 + 2 * t,
+                    color: gameGold.withValues(alpha: 0.24 + 0.34 * t),
+                    blurRadius: 10 + 12 * t,
+                    spreadRadius: 1 + 3 * t,
                   ),
                 ],
               ),
               child: child,
             );
           },
+          // **GOLD, NOT THE KIT.** It was `accentBright` — the club's own
+          // colour, on pages already wearing it top to bottom — so the one
+          // thing on screen saying a bid is still waiting looked like part of
+          // the furniture, and covering something while looking like furniture
+          // reads as a bug rather than as an overlay. Reported as needing to
+          // stand out. Gold is what money wears everywhere else in this game,
+          // including the card this pill opens.
           child: Material(
             key: const ValueKey('transfer-pill'),
-            color: kit.accentBright,
-            shape: const StadiumBorder(),
+            color: gameGold,
+            shape: const StadiumBorder(
+              side: BorderSide(color: Color(0xCC1A1206), width: 1.5),
+            ),
             elevation: 6,
             child: InkWell(
               customBorder: const StadiumBorder(),
@@ -631,10 +645,12 @@ class _TransferPillState extends ConsumerState<TransferPill>
                     const SizedBox(width: 8),
                     Text(
                       t('transfer.pill_label'),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w900,
-                        color: kit.accentBrightInk,
+                        // The pill's own ink: gold is a fixed colour in both
+                        // themes, so what reads on it is too.
+                        color: Color(0xFF20160A),
                       ),
                     ),
                   ],
