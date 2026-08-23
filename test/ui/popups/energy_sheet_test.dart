@@ -112,29 +112,39 @@ void main() {
     await pumpShell(tester, energy: 10);
     await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
     await tester.pumpAndSettle();
-    expect(find.text(t('shop.already_ready')), findsOneWidget);
+    // By key: the ad row says the same thing when the tank is full, and for the
+    // same reason — there is nothing to add.
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('energy-next'))).data,
+      t('shop.already_ready'),
+    );
   });
 
-  testWidgets('the ad route is named and dead, like every other M4 control', (
-    tester,
-  ) async {
+  /// The ad row's own tap target.
+  InkWell adRow(WidgetTester tester) => tester.widget<InkWell>(
+    find.descendant(
+      of: find.byKey(const ValueKey('energy-watch-ad')),
+      matching: find.byType(InkWell),
+    ),
+  );
+
+  testWidgets('THE AD ROUTE CAN BE TAKEN NOW', (tester) async {
+    // **Inverted, and the inversion is the news.** It said this route was named
+    // and dead, like every other M4 control — `services/admob_ads.dart` is the
+    // AdMob it was waiting for.
     await pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
     await tester.pumpAndSettle();
-    // A BOX now, not a full-width button with its refusal printed underneath —
-    // the two routes to more energy are alternatives and sit side by side. The
-    // thing that must still hold is that this one cannot be taken.
-    expect(
-      tester
-          .widget<InkWell>(
-            find.descendant(
-              of: find.byKey(const ValueKey('energy-watch-ad')),
-              matching: find.byType(InkWell),
-            ),
-          )
-          .onTap,
-      isNull,
-    );
+    expect(adRow(tester).onTap, isNotNull);
+  });
+
+  testWidgets('and a full tank is what stops it', (tester) async {
+    // Nothing to add to. The SDK's own answers — no fill, closed early — are
+    // its business and are handled where the video is asked for.
+    await pumpShell(tester, energy: 10);
+    await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+    await tester.pumpAndSettle();
+    expect(adRow(tester).onTap, isNull);
   });
 
   testWidgets('the Shop route works today', (tester) async {

@@ -5,9 +5,12 @@
 ///
 /// A bottom sheet, one of the three shapes, rather than a fourth thing. It says
 /// where the player stands, when the next pip lands, and what the two routes to
-/// more are: a rewarded video (M4's AdMob) or the Shop's energy products (M4's
-/// billing). Both are named and dead, as everything else waiting on M4 is.
+/// more are: a rewarded video or the Shop's energy products. **The video WORKS
+/// now** — see `services/admob_ads.dart`; the priced route is still waiting on
+/// the billing bridge.
 library;
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,13 +18,44 @@ import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
+import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
-import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/time.dart';
+
+/// The placement this sheet spends. A key from `ad_units.dart`.
+const String energyPlacement = 'energy_pip';
+
+/// Take the video, and top up if it was watched.
+///
+/// **PRO MODE REFILLS SOMETHING ELSE.** There are no pips there — the squad's
+/// match fitness is the gate — so the same video buys a quarter of everyone's
+/// fitness back rather than three of a currency that does not exist. The JS
+/// branches on exactly this and so does the toast.
+Future<void> watchEnergyAd(WidgetRef ref) async {
+  final outcome = await ref.read(rewardedAdsProvider).show(energyPlacement);
+  if (outcome == AdOutcome.unavailable) {
+    emit('toast:info', t('toast.no_ad'));
+    return;
+  }
+  if (outcome != AdOutcome.rewarded) return;
+  final game = ref.read(gameProvider);
+  final pro = game.state?['settings'] is Map<String, dynamic> &&
+      (game.state!['settings'] as Map<String, dynamic>)['hardMode'] == true;
+  if (pro) {
+    game.update((s) => topUpAllEnergy(s, now(), PlayerEnergy.adRefillPct));
+    emit('playerEnergy:updated');
+    emit('toast:success', t('toast.energy_refilled'));
+  } else {
+    game.update((s) => onWatchAdComplete(s, 'energy'));
+    emit('toast:success', t('toast.energy_added', {'n': Energy.adReward}));
+  }
+}
 
 /// Where the player stands on energy.
 typedef EnergyStatus = ({int current, int max, int nextPipMs, bool full});
@@ -98,9 +132,16 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
                         'amount': Energy.adReward,
                         'coin': t('shop.section.energy'),
                       }),
-                      note: paidDisabledReason(),
+                      // A full tank has nothing to add to; everything else is
+                      // the SDK's business and answers honestly when asked.
+                      note: status.full ? t('shop.already_ready') : null,
                       tint: kit.accentBright,
-                      onTap: null,
+                      onTap: status.full
+                          ? null
+                          : () {
+                              Navigator.of(sheetContext).pop();
+                              unawaited(watchEnergyAd(sheetRef));
+                            },
                     ),
                   ),
                   const SizedBox(width: 10),
