@@ -76,6 +76,47 @@ class MatchRoute<T> extends MaterialPageRoute<T> {
   Duration get reverseTransitionDuration => Duration.zero;
 }
 
+/// **THE PLAY BUTTON'S CHROME, as `glass.css` writes it.**
+///
+/// Six layers and a rim, and the stylesheet's own comment says why there are
+/// three shadows rather than one: "the diffuse far shadow alone reads as a
+/// glow; what actually lifts a button off the pitch is the tight contact
+/// shadow right under its edge, with the mid and far passes carrying the
+/// height."
+///
+/// Named here so a test can compare each number against the CSS rather than
+/// against a screenshot. **That is not the same as a device pass** — nobody has
+/// looked at this on hardware, which is what the M5 row asks for — but it is
+/// the difference between "matched" as a claim and "matched" as something the
+/// build re-checks. Pinning it caught the label's shadow at 0.40 where the
+/// stylesheet says 0.45.
+typedef PlayButtonLayer = ({double dy, double blur, double spread, double alpha});
+
+/// `0 2px 3px`, `0 7px 12px`, `0 16px 32px` — contact, mid, far.
+const List<PlayButtonLayer> playButtonChrome = [
+  (dy: 2, blur: 3, spread: 0, alpha: 0.4),
+  (dy: 7, blur: 12, spread: 0, alpha: 0.34),
+  (dy: 16, blur: 32, spread: 0, alpha: 0.46),
+];
+
+/// `0 0 20px 2px var(--color-accent-glow)`.
+const PlayButtonLayer playButtonGlow = (
+  dy: 0,
+  blur: 20,
+  spread: 2,
+  alpha: 0.45,
+);
+
+/// `1px solid rgba(255,255,255,0.55)`, and it is ONE pixel: the pop is the
+/// bevel and the shadows, and a heavy white stroke over those reads as a
+/// sticker.
+const double playButtonRimAlpha = 0.55;
+const double playButtonRimWidth = 1;
+
+/// `0 1px 3px rgba(0,0,0,0.45)` on the label, which has to clear a gradient
+/// running bright at the top and dark at the bottom.
+const double playButtonLabelShadowAlpha = 0.45;
+
 class PlayMatchButton extends ConsumerWidget {
   const PlayMatchButton({super.key, this.fast = false});
 
@@ -366,29 +407,22 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
           boxShadow: widget.dead
               ? null
               : [
-                  // Contact — tight, right under the edge. This is the one that
+                  // Contact, mid, far — see [playButtonChrome]. The first is
+                  // tight and right under the edge, and it is the one that
                   // does the work.
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 3,
-                    offset: const Offset(0, 2),
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.34),
-                    blurRadius: 12,
-                    offset: const Offset(0, 7),
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.46),
-                    blurRadius: 32,
-                    offset: const Offset(0, 16),
-                  ),
+                  for (final layer in playButtonChrome)
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: layer.alpha),
+                      blurRadius: layer.blur,
+                      spreadRadius: layer.spread,
+                      offset: Offset(0, layer.dy),
+                    ),
                   // And the accent glow, which is what makes it read as LIT
                   // rather than painted on.
                   BoxShadow(
-                    color: kit.accent.withValues(alpha: 0.45),
-                    blurRadius: 20,
-                    spreadRadius: 2,
+                    color: kit.accent.withValues(alpha: playButtonGlow.alpha),
+                    blurRadius: playButtonGlow.blur,
+                    spreadRadius: playButtonGlow.spread,
                   ),
                 ],
         ),
@@ -399,8 +433,10 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
             // never the border's boldness — it is the bevel and the shadows
             // below, and a heavy white stroke on top of those reads as a sticker.
             border: Border.all(
-              color: Colors.white.withValues(alpha: widget.dead ? 0.22 : 0.55),
-              width: 1,
+              color: Colors.white.withValues(
+                alpha: widget.dead ? 0.22 : playButtonRimAlpha,
+              ),
+              width: playButtonRimWidth,
             ),
           ),
           child: ClipRRect(
@@ -554,7 +590,9 @@ class _Label extends ConsumerWidget {
                   ? null
                   : const [
                       Shadow(
-                        color: Color(0x66000000),
+                        // `0 1px 3px rgba(0,0,0,0.45)` — the stylesheet's own,
+                        // and it was 0.40 here. See `playButtonChrome`.
+                        color: Color(0x73000000), // playButtonLabelShadowAlpha
                         offset: Offset(0, 1),
                         blurRadius: 3,
                       ),

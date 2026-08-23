@@ -3593,7 +3593,17 @@ running at last.
       fan's at its own row is 1, so a future change to the perspective cannot
       desync them; the old test pinned the two constants and would have failed for
       the wrong reason.
-- [ ] **The play button's pop is matched but unverified.** The JS's `.play-match-btn`
+- [ ] **The play button's pop is matched and now PINNED, but still unverified on
+      hardware.** Read again against `glass.css` — where the rule actually lives,
+      not `screens.css`, which is why the row's own description was stale — and
+      every layer is now a named constant a test compares to the stylesheet:
+      the 1px/0.55 rim, the two bevels, the centred-and-spread glow, and the
+      contact/mid/far shadows at `0 2px 3px`, `0 7px 12px`, `0 16px 32px`.
+      Pinning it caught one wrong number: the label's shadow was 0.40 where the
+      stylesheet says 0.45. **What remains is an eyeball on a device**, which is
+      what this row asks for and what nothing in this repo can supply.
+      The original note, kept because it is what the shape is FOR: the JS's
+      `.play-match-btn`
       is a 1px white rim at 55%, a bevel (`inset 0 1px 0` white 55%, `inset 0 -2px
       0` black 22%), a sheen and THREE shadows — and its own comment says why:
       "the diffuse far shadow alone reads as a glow; what actually lifts a button
