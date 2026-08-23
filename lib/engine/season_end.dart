@@ -578,6 +578,26 @@ bool canPrestige(Map<String, dynamic>? state) =>
 int prestigeLevel(Map<String, dynamic>? state) =>
     _num(_map(state?['prestige'])?['level'])?.toInt() ?? 0;
 
+/// **PRO MODE IS EARNED, not a setting you were always allowed.**
+///
+/// It used to be offered from the first minute. It is a whole second game —
+/// player fatigue, squad rotation, live substitutions, a different trait pool,
+/// different daily rewards and quests, no auto-pick — and offering all of that
+/// to somebody who has not finished the first one is offering a difficulty they
+/// have no way to judge.
+///
+/// The gate is PRESTIGING ONCE: winning the top league, taking the reset, and
+/// coming back round. That is the point at which a player has seen the whole
+/// loop and is asking for a harder one.
+///
+/// **A save already IN Pro keeps it.** Anyone who turned it on before the gate
+/// existed has been playing it, and taking a difficulty away from a running
+/// career is a worse thing than letting one save keep something it earned by
+/// being early.
+bool proModeUnlocked(Map<String, dynamic>? state) =>
+    prestigeLevel(state) > 0 ||
+    _map(state?['settings'])?['hardMode'] == true;
+
 /// The permanent income multiplier at [level] — the engine's own arithmetic,
 /// exposed rather than restated.
 ///

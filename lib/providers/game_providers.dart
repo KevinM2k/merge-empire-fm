@@ -121,6 +121,14 @@ final hardModeProvider = savePick<bool>(
   (s) => _map(s['settings'])['hardMode'] == true,
 );
 
+/// Whether Pro is offerable at all — see `proModeUnlocked`.
+///
+/// **The spec always routed Pro through PRESTIGE**, and the copy says so:
+/// `prestige.body_pro_hint` is "Or prestige into Pro Mode", and the prestige
+/// card's own Pro route sets `hardMode`. Settings offering it from the first
+/// minute was the port's addition; the gate puts it back.
+final proModeUnlockedProvider = savePick<bool>(proModeUnlocked);
+
 /// Whether a new adventure is on offer — the Champions League won, and not yet
 /// taken. The home dock's Prestige orb exists only while this is true, and the
 /// flag clears inside `performPrestige`, so the orb takes itself away.

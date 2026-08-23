@@ -25,6 +25,10 @@ import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
+/// A save that has been round once, which is what unlocks Pro.
+void _prestiged(Map<String, dynamic> s) =>
+    s['prestige'] = <String, dynamic>{'level': 1};
+
 Future<ProviderContainer> pumpSettings(
   WidgetTester tester,
   SettingsTab tab, {
@@ -387,12 +391,46 @@ void main() {
       // What survives from the old test is why the row is here at all: which
       // mode you are playing is the single biggest thing about a save, so it is
       // shown rather than hidden.
-      await pumpSettings(tester, SettingsTab.match);
+      await pumpSettings(tester, SettingsTab.match, mutate: _prestiged);
       final segment = tester.widget<SettingsSegment>(
         find.byKey(const ValueKey('setting-hardMode')),
       );
       expect(segment.choices.map((c) => c.onTap).any((t) => t != null), isTrue);
       expect(find.text(t('settings.difficulty.hint')), findsOne);
+    });
+
+    testWidgets('BUT IT IS LOCKED UNTIL THE FIRST PRESTIGE', (tester) async {
+      // **The SPEC always routed Pro through prestige, and the copy says so.**
+      // `prestige.body_pro_hint` is "Or prestige into Pro Mode", and the
+      // prestige card's own Pro route is what sets `hardMode`. Settings
+      // offering it from the first minute was the port's addition: a whole
+      // second game — fatigue, rotation, live subs, a different trait pool —
+      // handed to somebody with no way to judge it.
+      //
+      // The row stays VISIBLE and dead rather than disappearing: a control that
+      // is not there answers nothing, and this one has a reason worth reading.
+      await pumpSettings(tester, SettingsTab.match);
+      final segment = tester.widget<SettingsSegment>(
+        find.byKey(const ValueKey('setting-hardMode')),
+      );
+      expect(segment.choices.last.onTap, isNull);
+      expect(find.text(t('prestige.body_pro_hint')), findsOne);
+    });
+
+    testWidgets('and a save ALREADY in Pro keeps it', (tester) async {
+      // Anyone who turned it on before the gate existed has been playing it,
+      // and taking a difficulty away from a running career is worse than
+      // letting one save keep what it got by being early.
+      await pumpSettings(
+        tester,
+        SettingsTab.match,
+        mutate: (s) =>
+            (s['settings'] as Map<String, dynamic>)['hardMode'] = true,
+      );
+      final segment = tester.widget<SettingsSegment>(
+        find.byKey(const ValueKey('setting-hardMode')),
+      );
+      expect(segment.choices.first.onTap, isNotNull, reason: 'stuck in Pro');
     });
 
     testWidgets('and the auto-sell rules are here, with their summary', (
@@ -462,10 +500,12 @@ void main() {
     /// auto-pick, a quieter coach — and exactly one writer: `false`, in
     /// `createDefaultState`. Both choices on this row sat with `onTap: null`.
     group('switching difficulty', () {
+      // Every test here is about the switch itself, which is behind the
+      // prestige gate — see "it is locked until the first prestige".
       testWidgets('THE MODE YOU ARE IN IS NOT A SWITCH', (tester) async {
         // Offering it would put a start-over warning behind a button that
         // changes nothing.
-        await pumpSettings(tester, SettingsTab.match);
+        await pumpSettings(tester, SettingsTab.match, mutate: _prestiged);
         final segment = tester.widget<SettingsSegment>(
           find.byKey(const ValueKey('setting-hardMode')),
         );
@@ -493,7 +533,10 @@ void main() {
         final container = await pumpSettings(
           tester,
           SettingsTab.match,
-          mutate: (s) => s['clubName'] = 'Ember Rovers',
+          mutate: (s) {
+            s['clubName'] = 'Ember Rovers';
+            _prestiged(s);
+          },
         );
         await tester.tap(find.text(t('settings.difficulty.hard')));
         await tester.pumpAndSettle();
@@ -516,7 +559,10 @@ void main() {
         final container = await pumpSettings(
           tester,
           SettingsTab.match,
-          mutate: (s) => s['clubName'] = 'Ember Rovers',
+          mutate: (s) {
+            s['clubName'] = 'Ember Rovers';
+            _prestiged(s);
+          },
         );
         await tester.tap(find.text(t('settings.difficulty.hard')));
         await tester.pumpAndSettle();
@@ -542,7 +588,10 @@ void main() {
         final container = await pumpSettings(
           tester,
           SettingsTab.match,
-          mutate: (s) => s['clubName'] = 'Ember Rovers',
+          mutate: (s) {
+            s['clubName'] = 'Ember Rovers';
+            _prestiged(s);
+          },
         );
         await tester.tap(find.text(t('settings.difficulty.hard')));
         await tester.pumpAndSettle();

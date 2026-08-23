@@ -27,8 +27,6 @@ import 'package:merge_empire_fc/ui/screens/club/asset_ladder_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_stats_panel.dart';
 import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
-import 'package:merge_empire_fc/ui/theme/glass.dart';
-import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -105,26 +103,17 @@ class ClubScreen extends ConsumerWidget {
     // Eager rather than a lazy ListView: seven panels is nothing, and a lazy
     // list leaves the ones below the fold unbuilt — which makes them invisible
     // to anything that wants to reach one.
-    // **GLASS NEEDS SOMETHING TO BLUR, and this page had nothing.** The asset
-    // cards became `GlassPanel`s — the app's one answer to "a thing on the sky"
-    // — and on a flat page colour a `BackdropFilter` has no work to do, so all
-    // that showed was the panel's own tint. Reported exactly that way: not
-    // glass, just a darker gradient.
+    // **NO BACKDROP, AND NO GLASS ON THE CARDS — both reverted.** The cards
+    // went to `GlassPanel` on the reasoning that it is the app's one answer to
+    // "a thing on the sky", and glass on a flat page is a tinted box — so a
+    // sky went behind it to give the blur something to do. Both were rejected
+    // on sight: the backdrop was worse than nothing, and the tint read as a
+    // dark gradient across a card in LIGHT mode, which is the one place it
+    // cannot.
     //
-    // The club's own SKY is what goes behind it, at the tier its ground is —
-    // the same gradient the diorama's horizon uses, so the two screens that
-    // both describe the club describe it under the same light. A gradient
-    // rather than a photograph because that is all the glass needs: something
-    // that VARIES across the panel, so the blur has an edge to soften.
-    return DecoratedBox(
-      key: const ValueKey('club-backdrop'),
-      decoration: BoxDecoration(
-        gradient: skyGradient(
-          brightness: Theme.of(context).brightness,
-          tier: ref.watch(stadiumTierProvider),
-        ),
-      ),
-      child: SingleChildScrollView(
+    // This page is not the sky. A solid card on a solid page is what it was and
+    // what it is again.
+    return SingleChildScrollView(
       key: const ValueKey('club-screen'),
       padding: EdgeInsets.fromLTRB(12, hudClearanceOf(context), 12, 12),
       child: Column(
@@ -156,7 +145,6 @@ class ClubScreen extends ConsumerWidget {
           const SizedBox(height: 14),
           const ClubStatsPanel(),
         ],
-      ),
       ),
     );
   }
@@ -349,16 +337,20 @@ class _AssetPanel extends ConsumerWidget {
       // answered — so the sheet that holds every tier was effectively hidden
       // behind a 64px-tall strip.
       onTap: tile.owned ? () => _openLadder(context) : null,
-      // **GLASS, like the Play screen and the full-time report.** These were
-      // hand-rolled `Container`s with their own colour, radius and border — one
-      // painted box per facility on a page that sits over the same backdrop
-      // every other surface in the game is frosted against. Asked for directly,
-      // and the reason it generalises: `GlassPanel` is the app's one answer to
-      // "a thing on the sky", so a screen that rolls its own is a screen that
-      // will drift the first time the glass is touched.
-      child: GlassPanel(
-        radius: 12,
+      // **A SOLID CARD, and that is a REVERSAL.** These went to `GlassPanel` on
+      // the reasoning that it is the app's one answer to "a thing on the sky" —
+      // true of the Play screen and the full-time report, and not of this page,
+      // which has no sky. The tint read as a dark gradient across a card in
+      // LIGHT mode; a backdrop was added to give the blur something to do and
+      // that was worse. Rejected on sight, twice, and the surface it had before
+      // is the right one.
+      child: Container(
         padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: kit.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kit.border),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

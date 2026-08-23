@@ -320,6 +320,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     final opp = ref.watch(settingPick<bool>('cutawayOpponent', true));
     final fast = ref.watch(settingPick<bool>('matchSpeedFast', false));
     final hard = ref.watch(settingPick<bool>('hardMode', false));
+    final proUnlocked = ref.watch(proModeUnlockedProvider);
     return [
       SettingsCard(
         children: [
@@ -385,7 +386,16 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsRow(
             icon: 'swords',
             label: t('settings.difficulty'),
-            note: t('settings.difficulty.hint'),
+            // **The hint says what it costs; the LOCK says where it comes
+            // from.** `prestige.body_pro_hint` is the shipped line — "Or
+            // prestige into Pro Mode — fatigue, squad rotation and live subs
+            // make it a real test" — and it is the same string the prestige
+            // card prints when it offers the route. The two places that talk
+            // about Pro now say the same sentence, which is what makes the
+            // lock legible rather than arbitrary.
+            note: proUnlocked
+                ? t('settings.difficulty.hint')
+                : t('prestige.body_pro_hint'),
             trailing: SettingsSegment(
               key: const ValueKey('setting-hardMode'),
               choices: [
@@ -400,7 +410,15 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 (
                   label: t('settings.difficulty.hard'),
                   on: hard,
-                  onTap: hard ? null : () => _confirmDifficulty(hard: true),
+                  // **LOCKED UNTIL THE FIRST PRESTIGE.** Pro is a whole second
+                  // game and offering it in the first minute is offering a
+                  // difficulty the player has no way to judge — see
+                  // [proModeUnlocked]. The row stays visible and dead rather
+                  // than disappearing: a control that is not there answers
+                  // nothing, and this one has a reason worth reading.
+                  onTap: hard || !proUnlocked
+                      ? null
+                      : () => _confirmDifficulty(hard: true),
                 ),
               ],
             ),

@@ -5435,12 +5435,23 @@ one everywhere it should not.
       the corners.** All three are the VIEW rather than the physics — the goal
       line is `y = 0` and his hands start there, and `keeperDiveSpan + reach` is
       the post to the centimetre. Judging them wants a render.
-- [ ] **PRO MODE BECOMES AN UNLOCK, earned by PRESTIGING ONCE.** It is playable
-      from the start today; from now on a player has to win the top league and
-      prestige before it opens.
-      **And unlocking it is a BIG DEAL** — a full popup, in the shape of the
-      club-tier unlock, but premium-coloured: the blue the world-class players
-      wear, so it reads as the rare thing it is.
+- [~] **PRO MODE BECOMES AN UNLOCK, earned by PRESTIGING ONCE.** Done, and it
+      turns out to be a RESTORATION rather than a new rule: **the spec always
+      routed Pro through prestige.** `prestige.body_pro_hint` is shipped copy
+      reading "Or prestige into Pro Mode — fatigue, squad rotation and live subs
+      make it a real test", and the prestige card's own Pro route is what sets
+      `hardMode`. Settings offering it from the first minute was the port's
+      addition; the gate puts it back.
+      `proModeUnlocked` is `prestigeLevel > 0` — **or already in Pro**, because
+      anyone who turned it on before the gate existed has been playing it, and
+      taking a difficulty away from a running career is worse than letting one
+      save keep what it got by being early. The row stays VISIBLE and dead
+      rather than disappearing: a control that is not there answers nothing, and
+      the locked note is the same shipped sentence the prestige card prints, so
+      the two places that talk about Pro say the same thing.
+      **Still open: the unlock CELEBRATION.** A full popup when the top league
+      is won, in the club-tier unlock's shape but premium-coloured — the blue
+      the world-class players wear.
 - [ ] **SPLIT THE SHOP INTO TABS.** It is too much on one page. Roughly: special
       offers, match boosts, currency, scout vouchers, customisations — the
       categories can be adjusted, the split is the point.
@@ -5496,6 +5507,10 @@ one everywhere it should not.
       Nothing in the parity harness moved, and the reason is worth writing down:
       the fixtures all sit at `invested: 0`, where progress equals the tier
       exactly, so the change is a no-op at every boundary the JS was dumped at.
+- [ ] **DARK MODE'S MATCH BACKGROUND IS PURPLE, and it should not be.** In dark
+      mode just use the app's own dark background — it works, and matching the
+      home screen is not worth the purple. LIGHT mode cannot do that (it is
+      white), so use the NIGHT sky's blue there instead, which reads well.
 - [ ] **THE UNUSED-CARD COUNT on the Players page should look EMBOSSED** —
       very subtle, pressed into the surface rather than printed on it.
 - [x] **THE CLUB ASSET CARDS ARE NOT GLASS.** Right diagnosis, and it was the

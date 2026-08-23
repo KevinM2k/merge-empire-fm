@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -567,28 +568,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('asset-ladder-$_key')), findsOneWidget);
   });
-  testWidgets('GLASS NEEDS SOMETHING TO BLUR, and this page had nothing', (
+  testWidgets('THE CARDS ARE SOLID, AND THE PAGE HAS NO BACKDROP', (
     tester,
   ) async {
-    // The asset cards became `GlassPanel`s — the app's one answer to "a thing
-    // on the sky" — and on a flat page colour a `BackdropFilter` has no work to
-    // do, so all that showed was the panel's own tint. Reported exactly that
-    // way: not glass, just a darker gradient.
-    //
-    // The club's own SKY goes behind it, at the tier its ground is, so the two
-    // screens that describe the club describe it under the same light. What the
-    // blur needs is something that VARIES across the panel — an edge to soften
-    // — which is why a gradient is enough and a flat colour is not.
+    // **Both are reversals, and both were rejected on sight.** The cards went
+    // to `GlassPanel` on the reasoning that it is the app's one answer to "a
+    // thing on the sky" — true of the Play screen and the full-time report, and
+    // not of this page, which has no sky. The tint read as a dark gradient
+    // across a card in LIGHT mode, which is the one place it cannot; a sky was
+    // then added behind it to give the blur something to do, and that was
+    // worse.
     await pumpClub(tester);
-    final backdrop = find.byKey(const ValueKey('club-backdrop'));
-    expect(backdrop, findsOneWidget);
-    final decoration =
-        tester.widget<DecoratedBox>(backdrop).decoration as BoxDecoration;
-    final gradient = decoration.gradient! as LinearGradient;
+    expect(find.byKey(const ValueKey('club-backdrop')), findsNothing);
     expect(
-      gradient.colors.toSet().length,
-      greaterThan(1),
-      reason: 'a flat backdrop is nothing to blur',
+      find.descendant(
+        of: find.byKey(const ValueKey('club-screen')),
+        matching: find.byType(GlassPanel),
+      ),
+      findsNothing,
+      reason: 'the asset cards are glass again',
     );
   });
 
