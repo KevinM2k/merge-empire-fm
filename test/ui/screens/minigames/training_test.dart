@@ -227,6 +227,36 @@ void main() {
       expect(state.scored, inInclusiveRange(0, Penalty.attempts));
     });
 
+    testWidgets('AND THE FIFTH BALL IS WATCHED, not cut away from', (
+      tester,
+    ) async {
+      // The reward used to replace the pitch on the frame the simulation
+      // resolved, which takes the ball off the screen mid-flight on the one
+      // kick that ends the round. Reported directly.
+      await pumpTraining(tester, saveWith());
+      await tester.tap(find.byKey(const ValueKey('training-penalty')));
+      await tester.pumpAndSettle();
+      for (var i = 0; i < Penalty.attempts; i++) {
+        await swipe(tester, across: 0.3 + 0.1 * i, lift: 0.42);
+      }
+      final state = tester.state<PenaltyScreenState>(
+        find.byType(PenaltyScreen),
+      );
+      // **BANKED AT ONCE, SHOWN LATER.** `swipe` pumps four seconds of flight
+      // and hold, so by the time it returns the dwell has long since run — the
+      // two states are what the test can separate.
+      expect(state.finished, isTrue, reason: 'it banks at once');
+      expect(state.summaryShown, isTrue, reason: 'and the dwell has run');
+      expect(
+        PenaltyScreenState.lastShotDwell.inMilliseconds,
+        greaterThan(800),
+        reason: 'not long enough to watch a ball cross the line',
+      );
+      expect(find.byKey(const ValueKey('penalty-view')), findsNothing);
+      expect(find.byKey(const ValueKey('penalty-reward')), findsOneWidget);
+      await settleSave(tester);
+    });
+
     testWidgets('a swipe past the post goes WIDE, and says which side', (
       tester,
     ) async {

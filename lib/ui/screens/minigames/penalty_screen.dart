@@ -56,6 +56,19 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
   int _coins = 0;
   Timer? _clearFeedback;
 
+  /// **THE LAST BALL HAS TO BE WATCHED.** `_onResult` fires the instant the
+  /// simulation resolves, and swapping the pitch for the reward on that frame
+  /// takes the ball off the screen mid-flight — on the one kick that ends the
+  /// round, which is the one the player most wants to see go in. Reported
+  /// directly. The banking still happens at once; only the VIEW waits.
+  static const Duration lastShotDwell = Duration(milliseconds: 1300);
+  bool _summary = false;
+  Timer? _toSummary;
+
+  /// Whether the round has stopped being a pitch and become a reward. A test
+  /// seam: [finished] is the BANKING and is true a beat earlier.
+  bool get summaryShown => _summary;
+
   /// Test seams.
   int get scored => _taken.where((r) => r.result == PenaltyResult.goal).length;
   bool get finished => _taken.length >= Penalty.attempts;
@@ -97,6 +110,7 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
 
   @override
   void dispose() {
+    _toSummary?.cancel();
     _clearFeedback?.cancel();
     super.dispose();
   }
@@ -124,6 +138,9 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
       );
       setState(() => _coins = coins);
       if (coins > 0) unawaited(sound.play('coin'));
+      _toSummary = Timer(lastShotDwell, () {
+        if (mounted) setState(() => _summary = true);
+      });
     }
   }
 
@@ -176,7 +193,9 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
                   ),
                 ),
               const SizedBox(height: 12),
-              if (!finished) ...[
+              // Not `finished`: that is the BANKING, and it is true from the
+              // moment the fifth ball is struck. See [lastShotDwell].
+              if (!_summary) ...[
                 Text(
                   t('game.penalty.instructions'),
                   textAlign: TextAlign.center,

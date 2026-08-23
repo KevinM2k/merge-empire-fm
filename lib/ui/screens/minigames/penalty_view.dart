@@ -227,7 +227,10 @@ Rect backdropRect(Size view) {
 /// depth that is set by an impact and springs back — critically damped, so it
 /// settles rather than wobbling like jelly, because a goal net is heavy.
 class NetMesh {
-  NetMesh({this.columns = 15, this.rows = 8})
+  // **MORE CORD, both ways.** Fifteen by eight is a net you can see the gaps
+  // in from the spot — reported as wanting more verticals and horizontals. The
+  // mesh is the same solver at any density; what it costs is vertices.
+  NetMesh({this.columns = 24, this.rows = 13})
     : _bulge = List.filled((columns + 1) * (rows + 1), 0),
       _rate = List.filled((columns + 1) * (rows + 1), 0);
 
@@ -656,6 +659,11 @@ typedef KeeperRig = ({
 
   /// His CHEST, and the centre of the reach circle — see `keeperHand`.
   Offset shoulder,
+
+  /// The centre of his reach, and what `keeperHand` lands on — see
+  /// [keeperRigFor]. Not the shoulder: 0.9m off the floor is a set keeper's
+  /// hands, and anchoring the shoulder there buried his boots.
+  Offset chest,
   Offset hip,
 
   /// The pelvis: where each leg actually hangs. See [_keeperHip].
@@ -711,7 +719,14 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   // being held. `slack` is what is left of it, and every limb angle below eases
   // back through it — the two-bone solves are untouched, so no bone changes
   // length and the invariant the rig was rebuilt around still holds.
-  final land = pose.land.clamp(0.0, 1.0);
+  // **ON THE SAME CURVE THE BODY FALLS ON.** `keeperHand.z` drops with the
+  // SQUARE of the landing — gravity — and the limbs were easing out of the dive
+  // on a straight ramp beside it. So he held the full-stretch shape, then let
+  // go of all of it at a constant rate while his body accelerated away
+  // underneath: reported as diving stiff, sticking, and then falling. One
+  // curve, and the pose comes apart as he picks up speed.
+  final falling = pose.land.clamp(0.0, 1.0);
+  final land = falling * falling;
   final slack = 1 - land;
   // Straight DOWN in the world, which in his own frame is back through the
   // lean: a man lying on his side has arms that hang toward the turf, not
@@ -769,7 +784,24 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   //
   // Anchoring a glove on it instead put the whole figure a wingspan out of
   // place and left the reach circle centred on nobody.
-  final anchor = localShoulder;
+  // **HIS CHEST, NOT HIS SHOULDER — WHICH IS WHY HIS BOOTS WERE UNDERGROUND.**
+  //
+  // `keeperHand` is the centre of his reach and the physics puts it at
+  // [keeperStandZ], 0.9m. Landing his SHOULDER there made 0.9m his shoulder
+  // height, and the drawn man is `_keeperTorso + _keeperLeg` = 1.52m from
+  // shoulder to boot — so his feet finished better than half a metre under the
+  // turf, and a figure whose feet are under the ground projects as one standing
+  // well in front of it. Reported as the keeper being about a metre off his
+  // line.
+  //
+  // 0.9m is a set keeper's HANDS, which is what the constant has always
+  // measured; the point on him that is 0.9m off the floor is his chest. Landing
+  // that on it puts his shoulders at 1.52m, his boots on the goal line and the
+  // reach circle exactly where the save test decided it — a gathered ball is
+  // still pinned to his gloves, which is the invariant the rig was rebuilt
+  // around.
+  final localChest = Offset(0, legLen - keeperStandZ * unit);
+  final anchor = localChest;
 
   final c = math.cos(lean);
   final sn = math.sin(lean);
@@ -789,6 +821,7 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
     leadElbow: at(localLeadElbow),
     trailElbow: at(localTrailElbow),
     shoulder: at(localShoulder),
+    chest: at(localChest),
     hip: at(localHip),
     leftHip: at(localHipL),
     rightHip: at(localHipR),
@@ -1013,15 +1046,21 @@ TakerRig? takerRigFor(double t, Size view) {
 
   // Angles from straight down, so a swing is a rotation about the hip; reach is
   // how far the boot is from the hip, which is what a folded knee shortens.
+  // **THE KNEE FOLDS ON THE WAY THROUGH, on BOTH legs.** Only the kicking leg
+  // shortened as it came forward and only on half the cycle, so the two legs
+  // swept past each other at full length on opposite sides of the pelvis —
+  // which from the front is a scissor rather than a stride, and was reported as
+  // the run-up crossing its own legs. A leg swinging forward bends; a leg
+  // taking weight does not.
   final (kickAngle, kickReach) = striking <= 0
-      ? (cycle * 0.36, 0.96 - 0.14 * math.max(0.0, cycle))
+      ? (cycle * 0.36, 0.96 - 0.22 * math.max(0.0, cycle))
       : swing <= 0
       ? (_mix(0.36, -0.5, cock), _mix(0.96, 0.7, cock))
       : (_mix(-0.5, 1.12, through), _mix(0.7, 1.0, math.min(1, swing / 0.7)));
   // The plant leg takes his weight, so it is nearly straight and stays there.
   final (plantAngle, plantReach) = striking > 0
       ? (-0.16, 0.98)
-      : (-cycle * 0.34, 0.96 + 0.02 * math.max(0.0, cycle));
+      : (-cycle * 0.34, 0.96 - 0.22 * math.max(0.0, -cycle));
 
   // The hip is wherever it has to be for the PLANT boot to be on the turf —
   // and the plant boot hangs off the pelvis, not off the centreline, so the

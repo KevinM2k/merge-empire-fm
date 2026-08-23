@@ -6403,13 +6403,31 @@ that is not off the extension is the bug, not the symptom.
       column was bigger because the gutter was `Padding` INSIDE each `Expanded`
       rather than between them — and the tile is an `AspectRatio`, so it was
       taller too.
-- [ ] **Penalty training: the keeper is about a metre off his line.**
-- [ ] **The net wants more verticals and horizontals.**
-- [ ] **The run-up crosses its own legs**, which reads as a broken rig.
-- [ ] **The keeper dives stiff and then falls.** He wants to fall under
-      something like physics rather than snapping between two poses.
-- [ ] **The last penalty gives no time to see the goal go in** before the
-      summary takes the screen.
+- [x] **Penalty training: the keeper is about a metre off his line.** The rig
+      landed his SHOULDER on `keeperHand`, which the physics puts at
+      `keeperStandZ` = 0.9m — so 0.9m became his shoulder height, and the drawn
+      man is 1.52m shoulder to boot. His feet finished better than half a metre
+      under the turf, and a figure whose feet are underground projects as one
+      standing in front of the line. 0.9m is a set keeper's HANDS: his CHEST
+      lands on it now, which puts his shoulders at 1.52m, his boots on the line,
+      and the reach circle exactly where the save was decided.
+- [x] **The net wants more verticals and horizontals.** 15x8 to 24x13. The
+      mesh is the same solver at any density; the test that named a cell by
+      number now finds the deepest vertex instead, because that was a test of
+      the tuning rather than of the bulge.
+- [x] **The run-up crosses its own legs**, which reads as a broken rig. Only
+      the kicking leg shortened as it came forward, and only on half the cycle,
+      so the two legs swept past each other at full length on opposite sides of
+      the pelvis. A leg swinging forward bends; a leg taking weight does not.
+- [x] **The keeper dives stiff and then falls.** His body's height already
+      dropped with the square of the landing — gravity — while the LIMBS eased
+      out of the dive on a straight ramp beside it, so he held the shape and
+      then let go of all of it at a constant rate while his body accelerated
+      away underneath. One curve.
+- [x] **The last penalty gives no time to see the goal go in** before the
+      summary takes the screen. The reward replaced the pitch on the frame the
+      simulation resolved. The banking still happens at once — it is the VIEW
+      that waits, 1.3s, on the one kick that ends the round.
 
 ## M0 — foundation and save bridge ✅
 

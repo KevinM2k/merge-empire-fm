@@ -107,20 +107,45 @@ void main() {
       // whatever its name says: `_keeperGotIt` tests against it and then allows
       // another `keeperReach` on top. So it is his chest, and that is what has
       // to land on it — which also puts a caught ball where a keeper holds one.
+      //
+      // **HIS CHEST, and it used to be his shoulder.** 0.9m off the floor is a
+      // set keeper's HANDS, so making it his shoulder height left the drawn man
+      // — 1.52m from shoulder to boot — with his feet better than half a metre
+      // under the turf, which projects as a keeper standing a metre in front of
+      // his own line. Reported from the drill.
       for (final pose in poses) {
         final rig = keeperRigFor(pose, view);
         final truth = project(pose.hand, view);
         expect(rig, isNotNull);
         expect(truth, isNotNull);
         expect(
-          (rig!.shoulder - truth!).distance,
+          (rig!.chest - truth!).distance,
           lessThan(0.5),
           reason:
               'side ${pose.side} dive ${pose.dive}: he is '
-              '${(rig.shoulder - truth).distance.toStringAsFixed(1)}px from the '
+              '${(rig.chest - truth).distance.toStringAsFixed(1)}px from the '
               'point that decided the save',
         );
       }
+    });
+
+    test('AND STANDING, HIS BOOTS ARE ON THE GOAL LINE', () {
+      // The whole of the report: a figure whose feet are under the ground
+      // projects as one standing well in front of it.
+      final rig = keeperRigFor(
+        KeeperPose(hand: Vec3(0, -0.25, keeperStandZ), dive: 0, side: 0),
+        view,
+      );
+      final ground = project(Vec3(0, -0.25, 0), view);
+      expect(rig, isNotNull);
+      expect(ground, isNotNull);
+      expect(
+        (rig!.feet.dy - ground!.dy).abs(),
+        lessThan(2),
+        reason:
+            'his boots are ${(rig.feet.dy - ground.dy).toStringAsFixed(1)}px '
+            'off the turf',
+      );
     });
 
     test('HIS ARM IS A BODY\'S ARM, not the reach circle\'s radius', () {
@@ -950,7 +975,17 @@ void main() {
       // is for, and it still has it.
       final before = mesh.sideVertex(1, 2, 3);
       mesh.strike(Vec3(1, goalDepth, 1), 28);
-      expect(mesh.vertex(7, 4).y, greaterThan(goalDepth));
+      // **The vertex NEAREST the strike, not a magic index.** The mesh's
+      // density is a tuning number — it went from 15x8 to 24x13 when the net
+      // was reported as too open — and a test that names a cell by number is a
+      // test of the tuning rather than of the bulge.
+      var deepest = 0.0;
+      for (var col = 0; col <= mesh.columns; col++) {
+        for (var row = 0; row <= mesh.rows; row++) {
+          deepest = math.max(deepest, mesh.vertex(col, row).y);
+        }
+      }
+      expect(deepest, greaterThan(goalDepth));
       final after = mesh.sideVertex(1, 2, 3);
       expect(after.x, before.x);
       expect(after.y, before.y);
