@@ -6286,7 +6286,26 @@ of buttons that error.
 - [ ] `authService` (662), `playGamesService` (155), `nativeAuthPlugin`
 - [ ] `cloudSaveService` (498), `firestoreRest` (334), `firestoreRestAuth` (83)
 - [ ] `leaderboardService` (1,831)
-- [ ] `feedbackService` (195) — dormant; the Settings button is hidden
+- [x] `feedbackService` (195) — **PORTED, and still dormant, which is the spec's
+      own arrangement rather than a gap.** It needs no account and no Firebase
+      SDK: the Cloud Function records the message and emails it on, writes
+      nothing to the client's own collections, and treats the Authorization
+      header as optional — so a signed-out player is a first-class caller and
+      this is the one thing in the M4 block not blocked on the rest of it.
+      `engine/feedback_message.dart` and `services/feedback_service.dart`, with
+      the JS's queue: a transport failure is stored and retried, a rejection the
+      server made ON PURPOSE surfaces instead (retrying a 400 means being
+      refused at every boot forever), and the queue is capped at five so a
+      player with no signal cannot fill their storage.
+      **The Settings button stays hidden and no sheet was built.** The JS hides
+      it deliberately — its `SettingsScreen` comment says the feature is intact
+      and what it waits for is "deploy submitFeedback and make it publicly
+      callable". A sheet here would post player text at an endpoint that may not
+      answer. The thirteen `feedback.*` strings stay unreachable in BOTH
+      codebases until that deploy.
+      What IS wired is the drain, at boot and on resume — the JS's own two call
+      sites — so a message queued by the release that unhides the button is not
+      stranded by the one before it.
 - [x] `weatherService` (157) — **DONE, and this row was stale too.**
       `services/weather_service.dart` is the Open-Meteo reader and it is WIRED:
       `providers/game_host.dart` polls it and hands it `DateTime.now().timeZoneName`,

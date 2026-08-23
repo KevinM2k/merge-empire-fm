@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
+import 'package:merge_empire_fc/services/feedback_service.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/services/weather_service.dart';
@@ -57,6 +58,12 @@ class _GameHostState extends ConsumerState<GameHost>
     // Start listening BEFORE the first reading is asked for, so an offline boot
     // does not burn the weather backoff on a request that cannot land.
     unawaited(network.start());
+    // **The feedback queue, drained at boot — the JS's own line.** It can only
+    // hold anything once the Send Feedback button exists, and that button is
+    // deliberately hidden in the spec too (see `services/feedback_service.dart`);
+    // wiring the drain now is what stops a queued message being stranded by the
+    // release that unhides it.
+    unawaited(flushFeedbackQueue());
     _refreshWeather();
     // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
     // whether looking is worth a call, so most of these cost nothing.
@@ -144,6 +151,7 @@ class _GameHostState extends ConsumerState<GameHost>
         // app is away; one arriving while the player is looking at the game is
         // the game interrupting itself.
         unawaited(clearNotices());
+        unawaited(flushFeedbackQueue());
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
