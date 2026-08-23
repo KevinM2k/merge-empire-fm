@@ -160,6 +160,32 @@ void main() {
       }
     });
 
+    testWidgets('AND A PARK SELLS NO PERIMETER SPACE', (tester) async {
+      // Nobody advertises at a ground with no stand — the fence is the boundary
+      // down there. Same tier the stand arrives at, deliberately: the two come
+      // together and tier 2 reads as the first real GROUND.
+      expect(firstHoardingTier, firstStandTier);
+      for (final tier in [0, 1]) {
+        await pumpScene(tester, tier: tier);
+        expect(
+          find.byKey(const ValueKey('pitch-hoardings')),
+          findsNothing,
+          reason: 'tier $tier is advertising',
+        );
+      }
+      await pumpScene(tester, tier: 2);
+      expect(find.byKey(const ValueKey('pitch-hoardings')), findsOneWidget);
+    });
+
+    test('and the boards carry the GAME\'S OWN NAME, not a t() key', () {
+      // A brand mark on a prop, the same class of thing as a badge — the
+      // display name from `CFBundleDisplayName` and `android:label`. Which is
+      // just as well: the catalogues are generated from the JS and no new key
+      // can be added from this repo.
+      expect(hoardingText, contains('MERGE EMPIRE'));
+      expect(hoardingText, hoardingText.toUpperCase());
+    });
+
     test('and the support grows with you', () {
       // 12 fans a row at tier 1, 33 at tier 8.
       expect(fansPerRow(1), 12);

@@ -5315,6 +5315,23 @@ one everywhere it should not.
       `MainAxisSize.min`, but a tight slot stretches the container round it into
       a lozenge four times the length of the word in it. Centred in its slot, so
       the slot reserves the room and the pill is the size of its own contents.
+- [x] **No advertising boards at tier 1 or 2, and boards that look like ADVERTS
+      after that.** The hoardings arrive with the stand, at `firstHoardingTier`
+      — which is `firstStandTier`, deliberately, so the two come together and
+      tier 2 reads as the first real ground rather than as a park with sponsors.
+      Nobody sells perimeter space at a ground with no stand; the fence is the
+      boundary down there.
+      The pale panel carries the game's own name in small, spaced, dark type —
+      **and it is small ON PURPOSE, because the board is in the DISTANCE**: big
+      enough to read as lettering, too small to read as a sentence, which is how
+      a hoarding behind a pitch looks from the touchline. The club-coloured
+      panel stays plain: a second thing on it would compete with the colour that
+      is the point of that board.
+      **Not a `t()` key**, and it cannot be: the catalogues are generated from
+      the JS and no new key can be added from here. It is the DISPLAY NAME —
+      `CFBundleDisplayName`, `android:label`, the window title — so it is a
+      brand mark on a prop, the same class of thing as a badge, rather than copy
+      a locale would translate.
 - [ ] **THE FULL-TIME TABLE SHOULD BE US, NOT THE DIVISION.** Only the team
       above and the team below are worth showing — nobody cares about the rest,
       they care about themselves. And the move should read like the trait

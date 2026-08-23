@@ -781,6 +781,11 @@ class PitchScene extends StatelessWidget {
                 // Derived the same way the tufts are — segment over speed, scaled
                 // by the depth band — so the boards and the grass at their feet
                 // can only ever agree.
+                // **NO ADVERTISING AT A PARK.** Nobody sells perimeter space at
+                // a ground with no stand — the fence is the boundary down
+                // there. Same tier the stand arrives at, so the two come
+                // together and tier 2 reads as the first real GROUND.
+                if (tier >= firstHoardingTier)
                 Positioned(
                   left: 0,
                   right: 0,
@@ -1681,6 +1686,21 @@ class _StandPainter extends CustomPainter {
 
 /// The ad boards on the horizon: panels in the division's colour alternating
 /// with white, under a sheen that catches the light along their top edge.
+/// **What a perimeter board says, and why it is not a `t()` key.**
+///
+/// It is the game's own DISPLAY NAME — the one in `CFBundleDisplayName`,
+/// `android:label` and the window title — so it is a brand mark on a prop, the
+/// same class of thing as a badge, and not copy that a locale would translate.
+/// Which is just as well: the catalogues are generated from the JS and no new
+/// key can be added from this repo.
+const String hoardingText = 'MERGE EMPIRE FOOTBALL MANAGER';
+
+/// **The lowest tier with advertising.** A park has a fence and a hedge; nobody
+/// sells perimeter space at a ground with no stand. Same boundary as
+/// [firstStandTier] and deliberately so — the two arrive together, which is what
+/// makes tier 2 read as the first real GROUND.
+const int firstHoardingTier = firstStandTier;
+
 class _HoardingSegment extends StatelessWidget {
   const _HoardingSegment({required this.kitColor});
 
@@ -1699,6 +1719,34 @@ class _HoardingPainter extends CustomPainter {
 
   final Color kitColor;
 
+  /// The lettering, laid out once and reused: a `TextPainter` per repaint on a
+  /// strip that repaints with the scroll is the one cost this band cannot take.
+  static final Map<double, ui.Paragraph> _cache = {};
+
+  ui.Paragraph _lettering(double width) => _cache.putIfAbsent(width, () {
+    // **SMALL, and that is the point — it is in the DISTANCE.** Big enough to
+    // read as lettering on a board, too small to read as a sentence, which is
+    // exactly how an advertising hoarding behind a pitch looks from the
+    // touchline. Letter-spaced, because a squashed word at this size is a
+    // smudge and a spaced one is type.
+    final builder = ui.ParagraphBuilder(
+      ui.ParagraphStyle(
+        textAlign: TextAlign.center,
+        fontSize: 5.5,
+        fontWeight: FontWeight.w900,
+      ),
+    )
+      ..pushStyle(
+        ui.TextStyle(
+          color: Colors.black.withValues(alpha: 0.55),
+          letterSpacing: 0.7,
+          height: 1,
+        ),
+      )
+      ..addText(hoardingText);
+    return builder.build()..layout(ui.ParagraphConstraints(width: width));
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final half = size.width / 2;
@@ -1710,6 +1758,17 @@ class _HoardingPainter extends CustomPainter {
       Rect.fromLTWH(half, 0, size.width - half, size.height),
       Paint()..color = const Color(0xFFE6E6E6),
     );
+
+    // The advert, on the PALE panel only. On the club-coloured one it would be
+    // a second thing competing with the colour that is the point of that board.
+    final text = _lettering(size.width - half);
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(half, 0, size.width - half, size.height));
+    canvas.drawParagraph(
+      text,
+      Offset(half, (size.height - text.height) / 2),
+    );
+    canvas.restore();
     final all = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawRect(
       all,
