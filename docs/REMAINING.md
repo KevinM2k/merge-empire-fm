@@ -5309,10 +5309,24 @@ one everywhere it should not.
       border closes properly. Its hairline was a square `Border.all` inside a
       group clipped to 9, so the outer two corners hung out of the clip. They
       are the LAST segment's, so they take the group's own radius.
-- [ ] **The special offers have a weird yellow top.** Check how
-      `../merge-empire-fc` does it.
-- [ ] **Use the glass/blur from the Play screen on the club assets** — and in
-      most places, now that it exists.
+- [x] **The special offers have a weird yellow top.** They did: a featured tile
+      was a three-stop VERTICAL gradient starting on the feature colour, so the
+      top half faded out of a yellow band that stopped dead in the middle of the
+      card. **The spec has no such wash** — `.shop-hero.is-featured` is the
+      ordinary surface plus a diagonal SHEEN and a corner ribbon, and what marks
+      a featured tile out is the border and the glow, both of which stay.
+      **The sheen's SWEEP is not ported and that is deliberate**: in the JS it
+      travels across every six seconds, and a perpetual animation on a scrolling
+      shelf is a repeating controller per tile. The spec turns the sweep off
+      under reduced motion anyway, so the parked highlight is the version that
+      is always right.
+- [~] **Use the glass/blur from the Play screen on the club assets.** The cards
+      are `GlassPanel` now rather than hand-rolled `Container`s with their own
+      colour, radius and border — which is the right move on its own, because
+      `GlassPanel` is the app's one answer to "a thing on the sky" and a screen
+      that rolls its own will drift the first time the glass is touched.
+      **But it does not LOOK like glass, and the reason is above**: the Club
+      page has no backdrop to blur. See the row in this section.
 - [x] **The Customise button is mostly cut off on the home page** — and **the
       menu button is no longer on the right**. **ONE layout, two reports.** The
       dock rail had two `Spacer`s between three `Flexible`s all at flex 1, so
@@ -5387,6 +5401,18 @@ one everywhere it should not.
       `CFBundleDisplayName`, `android:label`, the window title — so it is a
       brand mark on a prop, the same class of thing as a badge, rather than copy
       a locale would translate.
+- [ ] **THE CLUB ASSET CARDS ARE NOT GLASS.** They read as a darker gradient,
+      not a blur — because there is nothing behind them to blur. The page is a
+      flat colour, so `BackdropFilter` has no work to do and all that shows is
+      the panel's own tint. Give the page something worth frosting against, even
+      if it is only a gradient.
+- [ ] **THE BUY-PLAYER SOUND PLAYS CONTINUOUSLY and never stops.**
+- [ ] **PLAYER NAMES: keep the first name, randomise the SURNAME.** Everyone
+      shares a surname at the moment. A bank per POSITION, since the surname is
+      tied to the position the definition belongs to.
+- [ ] **More perspective again on the 2D pitch**, less vertical space, and the
+      band needs to be as WIDE as the other boxes on the screen — there is a lot
+      of room around it.
 - [ ] **THE FULL-TIME TABLE SHOULD BE US, NOT THE DIVISION.** Only the team
       above and the team below are worth showing — nobody cares about the rest,
       they care about themselves. And the move should read like the trait

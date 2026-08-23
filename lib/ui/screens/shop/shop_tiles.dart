@@ -107,17 +107,24 @@ class ShopTile extends StatelessWidget {
       child: Container(
         key: ValueKey('shop-tile-$tileKey'),
         padding: const EdgeInsets.fromLTRB(9, 12, 9, 10),
+        // **THE YELLOW TOP HAS GONE.** A featured tile was a three-stop
+        // VERTICAL gradient starting on the feature colour, so the top half
+        // faded out of a yellow band that stopped dead in the middle of the
+        // card — reported as "the special offers have a weird yellow top", with
+        // the spec named. The spec has no such wash: `.shop-hero.is-featured`
+        // is the ordinary surface plus a diagonal SHEEN and a corner ribbon,
+        // and what marks it out is the border and the glow, both of which stay.
+        //
+        // **The sheen's SWEEP is not ported.** In the JS it travels across the
+        // tile every six seconds; here it is parked where the sweep pauses.
+        // A perpetual animation on a scrolling shelf is a repeating controller
+        // per tile, and the spec turns the sweep off under reduced motion
+        // anyway — so the static highlight is the version that is always right.
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: featured ? Alignment.topCenter : Alignment.topLeft,
-            end: featured ? Alignment.bottomCenter : Alignment.bottomRight,
-            colors: featured
-                ? [
-                    _featureInk.withValues(alpha: 0.20),
-                    kit.surface2,
-                    kit.surface,
-                  ]
-                : [kit.surface2, kit.surface],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [kit.surface2, kit.surface],
           ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
@@ -134,6 +141,22 @@ class ShopTile extends StatelessWidget {
             ),
           ],
         ),
+        foregroundDecoration: featured
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  // 105 degrees in the CSS, which is a band leaning right.
+                  begin: const Alignment(-1, -0.6),
+                  end: const Alignment(1, 0.6),
+                  colors: [
+                    Colors.white.withValues(alpha: 0),
+                    Colors.white.withValues(alpha: 0.14),
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                  stops: const [0.38, 0.48, 0.58],
+                ),
+              )
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

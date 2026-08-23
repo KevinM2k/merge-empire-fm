@@ -27,6 +27,7 @@ import 'package:merge_empire_fc/ui/screens/club/asset_ladder_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_stats_panel.dart';
 import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -327,13 +328,16 @@ class _AssetPanel extends ConsumerWidget {
       // answered — so the sheet that holds every tier was effectively hidden
       // behind a 64px-tall strip.
       onTap: tile.owned ? () => _openLadder(context) : null,
-      child: Container(
+      // **GLASS, like the Play screen and the full-time report.** These were
+      // hand-rolled `Container`s with their own colour, radius and border — one
+      // painted box per facility on a page that sits over the same backdrop
+      // every other surface in the game is frosted against. Asked for directly,
+      // and the reason it generalises: `GlassPanel` is the app's one answer to
+      // "a thing on the sky", so a screen that rolls its own is a screen that
+      // will drift the first time the glass is touched.
+      child: GlassPanel(
+        radius: 12,
         padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(
-          color: kit.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kit.border),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
