@@ -208,6 +208,40 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
 });
 
 /// Everyone not in the eleven.
+/// The bench, ordered FOR A SLOT.
+///
+/// **A bench in grid order is a bench in no order at all.** It came off the grid
+/// cells as they happened to be laid out, so the man who plays where the hole is
+/// could be anywhere in it — reported when the subs panel comes up, which is the
+/// one moment a manager is reading the bench against the clock.
+///
+/// Two keys, in this order: whether he plays THERE, then how good he is. So the
+/// natural replacements lead, best first, and the rest follow in the same order
+/// — which is what "best matches first, then the rest in best order" asks for.
+/// A null slot position is a bench nobody is filling a hole from, and it sorts
+/// on rating alone.
+///
+/// Fitness is deliberately NOT a key. It is null in casual play, and in Pro a
+/// tired specialist is still the man for the slot — the panel already draws the
+/// bar, and the decision is the manager's.
+final benchForSlotProvider =
+    Provider.family<List<({String instanceId, CardView card})>, String?>((
+      ref,
+      slotPosition,
+    ) {
+      final bench = [...ref.watch(benchProvider)];
+      bench.sort((a, b) {
+        if (slotPosition != null) {
+          final natural =
+              (a.card.position == slotPosition ? 0 : 1) -
+              (b.card.position == slotPosition ? 0 : 1);
+          if (natural != 0) return natural;
+        }
+        return b.card.rating.compareTo(a.card.rating);
+      });
+      return bench;
+    });
+
 final benchProvider = savePick<List<({String instanceId, CardView card})>>((s) {
   final lineup = lineupFor(s);
   final picked = {

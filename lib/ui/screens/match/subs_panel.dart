@@ -358,7 +358,18 @@ class _BenchSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final bench = ref.watch(benchProvider);
+    // **ORDERED FOR THE HOLE, not by where the card sits in the grid.** The men
+    // who play there lead, best first, and the rest follow in the same order —
+    // see [benchForSlotProvider]. A bench in grid order is a bench in no order
+    // at all, and this is the one moment a manager reads it against a clock.
+    final slotPosition = slotId == null
+        ? null
+        : ref
+              .watch(pitchSlotsProvider)
+              .where((slot) => slot.slotId == slotId)
+              .map((slot) => slot.slotPosition)
+              .firstOrNull;
+    final bench = ref.watch(benchForSlotProvider(slotPosition));
     final state = ref.watch(gameProvider).state;
     final light = Theme.of(context).brightness == Brightness.light;
 

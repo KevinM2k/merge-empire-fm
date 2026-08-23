@@ -6285,8 +6285,12 @@ that is not off the extension is the bug, not the symptom.
       ninety minutes read as a paragraph.
 - [ ] **Light mode on the Play screen still does not really work.** The dark
       takeover landed the INK; this is the surface under it.
-- [ ] **The subs list should lead with the BEST matches** — the best players for
-      the slot first, then the rest in that order.
+- [x] **The subs list should lead with the BEST matches** — the best players for
+      the slot first, then the rest in that order. It came off the grid cells in
+      whatever order they happened to be laid out, so the man who plays where
+      the hole is could be anywhere in it. Two keys now — plays there, then
+      rating — and fitness is deliberately not one of them: it is null in casual
+      play, and in Pro a tired specialist is still the man for the slot.
 - [ ] **The players and the ball on the perspective pitch look flat.** They want
       a little depth of their own — the plane is in perspective and the things
       standing on it are not.
