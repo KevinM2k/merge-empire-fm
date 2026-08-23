@@ -6365,11 +6365,19 @@ Written on arrival from here.
       hat is previewed over their hair in their colours. Skin and hair colour
       keep their swatch: a colour IS the thing, and a head drawn to show one is
       a worse look at it.
-- [ ] **THE CURRENCY COLOURS ARE A RULE, and the port breaks it.** Gems blue,
-      ads orange, coins yellow, real money green — everywhere, on every control.
-      A gem price is currently drawn in yellow. `screens.css`'s `.store-3d--gem`
-      / `--cash` pair is the shipped version of exactly this rule and it is
-      already half-ported in `store_button.dart`.
+- [x] **THE CURRENCY COLOURS ARE A RULE, and the port breaks it.** Partly: the
+      four palettes are already in `store_button.dart`, byte for byte off
+      `screens.css` — cash `#43a047`, gem `#1e88c7`, coin `#d8a01a`, ad
+      `#ffd54a` with dark ink — and every shop tile passes the right tone. What
+      broke the rule was every button that ISN'T a `StoreButton`: the Club's
+      build-and-upgrade control was a Material `ElevatedButton` in the club's
+      accent, for a thing bought with coins, with none of the three-dimensional
+      face. It is the coin tone now.
+- [ ] **The rest of the app's buttons.** `pyramid_editor_sheet`, the kit picker
+      and the club stats panel still use Material buttons. None of them spends a
+      currency, so the tone is not the question — the `.store-3d` FACE is, and
+      whether a control that spends nothing should have it at all is worth
+      deciding rather than assuming.
 - [ ] **And EVERY button wants the same 3D treatment** — the face, the mid, the
       deep and the flat edge bar under it that `.store-3d` draws. The gem tiles
       have it; nothing else does.

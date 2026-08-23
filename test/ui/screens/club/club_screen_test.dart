@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
@@ -157,10 +158,10 @@ void main() {
       await pumpClub(tester, coins: 0);
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<StoreButton>(
               find.byKey(const ValueKey('club-action-$_key')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
       // The BUTTON says how far short, rather than only going grey: "you
@@ -181,10 +182,10 @@ void main() {
       await pumpClub(tester, coins: 100000, players: 0);
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<StoreButton>(
               find.byKey(const ValueKey('club-action-$_key')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
       expect(
@@ -215,10 +216,10 @@ void main() {
       expect(tile.maxed, isTrue);
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<StoreButton>(
               find.byKey(const ValueKey('club-action-$_key')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
     });
@@ -590,4 +591,18 @@ void main() {
     );
   });
 
+
+  testWidgets('THE BUY BUTTON IS THE CURRENCY\'S COLOUR', (tester) async {
+    // Coins yellow, gems blue, ads orange, real money green — stated as a rule
+    // and true everywhere the shop draws a price. A facility is bought with
+    // COINS and this was a flat `ElevatedButton` with none of the
+    // three-dimensional face the `.store-3d` treatment gives every other price.
+    await pumpClub(tester, coins: 999999);
+    expect(
+      tester
+          .widget<StoreButton>(find.byKey(const ValueKey('club-action-$_key')))
+          .tone,
+      StoreTone.coin,
+    );
+  });
 }

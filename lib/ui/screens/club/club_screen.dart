@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_stats_panel.dart';
 import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
@@ -473,25 +474,18 @@ class _AssetPanel extends ConsumerWidget {
               const SizedBox(height: 7),
             ],
             const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                key: ValueKey('club-action-${tile.key}'),
-                onPressed: !buildable ? null : () => _buy(context, ref, game),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  textStyle: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                child: Text(
-                  _actionLabel(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                ),
-              ),
+            // **THE CURRENCY IS THE COLOUR, and this one was Material's
+            // default.** Coins yellow, gems blue, ads orange, real money green
+            // — stated as a rule and true everywhere the shop draws a price.
+            // A facility is bought with COINS, and this was a flat
+            // `ElevatedButton` with none of the three-dimensional face the
+            // `.store-3d` treatment gives every other price in the game.
+            StoreButton(
+              key: ValueKey('club-action-${tile.key}'),
+              tone: tile.maxed ? StoreTone.neutral : StoreTone.coin,
+              small: true,
+              label: _actionLabel(),
+              onTap: !buildable ? null : () => _buy(context, ref, game),
             ),
           ],
         ),
