@@ -25,7 +25,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/data/club_assets.dart' show maxAssetTier;
 
 /// Light mode is day, dark mode is night. The one decision the rest of the file
@@ -93,32 +92,31 @@ LinearGradient skyGradient({
   stops: _skyStops,
 );
 
-/// What a MATCH stands under, which is not always a sky.
+/// What a MATCH stands under: **the Play screen's own sky, in BOTH themes.**
 ///
-/// **Dark mode gets the app's own background, flat.** The match screen took the
-/// diorama's sky so that kicking off was not arriving somewhere else — right in
-/// principle, and in dark mode the night sky's own third stop is a violet
-/// (`#6A4A8C`) that reads as purple behind a page of glass panels. Reported
-/// exactly that way: the dark theme's background already works, and matching
-/// the home screen is not worth the purple.
+/// **This is the spec's answer and two attempts at improving on it were
+/// wrong.** `.match-page` in `match-page.css` says it outright — the ground
+/// "used to be a hardcoded near-black in both, which made light mode a black
+/// hole in an otherwise light app. It is the PLAY SCREEN'S SKY at the same
+/// stadium tier, so the match opens under the sky the diorama you just left was
+/// drawn under."
 ///
-/// **Light mode still gets a sky, and it gets the NIGHT one.** A flat backdrop
-/// there is white, which is the thing the sky was introduced to fix — pale
-/// panels on a pale page, and the whole match goes flat. The night sky is the
-/// one that gives a bright theme something to sit on, and it was the answer
-/// asked for.
+/// The purple that got reported was never the sky's fault. The spec's next
+/// paragraph is the half the port had missed: "there is NO light-mode flip, and
+/// that is the whole point. Every panel is the scorecard's glass in both
+/// themes, because the ground is the sky." The port's panels flipped with the
+/// theme, so in dark mode they were thin enough to let the night sky's violet
+/// through and in light mode they were pale panes on a bright sky. Pinning the
+/// glass is what makes the sky right — see `GlassPanel.darkGlass`.
 Decoration matchBackdrop({
   required BuildContext context,
   required int tier,
-}) {
-  final kit = Theme.of(context).extension<KitTheme>()!;
-  if (Theme.of(context).brightness == Brightness.dark) {
-    return BoxDecoration(color: kit.bg);
-  }
-  return BoxDecoration(
-    gradient: skyGradient(brightness: Brightness.dark, tier: tier),
-  );
-}
+}) => BoxDecoration(
+  gradient: skyGradient(
+    brightness: Theme.of(context).brightness,
+    tier: tier,
+  ),
+);
 
 /// The colour the distance hazes TO, which is the sky at the horizon rather than
 /// the sky overhead.

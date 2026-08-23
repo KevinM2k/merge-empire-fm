@@ -1995,55 +1995,55 @@ void main() {
   });
 
   group('WHAT A MATCH STANDS UNDER', () {
-    // **Dark mode gets the app's own background, flat.** The match took the
-    // diorama's sky so that kicking off was not arriving somewhere else —
-    // right in principle, and in dark mode the night sky's third stop is a
-    // violet that reads as purple behind a page of glass panels. Reported
-    // exactly that way.
-    testWidgets('dark mode is flat, and it is the theme\'s own', (tester) async {
-      late Decoration dark;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildAppTheme(kitId: '#4caf50', light: false),
-          home: Builder(
-            builder: (context) {
-              dark = matchBackdrop(context: context, tier: 3);
-              return const SizedBox.shrink();
-            },
-          ),
-        ),
-      );
-      final box = dark as BoxDecoration;
-      expect(box.gradient, isNull, reason: 'still a sky');
-      expect(box.color, isNotNull);
-    });
-
-    testWidgets('and LIGHT mode still gets one, because white is the bug', (
+    // **The spec's answer, and two attempts at improving on it were wrong.**
+    // `.match-page` says the ground is the Play screen's sky at the same
+    // stadium tier, in BOTH themes — "it used to be a hardcoded near-black in
+    // both, which made light mode a black hole in an otherwise light app".
+    //
+    // The purple that got reported was never the sky. The spec's next
+    // paragraph is the half the port had missed: "there is NO light-mode flip
+    // — every panel is the scorecard's glass in both themes, because the ground
+    // is the sky." The port's panels flipped with the theme, so in dark mode
+    // they were thin enough to let the night sky's violet through.
+    testWidgets('it is the SKY, at this tier, whichever theme is on', (
       tester,
     ) async {
-      // A flat backdrop there is white, which is what the sky was introduced to
-      // fix: pale panels on a pale page, and the whole match goes flat.
-      late Decoration light;
-      await tester.pumpWidget(
-        MaterialApp(
-          key: const ValueKey('light'),
-          theme: buildAppTheme(kitId: '#4caf50', light: true),
-          home: Builder(
-            builder: (context) {
-              light = matchBackdrop(context: context, tier: 3);
-              return const SizedBox.shrink();
-            },
+      for (final light in [true, false]) {
+        late Decoration under;
+        await tester.pumpWidget(
+          MaterialApp(
+            key: ValueKey(light),
+            theme: buildAppTheme(kitId: '#4caf50', light: light),
+            home: Builder(
+              builder: (context) {
+                under = matchBackdrop(context: context, tier: 3);
+                return const SizedBox.shrink();
+              },
+            ),
           ),
-        ),
-      );
-      final box = light as BoxDecoration;
-      expect(box.gradient, isNotNull, reason: 'a white page under a white card');
-      // The NIGHT sky, whichever theme is on — that is the one that gives a
-      // bright page something to sit on.
-      expect(
-        (box.gradient! as LinearGradient).colors,
-        skyColours(brightness: Brightness.dark, tier: 3),
-      );
+        );
+        final gradient = (under as BoxDecoration).gradient! as LinearGradient;
+        expect(
+          gradient.colors,
+          skyColours(
+            brightness: light ? Brightness.light : Brightness.dark,
+            tier: 3,
+          ),
+          reason: 'light: $light',
+        );
+      }
+    });
+
+    testWidgets('AND EVERY PANEL ON IT IS DARK GLASS, in both', (tester) async {
+      // Which is what makes the sky right: the panels are the material, the sky
+      // is the ground, and a panel that flips with the theme lets the ground
+      // through.
+      await pumpMatch(tester, matchResult());
+      final panels = tester.widgetList<GlassPanel>(find.byType(GlassPanel));
+      expect(panels, isNotEmpty);
+      for (final panel in panels) {
+        expect(panel.darkGlass, isTrue);
+      }
     });
   });
 

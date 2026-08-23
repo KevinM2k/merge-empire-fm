@@ -1201,7 +1201,18 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // height cannot, and on a short phone it pushed the
                   // commentary off the bottom. Loose, so it never takes MORE
                   // than the cap below.
+                  // **FLEX ZERO, so the COMMENTARY gets everything else.** A
+                  // `Flexible` at flex 1 beside the feed's `Expanded` split the
+                  // free space in half and then took only its cap out of that
+                  // half — the surplus is not redistributed, so a third of the
+                  // screen was simply dead between the pitch and the feed.
+                  // Reported as the commentary not using the room it has.
+                  //
+                  // At flex 0 it is laid out in the inflexible pass: the cap
+                  // below decides its height and nothing else, and the feed's
+                  // `Expanded` takes the whole remainder.
                   Flexible(
+                    flex: 0,
                     child: Padding(
                     // **HALF THE AIR.** `matchGap` above AND below put sixteen
                     // points of nothing round a band that is already the one
@@ -1371,6 +1382,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                         matchGap,
                       ),
                       child: GlassPanel(
+                        darkGlass: true,
                         density: GlassDensity.deep,
                         padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
                         child: Column(
@@ -1883,6 +1895,7 @@ class _TacticStrip extends StatelessWidget {
           // which is what made it read as a bar laid over the page rather than
           // as part of it.
           GlassPanel(
+            darkGlass: true,
             radius: 10,
             padding: EdgeInsets.zero,
             child: SizedBox(
@@ -2119,6 +2132,7 @@ class _Scoreboard extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onStats,
         child: GlassPanel(
+        darkGlass: true,
         density: GlassDensity.deep,
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
         child: Column(

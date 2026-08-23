@@ -228,29 +228,12 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
         const SizedBox(height: 12),
 
         if (proMode) ...[const SizedBox(height: 10), _Fitness(card: card)],
-        _CareerStats(card: card, def: def),
-
-        if (_map(card.sponsor) case final sponsor?) ...[
-          const SizedBox(height: 10),
-          _SponsorLine(sponsor: sponsor),
-        ],
-
+        // **THE TRAIT COMES BEFORE CAREER STATS**, which is a reordering asked
+        // for directly and is right for the same reason the block wears the
+        // accent: it is the one thing on this sheet a player can CHANGE, and
+        // the only place on it they can spend a coin. Career stats are a record
+        // of what has happened; the trait is what happens next.
         const SizedBox(height: 10),
-        // **NO MARKET VALUE BOX.** Selling is not on this sheet, so a price with
-        // no button under it is a figure the player cannot act on — it belongs
-        // with the Sell, on the Players tab's own sheet.
-        if (onLoanToUs)
-          _LoaneeBlock(
-            card: card,
-            onSendBack: () => _sendBack(context, ref, card),
-          )
-        else if (outOnLoan)
-          _RecallBlock(card: card, onRecall: () => _recall(context, ref, card)),
-        const SizedBox(height: 10),
-        // The trait block, which is the third thing this sheet is FOR and was
-        // missing entirely: `rollTrait`, `applyTrait` and `traitRollCost` were
-        // all ported with nothing able to spend a coin on them.
-        //
         // Whose player they are decides what it says. A loanee's trait would go
         // back with them; one out on loan cannot take the field, so the roll
         // would buy nothing this season.
@@ -276,6 +259,25 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
             hold: hold,
             onHold: (h) => setState(() => _hold = h),
           ),
+        const SizedBox(height: 10),
+        _CareerStats(card: card, def: def),
+
+        if (_map(card.sponsor) case final sponsor?) ...[
+          const SizedBox(height: 10),
+          _SponsorLine(sponsor: sponsor),
+        ],
+
+        const SizedBox(height: 10),
+        // **NO MARKET VALUE BOX.** Selling is not on this sheet, so a price with
+        // no button under it is a figure the player cannot act on — it belongs
+        // with the Sell, on the Players tab's own sheet.
+        if (onLoanToUs)
+          _LoaneeBlock(
+            card: card,
+            onSendBack: () => _sendBack(context, ref, card),
+          )
+        else if (outOnLoan)
+          _RecallBlock(card: card, onRecall: () => _recall(context, ref, card)),
       ],
     );
   }
@@ -1131,6 +1133,31 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
     super.dispose();
   }
 
+  /// What this trait is worth on THIS card, in points.
+  ///
+  /// **BY DIFFERENCE.** `getCardStats` is the documented single source of truth
+  /// for what a card is worth and it already folds the trait in, so the honest
+  /// figure is that number minus the same card with the trait taken off —
+  /// rather than recomposing the bonus fields here and drifting from the sim
+  /// the first time either changes.
+  List<({String label, int value})> _effectsOf(
+    CardInstance? card,
+    Map<String, dynamic>? trait,
+    Map<String, dynamic> ratios,
+  ) {
+    if (card == null || trait == null) return const [];
+    final bare = CardInstance(<String, dynamic>{...card.raw}..remove('trait'));
+    final with_ = getCardStats(card, definitionRatios: ratios);
+    final without = getCardStats(bare, definitionRatios: ratios);
+    return [
+      for (final row in <({String label, int value})>[
+        (label: 'ATK', value: with_.attack - without.attack),
+        (label: 'DEF', value: with_.defence - without.defence),
+      ])
+        if (row.value != 0) row,
+    ];
+  }
+
   Future<void> _roll(List<Trait> pool) async {
     if (_spinning) return;
     // Read BEFORE the write, or there is nothing left to hold.
@@ -1161,7 +1188,13 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
         curve: Curves.easeOutCubic,
       ),
       _levels.animateToItem(
-        3 * _revolutions + (roll.level - 1).clamp(0, 2),
+        // **THE SAME DISTANCE, not the same number of revolutions.** The level
+        // reel has three rows to the name reel's pool, so `3 * _revolutions`
+        // travelled a fraction as far and barely moved — it read as one reel
+        // spinning beside a number that changed. Matching the ROW COUNT is what
+        // makes both sides visibly roll, which is what was asked for.
+        3 * _revolutions * (pool.length / 3).ceil() +
+            (roll.level - 1).clamp(0, 2),
         duration: spin + const Duration(milliseconds: 120),
         curve: Curves.easeOutCubic,
       ),
@@ -1206,6 +1239,8 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
         : _map(card?.raw['trait']);
 
     final held = getTrait(trait?['id'] as String?);
+    final ratios =
+        _map(ref.watch(gameProvider).state?['definitionRatios']) ?? const {};
 
     return Container(
       key: const ValueKey('detail-trait'),
@@ -1286,7 +1321,11 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               ],
             )
           else
-            _TraitBadge(trait: held, instance: trait!),
+            _TraitBadge(
+              trait: held,
+              instance: trait!,
+              effects: _effectsOf(card, trait, ratios),
+            ),
           const SizedBox(height: 12),
           SizedBox(
             height: _rowHeight * 3,
@@ -1480,11 +1519,69 @@ class _TraitDisc extends StatelessWidget {
 /// that was missing entirely — **what it DOES**. A player looking at "Finisher
 /// II" has been told a name and nothing else; the sentence under it is the
 /// reason to have spent the coins.
+/// What a trait is worth, **IN POINTS**.
+///
+/// **Percentages were the first answer and they were wrong.** A trait reads as
+/// `ATK +228%` because the bonus is a multiplier on a small base — true, and
+/// unreadable: reported straight back as too complicated. What a manager wants
+/// is the number on the card moving, so this is the card's stats WITH the trait
+/// minus the same card without it. Two integers, and no arithmetic to do.
+///
+/// Computed by DIFFERENCE rather than from the bonus fields, because
+/// `getCardStats` is the documented single source of truth for what a card is
+/// worth — reproducing its composition here is how the sheet and the sim come
+/// to disagree.
+class _TraitEffects extends StatelessWidget {
+  const _TraitEffects({required this.rows});
+
+  final List<({String label, int value})> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Wrap(
+      key: const ValueKey('detail-trait-effects'),
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        for (final row in rows)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: kit.accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Text(
+                // The sign is always shown: a trait that COSTS something reads
+                // as a cost rather than as a smaller gift.
+                '${row.label} ${row.value >= 0 ? '+' : '−'}${row.value.abs()}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.4,
+                  color: kit.accentBright,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _TraitBadge extends StatelessWidget {
-  const _TraitBadge({required this.trait, required this.instance});
+  const _TraitBadge({
+    required this.trait,
+    required this.instance,
+    required this.effects,
+  });
 
   final Trait trait;
   final Map<String, dynamic> instance;
+
+  /// What the trait is worth on THIS card, in points — see [_TraitEffects].
+  final List<({String label, int value})> effects;
 
   @override
   Widget build(BuildContext context) {
@@ -1529,6 +1626,19 @@ class _TraitBadge extends StatelessWidget {
                   color: kit.textMuted,
                 ),
               ),
+              // **AND WHAT IT IS ACTUALLY WORTH.** The block named the trait
+              // and described it in prose — "a big, pure boost to attack" — and
+              // said nowhere how big. This is the one gamble on the sheet and
+              // the numbers are what a player is buying, so they belong under
+              // the sentence that promises them. Asked for directly.
+              //
+              // **No new copy, and there could not be**: the catalogues are
+              // generated and `ATK`/`DEF` are the same bare labels the match
+              // stat rows use. A row that is worth nothing is simply not drawn.
+              if (effects.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _TraitEffects(rows: effects),
+              ],
             ],
           ),
         ),

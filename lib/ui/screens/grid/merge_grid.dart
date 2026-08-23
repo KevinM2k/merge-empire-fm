@@ -788,14 +788,33 @@ class _SlotTarget extends StatelessWidget {
         // first numbered box is always the next card's home — so the number is
         // also how many players you have, plus one.
         //
-        // Faint on purpose: it is a label on the background, and the moment it
-        // competes with the cards next to it the grid reads as a numbered form.
+        // **EMBOSSED, not printed.** Faint ink on a faint square is still ink
+        // ON something; a number PRESSED INTO the surface is part of it, and
+        // the moment this competes with the cards next to it the grid reads as
+        // a numbered form. Asked for directly, and "very subtle" is the whole
+        // brief.
+        //
+        // The trick is the one a real emboss uses and nothing else: a light
+        // edge one pixel BELOW the glyph and a dark one one pixel above, with
+        // the glyph itself the same colour as the square it sits in. There is
+        // no ink at all — what you see is the two shadows, so it cannot
+        // out-shout a card however bright the theme goes.
         child: Text(
           '${cell.index + 1}',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: kit.textMuted.withValues(alpha: 0.22),
+            color: kit.surface,
+            shadows: [
+              Shadow(
+                offset: const Offset(0, 1),
+                color: Colors.white.withValues(alpha: 0.07),
+              ),
+              Shadow(
+                offset: const Offset(0, -1),
+                color: Colors.black.withValues(alpha: 0.28),
+              ),
+            ],
           ),
         ),
       ),

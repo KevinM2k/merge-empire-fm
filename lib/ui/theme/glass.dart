@@ -263,6 +263,7 @@ class GlassPanel extends StatelessWidget {
     this.padding = EdgeInsets.zero,
     this.density = GlassDensity.panel,
     this.blur = true,
+    this.darkGlass,
   });
 
   final Widget child;
@@ -275,12 +276,29 @@ class GlassPanel extends StatelessWidget {
   /// Off for anything small or numerous — the tint stands alone by design.
   final bool blur;
 
+  /// Force the DARK glass stops whatever the theme is.
+  ///
+  /// For a page that takes the whole screen and paints its own ground — the
+  /// live match and the full-time report, which the spec keeps on one material
+  /// precisely so the two cannot drift. Null follows the theme, which is what
+  /// every panel inside the app's ordinary chrome wants.
+  final bool? darkGlass;
+
   bool get _deep => density == GlassDensity.deep;
 
   @override
   Widget build(BuildContext context) {
     final shape = BorderRadius.circular(radius);
-    final night = nightSceneOf(context);
+    // **A TAKEOVER PAGE PINS ITS OWN MATERIAL, in BOTH themes.** The spec's
+    // `.match-page` says so in as many words — "there is NO light-mode flip,
+    // and that is the whole point. Every panel is the scorecard's glass in both
+    // themes, because the ground is the sky and the sky is a daylight blue at
+    // the low tiers whatever the theme."
+    //
+    // The port flipped these with the theme, so a match in light mode was pale
+    // panes on a bright sky and in dark mode was thin panes with the sky's own
+    // violet coming through them. Both read as reported.
+    final night = darkGlass ?? nightSceneOf(context);
     final tints = switch ((night, density)) {
       (true, GlassDensity.chip) => const [_darkChipA, _darkChipB],
       (true, GlassDensity.panel) => const [_darkA, _darkB],

@@ -243,6 +243,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                         Expanded(
                           child: hasQuests
                               ? GlassPanel(
+                                  darkGlass: true,
                                   padding: const EdgeInsets.fromLTRB(
                                     12,
                                     10,
@@ -283,6 +284,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // bottom, on its own.
                     if (_base + _quests > 0 || canDouble)
                       GlassPanel(
+                        darkGlass: true,
                         key: const ValueKey('summary-payout-card'),
                         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                         child: Column(
@@ -402,6 +404,7 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassPanel(
+      darkGlass: true,
       density: GlassDensity.deep,
       // **TIGHTER TOP AND BOTTOM, and the dugout cam is what it buys.** This
       // card is the tallest thing on the report and the two things under it —
