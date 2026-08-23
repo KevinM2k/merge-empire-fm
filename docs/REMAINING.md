@@ -5667,10 +5667,23 @@ one everywhere it should not.
       comes out narrower than the bottom — because the sign is precisely the
       thing nobody can read off a number. Checked by putting the old sign back:
       it fails.
-- [ ] **A manager-customisation pack in the shop should show what is IN it.**
-      Tapping one opens a popup that says nothing about the contents; it should
-      list every item with a picture, and TICK the ones already unlocked so a
-      player can see what they would actually be getting.
+- [x] **A manager-customisation pack in the shop should show what is IN it.**
+      The confirm could only SUMMARISE — "two Headwear, one Accessory" is a
+      count of things the player cannot see, and the tile with the picture on it
+      is behind the card. `SpendOffer` gained a `body`, and a pack fills it with
+      one row per item and a TICK against what is already owned.
+      **Named from the catalogue, not the id**: every wardrobe item has a
+      `customise.<axis>.<id>` entry, so the list needs no new copy — just as
+      well, since the catalogues are generated and no new key can be added here.
+      **A glyph rather than a drawing of the item**, and that is a measured
+      trade rather than a shortcut: drawing one means a `ManagerWalker` rig per
+      row, and the customiser's own note measures twenty of those at 60ms
+      against 18ms for an empty grid. This card slides up over a shop, and a
+      confirm that lands twelve frames late is the "customise comes up laggy"
+      defect wearing a different hat.
+      **A tick, not a lock.** What the player is deciding is what the pack still
+      has to GIVE them, so the ones they have are the marked ones; a padlock on
+      the rest would read as the pack being unavailable.
 
 ---
 

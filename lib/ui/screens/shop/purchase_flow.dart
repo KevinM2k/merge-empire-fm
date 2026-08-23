@@ -58,6 +58,15 @@ typedef SpendOffer = ({
   SpendCurrency currency,
   int cost,
 
+  /// Anything the offer wants to SHOW rather than say.
+  ///
+  /// A subtitle can only summarise — "two Headwear, one Accessory" is a count
+  /// of things the player cannot see, and the tile with the picture on it is
+  /// behind this card. A look pack puts its actual contents here, one row per
+  /// item with a tick against the ones already owned, which is what "it should
+  /// list all of the items that come in it" asks for.
+  Widget? body,
+
   /// Runs the engine. Returns null when it went through, or a reason when the
   /// engine refused for something other than money.
   String? Function() buy,
@@ -130,6 +139,10 @@ class _ConfirmCard extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: kit.textMuted, fontSize: 13, height: 1.5),
             ),
+          ],
+          if (offer.body case final body?) ...[
+            const SizedBox(height: 12),
+            body,
           ],
           const SizedBox(height: 16),
           Row(

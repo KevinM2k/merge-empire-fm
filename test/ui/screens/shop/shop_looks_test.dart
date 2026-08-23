@@ -244,4 +244,61 @@ void main() {
       expect(find.text(t('shop.owned')), findsNWidgets(lookPacks.length + 1));
     });
   });
+  group('A PACK SAYS WHAT IS IN IT', () {
+    // The tile answered "what does this cost" and the confirm summarised — "two
+    // Headwear, one Accessory" is a count of things the player cannot see, and
+    // the tile with the picture on it is behind the card. Asked for directly:
+    // list every item, and TICK the ones already unlocked.
+    testWidgets('every item is named, from the catalogue', (tester) async {
+      await pumpShopWidget(tester, (_) {}, LooksSection.new);
+      final pack = lookPacks.first;
+      await tester.tap(
+        find.byKey(ValueKey('shop-tile-pack-${pack.id}'), skipOffstage: false),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(ValueKey('pack-contents-${pack.id}')), findsOneWidget);
+      for (final item in pack.items) {
+        final axis = item.split(':').first;
+        final id = item.split(':').last;
+        final named = t('customise.$axis.$id');
+        expect(
+          find.text(
+            named.startsWith('customise.')
+                ? id[0].toUpperCase() + id.substring(1)
+                : named,
+          ),
+          findsOneWidget,
+          reason: item,
+        );
+      }
+    });
+
+    testWidgets('AND WHAT IS ALREADY OWNED IS TICKED', (tester) async {
+      // A tick rather than a lock: what the player is deciding is what this
+      // pack still has to GIVE them, so the ones they have are the marked ones.
+      // A padlock on the rest would read as the pack being unavailable.
+      final pack = lookPacks.first;
+      await pumpShopWidget(
+        tester,
+        // `club.lookItems` is where an owned cosmetic lives — `gemUnlocks` is
+        // the permanent-purchase ledger and a different question.
+        (s) => (s['club'] as Map<String, dynamic>)['lookItems'] = <dynamic>[
+          pack.items.first,
+        ],
+        LooksSection.new,
+      );
+      await tester.tap(
+        find.byKey(ValueKey('shop-tile-pack-${pack.id}'), skipOffstage: false),
+      );
+      await tester.pumpAndSettle();
+
+      final ticks = find.descendant(
+        of: find.byKey(ValueKey('pack-contents-${pack.id}')),
+        matching: find.byIcon(Icons.check),
+      );
+      expect(ticks, findsOneWidget, reason: 'one owned, one tick');
+    });
+  });
+
 }

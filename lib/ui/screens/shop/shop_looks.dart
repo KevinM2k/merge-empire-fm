@@ -148,6 +148,13 @@ class LooksSection extends ConsumerWidget {
                             // summary needs no new copy: two Headwear, one
                             // Accessory, one Celebration.
                             subtitle: _packContents(tile.packId),
+                            // **AND THE ITEMS THEMSELVES, one row each, with a
+                            // TICK against what is already owned.** The
+                            // subtitle can only summarise — "two Headwear, one
+                            // Accessory" is a count of things the player cannot
+                            // see, and the tile with the picture on it is
+                            // behind this card. Asked for directly.
+                            body: _PackContents(packId: tile.packId),
                             glyph: 'shirt',
                             currency: SpendCurrency.gems,
                             cost: tile.tile.cost,
@@ -165,6 +172,95 @@ class LooksSection extends ConsumerWidget {
     );
   }
 }
+
+/// The pack's contents, item by item, with what is already owned ticked.
+///
+/// **Named from the catalogue, not from the id.** Every wardrobe item has a
+/// `customise.<axis>.<id>` entry — `customise.hat.sunhat` is "Sun Hat" in all
+/// ten languages — so the list needs no new copy, which is just as well: the
+/// catalogues are generated and no new key can be added from this repo.
+///
+/// The GLYPH is the axis's own line-art icon rather than a drawing of the item.
+/// Drawing one means a `ManagerWalker` rig per row, and the customiser's own
+/// note measures twenty of those at 60ms against 18ms for an empty grid — this
+/// card slides up over a shop, and a confirm that lands twelve frames late is
+/// the "customise comes up laggy" defect wearing a different hat.
+class _PackContents extends ConsumerWidget {
+  const _PackContents({required this.packId});
+
+  final String packId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final pack = getLookPack(packId);
+    if (pack == null) return const SizedBox.shrink();
+    final state = ref.watch(gameProvider).state;
+    final owned = ownedLookItems(state);
+    final all = hasStyleVault(state);
+
+    return Column(
+      key: ValueKey('pack-contents-$packId'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final item in pack.items)
+          () {
+            final axis = item.split(':').first;
+            final id = item.split(':').last;
+            final has = all || owned.contains(item);
+            final named = t('customise.$axis.$id');
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  GameIcon(
+                    lookAxisIcon[axis] ?? 'shirt',
+                    size: 14,
+                    color: has ? kit.accentBright : kit.textMuted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      // The wardrobe is ids-first and only the axes with real
+                      // names carry strings; the rest are the id tidied, which
+                      // is the fallback the customiser's chips use too.
+                      named.startsWith('customise.')
+                          ? id[0].toUpperCase() + id.substring(1)
+                          : named,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: has ? FontWeight.w800 : FontWeight.w600,
+                        color: has ? kit.accentBright : null,
+                      ),
+                    ),
+                  ),
+                  // **A TICK, not a lock.** What the player is deciding is what
+                  // this pack still has to give them, so the ones they have are
+                  // the marked ones — a padlock on the rest would read as the
+                  // pack being unavailable.
+                  if (has)
+                    Icon(Icons.check, size: 15, color: kit.accentBright),
+                ],
+              ),
+            );
+          }(),
+      ],
+    );
+  }
+}
+
+/// The line-art glyph for each wardrobe axis, for [_PackContents].
+const Map<String, String> lookAxisIcon = {
+  'hat': 'shirt',
+  'face': 'star',
+  'color': 'star',
+  'emote': 'megaphone',
+  'outfit': 'shirt',
+  'beard': 'star',
+  'style': 'shirt',
+};
 
 /// What a look pack actually contains, by part.
 ///
