@@ -86,11 +86,13 @@ const String doubleMatchPlacement = 'double_match';
 Future<void> showMatchSummary(
   BuildContext context,
   Map<String, dynamic> result,
-) => Navigator.of(context).push<void>(
-  MaterialPageRoute(
-    fullscreenDialog: true,
-    builder: (_) => MatchSummaryScreen(result: result),
-  ),
+) => Navigator.of(context).push<void>(matchSummaryRoute(result));
+
+/// The summary as a ROUTE, so a caller can REPLACE the match with it rather
+/// than push it afterwards — see `play_button.dart`.
+Route<void> matchSummaryRoute(Map<String, dynamic> result) => MaterialPageRoute(
+  fullscreenDialog: true,
+  builder: (_) => MatchSummaryScreen(result: result),
 );
 
 /// **OUR goals and THEIRS, off the keys the engine actually writes.**

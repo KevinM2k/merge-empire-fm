@@ -6259,11 +6259,14 @@ Written on arrival from here.
       real-money ones have always been dead behind `paidDisabledReason` — but
       "not the same as they were" is a change, and a change is this session's.
 - [ ] **The margins between the items on the play-match popup page.**
-- [ ] **The home page STILL shows after a match before the end-match page.**
-      Second report. The first fix made the match route leave instantly, which
-      removes the 300ms slide — but the summary is pushed AFTER that route has
-      gone, so the home page is behind the summary's own entrance. The fix is
-      for the summary to replace the match rather than follow it.
+- [x] **The home page STILL shows after a match before the end-match page.**
+      Second report, and the first fix only shortened it: making the match's
+      exit instant removes the 300ms slide, but the summary was still PUSHED
+      after that route had gone, so the Play tab was behind the summary's own
+      entrance. `pushReplacement` now slides the summary in OVER the match and
+      takes the match with it — the tab is never revealed at all. The awaited
+      push resolves at the replacement rather than at the end, so what
+      `_play` waits on is the summary's own future, captured as it goes up.
 - [ ] **The "watch to keep 2x coins" box on the end-of-match screen wants more
       padding at the bottom.**
 - [ ] **Privacy options does not link to the right place**, the way it does in

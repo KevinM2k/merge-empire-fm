@@ -98,6 +98,7 @@ class MatchScreen extends ConsumerStatefulWidget {
     super.key,
     required this.result,
     this.onFinished,
+    this.onLeave,
     this.fast = false,
   });
 
@@ -106,6 +107,16 @@ class MatchScreen extends ConsumerStatefulWidget {
 
   /// Called once, at full time.
   final void Function(Map<String, dynamic> result)? onFinished;
+
+  /// How this screen LEAVES, given its own context.
+  ///
+  /// **Because popping is not how it should leave.** Pop removes the match and
+  /// only then can the summary be pushed, so the home page is on screen behind
+  /// the summary's own entrance — reported twice as the home page showing
+  /// before the end-of-match page. The caller replaces this route with the
+  /// summary instead, which slides in over the match and takes it with it.
+  /// Null pops, which is what a test that mounts this screen alone wants.
+  final void Function(BuildContext context)? onLeave;
 
   final bool fast;
 
@@ -809,6 +820,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (!mounted) return;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) return;
+    final leave = widget.onLeave;
+    if (leave != null) {
+      leave(context);
+      return;
+    }
     Navigator.of(context).maybePop();
   }
 
