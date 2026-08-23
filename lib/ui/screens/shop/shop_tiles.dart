@@ -232,22 +232,66 @@ class ShopTile extends StatelessWidget {
                 ),
               )
             : null,
-        child: Column(
+        child: featured
+            // **A ROW, NOT A COLUMN, once it is full width.** Stacked, an offer
+            // is a 62px glyph over a title over two lines over a badge over a
+            // full-width button — a card half the height of the shelf, three
+            // times over. Reported as still too big after the ribbon landed.
+            // The spec lays every hero out exactly this way: art, words, price,
+            // left to right (`justify-content:space-between`).
+            ? Row(
+                children: [
+                  if (glyph != null) ...[
+                    SizedBox(width: 46, child: Center(child: glyph)),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
+                            height: 1.2,
+                            color: ink,
+                          ),
+                        ),
+                        for (final line in lines)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: DefaultTextStyle.merge(
+                              textAlign: TextAlign.left,
+                              child: line,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  StoreButton(
+                    key: ValueKey('shop-buy-$tileKey'),
+                    tone: tone,
+                    label: price,
+                    stretch: false,
+                    onTap: onBuy,
+                  ),
+                ],
+              )
+            : Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (glyph != null)
-              SizedBox(
-                height: featured ? 62 : 46,
-                child: Center(child: glyph),
-              ),
+              SizedBox(height: 46, child: Center(child: glyph)),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: featured ? 16 : 13.5,
+              style: const TextStyle(
+                fontSize: 13.5,
                 fontWeight: FontWeight.w900,
                 height: 1.2,
-                color: featured ? ink : null,
               ),
             ),
             for (final line in lines)

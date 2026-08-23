@@ -75,19 +75,29 @@ void main() {
   ) async {
     final flat = [for (final tab in shopTabs) ...tab.sections];
     expect(flat.toSet(), shopSectionOrder.toSet());
-    // One deliberate exception to the enum's order: the free shelf sits at the
-    // BOTTOM of the boosts tab. It is the same kind of thing as the rows above
-    // it — something that makes your next match go better — and the only thing
-    // separating it is that it costs a video, so it goes after the ones a coin
-    // buys rather than ahead of them.
+    // Every tab but one follows the enum.
     for (final tab in shopTabs) {
+      if (tab.sections.length < 2) continue;
+      if (tab.titleKey == 'shop.section.boosts') continue;
       final order = [
         for (final id in shopSectionOrder)
-          if (tab.sections.contains(id) && id != ShopSectionId.free) id,
-        if (tab.sections.contains(ShopSectionId.free)) ShopSectionId.free,
+          if (tab.sections.contains(id)) id,
       ];
       expect(tab.sections, order, reason: tab.titleKey);
     }
+
+    // **AND THE BOOSTS TAB IS SPELLED OUT**, because it is the one place the
+    // order is an argument rather than the enum's. Coin-bought rows first; then
+    // the FREE shelf — a quick-fire match and a lucky boot, which is what a
+    // non-payer opens the shop for; then the voucher ladder, which is eight
+    // tiles and would bury both of them. The free shelf was at the bottom of
+    // this tab and was asked to come up.
+    expect(
+      shopTabs
+          .firstWhere((t) => t.titleKey == 'shop.section.boosts')
+          .sections,
+      [ShopSectionId.boosts, ShopSectionId.free, ShopSectionId.vouchers],
+    );
   });
 
   testWidgets('the gems section survives owning the style vault', (

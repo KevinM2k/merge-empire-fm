@@ -116,7 +116,10 @@ class LooksSection extends ConsumerWidget {
               ),
             ),
           ShopGrid(
-            columns: 3,
+            // **TWO TO A ROW, not three.** Asked for directly: a pack is a
+            // face with a name under it, and at a third of the width the face
+            // is a thumbnail and the name ellipsises.
+            columns: 2,
             children: [
               for (final tile in tiles)
                 _LookTile(

@@ -161,7 +161,8 @@ class _ShopTabs extends StatelessWidget {
     final rule = kit.textMuted.withValues(alpha: 0.35);
     const radius = BorderRadius.vertical(top: Radius.circular(12));
     return SizedBox(
-      height: 56,
+      // Two lines of label, because one of them needs two — see below.
+      height: 64,
       child: Row(
         key: const ValueKey('shop-tabs'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -227,13 +228,21 @@ class _ShopTabs extends StatelessWidget {
                         const SizedBox(height: 3),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 3),
+                          // **IT WRAPS RATHER THAN ELLIPSISING.** "Manager
+                          // Customisations" is a quarter of the strip's width
+                          // and came out as "Manager Custo…" — reported, and a
+                          // cut-off label on a tab is worse than a shorter one.
+                          // Shorter copy is not available: the catalogues are
+                          // generated from the JS and no `t()` key can be added
+                          // from this repo. So the room comes from the strip.
                           child: Text(
                             t(tab.titleKey),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 9.5,
+                              height: 1.15,
                               fontWeight: FontWeight.w800,
                               color: i == selected
                                   ? Theme.of(context).colorScheme.onSurface

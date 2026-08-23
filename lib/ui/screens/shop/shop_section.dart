@@ -88,8 +88,11 @@ const List<ShopTab> shopTabs = [
     ink: Color(0xFF66BB6A),
     sections: [
       ShopSectionId.boosts,
-      ShopSectionId.vouchers,
+      // **THE FREE SHELF ABOVE THE VOUCHERS**, asked for directly. The ladder
+      // is eight tiles and it was between the boosts and the two things a
+      // non-payer opens the shop for.
       ShopSectionId.free,
+      ShopSectionId.vouchers,
     ],
   ),
   (

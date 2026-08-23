@@ -6412,15 +6412,24 @@ that is not off the extension is the bug, not the symptom.
 
 ### The shop and Pro mode
 
-- [ ] **Manager packs want TWO to a row, not three.**
-- [ ] **"Manager customisations" ellipsises in the tab.** The label is too big
-      for the strip and cutting it off is worse than whatever it costs to fit.
-      No new `t()` key can be added from this repo, so the room has to come from
-      the strip rather than from shorter copy.
-- [ ] **Quick-fire matches and the free lucky boot go ABOVE the scout
-      vouchers.** They were moved into the boosts tab on 30 Aug; this is the
-      order inside it.
-- [ ] **The special offers are better but still too big.**
+- [x] **Manager packs want TWO to a row, not three.** A pack is a face with a
+      name under it; at a third of the width the face is a thumbnail and the
+      name ellipsises.
+- [x] **"Manager customisations" ellipsises in the tab.** It wraps to two lines
+      now and the strip is eight points taller. Shorter copy was not on offer —
+      the catalogues are generated from the JS — so the room came from the
+      strip.
+- [x] **Quick-fire matches and the free lucky boot go ABOVE the scout
+      vouchers.** The free shelf went to the BOTTOM of the boosts tab on 30 Aug,
+      on the argument that a video costs more than a coin — and the ladder is
+      eight tiles, so that buried the two things a non-payer opens the shop for
+      behind all of them. The tab's order is spelled out in its test now rather
+      than derived, because it is an argument and not the enum.
+- [x] **The special offers are better but still too big.** Stacked, an offer
+      was a 62px glyph over a title over two lines over a badge over a
+      full-width button — half the shelf's height, three times over. They are a
+      ROW now: art, words, price, left to right, which is how the spec lays
+      every hero out (`justify-content:space-between`).
 
 - [x] **The special offers look bad.** Read against `ShopScreen.js`, and two
       things the spec has were missing. `.shop-hero__ribbon` is the loudest
