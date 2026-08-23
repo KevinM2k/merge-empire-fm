@@ -6231,10 +6231,12 @@ that is not off the extension is the bug, not the symptom.
       `coachBubbleTextStyle` are now the only two styles either uses. What still
       differs on Play is the label's CONTENT — it names the tactic he would
       play, which the other tabs have no fixture for.
-- [ ] **And on the match screen he wants the OTHER shape.** Reported there as
-      wanting to come up from the bottom, dim everything slightly, and go away
-      on a tap anywhere — which is what `coachScrim` and the floating coach
-      already do, so this is a call site rather than a fourth popup shape.
+- [x] **And on the match screen he wants the OTHER shape.** It was a third
+      head-and-bubble of its own, laid across the width of the screen at a fixed
+      height, with no scrim and no way out but waiting. `CoachCorner` with
+      `startOpen`, because this one is a REACTION — something just happened on
+      the pitch — and a reaction that waits to be tapped is not one. Everything
+      else is the shape every other screen uses.
 - [x] **On Fixtures he pops wherever there is room.** He was a portrait and two
       lines of grey text at the TOP of the list — the JS puts them on a panel
       beside it and a DOM panel became a header row here — so the same man

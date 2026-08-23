@@ -57,13 +57,11 @@ import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart' show Gesture, Mood;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/shell/coach_floating.dart' show CoachCorner;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
-import 'package:merge_empire_fc/ui/popups/coach_card.dart'
-    show CoachBubbleTail, coachPortrait, coachTailSize, coachTailTipX;
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart' show PlayerFace;
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
@@ -1521,12 +1519,27 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               // the one never tried. The position stays a touchline, because
               // that is what he is standing on; what changes is that he is not
               // crowding the row of buttons any more and his face is a face.
+              // **THE SAME SHAPE HE TAKES EVERYWHERE ELSE**, which is what
+              // was asked for: up from the bottom-left corner, the page dimmed
+              // a little behind it, and a tap anywhere is done with it. It was
+              // a head-and-bubble of its own, laid across the width of the
+              // screen at a fixed height, with no scrim and no way to dismiss
+              // it but waiting.
+              //
+              // `startOpen`, because this one is a REACTION — something just
+              // happened on the pitch — and a reaction that waits to be tapped
+              // is not one. See [CoachCorner.startOpen].
               if (_coachLine case final line?)
-                Positioned(
-                  left: matchInset,
-                  right: matchInset,
-                  bottom: 82,
-                  child: _CoachSay(key: ValueKey(line), text: line),
+                Positioned.fill(
+                  child: CoachCorner(
+                    key: ValueKey(line),
+                    idPrefix: 'match-coach',
+                    bubbleKey: const ValueKey('match-coach-line'),
+                    text: line,
+                    startOpen: true,
+                    pulse: false,
+                    onDismissed: () => setState(() => _coachLine = null),
+                  ),
                 ),
             ],
           ),
@@ -1698,120 +1711,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 /// **His head and the SHARED tail**, not a plain panel: a bubble with no tail is
 /// a caption rather than somebody speaking, which is what every screen but the
 /// home page used to get — see `CoachBubbleTail`.
-class _CoachSay extends StatelessWidget {
-  const _CoachSay({required this.text, super.key});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return IgnorePointer(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutCubic,
-        builder: (context, t, child) => Opacity(
-          opacity: t,
-          child: Transform.translate(
-            offset: Offset(0, 10 * (1 - t)),
-            child: child,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kit.surface2,
-                border: Border.all(color: kit.accentBright, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: const ClipOval(
-                child: ArtImage(
-                  path: coachPortrait,
-                  fit: BoxFit.cover,
-                  fallback: Center(child: Text('🧢')),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // **IT HAS TO WIN AGAINST THE COMMENTARY UNDER IT.** Same
-                  // `surface` and same hairline as the box it floats over, and
-                  // it disappeared into it — a bubble the same colour as the
-                  // page is a paragraph. It gets the accent edge, a raised
-                  // surface and a real shadow: the point of him is that he is
-                  // interrupting.
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Color.alphaBlend(
-                        kit.accent.withValues(alpha: 0.14),
-                        kit.surface2,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: kit.accentBright, width: 1.4),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x66000000),
-                          blurRadius: 14,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      text,
-                      key: const ValueKey('match-coach-line'),
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  // The wedge hangs off the bubble's bottom-left, pointing back
-                  // down at his face — the POINT over him, not the box. See
-                  // [coachTailTipX].
-                  Padding(
-                    padding: const EdgeInsets.only(left: 14 - coachTailTipX),
-                    child: CustomPaint(
-                      size: coachTailSize,
-                      painter: CoachBubbleTail(
-                        fill: Color.alphaBlend(
-                          kit.accent.withValues(alpha: 0.14),
-                          kit.surface2,
-                        ),
-                        edge: kit.accentBright,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The scorer's face and caption, as a broadcast puts them on the touchline.
 class _ScorerBadge extends StatelessWidget {
   const _ScorerBadge({required this.face, required this.caption});
 

@@ -168,6 +168,8 @@ class CoachCorner extends StatefulWidget {
     required this.idPrefix,
     this.onDismissed,
     this.pulse = true,
+    this.startOpen = false,
+    this.bubbleKey,
     super.key,
   });
 
@@ -194,12 +196,31 @@ class CoachCorner extends StatefulWidget {
   /// `pumpAndSettle` in any of their tests would otherwise hang on.
   final bool pulse;
 
+  /// Open the bubble the moment it mounts, rather than waiting to be tapped.
+  ///
+  /// **For a line the player did not ask for.** In the shell and in the sheets
+  /// he waits — he is offering advice about a page that is not going anywhere.
+  /// During a MATCH he is reacting to something that just happened, so the line
+  /// has to arrive on its own or it is not a reaction. Everything else about
+  /// the shape is the same, which is what was asked for: it comes up from the
+  /// bottom, it dims the page, and a tap anywhere is done with it.
+  final bool startOpen;
+
+  /// Names the line inside the bubble, for a caller whose test asks for it.
+  final Key? bubbleKey;
+
   @override
   State<CoachCorner> createState() => _CoachCornerState();
 }
 
 class _CoachCornerState extends State<CoachCorner> {
   String? _open;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.startOpen) _open = widget.text;
+  }
 
   void _dismiss() {
     setState(() => _open = null);
@@ -245,6 +266,7 @@ class _CoachCornerState extends State<CoachCorner> {
                 if (_open != null) ...[
                   _Bubble(
                     key: ValueKey('${widget.idPrefix}-bubble'),
+                    textKey: widget.bubbleKey,
                     text: _open!,
                     onClose: _dismiss,
                   ),
@@ -404,10 +426,16 @@ class _CoachHeadState extends State<_CoachHead>
 /// What he actually says, in the bubble every screen uses — see
 /// [CoachSpeechBubble].
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.text, required this.onClose, super.key});
+  const _Bubble({
+    required this.text,
+    required this.onClose,
+    this.textKey,
+    super.key,
+  });
 
   final String text;
   final VoidCallback onClose;
+  final Key? textKey;
 
   @override
   Widget build(BuildContext context) => CoachSpeechBubble(
@@ -417,6 +445,6 @@ class _Bubble extends StatelessWidget {
     dismissLabel: t('coach.aria.dismiss'),
     closeKey: const ValueKey('coach-floating-close'),
     onClose: onClose,
-    child: Text(text, style: coachBubbleTextStyle(context)),
+    child: Text(text, key: textKey, style: coachBubbleTextStyle(context)),
   );
 }

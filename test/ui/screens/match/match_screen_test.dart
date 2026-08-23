@@ -1929,6 +1929,18 @@ void main() {
       await tester.pump(minuteDurationFor(46));
       await tester.pump();
       expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
+      // **THE SAME SHAPE HE TAKES EVERYWHERE ELSE**: bottom-left, over a
+      // dimmed page, and a tap anywhere is done with it. It was a bubble laid
+      // across the width of the screen with no scrim and no way out but
+      // waiting. Asked for directly.
+      expect(find.byKey(const ValueKey('match-coach-head')), findsOneWidget);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('match-coach-line')),
+        findsNothing,
+        reason: 'a tap outside left it there',
+      );
     });
 
     testWidgets('and PRO MODE buys the numbers and gives up the advice', (
