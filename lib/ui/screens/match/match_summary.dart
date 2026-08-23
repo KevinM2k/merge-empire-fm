@@ -32,6 +32,7 @@ import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -178,7 +179,11 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
     final questRows = result['questResults'];
     final hasQuests = questRows is List && questRows.isNotEmpty;
 
-    return Scaffold(
+    // **A DARK TAKEOVER IN BOTH THEMES**, the same as the match it closes —
+    // see [darkTakeoverThemeProvider]. Every panel here is dark glass on the
+    // match's own sky and the ink over them was the app's, which in light mode
+    // is near-black. Reported as the end-of-game screen being unreadable.
+    final page = Scaffold(
       key: const ValueKey('match-summary'),
       backgroundColor: Colors.transparent,
       body: DecoratedBox(
@@ -370,6 +375,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
         ),
       ),
     );
+    return Theme(data: ref.watch(darkTakeoverThemeProvider), child: page);
   }
 }
 

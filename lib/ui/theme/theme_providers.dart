@@ -34,3 +34,20 @@ final appThemeProvider = Provider<ThemeData>((ref) {
     light: forcedDark ? false : ref.watch(lightModeProvider),
   );
 });
+
+/// The dark palette of the club's own kit, for a screen that is a DARK TAKEOVER
+/// in both themes.
+///
+/// **The match and its summary are nearly all panel, on a sky.** Both were
+/// written as dark glass whichever theme is on — a pale panel on a pale page
+/// makes the whole match go flat — and then hung the app's own ink on it, which
+/// in light mode is near-black text on near-black glass. Reported as the play
+/// screen being hard to read in light mode, the commentary worst of all, and as
+/// the end-of-game screen being unreadable.
+///
+/// Wrapping the page in the kit's DARK theme is the fix rather than a colour
+/// per widget: the surfaces were already dark, so it is the ink that was out of
+/// step, and every one of them reads it from the same place.
+final darkTakeoverThemeProvider = Provider<ThemeData>(
+  (ref) => buildAppTheme(kitId: ref.watch(kitIdProvider), light: false),
+);

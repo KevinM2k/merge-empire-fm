@@ -6218,8 +6218,12 @@ that is not off the extension is the bug, not the symptom.
       pitch's left it two-fifths dead green.
 - [ ] **The 2D match view is not scaled correctly at all**, which is the same
       family and may be the same cause.
-- [ ] **The Play screen is hard to read in light mode**, the commentary feed
-      worst of all.
+- [x] **The Play screen is hard to read in light mode**, the commentary feed
+      worst of all. Every surface on the page is dark glass in BOTH themes on
+      purpose — a pale panel on a pale page makes the match go flat — and the
+      ink over them was the app's own, so light mode was near-black on
+      near-black. The page wears the kit's DARK theme now
+      (`darkTakeoverThemeProvider`), which is one place rather than forty.
 - [ ] **The spacing round the tactics boxes is not consistent** — between them,
       above them and below them.
 - [ ] **There is no stats menu anywhere.** `match_stat_rows.dart` exists; grep
@@ -6232,13 +6236,20 @@ that is not off the extension is the bug, not the symptom.
 
 ### The end of a game
 
+- [ ] **`summary_league_move_test` fails on this machine.** "IT OPENS ON THE
+      TABLE AS IT WAS, then moves" — the table is already in its settled order
+      on the first frame, so nothing passes anybody. It reproduces with the
+      tree clean, so it is not this session's; the earlier note calling it a
+      contended-machine flake was wrong.
+
 - [x] **The home page flashes up before the end-of-game screen.** Not a frame:
       the awaited push does not resolve until the match route has finished
       sliding down, and the summary is only pushed after that — three hundred
       milliseconds of the Play tab in the middle of a result. `MatchRoute`
       leaves instantly and the summary's own entrance covers what is left. The
       cup keeps the normal exit; there is no summary behind it.
-- [ ] **The end-game screen is unreadable in light mode.**
+- [x] **The end-game screen is unreadable in light mode.** Same cause, same
+      fix: the summary is the match's own sky with dark glass on it.
 
 ### Light mode, screen by screen
 

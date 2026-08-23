@@ -57,6 +57,7 @@ import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart' show Gesture, Mood;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -1141,7 +1142,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       lines.add(_notes[next++]);
     }
 
-    return Scaffold(
+    // **A DARK TAKEOVER IN BOTH THEMES** — see [darkTakeoverThemeProvider].
+    // Every surface on this page was already dark glass and the ink over them
+    // was the app's own, so in light mode the commentary was near-black on
+    // near-black. Held in a local rather than wrapped inline: the page below is
+    // four hundred lines and re-indenting all of it would bury the change.
+    final page = Scaffold(
       key: const ValueKey('match-screen'),
       // ON THE SKY, not on the app's page colour. This page is a takeover — it
       // is nearly all panel, with no diorama behind it — so a background that
@@ -1527,6 +1533,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ),
       ),
     );
+    return Theme(data: ref.watch(darkTakeoverThemeProvider), child: page);
   }
 
   /// One row of the feed, with a replay on it when there is one to play.
