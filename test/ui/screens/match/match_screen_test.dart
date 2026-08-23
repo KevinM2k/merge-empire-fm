@@ -1714,7 +1714,10 @@ void main() {
         ),
         save: save,
       );
-      // Empty one slot, the way the sim does before the screen ever opens.
+      // Empty one slot, the way the sim does before the screen ever opens —
+      // **and FLAG THE CARD, which the sim also does.** Vacating alone was half
+      // the state: `simulateMatch` sets `injured` and then removes him, and a
+      // fixture that only removes him is a hole nobody fell into.
       final slot = container
           .read(pitchSlotsProvider)
           .firstWhere((s) => s.cardInstanceId != null);
@@ -1723,6 +1726,13 @@ void main() {
         for (final row in rows) {
           if (row is Map<String, dynamic> && row['slotId'] == slot.slotId) {
             row['cardInstanceId'] = null;
+          }
+        }
+        for (final raw in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+          if (raw is Map<String, dynamic> &&
+              raw['instanceId'] == slot.cardInstanceId) {
+            raw['injured'] = true;
+            raw['injuredAt'] = DateTime.now().millisecondsSinceEpoch;
           }
         }
       });
@@ -1740,9 +1750,35 @@ void main() {
       final panel = tester.state<SubsPanelState>(find.byType(SubsPanel));
       expect(panel.selectedSlot, slot.slotId);
 
+      // **AND THE CASUALTY IS STILL STANDING IN HIS OWN SLOT**, rated zero and
+      // crossed through. A gap says a man is missing without saying WHICH, on
+      // the one panel whose job is picking his replacement — and if the manager
+      // does not tap him he is off the pitch and worth nothing regardless, so
+      // drawn is the version they can act on.
+      //
+      // DERIVED rather than stamped on the lineup row: that map is compared
+      // field for field against the JS's by twenty-two parity rows, and a field
+      // the JS does not write fails every one of them. An injured card that is
+      // not in the eleven belongs in one of the holes, and the holes take them
+      // by position first.
+      expect(
+        container
+            .read(pitchSlotsProvider)
+            .firstWhere((sl) => sl.slotId == slot.slotId)
+            .vacatedBy,
+        isNotNull,
+        reason: 'the hole does not know whose it is',
+      );
+
       // The bench is ALREADY OPEN on the hole — that is what the pre-pick buys.
       expect(find.byKey(const ValueKey('subs-bench-sheet')), findsOneWidget);
-      final bench = container.read(benchProvider).first;
+      // **The casualty is on the bench list too now that he is out of the
+      // eleven**, and he is not a substitute — so the first FIT man is the one
+      // this taps. Taking the raw first would be picking the injured player to
+      // replace himself.
+      final bench = container
+          .read(benchProvider)
+          .firstWhere((b) => b.instanceId != slot.cardInstanceId);
       await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
       // Nobody comes off — there is nobody there — so the card says only who

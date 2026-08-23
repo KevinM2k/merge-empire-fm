@@ -5243,10 +5243,25 @@ one everywhere it should not.
       on, and deleting it would take the shape solver with it. It is simply not
       mounted, so a chance now ARRIVES, which is most of what makes it read as
       one.
-- [ ] **An injured player on the bench should stay ON the pitch**, rated 0, with
-      a big red `+` across the middle of the card. If nobody swaps them out they
-      are effectively off the pitch and worth nothing anyway — but the card has
-      to say so.
+- [x] **An injured player should stay ON the pitch**, rated 0, with a big red
+      cross across the middle of the card. The slot emptied when he went down
+      and a gap says a man is missing without saying WHICH — on the one panel
+      whose whole job is picking his replacement. He stands in his own slot now;
+      the rating was already zeroed (that is what the sim scores him) and the
+      token already draws the cross, so what was missing was only the link back
+      from the hole to its victim.
+      **DERIVED, not stamped, and the parity harness is why.** Stamping the
+      lineup row would have been exact — and it put a field in the save that the
+      JS does not write, which failed twenty-two rows of
+      `match_orchestration_parity_test` immediately. So the provider reads what
+      is already true: an injured card that is not in the eleven belongs in one
+      of the holes, and the holes take them by POSITION first, so a keeper's
+      hole never shows an injured striker.
+      Two things fell out of it. The test fixture only VACATED the slot without
+      flagging the card, which is half of what the sim does — a hole nobody had
+      fallen into. And the casualty now appears on the bench list, correctly
+      greyed and untappable: `isSelectable` already refuses an injured man, so
+      he can be seen and not chosen.
 - [ ] **The full-time table move should read as a PICK-UP.** Zoom in on our
       club, lift it, carry it to its new place and set it down. Make the
       transition much clearer so it is obvious what happened.

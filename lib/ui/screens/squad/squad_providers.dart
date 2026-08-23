@@ -28,6 +28,14 @@ typedef PitchSlot = ({
   int y,
   String? cardInstanceId,
   CardView? card,
+
+  /// The injured man this slot belongs to, when nobody is standing in it.
+  ///
+  /// **A hole says a player is missing; it does not say WHICH.** So the subs
+  /// panel keeps him on the pitch, rated zero and crossed through — he is worth
+  /// nothing there whether he is drawn or not, and drawn is the version a
+  /// manager can pick a replacement from. See `LineupSlot.vacatedBy`.
+  CardView? vacatedBy,
   bool outOfPosition,
 
   /// What this player is worth IN THIS SLOT, fatigue included — not their card
@@ -115,6 +123,42 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
   };
   final pro = isProMode(s);
 
+  // **WHO IS MISSING FROM WHERE.** An injury vacates its victim's slot, so the
+  // subs panel could only draw a gap — a formation with a space in it says a
+  // man is missing but not WHICH, on the one panel whose job is picking his
+  // replacement.
+  //
+  // **DERIVED, not stored.** Stamping the lineup row would have been exact and
+  // it put a field in the save that the JS does not write — twenty-two rows of
+  // `match_orchestration_parity_test` compare that map field for field, and
+  // they failed immediately. So this reads what is already true: an injured
+  // card that is not in the eleven belongs in one of the holes, and the holes
+  // are matched to them by POSITION first so a keeper's hole never shows an
+  // injured striker.
+  final picked = {
+    for (final slot in lineup)
+      if (slot.cardInstanceId != null) slot.cardInstanceId,
+  };
+  final orphans = <Map<String, dynamic>>[
+    for (final raw in gridCells(s))
+      if (raw is Map<String, dynamic> &&
+          raw['injured'] == true &&
+          !picked.contains(raw['instanceId']))
+        raw,
+  ];
+  final holes = [
+    for (final slot in lineup)
+      if (slot.cardInstanceId == null) slot,
+  ];
+  final vacatedBy = <String, Map<String, dynamic>>{};
+  for (final hole in holes) {
+    if (orphans.isEmpty) break;
+    final natural = orphans.indexWhere(
+      (raw) => cardViewFor(raw, proMode: pro)?.position == hole.slotPosition,
+    );
+    vacatedBy[hole.slotId] = orphans.removeAt(natural >= 0 ? natural : 0);
+  }
+
   return [
     for (final slot in lineup)
       () {
@@ -137,6 +181,9 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
           y: geometry?.y ?? 50,
           cardInstanceId: slot.cardInstanceId,
           card: view,
+          vacatedBy: view != null
+              ? null
+              : cardViewFor(vacatedBy[slot.slotId], proMode: pro),
           // Named rather than punished here: the penalty is the engine's, and
           // the screen's job is to say WHY a rating looks low.
           outOfPosition: view != null && view.position != slot.slotPosition,

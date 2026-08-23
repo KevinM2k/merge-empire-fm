@@ -296,13 +296,37 @@ class _SubSlot extends ConsumerWidget {
         key: ValueKey('sub-slot-${slot.slotId}'),
         behavior: HitTestBehavior.opaque,
         onTap: enabled ? onTap : null,
-        // An empty slot is the injury hole, and it says so rather than reading
-        // as a formation with a gap in it.
+        // **THE INJURED MAN STAYS ON THE PITCH.** The slot empties when he goes
+        // down, and a gap says somebody is missing without saying WHICH — on
+        // the one panel whose whole job is picking his replacement. So he is
+        // drawn in his own slot, rated zero (which is what the sim scores him
+        // anyway) and crossed through by the token's own [InjuryCross]. If the
+        // manager does not tap him he is off the pitch and worth nothing
+        // regardless; drawn is the version they can act on.
+        //
+        // A slot that is empty for any OTHER reason still reads as a hole.
         child: card == null
-            ? Tooltip(
-                message: t('match.subs.injury_hole'),
-                child: PitchEmptySlot(position: slot.slotPosition),
-              )
+            ? (slot.vacatedBy == null
+                  ? Tooltip(
+                      message: t('match.subs.injury_hole'),
+                      child: PitchEmptySlot(position: slot.slotPosition),
+                    )
+                  : PitchToken(
+                      slot: (
+                        slotId: slot.slotId,
+                        slotPosition: slot.slotPosition,
+                        x: slot.x,
+                        y: slot.y,
+                        cardInstanceId: null,
+                        card: slot.vacatedBy,
+                        vacatedBy: null,
+                        outOfPosition: false,
+                        effRating: 0,
+                        penalty: 0,
+                        seasons: 0,
+                      ),
+                      proMode: ref.watch(proModeProvider),
+                    ))
             : PitchToken(slot: slot, proMode: ref.watch(proModeProvider)),
       ),
     );
