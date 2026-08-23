@@ -6433,7 +6433,27 @@ that is not off the extension is the bug, not the symptom.
 
 ### The manager's rig
 
-- [ ] **Head in hands: the hands go BEHIND the head.** They should be over it.
+- [x] **The coach's little tick has a top border on every page but the home
+      one.** The second look named it exactly: it is the TAIL, not the card. The
+      bubble is rimmed on all four sides and the corner's wedge sits flush under
+      it in a `Column`, so the rim runs across the wedge's own top edge and it
+      reads as a tick stuck to the bubble rather than part of it. The home page
+      never had it because its tail is a `Positioned` at `bottom: -10` and has
+      overlapped all along. Lifted by `coachBubbleEdge`. **The earlier "across
+      the board" row was a DIFFERENT line** — `_GlassEdge`'s specular, on the
+      cards — and both were real.
+
+- [x] **Head in hands: the hands go BEHIND the head.** The head and everything
+      it wears is a stack of widgets ABOVE the rig's painter — that is what lets
+      a head tilt take the hair, the beard, the glasses and the hat with it — so
+      a hand brought to the face is painted behind it by construction. The near
+      arm gets a SECOND pass after the head for the five gestures whose hand
+      belongs in front of the face. Named rather than derived: a rule like "the
+      hand is above the chin" would re-solve the two-bone chain every frame to
+      answer a question fixed when the pose was written, and would guess wrong
+      at the edges — a salute's hand is level with the brow and a wave's is not,
+      a few degrees apart. Only the NEAR arm: the far one is behind him by
+      construction and putting it over the face is the same bug reversed.
 - [ ] **Hair comes out from under a hat.** Where a hat is worn the hair beneath
       it has to be hidden, not drawn through.
 

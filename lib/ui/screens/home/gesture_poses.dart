@@ -138,6 +138,26 @@ const GestureTrack _fingerOut = [(0, 0), (0.12, 1), (0.88, 1), (1, 0)];
 /// which is the same reason `moodHeadTilt`'s up end came down.
 const GestureTrack _chinUp = [(0, 0), (0.2, -6), (0.8, -6), (1, 0)];
 
+/// **Gestures whose hand belongs IN FRONT of the face.**
+///
+/// The head and everything it wears is a stack of widgets ABOVE the rig's
+/// painter — that is what lets a tilt take the hair, the beard, the glasses and
+/// the hat with it — so a hand brought to the face is painted behind it.
+/// Reported as head in hands putting the hands behind the head.
+///
+/// Named rather than derived. A rule like "the hand is above the chin" would
+/// have to re-solve the two-bone chain for every frame of every gesture to
+/// answer a question that is fixed the moment the pose is written down, and it
+/// would guess wrong at the edges — a salute's hand is level with the brow and
+/// a wave's is not, at angles a few degrees apart.
+const Set<String> gestureHandsOverHead = {
+  'handsonhead',
+  'facepalm',
+  'shush',
+  'salute',
+  'blowkiss',
+};
+
 final Map<String, GestureAnimation> _animations = {
   // ── FIST PUMP. Three pumps, and the only gesture whose track does not return
   // to rest in the middle: it is a repeated motion, not a pose held.

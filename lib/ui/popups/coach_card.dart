@@ -152,6 +152,14 @@ const Size coachTailSize = Size(18, 12);
 /// enough that the game is still legible underneath: it is a dim, not a modal.
 const Color coachScrim = Colors.black26;
 
+/// The bubble's rim, and how far a tail has to be lifted to cover it.
+///
+/// A wedge sitting flush under a four-sided rim has that rim across its own top
+/// edge, which reads as a tick stuck to the bubble rather than part of it —
+/// reported from every screen except the home page, whose tail has overlapped
+/// all along.
+const double coachBubbleEdge = 2;
+
 /// Where the wedge's POINT sits inside its own box.
 ///
 /// **Not the middle, and that is what the callers kept getting wrong.** The
@@ -228,7 +236,7 @@ class CoachSpeechBubble extends StatelessWidget {
         // to be read off the panel rather than off what is behind it.
         color: kit.surface.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kit.accent, width: 2),
+        border: Border.all(color: kit.accent, width: coachBubbleEdge),
         boxShadow: const [
           BoxShadow(
             color: Color(0x8C000000),

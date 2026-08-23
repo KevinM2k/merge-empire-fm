@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart'
     show
         CoachBubbleTail,
         coachAlert,
+        coachBubbleEdge,
         coachScrim,
         coachTailSize,
         coachTailTipX;
@@ -338,7 +339,16 @@ void main() {
         lessThanOrEqualTo(headAt.top),
         reason: 'the bubble is not above him, so the tail points at nothing',
       );
-      expect(tailAt.top, greaterThanOrEqualTo(saidAt.bottom - 0.5));
+      // **AND IT OVERLAPS THE BUBBLE'S RIM by exactly that rim's width.** A
+      // wedge sitting flush under a four-sided border has the border running
+      // across its own top edge, which reads as a tick stuck to the bubble
+      // rather than part of it — reported from every screen but the home page,
+      // whose tail has overlapped all along.
+      expect(
+        tailAt.top,
+        closeTo(saidAt.bottom - coachBubbleEdge, 0.5),
+        reason: 'the rim shows across the top of the wedge',
+      );
       expect(tailAt.bottom, lessThanOrEqualTo(headAt.top + 0.5));
       // And over him rather than off to one side.
       expect(tailAt.center.dx, greaterThanOrEqualTo(headAt.left));

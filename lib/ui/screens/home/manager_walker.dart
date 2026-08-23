@@ -1009,6 +1009,12 @@ class _ManagerWalkerState extends State<ManagerWalker>
         final standing = widget.standing;
         final t = _phase;
         final pose = _carryOver(_pose, t);
+        // Whether this gesture's hand belongs in FRONT of the face — see
+        // [gestureHandsOverHead]. Only while it is actually playing: at rest
+        // his arms are by his sides and a second pass would be two of them.
+        final handsOverHead =
+            pose != null &&
+            gestureHandsOverHead.contains(_playing?.id);
         // **ONE angle for every head layer.** Hair, skull and hat are three
         // widgets and one head; give them separate numbers and the face slides
         // out from under its own hat.
@@ -1103,6 +1109,11 @@ class _ManagerWalkerState extends State<ManagerWalker>
                           look['outfit'] as String?,
                         ),
                         standing: standing,
+                        // A hand that belongs in front of the face is drawn in
+                        // a second pass, after the head — see [WalkerArms].
+                        arms: handsOverHead
+                            ? WalkerArms.skipNear
+                            : WalkerArms.both,
                         pose: pose,
                       ),
                     ),
@@ -1170,6 +1181,27 @@ class _ManagerWalkerState extends State<ManagerWalker>
                       _Tilt(
                         degrees: headTilt,
                         child: _SetBack(child: _HeadArt(layer: layer)),
+                      ),
+                    // **AND THE NEAR ARM, if the hand belongs in front of the
+                    // face.** Everything above is the head and what it wears,
+                    // and the rig is under all of it — so this is the only
+                    // place a hand can be over a face. See [WalkerArms].
+                    if (handsOverHead)
+                      CustomPaint(
+                        key: const ValueKey('manager-walker-hands'),
+                        painter: _WalkerPainter(
+                          t: t,
+                          kit: widget.kit,
+                          skin: parts.skin,
+                          build: buildScales(look['build'] as String?),
+                          outfit: outfitPalette(look['outfit'] as String?),
+                          sleevesAreKit: outfitSleevesAreKit(
+                            look['outfit'] as String?,
+                          ),
+                          standing: standing,
+                          pose: pose,
+                          arms: WalkerArms.nearOnly,
+                        ),
                       ),
                     // How he is coping, over the head AND over the hat — the
                     // pallor and the flush belong on the face, and a beanie must
@@ -1940,6 +1972,29 @@ class _HeadPainter extends CustomPainter {
       old.skin != skin || old.blink != blink || old.features != features;
 }
 
+/// Which arms a rig pass draws.
+///
+/// **THE HEAD IS PAINTED OVER THE RIG**, because the head and everything it
+/// wears is a stack of widgets above the painter — that is what lets a tilt
+/// take the hair, the beard, the glasses and the hat with it. Which means a
+/// hand that belongs in FRONT of the face ends up behind it: reported as head
+/// in hands putting the hands behind the head.
+///
+/// So a gesture that brings a hand to the face draws the near arm TWICE over —
+/// once skipped, once on its own after the head. Only the near one: the far arm
+/// is behind him by construction and putting it over the face would be the same
+/// bug the other way round.
+enum WalkerArms {
+  /// The ordinary pass: far arm, body, near arm.
+  both,
+
+  /// Everything but the near arm, which is coming later.
+  skipNear,
+
+  /// The near arm alone, over the head.
+  nearOnly,
+}
+
 class _WalkerPainter extends CustomPainter {
   const _WalkerPainter({
     required this.t,
@@ -1950,6 +2005,7 @@ class _WalkerPainter extends CustomPainter {
     required this.sleevesAreKit,
     this.standing = false,
     this.pose,
+    this.arms = WalkerArms.both,
   });
 
   final double t;
@@ -1982,6 +2038,9 @@ class _WalkerPainter extends CustomPainter {
   /// `gesture_poses.dart`.
   final GesturePose? pose;
 
+  /// Which arms this pass draws — see [WalkerArms].
+  final WalkerArms arms;
+
   /// The hip, which is what a body fold turns about — not the boots.
   static const Offset _hipPivot = Offset(58, 95);
 
@@ -1995,12 +2054,19 @@ class _WalkerPainter extends CustomPainter {
     canvas.save();
     canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
 
+    if (arms == WalkerArms.nearOnly) {
+      // The second pass, over the head — see [WalkerArms].
+      _arm(canvas, near: true);
+      canvas.restore();
+      return;
+    }
+
     // FAR limbs first, so the near ones overlap them.
     _leg(canvas, near: false);
     _arm(canvas, near: false);
     _body(canvas);
     _leg(canvas, near: true);
-    _arm(canvas, near: true);
+    if (arms == WalkerArms.both) _arm(canvas, near: true);
 
     canvas.restore();
   }

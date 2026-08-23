@@ -46,6 +46,7 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart'
         CoachBubbleTail,
         CoachFace,
         CoachSpeechBubble,
+        coachBubbleEdge,
         coachBubbleTextStyle,
         coachLabelStyle,
         coachScrim,
@@ -272,18 +273,31 @@ class _CoachCornerState extends State<CoachCorner> {
                   ),
                   // **The tail, so it reads as him SAYING it.** Same wedge the
                   // home page draws — see [CoachBubbleTail].
-                  Padding(
-                    // **The POINT over the middle of the head below it**, which
-                    // is the wedge's [coachTailTipX] rather than its box — the
-                    // disc is 44 across and its middle is 22 in, so the box
-                    // starts at 22 minus the tip's own offset.
-                    padding: const EdgeInsets.only(left: 22 - coachTailTipX),
-                    child: CustomPaint(
-                      key: ValueKey('${widget.idPrefix}-tail'),
-                      size: coachTailSize,
-                      painter: CoachBubbleTail(
-                        fill: kit.surface,
-                        edge: kit.accent,
+                  //
+                  // **AND IT OVERLAPS THE BUBBLE'S BORDER, which is the "little
+                  // tick has a top border" report.** The bubble is rimmed on all
+                  // four sides; a wedge sitting directly under it in a `Column`
+                  // has that rim running straight across its own top edge, so
+                  // the tail reads as a separate shape stuck to the bubble
+                  // rather than as part of it. The home page never had it
+                  // because its tail is a `Positioned` at `bottom: -10` and has
+                  // overlapped all along. Lifted by the border's own width, and
+                  // the wedge's fill is opaque so it covers what it is over.
+                  Transform.translate(
+                    offset: const Offset(0, -coachBubbleEdge),
+                    child: Padding(
+                      // **The POINT over the middle of the head below it**,
+                      // which is the wedge's [coachTailTipX] rather than its
+                      // box — the disc is 44 across and its middle is 22 in, so
+                      // the box starts at 22 minus the tip's own offset.
+                      padding: const EdgeInsets.only(left: 22 - coachTailTipX),
+                      child: CustomPaint(
+                        key: ValueKey('${widget.idPrefix}-tail'),
+                        size: coachTailSize,
+                        painter: CoachBubbleTail(
+                          fill: kit.surface,
+                          edge: kit.accent,
+                        ),
                       ),
                     ),
                   ),
