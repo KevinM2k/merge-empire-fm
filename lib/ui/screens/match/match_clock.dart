@@ -119,8 +119,18 @@ MatchFrame frameAt(
 /// Fast mode is the player's own setting, and it halves the wait rather than
 /// skipping anything: a match that skips events is a match whose story the
 /// player did not get.
+///
+/// **THE SPEC'S OWN NUMBERS, and the port had been running at a third of a
+/// minute.** `MatchPopup.js` ticks one minute per `TICK_MS = 350`, halved to
+/// `TICK_MS_FAST = 175` — the port had 120 and 60, so a ninety-minute match
+/// went by in eleven seconds and the ×2 was six. Reported as "1× seems to have
+/// gone fast and 2× is far too fast". A whole match is about half a minute at
+/// these, which is what the commentary was written to be read at.
+const int matchMinuteMs = 350;
+const int matchMinuteMsFast = 175;
+
 Duration minuteDuration({required bool fast}) =>
-    Duration(milliseconds: fast ? 60 : 120);
+    Duration(milliseconds: fast ? matchMinuteMsFast : matchMinuteMs);
 
 // ── The feed ────────────────────────────────────────────────────────────────
 

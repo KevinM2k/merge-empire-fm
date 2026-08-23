@@ -126,12 +126,23 @@ void main() {
   });
 
   group('the pace', () {
-    test('fast mode halves the wait rather than skipping anything', () {
-      final normal = minuteDuration(fast: false);
-      final fast = minuteDuration(fast: true);
-      expect(fast, lessThan(normal));
-      // A whole match still fits in something a player will sit through.
-      expect(normal * 93, lessThan(const Duration(seconds: 20)));
+    test('fast mode HALVES the wait rather than skipping anything', () {
+      // Exactly half, which is what the ×2 on the button says.
+      expect(minuteDuration(fast: true) * 2, minuteDuration(fast: false));
+    });
+
+    test('AND THE PACE IS THE SPEC\'S, not a third of it', () {
+      // `MatchPopup.js` ticks one minute per `TICK_MS = 350`, halved to 175.
+      // The port had 120 and 60, so a ninety-minute match went by in eleven
+      // seconds and the ×2 was six — reported as "1× seems to have gone fast
+      // and 2× is far too fast".
+      expect(matchMinuteMs, 350);
+      expect(matchMinuteMsFast, 175);
+      // A whole match is about half a minute, which is what the commentary was
+      // written to be read at — and still something a player will sit through.
+      final whole = minuteDuration(fast: false) * 93;
+      expect(whole, greaterThan(const Duration(seconds: 25)));
+      expect(whole, lessThan(const Duration(seconds: 40)));
     });
   });
 

@@ -92,6 +92,24 @@ Future<void> showMatchSummary(
   ),
 );
 
+/// **OUR goals and THEIRS, off the keys the engine actually writes.**
+///
+/// The engine's result map carries `homeGoals`/`awayGoals`, and in that map
+/// `homeGoals` is always OURS whichever ground the fixture is on — the
+/// orchestration says so in its own comment. `ourGoals`/`theirGoals` exist too,
+/// but only on `progression.lastMatchResult`, which is a DIFFERENT map, written
+/// at full time for the diorama and the manager's mood.
+///
+/// **This screen was reading the wrong pair and its own fixture hid it**: the
+/// test hand-wrote `ourGoals`, so the summary showed a scoreline in the suite
+/// and 0–0 in the game. Reported from a live save as "a victory screen with
+/// four goalscorers and a 0–0". The fallback keeps the settled map working, so
+/// either can be handed in.
+(int, int) _score(Map<String, dynamic> result) => (
+  _num(result['homeGoals'] ?? result['ourGoals']).toInt(),
+  _num(result['awayGoals'] ?? result['theirGoals']).toInt(),
+);
+
 class MatchSummaryScreen extends ConsumerStatefulWidget {
   const MatchSummaryScreen({required this.result, super.key});
 
@@ -153,8 +171,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
     final won = result['won'] == true;
     final drawn = result['drawn'] == true;
     final isHome = result['isHome'] == true;
-    final ourGoals = _num(result['ourGoals']).toInt();
-    final theirGoals = _num(result['theirGoals']).toInt();
+    final (ourGoals, theirGoals) = _score(result);
     final trophies = _num(result['trophiesEarned']).toInt();
     final canDouble = _base > 0;
     final questRows = result['questResults'];
@@ -560,8 +577,7 @@ class _Manager extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final ourGoals = _num(result['ourGoals']).toInt();
-    final theirGoals = _num(result['theirGoals']).toInt();
+    final (ourGoals, theirGoals) = _score(result);
     final ours = (result['squadRating'] as num?)?.toDouble();
     final theirs = (result['opponentRating'] as num?)?.toDouble();
     final mood = camMood(

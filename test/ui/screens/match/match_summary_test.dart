@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
@@ -55,8 +56,16 @@ Map<String, dynamic> result({
   'isHome': true,
   'won': won,
   'drawn': drawn,
-  'ourGoals': won ? 2 : 0,
-  'theirGoals': won ? 0 : 1,
+  // **`homeGoals`/`awayGoals`, WHICH IS WHAT THE ENGINE WRITES.** This fixture
+  // hand-wrote `ourGoals`/`theirGoals` — keys that only exist on
+  // `progression.lastMatchResult`, a different map written at full time — so
+  // the summary showed a scoreline here and 0–0 in the game. Reported from a
+  // live save as "a victory screen with four goalscorers and a 0–0". A fixture
+  // that carries keys production does not is a test that cannot fail.
+  //
+  // In the engine's map `homeGoals` is always OURS, whichever ground it is on.
+  'homeGoals': won ? 2 : 0,
+  'awayGoals': won ? 0 : 1,
   'coinsEarned': coins,
   'trophiesEarned': trophies,
   'events': events,
@@ -494,4 +503,31 @@ void main() {
       expect(find.byKey(const ValueKey('match-quests-total')), findsNothing);
     });
   });
+  testWidgets('AND THE SCORELINE COMES OFF A REAL RESULT MAP', (tester) async {
+    // **The fixture above is not enough on its own** — a fixture can carry
+    // whatever keys the screen happens to read, which is exactly how a victory
+    // screen came to show four goalscorers over a 0–0. This one takes the map
+    // the ENGINE builds and checks the screen can read a score out of it.
+    final built = simulateMatch(createDefaultState(), null);
+    expect(
+      built.keys,
+      containsAll(['homeGoals', 'awayGoals']),
+      reason: 'the engine renamed its goal keys',
+    );
+
+    built['homeGoals'] = 3;
+    built['awayGoals'] = 1;
+    built['won'] = true;
+    built['drawn'] = false;
+    // The board is laid out HOME SIDE LEFT and this fixture's tie may be away;
+    // pinning it makes the expected string unambiguous.
+    built['isHome'] = true;
+    await pumpSummary(tester, built);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('summary-score'))).data,
+      '3–1',
+      reason: 'the screen could not read the engine\'s own score',
+    );
+  });
+
 }
