@@ -4591,16 +4591,22 @@ list of what that change was answering.
 
 ### The shop
 
-- [ ] **THE ADS ARE THE BLOCKER for most of the shop.** "Should actually work"
-      means a rewarded video, and there is no ad SDK in the project at all —
-      `lib/data/ad_units.dart` holds the placements and nothing can show one.
-      That is M4's AdMob work: a package, two app ids, a consent gate. Every
-      "coming soon" below is downstream of it.
+- [x] **THE ADS ARE THE BLOCKER for most of the shop.** **UNBLOCKED.** It was a
+      package, two app ids and a consent gate, exactly as this row said — and
+      the two app ids turned out to be sitting in the old repo's
+      `capacitor.config.ts` the whole time. `google_mobile_ads` behind
+      `services/admob_ads.dart`, `services/ad_consent.dart` in front of it, both
+      manifests carrying the ids and a test reading them back.
+      What that unblocks is the FREE shelf, which is what "coming soon" meant
+      there. It does not unblock the paid shelves: those want a billing plugin
+      and eleven SKUs configured in two consoles, which is the row below.
 - [x] **The three special offers should be full width**, one per row, not two up.
       They are the shelf the shop opens on, and two up made the
       highest-converting slot in the game the same size as a consumable — with
       the third alone in a half-width tile beside a gap.
-- [ ] **And they should WORK** rather than say coming soon.
+- [~] **And they should WORK** rather than say coming soon. **The video ones
+      do.** The three special offers are real money, so they are still behind
+      the billing bridge and the store consoles — not the ad SDK.
 - [x] **Quick-fire matches and the free lucky boot say both "already ready" and
       "coming soon".** The contradiction is gone — both statements were true and
       the gate's badge goes while the button is dead; see the 28 Aug shop
