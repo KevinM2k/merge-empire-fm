@@ -5217,10 +5217,32 @@ one everywhere it should not.
       match went by in eleven seconds and the ×2 in six. A whole match is about
       half a minute now, which is what the commentary was written to be read
       at. The constants are named and pinned.
-- [ ] **The pitch perspective needs quite a bit MORE still**, enough to buy back
-      vertical space on the band.
-- [ ] **And what if a player does not want the 2D pitch at all?** The bodies
-      should be there for CHANCES, not drifting between them.
+- [x] **The pitch perspective needs quite a bit MORE still**, enough to buy back
+      vertical space — **and the whole near side has to stay on screen**, which a
+      screenshot made plain. Both, and the second is why the first was safe.
+      **A perspective divide makes the near edge WIDER than the box it came
+      from**, so tilting about the centre and stopping there ran both near
+      corners off the sides — and the stronger the tilt, the more of the
+      touchline went with them. `fittedTilt` measures the projected quad and
+      scales it back about its own centre until it fits, so the near edge is the
+      frame's full width and the FAR edge is the narrow one.
+      With that in place the tilt could go to -0.62 (about 36 degrees), and a
+      foreshortened plane covers the same ground in less screen — so the band's
+      cap came down from 0.28 of the screen to 0.23. The fit is measured at the
+      real SIZE rather than baked into a constant: the divide is in absolute
+      units, so one number would be right at one screen height and wrong at
+      every other. Rendered and checked against the screenshot.
+- [x] **The bodies are for CHANCES, not drifting between them.** **This reverses
+      "the match, between the chances"**, which was added because ninety minutes
+      was a green rectangle with an arrow on it and a clip arrived out of an
+      empty field. That was true, and the answer turned out to be worse than the
+      problem: twenty-two figures drifting through a passage nobody is being
+      told about is motion carrying no information, on the one band a player
+      watches to find out what just happened.
+      `IdlePitchGame` is kept and still built — it is the same rig a clip runs
+      on, and deleting it would take the shape solver with it. It is simply not
+      mounted, so a chance now ARRIVES, which is most of what makes it read as
+      one.
 - [ ] **An injured player on the bench should stay ON the pitch**, rated 0, with
       a big red `+` across the middle of the card. If nobody swaps them out they
       are effectively off the pitch and worth nothing anyway — but the card has

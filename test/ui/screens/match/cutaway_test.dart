@@ -371,11 +371,67 @@ void main() {
       expect(pitchVanish, greaterThan(0));
     });
 
+    test('THE WHOLE PITCH STAYS IN THE BOX, near corners included', () {
+      // **A perspective divide makes the near edge WIDER than the box it came
+      // from**, so tilting about the centre and stopping there runs both near
+      // corners off the sides — and the stronger the tilt, the more of the
+      // touchline goes with them. Reported with a screenshot: the near side has
+      // to be fully visible and the FAR side is the one that narrows.
+      for (final size in const [
+        Size(320, 74),
+        Size(390, 90),
+        Size(600, 138),
+      ]) {
+        final m = fittedTilt(size);
+        final quad = MatrixUtils.transformRect(m, Offset.zero & size);
+        expect(quad.left, greaterThan(-0.5), reason: '$size ran off the left');
+        expect(
+          quad.right,
+          lessThan(size.width + 0.5),
+          reason: '$size ran off the right',
+        );
+        expect(quad.top, greaterThan(-0.5), reason: '$size ran off the top');
+        expect(
+          quad.bottom,
+          lessThan(size.height + 0.5),
+          reason: '$size ran off the bottom',
+        );
+
+        // And the FAR edge is the narrow one, which is the whole shape.
+        double widthAt(double y) =>
+            MatrixUtils.transformPoint(m, Offset(size.width, y)).dx -
+            MatrixUtils.transformPoint(m, Offset(0, y)).dx;
+        expect(widthAt(0), lessThan(widthAt(size.height)), reason: '$size');
+      }
+    });
+
+    test('and an empty box does not divide by zero', () {
+      expect(fittedTilt(Size.zero), Matrix4.identity());
+    });
+
     test('and it is a raised camera rather than a corner flag', () {
-      // Past this the far half stops being a place a chance can be understood
-      // in, which is the one thing this band is for.
-      expect(pitchTilt.abs(), greaterThan(0.3), reason: 'barely tilted at all');
-      expect(pitchTilt.abs(), lessThan(0.5));
+      // **The band's height is bought with this**, which is why it kept
+      // growing: a tilted plane covers the same ground in less screen, so the
+      // tilt is what let `maxHeight` come down. Past this the far half stops
+      // being a place a chance can be understood in, which is the one thing
+      // this band is for.
+      expect(pitchTilt.abs(), greaterThan(0.5), reason: 'barely tilted at all');
+      expect(pitchTilt.abs(), lessThan(0.8), reason: 'lying on the grass');
+    });
+
+    testWidgets('AND NOBODY DRIFTS ABOUT BETWEEN CHANCES', (tester) async {
+      // **This reverses "the match, between the chances".** The bodies were
+      // added because ninety minutes was a green rectangle with an arrow on it
+      // — which was true, and the answer turned out to be worse than the
+      // problem: twenty-two figures drifting through a passage nobody is being
+      // told about is motion carrying no information. Asked for directly.
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: CutawayStage(clip: null))),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('cutaway-idle')), findsOneWidget,
+          reason: 'the markings went with them');
+      expect(find.byKey(const ValueKey('cutaway-idle-game')), findsNothing);
     });
 
     testWidgets('ONE TRANSFORM over the markings AND the game', (tester) async {

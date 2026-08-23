@@ -12,6 +12,8 @@ library;
 
 import 'package:flame/game.dart' show GameWidget;
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/idle_pitch_game.dart';
@@ -214,36 +216,33 @@ class _CutawayStageState extends State<CutawayStage> {
         child: ColoredBox(
           color: PitchBackdrop.turf,
           child: game == null
-              ? _InPerspective(
+              ? const _InPerspective(
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      const CustomPaint(
+                      CustomPaint(
                         key: ValueKey('cutaway-idle'),
                         painter: _IdlePitchPainter(),
                         size: Size.infinite,
                       ),
-                      // **THE MATCH, BETWEEN THE CHANCES.** The bodies used to
-                      // exist only for the two or three seconds of a scripted
-                      // one, so ninety minutes of football was a green
-                      // rectangle with an arrow on it and a clip arrived out of
-                      // an empty field. Reported three times across three
-                      // sittings.
+                      // **THE BODIES ARE FOR CHANCES, and this reverses "the
+                      // match, between the chances".** They were added because
+                      // ninety minutes was a green rectangle with an arrow on
+                      // it and a clip arrived out of an empty field — which was
+                      // true, and the answer turned out to be worse than the
+                      // problem: twenty-two figures drifting through a passage
+                      // nobody is being told about is motion carrying no
+                      // information, on the one band a player looks at to find
+                      // out what just happened.
                       //
-                      // **Off under reduced motion**, and that is the policy
-                      // rather than a test convenience: a pitch of drifting
-                      // bodies is motion and nothing on it is information —
-                      // the markings, the arrow and the clips all survive
-                      // without it. It is also what lets `pumpAndSettle` work
-                      // on this screen at all, a Flame loop having no idea what
-                      // `disableAnimations` means.
-                      if (_idle case final idle?
-                          when !MediaQuery.of(context).disableAnimations)
-                        GameWidget(
-                          key: const ValueKey('cutaway-idle-game'),
-                          game: idle,
-                          backgroundBuilder: (_) => const SizedBox.shrink(),
-                        ),
+                      // Asked for directly, twice. The markings, the momentum
+                      // arrow and the clips are what the band is for, and all
+                      // three survive an empty pitch — a chance now ARRIVES,
+                      // which is most of what makes it read as a chance.
+                      //
+                      // `IdlePitchGame` is kept and still built, because it is
+                      // the same rig a clip runs on and deleting it would take
+                      // the shape solver with it. It is simply not mounted.
                     ],
                   ),
                 )
@@ -465,11 +464,17 @@ class _Verdict extends StatelessWidget {
 /// being a place a chance can be understood in, and that is the one thing this
 /// band is for — so it is deliberately at the top of the range rather than past
 /// it.
-const double pitchTilt = -0.42;
+/// **STRONGER AGAIN, and this time it buys space.** -0.42 was still a pitch
+/// that was slightly not-flat; at -0.62 (about 36 degrees) the far half really
+/// foreshortens, which is what lets the BAND be shorter without the pitch
+/// looking cropped — a tilted plane needs less height on screen to cover the
+/// same ground. Asked for twice, with the space as the stated reason.
+const double pitchTilt = -0.62;
 
-/// How strong the vanishing is. Still gentle: the pitch is wide and short in
-/// this band, so a strong perspective turns it into a wedge.
-const double pitchVanish = 0.0016;
+/// How strong the vanishing is. Still short of a wedge: the pitch is wide and
+/// shallow in this band, and past this the far touchline converges to a point
+/// rather than to a line.
+const double pitchVanish = 0.0024;
 
 /// The pitch, seen from a camera rather than from directly above.
 ///
@@ -483,23 +488,52 @@ Matrix4 _tilted() => Matrix4.identity()
   ..setEntry(3, 2, pitchVanish)
   ..rotateX(pitchTilt);
 
+/// The tilt, FITTED so the whole pitch stays inside its box.
+///
+/// **A perspective divide makes the near edge WIDER than the box it came from**,
+/// so tilting about the centre and stopping there runs both near corners off the
+/// sides of the frame — and the stronger the tilt, the more of the touchline
+/// goes with them. Reported with a screenshot: the near side has to be fully
+/// visible and the FAR side is the one that narrows.
+///
+/// So the quad is measured after the projection and scaled back down about its
+/// own centre until it fits. That is also what makes a stronger tilt safe to
+/// ask for, and a stronger tilt is what buys the band its height back — a
+/// foreshortened plane covers the same ground in less screen.
+Matrix4 fittedTilt(Size size) {
+  if (size.isEmpty) return Matrix4.identity();
+  final centre = Offset(size.width / 2, size.height / 2);
+  final about = Matrix4.identity()
+    ..translateByDouble(centre.dx, centre.dy, 0, 1)
+    ..multiply(_tilted())
+    ..translateByDouble(-centre.dx, -centre.dy, 0, 1);
+  final bounds = MatrixUtils.transformRect(about, Offset.zero & size);
+  if (bounds.width <= 0 || bounds.height <= 0) return about;
+  final fit = math.min(size.width / bounds.width, size.height / bounds.height);
+  return Matrix4.identity()
+    ..translateByDouble(centre.dx, centre.dy, 0, 1)
+    ..scaleByDouble(fit, fit, 1, 1)
+    ..translateByDouble(-bounds.center.dx, -bounds.center.dy, 0, 1)
+    ..multiply(about);
+}
+
 class _InPerspective extends StatelessWidget {
   const _InPerspective({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Transform(
-    // About the CENTRE, so the pitch keeps its band rather than sliding up out
-    // of it — a rotation about the top edge would take the far half off screen.
-    alignment: Alignment.center,
-    // Built through `Transform`'s own helpers rather than naming `Matrix4`:
-    // `flame/game.dart` re-exports the 32-bit one and Flutter's transforms want
-    // the 64-bit one, and this file imports both.
-    transform: _tilted(),
-    // Filtered: the mown stripes are hairlines and nearest-neighbour on a tilted
-    // plane is a staircase.
-    filterQuality: FilterQuality.medium,
-    child: child,
+  Widget build(BuildContext context) => LayoutBuilder(
+    // **The fit needs the SIZE.** The perspective divide is in absolute units,
+    // so how far the near edge spreads depends on how tall the band actually
+    // is — a constant would be right at one screen height and wrong at every
+    // other.
+    builder: (context, constraints) => Transform(
+      transform: fittedTilt(constraints.biggest),
+      // Filtered: the mown stripes are hairlines and nearest-neighbour on a
+      // tilted plane is a staircase.
+      filterQuality: FilterQuality.medium,
+      child: child,
+    ),
   );
 }

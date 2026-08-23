@@ -1210,12 +1210,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                       // Capped: the pitch is landscape and at its natural aspect would
                       // take a third of a tall phone and all of a short one.
                       //
-                      // 0.28 rather than 0.3 since the board took a standings band:
-                      // at full time on a 600pt screen the feed is down to single
-                      // figures, and the pitch is the one band here that is a
-                      // fraction of the screen rather than a thing being read.
+                      // **0.23, and the PERSPECTIVE is what pays for it.** A
+                      // tilted plane covers the same ground in less height, so
+                      // the stronger tilt hands this band back some of the
+                      // screen — which is the reason the tilt was asked for.
+                      // The pitch is the one band here that is a fraction of
+                      // the screen rather than a thing being read, so it is the
+                      // one that gives.
                       constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.28,
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.23,
                       ),
                       child: AspectRatio(
                         aspectRatio: pitchAspect,
