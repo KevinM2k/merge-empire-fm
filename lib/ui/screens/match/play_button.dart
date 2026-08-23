@@ -56,6 +56,26 @@ final matchBlockedProvider = savePick<String?>(matchStartBlocked);
 /// and the cup object is not what the button needs.
 final cupRoundProvider = savePick<String?>((s) => nextCupRound(s)?.roundName);
 
+/// The match's own route, which LEAVES INSTANTLY.
+///
+/// **The Play tab was on screen between the whistle and the result.** A
+/// `MaterialPageRoute` spends three hundred milliseconds sliding a finished
+/// match back down, and the awaited push does not resolve until it has — so the
+/// summary could not even be asked for until the home page had been fully
+/// revealed and sat there. Reported as the home page showing before the
+/// end-of-game screen.
+///
+/// Only the exit is instant, and only for the league match: the entrance is
+/// still the takeover it should be, and the summary's own entrance covers the
+/// single frame this leaves behind. A cup tie keeps the normal exit, because
+/// there is no summary behind it to cover anything.
+class MatchRoute<T> extends MaterialPageRoute<T> {
+  MatchRoute({required super.builder}) : super(fullscreenDialog: true);
+
+  @override
+  Duration get reverseTransitionDuration => Duration.zero;
+}
+
 class PlayMatchButton extends ConsumerWidget {
   const PlayMatchButton({super.key, this.fast = false});
 
@@ -81,8 +101,7 @@ class PlayMatchButton extends ConsumerWidget {
     // one — the welcome-back card could land on the pitch too.
     blockPopups(_matchBlocker);
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
+      MatchRoute(
         builder: (_) => MatchScreen(
           result: result,
           fast: fast,

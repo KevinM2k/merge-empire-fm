@@ -6232,9 +6232,12 @@ that is not off the extension is the bug, not the symptom.
 
 ### The end of a game
 
-- [ ] **The home page flashes up before the end-of-game screen.** It must go
-      straight there; the intermediate frame reads as the app losing the match
-      result and finding it again.
+- [x] **The home page flashes up before the end-of-game screen.** Not a frame:
+      the awaited push does not resolve until the match route has finished
+      sliding down, and the summary is only pushed after that — three hundred
+      milliseconds of the Play tab in the middle of a result. `MatchRoute`
+      leaves instantly and the summary's own entrance covers what is left. The
+      cup keeps the normal exit; there is no summary behind it.
 - [ ] **The end-game screen is unreadable in light mode.**
 
 ### Light mode, screen by screen
