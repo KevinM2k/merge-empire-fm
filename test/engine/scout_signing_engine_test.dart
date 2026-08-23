@@ -165,6 +165,59 @@ void main() {
       expect(coinsOf(s), before);
     });
 
+    test('THE CAP IS THE ROSTER, NOT THE ARRAY — 30, not 39', () {
+      // **Reported from a live save: "I'm locked at 30 initially, but I have
+      // 39."** `grid.cells` is 39 long because 30 plus a maxed Youth Academy's
+      // 8 needs 39 with one spare; it is a fixed-length array so index-based
+      // drag targets stay stable, and it is NOT the squad limit. Checking only
+      // `findFirstEmpty` let a player scout their way to 39.
+      final s = stateWith();
+      final cells =
+          (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+      expect(cells.length, greaterThan(Grid.maxPlayers), reason: 'no gap left');
+      for (var i = 0; i < Grid.maxPlayers; i++) {
+        cells[i] = <String, dynamic>{'definitionId': 'x', 'instanceId': 'c$i'};
+      }
+      final before = coinsOf(s);
+      expect(signBlocked(s), 'grid_full');
+      expect(signPlayer(s).ok, isFalse);
+      expect(filled(s), Grid.maxPlayers, reason: 'a 31st player was signed');
+      expect(coinsOf(s), before);
+    });
+
+    test('and a Youth Academy tier buys exactly one more', () {
+      // The one thing that grows the cap, +1 per tier.
+      final s = stateWith();
+      s['clubAssets'] = <String, dynamic>{
+        ...?(s['clubAssets'] as Map<String, dynamic>?),
+        AssetCategory.academy: <String, dynamic>{'owned': true, 'tier': 1},
+      };
+      final cells =
+          (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+      for (var i = 0; i < Grid.maxPlayers; i++) {
+        cells[i] = <String, dynamic>{'definitionId': 'x', 'instanceId': 'c$i'};
+      }
+      expect(signBlocked(s), isNull, reason: 'the academy slot was not honoured');
+      expect(signPlayer(s).ok, isTrue);
+      expect(signBlocked(s), 'grid_full');
+    });
+
+    test('AND A BATCH CANNOT WALK PAST IT EITHER', () {
+      // The JS checks the count ONCE before its batch loop and then trusts
+      // `placeCard`, so a batch of four starting at 29 still lands four. Every
+      // signing here goes through `signBlocked`, so the port cannot.
+      final s = stateWith();
+      final cells =
+          (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+      for (var i = 0; i < Grid.maxPlayers - 1; i++) {
+        cells[i] = <String, dynamic>{'definitionId': 'x', 'instanceId': 'c$i'};
+      }
+      for (var i = 0; i < 4; i++) {
+        signPlayer(s);
+      }
+      expect(filled(s), Grid.maxPlayers);
+    });
+
     test('coins stay whole numbers', () {
       final s = stateWith();
       signPlayer(s);

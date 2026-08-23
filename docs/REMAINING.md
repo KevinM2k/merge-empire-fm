@@ -5190,6 +5190,27 @@ one everywhere it should not.
       rule: the colour answers "what does this cost me?", so the video is yellow
       with the ad chip and the refill is gem blue with the price ON the button
       rather than tacked onto its title.
+- [x] **THE SQUAD CAP WAS NOT ENFORCED — 39 players on a limit of 30.** Reported
+      from a live save. `grid.cells` is 39 long because 30 plus a maxed Youth
+      Academy's 8 needs 39 with one spare; it is a fixed-length array so
+      index-based drag targets stay stable, and **it is not the squad limit**.
+      `signBlocked` only asked `findFirstEmpty`, so a player could scout their
+      way to the end of the array.
+      The check goes in `signBlocked`, which is stricter than the JS: its
+      `_scout` tests the count ONCE before its batch loop and then trusts
+      `placeCard`, so a batch of four starting at 29 still lands four there.
+      Every signing here goes through `signBlocked`, batch included.
+- [x] **Merge left gaps all over the grid.** The sweep never closed them.
+      `closeGridGaps` has existed since the drag merge was written and
+      `runMergeAll` did not call it — twelve merges, twelve holes, and the next
+      scout lands in the first hole rather than after the cards you can see. No
+      `keepAt`: that argument exists so one merge's burst does not play over a
+      hole while a neighbour bounces into the cell being watched, and a sweep
+      has no single cell being watched.
+- [x] **And it scrolls to the foot of the stack** so you can see it worked. The
+      sweep packs everything to the front; on thirteen rows with four on screen
+      the result is very often nowhere near where the player was, and a
+      set-piece played off screen is the same as none.
 - [ ] **Roll Trait should roll BOTH sides**, so it is clear what is happening,
       and the text should say the percentages gained and lost. **And the trait
       belongs above Career Stats** — it is one of the main things on that page,

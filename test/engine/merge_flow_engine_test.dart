@@ -416,4 +416,37 @@ void main() {
     });
   });
 
+  group('AND THE SWEEP CLOSES THE HOLES BEHIND IT', () {
+    test('a dozen merges do not leave a dozen gaps', () {
+      // Every merge empties the source's cell, so a sweep left the grid a
+      // scatter of cards with holes between them and the next scout landed in
+      // the first hole rather than after the cards the player can see. A DRAG
+      // merge has closed them since `closeGridGaps` was written; the sweep
+      // never called it.
+      final s = createDefaultState();
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+      for (var i = 0; i < 12; i++) {
+        cells[i] = <String, dynamic>{
+          'definitionId': 'player_t1_fwd',
+          'instanceId': 'c$i',
+          'variant': 0,
+        };
+      }
+      (s['resources'] as Map<String, dynamic>)['fanCoins'] = 1000000;
+
+      final run = runMergeAll(s, maxTier: 9);
+      expect(run.ok, isTrue);
+      expect(run.merges, greaterThan(1));
+
+      final after = (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+      final firstHole = after.indexWhere((c) => c == null);
+      final lastCard = after.lastIndexWhere((c) => c != null);
+      expect(
+        firstHole,
+        greaterThan(lastCard),
+        reason: 'a gap was left in front of a card',
+      );
+    });
+  });
+
 }

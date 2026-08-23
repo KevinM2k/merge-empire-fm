@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/quests.dart';
 import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart' show getMaxPlayers;
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/scout_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
@@ -30,6 +31,9 @@ List<dynamic> _cells(Map<String, dynamic>? state) {
   final cells = _map(state?['grid'])?['cells'];
   return cells is List ? cells : const [];
 }
+
+int _occupied(Map<String, dynamic>? state) =>
+    _cells(state).where((c) => c != null).length;
 
 num _coins(Map<String, dynamic>? state) =>
     _num(_map(state?['resources'])?['fanCoins']) ?? 0;
@@ -62,6 +66,18 @@ int scoutCost(Map<String, dynamic>? state, {bool ignoreVoucher = false}) {
 ///
 /// One of: `grid_full`, `insufficient_coins`, `no_candidate`.
 String? signBlocked(Map<String, dynamic>? state) {
+  // **THE ROSTER CAP, not the array's length.** `grid.cells` is 39 long because
+  // 30 plus a maxed Youth Academy's 8 needs 39 with one spare — it is a
+  // fixed-length array so index-based drag targets stay stable, and it is NOT
+  // the squad limit. Checking only `findFirstEmpty` let a save reach 39 players
+  // on a cap of 30, which is how it was reported: "I'm locked at 30 and I have
+  // 39".
+  //
+  // **In `signBlocked` rather than at the button**, which is where the JS puts
+  // it — its `_scout` checks the count once before the batch and then trusts
+  // `placeCard`, so a batch of four starting at 29 still lands four. Every
+  // signing here goes through this, batch included, so the port cannot.
+  if (_occupied(state) >= getMaxPlayers(state)) return 'grid_full';
   if (findFirstEmpty(_cells(state)) == -1) return 'grid_full';
   final free = _freeScoutReady(state) || heldVoucherTier(state) != null;
   if (!free && _coins(state) < scoutCost(state)) return 'insufficient_coins';

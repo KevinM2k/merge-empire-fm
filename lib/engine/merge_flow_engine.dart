@@ -286,6 +286,17 @@ MergeAllRun runMergeAll(Map<String, dynamic> state, {int? maxTier}) {
     return (ok: false, reason: 'no_pairs', merges: 0, cost: cost, landedAt: const []);
   }
 
+  // **AND THE HOLES CLOSE.** Every merge empties the source's cell, so a sweep
+  // of a dozen pairs leaves a dozen gaps scattered through the grid — reported
+  // as "when I hit merge you have left gaps all over the grid". A DRAG merge has
+  // closed them since `closeGridGaps` was written; the sweep never called it.
+  //
+  // No `keepAt`: that argument exists so a single merge's burst does not play
+  // over a hole while a neighbour bounces into the cell the player was watching.
+  // A sweep has no one cell being watched — it has twelve — so everything packs
+  // to the front in the order it is already in.
+  closeGridGaps(_cells(state));
+
   if (resources != null) {
     resources['fanCoins'] = (coins - cost).toInt();
   }

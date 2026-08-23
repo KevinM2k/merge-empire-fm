@@ -147,6 +147,28 @@ class MergeGridState extends ConsumerState<MergeGrid>
       _burstAt = at.toSet();
       _burstTier = tier;
     });
+    // **AND IT SCROLLS TO THE FOOT OF THE STACK.** The sweep packs everything
+    // to the front, so on a grid of thirteen rows with four on screen the
+    // result of a dozen merges is very often above or below wherever the player
+    // happened to be — a set-piece played somewhere they cannot see is the same
+    // as no set-piece. The LAST merged cell is the end of the run, which is
+    // where the new cards are.
+    final last = at.reduce((a, b) => a > b ? a : b);
+    WidgetsBinding.instance.addPostFrameCallback((_) => scrollToSlot(last));
+  }
+
+  /// Bring one cell into view, low on the screen so what is above it is the run
+  /// it belongs to rather than empty grid.
+  Future<void> scrollToSlot(int index) async {
+    if (!mounted || !_scroll.hasClients) return;
+    final target = _slotKeys[index]?.currentContext;
+    if (target == null) return;
+    await Scrollable.ensureVisible(
+      target,
+      alignment: 0.75,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+    );
   }
 
   /// Let EVERY card glide. Called by the sort, which reorders the whole grid and
