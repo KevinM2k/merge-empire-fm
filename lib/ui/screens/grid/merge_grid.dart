@@ -799,23 +799,36 @@ class _SlotTarget extends StatelessWidget {
         // the glyph itself the same colour as the square it sits in. There is
         // no ink at all — what you see is the two shadows, so it cannot
         // out-shout a card however bright the theme goes.
-        child: Text(
-          '${cell.index + 1}',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: kit.surface,
-            shadows: [
-              Shadow(
-                offset: const Offset(0, 1),
-                color: Colors.white.withValues(alpha: 0.07),
+        // **AND THE RELIEF HAS TO BE VISIBLE IN BOTH THEMES.** The two edges
+        // were a white at 7% and a black at 28% — numbers picked against a
+        // near-black square, where 7% of white is a real highlight. On a pale
+        // one it is nothing at all and the carve disappears, which is the
+        // embossed number reported as too hard to read. On a light square the
+        // work is done by the DARK edge and the highlight has to be near-solid
+        // white to sit against it; on a dark one it is the other way round, so
+        // the pair is chosen by theme rather than shared.
+        child: Builder(
+          builder: (context) {
+            final light = Theme.of(context).brightness == Brightness.light;
+            return Text(
+              '${cell.index + 1}',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: kit.surface,
+                shadows: [
+                  Shadow(
+                    offset: const Offset(0, 1),
+                    color: Colors.white.withValues(alpha: light ? 0.95 : 0.07),
+                  ),
+                  Shadow(
+                    offset: const Offset(0, -1),
+                    color: Colors.black.withValues(alpha: light ? 0.42 : 0.28),
+                  ),
+                ],
               ),
-              Shadow(
-                offset: const Offset(0, -1),
-                color: Colors.black.withValues(alpha: 0.28),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

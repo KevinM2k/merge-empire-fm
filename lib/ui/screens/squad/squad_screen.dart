@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show vsRedOn;
+    show readableInk, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -191,25 +191,28 @@ class SquadHeader extends ConsumerWidget {
                 ),
                 const SizedBox(width: 10),
                 // ATK and DEF carry the TACTIC — see `squadTacticMultipliers`.
-                // Their hues are fixed rather than kit-derived: the same two
+                // Their HUES are fixed rather than kit-derived: the same two
                 // colours mean attack and defence on every screen in the game.
+                // The LIGHTNESS is not: both were chosen against near-black and
+                // came out at 2.9:1 on a white page. Same hue, taken down —
+                // see [readableInk].
                 Text(
                   'ATK ${ratings.attack}',
                   key: const ValueKey('squad-atk'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFFE87A3A),
+                    color: readableInk(context, const Color(0xFFE87A3A)),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'DEF ${ratings.defence}',
                   key: const ValueKey('squad-def'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF4A9EDD),
+                    color: readableInk(context, const Color(0xFF4A9EDD)),
                   ),
                 ),
               ],

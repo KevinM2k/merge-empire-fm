@@ -15,6 +15,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show inkOn, readableInk;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
@@ -95,7 +97,7 @@ class ShopTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final ink = accent ?? _featureInk;
+    final ink = readableInk(context, accent ?? _featureInk);
     final lines = <Widget>[
       if (subtitle != null)
         Text(
@@ -156,12 +158,8 @@ class ShopTile extends StatelessWidget {
                             fontSize: 9,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.6,
-                            // Measured, not guessed: the ribbon takes the
-                            // product's own colour and gold wants black on it
-                            // where purple wants white.
-                            color: ink.computeLuminance() > 0.4
-                                ? const Color(0xFF201603)
-                                : Colors.white,
+                            // Measured, not guessed — see [inkOn].
+                            color: inkOn(ink),
                           ),
                         ),
                       ),

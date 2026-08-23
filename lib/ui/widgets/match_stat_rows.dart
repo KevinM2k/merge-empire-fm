@@ -27,6 +27,8 @@
 /// any content-sized row centres the pair off-axis.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
@@ -148,6 +150,33 @@ Color semanticInk(BuildContext context, Color ink) {
 ///
 /// **Only for CHIPS AND BADGES**, never for a run of body text: a plate behind
 /// a sentence is a highlighter pen. A figure, a letter, a short label.
+/// A tile's colour, taken down far enough to read on a LIGHT pane.
+///
+/// **Every feature colour in this file was chosen against near-black.** The
+/// shelf's gold is 1.26:1 on the light theme's `surface2` and the VIP purple is
+/// 2.30:1 — which is the whole of "light mode doesn't work", arriving through a
+/// door this pass opened. Same hue, taken to the lightness `_lightFrom` gives
+/// the kit's own bright accent.
+Color readableInk(BuildContext context, Color ink) {
+  if (Theme.of(context).brightness == Brightness.dark) return ink;
+  final hsl = HSLColor.fromColor(ink);
+  return hsl.withLightness(math.min(hsl.lightness, 0.34)).toColor();
+}
+
+/// Black or white on [fill], whichever a reader actually manages.
+///
+/// A luminance threshold picks white for a mid purple and leaves it at 2.88:1;
+/// measuring both and taking the better one cannot.
+Color inkOn(Color fill) {
+  double ratio(Color a) {
+    final x = a.computeLuminance();
+    final y = fill.computeLuminance();
+    return ((x > y ? x : y) + 0.05) / ((x < y ? x : y) + 0.05);
+  }
+
+  const dark = Color(0xFF201603);
+  return ratio(dark) >= ratio(Colors.white) ? dark : Colors.white;
+}
 /// The ground a semantic chip sits on, given the ink that goes over it.
 ///
 /// **A dark plate in both themes was itself a report.** It fixed one — the

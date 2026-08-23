@@ -6356,9 +6356,26 @@ that is not off the extension is the bug, not the symptom.
 
 ### Light mode, screen by screen
 
-- [ ] **Loads of views do not work in light mode** — text unreadable against the
-      background it is on. This row is the sweep; the ones below are the
-      specific sightings so far.
+- [x] **Loads of views do not work in light mode** — text unreadable against
+      the background it is on. **The sightings were being fixed one at a time,
+      which is the shape of a bug that keeps coming back**, so this is a SWEEP
+      with a test behind it: `test/ui/light_mode_contrast_test.dart` walks six
+      screens in light mode, finds every `Text` that names a colour of its own —
+      one that does not is right by construction, it takes the theme's — works
+      out the ground it is ACTUALLY on by compositing every translucent layer
+      between the two, and measures. Three to one, which is a floor for
+      "somebody can read this" rather than an accessibility grade.
+      It found two live ones on its first run: the shop's feature inks (the
+      shelf gold at 1.26:1, the VIP purple at 2.30:1 — colours chosen against
+      near-black, arriving through a door this very pass opened) and the squad's
+      ATK/DEF pair at 2.9:1. `readableInk` keeps the hue and takes the lightness
+      down; `inkOn` picks black or white by measuring both rather than by a
+      luminance threshold, which is what left white on a mid purple at 2.88.
+      **Two things it deliberately does NOT flag**, both because they are
+      arguments already made in the codebase: `accentInk` on the accent, where
+      `whiteInkMinContrast` is 2.2 and `kit_theme.dart` sets out why
+      white-on-accent is the house style; and an EMBOSS, which is read by
+      whichever of its edges separates rather than by its glyph.
 - [x] **Squad: the Clear button's red text cannot be read.** The INK was
       theme-aware and the pill under it was not — black glass in both themes, so
       the deep `#C62828` a light page needs came out dark red on near-black. The
@@ -6379,10 +6396,14 @@ that is not off the extension is the bug, not the symptom.
 - [x] **Both want a background of their own** so they read as boxes rather than
       as text floating on the sheet. Both were filled `surface` on a sheet that
       IS `surface` — a hairline border and nothing else. `surface2`.
-- [ ] **The embossed number on the player page is too hard to read.** **Which
-      number is not established** — there is no widget in `lib/ui` drawing an
-      embossed figure that a grep finds, so this wants the screen naming or a
-      shot before anybody guesses at a shadow to soften.
+- [x] **The embossed number on the player page is too hard to read.** The
+      light-mode sweep found it: the merge grid's cell number, which is drawn
+      with NO ink at all — the glyph is the square's own colour and what you see
+      is a light edge below it and a dark one above. Both were picked against a
+      near-black square, where 7% of white is a real highlight; on a pale one it
+      is nothing and the carve disappears. The pair is chosen by theme now: on a
+      light square the dark edge does the work and the highlight is near-solid
+      white to sit against it.
 
 ### The home page and the club
 
