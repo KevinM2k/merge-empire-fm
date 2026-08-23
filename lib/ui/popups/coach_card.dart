@@ -38,6 +38,49 @@ import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 /// Colin's portrait, as the JS's `COLIN_IMG`.
 const String coachPortrait = 'assets/ui/manager_hint.png';
 
+/// **His face, cropped to it.**
+///
+/// The source is a 512-square of him from the hair down to the chest on white,
+/// so the whole drawing dropped into a disc is a white circle with a small man
+/// in the middle of it — reported from the home dock as not showing fully and
+/// as a weird shape, which is what a full-length figure inscribed in a circle
+/// looks like at chip size.
+///
+/// **One of it, because there were three.** The dock zoomed to his face and the
+/// floating head every other tab wears did not, so the same coach was two
+/// different men depending which tab you were on. The card's portrait was a
+/// third.
+class CoachFace extends StatelessWidget {
+  const CoachFace({this.fallbackSize = 24, super.key});
+
+  /// The stand-in glyph's size, for a build with no art bundled.
+  final double fallbackSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    // Scaled about his EYES rather than about the middle of the picture, which
+    // at 1.5x fills the disc with a face. `ClipOval` is belt and braces over
+    // whatever circular clip the container has already — a `Transform` painting
+    // outside its bounds is the first thing a decoration clip loses.
+    return ClipOval(
+      child: SizedBox.expand(
+        child: Transform.scale(
+          scale: 1.5,
+          alignment: const Alignment(0, -0.45),
+          child: ArtImage(
+            path: coachPortrait,
+            fit: BoxFit.cover,
+            fallback: Center(
+              child: Icon(Icons.sports, size: fallbackSize, color: kit.accent),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// How far the portrait hangs above the card's top edge.
 const double _portrait = 68;
 
@@ -117,6 +160,110 @@ const Color coachScrim = Colors.black26;
 /// enough that the bubble reads as pointing past him. Anything placing a tail
 /// aims THIS at what is speaking.
 const double coachTailTipX = 1.5;
+
+
+/// His name over the line, in the one size and weight both bubbles use.
+TextStyle coachLabelStyle(BuildContext context) => TextStyle(
+  color: Theme.of(context).extension<KitTheme>()!.accentBright,
+  fontSize: 10,
+  fontWeight: FontWeight.w800,
+  letterSpacing: 0.5,
+);
+
+/// And the line itself.
+TextStyle coachBubbleTextStyle(BuildContext context) => TextStyle(
+  color: Theme.of(context).colorScheme.onSurface,
+  fontSize: 13,
+  height: 1.5,
+  fontWeight: FontWeight.w600,
+);
+
+/// The panel Colin speaks out of, wherever he is standing.
+///
+/// **One bubble, because there were two.** The home dock's was a translucent
+/// panel with a 1px rim and the X hanging off the outside of its corner; the
+/// floating one on every other tab was a 2px-rimmed card with a shadow and the
+/// X in its header row — the same coach saying the same kind of thing through
+/// two different windows, in two type sizes. What varies between the callers is
+/// the label, what goes under it and which string the X reads out; the chrome
+/// does not.
+class CoachSpeechBubble extends StatelessWidget {
+  const CoachSpeechBubble({
+    required this.label,
+    required this.dismissLabel,
+    required this.onClose,
+    required this.child,
+    this.maxWidth,
+    this.closeKey,
+    super.key,
+  });
+
+  /// What sits over the line — his name, or his name and the tactic he would
+  /// play.
+  final Widget label;
+
+  /// What a screen reader calls the X.
+  final String dismissLabel;
+
+  final VoidCallback onClose;
+
+  final Widget child;
+
+  /// Set where the bubble is placed by hand and the screen is what bounds it.
+  final double? maxWidth;
+
+  final Key? closeKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Container(
+      constraints: maxWidth == null
+          ? const BoxConstraints()
+          : BoxConstraints(maxWidth: maxWidth!),
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 10),
+      decoration: BoxDecoration(
+        // Barely translucent rather than glass: it sits over a lit diorama on
+        // one screen and a live one on the rest, and a sentence on either has
+        // to be read off the panel rather than off what is behind it.
+        color: kit.surface.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kit.accent, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x8C000000),
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(child: label),
+              Semantics(
+                button: true,
+                label: dismissLabel,
+                child: GestureDetector(
+                  key: closeKey,
+                  onTap: onClose,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.close, size: 16, color: kit.textMuted),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+}
 
 /// What kind of answer a button is, which is the whole of its colour.
 enum CoachTone {
@@ -487,13 +634,9 @@ class CoachCardFrame extends StatelessWidget {
                 ),
               ],
             ),
-            child: ArtImage(
-              key: const ValueKey('coach-card-portrait'),
-              path: coachPortrait,
-              fit: BoxFit.cover,
-              fallback: Center(
-                child: Icon(Icons.sports, size: 30, color: kit.accent),
-              ),
+            child: const CoachFace(
+              key: ValueKey('coach-card-portrait'),
+              fallbackSize: 30,
             ),
           ),
           // The milestone, beside his head and clear of it — the JS hangs it off

@@ -6174,6 +6174,125 @@ unfinished in a way that reads before a word on the screen does.
       answer to "the spinner doesn't look impressive", since two bare scrolling
       lists eight points apart is a pair of lists rather than a roller.
 
+## From playtesting — 31 Aug
+
+**One long sitting, and the two themes are LIGHT MODE and the MATCH.** Nearly
+half the rows below are the same defect wearing different clothes: a screen
+built and checked in dark mode, with a hardcoded ink or a scrim that reads as
+black-on-black — or worse, black-on-white — the moment the theme flips. Read
+`Colours come from KitTheme` in CLAUDE.md before starting any of them: a colour
+that is not off the extension is the bug, not the symptom.
+
+### Coach Colin, wherever he is standing
+
+- [x] **He is a different man on the Play tab than on every other page.** The
+      dock orb zoomed the portrait to his face; the floating head the other four
+      tabs wear dropped the whole 512-square drawing into a 56px disc, which is
+      a white circle with a small man in the middle of it. One `CoachFace` now,
+      and the card's own portrait was a third crop again.
+- [x] **His popup on the Play tab sits too far off him.** The offsets are
+      measured in global coordinates from the dock's box and the route insets
+      its child, so the home indicator's height was daylight between the tail
+      and his head. `useSafeArea: false`.
+- [x] **Every popup out of the manager should look the same.** The home bubble
+      was a translucent panel with a 1px rim and the X hanging off the outside
+      of its corner; the floating one was a rimmed card with a shadow and the X
+      in its header. `CoachSpeechBubble` is the one shape both go through.
+- [ ] **And on the match screen he wants the OTHER shape.** Reported there as
+      wanting to come up from the bottom, dim everything slightly, and go away
+      on a tap anywhere — which is what `coachScrim` and the floating coach
+      already do, so this is a call site rather than a fourth popup shape.
+- [ ] **On Fixtures he pops wherever there is room.** Always bottom left, in the
+      same place and the same format as everywhere else.
+
+### The match screen
+
+- [ ] **THE CHANCE CUTAWAY IS WORSE THAN IT WAS.** The fix logged under 30 Aug
+      traded one bug for another: the markings now draw twice, squashed into the
+      top third of a green box far taller than the pitch inside it. Screenshot
+      on the 31 Aug session. Start from what Flame is actually being asked to
+      fit — `visibleGameSize` letterboxes preserving aspect — and check the
+      TILT's fitted plane against the band, because the plane the tilt is fitted
+      into and the plane the game renders are two different sizes and only one
+      of them is the pitch.
+- [ ] **The 2D match view is not scaled correctly at all**, which is the same
+      family and may be the same cause.
+- [ ] **The Play screen is hard to read in light mode**, the commentary feed
+      worst of all.
+- [ ] **The spacing round the tactics boxes is not consistent** — between them,
+      above them and below them.
+- [ ] **There is no stats menu anywhere.** `match_stat_rows.dart` exists; grep
+      for who calls it before building a second one.
+- [ ] **The dugout cam needs LIFE.** Five to ten scenarios rather than a single
+      idle: he looks at the bench, somebody behind him celebrates, he high-fives
+      a coach. `ManagerWalker`'s `standing` + `idle` + `poseOverIdle` is the rig
+      for this — see the note in CLAUDE.md — not a second one.
+- [ ] **The dugout cam and the quests block should be the same height.**
+
+### The end of a game
+
+- [ ] **The home page flashes up before the end-of-game screen.** It must go
+      straight there; the intermediate frame reads as the app losing the match
+      result and finding it again.
+- [ ] **The end-game screen is unreadable in light mode.**
+
+### Light mode, screen by screen
+
+- [ ] **Loads of views do not work in light mode** — text unreadable against the
+      background it is on. This row is the sweep; the ones below are the
+      specific sightings so far.
+- [ ] **Squad: the Clear button's red text cannot be read.**
+- [ ] **The table: the W/D/L boxes have a dark background**, and the yellow
+      points text cannot be read.
+
+### The player sheet
+
+- [ ] **The trait box and the stats boxes are too far apart**, and the gap is
+      not the same as the others.
+- [ ] **Both want a background of their own** so they read as boxes rather than
+      as text floating on the sheet.
+
+### The home page and the club
+
+- [ ] **The Play page backdrop is cut off just above the trees.** The park seam
+      below it was fixed on 30 Aug; this is the band above. **And whatever
+      backdrop tiers 1 and 2 end up with has to work in BOTH themes** — the
+      scene is not exempt from light mode just because it is a picture.
+- [ ] **The customise popup is still slow to open.** The row-a-frame fill took
+      the freeze off the sheet's slide and did not make it quick.
+- [ ] **The club's assets have no background**, so they blend into the page
+      instead of standing out.
+
+### The shop and Pro mode
+
+- [ ] **The special offers look bad.** Read `../merge-empire-fc` for what the
+      shipped one does before restyling.
+- [ ] **Pro mode wants a LOCK on it**, and copy saying it unlocks at prestige.
+      Check `en.js` for an existing key before assuming new copy: no `t()` key
+      can be added from this repo.
+
+### Starting out
+
+- [ ] **A "show tutorial" tickbox on the new-club flow.** Starting a new team
+      offers no way to say whether the tutorial should run.
+
+### Transfers
+
+- [ ] **The right-hand box on a bid does not have its background filled.**
+- [ ] **A minimised bid blends into everything and covers things.** It needs to
+      read as a live thing parked at the bottom of the screen.
+
+### Training
+
+- [ ] **It never says how much a session earns.**
+- [ ] **Penalty training: the keeper is about a metre off his line.**
+- [ ] **The net wants more verticals and horizontals.**
+- [ ] **The run-up crosses its own legs**, which reads as a broken rig.
+- [ ] **The keeper dives stiff and then falls.** He wants to fall under
+      something like physics rather than snapping between two poses.
+- [ ] **The last penalty gives no time to see the goal go in** before the
+      summary takes the screen.
+
 ## M0 — foundation and save bridge ✅
 
 - [x] Scaffold, lints, architecture test

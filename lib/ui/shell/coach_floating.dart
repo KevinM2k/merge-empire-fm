@@ -44,14 +44,16 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart'
     show
         CoachAlertBadge,
         CoachBubbleTail,
-        coachPortrait,
+        CoachFace,
+        CoachSpeechBubble,
+        coachBubbleTextStyle,
+        coachLabelStyle,
         coachScrim,
         coachTailSize,
         coachTailTipX;
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 /// The dismissal ledger, if the save has one: tip key to the timestamp it may be
@@ -192,7 +194,6 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
                   _Bubble(
                     key: const ValueKey('coach-floating-bubble'),
                     text: _open!.text,
-                    accent: kit.accent,
                     onClose: () => _dismiss(_open!),
                   ),
                   // **The tail, so it reads as him SAYING it.** Every screen but
@@ -323,15 +324,7 @@ class _CoachHeadState extends State<_CoachHead>
                 // Clipped INSIDE the ring rather than on the same box: the disc
                 // needs to clip his portrait and the ring needs to escape, and
                 // one box cannot do both.
-                child: ClipOval(
-                  child: ArtImage(
-                    path: coachPortrait,
-                    fit: BoxFit.cover,
-                    fallback: Center(
-                      child: Icon(Icons.sports, size: 24, color: kit.accent),
-                    ),
-                  ),
-                ),
+                child: const CoachFace(),
               ),
               // The badge. A single character, because a count would imply
               // there is a list of them — and it is the DOCK's badge, shared,
@@ -349,83 +342,22 @@ class _CoachHeadState extends State<_CoachHead>
   }
 }
 
-/// What he actually says.
+/// What he actually says, in the bubble every screen uses — see
+/// [CoachSpeechBubble].
 class _Bubble extends StatelessWidget {
-  const _Bubble({
-    required this.text,
-    required this.accent,
-    required this.onClose,
-    super.key,
-  });
+  const _Bubble({required this.text, required this.onClose, super.key});
 
   final String text;
-  final Color accent;
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: kit.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent, width: 2),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x8C000000),
-            blurRadius: 16,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 8, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    // His name over the line, so the voice is attributed and the
-                    // copy is free to speak in the first person — the same
-                    // decision `coach_card.dart` makes.
-                    t('coach.label').toUpperCase(),
-                    style: TextStyle(
-                      color: accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-                Semantics(
-                  button: true,
-                  label: t('coach.aria.dismiss'),
-                  child: GestureDetector(
-                    key: const ValueKey('coach-floating-close'),
-                    onTap: onClose,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.close, size: 16, color: kit.textMuted),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              text,
-              style: TextStyle(
-                color: kit.textMuted,
-                fontSize: 13,
-                height: 1.3,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => CoachSpeechBubble(
+    // His name over the line, so the voice is attributed and the copy is free
+    // to speak in the first person — the same decision `coach_card.dart` makes.
+    label: Text(t('coach.label').toUpperCase(), style: coachLabelStyle(context)),
+    dismissLabel: t('coach.aria.dismiss'),
+    closeKey: const ValueKey('coach-floating-close'),
+    onClose: onClose,
+    child: Text(text, style: coachBubbleTextStyle(context)),
+  );
 }

@@ -208,6 +208,13 @@ Future<void> showCoachBubble(BuildContext context, WidgetRef ref) {
   return showDialog<void>(
     context: context,
     barrierColor: coachScrim,
+    // **NOT inside a `SafeArea`, because the anchor is not either.** Every
+    // offset below is measured in GLOBAL coordinates off the dock's own box, so
+    // a route that insets its child pushes the bubble up by the height of the
+    // home indicator — reported as the popup sitting too far away from him,
+    // which on a modern phone is thirty-four pixels of daylight between the
+    // tail and his head.
+    useSafeArea: false,
     builder: (_) => _CoachBubble(anchor: anchor),
   );
 }
@@ -273,9 +280,12 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
     // other tab uses stacks the bubble on top of the head and drops the wedge
     // onto it; this now does the same thing with the dock as its anchor.
     final left = anchor == null ? 15.0 : math.max(10.0, anchor.left);
+    // The tail hangs ten below the bubble, so ten of gap puts its point on the
+    // top of his disc — which is where the floating coach's sits, that one being
+    // a `Column` with the head directly under the wedge.
     final bottom = anchor == null
         ? 96.0
-        : math.max(8.0, screen.height - anchor.top + 12);
+        : math.max(8.0, screen.height - anchor.top + 10);
     final maxWidth = math.max(160.0, screen.width - left - 14);
     // **THE POINT sits over the middle of the disc below it, not the box.** It
     // was `- 9`, half the wedge's width — and the wedge leans left, so its tip
@@ -292,98 +302,65 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
 
     final bubble = Material(
       color: Colors.transparent,
-      child: Container(
+      // **The bubble every other screen uses**, rather than a second one that
+      // happened to live here — see [CoachSpeechBubble]. This was a translucent
+      // panel with a 1px rim and the X hanging off the outside of its corner
+      // while the floating coach had a rimmed card with the X in its header, so
+      // the same man's advice arrived in two different windows.
+      child: CoachSpeechBubble(
         key: const ValueKey('coach-bubble'),
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        padding: const EdgeInsets.fromLTRB(12, 10, 30, 10),
-        decoration: BoxDecoration(
-          color: kit.surface.withValues(alpha: 0.94),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kit.accent),
-        ),
-        child: Stack(
-          children: [
-            // NO PORTRAIT. The dock button already IS his face and this springs
-            // out of it, so a second head in the bubble was the same man twice —
-            // which is exactly what it looked like.
-            InkWell(
-              onTap: tips.length > 1 ? _next : null,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _CoachLabel(),
-                  const SizedBox(height: 3),
-                  // The line itself fades between tips rather than snapping, so
-                  // a cycle mid-read is a change you can see coming.
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Text(
-                      tip.text,
-                      key: ValueKey('coach-tip-${tip.id}'),
-                      style: TextStyle(
-                        // The size every OTHER screen's bubble uses. This one
-                        // was the odd one out.
-                        fontSize: 13,
-                        height: 1.5,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  // DOTS, not a "2 / 3" button: the count is the only thing a
-                  // fraction adds, and it reads as a control rather than as a
-                  // place in a short list.
-                  if (tips.length > 1) ...[
-                    const SizedBox(height: 5),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (var i = 0; i < tips.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              width: 5,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: i == _index % tips.length
-                                    ? kit.accentBright
-                                    : Colors.white.withValues(alpha: 0.2),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Positioned(
-              top: -4,
-              right: -22,
-              // **`manager_hint.aria.dismiss`, at last.** It and its sibling
-              // are DOM accessibility labels — the last two of the fourteen
-              // `manager_hint.*` strings with no caller — and the queue's own
-              // note was that they want a Flutter `Semantics` rather than a
-              // printed string. This is that: the label a screen reader reads,
-              // in the player's own language, where `common.close` is what a
-              // pointer gets as a tooltip.
-              child: Semantics(
-                label: t('manager_hint.aria.dismiss'),
-                button: true,
-                child: IconButton(
-                  key: const ValueKey('coach-bubble-close'),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: t('common.close'),
-                  icon: const Icon(Icons.close, size: 14),
-                  onPressed: () => Navigator.of(context).pop(),
+        maxWidth: maxWidth,
+        label: const _CoachLabel(),
+        dismissLabel: t('manager_hint.aria.dismiss'),
+        closeKey: const ValueKey('coach-bubble-close'),
+        onClose: () => Navigator.of(context).pop(),
+        // NO PORTRAIT. The dock button already IS his face and this springs out
+        // of it, so a second head in the bubble was the same man twice — which
+        // is exactly what it looked like.
+        child: InkWell(
+          onTap: tips.length > 1 ? _next : null,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The line itself fades between tips rather than snapping, so a
+              // cycle mid-read is a change you can see coming.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  tip.text,
+                  key: ValueKey('coach-tip-${tip.id}'),
+                  style: coachBubbleTextStyle(context),
                 ),
               ),
-            ),
-          ],
+              // DOTS, not a "2 / 3" button: the count is the only thing a
+              // fraction adds, and it reads as a control rather than as a place
+              // in a short list.
+              if (tips.length > 1) ...[
+                const SizedBox(height: 5),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < tips.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: i == _index % tips.length
+                                ? kit.accentBright
+                                : Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -419,7 +396,7 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
                 child: CustomPaint(
                   size: coachTailSize,
                   painter: CoachBubbleTail(
-                    fill: kit.surface.withValues(alpha: 0.94),
+                    fill: kit.surface.withValues(alpha: 0.96),
                     edge: kit.accent,
                   ),
                 ),

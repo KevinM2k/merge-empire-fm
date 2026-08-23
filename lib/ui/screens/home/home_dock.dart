@@ -24,13 +24,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
-    show CoachAlertBadge;
+    show CoachAlertBadge, CoachFace;
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
 import 'package:merge_empire_fc/ui/shell/shell_quick_nav.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 
 /// A dock orb: a 54px disc with its label riding up over the bottom edge.
 class DockButton extends StatelessWidget {
@@ -183,34 +182,11 @@ class CoachDock extends ConsumerWidget {
       label: t('scene.dock.coach'),
       dot: unread,
       onTap: () => showCoachBubble(context, ref),
-      // **IT IS A HEAD SHOT, and it is round.** The portrait is a 512-square of
-      // him from the hair down to the chest on white, and dropping that whole
-      // drawing into a 54px disc gives you a white circle with a small man in
-      // the middle of it — reported as not showing fully and as being a weird
-      // shape, which is exactly what a full-length figure inscribed in a circle
-      // looks like at chip size.
-      //
-      // So the art is scaled about his FACE rather than about the centre of the
-      // picture: the fixed point is roughly where his eyes are in the source,
-      // and at 1.5× that fills the disc with a face. `ClipOval` is belt and
-      // braces over the container's own circular clip — a `Transform` painting
-      // outside its bounds is precisely the thing a decoration clip is easiest
-      // to lose.
-      child: ClipOval(
-        child: SizedBox.expand(
-          child: Transform.scale(
-            scale: 1.5,
-            alignment: const Alignment(0, -0.45),
-            child: const ArtImage(
-              path: 'assets/ui/manager_hint.png',
-              fit: BoxFit.cover,
-              fallback: Center(
-                child: Text('🧢', style: TextStyle(fontSize: 26)),
-              ),
-            ),
-          ),
-        ),
-      ),
+      // **IT IS A HEAD SHOT, and it is round** — and it is the same head shot
+      // the floating coach on every other tab wears, which is what [CoachFace]
+      // is for. This orb zoomed to his face and that one did not, so Colin was
+      // a different man depending which tab you were on.
+      child: const CoachFace(fallbackSize: 26),
     );
   }
 }
