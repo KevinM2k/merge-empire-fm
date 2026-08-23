@@ -79,6 +79,11 @@ typedef CloudSnapshot = ({
 Future<CloudSnapshot?> fetchCloudSave(String uid) async {
   final doc = await restGetDocument(cloudSaveDocPath(uid));
   if (doc == null) return null;
+  // **A STRING, and only a string.** The save is stored as JSON text in one
+  // field — see [uploadCloudSave] — and `decodeFirestoreValue` answers null for
+  // a `mapValue` on purpose: the JS does the same, because a real map arriving
+  // here means the document was written by something that is not this game.
+  // A "legacy nested map" branch was written here and could never run.
   final raw = doc.data['data'];
   Map<String, dynamic>? cloudData;
   if (raw is String) {
@@ -88,9 +93,6 @@ Future<CloudSnapshot?> fetchCloudSave(String uid) async {
     } catch (_) {
       cloudData = null;
     }
-  } else if (raw is Map<String, dynamic>) {
-    // Legacy nested-map saves, from before the string encoding.
-    cloudData = raw;
   }
   return (
     lastSeen: _int(doc.data['lastSeen']),

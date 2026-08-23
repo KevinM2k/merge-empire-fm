@@ -7339,7 +7339,25 @@ of buttons that error.
       SDK. The seam is tested; the SDK's own behaviour is the M6 device pass.
 - [ ] Firebase: `services/firebase` (146) init, the analytics sink, Crashlytics
 - [ ] `authService` (662), `playGamesService` (155), `nativeAuthPlugin`
-- [ ] `cloudSaveService` (498). **`firestoreRest` (334) and `firestoreRestAuth`
+- [x] `cloudSaveService` (498) — **PORTED, in two halves.**
+      `engine/cloud_save_policy.dart` is who wins when the phone and the cloud
+      disagree: every hard decision is arithmetic over two summaries, so all of
+      it is pure and tested to the edges (24 cases). `services/cloud_save_service.dart`
+      is the half that talks — pack, fetch, upload with an optimistic
+      precondition, the boot evaluation, the resume check and the debounce (23
+      cases, over the same `firestoreSend` seam, no socket opened).
+      **A refused precondition is reconciled rather than dropped**, which is the
+      bug the JS's own comments record: dropping it froze full saves for days
+      while the leaderboard — which writes with no precondition — kept
+      advancing, and only a reinstall unstuck it.
+      Writing the tests found a branch that could never run: `fetchCloudSave`
+      had a "legacy nested map" path, and the codec answers null for a
+      `mapValue` on purpose because the save is stored as JSON TEXT. Deleted.
+      **What it is still waiting on is a UID.** Nothing calls any of this yet:
+      the uid comes from `authService`, and the conflict card needs the twelve
+      `cloud.conflict.*` keys placed on a screen.
+
+      **`firestoreRest` (334) and `firestoreRestAuth`
       (83) are PORTED** — `engine/firestore_codec.dart` (the wire format, pure
       and tested: 20 cases, including that an integer arrives as a string and a
       whole double must be written as one) and `services/firestore_rest.dart`
