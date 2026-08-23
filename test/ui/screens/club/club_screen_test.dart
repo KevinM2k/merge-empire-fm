@@ -567,4 +567,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('asset-ladder-$_key')), findsOneWidget);
   });
+  testWidgets('GLASS NEEDS SOMETHING TO BLUR, and this page had nothing', (
+    tester,
+  ) async {
+    // The asset cards became `GlassPanel`s — the app's one answer to "a thing
+    // on the sky" — and on a flat page colour a `BackdropFilter` has no work to
+    // do, so all that showed was the panel's own tint. Reported exactly that
+    // way: not glass, just a darker gradient.
+    //
+    // The club's own SKY goes behind it, at the tier its ground is, so the two
+    // screens that describe the club describe it under the same light. What the
+    // blur needs is something that VARIES across the panel — an edge to soften
+    // — which is why a gradient is enough and a flat colour is not.
+    await pumpClub(tester);
+    final backdrop = find.byKey(const ValueKey('club-backdrop'));
+    expect(backdrop, findsOneWidget);
+    final decoration =
+        tester.widget<DecoratedBox>(backdrop).decoration as BoxDecoration;
+    final gradient = decoration.gradient! as LinearGradient;
+    expect(
+      gradient.colors.toSet().length,
+      greaterThan(1),
+      reason: 'a flat backdrop is nothing to blur',
+    );
+  });
+
 }

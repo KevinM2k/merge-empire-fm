@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_stats_panel.dart';
 import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -104,7 +105,26 @@ class ClubScreen extends ConsumerWidget {
     // Eager rather than a lazy ListView: seven panels is nothing, and a lazy
     // list leaves the ones below the fold unbuilt — which makes them invisible
     // to anything that wants to reach one.
-    return SingleChildScrollView(
+    // **GLASS NEEDS SOMETHING TO BLUR, and this page had nothing.** The asset
+    // cards became `GlassPanel`s — the app's one answer to "a thing on the sky"
+    // — and on a flat page colour a `BackdropFilter` has no work to do, so all
+    // that showed was the panel's own tint. Reported exactly that way: not
+    // glass, just a darker gradient.
+    //
+    // The club's own SKY is what goes behind it, at the tier its ground is —
+    // the same gradient the diorama's horizon uses, so the two screens that
+    // both describe the club describe it under the same light. A gradient
+    // rather than a photograph because that is all the glass needs: something
+    // that VARIES across the panel, so the blur has an edge to soften.
+    return DecoratedBox(
+      key: const ValueKey('club-backdrop'),
+      decoration: BoxDecoration(
+        gradient: skyGradient(
+          brightness: Theme.of(context).brightness,
+          tier: ref.watch(stadiumTierProvider),
+        ),
+      ),
+      child: SingleChildScrollView(
       key: const ValueKey('club-screen'),
       padding: EdgeInsets.fromLTRB(12, hudClearanceOf(context), 12, 12),
       child: Column(
@@ -136,6 +156,7 @@ class ClubScreen extends ConsumerWidget {
           const SizedBox(height: 14),
           const ClubStatsPanel(),
         ],
+      ),
       ),
     );
   }

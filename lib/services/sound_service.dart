@@ -317,6 +317,22 @@ class AudioPlayersBackend implements SoundBackend {
   /// plugin at all — and in none of those cases is the right answer for the game
   /// to throw. These are all fire-and-forget from the caller's side, so an
   /// unhandled rejection here would surface as a crash somewhere unrelated.
+  /// Stop and dispose whatever is playing for [name], and forget it.
+  ///
+  /// Idempotent: a stop timer, a completion callback and the next play of the
+  /// same effect can all reach this, in any order.
+  Future<void> _quietlyKill(AudioPlayer player) async {
+    await _quietly(player.stop);
+    await _quietly(player.dispose);
+  }
+
+  Future<void> _kill(String name) async {
+    _stops.remove(name)?.cancel();
+    final player = _players.remove(name);
+    if (player == null) return;
+    await _quietlyKill(player);
+  }
+
   static Future<void> _quietly(Future<void> Function() action) async {
     try {
       await action();
@@ -366,39 +382,45 @@ class AudioPlayersBackend implements SoundBackend {
       await player.play(BytesSource(wav, mimeType: 'audio/wav'));
       return;
     }
-    var player = _players[name];
-    if (player == null) {
-      player = await _newPlayer(ReleaseMode.stop);
-      _players[name] = player;
-      await player.setSource(BytesSource(wav, mimeType: 'audio/wav'));
-    }
-    final live = player;
-
-    // **THE STOP IS ARMED FIRST, before anything that can throw.** It used to be
-    // the LAST statement of this block, inside `_quietly` — so a platform call
-    // that failed part-way through skipped it and left whatever was playing to
-    // run on with nothing scheduled to end it. Reported as the signing sound
-    // playing continuously and never stopping.
+    // **A FRESH PLAYER PER SOUND, and the cached one is gone.**
     //
-    // The root cause of that report was not reproducible from here — it needs a
-    // device — but a clip whose stop depends on three platform calls all
-    // succeeding is a clip that can run forever, and it does not need to be.
-    _stops.remove(name)?.cancel();
+    // It used to keep one `AudioPlayer` per effect for the life of the process
+    // and retrigger it with `seek(0)` then `resume()`. That is a state machine
+    // — created, played, stopped by a timer, sought, resumed — and it is the
+    // only thing in this file that could produce what was reported twice: the
+    // signing sound running continuously, and more than one of it at a time.
+    // `resume()` on a player the stop timer has already `stop()`ped is asking a
+    // released source to play again, and what a platform does there is not
+    // something this code should be relying on.
+    //
+    // **It is not reproducible from here** — it needs a device — so this
+    // removes the mechanism rather than claiming a diagnosis. One player, one
+    // sound, disposed when it ends. The cost is creating a player per effect,
+    // which is the trade this file's own note already makes: "a sound that will
+    // not stop is far worse than one that costs a little to start".
+    //
+    // The retrigger rule survives and is now literal: the previous copy of THIS
+    // effect is stopped before the new one starts, which is what "back to the
+    // top rather than a second copy" means.
+    await _kill(name);
+    final player = await _newPlayer(ReleaseMode.stop);
+    _players[name] = player;
+
+    // **ARMED BEFORE ANYTHING THAT CAN THROW.** The whole block is inside
+    // `_quietly`, so a platform call that failed part-way through used to skip
+    // the stop and leave whatever was playing with nothing scheduled to end it.
     _stops[name] = Timer(length + const Duration(milliseconds: 60), () {
       _stops.remove(name);
-      unawaited(_quietly(live.stop));
+      unawaited(_kill(name));
     });
 
-    // **AND THE RELEASE MODE IS RE-ASSERTED**, not merely set once at creation.
-    // These players are cached for the life of the process and handed back out
-    // by name; one flipped to `loop` by anything at all would loop every time
-    // that effect played, for the rest of the session.
-    await live.setReleaseMode(ReleaseMode.stop);
-    await live.setVolume(volume);
-    // Retrigger: back to the top rather than a second copy, which is the JS's
-    // behaviour for everything but thunder and fireworks.
-    await live.seek(Duration.zero);
-    await live.resume();
+    unawaited(
+      player.onPlayerComplete.first.whenComplete(() {
+        if (_players[name] == player) unawaited(_kill(name));
+      }),
+    );
+    await player.setVolume(volume);
+    await player.play(BytesSource(wav, mimeType: 'audio/wav'));
   });
 
   @override
@@ -493,16 +515,18 @@ class AudioPlayersBackend implements SoundBackend {
 
   @override
   Future<void> stopAllSfx() => _quietly(() async {
+    // **DISPOSED, not merely stopped.** Every player here is a one-shot now —
+    // see `playSfx` — so leaving a stopped one in the map is a platform handle
+    // nothing will ever come back for.
+    for (final name in _players.keys.toList()) {
+      await _kill(name);
+    }
     for (final timer in _stops.values) {
       timer.cancel();
     }
     _stops.clear();
-    for (final player in _players.values) {
-      await player.stop();
-    }
     for (final player in _oneShots.toList()) {
-      await player.stop();
-      await player.dispose();
+      await _quietlyKill(player);
     }
     _oneShots.clear();
   });

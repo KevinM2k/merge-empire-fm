@@ -5320,13 +5320,12 @@ one everywhere it should not.
       shelf is a repeating controller per tile. The spec turns the sweep off
       under reduced motion anyway, so the parked highlight is the version that
       is always right.
-- [~] **Use the glass/blur from the Play screen on the club assets.** The cards
+- [x] **Use the glass/blur from the Play screen on the club assets.** The cards
       are `GlassPanel` now rather than hand-rolled `Container`s with their own
-      colour, radius and border — which is the right move on its own, because
-      `GlassPanel` is the app's one answer to "a thing on the sky" and a screen
-      that rolls its own will drift the first time the glass is touched.
-      **But it does not LOOK like glass, and the reason is above**: the Club
-      page has no backdrop to blur. See the row in this section.
+      colour, radius and border — `GlassPanel` is the app's one answer to "a
+      thing on the sky", and a screen that rolls its own drifts the first time
+      the glass is touched. And the page has a sky behind them, which is what
+      makes it read as glass at all — see the row above.
 - [x] **The Customise button is mostly cut off on the home page** — and **the
       menu button is no longer on the right**. **ONE layout, two reports.** The
       dock rail had two `Spacer`s between three `Flexible`s all at flex 1, so
@@ -5499,27 +5498,31 @@ one everywhere it should not.
       exactly, so the change is a no-op at every boundary the JS was dumped at.
 - [ ] **THE UNUSED-CARD COUNT on the Players page should look EMBOSSED** —
       very subtle, pressed into the surface rather than printed on it.
-- [ ] **THE CLUB ASSET CARDS ARE NOT GLASS.** They read as a darker gradient,
-      not a blur — because there is nothing behind them to blur. The page is a
-      flat colour, so `BackdropFilter` has no work to do and all that shows is
-      the panel's own tint. Give the page something worth frosting against, even
-      if it is only a gradient.
-- [~] **THE BUY-PLAYER SOUND PLAYS CONTINUOUSLY and never stops.** **The root
-      cause is NOT reproducible from here** — it needs a device, and reading the
-      path found nothing that loops: the WAV header is correct, the release mode
-      is `stop`, the cue is a one-shot and the retrigger floor collapses a batch.
-      So this is hardening rather than a diagnosis, and it says so.
-      Two changes, both making "runs forever" impossible by construction. The
-      stop timer is **armed BEFORE anything that can throw** — it used to be the
-      last statement of a block wrapped in `_quietly`, so a platform call that
-      failed part-way skipped it and left whatever was playing with nothing
-      scheduled to end it. And `ReleaseMode.stop` is **re-asserted on every
-      play** rather than set once at creation: these players are cached for the
-      life of the process and handed back out by name, so one flipped to `loop`
-      by anything at all would loop that effect for the rest of the session.
-      What is pinned is the half the service owns: every cue hands down a
-      finite, short length that matches its definition, and a signing does not
-      stack.
+- [x] **THE CLUB ASSET CARDS ARE NOT GLASS.** Right diagnosis, and it was the
+      PAGE rather than the panels: a flat colour gives `BackdropFilter` no work
+      to do, so all that showed was the panel's own tint. The club's own SKY
+      goes behind it now, at the tier its ground is — the same gradient the
+      diorama's horizon uses, so the two screens that describe the club describe
+      it under the same light. A gradient is enough because what the blur needs
+      is something that VARIES across the panel: an edge to soften.
+- [~] **THE BUY-PLAYER SOUND PLAYS CONTINUOUSLY, and more than one at a time.**
+      **THE CACHED PLAYER IS GONE.** The service kept one `AudioPlayer` per
+      effect for the life of the process and retriggered it with `seek(0)` then
+      `resume()` — a state machine (created, played, stopped by a timer, sought,
+      resumed) and the only thing in the file that could produce both halves of
+      what was reported. `resume()` on a player the stop timer has already
+      `stop()`ped is asking a released source to play again, and what a platform
+      does there is not something this code should rely on.
+      One player, one sound, disposed when it ends. The retrigger rule survives
+      and is now literal: the previous copy of THIS effect is stopped before the
+      new one starts, which is what "back to the top rather than a second copy"
+      always meant. The stop is armed before anything that can throw, and
+      `stopAllSfx` disposes rather than merely stopping — every player is a
+      one-shot now, so a stopped one left in the map is a platform handle
+      nothing comes back for.
+      **Still not reproducible from here** — it needs a device — so this removes
+      the MECHANISM rather than claiming a diagnosis. Also ruled out on the way:
+      the overlap path has no caller anywhere in `lib`, so it was not that.
 - [x] **PLAYER NAMES: keep the first name, randomise the SURNAME.** It was
       `pool[tier % 10]` for the WHOLE string, so every card of one position,
       tier and gender was born the same man and a squad filled up with copies of
