@@ -310,9 +310,18 @@ void main() {
     );
   });
 
-  testWidgets('AND THEY ARE STILL BELOW THE TABLE', (tester) async {
-    // A report rather than a claim — the coins are already banked — so it may
-    // not come before the thing this screen exists to show.
+  testWidgets('AND THEY ARE STILL AFTER THE TABLE, but now they FIT', (
+    tester,
+  ) async {
+    // **This used to assert the quests were off the bottom**, which was true
+    // and was the complaint: the dugout cam and the quest list both fell below
+    // the fold. The table is a WINDOW round our own row now — us and whoever we
+    // passed, rather than twenty rows of a division — so what was three
+    // screenfuls is one.
+    //
+    // What has not changed is the ORDER. A quest report is a report rather than
+    // a claim — the coins are already banked — so it may not come before the
+    // thing this screen exists to show.
     await pumpSummary(
       tester,
       result(
@@ -327,12 +336,15 @@ void main() {
         ],
       ),
     );
-    // Off the bottom on the frame the screen opens — the verdict is what is
-    // there — and reachable by scrolling, which is the whole claim.
     expect(find.byKey(const ValueKey('summary-verdict')), findsOneWidget);
-    expect(find.byKey(const ValueKey('match-quests')), findsNothing);
-    await scrollReport(tester, const ValueKey('match-quests'));
     expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
+    // Still BELOW the table, which is the half that matters.
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('match-quests'))).dy,
+      greaterThan(
+        tester.getTopLeft(find.byKey(const ValueKey('summary-table'))).dy,
+      ),
+    );
   });
 
   testWidgets('THE TABLE MOVES ON IT', (tester) async {

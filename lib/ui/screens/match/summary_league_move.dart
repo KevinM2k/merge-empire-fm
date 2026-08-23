@@ -80,6 +80,16 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
     final settled = moved || still;
     final from = _previousOrder(rows);
 
+    // **THE TEAM ABOVE AND THE TEAM BELOW, and nobody else.** Twenty rows of a
+    // division a player is not in is a table; what they came to see is whether
+    // they went up, and past whom. Asked for directly.
+    //
+    // The window has to hold both ENDS of the move or the slide has nothing to
+    // pass: our neighbours as they were, and our neighbours as they are.
+    final window = _window(rows, from);
+    final beforeSlot = _slots(window, (i) => from?[i] ?? i);
+    final afterSlot = _slots(window, (i) => i);
+
     return GlassPanel(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       child: Column(
@@ -98,10 +108,11 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
             ),
           ),
           SizedBox(
-            height: rows.length * leagueMoveRowHeight,
+            height: window.length * leagueMoveRowHeight,
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                for (var i = 0; i < rows.length; i++)
+                for (final i in window)
                   AnimatedPositioned(
                     key: ValueKey('summary-table-${rows[i].name}'),
                     duration: still ? Duration.zero : leagueMoveSlide,
@@ -110,21 +121,37 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
                     right: 0,
                     height: leagueMoveRowHeight,
                     // Where it WAS until the hold is up, then where the result
-                    // put it. `from` is null when there is nothing honest to
-                    // move from, and then every row starts where it ends.
-                    top: ((settled ? i : from?[i] ?? i) * leagueMoveRowHeight)
-                        .toDouble(),
-                    child: _MoveRow(
-                      row: rows[i],
-                      // The number counts with the movement rather than after
-                      // it: a club sliding up the block while still printing
-                      // the position it is leaving reads as a rendering fault.
-                      position: (settled ? i : from?[i] ?? i) + 1,
-                      delta: from == null ? null : (from[i] - i),
-                      // No arrow before the table has moved — it would give
-                      // away the rearrangement it is meant to explain.
-                      showDelta: settled,
+                    // put it — as a slot in the WINDOW rather than a rank in
+                    // the division, so the two or three rows on screen are the
+                    // ones that moved past each other.
+                    top:
+                        ((settled ? afterSlot[i]! : beforeSlot[i]!) *
+                                leagueMoveRowHeight)
+                            .toDouble(),
+                    // **OUR ROW IS PICKED UP, CARRIED, AND SET DOWN.** A table
+                    // where every row slides the same way is a list reordering
+                    // itself; what the player did is move THEIR club, and the
+                    // way to say that is to lift it off the page while the rest
+                    // of the division shuffles underneath. Asked for in those
+                    // words.
+                    child: _Lift(
+                      // Only ours, and only while it is travelling.
+                      lifted: rows[i].isPlayer && !settled && !still,
                       still: still,
+                      child: _MoveRow(
+                        row: rows[i],
+                        // The number counts with the movement rather than after
+                        // it: a club sliding up the block while still printing
+                        // the position it is leaving reads as a rendering
+                        // fault. It is the DIVISION's rank, not the window's —
+                        // the window is a viewport, not a league.
+                        position: (settled ? i : from?[i] ?? i) + 1,
+                        delta: from == null ? null : (from[i] - i),
+                        // No arrow before the table has moved — it would give
+                        // away the rearrangement it is meant to explain.
+                        showDelta: settled,
+                        still: still,
+                      ),
                     ),
                   ),
               ],
@@ -134,6 +161,87 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
       ),
     );
   }
+}
+
+/// **THE CLUB IS PICKED UP, CARRIED, AND SET DOWN.**
+///
+/// A table where every row slides the same way is a list reordering itself.
+/// What the player actually did is move THEIR club, and the way to say that is
+/// to lift it off the page while the rest of the division shuffles underneath
+/// it — asked for in those words, and the reason it reads is that a raised
+/// thing is unambiguously the SUBJECT of the movement rather than one of its
+/// participants.
+///
+/// The scale is small and the shadow does most of it. A row at 1.3 is a row
+/// covering its neighbours, which is the opposite of showing what it passed.
+class _Lift extends StatelessWidget {
+  const _Lift({required this.lifted, required this.still, required this.child});
+
+  final bool lifted;
+
+  /// Reduced motion gets the answer without the movement: the deltas still say
+  /// who climbed, so there is nothing to lift.
+  final bool still;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (still) return child;
+    return AnimatedScale(
+      scale: lifted ? 1.06 : 1,
+      duration: leagueMoveSlide,
+      curve: Curves.easeInOutCubic,
+      child: AnimatedPhysicalModel(
+        duration: leagueMoveSlide,
+        curve: Curves.easeInOutCubic,
+        // The row draws its own surface; this is only the shadow under it, so
+        // the model itself is transparent.
+        color: Colors.transparent,
+        shadowColor: Colors.black,
+        elevation: lifted ? 12 : 0,
+        borderRadius: BorderRadius.circular(8),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Which rows are worth drawing: ours, and whoever is beside us at either end
+/// of the move.
+///
+/// **Both ends, or the movement has nothing to happen against.** A window of
+/// the FINAL neighbours alone would show our row arriving next to two clubs it
+/// never passed; the one it overtook has to be on screen for the overtake to be
+/// visible.
+///
+/// Returned in the settled table's own order, so the after-state reads top to
+/// bottom without sorting anything.
+List<int> _window(List<LeagueRow> rows, List<int>? from) {
+  final ours = rows.indexWhere((r) => r.isPlayer);
+  // No player row — a preview, or a division we are not in. Show the lot, which
+  // is what this widget did before there was a window at all.
+  if (ours < 0) return [for (var i = 0; i < rows.length; i++) i];
+
+  int at(int i) => from?[i] ?? i;
+  final ourFrom = at(ours);
+  final keep = <int>{ours};
+  for (var i = 0; i < rows.length; i++) {
+    if ((at(i) - ourFrom).abs() == 1 || (i - ours).abs() == 1) keep.add(i);
+  }
+  return [
+    for (var i = 0; i < rows.length; i++)
+      if (keep.contains(i)) i,
+  ];
+}
+
+/// Where each windowed row sits IN THE WINDOW, given how it is ranked.
+///
+/// The rows are positioned absolutely so two of them can pass each other, and a
+/// window of three cannot use division ranks for that — rank 12 would be twelve
+/// rows down a three-row block.
+Map<int, int> _slots(List<int> window, int Function(int) rank) {
+  final order = [...window]..sort((a, b) => rank(a).compareTo(rank(b)));
+  return {for (final (slot, i) in order.indexed) i: slot};
 }
 
 /// Where each row sat at the end of the previous round, as an INDEX into the

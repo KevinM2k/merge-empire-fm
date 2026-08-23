@@ -123,19 +123,29 @@ void main() {
       isNot([for (final row in settled) row.name]),
       reason: 'the block opened on the settled table, with nothing to show',
     );
-    // Where every club stood at the end of the previous round.
-    expect(before, [
+    // **A WINDOW, not the division.** Twenty rows of a table a player is not
+    // reading is not what they came for — the block shows us and whoever is
+    // beside us at either END of the move, because the club we overtook has to
+    // be on screen for the overtake to be visible.
+    expect(before, contains('Your Club'));
+    expect(before.length, lessThan(settled.length));
+    // And within the window, the order is the order the previous round left.
+    final wasOrder = [
       for (final row
           in (settled.toList()
             ..sort((a, b) => a.prevPos!.compareTo(b.prevPos!))))
         row.name,
-    ]);
+    ];
+    expect(before, [for (final name in wasOrder) if (before.contains(name)) name]);
 
     await tester.pump(leagueMoveHold);
     await tester.pumpAndSettle();
-    expect(orderOnScreen(tester), [
-      for (final row in settled) row.name,
+    final after = orderOnScreen(tester);
+    expect(after, [
+      for (final row in settled)
+        if (after.contains(row.name)) row.name,
     ], reason: 'the table never moved');
+    expect(after, isNot(before), reason: 'nothing passed anybody');
     expect(
       tester.state<LeagueMoveState>(find.byType(LeagueMove)).moved,
       isTrue,
@@ -193,7 +203,13 @@ void main() {
 
     final settled = container.read(leagueTableProvider);
     expect(settled.every((r) => r.prevPos == null), isTrue);
-    expect(orderOnScreen(tester), [for (final row in settled) row.name]);
+    // Still a window round us, and every row in it already where it ends.
+    final shown = orderOnScreen(tester);
+    expect(shown, contains('Your Club'));
+    expect(shown, [
+      for (final row in settled)
+        if (shown.contains(row.name)) row.name,
+    ]);
     expect(find.byType(AnimatedOpacity), findsNothing);
     await settleSave(tester);
   });
@@ -212,8 +228,11 @@ void main() {
 
     // Settled from the first frame, and the deltas are up: they are
     // information, not decoration.
-    expect(orderOnScreen(tester), [
-      for (final row in container.read(leagueTableProvider)) row.name,
+    final shown = orderOnScreen(tester);
+    expect(shown, contains('Your Club'));
+    expect(shown, [
+      for (final row in container.read(leagueTableProvider))
+        if (shown.contains(row.name)) row.name,
     ]);
     expect(
       tester
