@@ -4522,11 +4522,13 @@ never CALLED; this one is almost entirely things that are called and look wrong.
       corner of him rather than at his face. It stacks over the dock now, with
       the tail over the middle of the disc, which is what the floating coach on
       every other tab does.
-- [ ] **The tick has no top border on the home page** and has one everywhere
-      else. *Which tick?* There is no checkmark on the home page in the port —
-      the nearest thing to a "tick" in the coach popup is the bubble's TAIL
-      wedge, and its top edge is covered by the painter on one surface and not
-      the other. Worth a screenshot before guessing.
+- [x] **The tick has no top border on the home page** and has one everywhere
+      else. It WAS the bubble's tail wedge, and the answer was not a screenshot:
+      `CoachBubbleTail` closed its path and then stroked it, drawing a line
+      across the top edge that the fill was meant to hide — and an antialiased
+      1px line under a 2px cover leaves its ends showing, which is what was
+      reported. It strokes the two SLOPES as an open path now, so there is no
+      top edge to hide.
 - [x] **Keep the scrim.** It survived: `showCoachBubble` still opens on
       `barrierColor: Colors.black26`, and the two other overlays in the app are
       deliberately heavier — the quick-nav menu at 0.32 and the feature-unlock
@@ -5300,9 +5302,11 @@ one everywhere it should not.
       fallen into. And the casualty now appears on the bench list, correctly
       greyed and untappable: `isSelectable` already refuses an injured man, so
       he can be seen and not chosen.
-- [ ] **The full-time table move should read as a PICK-UP.** Zoom in on our
+- [x] **The full-time table move should read as a PICK-UP.** Zoom in on our
       club, lift it, carry it to its new place and set it down. Make the
-      transition much clearer so it is obvious what happened.
+      transition much clearer so it is obvious what happened. Done with the
+      windowing below — `_Lift` scales our row 1.06 and raises it to elevation
+      12 while the others slide underneath it, which is the pick-up.
 - [x] **The 2× coins button is INSIDE the card now** and "No thanks" is on its
       own at the bottom. The offer and the figure it changes were a panel with a
       button under it, which is two objects for one decision — the card says
@@ -5418,7 +5422,14 @@ one everywhere it should not.
       white page is 1.9:1 and there is a test that exists to stop that — a plate
       is what makes the bright colours usable, not a decision that the contrast
       floor was wrong. All three clear 4.5:1 on the plate, which is pinned.
-- [ ] **The customise button is STILL laggy** and has not been looked at.
+- [x] **The customise button is STILL laggy** and has not been looked at. It
+      had — the one-frame deferral is right above — and the deferral is exactly
+      why it still read as laggy: it moved the grid's whole ~60ms off the
+      opening frame and onto the NEXT one, which is one of the frames the sheet
+      is sliding through. Four dropped frames instead of twelve is better and is
+      still a jump. The grid fills a ROW A FRAME now, at ~12ms a row, and it
+      refills the same way when a tab changes axis — which was the same twenty
+      rigs arriving through a different door.
 - [x] **STADIUMS ARE TIERED and the port did not tier them.** Six rows in one
       deck at every tier, so a Sunday League pitch and an empire mega-stadium
       were the same place with a different sky. `_deckPlan` is ported as written:
@@ -5689,11 +5700,17 @@ one everywhere it should not.
       is the page's now and the height is capped independently. A shallower box
       is simply a shallower pitch, which `fittedTilt` handles by construction —
       which is also the only reason three increases in a row were safe.
-- [ ] **THE FULL-TIME TABLE SHOULD BE US, NOT THE DIVISION.** Only the team
+- [x] **THE FULL-TIME TABLE SHOULD BE US, NOT THE DIVISION.** Only the team
       above and the team below are worth showing — nobody cares about the rest,
       they care about themselves. And the move should read like the trait
       roller: our row comes OUT toward the viewer, the table scrolls underneath
       it to where we now are, and we drop back into position.
+      `_window` keeps our row plus whoever is beside us at EITHER end of the
+      move — the club we passed has to be on screen or there is nothing to have
+      passed — and `_slots` maps division places onto window rows so the slide
+      is still the real move rather than a re-sort of three names. The quests
+      now fit on the first screen as a side effect, which is what the 28 Aug
+      entry above was asking for.
 - [x] **The pitch perspective is the wrong way round**, and it wants to be a
       good deal stronger. **It was a SIGN.** Flutter's +y is down, so the
       positive `rotateX` pushed the BOTTOM of the pitch away and pulled the top
