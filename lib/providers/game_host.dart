@@ -19,6 +19,8 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
+import 'package:merge_empire_fc/engine/age_verification.dart';
+import 'package:merge_empire_fc/services/admob_ads.dart';
 import 'package:merge_empire_fc/services/feedback_service.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
@@ -64,6 +66,18 @@ class _GameHostState extends ConsumerState<GameHost>
     // wiring the drain now is what stops a queued message being stranded by the
     // release that unhides it.
     unawaited(flushFeedbackQueue());
+    // **THE AGE SIGNAL, once per boot.** Google Play answers for Texas users
+    // whose account has completed the state-mandated verification and for
+    // nobody else, so on every other device this resolves to `unknown` — which
+    // means ALLOWED, and is why it can be fired and forgotten rather than
+    // awaited in front of the first frame.
+    //
+    // It writes into the save, so it is fired against `_runner.game.state`
+    // after `boot()` has one. The AdMob flags follow the answer rather than
+    // preceding it: an untagged request for a player Play has identified as a
+    // child is the one thing this whole chain exists to prevent, and
+    // `applyAgeFlagsToAds` is what carries it across to the SDK.
+    unawaited(_checkAgeSignal());
     _refreshWeather();
     // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
     // whether looking is worth a call, so most of these cost nothing.
@@ -92,6 +106,21 @@ class _GameHostState extends ConsumerState<GameHost>
       // and Riverpod refuses a provider write inside a widget lifecycle.
       _weather.start();
     });
+  }
+
+  /// Ask Play what age group this player is in, and tell AdMob.
+  ///
+  /// **Every failure here is silent and permissive**, which is the JS's own
+  /// arrangement: a compliance query that throws must not stop a boot, and a
+  /// missing signal is not evidence of a minor. The whole thing is a no-op on
+  /// every platform without the native plugin, which today is all of them.
+  Future<void> _checkAgeSignal() async {
+    final state = _runner.game.state;
+    if (state == null) return;
+    await checkAndUpdateAgeSignal(state);
+    if (!mounted) return;
+    _runner.game.saveNow();
+    await applyAgeFlagsToAds(getAdMobAgeFlags(state));
   }
 
   /// Detect the leaderboard region once, and keep it.

@@ -188,14 +188,52 @@ class AdMobRewardedAds implements RewardedAds {
 ///
 /// Order is not a preference: `MobileAds.initialize` may request an ad before
 /// the consent answer exists if it goes first.
-Future<RewardedAds> startAds() async {
+Future<RewardedAds> startAds({
+  ({bool tagForChildDirectedTreatment, bool tagForUnderAgeOfConsent})? ageFlags,
+}) async {
   try {
     await initAdConsent();
     if (!adsPermitted) return const NoRewardedAds();
+    // **THE AGE FLAGS GO ON BEFORE THE FIRST REQUEST, not after.** They are a
+    // property of the SDK's request configuration rather than of an ad, so a
+    // request made before they are set is served untagged — and for a player
+    // Google Play has identified as a child that is the one request that must
+    // not happen. See `engine/age_verification.dart`; on every device with no
+    // signal both flags are false and this is the default configuration.
+    if (ageFlags != null) await applyAgeFlagsToAds(ageFlags);
     await MobileAds.instance.initialize();
     return AdMobRewardedAds();
   } catch (_) {
     // No SDK on this platform. Every placement answers `unavailable`, honestly.
     return const NoRewardedAds();
+  }
+}
+
+/// Tag the SDK for a child or a teen.
+///
+/// **Separate from [startAds] because the answer arrives LATER than the SDK
+/// does.** The signal is a query against the save, and the save is not loaded
+/// until the game host boots — which is after `main` has already started the
+/// ads. So the flags are applied twice over an app's life: whatever the last
+/// boot knew, at start-up, and the fresh answer as soon as there is one.
+///
+/// Both false is the default configuration and is what every device with no
+/// signal gets, which is every device outside Texas.
+Future<void> applyAgeFlagsToAds(
+  ({bool tagForChildDirectedTreatment, bool tagForUnderAgeOfConsent}) flags,
+) async {
+  try {
+    await MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(
+        tagForChildDirectedTreatment: flags.tagForChildDirectedTreatment
+            ? TagForChildDirectedTreatment.yes
+            : TagForChildDirectedTreatment.unspecified,
+        tagForUnderAgeOfConsent: flags.tagForUnderAgeOfConsent
+            ? TagForUnderAgeOfConsent.yes
+            : TagForUnderAgeOfConsent.unspecified,
+      ),
+    );
+  } catch (_) {
+    // No SDK on this platform. Nothing to tag, and nothing to report.
   }
 }

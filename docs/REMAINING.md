@@ -6932,9 +6932,23 @@ of buttons that error.
 - [x] `iap_engine` — the catalogue and the grant step (M1)
 - [ ] `engine/iapClient` (195) — the native billing bridge. Play Billing and
       StoreKit, via whichever plugin replaces cordova-plugin-purchase
-- [ ] `utils/ageVerification` (134) — `isIapAllowed`, which blocks IAP for
+- [x] `utils/ageVerification` (134) — `isIapAllowed`, which blocks IAP for
       Play-verified minors without parental consent. **A legal requirement**
-      (Texas SB 2420), not a nicety, and it gates the purchase flow
+      (Texas SB 2420), not a nicety, and it gates the purchase flow.
+      **Ported to `lib/engine/age_verification.dart`, and reachable.** Pure
+      Dart with one swappable seam, `ageSignalSource`, standing where the JS
+      reaches for `Capacitor.Plugins.PlayAgeSignals` — the native plugin is
+      still to be written, and until it is this answers `unknown` on every
+      device, which is what the JS does everywhere outside Texas too. It is
+      called once per boot from `GameHost` and the AdMob flags follow the
+      answer through `applyAgeFlagsToAds`, so an identified child is tagged
+      before the first ad request rather than after it.
+      **`isIapAllowed` has no caller in the shop yet**, and deliberately: the
+      billing bridge is not here, so every paid tile is already dead behind
+      `paidDisabledReason()`. Its call site is `initiatePurchase`, below.
+      Blocked separately on copy — the JS's `AgeGateModal` needs a sentence
+      asking a parent, and there is no shipped key for one, so the SHEET cannot
+      be built from this repo.
 - [ ] `initiatePurchase` — the "user tapped Buy" flow that ties the three
       together. Deliberately left out of the M1 port because it needs the two
       above; the pre-flight checks it does are already in the engine
