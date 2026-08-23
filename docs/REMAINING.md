@@ -6198,6 +6198,12 @@ that is not off the extension is the bug, not the symptom.
       was a translucent panel with a 1px rim and the X hanging off the outside
       of its corner; the floating one was a rimmed card with a shadow and the X
       in its header. `CoachSpeechBubble` is the one shape both go through.
+- [x] **The text above him is not consistent either** — the Play page's is
+      right and the rest are not. Same cause as the row above and fixed with
+      it: the two bubbles had their own type. `coachLabelStyle` and
+      `coachBubbleTextStyle` are now the only two styles either uses. What still
+      differs on Play is the label's CONTENT — it names the tactic he would
+      play, which the other tabs have no fixture for.
 - [ ] **And on the match screen he wants the OTHER shape.** Reported there as
       wanting to come up from the bottom, dim everything slightly, and go away
       on a tap anywhere — which is what `coachScrim` and the floating coach
@@ -6270,10 +6276,13 @@ that is not off the extension is the bug, not the symptom.
 
 ### The player sheet
 
-- [ ] **The trait box and the stats boxes are too far apart**, and the gap is
-      not the same as the others.
-- [ ] **Both want a background of their own** so they read as boxes rather than
-      as text floating on the sheet.
+- [x] **The trait box and the stats boxes are too far apart**, and the gap is
+      not the same as the others. Career stats carried a ten of its own on top
+      of the column's `detailGap`, so that one seam was 22 and every other 12.
+- [x] **Both want a background of their own** so they read as boxes rather than
+      as text floating on the sheet. Both were filled `surface` on a sheet that
+      IS `surface` — a hairline border and nothing else. `surface2`.
+- [ ] **The embossed number on the player page is too hard to read.**
 
 ### The home page and the club
 

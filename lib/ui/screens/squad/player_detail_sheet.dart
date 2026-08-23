@@ -1045,9 +1045,11 @@ class _CareerStats extends StatelessWidget {
     // Each stat gets its own box instead, which also reads better: the group
     // was one object with four things in it and is now four objects, which is
     // what they are.
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
+    // **NO GAP OF ITS OWN.** It carried ten on top of the column's own
+    // [detailGap], so the one seam on the sheet that was 22 was the one between
+    // the trait and the stats — read straight off the screen as the spacing
+    // being uneven.
+    return Row(
         key: const ValueKey('detail-career-stats'),
         children: [
           for (final cell in cells)
@@ -1057,7 +1059,11 @@ class _CareerStats extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 7),
                   decoration: BoxDecoration(
-                    color: kit.surface,
+                    // **`surface2`, BECAUSE THE SHEET ITSELF IS `surface`.** A
+                    // box filled with the colour of the page it is on is a
+                    // hairline border and nothing else — reported as the boxes
+                    // needing a background so they show.
+                    color: kit.surface2,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: kit.border),
                   ),
@@ -1086,7 +1092,6 @@ class _CareerStats extends StatelessWidget {
               ),
             ),
         ],
-      ),
     );
   }
 }
@@ -1426,7 +1431,9 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: held == null
-              ? [kit.surface, kit.surface]
+              // `surface2` at rest: the sheet is `surface`, so a card filled
+              // with it had no body at all — only its border said it was there.
+              ? [kit.surface2, kit.surface2]
               : [
                   Color.alphaBlend(
                     kit.accent.withValues(alpha: 0.16),
