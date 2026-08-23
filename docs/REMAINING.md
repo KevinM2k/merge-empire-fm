@@ -6278,6 +6278,21 @@ Written on arrival from here.
       which is the actual ask. See the auth rows in M4: the policy half is
       ported and the plugin is not.
 
+- [ ] **The penalty run-up STILL crosses its legs.** Second report. The first
+      pass folded the knee on the forward swing of BOTH legs, which is a real
+      gait property and evidently not the thing that reads as wrong. The next
+      pass should look at the two legs' PHASE rather than their length: they
+      swing off one `cycle` with opposite signs, so they are exactly half a
+      cycle apart, and the boots cross the centreline every half cycle because
+      the swing is wider than the pelvis is.
+- [ ] **The manager's hands when he CARRIES THE BALL.** Head-in-hands got a
+      second arm pass last session; carrying is a different pose and was not in
+      the set. Asked as a question, so it also wants confirming which poses
+      still look wrong.
+- [ ] **Adverts on the locked manager customisations.** Each look that is meant
+      to be unlockable by watching a video needs the ad route on it. Nothing in
+      the customiser offers one today.
+
 ### And the constraint has changed
 
 - [ ] **`../merge-empire-fc` HAS the Play Console, App Store billing and
