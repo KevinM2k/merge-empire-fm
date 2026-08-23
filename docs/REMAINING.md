@@ -6419,10 +6419,28 @@ that is not off the extension is the bug, not the symptom.
 
 ### The home page and the club
 
-- [ ] **The end of a season should open an END OF SEASON PAGE** with a season
-      overview. `../merge-empire-fc` has one — read it before building
-      anything; `season_end_screen.dart` exists here and may already be most of
-      it, in which case the row is about REACHABILITY rather than a new screen.
+- [x] **The end of a season should open an END OF SEASON PAGE** with a season
+      overview. The page existed and was reachable — `EndSeasonButton` replaces
+      the Play button when the season completes — so this was not reachability.
+      It was that the page had almost nothing on it: the season number, the
+      outcome, a payout, and ONE row labelled `season.end.stat_record` whose
+      value was the POSITION. `stat_record` is the W-D-L line.
+      Read against `_renderSeasonEnd` in `LeagueScreen.js`, which makes the
+      place the hero — division over it, ordinal on it, outcome under it — and
+      puts the season in three figures beneath: points, record, goals for and
+      against. `season.end.stat_record` and `season.end.stat_goals` had sat
+      translated in ten catalogues with nothing able to print either.
+      `seasonRecordOf` reads them off the save BEFORE `endSeason` rolls the
+      counters on, which is the same reason the season NUMBER was already being
+      captured early.
+      **Still not ported from that page, and recorded rather than dropped:** the
+      division-winner line (`season.end.won_by`), the cup line (`cup_won` /
+      `cup_out`), the season-quest block (`quests_done`, `quests_autopay`) and
+      the collapsible final table (`view_table` / `hide_table`) — six more keys
+      with no caller, and the same page to hang them on.
+- [ ] **The season overview's remaining four blocks**, all with shipped copy and
+      no caller: the division winner, the cup run, the season quests, and the
+      collapsible final table. See the row above.
 - [ ] **The home backdrop is still cropping, and quite low.** Third re-report.
       The place-by-its-ground-line fix assumed the art's own ground sits at 62%
       of the drawing; if it crops low, that number is wrong for this image or

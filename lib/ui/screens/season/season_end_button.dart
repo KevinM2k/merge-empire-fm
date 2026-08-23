@@ -29,6 +29,11 @@ class EndSeasonButton extends ConsumerWidget {
   Future<void> _end(BuildContext context, WidgetRef ref) async {
     final game = ref.read(gameProvider);
     final finished = ref.read(seasonJustEndedProvider);
+    // **BEFORE the settle, like the season number.** `endSeason` resets the
+    // win, draw and loss counters for the new campaign as part of its work, so
+    // a summary that reads them afterwards is a summary of nothing. See
+    // [seasonRecordOf].
+    final record = seasonRecordOf(game.state ?? const {});
     final outcome = game.update(endSeason);
     if (!context.mounted) return;
 
@@ -45,6 +50,7 @@ class EndSeasonButton extends ConsumerWidget {
         fullscreenDialog: true,
         builder: (routeContext) => SeasonEndScreen(
           outcome: outcome,
+          record: record,
           seasonNumber: finished,
           onContinue: () => Navigator.of(routeContext).maybePop(),
         ),

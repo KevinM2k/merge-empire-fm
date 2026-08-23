@@ -30,6 +30,7 @@ import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/engine/season_fixtures.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart' show matchesPerSeason;
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -765,3 +766,48 @@ PrestigeResult performPrestige(Map<String, dynamic> state) {
     multiplier: newMultiplier,
   );
 }
+
+/// What a season came to, before [endSeason] settles it and rolls the counters
+/// on — the numbers the season-overview page is made of.
+///
+/// **`endSeason` is what makes these unavailable afterwards**, which is why
+/// this is read first and carried: it resets `seasonWins`, `seasonDraws` and
+/// `seasonLosses` for the new campaign as part of its work, and the summary is
+/// about the season that just finished.
+typedef SeasonRecord = ({
+  int wins,
+  int draws,
+  int losses,
+  int goalsFor,
+  int goalsAgainst,
+});
+
+/// Read the finished season's record off the save.
+///
+/// The goals come out of `fixtureResults`, keyed `s{season}_m{n}`, where
+/// `homeGoals` is always OURS whatever the venue was — the match engine's own
+/// convention, and the same one `league_table.dart` has to undo when it is
+/// working out somebody else's result.
+SeasonRecord seasonRecordOf(Map<String, dynamic> state) {
+  final prog = _map(state['progression']) ?? const {};
+  final season = _num(prog['seasonCount'])?.toInt() ?? 1;
+  final results = _map(prog['fixtureResults']) ?? const {};
+  var goalsFor = 0;
+  var goalsAgainst = 0;
+  for (var m = 0; m < matchesPerSeason; m++) {
+    final row = results['s${season}_m$m'];
+    if (row is! Map<String, dynamic>) continue;
+    goalsFor += _num(row['homeGoals'])?.toInt() ?? 0;
+    goalsAgainst += _num(row['awayGoals'])?.toInt() ?? 0;
+  }
+  return (
+    wins: _num(prog['seasonWins'])?.toInt() ?? 0,
+    draws: _num(prog['seasonDraws'])?.toInt() ?? 0,
+    losses: _num(prog['seasonLosses'])?.toInt() ?? 0,
+    goalsFor: goalsFor,
+    goalsAgainst: goalsAgainst,
+  );
+}
+
+/// Points, the way a table counts them.
+int seasonPoints(SeasonRecord record) => record.wins * 3 + record.draws;

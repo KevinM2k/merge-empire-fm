@@ -16,8 +16,10 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Map<String, dynamic> finishedSeason({bool complete = true}) {
@@ -101,6 +103,19 @@ int seasonOf(ProviderContainer c) =>
         as num)
         .toInt();
 
+/// A settled season, for pumping the page on its own.
+SeasonOutcome outcome({required int position}) => (
+  outcome: position <= 2 ? 'promoted' : 'stayed',
+  position: position,
+  oldDivision: 'sunday_league',
+  newDivision: 'sunday_league',
+  payout: 1200,
+  gemsAwarded: 0,
+  ageingReport: const <Map<String, dynamic>>[],
+  injuryReport: (recovered: 0, shortened: 0),
+  sponsorReport: (expired: 0),
+);
+
 void main() {
   tearDown(resetLocale);
 
@@ -174,5 +189,56 @@ void main() {
 
     expect(find.byKey(const ValueKey('season-end-position')), findsOneWidget);
     expect(find.byKey(const ValueKey('season-end-payout')), findsOneWidget);
+  });
+
+  testWidgets('THE SEASON IN THREE FIGURES, not a position mislabelled', (
+    tester,
+  ) async {
+    // `season.end.stat_record` is the W-D-L line and `season.end.stat_goals`
+    // the scoreline — both sat translated in ten catalogues with nothing able
+    // to print either, while the screen's one row used `stat_record` as the
+    // LABEL for the position. The spec makes the place the hero and the three
+    // figures a band under it.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 3),
+          seasonNumber: 2,
+          record: const (
+            wins: 7,
+            draws: 3,
+            losses: 4,
+            goalsFor: 21,
+            goalsAgainst: 14,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('season-end-stats')), findsOneWidget);
+    expect(find.text('24'), findsOneWidget, reason: 'seven wins and three draws');
+    expect(find.text('7-3-4'), findsOneWidget);
+    expect(find.text('21:14'), findsOneWidget);
+    // And the place carries its ordinal rather than standing as a bare figure.
+    final place = tester.widget<Text>(
+      find.byKey(const ValueKey('season-end-position')),
+    );
+    expect(place.textSpan!.toPlainText(), '3rd');
+  });
+
+  testWidgets('and a caller with no record draws the page without the band', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(outcome: outcome(position: 1), seasonNumber: 1),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('season-end-stats')), findsNothing);
+    expect(find.byKey(const ValueKey('season-end-position')), findsOneWidget);
   });
 }
