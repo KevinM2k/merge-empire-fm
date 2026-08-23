@@ -99,10 +99,22 @@ const Color _vsRedDark = Color(0xFFFF6B70);
 const Color _vsGreenDark = Color(0xFF4ADE80);
 const Color _vsLevelDark = Color(0xFF60A5FA);
 
-const Color _vsRedLight = Color(0xFFC62828);
-const Color _vsGreenLight = Color(0xFF15803D);
-const Color _vsLevelLight = Color(0xFF1D4ED8);
-const Color _vsAmberLight = Color(0xFFB45309);
+// **AS CLOSE TO THE DARK PAIR AS A WHITE PAGE ALLOWS.**
+//
+// "The red and green should be the same as dark mode" has now been said three
+// times, and as INK on white they cannot be: `#4ADE80` is 1.9:1 there. What was
+// never true is that they had to be as DARK as they were — `#C62828` and
+// `#15803D` are a maroon and a bottle green, two shades and a good deal of
+// saturation away from the mint and the coral they stand in for, and that gap
+// is what reads as "not the same colour" rather than the contrast rule.
+//
+// These are the brightest members of each hue that still clear 3:1 on the
+// light theme's own surfaces, which the contrast sweep checks. Same hue as the
+// dark pair, one step down in lightness instead of three.
+const Color _vsRedLight = Color(0xFFE03131);
+const Color _vsGreenLight = Color(0xFF11913F);
+const Color _vsLevelLight = Color(0xFF2563EB);
+const Color _vsAmberLight = Color(0xFFC2650B);
 
 bool _dark(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark;

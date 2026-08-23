@@ -6293,6 +6293,30 @@ Written on arrival from here.
       to be unlockable by watching a video needs the ad route on it. Nothing in
       the customiser offers one today.
 
+- [x] **The light-mode red and green do not match the dark ones.** Third time
+      of asking, and the answer that was being given was wrong in a way worth
+      writing down: as INK on white they genuinely cannot be the same — `#4ADE80`
+      is 1.9:1 there — but they never had to be as DARK as they were. `#C62828`
+      and `#15803D` are a maroon and a bottle green, two shades and a lot of
+      saturation from the coral and the mint they stand in for, and THAT is what
+      reads as a different colour rather than the contrast rule. They are now
+      the brightest members of each hue that still clear the sweep's floor on
+      the light theme's own surfaces: same hue, one step down rather than three.
+- [ ] **A gem from the season quests should announce itself**, the way unlocking
+      training does. Asked as "probably not", and it is: the capstone gem is
+      granted with no popup. `feature_unlock.dart` is the shape the training
+      unlock uses.
+- [ ] **The play screen and the end-match screen look the SAME in light mode as
+      in dark.** Said twice, and it REVERSES a decision made on 31 Aug: those
+      two pages were wrapped in the kit's dark theme because the spec's
+      `.match-page` note says "there is NO light-mode flip, and that is the whole
+      point — every panel is the scorecard's glass in both themes". The
+      reporter's call outranks the spec's here. The takeover has to come off,
+      which means the sky follows the theme (it already can) and the panels stop
+      forcing `darkGlass`. **The ink follows automatically once the surfaces do**
+      — the reason the takeover existed at all was near-black ink on near-black
+      glass, and that stops being a problem when the glass is light.
+
 ### And the constraint has changed
 
 - [ ] **`../merge-empire-fc` HAS the Play Console, App Store billing and

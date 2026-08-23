@@ -372,7 +372,13 @@ class GemPackTile extends StatelessWidget {
               ),
             ],
           ),
+          // **CENTRED.** A `Stack`'s non-positioned children align to its
+          // top-LEFT corner unless it is told otherwise, so the pile, the
+          // number and the price all sat in the corner of the tile — reported
+          // as the gem packs not being centred. The sheen and the ribbon are
+          // `Positioned` and are unaffected.
           child: Stack(
+            alignment: Alignment.center,
             children: [
               // The sheen across the top third, so the card has a light source.
               const Positioned(
