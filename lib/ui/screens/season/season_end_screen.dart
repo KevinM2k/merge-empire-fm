@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
+import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart'
+    show QuestRow;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -43,6 +45,7 @@ class SeasonEndScreen extends ConsumerStatefulWidget {
     this.winnerIsUs = false,
     this.cup,
     this.finalTable = const [],
+    this.quests = const [],
     this.onContinue,
   });
 
@@ -62,6 +65,12 @@ class SeasonEndScreen extends ConsumerStatefulWidget {
   /// The division as it finished, for the fold. Captured with the winner, and
   /// for the same reason: `endSeason` rebuilds it for the new campaign.
   final List<LeagueRow> finalTable;
+
+  /// The season's quest track as it finished, captured before `endSeason` swept
+  /// it. **A scorecard rather than a list you can act on**, and that is what
+  /// the copy describes: `season.end.quests_autopay` says unclaimed rewards are
+  /// paid when the new season starts, which is exactly what the sweep does.
+  final List<QuestRow> quests;
 
   /// This season's finished cup run, or null when there was not one — see
   /// [seasonCupRun].
@@ -283,6 +292,31 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                   value: '${widget.outcome.gemsAwarded}',
                   valueKey: 'season-end-gems',
                 ),
+              // **AND WHAT THE SEASON'S QUESTS CAME TO.** `quests_done` and
+              // `quests_autopay` are the last two keys off this page's shelf.
+              // Read-only by construction: `endSeason` has already swept the
+              // track by the time this is on screen, and the autopay line is
+              // the copy that says so.
+              if (widget.quests.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  t('season.end.quests_done', {
+                    'n': widget.quests.where((q) => q.completed).length,
+                    'total': widget.quests.length,
+                  }),
+                  key: const ValueKey('season-end-quests'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: kit.accentBright,
+                  ),
+                ),
+                Text(
+                  t('season.end.quests_autopay'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 10.5, color: kit.textMuted),
+                ),
+              ],
               // **THE FINAL TABLE, FOLDED.** Twenty rows of a division the
               // player has just spent a season in is not what they came to
               // this page for — the verdict is — but the one who wants to

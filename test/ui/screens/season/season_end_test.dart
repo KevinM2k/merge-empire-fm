@@ -339,4 +339,62 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('AND WHAT THE QUESTS CAME TO, with the autopay note', (
+    tester,
+  ) async {
+    // `season.end.quests_done` and `quests_autopay` are the last two keys off
+    // this page's shelf. Read-only by construction: `endSeason` has already
+    // swept the track by the time the page is up, and the autopay line is the
+    // copy that says so.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 5),
+          seasonNumber: 1,
+          quests: const [
+            (
+              id: 'a',
+              text: 'Win five',
+              progress: 5,
+              target: 5,
+              completed: true,
+              claimed: true,
+              coins: 100,
+            ),
+            (
+              id: 'b',
+              text: 'Score ten',
+              progress: 4,
+              target: 10,
+              completed: false,
+              claimed: false,
+              coins: 100,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('season-end-quests')), findsOneWidget);
+    expect(
+      find.text(t('season.end.quests_done', {'n': 1, 'total': 2})),
+      findsOneWidget,
+    );
+    expect(find.text(t('season.end.quests_autopay')), findsOneWidget);
+  });
+
+  testWidgets('and a season with no track says nothing about one', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(outcome: outcome(position: 1), seasonNumber: 1),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('season-end-quests')), findsNothing);
+  });
 }

@@ -22,6 +22,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/champions_card.dart';
 import 'package:merge_empire_fc/ui/popups/offseason_report_card.dart';
+import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart'
+    show seasonQuestsProvider;
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 
@@ -44,6 +46,10 @@ class EndSeasonButton extends ConsumerWidget {
     final winner = table.isEmpty ? null : table.first;
     // The whole table, for the fold — the same list, captured once.
     final cup = seasonCupRun(game.state);
+    // **AND THE SEASON'S QUEST TRACK, before the sweep takes it.** `endSeason`
+    // pays out anything completed-but-unclaimed and replaces the track, which
+    // is precisely what `season.end.quests_autopay` says on the page.
+    final quests = ref.read(seasonQuestsProvider);
     final outcome = game.update(endSeason);
     if (!context.mounted) return;
 
@@ -64,6 +70,7 @@ class EndSeasonButton extends ConsumerWidget {
           winnerName: winner?.name,
           winnerIsUs: winner?.isPlayer ?? false,
           finalTable: table,
+          quests: quests,
           cup: cup,
           seasonNumber: finished,
           onContinue: () => Navigator.of(routeContext).maybePop(),

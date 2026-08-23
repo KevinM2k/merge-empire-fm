@@ -6456,11 +6456,15 @@ that is not off the extension is the bug, not the symptom.
       is — and the JS folds it the same way. Its own four-column row rather than
       the standings widget: that one carries form dots and a movement chevron,
       and neither means anything about a season that has finished.
-- [ ] **The season overview's LAST block: the quest scorecard**
-      (`quests_done`, `quests_autopay`). It needs pre-settlement data the way
-      the winner and the record do — `endSeason` sweeps the track — and unlike
-      every other block it is CLAIMABLE rather than a readout, so it wants the
-      quests sheet's own row widget rather than a second one built here.
+- [x] **The season overview's quest scorecard** (`quests_done`,
+      `quests_autopay`) — the last two of the sixteen `season.end.*` keys, and
+      the page now prints every one of them. Captured before the sweep like the
+      rest. **Read-only, and that is what the copy describes rather than a
+      compromise**: `quests_autopay` says unclaimed rewards are paid when the
+      new season starts, which is exactly what `endSeason` does on the way past.
+      The JS's block is claimable because it renders BEFORE the settle; the
+      port's page renders after, and reordering that chain would move the rating
+      prompt, the offseason report and the champions card with it.
 - [ ] **The home backdrop is still cropping, and quite low.** Third re-report.
       The place-by-its-ground-line fix assumed the art's own ground sits at 62%
       of the drawing; if it crops low, that number is wrong for this image or
