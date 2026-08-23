@@ -357,20 +357,29 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
       backgroundColor: kit.bg,
       appBar: const MiniGameHeader(titleKey: 'game.whack'),
       body: SafeArea(
+        // **THE BOARD IS THE GAME, so it gets the room.** Sixteen either side
+        // plus an instruction paragraph plus a score row plus a bar left the
+        // nine tiles sharing what was over — and a tile is a target you have
+        // seven hundred milliseconds to hit. Asked for twice: bigger boxes.
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // The instructions are for the first round, not the twentieth:
+              // two lines at most, and they give their height back to the
+              // board rather than holding it for a paragraph nobody re-reads.
               Text(
                 t('game.whack.instructions'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: kit.textMuted,
                   fontSize: 11,
-                  height: 1.45,
+                  height: 1.35,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -416,7 +425,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(6),
                   // Laid out in full rather than in a lazy grid: nine holes the
                   // player cannot all see is not a board.
                   child: Column(
@@ -424,7 +433,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                     children: [
                       for (var row = 0; row < 3; row++)
                         Padding(
-                          padding: EdgeInsets.only(top: row == 0 ? 0 : 8),
+                          padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
                           // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
                           // them.** It was `Padding(left: 8)` inside each
                           // `Expanded`, so the first column's tile was eight
@@ -435,7 +444,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                           child: Row(
                             children: [
                               for (var col = 0; col < 3; col++) ...[
-                                if (col > 0) const SizedBox(width: 8),
+                                if (col > 0) const SizedBox(width: 6),
                                 Expanded(
                                   child: _Hole(
                                     index: row * 3 + col,

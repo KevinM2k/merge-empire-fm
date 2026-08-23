@@ -337,4 +337,17 @@ void main() {
       expect(size.height, closeTo(sizes.first.height, 0.5));
     }
   });
+
+  testWidgets('AND A TILE IS MOST OF THE WIDTH IT CAN BE', (tester) async {
+    // A tile is a target you have seven hundred milliseconds to hit, and the
+    // board was sharing what the instructions, the score row and the timer left
+    // over. Asked for twice.
+    await pumpGame(tester);
+    final board = tester.getSize(find.byKey(const ValueKey('pi-board')));
+    final tile = tester.getSize(find.byKey(const ValueKey('pi-hole-0')));
+    // Three across two gutters: the tile cannot be more than a third, and it
+    // should not be much less.
+    expect(tile.width, greaterThan(board.width / 3 - 6));
+    expect(tile.width * 3, greaterThan(board.width * 0.9));
+  });
 }

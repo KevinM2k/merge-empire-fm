@@ -1690,19 +1690,36 @@ class PenaltyPainter extends CustomPainter {
         ..strokeCap = StrokeCap.butt,
     );
     canvas.drawLine(rig.plantHip, rig.kickHip, limb(shorts, 0.24));
-    for (final (hip, knee, foot) in [
-      (rig.plantHip, rig.plantKnee, rig.plantBoot),
-      (rig.kickHip, rig.kickKnee, rig.kickBoot),
+    // **ONE LEG IS BEHIND THE OTHER, and it has to look like it.**
+    //
+    // The two legs swing exactly half a cycle apart about hips a pelvis-width
+    // in from the centre, and the swing is five times the half-pelvis — so the
+    // boots pass each other every half cycle. In a side view they SHOULD: that
+    // is what running is. What made it read as a scissor rather than a stride
+    // is that both were drawn in the same three colours at the same depth, so
+    // the crossing was an X of identical strokes with no front and no back.
+    // The manager's own rig has shaded its far leg all along; this one never
+    // did. Reported twice, and the first pass — folding the knee on the forward
+    // swing — was a real gait property that fixed nothing, because the problem
+    // was never the shape.
+    //
+    // The PLANT leg is the far one: it is on the far side of the pelvis from
+    // the camera and it is drawn first, so the kicking leg passes in front of
+    // it.
+    Color behind(Color c) => Color.lerp(c, const Color(0xFF10131A), 0.34)!;
+    for (final (hip, knee, foot, far) in [
+      (rig.plantHip, rig.plantKnee, rig.plantBoot, true),
+      (rig.kickHip, rig.kickKnee, rig.kickBoot, false),
     ]) {
-      canvas.drawLine(hip, knee, limb(shorts, 0.16));
-      canvas.drawLine(knee, foot, limb(sock, 0.12));
+      canvas.drawLine(hip, knee, limb(far ? behind(shorts) : shorts, 0.16));
+      canvas.drawLine(knee, foot, limb(far ? behind(sock) : sock, 0.12));
       canvas.drawOval(
         Rect.fromCenter(
           center: foot + Offset(0, unit * 0.02),
           width: unit * 0.19,
           height: unit * 0.10,
         ),
-        Paint()..color = boot,
+        Paint()..color = far ? behind(boot) : boot,
       );
     }
     // Arms off the girdle, over an elbow: sleeve to the elbow, skin to the

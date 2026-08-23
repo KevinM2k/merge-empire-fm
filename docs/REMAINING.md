@@ -6281,13 +6281,14 @@ Written on arrival from here.
       which is the actual ask. See the auth rows in M4: the policy half is
       ported and the plugin is not.
 
-- [ ] **The penalty run-up STILL crosses its legs.** Second report. The first
-      pass folded the knee on the forward swing of BOTH legs, which is a real
-      gait property and evidently not the thing that reads as wrong. The next
-      pass should look at the two legs' PHASE rather than their length: they
-      swing off one `cycle` with opposite signs, so they are exactly half a
-      cycle apart, and the boots cross the centreline every half cycle because
-      the swing is wider than the pelvis is.
+- [x] **The penalty run-up STILL crosses its legs.** The legs are SUPPOSED to
+      pass each other — that is what running is in a side view — and the first
+      pass fixed a shape that was never wrong. What made it a scissor is that
+      both legs were drawn in the same three colours at the same depth, so the
+      crossing was an X of identical strokes with no front and no back. The
+      manager's own rig has shaded its far leg all along; the taker's never did.
+      The plant leg is the far one, drawn first and darkened, so the kicking leg
+      passes in front of it.
 - [ ] **The manager's hands when he CARRIES THE BALL.** Head-in-hands got a
       second arm pass last session; carrying is a different pose and was not in
       the set. Asked as a question, so it also wants confirming which poses
