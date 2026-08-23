@@ -22,6 +22,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart' show coinFigureInk;
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -308,7 +309,7 @@ class _MoveRow extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                     color: row.isPlayer
-                        ? kit.accentBright
+                        ? glassAccent(context, kit.accentBright)
                         : glassMuted(context),
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
@@ -325,7 +326,7 @@ class _MoveRow extends StatelessWidget {
                     fontWeight: row.isPlayer
                         ? FontWeight.w900
                         : FontWeight.w600,
-                    color: row.isPlayer ? kit.accentBright : ink,
+                    color: row.isPlayer ? glassAccent(context, kit.accentBright) : ink,
                   ),
                 ),
               ),
@@ -341,11 +342,14 @@ class _MoveRow extends StatelessWidget {
               Text(
                 '${row.pts}',
                 key: row.isPlayer ? const ValueKey('summary-table-pts') : null,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFFFFD700),
-                  fontFeatures: [FontFeature.tabularFigures()],
+                  // The same gold every money figure takes — see
+                  // [coinFigureInk]. It was the literal, which is 1.1:1 on a
+                  // light pane.
+                  color: glassAccent(context, coinFigureInk(context)),
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ],

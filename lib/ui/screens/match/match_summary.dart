@@ -32,7 +32,6 @@ import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -183,7 +182,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
     // see [darkTakeoverThemeProvider]. Every panel here is dark glass on the
     // match's own sky and the ink over them was the app's, which in light mode
     // is near-black. Reported as the end-of-game screen being unreadable.
-    final takeover = ref.watch(darkTakeoverThemeProvider);
     final page = Scaffold(
       key: const ValueKey('match-summary'),
       backgroundColor: Colors.transparent,
@@ -193,8 +191,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
         decoration: matchBackdrop(
           context: context,
           tier: ref.watch(stadiumTierProvider),
-          // The takeover's own, not the app's — see [matchBackdrop].
-          brightness: takeover.brightness,
         ),
         child: SafeArea(
           child: Column(
@@ -230,7 +226,17 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // told by its own scoreline; this is the other half, and it
                     // now sits directly under the half it completes.
                     if (result['isCup'] != true) ...[
-                      const LeagueMove(key: ValueKey('summary-table')),
+                      // **ON A PANE, like every other band on this report.**
+                      // It was the one block drawn straight onto the sky, which
+                      // in dark mode looked deliberate and in light mode left a
+                      // column of figures on a daylight blue — the points at
+                      // 1.9:1. A panel is what the rest of the page is made of
+                      // and it is what gives these rows a ground.
+                      const GlassPanel(
+                        density: GlassDensity.deep,
+                        padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
+                        child: LeagueMove(key: ValueKey('summary-table')),
+                      ),
                       const SizedBox(height: 12),
                     ],
                     // **THE MANAGER AND THE QUESTS SHARE A ROW, so the whole
@@ -259,8 +265,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                           Expanded(
                             child: hasQuests
                                 ? GlassPanel(
-                                    darkGlass: true,
-                                    padding: const EdgeInsets.fromLTRB(
+                                                                        padding: const EdgeInsets.fromLTRB(
                                       12,
                                       10,
                                       12,
@@ -301,8 +306,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // bottom, on its own.
                     if (_base + _quests > 0 || canDouble)
                       GlassPanel(
-                        darkGlass: true,
-                        key: const ValueKey('summary-payout-card'),
+                                                key: const ValueKey('summary-payout-card'),
                         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -387,7 +391,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
         ),
       ),
     );
-    return Theme(data: takeover, child: page);
+    return page;
   }
 }
 
@@ -422,8 +426,7 @@ class _ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassPanel(
-      darkGlass: true,
-      density: GlassDensity.deep,
+            density: GlassDensity.deep,
       // **TIGHTER TOP AND BOTTOM, and the dugout cam is what it buys.** This
       // card is the tallest thing on the report and the two things under it —
       // the cam and the quest list — were falling below the fold on a short
@@ -488,12 +491,12 @@ class _Trophies extends StatelessWidget {
       key: const ValueKey('summary-trophies'),
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        GameIcon('trophy', size: 16, color: kit.accentBright),
+        GameIcon('trophy', size: 16, color: glassAccent(context, kit.accentBright)),
         const SizedBox(width: 6),
         Text(
           '+$trophies',
           style: TextStyle(
-            color: kit.accentBright,
+            color: glassAccent(context, kit.accentBright),
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -528,7 +531,14 @@ class _Verdict extends StatelessWidget {
         // dots, the pitch tokens and the HUD all read. It wore the kit accent,
         // which belongs to the CLUB: a side in red was told it had won in the
         // same red this game uses for a goal against.
-        color: verdictInk(context, won: won, drawn: drawn),
+        // **AND THROUGH THE PANE RULE.** The scale's own colours are chosen
+        // against a dark ground; on a light pane over a daylight sky the
+        // winner's green is 2.4:1. `glassAccent` takes any colour down until it
+        // clears the pane, which is what this file is for.
+        color: glassAccent(
+          context,
+          verdictInk(context, won: won, drawn: drawn),
+        ),
       ),
     );
   }
@@ -703,7 +713,7 @@ class _ScorerLines extends ConsumerWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: kit.accentBright,
+          color: glassAccent(context, kit.accentBright),
         ),
       ),
     );
@@ -745,7 +755,7 @@ class _Payout extends StatelessWidget {
               Text('➜', style: TextStyle(color: kit.textMuted)),
               const SizedBox(width: 8),
             ],
-            CoinIcon(size: 20, solid: true, color: coinFigureInk(context)),
+            CoinIcon(size: 20, solid: true, color: glassAccent(context, coinFigureInk(context))),
             const SizedBox(width: 6),
             Text(
               '+${formatCoins(doubled ? base * 2 + quests : total)}',
@@ -753,7 +763,7 @@ class _Payout extends StatelessWidget {
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w900,
-                color: coinFigureInk(context),
+                color: glassAccent(context, coinFigureInk(context)),
               ),
             ),
           ],
@@ -827,7 +837,7 @@ class QuestOutcomes extends StatelessWidget {
                       t('quest.${row['id']}', {'n': row['target'] ?? 0}),
                       style: TextStyle(
                         color: row['passed'] == true
-                            ? kit.accentBright
+                            ? glassAccent(context, kit.accentBright)
                             : kit.textMuted,
                         fontSize: 12,
                       ),
@@ -842,7 +852,7 @@ class QuestOutcomes extends StatelessWidget {
                     key: ValueKey('match-quest-${row['id']}'),
                     style: TextStyle(
                       color: row['passed'] == true
-                          ? kit.accentBright
+                          ? glassAccent(context, kit.accentBright)
                           : kit.textMuted,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -860,7 +870,7 @@ class QuestOutcomes extends StatelessWidget {
                 key: const ValueKey('match-quests-total'),
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: kit.accentBright,
+                  color: glassAccent(context, kit.accentBright),
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
                 ),

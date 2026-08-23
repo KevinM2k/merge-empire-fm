@@ -31,19 +31,33 @@ const gameGoldLight = Color(0xFF96571B);
 Color goldFor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.light ? gameGoldLight : gameGold;
 
-/// A coin FIGURE — the number, not the glyph. **Gold in both themes, and bare.**
+/// A coin FIGURE — the number, not the glyph.
 ///
-/// Two answers have been tried and both were worse than the problem. A dark
-/// HALO under the digits reads as a BORDER at any size worth putting money in —
-/// an outlined number rather than a bright one. Retinting to the JS's bronze
-/// `#a86523` on a light page is legible and is not what money looks like: the
-/// coin is yellow, so the figure beside it is yellow.
+/// **Yellow in both themes; a DIFFERENT yellow in light.** The rule the game
+/// runs on is that money is yellow, gems are blue, ads are orange and real
+/// money is green — stated directly, and it holds. What does not hold is one
+/// literal serving both themes: `#FFD700` is 1.1:1 on a near-white card, and
+/// once light mode draws near-white cards that is the biggest number on the
+/// full-time report being invisible.
 ///
-/// So the contrast is bought where it belongs, with the SURFACE under it, and
-/// the money keeps its one colour on every screen and in either theme. Pass
-/// `color: coinFigureInk(context)` to a [CoinIcon] sitting beside a figure so
-/// the pair can never split into two currencies.
-Color coinFigureInk(BuildContext context) => gameGold;
+/// **The earlier answer was to buy the contrast with the SURFACE**, which is
+/// why the money used to sit on a dark plate — and that only worked while the
+/// page was dark in both themes. It is not any more. A halo under the digits
+/// was tried before that and reads as an outline at any size worth putting
+/// money in.
+///
+/// Pass `color: coinFigureInk(context)` to a [CoinIcon] sitting beside a figure
+/// so the pair can never split into two currencies.
+Color coinFigureInk(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? gameGold
+    // **A DEEP gold on a light pane.** `#FFD700` is 1.1:1 on a near-white card,
+    // which is the coin figure — the biggest number on the full-time report —
+    // being invisible in light mode. Coins stay YELLOW, which is the currency
+    // rule; what changes is the shade, the same way the reds and greens do.
+    // `gameGoldLight` is the JS's own light-block `--color-gold`, so this is the
+    // shipped value rather than a second one invented here.
+    : gameGoldLight;
 
 /// Nothing, in either theme. Kept as the seam every money figure already calls
 /// through, so the halo cannot creep back one caller at a time.

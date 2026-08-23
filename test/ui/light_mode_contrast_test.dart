@@ -127,7 +127,11 @@ List<({Color ink, Color ground, String text})> inksOn(WidgetTester tester) {
     final ink = candidates.reduce(
       (a, b) => _ratio(a, ground) >= _ratio(b, ground) ? a : b,
     );
-    out.add((ink: ink, ground: ground, text: text.data ?? ''));
+    out.add((
+      ink: ink,
+      ground: ground,
+      text: '${text.data ?? ''}${text.key == null ? '' : ' [${text.key}]'}',
+    ));
   }
   return out;
 }

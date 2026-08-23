@@ -95,15 +95,35 @@ void main() {
       return (light: light, dark: dark);
     }
 
-    testWidgets('THE MONEY IS GOLD, in both themes and bare', (tester) async {
-      // Two answers have been tried under this test and both were worse than
-      // the problem. A dark halo under the digits reads as a BORDER at any size
-      // worth putting money in; the JS's bronze `#a86523` is legible on a white
-      // page and is not what money looks like. The contrast belongs to the
-      // surface under the figure, not to the figure.
+    testWidgets('THE MONEY IS YELLOW IN BOTH — a different yellow in light', (
+      tester,
+    ) async {
+      // **This test asserted one literal for both themes, and the reasoning
+      // under it has expired.** It said the contrast belongs to the SURFACE
+      // rather than the figure — which was true while the match pages were dark
+      // glass in both themes. They are not any more: a player who chose light
+      // mode and got a dark page was being ignored by the app, and that was
+      // reported twice. Once the surface is a light pane, `#FFD700` is 1.1:1
+      // and the biggest number on the full-time report is invisible.
+      //
+      // The RULE the game runs on — money yellow, gems blue, ads orange, real
+      // money green — is untouched: this is the same hue, and `gameGoldLight`
+      // is the JS's own `--color-gold` from its light block rather than a
+      // second value invented here. A halo is still not the answer, and the
+      // test below still holds it out.
       final ink = await figureInks(tester);
       expect(ink.dark, gameGold);
-      expect(ink.light, gameGold);
+      expect(ink.light, gameGoldLight);
+      // Same family rather than a retint for its own sake. The JS's light gold
+      // is a warmer amber than its bright one — 30 degrees round the wheel at
+      // most, which is still yellow-into-amber and nowhere near a red or a
+      // green.
+      expect(
+        (HSLColor.fromColor(ink.light).hue -
+                HSLColor.fromColor(gameGold).hue)
+            .abs(),
+        lessThan(30),
+      );
     });
 
     testWidgets('and there is no halo, in either theme', (tester) async {

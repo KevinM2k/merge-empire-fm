@@ -6306,7 +6306,7 @@ Written on arrival from here.
       training does. Asked as "probably not", and it is: the capstone gem is
       granted with no popup. `feature_unlock.dart` is the shape the training
       unlock uses.
-- [ ] **The play screen and the end-match screen look the SAME in light mode as
+- [x] **The play screen and the end-match screen look the SAME in light mode as
       in dark.** Said twice, and it REVERSES a decision made on 31 Aug: those
       two pages were wrapped in the kit's dark theme because the spec's
       `.match-page` note says "there is NO light-mode flip, and that is the whole
@@ -6316,6 +6316,32 @@ Written on arrival from here.
       forcing `darkGlass`. **The ink follows automatically once the surfaces do**
       — the reason the takeover existed at all was near-black ink on near-black
       glass, and that stops being a problem when the glass is light.
+      **DONE, and two attempts at it are worth recording.** The first pushed the
+      light pane most of the way to opaque so dark ink would read on it — which
+      is the exact mistake `glass_test` was written to prevent ("this went the
+      wrong way twice... read as a white block sitting on the diorama"). The
+      second lowered the light theme's `accentBright`, which is compared
+      BYTE-EXACT against the JS's own light block by `kit_theme_test`.
+      Neither was the port's decision to make. The pane stays glass and the
+      palette stays the JS's; what changes is the INK, through `glassAccent`,
+      which already existed for exactly this and darkens any colour until it
+      clears the pane. The money goes through it too, on the JS's own light
+      `--color-gold`, and the league-move block finally sits on a pane like
+      every other band on that report rather than straight on the sky.
+
+- [ ] **Pitch Invaders' boxes should be BIGGER.** Asked again after the holes
+      were enlarged and the uneven first column fixed — so it is the tiles
+      themselves that want more of the screen, not the holes inside them.
+- [ ] **A manager customisation should SHOW what it unlocks** when you tap it —
+      a picture of each thing in the pack, not a list of names.
+- [ ] **THE CURRENCY COLOURS ARE A RULE, and the port breaks it.** Gems blue,
+      ads orange, coins yellow, real money green — everywhere, on every control.
+      A gem price is currently drawn in yellow. `screens.css`'s `.store-3d--gem`
+      / `--cash` pair is the shipped version of exactly this rule and it is
+      already half-ported in `store_button.dart`.
+- [ ] **And EVERY button wants the same 3D treatment** — the face, the mid, the
+      deep and the flat edge bar under it that `.store-3d` draws. The gem tiles
+      have it; nothing else does.
 
 ### And the constraint has changed
 

@@ -2077,15 +2077,28 @@ void main() {
       }
     });
 
-    testWidgets('AND EVERY PANEL ON IT IS DARK GLASS, in both', (tester) async {
-      // Which is what makes the sky right: the panels are the material, the sky
-      // is the ground, and a panel that flips with the theme lets the ground
-      // through.
+    testWidgets('AND ITS PANELS FOLLOW THE THEME, which reverses a decision', (
+      tester,
+    ) async {
+      // **The spec says the opposite, and the reporter overruled it.**
+      // `.match-page` in the stylesheet is explicit: "there is NO light-mode
+      // flip, and that is the whole point — every panel is the scorecard's
+      // glass in both themes, because the ground is the sky and the sky is a
+      // daylight blue at the low tiers whatever the theme." The port did that,
+      // and it was reported twice as the play screen and the end-of-match
+      // screen looking identical in light mode. A player who has chosen light
+      // mode and gets a dark page has been ignored by the app, which is worse
+      // than a pale panel on a pale sky.
+      //
+      // So `darkGlass` comes off and the sky flips with the theme, which it
+      // already knows how to do. The near-black-on-near-black ink that the
+      // forced-dark takeover existed to fix cannot come back: it was the ink
+      // being light-themed over dark glass, and now neither is forced.
       await pumpMatch(tester, matchResult());
       final panels = tester.widgetList<GlassPanel>(find.byType(GlassPanel));
       expect(panels, isNotEmpty);
       for (final panel in panels) {
-        expect(panel.darkGlass, isTrue);
+        expect(panel.darkGlass, isNull, reason: 'null follows the theme');
       }
     });
   });

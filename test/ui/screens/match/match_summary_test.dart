@@ -194,13 +194,17 @@ void main() {
       final text = tester.widget<Text>(
         find.byKey(const ValueKey('summary-verdict')),
       );
+      // **Through the pane rule.** The scale's colours are chosen against a
+      // dark ground; on a light pane over a daylight sky the winner's green is
+      // 2.4:1, and light mode draws light panes now. `glassAccent` takes any
+      // colour down until it clears the pane and returns it untouched in dark,
+      // so the SCALE is still what decides the hue.
+      final element = tester.element(
+        find.byKey(const ValueKey('summary-verdict')),
+      );
       expect(
         text.style?.color,
-        verdictInk(
-          tester.element(find.byKey(const ValueKey('summary-verdict'))),
-          won: won,
-          drawn: drawn,
-        ),
+        glassAccent(element, verdictInk(element, won: won, drawn: drawn)),
         reason: 'won: $won, drawn: $drawn',
       );
     }

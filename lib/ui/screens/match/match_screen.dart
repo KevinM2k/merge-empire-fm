@@ -58,7 +58,6 @@ import 'package:merge_empire_fc/data/manager_mood.dart' show Gesture, Mood;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart' show CoachCorner;
-import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -1145,7 +1144,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // was the app's own, so in light mode the commentary was near-black on
     // near-black. Held in a local rather than wrapped inline: the page below is
     // four hundred lines and re-indenting all of it would bury the change.
-    final takeover = ref.watch(darkTakeoverThemeProvider);
     final page = Scaffold(
       key: const ValueKey('match-screen'),
       // ON THE SKY, not on the app's page colour. This page is a takeover — it
@@ -1158,8 +1156,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         decoration: matchBackdrop(
           context: context,
           tier: ref.watch(stadiumTierProvider),
-          // The takeover's own, not the app's — see [matchBackdrop].
-          brightness: takeover.brightness,
         ),
         child: SafeArea(
           child: Stack(
@@ -1392,8 +1388,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                         matchGap,
                       ),
                       child: GlassPanel(
-                        darkGlass: true,
-                        density: GlassDensity.deep,
+                                                density: GlassDensity.deep,
                         // **NO SHEEN ON THIS ONE.** It fills the rest of the
                         // screen, so the pane's highlight — a lit top edge on a
                         // card — stretched into a band across the middle of the
@@ -1555,7 +1550,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ),
       ),
     );
-    return Theme(data: takeover, child: page);
+    return page;
   }
 
   /// One row of the feed, with a replay on it when there is one to play.
@@ -1602,7 +1597,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         tier: def.tier,
         variant: card.variant,
         size: 72,
-        ring: kit.accentBright,
+        ring: glassAccent(context, kit.accentBright),
       ),
       // The SURNAME, as a broadcast caption gives it, and the minute it went
       // in. His full name would not fit under a 72px circle.
@@ -1819,8 +1814,7 @@ class _TacticStrip extends StatelessWidget {
           // as part of it.
         height: 46,
         child: GlassPanel(
-          darkGlass: true,
-          radius: 10,
+                    radius: 10,
           padding: EdgeInsets.zero,
           child: Stack(
             children: [
@@ -1855,7 +1849,7 @@ class _TacticStrip extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: FractionallySizedBox(
                         widthFactor: t,
-                        child: ColoredBox(color: kit.accentBright),
+                        child: ColoredBox(color: glassAccent(context, kit.accentBright)),
                       ),
                     ),
                   ),
@@ -2065,8 +2059,7 @@ class _Scoreboard extends StatelessWidget {
         child: Stack(
           children: [
         GlassPanel(
-        darkGlass: true,
-        density: GlassDensity.deep,
+                density: GlassDensity.deep,
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2086,7 +2079,7 @@ class _Scoreboard extends StatelessWidget {
                   fontSize: 15,
                   height: 1.12,
                   fontWeight: FontWeight.w900,
-                  color: isHome ? kit.accentBright : ink,
+                  color: isHome ? glassAccent(context, kit.accentBright) : ink,
                 ),
               ),
               // **THE CLOCK GOES BETWEEN THE TWO CLUBS.** It was in the footer
@@ -2108,7 +2101,7 @@ class _Scoreboard extends StatelessWidget {
                   fontSize: 15,
                   height: 1.12,
                   fontWeight: FontWeight.w900,
-                  color: kit.accentBright,
+                  color: glassAccent(context, kit.accentBright),
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -2121,7 +2114,7 @@ class _Scoreboard extends StatelessWidget {
                   fontSize: 15,
                   height: 1.12,
                   fontWeight: FontWeight.w900,
-                  color: isHome ? ink : kit.accentBright,
+                  color: isHome ? ink : glassAccent(context, kit.accentBright),
                 ),
               ),
             ),
@@ -2188,7 +2181,7 @@ class _Scoreboard extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.6,
-                    color: kit.accentBright,
+                    color: glassAccent(context, kit.accentBright),
                   ),
                 ),
               ),
@@ -2203,7 +2196,7 @@ class _Scoreboard extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: (minute / 90).clamp(0.0, 1.0),
                   backgroundColor: kit.border,
-                  valueColor: AlwaysStoppedAnimation(kit.accentBright),
+                  valueColor: AlwaysStoppedAnimation(glassAccent(context, kit.accentBright)),
                 ),
               ),
             ),
@@ -2220,7 +2213,7 @@ class _Scoreboard extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.28),
                   shape: BoxShape.circle,
                 ),
-                child: GameIcon('bars', size: 13, color: kit.accentBright),
+                child: GameIcon('bars', size: 13, color: glassAccent(context, kit.accentBright)),
               ),
             ),
           ],
@@ -2275,7 +2268,7 @@ class _FeedLine extends StatelessWidget {
             tier: def.tier,
             variant: about.variant,
             size: isGoal ? 30 : 24,
-            ring: isGoal ? kit.accentBright : kit.border,
+            ring: isGoal ? glassAccent(context, kit.accentBright) : kit.border,
           );
 
     final row = Row(
@@ -2307,7 +2300,7 @@ class _FeedLine extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: isGoal ? FontWeight.w700 : FontWeight.w400,
-              color: isGoal ? kit.accentBright : null,
+              color: isGoal ? glassAccent(context, kit.accentBright) : null,
             ),
           ),
         ),
@@ -2337,7 +2330,7 @@ class _FeedLine extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border(
               left: BorderSide(
-                color: goal.ours ? kit.accentBright : conceded,
+                color: goal.ours ? glassAccent(context, kit.accentBright) : conceded,
                 width: 3,
               ),
             ),
@@ -2363,7 +2356,7 @@ class _FeedLine extends StatelessWidget {
                     Icon(
                       Icons.sports_soccer,
                       size: 14,
-                      color: kit.accentBright,
+                      color: glassAccent(context, kit.accentBright),
                     ),
                     const SizedBox(width: 6),
                   ],
@@ -2381,7 +2374,7 @@ class _FeedLine extends StatelessWidget {
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.6,
-                        color: goal.ours ? kit.accentBright : conceded,
+                        color: goal.ours ? glassAccent(context, kit.accentBright) : conceded,
                       ),
                     ),
                   ),
@@ -2407,7 +2400,7 @@ class _FeedLine extends StatelessWidget {
                       tier: def.tier,
                       variant: about.variant,
                       size: 34,
-                      ring: kit.accentBright,
+                      ring: glassAccent(context, kit.accentBright),
                     ),
                     const SizedBox(width: 9),
                     Expanded(
@@ -2471,7 +2464,7 @@ class _FeedLine extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         iconSize: 17,
                         visualDensity: VisualDensity.compact,
-                        color: goal.ours ? kit.accentBright : conceded,
+                        color: goal.ours ? glassAccent(context, kit.accentBright) : conceded,
                         icon: const Icon(Icons.replay),
                         onPressed: replay,
                       ),
