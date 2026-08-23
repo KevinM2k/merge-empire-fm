@@ -6269,11 +6269,16 @@ that is not off the extension is the bug, not the symptom.
 
 ### The end of a game
 
-- [ ] **`summary_league_move_test` fails on this machine.** "IT OPENS ON THE
-      TABLE AS IT WAS, then moves" — the table is already in its settled order
-      on the first frame, so nothing passes anybody. It reproduces with the
-      tree clean, so it is not this session's; the earlier note calling it a
-      contended-machine flake was wrong.
+- [ ] **`summary_league_move_test` is INTERMITTENT, and the flake is real.**
+      "IT OPENS ON THE TABLE AS IT WAS, then moves" fails on `after != before`:
+      within the three-row window the settled order and the previous order are
+      the same, so nothing passed anybody. Measured rather than guessed at —
+      it failed twice in a minute, then passed six times in a row on its own,
+      and a bisect over this session's commits is non-monotonic, so it is
+      neither this session's nor load. The table is seeded on division and
+      season, so the nondeterminism is upstream in what `createDefaultState`
+      stamps. **Do not "fix" it by loosening the assertion**: the assertion is
+      the whole claim the widget makes.
 
 - [x] **The home page flashes up before the end-of-game screen.** Not a frame:
       the awaited push does not resolve until the match route has finished
