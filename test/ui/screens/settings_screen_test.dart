@@ -415,6 +415,17 @@ void main() {
       );
       expect(segment.choices.last.onTap, isNull);
       expect(find.text(t('prestige.body_pro_hint')), findsOne);
+      // **AND IT WEARS A PADLOCK.** A dead segment does not say it is locked,
+      // and the note underneath is a sentence nobody reads until they have
+      // worked out there is something to read about. Asked for directly.
+      expect(segment.choices.last.locked, isTrue);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('setting-hardMode')),
+          matching: find.byIcon(Icons.lock_rounded),
+        ),
+        findsOne,
+      );
     });
 
     testWidgets('and a save ALREADY in Pro keeps it', (tester) async {

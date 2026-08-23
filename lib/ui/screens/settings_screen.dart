@@ -337,11 +337,13 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                   label: t('settings.pitchView.ours'),
                   on: ours,
                   onTap: () => writeSetting(ref, 'cutawayOurTeam', !ours),
+                  locked: false,
                 ),
                 (
                   label: t('settings.pitchView.opp'),
                   on: opp,
                   onTap: () => writeSetting(ref, 'cutawayOpponent', !opp),
+                  locked: false,
                 ),
               ],
             ),
@@ -356,11 +358,13 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                   label: '1×',
                   on: !fast,
                   onTap: () => writeSetting(ref, 'matchSpeedFast', false),
+                  locked: false,
                 ),
                 (
                   label: '2×',
                   on: fast,
                   onTap: () => writeSetting(ref, 'matchSpeedFast', true),
+                  locked: false,
                 ),
               ],
             ),
@@ -406,6 +410,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                   // would put a start-over warning behind a button that changes
                   // nothing.
                   onTap: hard ? () => _confirmDifficulty(hard: false) : null,
+                  locked: false,
                 ),
                 (
                   label: t('settings.difficulty.hard'),
@@ -419,6 +424,10 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: hard || !proUnlocked
                       ? null
                       : () => _confirmDifficulty(hard: true),
+                  // A padlock ON the button. The row's note says why, and a
+                  // note under a control nobody has worked out is locked is a
+                  // sentence nobody reads.
+                  locked: !proUnlocked,
                 ),
               ],
             ),

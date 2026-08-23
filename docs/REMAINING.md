@@ -6299,9 +6299,11 @@ that is not off the extension is the bug, not the symptom.
 
 - [ ] **The special offers look bad.** Read `../merge-empire-fc` for what the
       shipped one does before restyling.
-- [ ] **Pro mode wants a LOCK on it**, and copy saying it unlocks at prestige.
-      Check `en.js` for an existing key before assuming new copy: no `t()` key
-      can be added from this repo.
+- [x] **Pro mode wants a LOCK on it**, and copy saying it unlocks at prestige.
+      The gate and the copy were both already there — `prestige.body_pro_hint`
+      is "Or prestige into Pro Mode" and the row prints it — so what was missing
+      was the padlock, which is the part a player sees before they read
+      anything. No new key needed.
 
 ### Starting out
 

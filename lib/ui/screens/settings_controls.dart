@@ -36,7 +36,17 @@ const Color settingsDanger = Color(0xFFF44336);
 
 /// One button in a [SettingsSegment]: what it says, whether it is live, and
 /// what pressing it does. A null [onTap] is a state the player cannot set.
-typedef SettingsChoice = ({String label, bool on, VoidCallback? onTap});
+typedef SettingsChoice = ({
+  String label,
+  bool on,
+  VoidCallback? onTap,
+
+  /// A padlock before the label. **A dead segment does not say WHY it is
+  /// dead** — the row's note underneath does, and nobody reads a note about a
+  /// control they have not worked out is locked. Pro mode was reported as
+  /// needing one.
+  bool locked,
+});
 
 /// Read one key out of `state['settings']`.
 Provider<T> settingPick<T>(String key, T fallback) {
@@ -374,15 +384,28 @@ class SettingsSegment extends StatelessWidget {
                     vertical: 7,
                   ),
                   color: choices[i].on ? kit.accentBright : Colors.transparent,
-                  child: Text(
-                    choices[i].label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: choices[i].on
-                          ? kit.accentBrightInk
-                          : kit.textMuted,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (choices[i].locked) ...[
+                        Icon(
+                          Icons.lock_rounded,
+                          size: 12,
+                          color: kit.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        choices[i].label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: choices[i].on
+                              ? kit.accentBrightInk
+                              : kit.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
