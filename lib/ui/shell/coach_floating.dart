@@ -45,7 +45,9 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart'
         CoachAlertBadge,
         CoachBubbleTail,
         coachPortrait,
-        coachTailSize;
+        coachScrim,
+        coachTailSize,
+        coachTailTipX;
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -161,7 +163,14 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => _dismiss(_open!),
-              child: const SizedBox.expand(),
+              // **AND IT DIMS THE PAGE, like the home one.** This was a fully
+              // transparent layer, so the same speech bubble pushed the page
+              // back on the home tab and floated on a live screen everywhere
+              // else — see [coachScrim].
+              child: const ColoredBox(
+                color: coachScrim,
+                child: SizedBox.expand(),
+              ),
             ),
           ),
         Positioned(
@@ -191,9 +200,11 @@ class _CoachFloatingState extends ConsumerState<CoachFloating> {
                   // caption rather than a line of dialogue. Same wedge the home
                   // page draws — see [CoachBubbleTail].
                   Padding(
-                    // Over the middle of the head below it rather than the far
-                    // left edge, so it points at his face.
-                    padding: const EdgeInsets.only(left: 18),
+                    // **The POINT over the middle of the head below it**, which
+                    // is the wedge's [coachTailTipX] rather than its box — the
+                    // disc is 44 across and its middle is 22 in, so the box
+                    // starts at 22 minus the tip's own offset.
+                    padding: const EdgeInsets.only(left: 22 - coachTailTipX),
                     child: CustomPaint(
                       key: const ValueKey('coach-floating-tail'),
                       size: coachTailSize,

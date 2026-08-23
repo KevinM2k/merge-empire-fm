@@ -207,7 +207,7 @@ Future<void> showCoachBubble(BuildContext context, WidgetRef ref) {
   final anchor = box == null ? null : box.localToGlobal(Offset.zero) & box.size;
   return showDialog<void>(
     context: context,
-    barrierColor: Colors.black26,
+    barrierColor: coachScrim,
     builder: (_) => _CoachBubble(anchor: anchor),
   );
 }
@@ -277,11 +277,15 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
         ? 96.0
         : math.max(8.0, screen.height - anchor.top + 12);
     final maxWidth = math.max(160.0, screen.width - left - 14);
-    // The wedge sits over the middle of the disc below it. Clamped, so a dock
-    // near the edge of a narrow screen cannot push it off the bubble.
+    // **THE POINT sits over the middle of the disc below it, not the box.** It
+    // was `- 9`, half the wedge's width — and the wedge leans left, so its tip
+    // is at [coachTailTipX] rather than at its centre. Seven pixels off, which
+    // is close enough to look deliberate and wrong enough that the bubble reads
+    // as pointing past him. Clamped, so a dock near the edge of a narrow screen
+    // cannot push it off the bubble.
     final double tailLeft = anchor == null
         ? 12.0
-        : (anchor.center.dx - left - 9).clamp(
+        : (anchor.center.dx - left - coachTailTipX).clamp(
             10.0,
             math.max(10.0, maxWidth - 30),
           );
@@ -413,7 +417,7 @@ class _CoachBubbleState extends ConsumerState<_CoachBubble> {
                 left: tailLeft,
                 bottom: -10,
                 child: CustomPaint(
-                  size: const Size(18, 11),
+                  size: coachTailSize,
                   painter: CoachBubbleTail(
                     fill: kit.surface.withValues(alpha: 0.94),
                     edge: kit.accent,

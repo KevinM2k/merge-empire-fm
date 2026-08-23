@@ -5157,14 +5157,48 @@ one everywhere it should not.
       already uses when you tap a player — a dark plate behind them, so the
       yellow has something to be yellow against instead of sitting on a pale
       card.
-- [ ] **The coach bubble opens directly over his head and the tail misses.** It
-      wants moving right so the wedge points at him.
-      **And the tail has a BORDER along its top edge**, which has to go. This is
-      the 27 Aug "tick has no top border on the home page" row answered from the
-      other direction: the border is there and it is wrong, rather than missing
-      somewhere.
-      **And the slight overlay behind it on the home page is right — keep it
-      EVERYWHERE.**
+- [x] **The coach bubble opens directly over his head and the tail misses.**
+      Fixed, and it was one number in three places: the wedge LEANS LEFT, so its
+      point is at `coachTailTipX` (1.5) rather than at the middle of its box —
+      every caller was centring the box on his head, which puts the point about
+      seven pixels past him. Close enough to look deliberate and wrong enough
+      that the bubble reads as pointing at nothing. `coachTailTipX` is exported
+      now so the three placements cannot each get it wrong separately.
+      **And the tail's top border is gone**, which answers the 27 Aug row from
+      the other direction: it was there and wrong rather than missing somewhere.
+      The painter stroked the CLOSED triangle and then painted a fill rectangle
+      back over the top edge to hide it — an antialiased 1px line under a 2px
+      cover leaves its ends showing, and it did. It strokes an OPEN path now, so
+      there is no top edge to hide.
+      **And the dim is everywhere.** The home page opened on a `barrierColor`
+      and the floating coach dismissed on a fully transparent layer, so the same
+      bubble pushed the page back on one tab and floated over a live screen on
+      the other four. `coachScrim` is the one value both take.
+- [ ] **Roll Trait should roll BOTH sides**, so it is clear what is happening,
+      and the text should say the percentages gained and lost. **And the trait
+      belongs above Career Stats** — it is one of the main things on that page,
+      not a footnote. The roller itself could be styled better.
+- [ ] **The ×4/×2 button on a player needs a top-right and bottom-right radius**
+      so the border closes properly.
+- [ ] **The special offers have a weird yellow top.** Check how
+      `../merge-empire-fc` does it.
+- [ ] **Use the glass/blur from the Play screen on the club assets** — and in
+      most places, now that it exists.
+- [ ] **The Customise button is mostly cut off on the home page.**
+- [ ] **The red and green on the home page are too dark.** They should be the
+      same red and green dark mode uses.
+- [ ] **The customise button is STILL laggy** and has not been looked at.
+- [ ] **STADIUMS ARE TIERED and the port does not tier them.** Tier 1 should be
+      a dirty pitch with no stadium at all, tier 2 barely better, and it builds
+      from there. `../merge-empire-fc` has this — read it rather than inventing
+      a ladder.
+- [ ] **The Play screen: lose the position label.** The match clock belongs
+      BETWEEN the two teams, above the `vs` — there is a lot of room there — and
+      the progress bar can be a bottom border on the main card rather than its
+      own thing. The tactics bar wants a radius on each side and about 12px of
+      bottom margin to separate it from the commentary.
+- [ ] **The pitch perspective is the wrong way round**, and it wants to be a
+      good deal stronger.
 - [ ] **A manager-customisation pack in the shop should show what is IN it.**
       Tapping one opens a popup that says nothing about the contents; it should
       list every item with a picture, and TICK the ones already unlocked so a

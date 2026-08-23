@@ -70,21 +70,25 @@ class CoachBubbleTail extends CustomPainter {
       ..lineTo(size.width, 0)
       // Down and to the LEFT: the head is below and behind the bubble's corner,
       // so a tail dropping straight down would point at the grass beside him.
-      ..lineTo(1.5, size.height)
+      ..lineTo(coachTailTipX, size.height)
       ..close();
     canvas.drawPath(path, Paint()..color = fill);
+    // **ONLY THE TWO SLOPES ARE STROKED, and the top edge never is.** It used to
+    // stroke the closed triangle and then paint a fill rectangle back over the
+    // top edge to hide it, which is a seam waiting to happen — an antialiased
+    // 1px line under a 2px cover leaves its ends showing, and it did: a border
+    // across the top of the wedge, reported from a phone. An open path has no
+    // top edge to hide.
     canvas.drawPath(
-      path,
+      Path()
+        ..moveTo(size.width, 0)
+        ..lineTo(coachTailTipX, size.height)
+        ..lineTo(0, 0),
       Paint()
         ..color = edge
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-    // The bubble's own bottom stroke runs across the top of this wedge; cover
-    // the span the tail opens into it so the join is not a seam.
-    canvas.drawRect(
-      Rect.fromLTWH(0.5, -1, size.width - 1, 2),
-      Paint()..color = fill,
+        ..strokeWidth = 1
+        ..strokeJoin = StrokeJoin.round,
     );
   }
 
@@ -95,6 +99,24 @@ class CoachBubbleTail extends CustomPainter {
 
 /// The size that wedge is drawn at, so every bubble's tail is the same tail.
 const Size coachTailSize = Size(18, 12);
+
+/// The dim behind an open coach bubble.
+///
+/// **One value, because there were two and only one of them existed.** The home
+/// page's bubble opens on a `barrierColor` and the floating coach — every other
+/// tab — dismissed on a fully transparent layer, so the same speech bubble had
+/// a page pushed back behind it on one screen and not on the others. Light
+/// enough that the game is still legible underneath: it is a dim, not a modal.
+const Color coachScrim = Colors.black26;
+
+/// Where the wedge's POINT sits inside its own box.
+///
+/// **Not the middle, and that is what the callers kept getting wrong.** The
+/// wedge leans left, so centring the BOX on the head leaves the point about
+/// seven pixels to the left of it — close enough to look deliberate and wrong
+/// enough that the bubble reads as pointing past him. Anything placing a tail
+/// aims THIS at what is speaking.
+const double coachTailTipX = 1.5;
 
 /// What kind of answer a button is, which is the whole of its colour.
 enum CoachTone {

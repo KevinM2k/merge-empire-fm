@@ -63,7 +63,7 @@ import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
-    show CoachBubbleTail, coachPortrait, coachTailSize;
+    show CoachBubbleTail, coachPortrait, coachTailSize, coachTailTipX;
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart' show PlayerFace;
 import 'package:merge_empire_fc/ui/theme/sky.dart';
@@ -1724,9 +1724,10 @@ class _CoachSay extends StatelessWidget {
                     ),
                   ),
                   // The wedge hangs off the bubble's bottom-left, pointing back
-                  // down at his face.
+                  // down at his face — the POINT over him, not the box. See
+                  // [coachTailTipX].
                   Padding(
-                    padding: const EdgeInsets.only(left: 10),
+                    padding: const EdgeInsets.only(left: 14 - coachTailTipX),
                     child: CustomPaint(
                       size: coachTailSize,
                       painter: CoachBubbleTail(

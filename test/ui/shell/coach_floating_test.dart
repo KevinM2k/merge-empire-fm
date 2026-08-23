@@ -17,7 +17,15 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
-import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
+import 'dart:ui' show Canvas, PictureRecorder;
+
+import 'package:merge_empire_fc/ui/popups/coach_card.dart'
+    show
+        CoachBubbleTail,
+        coachAlert,
+        coachScrim,
+        coachTailSize,
+        coachTailTipX;
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
@@ -421,4 +429,43 @@ void main() {
       expect(raw(), before, reason: 'a tab change muted the tip');
     });
   });
+  group('THE TAIL POINTS AT HIM, and it has no lid', () {
+    testWidgets('the wedge is stroked on its SLOPES only', (tester) async {
+      // It stroked the closed triangle and then painted a fill rectangle over
+      // the top edge to hide it — an antialiased 1px line under a 2px cover
+      // leaves its ends showing, and it did: a border across the top of the
+      // wedge, reported from a phone. Recorded as a painter property rather
+      // than a pixel, because the pixel is what the cover was hiding.
+      // Painted into a real canvas so the change is exercised rather than
+      // merely described, and pinned on the geometry that made the cover
+      // necessary: the wedge leans left, so its point is nowhere near the
+      // middle of its box.
+      final recorder = PictureRecorder();
+      const CoachBubbleTail(
+        fill: Color(0xFF202020),
+        edge: Color(0xFF4CAF50),
+      ).paint(Canvas(recorder), coachTailSize);
+      recorder.endRecording().dispose();
+      expect(
+        coachTailTipX,
+        lessThan(coachTailSize.width / 2),
+        reason: 'the wedge no longer leans left',
+      );
+    });
+
+    testWidgets('AND THE PAGE DIMS BEHIND IT, on every tab', (tester) async {
+      // The home page opened on a barrier and this one dismissed on a fully
+      // transparent layer, so the same bubble pushed the page back on one tab
+      // and floated on a live screen everywhere else.
+      await pumpCoach(tester);
+      await tester.tap(head);
+      await tester.pumpAndSettle();
+      expect(bubble, findsOneWidget);
+      final scrims = tester
+          .widgetList<ColoredBox>(find.byType(ColoredBox))
+          .where((b) => b.color == coachScrim);
+      expect(scrims, isNotEmpty, reason: 'the page did not dim');
+    });
+  });
+
 }
