@@ -156,12 +156,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // the screen. `Flexible` lets a caption ellipsise rather than
                   // the row reporting an overflow; the discs themselves are
                   // fixed and unaffected. Found by the long-language sweep.
+                  // **NO SPACERS, AND THE ORBS ARE PINNED TO THE EDGES.** There
+                  // were two `Spacer`s between three `Flexible`s, all at flex 1
+                  // — so the pill in the middle got a fifth of the row and its
+                  // label ellipsised to almost nothing ("the Customise button
+                  // is mostly cut off"), while the burger sat centred inside a
+                  // slot wider than itself and read as having moved inwards off
+                  // the right edge ("the menu button is no longer on the
+                  // right"). One layout, two reports.
+                  //
+                  // The weights give the pill the most room and the `Align`s
+                  // put each orb against its own side of the rail whatever is
+                  // left over. The captions can still ellipsise inside their
+                  // own slot, which is what the long-language sweep asked for.
                   Row(
+                    key: const ValueKey('dock-rail'),
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Flexible(child: CoachDock()),
-                      const Spacer(),
-                      Flexible(
+                      // **ALL THREE ARE `Expanded`, and the outer two are
+                      // ALIGNED.** Two things had to be true at once and each
+                      // obvious fix broke the other: a loose `Flexible` lets a
+                      // dock take the whole slot (its caption is a `Text` and
+                      // expands), and the row then packs to the left leaving
+                      // the trailing space unused — which is the burger short
+                      // of the right edge. Tight slots fix the packing; the
+                      // `Align`s put each orb against its own side of the slot
+                      // rather than centred in it.
+                      const Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.bottomLeft,
+                          child: CoachDock(),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 5,
                         child: Padding(
                           // Clear of the orbs' own captions, and lifted so the
                           // pill's bottom sits on the discs' bottom rather than
@@ -170,7 +199,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: CustomiseDock(anchorKey: _customiseKey),
                         ),
                       ),
-                      const Spacer(),
                       // **A COLUMN, not a second orb in the row.** Prestige
                       // leads the right-hand side and the burger stays where
                       // the player's thumb has learned it is — putting the new
@@ -178,14 +206,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // a career came up for renewal. It builds nothing at all
                       // on a save that cannot prestige, so the common case is
                       // the burger alone and the row is unchanged.
-                      const Flexible(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PrestigeDock(),
-                            SizedBox(height: 8),
-                            MenuDock(),
-                          ],
+                      const Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.bottomRight,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              PrestigeDock(),
+                              SizedBox(height: 8),
+                              MenuDock(),
+                            ],
+                          ),
                         ),
                       ),
                     ],

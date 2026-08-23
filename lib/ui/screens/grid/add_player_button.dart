@@ -356,6 +356,12 @@ class _BatchSegment extends StatelessWidget {
         fill: fill,
         ink: ink,
         outline: outline,
+        // The group is clipped to 9; this is its right-hand end, so those two
+        // corners are the ones the clip cuts.
+        outlineRadius: const BorderRadius.only(
+          topRight: Radius.circular(9),
+          bottomRight: Radius.circular(9),
+        ),
         onTap: stuck ? null : onCycle,
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
         child: Text(
@@ -467,6 +473,7 @@ class _Segment extends StatelessWidget {
     this.onTap,
     this.gradient,
     this.outline,
+    this.outlineRadius,
     this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
   });
 
@@ -480,6 +487,14 @@ class _Segment extends StatelessWidget {
   /// A hairline round the segment, for the one case where the FILL is the page's
   /// own colour — see [_BatchSegment].
   final Color? outline;
+
+  /// Which corners the [outline] follows.
+  ///
+  /// **A square hairline inside a rounded group leaves its corners hanging
+  /// out**, which is what "the ×4/×2 button needs a top-right and bottom-right
+  /// radius so the border works" is: this is the LAST segment, so its outer two
+  /// corners are the group's own and have to match the clip that cuts them.
+  final BorderRadius? outlineRadius;
   final EdgeInsets padding;
 
   @override
@@ -505,7 +520,10 @@ class _Segment extends StatelessWidget {
       // box — so the hairline was drawn and then covered over, which is why ×2
       // and ×4 still floated on nothing in light mode.
       position: DecorationPosition.foreground,
-      decoration: BoxDecoration(border: Border.all(color: outline!)),
+      decoration: BoxDecoration(
+        border: Border.all(color: outline!),
+        borderRadius: outlineRadius,
+      ),
       child: body,
     );
   }

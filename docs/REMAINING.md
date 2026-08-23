@@ -5194,13 +5194,24 @@ one everywhere it should not.
       and the text should say the percentages gained and lost. **And the trait
       belongs above Career Stats** — it is one of the main things on that page,
       not a footnote. The roller itself could be styled better.
-- [ ] **The ×4/×2 button on a player needs a top-right and bottom-right radius**
-      so the border closes properly.
+- [x] **The ×4/×2 button needs a top-right and bottom-right radius** so the
+      border closes properly. Its hairline was a square `Border.all` inside a
+      group clipped to 9, so the outer two corners hung out of the clip. They
+      are the LAST segment's, so they take the group's own radius.
 - [ ] **The special offers have a weird yellow top.** Check how
       `../merge-empire-fc` does it.
 - [ ] **Use the glass/blur from the Play screen on the club assets** — and in
       most places, now that it exists.
-- [ ] **The Customise button is mostly cut off on the home page.**
+- [x] **The Customise button is mostly cut off on the home page** — and **the
+      menu button is no longer on the right**. **ONE layout, two reports.** The
+      dock rail had two `Spacer`s between three `Flexible`s all at flex 1, so
+      the pill got a fifth of the row and its label ellipsised to almost
+      nothing, while the burger centred inside a slot wider than itself.
+      Two things had to be true at once and each obvious fix broke the other: a
+      LOOSE `Flexible` lets a dock take its whole slot (the caption is a `Text`
+      and expands) and the row then packs left, leaving the trailing space
+      unused — which is the burger short of the right edge again. All three
+      slots are tight now and the outer two are `Align`ed to their own side.
 - [x] **The red and green on the home page are too dark.** Same answer, and it
       generalises: `semanticPlate` is a dark ground either theme can put a bright
       semantic colour on, and the form guide's W/D/L now use the DARK-MODE red,

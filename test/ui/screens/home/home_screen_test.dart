@@ -288,6 +288,26 @@ void main() {
       expect(box.bottom, closeTo(coach.bottom, 8));
     });
 
+    testWidgets('THE ORBS SIT ON THE RAIL\'S OWN EDGES, and the pill gets the '
+        'room between them', (tester) async {
+      // **One layout, two reports.** There were two `Spacer`s between three
+      // `Flexible`s all at flex 1, so the pill got a fifth of the row and its
+      // label ellipsised to almost nothing ("mostly cut off"), while the burger
+      // centred inside a slot wider than itself and read as having moved
+      // inwards off the right edge ("no longer on the right").
+      await pumpHome(tester);
+      final rail = tester.getRect(find.byKey(const ValueKey('dock-rail')));
+      final coach = tester.getRect(find.byKey(const ValueKey('dock-coach')));
+      final menu = tester.getRect(find.byKey(const ValueKey('dock-menu')));
+      final pill = tester.getRect(find.byKey(const ValueKey('dock-customise')));
+
+      expect(coach.left, closeTo(rail.left, 1), reason: 'the coach drifted in');
+      expect(menu.right, closeTo(rail.right, 1), reason: 'the burger drifted in');
+      // And the pill is the widest thing on the rail rather than the narrowest.
+      expect(pill.width, greaterThan(coach.width));
+      expect(pill.width, greaterThan(menu.width));
+    });
+
     testWidgets('THE PRESTIGE ORB IS NOT THERE until the cup is won', (
       tester,
     ) async {
