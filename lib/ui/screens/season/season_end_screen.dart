@@ -11,11 +11,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Is the season over and waiting to be closed?
@@ -36,6 +38,9 @@ class SeasonEndScreen extends ConsumerWidget {
     required this.outcome,
     required this.seasonNumber,
     this.record,
+    this.winnerName,
+    this.winnerIsUs = false,
+    this.cup,
     this.onContinue,
   });
 
@@ -45,6 +50,16 @@ class SeasonEndScreen extends ConsumerWidget {
   /// counters on — see [seasonRecordOf]. Null draws the page without the stats
   /// band, for a caller that has not got one.
   final SeasonRecord? record;
+
+  /// Who won the division, captured before `endSeason` rebuilt the table for
+  /// the new campaign. **The one fact the summary can give that the player's
+  /// own row cannot**, which is the JS's reason for it.
+  final String? winnerName;
+  final bool winnerIsUs;
+
+  /// This season's finished cup run, or null when there was not one — see
+  /// [seasonCupRun].
+  final ({String cupId, String outcome, int roundReached})? cup;
 
   /// The season that just finished, captured BEFORE `endSeason` rolled it on.
   final int seasonNumber;
@@ -60,6 +75,30 @@ class SeasonEndScreen extends ConsumerWidget {
   String get _newDivisionName {
     final div = getDivision(outcome.newDivision);
     return tName('division', {'id': div.id, 'name': div.name});
+  }
+
+  /// The division this season was played in, in the player's own language.
+  String get _divisionName {
+    final div = getDivision(outcome.oldDivision);
+    return tName('division', {'id': div.id, 'name': div.name});
+  }
+
+  /// The cup run as one sentence, or null when there was not one.
+  String? get _cupLine {
+    final run = cup;
+    if (run == null) return null;
+    final def = getCupById(run.cupId);
+    if (def == null) return null;
+    // `tName` takes an id or a map, not a `Cup` — the definition's own name is
+    // the fallback, so pass the id and let the catalogue answer. Same as
+    // `fixture_caption.dart`.
+    final name = tName('cup', {'id': def.id, 'name': def.name});
+    if (run.outcome == 'won') return t('season.end.cup_won', {'cup': name});
+    final rounds = def.rounds;
+    // **The round is NAMED, not numbered.** `roundReached` is an index into the
+    // cup's own list and printing it would read "out in the 2".
+    final reached = run.roundReached.clamp(0, rounds.length - 1);
+    return t('season.end.cup_out', {'cup': name, 'round': rounds[reached]});
   }
 
   String get _headline => switch (outcome.outcome) {
@@ -186,7 +225,36 @@ class SeasonEndScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              // **WHO ACTUALLY WON IT.** `season.end.won_by` and its
+              // `won_by_you` twin have sat translated in ten catalogues with
+              // nothing able to print either, and it is the one fact this page
+              // can give that the player's own row cannot.
+              if (winnerName case final name?)
+                _SeasonLine(
+                  lineKey: 'season-end-winner',
+                  icon: 'trophy',
+                  ink: winnerIsUs ? kit.accentBright : kit.textMuted,
+                  text: winnerIsUs
+                      ? t('season.end.won_by_you', {'div': _divisionName})
+                      : t('season.end.won_by', {
+                          'team': name,
+                          'div': _divisionName,
+                        }),
+                ),
+              // **AND HOW THE CUP WENT.** `cup_won` and `cup_out` are two more
+              // of them, and a season with a cup run in it is not summarised by
+              // its league finish alone.
+              if (_cupLine case final line?)
+                _SeasonLine(
+                  lineKey: 'season-end-cup',
+                  icon: cup!.outcome == 'won' ? 'trophy' : 'cross',
+                  ink: cup!.outcome == 'won'
+                      ? kit.accentBright
+                      : kit.textMuted,
+                  text: line,
+                ),
+              const SizedBox(height: 16),
               _Line(
                 label: t('season.end.prize_label'),
                 value: formatCoins(outcome.payout),
@@ -284,4 +352,43 @@ class _Stat extends StatelessWidget {
       ],
     );
   }
+}
+
+/// One fact about the season, on its own line — the spec's `.se-line`.
+class _SeasonLine extends StatelessWidget {
+  const _SeasonLine({
+    required this.lineKey,
+    required this.icon,
+    required this.ink,
+    required this.text,
+  });
+
+  final String lineKey;
+  final String icon;
+  final Color ink;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    key: ValueKey(lineKey),
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GameIcon(icon, size: 15, color: ink),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: ink,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

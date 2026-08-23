@@ -13,6 +13,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/cup_engine.dart' show seasonCupRun;
+import 'package:merge_empire_fc/engine/league_table.dart' show buildLeagueTable;
 import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -34,6 +36,13 @@ class EndSeasonButton extends ConsumerWidget {
     // a summary that reads them afterwards is a summary of nothing. See
     // [seasonRecordOf].
     final record = seasonRecordOf(game.state ?? const {});
+    // **AND WHO WON IT, and how the cup went** — both from the season that is
+    // about to be settled. `endSeason` rebuilds the table for the new campaign
+    // and files the cup's availability, so afterwards neither answer is about
+    // the season the page is reporting on.
+    final table = buildLeagueTable(game.state ?? <String, dynamic>{});
+    final winner = table.isEmpty ? null : table.first;
+    final cup = seasonCupRun(game.state);
     final outcome = game.update(endSeason);
     if (!context.mounted) return;
 
@@ -51,6 +60,9 @@ class EndSeasonButton extends ConsumerWidget {
         builder: (routeContext) => SeasonEndScreen(
           outcome: outcome,
           record: record,
+          winnerName: winner?.name,
+          winnerIsUs: winner?.isPlayer ?? false,
+          cup: cup,
           seasonNumber: finished,
           onContinue: () => Navigator.of(routeContext).maybePop(),
         ),

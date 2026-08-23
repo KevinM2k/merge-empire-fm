@@ -1008,3 +1008,34 @@ List<dynamic> cupHistory(Map<String, dynamic>? state) {
   final history = _map(_map(state?['progression'])?['cups'])?['history'];
   return history is List ? history : const [];
 }
+
+/// This season's finished cup run, or null when there was not one.
+///
+/// **The HISTORY, not the active run.** A run still open has not finished
+/// telling its story and one that ended is already filed — the JS's own
+/// reasoning, and the reason the season-end page can print a cup line at all.
+/// The last matching entry wins: a season can only hold one run, but a save
+/// that has been through a migration can hold two rows for it.
+({String cupId, String outcome, int roundReached})? seasonCupRun(
+  Map<String, dynamic>? state,
+) {
+  if (state == null) return null;
+  final cup = cupForDivision(state);
+  if (cup == null) return null;
+  final season = _num(_map(state['progression'])?['seasonCount'])?.toInt() ?? 1;
+  // `progression.cups.history`, which is where `_ensureCupState` puts it.
+  final rows = _map(_map(state['progression'])?['cups'])?['history'];
+  if (rows is! List) return null;
+  Map<String, dynamic>? found;
+  for (final raw in rows) {
+    final h = _map(raw);
+    if (h == null) continue;
+    if (h['season'] == season && h['cupId'] == cup.id) found = h;
+  }
+  if (found == null) return null;
+  return (
+    cupId: '${found['cupId']}',
+    outcome: '${found['outcome']}',
+    roundReached: _num(found['roundReached'])?.toInt() ?? 0,
+  );
+}

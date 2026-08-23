@@ -6438,9 +6438,21 @@ that is not off the extension is the bug, not the symptom.
       `cup_out`), the season-quest block (`quests_done`, `quests_autopay`) and
       the collapsible final table (`view_table` / `hide_table`) — six more keys
       with no caller, and the same page to hang them on.
-- [ ] **The season overview's remaining four blocks**, all with shipped copy and
-      no caller: the division winner, the cup run, the season quests, and the
-      collapsible final table. See the row above.
+- [x] **The season overview: the division winner and the cup run.** Both come
+      off the save BEFORE `endSeason` settles it, for the same reason the record
+      does — the table is rebuilt for the new campaign and the cup's
+      availability is filed, so afterwards neither answer is about the season
+      being reported on. `seasonCupRun` reads the HISTORY rather than the active
+      run, which is the JS's own reasoning: a run still open has not finished
+      telling its story. Four more keys off the shelf — `won_by`, `won_by_you`,
+      `cup_won`, `cup_out` — and the round is NAMED, because `roundReached` is
+      an index and printing it reads "out in the 2".
+- [ ] **The season overview's last two blocks:** the season-quest scorecard
+      (`quests_done`, `quests_autopay`) and the collapsible final table
+      (`view_table`, `hide_table`). Both need PRE-settlement data the way the
+      winner and the record do — `endSeason` sweeps the quests and rolls the
+      table — and the quest block is a claimable list rather than a readout, so
+      it wants the quests sheet's own row widget rather than a second one.
 - [ ] **The home backdrop is still cropping, and quite low.** Third re-report.
       The place-by-its-ground-line fix assumed the art's own ground sits at 62%
       of the drawing; if it crops low, that number is wrong for this image or

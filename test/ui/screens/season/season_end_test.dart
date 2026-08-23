@@ -241,4 +241,45 @@ void main() {
     expect(find.byKey(const ValueKey('season-end-stats')), findsNothing);
     expect(find.byKey(const ValueKey('season-end-position')), findsOneWidget);
   });
+
+  testWidgets('WHO WON IT, and how the cup went', (tester) async {
+    // `season.end.won_by`, `won_by_you`, `cup_won` and `cup_out` had all sat
+    // translated in ten catalogues with nothing able to print one. The winner
+    // is the one fact this page can give that the player's own row cannot.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 4),
+          seasonNumber: 1,
+          winnerName: 'Cobble Street Albion',
+          cup: (cupId: 'regional_cup', outcome: 'won', roundReached: 2),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('season-end-winner')), findsOneWidget);
+    expect(find.textContaining('Cobble Street Albion'), findsOneWidget);
+    expect(find.byKey(const ValueKey('season-end-cup')), findsOneWidget);
+  });
+
+  testWidgets('and OUR name gets the other sentence', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 1),
+          seasonNumber: 1,
+          winnerName: 'Your Club',
+          winnerIsUs: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // "You won the {div}", not "Your Club won the {div}".
+    expect(find.textContaining('Your Club won'), findsNothing);
+    expect(find.byKey(const ValueKey('season-end-winner')), findsOneWidget);
+    // And no cup line at all when there was no run.
+    expect(find.byKey(const ValueKey('season-end-cup')), findsNothing);
+  });
 }
