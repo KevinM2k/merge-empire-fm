@@ -186,6 +186,25 @@ void main() {
       expect(hoardingText, hoardingText.toUpperCase());
     });
 
+    test('AND THE PITCH IS A FIELD AT THE BOTTOM', () {
+      // The port drew the same kept turf at every rank. The spec scales it hard
+      // and says why — nobody mows a Sunday League pitch — so the bottom of the
+      // pyramid gets far more clumps, bigger and longer in the blade, and a top
+      // flight ground gets almost none.
+      expect(tuftsPerBand(0), greaterThan(tuftsPerBand(1)));
+      expect(tuftsPerBand(1), greaterThan(tuftsPerBand(3)));
+      expect(tuftsPerBand(8), 0, reason: 'moss at the top flight');
+      expect(tuftSizeBoost(0), greaterThan(tuftSizeBoost(1)));
+      expect(tuftSizeBoost(1), greaterThan(tuftSizeBoost(3)));
+      expect(tuftLengthBoost(0), greaterThan(tuftLengthBoost(3)));
+    });
+
+    test('and mud, ruts and water stop at tier 2', () {
+      // The groundsman has been by then. Below it, "a battered pitch" is the
+      // whole art brief and the port had left every part of it out.
+      expect(firstKeptPitchTier, 2);
+    });
+
     test('and the support grows with you', () {
       // 12 fans a row at tier 1, 33 at tier 8.
       expect(fansPerRow(1), 12);

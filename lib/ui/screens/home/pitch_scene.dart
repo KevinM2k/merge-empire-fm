@@ -41,6 +41,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show
         walkerAnkle,
@@ -532,9 +533,31 @@ Duration mowDuration({
 const double tuftFMin = 0.34;
 const double tuftFMax = 0.96;
 
-/// Per band, per 420px segment. Sparse on purpose: this is a kept pitch, and the
-/// port drew 7 clumps per 96px in every band, which read as moss.
-const int _tuftsPerBand = 3;
+/// Per band, per 420px segment, **AT THIS TIER**.
+///
+/// **The port drew the same kept pitch at every rank.** The spec scales it hard
+/// and says why: nobody mows a Sunday League pitch, so the bottom of the pyramid
+/// gets a lot more clumps, bigger and longer in the blade, and a top-flight
+/// ground gets almost none. `_tuftBands` in `PitchScene.js`: sixteen at tier 0,
+/// eleven at tier 1, then `7 - tier` and nothing at all from Continental up.
+int tuftsPerBand(int tier) {
+  final total = tier == 0
+      ? 16
+      : tier == 1
+      ? 11
+      : math.max(0, 7 - tier);
+  return (total / _tuftBands).ceil();
+}
+
+/// How much bigger and longer the blades are down the bottom. The spec's
+/// `sizeBoost` and `lengthBoost`: a rough pitch is rough in the grass first.
+double tuftSizeBoost(int tier) => tier == 0 ? 2.1 : (tier == 1 ? 1.5 : 1.0);
+double tuftLengthBoost(int tier) =>
+    tier == 0 ? 1.25 : (tier == 1 ? 1.05 : 0.85);
+
+/// **THE TIER THE PITCH STOPS BEING A FIELD.** Below this it gets mud, ruts and
+/// standing water; at and above it the groundsman has been.
+const int firstKeptPitchTier = 2;
 
 /// How big he renders. 1.2 → 1.5 → 1.35 → 1.22: at 1.2 he was a detail in a wide
 /// shot and the gestures, kit and look packs did not read; 1.5 read but crowded
@@ -828,6 +851,7 @@ class PitchScene extends StatelessWidget {
                     mood: mood,
                     contactBelowHorizon: feet - horizon,
                     condition: condition,
+                    tier: tier,
                   ),
                 ),
                 // His boot prints, pinned to HIS contact line rather than to the
@@ -1346,17 +1370,37 @@ class _StandSegment extends StatelessWidget {
     key: const ValueKey('pitch-stand-segment'),
     width: farSegmentWidth,
     height: double.infinity,
-    child: CustomPaint(
-      painter: tier < firstStandTier
-          ? _ParkPainter(haze: haze, tier: tier)
-          : _StandPainter(
+    child: tier < firstStandTier
+        // **A KENNEY BACKDROP BEHIND THE PARK, and its FEET are the horizon.**
+        // Three trees on bare sky read as a hole rather than a place, and the
+        // hand-drawn hedge that replaced it left a gap over the turf. This
+        // strip's bottom edge IS the horizon, so an image aligned to the bottom
+        // meets the pitch by construction — there is nowhere for a gap to be.
+        //
+        // Already bundled: the customiser's own backdrop, so nothing new is
+        // downloaded for it.
+        ? Stack(
+            fit: StackFit.expand,
+            children: [
+              const ArtImage(
+                key: ValueKey('pitch-park-backdrop'),
+                path: 'assets/bg/kenney/backgroundColorGrass.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.bottomCenter,
+                fallback: SizedBox.shrink(),
+              ),
+              CustomPaint(painter: _ParkPainter(haze: haze, tier: tier)),
+            ],
+          )
+        : CustomPaint(
+            painter: _StandPainter(
               kitColor: kitColor,
               haze: haze,
               beat: beat,
               excitement: excitement,
               tier: tier,
             ),
-    ),
+          ),
   );
 }
 
@@ -1375,6 +1419,10 @@ class _ParkPainter extends CustomPainter {
     // Seeded like the crowd is, so the tree line does not reshuffle per frame.
     final rng = math.Random(11);
     final scale = _crowdScale;
+    final unitW = size.width / 480;
+
+    // The BACKDROP is a Kenney plate behind this painter — see the segment.
+    // What is drawn here is what stands in front of it.
 
     void tree(double x, double s) {
       final w = 34 * scale * s;
@@ -1398,7 +1446,7 @@ class _ParkPainter extends CustomPainter {
       );
     }
 
-    final unit = size.width / 480;
+    final unit = unitW;
     tree((30 + rng.nextDouble() * 30) * unit, 0.9 + rng.nextDouble() * 0.3);
     tree((190 + rng.nextDouble() * 40) * unit, 0.7 + rng.nextDouble() * 0.3);
     tree((350 + rng.nextDouble() * 50) * unit, 0.85 + rng.nextDouble() * 0.35);
@@ -1436,6 +1484,13 @@ class _ParkPainter extends CustomPainter {
 
     // The low white fence along the front, which is what says "park" rather
     // than "field": a rail, and posts every 24.
+    //
+    // **ITS FEET ARE ON THE PITCH.** The posts stopped 17 units up and the
+    // grass began below them, so the fence floated over a green gap — reported
+    // as "the fence doesn't touch the pitch". This strip's bottom edge IS the
+    // horizon, so a post that runs to `size.height` is a post standing on the
+    // turf. Two units of overlap, because a hairline gap at a seam between two
+    // layers is what a rounding error looks like on a real screen.
     final fenceTop = size.height - 17 * scale;
     final rail = Paint()..color = const Color(0xD9E2E2D8);
     canvas.drawRect(
@@ -1444,7 +1499,7 @@ class _ParkPainter extends CustomPainter {
     );
     for (var x = 0.0; x < size.width; x += 24 * unit) {
       canvas.drawRect(
-        Rect.fromLTWH(x, fenceTop, 3 * unit, 17 * scale),
+        Rect.fromLTWH(x, fenceTop, 3 * unit, size.height - fenceTop + 2),
         rail,
       );
     }
@@ -1809,9 +1864,13 @@ class _Turf extends StatelessWidget {
     required this.mood,
     required this.contactBelowHorizon,
     required this.condition,
+    required this.tier,
   });
 
   final Mood mood;
+
+  /// How well kept the pitch is — see [tuftsPerBand] and [firstKeptPitchTier].
+  final int tier;
 
   /// The sky, because snow does not only fall — it settles, and grass under snow
   /// is white.
@@ -1882,12 +1941,26 @@ class _Turf extends StatelessWidget {
                     // Each band a FULL-HEIGHT strip whose tufts sit at their own
                     // depth inside it, offset by what the world has done at that
                     // depth.
+                    // **MUD, RUTS AND STANDING WATER, under the grass.** The
+                    // bottom two tiers are a field rather than a pitch, and
+                    // this is most of what says so — the spec scatters them
+                    // from 6% to 80% up the pitch and rides them on the ground
+                    // at their own depth, exactly as the tufts do.
+                    if (tier < firstKeptPitchTier)
+                      for (var band = 0; band < _tuftBands; band++)
+                        Positioned.fill(
+                          child: _Scroller(
+                            offsetPx: atRow(tuftBandFraction(band)),
+                            segmentWidth: groundSegmentWidth,
+                            child: _DecoSegment(band: band, tier: tier),
+                          ),
+                        ),
                     for (var band = 0; band < _tuftBands; band++)
                       Positioned.fill(
                         child: _Scroller(
                           offsetPx: atRow(tuftBandFraction(band)),
                           segmentWidth: groundSegmentWidth,
-                          child: _TuftSegment(band: band),
+                          child: _TuftSegment(band: band, tier: tier),
                         ),
                       ),
                   ],
@@ -2029,22 +2102,126 @@ class _MowPainter extends CustomPainter {
 }
 
 class _TuftSegment extends StatelessWidget {
-  const _TuftSegment({required this.band});
+  const _TuftSegment({required this.band, required this.tier});
 
   final int band;
+  final int tier;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: groundSegmentWidth,
     height: double.infinity,
-    child: CustomPaint(painter: _TuftPainter(band: band)),
+    child: CustomPaint(painter: _TuftPainter(band: band, tier: tier)),
   );
 }
 
-class _TuftPainter extends CustomPainter {
-  const _TuftPainter({required this.band});
+/// **THE FIELD AT THE BOTTOM OF THE PYRAMID.** Mud patches, soft mounds and
+/// standing water, ported from `_decoBands` in `PitchScene.js` — the half of
+/// "a battered pitch" the port had left out entirely, so a Sunday League ground
+/// was the same flat green table as a European final.
+///
+/// They ride the ground at their own depth, exactly as the tufts do: their depth
+/// IS their speed, and a puddle that raced the stripes it sits in is the one
+/// thing a parallax scene cannot forgive.
+class _DecoSegment extends StatelessWidget {
+  const _DecoSegment({required this.band, required this.tier});
 
   final int band;
+  final int tier;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: groundSegmentWidth,
+    height: double.infinity,
+    child: CustomPaint(painter: _DecoPainter(band: band, tier: tier)),
+  );
+}
+
+/// The spec's own range: 6% to 80% up the pitch.
+const double _decoFMin = 0.06;
+const double _decoFMax = 0.80;
+
+class _DecoPainter extends CustomPainter {
+  const _DecoPainter({required this.band, required this.tier});
+
+  final int band;
+  final int tier;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rng = math.Random(97 + band);
+    final span = (_decoFMax - _decoFMin) / _tuftBands;
+    // A park pitch is worse than a Sunday League one, and the counts say so.
+    final patches = tier == 0 ? 2 : 1;
+    final bumps = tier == 0 ? 2 : 1;
+    final puddles = tier == 0 ? 1 : 1;
+
+    double bandF() => _decoFMin + (band + rng.nextDouble()) * span;
+
+    // Bare earth, first: the grass and everything else sits on top of it.
+    for (var i = 0; i < patches; i++) {
+      final f = bandF();
+      final w = 22 + rng.nextDouble() * 40;
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(rng.nextDouble() * size.width, size.height * (1 - f)),
+          width: w,
+          height: w * 0.5,
+        ),
+        Paint()
+          ..color = const Color(0x8C6B4A2E)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+    }
+
+    // **UNEVEN GROUND: lit along the top, shadowed underneath.** That pairing is
+    // the whole trick — a mound drawn in one tone is a stain, and a park pitch
+    // has to read as rutted rather than as a flat green table with marks on it.
+    for (var i = 0; i < bumps; i++) {
+      final f = bandF();
+      final w = 30 + rng.nextDouble() * 52;
+      final c = Offset(rng.nextDouble() * size.width, size.height * (1 - f));
+      final box = Rect.fromCenter(center: c, width: w, height: w * 0.34);
+      canvas.drawOval(
+        box,
+        Paint()
+          ..shader = ui.Gradient.linear(box.topCenter, box.bottomCenter, [
+            Colors.white.withValues(alpha: 0.10),
+            Colors.black.withValues(alpha: 0.16),
+          ])
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+      );
+    }
+
+    // Standing water: it takes the SKY, not the grass, which is what makes it
+    // read as a reflection rather than as a pale patch of turf.
+    for (var i = 0; i < puddles; i++) {
+      final f = _decoFMin + (band + rng.nextDouble()) * span * 0.7;
+      final w = 30 + rng.nextDouble() * 34;
+      final c = Offset(rng.nextDouble() * size.width, size.height * (1 - f));
+      final box = Rect.fromCenter(center: c, width: w, height: w * 0.38);
+      canvas.drawOval(
+        box,
+        Paint()
+          ..shader = ui.Gradient.linear(box.topCenter, box.bottomCenter, [
+            const Color(0x99A8C4D8),
+            const Color(0x4D3E5A55),
+          ])
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DecoPainter old) =>
+      old.band != band || old.tier != tier;
+}
+
+class _TuftPainter extends CustomPainter {
+  const _TuftPainter({required this.band, required this.tier});
+
+  final int band;
+  final int tier;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2053,15 +2230,21 @@ class _TuftPainter extends CustomPainter {
     final rng = math.Random(31 + band);
     final span = (tuftFMax - tuftFMin) / _tuftBands;
 
-    for (var i = 0; i < _tuftsPerBand; i++) {
+    final count = tuftsPerBand(tier);
+    final sizeBoost = tuftSizeBoost(tier);
+    final lengthBoost = tuftLengthBoost(tier);
+    for (var i = 0; i < count; i++) {
       // How far up the pitch this clump sits. Its band owns a third of the
       // range, so a sparse pitch still spreads its tufts through the depth
       // instead of stacking them at one distance.
       final f = tuftFMin + (band + rng.nextDouble()) * span;
       final depth = (f - tuftFMin) / (tuftFMax - tuftFMin);
       // Fake perspective: the further up the pitch, the smaller.
-      final w = math.max(4.0, (9 + rng.nextDouble() * 7) * (1 - depth * 0.55));
-      final tall = w * 0.85;
+      final w = math.max(
+        4.0,
+        (9 + rng.nextDouble() * 7) * (1 - depth * 0.55) * sizeBoost,
+      );
+      final tall = w * lengthBoost;
       final x = rng.nextDouble() * size.width;
       final base = size.height * (1 - f);
       final lean = rng.nextDouble() * 8 - 4;

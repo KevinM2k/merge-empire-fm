@@ -372,19 +372,33 @@ class AudioPlayersBackend implements SoundBackend {
       _players[name] = player;
       await player.setSource(BytesSource(wav, mimeType: 'audio/wav'));
     }
-    await player.setVolume(volume);
-    // Retrigger: back to the top rather than a second copy, which is the JS's
-    // behaviour for everything but thunder and fireworks.
-    await player.seek(Duration.zero);
-    await player.resume();
-    // **AND STOP IT OURSELVES.** See the note on [SoundBackend.playSfx]: the clip
-    // is a known length, and arming a stop is the one way to be certain a tap
-    // makes a sound once rather than a sound that runs on.
+    final live = player;
+
+    // **THE STOP IS ARMED FIRST, before anything that can throw.** It used to be
+    // the LAST statement of this block, inside `_quietly` — so a platform call
+    // that failed part-way through skipped it and left whatever was playing to
+    // run on with nothing scheduled to end it. Reported as the signing sound
+    // playing continuously and never stopping.
+    //
+    // The root cause of that report was not reproducible from here — it needs a
+    // device — but a clip whose stop depends on three platform calls all
+    // succeeding is a clip that can run forever, and it does not need to be.
     _stops.remove(name)?.cancel();
     _stops[name] = Timer(length + const Duration(milliseconds: 60), () {
       _stops.remove(name);
-      unawaited(player!.stop());
+      unawaited(_quietly(live.stop));
     });
+
+    // **AND THE RELEASE MODE IS RE-ASSERTED**, not merely set once at creation.
+    // These players are cached for the life of the process and handed back out
+    // by name; one flipped to `loop` by anything at all would loop every time
+    // that effect played, for the rest of the session.
+    await live.setReleaseMode(ReleaseMode.stop);
+    await live.setVolume(volume);
+    // Retrigger: back to the top rather than a second copy, which is the JS's
+    // behaviour for everything but thunder and fireworks.
+    await live.seek(Duration.zero);
+    await live.resume();
   });
 
   @override

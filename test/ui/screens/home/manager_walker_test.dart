@@ -759,4 +759,68 @@ void main() {
       expect(clipsIn(tester), isEmpty);
     });
   });
+  group('AN IDLE MUST NOT PIN A WALKING ARM', () {
+    // **Reported as "the manager arm keeps getting stuck".** The idle pose pins
+    // `armNear`/`armFar`, `_arm` reads `posed ?? _sample(track, t)`, and a
+    // pinned angle replaces the swing outright — so the moment the dugout cam's
+    // idle reached the diorama his arms stopped moving and stayed stopped.
+    //
+    // The idle was written for a PLANTED man, where there is no stride to
+    // disagree with.
+    testWidgets('a walking man keeps his swing', (tester) async {
+      const idle = (
+        armNear: 12.0,
+        armFar: -12.0,
+        foreNear: -40.0,
+        foreFar: -40.0,
+        head: 3.0,
+        body: 1.0,
+        bodyLift: 0.0,
+        legs: null,
+        finger: 0.0,
+      );
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: Scaffold(
+              body: SizedBox(
+                width: 200,
+                height: 300,
+                child: ManagerWalker(
+                  kit: Color(0xFF4CAF50),
+                  skin: Color(0xFFE8B98A),
+                  hair: Color(0xFF3A2A1A),
+                  idle: idle,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final painter =
+          tester
+                  .widget<CustomPaint>(
+                    find.byKey(const ValueKey('manager-walker')),
+                  )
+                  .painter!
+              as dynamic;
+      expect(painter.pose?.armNear, isNull, reason: 'the swing was overridden');
+      expect(painter.pose?.armFar, isNull);
+      // And the joints the WALK does not drive are still the idle's.
+      expect(painter.pose?.body, idle.body);
+    });
+  });
+
+  test('THE CARRY IS REBASED, not copied off the JS', () {
+    // The JS hangs its forearm at a static -52 and folds to -110 — a delta of
+    // 58. The port rebased that rest (-9 to -31, because -38/-68 put the
+    // forearm horizontal with the shoulder swing on top), so copying -110
+    // across folded the arm forty degrees too far. Reported as the ball carry
+    // looking odd.
+    expect(carryFore, greaterThan(-110));
+    expect(carryFore, lessThan(carryArm));
+  });
+
 }

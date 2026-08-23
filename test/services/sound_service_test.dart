@@ -345,4 +345,52 @@ void main() {
       },
     );
   });
+  group('EVERY EFFECT IS A ONE-SHOT, with an end the caller can see', () {
+    // **Reported as the signing sound playing continuously and never
+    // stopping.** The root cause was not reproducible without a device, but a
+    // clip whose stop depends on three platform calls all succeeding is a clip
+    // that can run forever — and it does not have to be. The backend arms the
+    // stop BEFORE anything that can throw now; what this pins is the half the
+    // service owns: every cue hands down a finite length, and none of them asks
+    // to overlap unless it is one of the two that stack.
+    test('the length is finite, short, and matches the definition', () {
+      final (service: s, backend: b, clock: clock) = build();
+      for (final name in fakeRender().keys) {
+        b.sfx.clear();
+        clock.tick();
+        s.play(name);
+        expect(b.sfx, hasLength(1), reason: name);
+        final sent = b.sfx.single.length;
+        expect(sent, soundLength(name), reason: name);
+        expect(sent, greaterThan(Duration.zero), reason: name);
+        expect(
+          sent,
+          lessThan(const Duration(seconds: 5)),
+          reason: '$name is long enough to read as stuck',
+        );
+      }
+    });
+
+    test('AND EVERY DEFINITION HAS A LENGTH', () {
+      // `soundLength` falls back to 0.4s for an unknown name, which would hand
+      // the backend a stop that is nothing to do with the clip it is stopping.
+      for (final name in soundDefs.keys) {
+        expect(soundDefs[name]!.seconds, greaterThan(0), reason: name);
+        expect(
+          soundLength(name),
+          greaterThan(Duration.zero),
+          reason: name,
+        );
+      }
+    });
+
+    test('and a SIGNING does not stack — it retriggers', () {
+      // Stacking is the whole point of the two that ask for it and a defect
+      // everywhere else: four copies of one cue is a sound that does not stop.
+      final (service: s, backend: b, clock: _) = build();
+      s.play('scout');
+      expect(b.sfx.single.overlap, isFalse);
+    });
+  });
+
 }

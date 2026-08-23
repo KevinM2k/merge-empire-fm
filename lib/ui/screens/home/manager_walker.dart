@@ -380,6 +380,18 @@ const _Track _elbowFar = [
   (1, -31),
 ];
 
+/// The cradle: both arms forward, both forearms folded up in front of the chest.
+///
+/// **THE FOREARM IS NOT THE JS'S NUMBER, and it cannot be.** The JS hangs its
+/// forearm at a static -52 and folds to -110 for the carry — a delta of 58. The
+/// port REBASED that rest: -38/-68 put the forearm at -95 from vertical with the
+/// shoulder swing on top, which is a man strolling the touchline with an arm
+/// held out, so the walking elbow is -9 to -31 here. Copying -110 across on top
+/// of the new rest folded the arm forty degrees too far and it read exactly as
+/// reported: odd. Same DELTA off the port's own rest instead.
+const double carryArm = -20;
+const double carryFore = -78;
+
 /// How tall the shadow's own box is, as a fraction of his.
 ///
 /// Raised from 0.045: at that height it was a 7px sliver under a 230px figure,
@@ -789,10 +801,10 @@ class _ManagerWalkerState extends State<ManagerWalker>
     double to(double target, _Track track) =>
         _sample(track, t) + (target - _sample(track, t)) * k;
     return (
-      armNear: to(-20, _armNear),
-      armFar: to(-20, _armFar),
-      foreNear: to(-110, _elbowNear),
-      foreFar: to(-110, _elbowFar),
+      armNear: to(carryArm, _armNear),
+      armFar: to(carryArm, _armFar),
+      foreNear: to(carryFore, _elbowNear),
+      foreFar: to(carryFore, _elbowFar),
       head: pose?.head,
       body: pose?.body,
       bodyLift: pose?.bodyLift,
@@ -829,7 +841,37 @@ class _ManagerWalkerState extends State<ManagerWalker>
   }
 
   GesturePose? _overIdle(GesturePose? playing) =>
-      poseOverIdle(playing, widget.idle);
+      poseOverIdle(playing, _idleForNow);
+
+  /// The idle, minus anything the STRIDE is already driving.
+  ///
+  /// **AN IDLE MUST NOT OWN AN ARM ON A MAN WHO IS WALKING**, and it did: the
+  /// pose pins `armNear`/`armFar`, `_arm` reads `posed ?? _sample(track, t)`,
+  /// and a pinned angle replaces the swing outright. So the moment the dugout
+  /// cam's idle reached the diorama, his arms stopped moving and stayed
+  /// stopped — reported as "the manager arm keeps getting stuck".
+  ///
+  /// The idle was written for a PLANTED man, where there is no stride to
+  /// disagree with; on a walk it keeps the joints the walk does not drive — the
+  /// head, the body, the lean — and gives the arms back. A gesture still
+  /// outruns both, joint by joint, which is the arrangement the idle exists for.
+  GesturePose? get _idleForNow {
+    final idle = widget.idle;
+    if (idle == null) return null;
+    final walking = !widget.standing && widget.walking && !_planted;
+    if (!walking) return idle;
+    return (
+      armNear: null,
+      armFar: null,
+      foreNear: null,
+      foreFar: null,
+      head: idle.head,
+      body: idle.body,
+      bodyLift: idle.bodyLift,
+      legs: null,
+      finger: idle.finger,
+    );
+  }
 
   /// The head angle the playing GESTURE is asking for, or null when the idle
   /// still owns the joint. [_pose] has already composed the two by then.

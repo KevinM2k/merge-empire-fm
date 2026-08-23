@@ -5408,6 +5408,23 @@ one everywhere it should not.
       `CFBundleDisplayName`, `android:label`, the window title — so it is a
       brand mark on a prop, the same class of thing as a badge, rather than copy
       a locale would translate.
+- [x] **THE MANAGER'S ARM KEPT GETTING STUCK.** An idle pose pins `armNear` and
+      `armFar`, the rig reads `posed ?? _sample(track, t)`, and a pinned angle
+      REPLACES the swing outright — so the moment the dugout cam's idle reached
+      the diorama his arms stopped moving and stayed stopped. The idle was
+      written for a PLANTED man, where there is no stride to disagree with; on a
+      walk it now keeps only the joints the walk does not drive (the head, the
+      body, the lean) and gives the arms back. A gesture still outruns both,
+      joint by joint, which is the arrangement the idle exists for.
+- [x] **And the ball carry looked odd, because the angle was COPIED not
+      rebased.** The JS hangs its forearm at a static -52 and folds to -110 — a
+      delta of 58. The port had already rebased that rest to -9/-31 (the old
+      -38/-68 put the forearm horizontal once the shoulder swing was on top, so
+      the gaffer strolled the touchline with an arm held out). Copying -110
+      across on top of the new rest folded the arm forty degrees too far. Same
+      delta off the port's own rest instead.
+- [ ] **PENALTY TRAINING: the keeper is off his line**, a little too big, and he
+      does not really dive into the corners. **And any touch should be a save.**
 - [ ] **PRO MODE BECOMES AN UNLOCK, earned by PRESTIGING ONCE.** It is playable
       from the start today; from now on a player has to win the top league and
       prestige before it opens.
@@ -5417,18 +5434,50 @@ one everywhere it should not.
 - [ ] **SPLIT THE SHOP INTO TABS.** It is too much on one page. Roughly: special
       offers, match boosts, currency, scout vouchers, customisations — the
       categories can be adjusted, the split is the point.
-- [ ] **TIER 1 AND 2 SHOULD HAVE A DIRTY PITCH.** Mud, standing water, tufts —
-      `../merge-empire-fc` has all of it (`_decoBands`, `_tuftBands`), and the
-      pitch should only start improving around tier 3. The port draws the same
-      clean turf at every tier.
-- [ ] **And the park's fence does not touch the pitch** at tiers 1 and 2.
-- [ ] **And tiers 1 and 2 need a BACKDROP** rather than nothing behind them.
+- [x] **TIER 1 AND 2 SHOULD HAVE A DIRTY PITCH.** Both halves ported.
+      **The tufts scale with the tier**, which they never did — sixteen clumps
+      at tier 0, eleven at tier 1, then `7 - tier` and none at all from
+      Continental up, with the blades bigger and longer down the bottom. Nobody
+      mows a Sunday League pitch, and the grass is most of what says so.
+      **And the mud, the ruts and the standing water are new** — `_decoBands`
+      was simply absent, so a Sunday League ground was the same flat green table
+      as a European final. They ride the ground at their own depth exactly as
+      the tufts do, because a puddle that races the stripes it sits in is the
+      one thing a parallax scene cannot forgive. The mounds are lit along the
+      top and shadowed underneath, which is the whole trick: a mound in one tone
+      is a stain.
+- [x] **And the park's fence does not touch the pitch.** The posts stopped 17
+      units up and the grass began below them. This strip's bottom edge IS the
+      horizon, so a post that runs to it stands on the turf — with two units of
+      overlap, because a hairline gap at a seam between two layers is what a
+      rounding error looks like on a real screen.
+- [x] **And tiers 1 and 2 need a BACKDROP.** A Kenney plate — the customiser's
+      own, already bundled, so nothing new is downloaded — behind the trees and
+      the fence. **Bottom-aligned, which is what closes the gap**: the strip's
+      bottom edge is the horizon, so an image aligned to it meets the pitch by
+      construction and there is nowhere for a gap to be. A hand-drawn hedge line
+      went in first and left exactly the gap that was then reported.
 - [ ] **THE CLUB ASSET CARDS ARE NOT GLASS.** They read as a darker gradient,
       not a blur — because there is nothing behind them to blur. The page is a
       flat colour, so `BackdropFilter` has no work to do and all that shows is
       the panel's own tint. Give the page something worth frosting against, even
       if it is only a gradient.
-- [ ] **THE BUY-PLAYER SOUND PLAYS CONTINUOUSLY and never stops.**
+- [~] **THE BUY-PLAYER SOUND PLAYS CONTINUOUSLY and never stops.** **The root
+      cause is NOT reproducible from here** — it needs a device, and reading the
+      path found nothing that loops: the WAV header is correct, the release mode
+      is `stop`, the cue is a one-shot and the retrigger floor collapses a batch.
+      So this is hardening rather than a diagnosis, and it says so.
+      Two changes, both making "runs forever" impossible by construction. The
+      stop timer is **armed BEFORE anything that can throw** — it used to be the
+      last statement of a block wrapped in `_quietly`, so a platform call that
+      failed part-way skipped it and left whatever was playing with nothing
+      scheduled to end it. And `ReleaseMode.stop` is **re-asserted on every
+      play** rather than set once at creation: these players are cached for the
+      life of the process and handed back out by name, so one flipped to `loop`
+      by anything at all would loop that effect for the rest of the session.
+      What is pinned is the half the service owns: every cue hands down a
+      finite, short length that matches its definition, and a signing does not
+      stack.
 - [ ] **PLAYER NAMES: keep the first name, randomise the SURNAME.** Everyone
       shares a surname at the moment. A bank per POSITION, since the surname is
       tied to the position the definition belongs to.
