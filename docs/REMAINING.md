@@ -5145,6 +5145,33 @@ Its own list, because almost none of it is right yet.
       netting and out past the post. A ball he CAUGHT still goes down with his
       gloves, and none of it can reach `result` — the outcome is set once.
 
+## From playtesting — 29 Aug
+
+Three reported live, mid-session. **The second of them ANSWERS a row that had
+been sitting open since 27 Aug asking for a screenshot** — "the tick has no top
+border on the home page" was the coach bubble's TAIL, and it turns out to have
+one everywhere it should not.
+
+- [ ] **A bid in LIGHT MODE: the yellow is unreadable.** The coin figure and
+      especially the jackpot badge beside it. The fix is the one the SELL popup
+      already uses when you tap a player — a dark plate behind them, so the
+      yellow has something to be yellow against instead of sitting on a pale
+      card.
+- [ ] **The coach bubble opens directly over his head and the tail misses.** It
+      wants moving right so the wedge points at him.
+      **And the tail has a BORDER along its top edge**, which has to go. This is
+      the 27 Aug "tick has no top border on the home page" row answered from the
+      other direction: the border is there and it is wrong, rather than missing
+      somewhere.
+      **And the slight overlay behind it on the home page is right — keep it
+      EVERYWHERE.**
+- [ ] **A manager-customisation pack in the shop should show what is IN it.**
+      Tapping one opens a popup that says nothing about the contents; it should
+      list every item with a picture, and TICK the ones already unlocked so a
+      player can see what they would actually be getting.
+
+---
+
 ## From playtesting — 28 Aug
 
 Reported from the couch in one sitting. **Two of these REVERSE decisions this
