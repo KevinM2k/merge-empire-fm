@@ -58,8 +58,30 @@ List<Widget> paidTilesFor(
       badge: tile.product.popular ? t('shop.most_popular') : null,
       disabledReason: paidDisabledReason(),
       featured: featured,
+      // The spec's `.shop-hero__ribbon`: the product's own bonus line, or the
+      // one-time badge for the two that are bought once and kept. It was a
+      // line of grey text under the description, which is the same words in
+      // the quietest place on the card.
+      ribbon:
+          productBonus(tile.product) ??
+          (_oneTime.contains(tile.product.id)
+              ? t('product.starter_pack.badge_onetime')
+              : null),
+      accent: _offerInk[tile.product.id],
     ),
 ];
+
+/// Bought once and kept, so the ribbon says so. The spec badges both.
+const Set<String> _oneTime = {'starter_pack', 'energy_director'};
+
+/// **A COLOUR PER OFFER.** The spec gives each hero its own — VIP purple, the
+/// Energy Director blue — so three offers in a column read as three things
+/// rather than one card repeated. Anything not named here keeps the shelf's
+/// gold.
+const Map<String, Color> _offerInk = {
+  'vip_pass': Color(0xFFB77BFF),
+  'energy_director': Color(0xFF64B5F6),
+};
 
 class _PaidShelf extends ConsumerWidget {
   const _PaidShelf({

@@ -6368,8 +6368,17 @@ that is not off the extension is the bug, not the symptom.
 
 ### The shop and Pro mode
 
-- [ ] **The special offers look bad.** Read `../merge-empire-fc` for what the
-      shipped one does before restyling.
+- [x] **The special offers look bad.** Read against `ShopScreen.js`, and two
+      things the spec has were missing. `.shop-hero__ribbon` is the loudest
+      thing on a hero there and the port had the same words as a line of grey
+      text under the description — the quietest place on the card; it is a
+      corner banner at 45 degrees now, carrying the bonus line or PERMANENT for
+      the two bought once and kept. And the spec gives each hero its own colour
+      — VIP purple, the Energy Director blue — where three offers in a column
+      all drew the same gold and read as one card repeated.
+      Still not ported from that section, and recorded rather than quietly
+      dropped: the VIP card's gold corner glow, and the cheap utilities grouped
+      into a single card of separator rows instead of tiles.
 - [x] **Pro mode wants a LOCK on it**, and copy saying it unlocks at prestige.
       The gate and the copy were both already there — `prestige.body_pro_hint`
       is "Or prestige into Pro Mode" and the row prints it — so what was missing

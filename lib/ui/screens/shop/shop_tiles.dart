@@ -11,6 +11,8 @@
 /// long one sets the height of the whole row.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -34,6 +36,8 @@ class ShopTile extends StatelessWidget {
     this.badge,
     this.glyph,
     this.featured = false,
+    this.ribbon,
+    this.accent,
   });
 
   final String tileKey;
@@ -71,9 +75,27 @@ class ShopTile extends StatelessWidget {
   /// shopfront does to the thing in the window, and nothing that needs new copy.
   final bool featured;
 
+  /// The corner banner a featured tile wears — `.shop-hero__ribbon` in the
+  /// spec, and the loudest thing on the card there.
+  ///
+  /// **The badge was a line of grey text under the description.** The spec
+  /// carries the same words diagonally across the corner, which is what a
+  /// shopfront does and what the offers shelf was reported as missing. Only
+  /// drawn on a [featured] tile: on a consumable it would be a sale sign on a
+  /// tin of beans.
+  final String? ribbon;
+
+  /// This product's own colour, for the rim, the glow and the title. Null is
+  /// the shelf's gold.
+  ///
+  /// The spec gives each hero one — VIP purple, the Energy Director blue — so
+  /// three offers in a column are three things rather than one repeated.
+  final Color? accent;
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = accent ?? _featureInk;
     final lines = <Widget>[
       if (subtitle != null)
         Text(
@@ -100,11 +122,64 @@ class ShopTile extends StatelessWidget {
         ),
     ];
 
+    final banner = featured ? ribbon : null;
     return Opacity(
       // An owned tile stays on the shelf, knocked back — taking it away loses
       // the answer to "did I buy that already".
       opacity: onBuy == null && disabledReason == null ? 0.62 : 1,
-      child: Container(
+      child: banner == null
+          ? _pane(context, kit, ink, lines)
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                children: [
+                  _pane(context, kit, ink, lines),
+                  // Across the corner at 45 degrees, running off both edges so
+                  // the clip is what ends it — which is what makes it a ribbon
+                  // rather than a chip that happens to be diagonal.
+                  Positioned(
+                    top: 16,
+                    right: -34,
+                    child: Transform.rotate(
+                      angle: math.pi / 4,
+                      child: Container(
+                        key: ValueKey('shop-ribbon-$tileKey'),
+                        width: 130,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        color: ink,
+                        child: Text(
+                          banner.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.6,
+                            // Measured, not guessed: the ribbon takes the
+                            // product's own colour and gold wants black on it
+                            // where purple wants white.
+                            color: ink.computeLuminance() > 0.4
+                                ? const Color(0xFF201603)
+                                : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _pane(
+    BuildContext context,
+    KitTheme kit,
+    Color ink,
+    List<Widget> lines,
+  ) {
+    return Container(
         key: ValueKey('shop-tile-$tileKey'),
         padding: const EdgeInsets.fromLTRB(9, 12, 9, 10),
         // **THE YELLOW TOP HAS GONE.** A featured tile was a three-stop
@@ -128,13 +203,13 @@ class ShopTile extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: featured ? _featureInk.withValues(alpha: 0.65) : kit.border,
+            color: featured ? ink.withValues(alpha: 0.65) : kit.border,
             width: featured ? 1.5 : 1,
           ),
           boxShadow: [
             BoxShadow(
               color: featured
-                  ? _featureInk.withValues(alpha: 0.28)
+                  ? ink.withValues(alpha: 0.28)
                   : const Color(0x33000000),
               blurRadius: featured ? 14 : 6,
               offset: const Offset(0, 2),
@@ -172,7 +247,7 @@ class ShopTile extends StatelessWidget {
                 fontSize: featured ? 16 : 13.5,
                 fontWeight: FontWeight.w900,
                 height: 1.2,
-                color: featured ? _featureInk : null,
+                color: featured ? ink : null,
               ),
             ),
             for (final line in lines)
@@ -205,7 +280,6 @@ class ShopTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }

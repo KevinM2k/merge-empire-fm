@@ -8,6 +8,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -182,5 +183,33 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(container.read(shellControllerProvider).pendingShopSection, isNull);
+  });
+
+  testWidgets('THE OFFERS WEAR A RIBBON, and a colour of their own', (
+    tester,
+  ) async {
+    // `.shop-hero__ribbon` is the loudest thing on the card in the spec; the
+    // port put the same words in a line of grey text under the description,
+    // which is the quietest place on it. And three heroes in a column all drew
+    // the same gold, so they read as one card repeated.
+    await pumpShop(tester, (_) {});
+    expect(
+      find.byKey(const ValueKey('shop-ribbon-energy_director')),
+      findsOneWidget,
+    );
+    final vip = tester.widget<ShopTile>(
+      find.ancestor(
+        of: find.byKey(const ValueKey('shop-tile-vip_pass')),
+        matching: find.byType(ShopTile),
+      ),
+    );
+    final director = tester.widget<ShopTile>(
+      find.ancestor(
+        of: find.byKey(const ValueKey('shop-tile-energy_director')),
+        matching: find.byType(ShopTile),
+      ),
+    );
+    expect(vip.accent, isNotNull);
+    expect(director.accent, isNot(vip.accent));
   });
 }
