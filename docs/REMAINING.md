@@ -6154,6 +6154,26 @@ unfinished in a way that reads before a word on the screen does.
 - [x] **The gaps between the cards are not the same.** The pitch band was on
       `matchGap / 2` and everything else on `matchGap`.
 
+### The home page
+
+- [x] **The grass does not meet the fence and the backdrop is cut off.** The
+      stand strip is lifted so the terrace sits behind the ad boards, and below
+      `firstHoardingTier` no boards are drawn — but the lift was still being
+      taken, which is exactly one `hoardingHeight` of sky in the seam.
+- [x] **Colin's chip is not circular and does not show fully.** The portrait is
+      a 512-square of him from the hair down on white; the whole drawing in a
+      54px disc is a white circle with a small man in it. Scaled about his face.
+      (Superseded on 31 Aug by [CoachFace], which is the same crop shared with
+      the floating head and the card.)
+
+### The squad and the transfer bids
+
+- [x] **Squad players in light mode have a dark bottom.** `PitchToken` painted
+      its body and its name plate off the dark palette whatever the theme was.
+- [x] **The bid pages want the FULL glass effect** from the shot supplied. The
+      pitch and the price are two gold-edged `GlassPanel`s at `deep` density
+      now, in one `IntrinsicHeight` row so they are the same height.
+
 ### The player sheet
 
 - [x] **The gaps between its cards are not the same either** — 12 under the
@@ -6175,6 +6195,13 @@ unfinished in a way that reads before a word on the screen does.
       lists eight points apart is a pair of lists rather than a roller.
 
 ## From playtesting — 31 Aug
+
+**EVERY REPORT IN A SITTING GETS A ROW, said or unsaid.** Four of 30 Aug's were
+fixed in code and never written down — the park seam, Colin's chip, the light-
+mode eleven and the bid card's glass — so they read as ignored and were raised
+again. A fix with no row is the same as no fix from the other side of the
+screen. Write the row when the report arrives, not when the work lands.
+
 
 **One long sitting, and the two themes are LIGHT MODE and the MATCH.** Nearly
 half the rows below are the same defect wearing different clothes: a screen
@@ -6289,7 +6316,9 @@ that is not off the extension is the bug, not the symptom.
 - [ ] **The Play page backdrop is cut off just above the trees.** The park seam
       below it was fixed on 30 Aug; this is the band above. **And whatever
       backdrop tiers 1 and 2 end up with has to work in BOTH themes** — the
-      scene is not exempt from light mode just because it is a picture.
+      scene is not exempt from light mode just because it is a picture. **And
+      if working in both is awkward, DROPPING the backdrop at those tiers is an
+      accepted answer** — said explicitly.
 - [ ] **The customise popup is still slow to open.** The row-a-frame fill took
       the freeze off the sheet's slide and did not make it quick.
 - [ ] **The club's assets have no background**, so they blend into the page
