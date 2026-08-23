@@ -104,11 +104,66 @@ void main() {
     ) async {
       // At `h * 0.24` the stand was a 200px bank with a hundred 1px dots in it,
       // which is the shape of a crowd without being one. It is the TERRACE's own
-      // height now — six rows of seats and a fascia.
-      await pumpScene(tester);
+      // height — the rows this tier has, and a fascia.
+      await pumpScene(tester, tier: 4);
       final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
-      expect(stand.height, closeTo(standHeight, 0.5));
+      expect(stand.height, closeTo(standHeightFor(4), 0.5));
       expect(stand.height, lessThan(120));
+    });
+  });
+
+  group('THE GROUND IS TIERED, and the port had one ground', () {
+    // Six rows in one deck at every tier, so a Sunday League pitch and an
+    // empire mega-stadium were the same place with a different sky. Ported from
+    // `_deckPlan` — asked for directly, with the spec named.
+    test('a park has NO STAND, and stands start at tier 2', () {
+      expect(firstStandTier, 2);
+      for (final tier in [0, 1]) {
+        expect(standHeightFor(tier), parkHeight, reason: 'tier $tier');
+      }
+      expect(standHeightFor(2), greaterThan(0));
+    });
+
+    test('and it grows hard: one shallow row to seven packed ones', () {
+      expect(deckPlan(2).rows, 1);
+      expect(deckPlan(8).rows, 7);
+      // Monotonic FROM THE FIRST STAND UP, so no ground a player climbed to is
+      // a step backwards. Not across the park boundary: a tree line is taller
+      // than a one-row terrace, and that is the right way round — tier 2 is the
+      // first ground rather than a bigger park.
+      for (var tier = firstStandTier + 1; tier < 9; tier++) {
+        expect(
+          standHeightFor(tier),
+          greaterThanOrEqualTo(standHeightFor(tier - 1)),
+          reason: 'tier $tier is smaller than tier ${tier - 1}',
+        );
+      }
+    });
+
+    test('THE DECKS STACK past tier 6, which is what makes it a stadium', () {
+      // One long terrace reads as a non-league bank of seats however many rows
+      // you give it.
+      for (var tier = 2; tier < 6; tier++) {
+        expect(deckPlan(tier).decks, 1, reason: 'tier $tier');
+      }
+      expect(deckPlan(6).decks, 2);
+      expect(deckPlan(7).decks, 2);
+      expect(deckPlan(8).decks, 3);
+    });
+
+    test('and the FRONT deck is the deepest, as a real ground is', () {
+      for (final tier in [6, 7, 8]) {
+        final plan = deckPlan(tier);
+        expect(plan.perDeck.reduce((a, b) => a + b), plan.rows, reason: '$tier');
+        expect(plan.perDeck.first, greaterThanOrEqualTo(plan.perDeck.last));
+        expect(plan.perDeck.every((n) => n >= 1), isTrue);
+      }
+    });
+
+    test('and the support grows with you', () {
+      // 12 fans a row at tier 1, 33 at tier 8.
+      expect(fansPerRow(1), 12);
+      expect(fansPerRow(8), 33);
     });
   });
 

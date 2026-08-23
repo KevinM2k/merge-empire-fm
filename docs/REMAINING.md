@@ -5277,10 +5277,20 @@ one everywhere it should not.
       is what makes the bright colours usable, not a decision that the contrast
       floor was wrong. All three clear 4.5:1 on the plate, which is pinned.
 - [ ] **The customise button is STILL laggy** and has not been looked at.
-- [ ] **STADIUMS ARE TIERED and the port does not tier them.** Tier 1 should be
-      a dirty pitch with no stadium at all, tier 2 barely better, and it builds
-      from there. `../merge-empire-fc` has this — read it rather than inventing
-      a ladder.
+- [x] **STADIUMS ARE TIERED and the port did not tier them.** Six rows in one
+      deck at every tier, so a Sunday League pitch and an empire mega-stadium
+      were the same place with a different sky. `_deckPlan` is ported as written:
+      **stands start at TIER 2** — tiers 0 and 1 are a PARK, with trees, a hedge,
+      a low white fence and, at tier 1, one or two people loitering on the
+      touchline — one shallow row at tier 2 growing to seven packed ones, and
+      past tier 6 the rows split into stacked DECKS with a balcony wall between
+      them, because one long terrace reads as a non-league bank of seats however
+      many rows you give it. Support grows with you too: twelve a row at tier 1,
+      thirty-three at tier 8.
+      Rendered all four to a PNG and looked at it rather than trusting the
+      arithmetic. The one thing not monotonic is the park→stand step, and that
+      is right: a tree line is taller than a one-row terrace, so tier 2 reads as
+      the first GROUND rather than as a bigger park.
 - [ ] **The Play screen: lose the position label.** The match clock belongs
       BETWEEN the two teams, above the `vs` — there is a lot of room there — and
       the progress bar can be a bottom border on the main card rather than its

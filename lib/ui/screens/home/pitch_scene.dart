@@ -714,7 +714,7 @@ class PitchScene extends StatelessWidget {
                     // above the horizon so a short scene cannot push it out of
                     // frame.
                     height: math.min(
-                      standHeight * _pylonStands,
+                      standHeightFor(tier) * _pylonStands,
                       math.max(0, (horizon - hoardingHeight) * 0.92),
                     ),
                     child: _GroundDrive(
@@ -742,8 +742,8 @@ class PitchScene extends StatelessWidget {
                   // ON the ad boards, not behind them: the stand's foot is the
                   // back of the board, which is what puts the perimeter in front
                   // of the front row instead of across its knees.
-                  top: horizon - standHeight - hoardingHeight,
-                  height: standHeight,
+                  top: horizon - standHeightFor(tier) - hoardingHeight,
+                  height: standHeightFor(tier),
                   // Tapping the terrace gets the crowd up — the JS's own
                   // interaction, and the one thing on this screen that answers a
                   // tap with a crowd rather than with a menu.
@@ -764,6 +764,7 @@ class PitchScene extends StatelessWidget {
                           haze: haze,
                           beat: beat,
                           excitement: excitement,
+                          tier: tier,
                         ),
                       ),
                     ),
@@ -1215,8 +1216,59 @@ class _FloodWash extends CustomPainter {
 /// The JS's `CROWD_SCALE`.
 const double _crowdScale = 1.12;
 
-/// Rows in the terrace, back to front.
-const int _crowdRows = 6;
+/// **HOW THE STAND IS PUT TOGETHER AT A GIVEN TIER.** Ported from `_deckPlan`
+/// in `../merge-empire-fc/src/ui/components/PitchScene.js`, and the port had
+/// none of it: six rows in one deck at every tier, so a Sunday League pitch and
+/// an empire mega-stadium were the same ground with a different sky.
+///
+/// **Stands only start at tier 2.** Tiers 0 and 1 are a PARK — trees, a hedge,
+/// a low white fence and, at tier 1, one or two people loitering on the
+/// touchline. That is the whole of the art brief for the bottom of the pyramid
+/// and it is why [standRows] floors at one only from tier 2 up.
+///
+/// They grow hard from there: one shallow row at tier 2 to seven packed rows at
+/// the top, and past tier 6 the rows are split into stacked DECKS with a facade
+/// wall between them. One long terrace reads as a non-league bank of seats
+/// however many rows you give it; a second and third deck is what makes it read
+/// as a stadium.
+///
+/// Shared by the segment, the floodlight height and the horizon, so there is one
+/// answer to "how tall is the stand" rather than three guesses.
+typedef DeckPlan = ({int rows, int decks, List<int> perDeck, List<double> deckHs, double standH});
+
+/// The lowest tier that has a stand at all.
+const int firstStandTier = 2;
+
+DeckPlan deckPlan(int tier) {
+  final rows = math.max(1, math.min(7, tier - 1));
+  final decks = tier >= 8
+      ? 3
+      : tier >= 6
+      ? 2
+      : 1;
+  final perDeck = <int>[];
+  var left = rows;
+  for (var d = 0; d < decks; d++) {
+    // The FRONT deck is the deepest, which is what a real ground looks like
+    // from the halfway line.
+    final n = math.max(1, (left / (decks - d)).ceil());
+    perDeck.add(n);
+    left -= n;
+  }
+  final deckHs = [
+    for (final n in perDeck) ((_deckPad + n * _rowPitch) * _crowdScale).roundToDouble(),
+  ];
+  final standH =
+      deckHs.fold<double>(0, (a, b) => a + b) + (decks - 1) * _facadeHeight;
+  return (rows: rows, decks: decks, perDeck: perDeck, deckHs: deckHs, standH: standH);
+}
+
+/// The balcony wall between two decks. The JS's `FACADE_H`.
+const double _facadeHeight = 8;
+
+/// Fans across one segment, at this tier. The JS's `9 + tier * 3` against its
+/// own segment width — support that grows with you.
+int fansPerRow(int tier) => 9 + tier * 3;
 
 /// Seat-row spacing and the dead terrace under the front row, before scale. 6
 /// rather than the 14 it started at: at 14 there was an empty band along the
@@ -1228,16 +1280,17 @@ const double _deckPad = 6;
 /// shows no motion, and the crowd scrolls underneath it.
 const double _roofHeight = 9;
 
-/// How many fans across one 480px segment. Row pitch and fan size scale
-/// together or the rows drift out of the stand.
-const int _fansPerRow = 26;
-
-double get _deckHeight =>
-    ((_deckPad + _crowdRows * _rowPitch) * _crowdScale).roundToDouble();
-
 /// The whole silhouette, roof included. Exported because the horizon is where
 /// the stand's FOOT goes, so the caller has to know how tall it is.
-double get standHeight => _deckHeight + _roofHeight;
+///
+/// **A PARK HAS NO STAND**, so tiers 0 and 1 answer with the height of the tree
+/// line instead — the strip is still there and still scrolls, it is just not
+/// made of seats.
+double standHeightFor(int tier) =>
+    tier < firstStandTier ? parkHeight : deckPlan(tier).standH + _roofHeight;
+
+/// How tall the park's own horizon strip is: a tree, its crown and its trunk.
+const double parkHeight = 46 * _crowdScale;
 
 /// The JS's `FAN_COLORS`. Bright and few: a crowd is mostly replica shirts.
 const List<Color> _fanColours = [
@@ -1266,10 +1319,15 @@ class _StandSegment extends StatelessWidget {
     required this.haze,
     required this.beat,
     required this.excitement,
+    required this.tier,
   });
 
   final Color kitColor;
   final Color haze;
+
+  /// How grand the ground is — see [deckPlan]. Below [firstStandTier] this
+  /// segment is a PARK and not a stand at all.
+  final int tier;
 
   /// Where the crowd's own clock is, 0..1 through one bounce.
   final double beat;
@@ -1284,14 +1342,119 @@ class _StandSegment extends StatelessWidget {
     width: farSegmentWidth,
     height: double.infinity,
     child: CustomPaint(
-      painter: _StandPainter(
-        kitColor: kitColor,
-        haze: haze,
-        beat: beat,
-        excitement: excitement,
-      ),
+      painter: tier < firstStandTier
+          ? _ParkPainter(haze: haze, tier: tier)
+          : _StandPainter(
+              kitColor: kitColor,
+              haze: haze,
+              beat: beat,
+              excitement: excitement,
+              tier: tier,
+            ),
     ),
   );
+}
+
+/// **THE BOTTOM TWO TIERS HAVE NO GROUND**, which is the art brief and which
+/// the port had dropped: a hedge line, three trees, a low white fence — and at
+/// tier 1, one or two people loitering on the touchline. No stand, just a
+/// couple of people. Ported from `_parkSegment`.
+class _ParkPainter extends CustomPainter {
+  const _ParkPainter({required this.haze, required this.tier});
+
+  final Color haze;
+  final int tier;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Seeded like the crowd is, so the tree line does not reshuffle per frame.
+    final rng = math.Random(11);
+    final scale = _crowdScale;
+
+    void tree(double x, double s) {
+      final w = 34 * scale * s;
+      final trunkH = 15 * scale * s;
+      final crown = w;
+      final base = size.height;
+      canvas.drawOval(
+        Rect.fromLTWH(x, base - trunkH - crown, w, crown),
+        Paint()..color = const Color(0xFF2E6B34),
+      );
+      canvas.drawOval(
+        Rect.fromLTWH(x + w * 0.12, base - trunkH - crown * 0.9, w * 0.5, crown * 0.5),
+        Paint()..color = const Color(0xFF4A8F52),
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x + w * 0.41, base - trunkH, 6 * scale * s, trunkH),
+          const Radius.circular(2),
+        ),
+        Paint()..color = const Color(0xFF6B4A2E),
+      );
+    }
+
+    final unit = size.width / 480;
+    tree((30 + rng.nextDouble() * 30) * unit, 0.9 + rng.nextDouble() * 0.3);
+    tree((190 + rng.nextDouble() * 40) * unit, 0.7 + rng.nextDouble() * 0.3);
+    tree((350 + rng.nextDouble() * 50) * unit, 0.85 + rng.nextDouble() * 0.35);
+
+    // The hedge.
+    final bushX = (120 + rng.nextDouble() * 160) * unit;
+    canvas.drawOval(
+      Rect.fromLTWH(bushX, size.height - 15 * scale, 22 * scale, 13 * scale),
+      Paint()..color = const Color(0xFF33703A),
+    );
+
+    // **SUNDAY LEAGUE GETS SPECTATORS; the park below it gets nobody.** One or
+    // two, which is the difference between a pitch someone turned up to watch
+    // and a pitch in a field.
+    if (tier >= 1) {
+      final n = 1 + (rng.nextDouble() < 0.5 ? 1 : 0);
+      for (var i = 0; i < n; i++) {
+        final x = (90 + rng.nextDouble() * 300 + i * 60) * unit;
+        final shirt = _fanColours[rng.nextInt(_fanColours.length)];
+        final base = size.height;
+        canvas.drawRRect(
+          RRect.fromRectAndCorners(
+            Rect.fromLTWH(x, base - 13 * scale, 8 * scale, 13 * scale),
+            topLeft: const Radius.circular(3),
+            topRight: const Radius.circular(3),
+          ),
+          Paint()..color = shirt,
+        );
+        canvas.drawOval(
+          Rect.fromLTWH(x + scale, base - 19 * scale, 6 * scale, 6 * scale),
+          Paint()..color = const Color(0xFFE8C6A0),
+        );
+      }
+    }
+
+    // The low white fence along the front, which is what says "park" rather
+    // than "field": a rail, and posts every 24.
+    final fenceTop = size.height - 17 * scale;
+    final rail = Paint()..color = const Color(0xD9E2E2D8);
+    canvas.drawRect(
+      Rect.fromLTWH(0, fenceTop + 3 * scale, size.width, 2 * scale),
+      rail,
+    );
+    for (var x = 0.0; x < size.width; x += 24 * unit) {
+      canvas.drawRect(
+        Rect.fromLTWH(x, fenceTop, 3 * unit, 17 * scale),
+        rail,
+      );
+    }
+
+    // The same aerial haze the terrace takes, so the two horizons sit at the
+    // same distance.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = haze.withValues(alpha: 0.22),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ParkPainter old) =>
+      old.haze != haze || old.tier != tier;
 }
 
 class _StandPainter extends CustomPainter {
@@ -1300,7 +1463,12 @@ class _StandPainter extends CustomPainter {
     required this.haze,
     required this.beat,
     required this.excitement,
+    required this.tier,
   });
+
+  /// How grand the ground is: [deckPlan] turns it into rows and decks, and
+  /// [fansPerRow] into how many are in each.
+  final int tier;
 
   /// **A CROWD IS NEVER COMPLETELY STILL.** Every fan was pinned to its seat,
   /// and a few hundred motionless heads read as a printed backdrop rather than
@@ -1326,6 +1494,8 @@ class _StandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final plan = deckPlan(tier);
+    final perRow = fansPerRow(tier);
     final deckTop = _roofHeight;
     final deckRect = Rect.fromLTRB(0, deckTop, size.width, size.height);
 
@@ -1350,17 +1520,39 @@ class _StandPainter extends CustomPainter {
     // because it is painted first the row in front of it overlaps it, which is
     // the whole reason the rows read as depth.
     final rng = math.Random(7);
-    final deckH = size.height - deckTop;
-    for (var row = 0; row < _crowdRows; row++) {
+    // **DECK BY DECK, back to front.** Past tier 6 the rows are split into
+    // stacked decks with a facade wall between them — one long terrace reads as
+    // a non-league bank of seats however many rows you give it. The first deck
+    // in the list is the BACK one, and it is drawn first so the deck in front
+    // overlaps it.
+    var deckY = deckTop;
+    for (var d = 0; d < plan.decks; d++) {
+      final rows = plan.perDeck[d];
+      final deckH = plan.deckHs[d];
+      if (d > 0) {
+        // The balcony wall between two decks.
+        final facade = Rect.fromLTWH(0, deckY, size.width, _facadeHeight);
+        canvas.drawRect(
+          facade,
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF4A5462), Color(0xFF2B333D)],
+            ).createShader(facade),
+        );
+        deckY += _facadeHeight;
+      }
+      for (var row = 0; row < rows; row++) {
       // The JS's `y`, measured down from the deck's own top edge.
-      final y = (_deckPad - 1 + row * _rowPitch) * _crowdScale;
+      final y = deckY - deckTop + (_deckPad - 1 + row * _rowPitch) * _crowdScale;
       // The back rows are further away, so they are smaller.
       final shoulder =
-          (7 - math.min(2.5, (_crowdRows - 1 - row) * 0.5)) * _crowdScale;
-      if (y + shoulder > deckH) continue;
-      for (var i = 0; i < _fansPerRow; i++) {
+          (7 - math.min(2.5, (rows - 1 - row) * 0.5)) * _crowdScale;
+      if (y + shoulder > deckY - deckTop + deckH) continue;
+      for (var i = 0; i < perRow; i++) {
         final x =
-            (i + 0.1 + rng.nextDouble() * 0.8) * (size.width / _fansPerRow);
+            (i + 0.1 + rng.nextDouble() * 0.8) * (size.width / perRow);
         // Your own colours get commoner as the support grows; the rest of the
         // stand is replica shirts in whatever they turned up in.
         final shirt = rng.nextDouble() < 0.22
@@ -1386,6 +1578,8 @@ class _StandPainter extends CustomPainter {
           skin: _fanSkins[rng.nextInt(_fanSkins.length)],
         );
       }
+      }
+      deckY += deckH;
     }
 
     // Aerial haze over the terrace, heaviest at the BACK. Eight replica-shirt
@@ -1478,6 +1672,7 @@ class _StandPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StandPainter old) =>
+      old.tier != tier ||
       old.kitColor != kitColor ||
       old.haze != haze ||
       old.beat != beat ||
