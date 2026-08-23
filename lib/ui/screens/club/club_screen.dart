@@ -508,11 +508,31 @@ class _Art extends StatelessWidget {
           // Full width, as tall as the JS's `TILE_H`. It had been a 52px square
           // beside the text, which is a list icon — the artwork is generated per
           // tier and is how a facility is recognised.
+          // **A GROUND BEHIND THE ART.** The tier drawings are transparent, so
+          // a facility sat straight on the card and blended into it — reported
+          // as the assets having no background and not standing out. A shallow
+          // wash with an edge, which is a frame rather than a fill: the art
+          // still reads as the thing in the box.
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
+            child: Container(
               height: 64,
               width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color.alphaBlend(
+                      ink.withValues(alpha: tile.owned ? 0.16 : 0.06),
+                      kit.surface2,
+                    ),
+                    kit.bg,
+                  ],
+                ),
+                border: Border.all(color: kit.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: ArtImage(
                 key: ValueKey('club-art-${tile.key}'),
                 path: clubAssetImagePath(tile.key, tile.owned ? tile.tier : 1),

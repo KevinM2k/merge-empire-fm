@@ -6328,7 +6328,10 @@ that is not off the extension is the bug, not the symptom.
 - [x] **Both want a background of their own** so they read as boxes rather than
       as text floating on the sheet. Both were filled `surface` on a sheet that
       IS `surface` — a hairline border and nothing else. `surface2`.
-- [ ] **The embossed number on the player page is too hard to read.**
+- [ ] **The embossed number on the player page is too hard to read.** **Which
+      number is not established** — there is no widget in `lib/ui` drawing an
+      embossed figure that a grep finds, so this wants the screen naming or a
+      shot before anybody guesses at a shadow to soften.
 
 ### The home page and the club
 
@@ -6340,8 +6343,10 @@ that is not off the extension is the bug, not the symptom.
       accepted answer** — said explicitly.
 - [ ] **The customise popup is still slow to open.** The row-a-frame fill took
       the freeze off the sheet's slide and did not make it quick.
-- [ ] **The club's assets have no background**, so they blend into the page
-      instead of standing out.
+- [x] **The club's assets have no background**, so they blend into the page
+      instead of standing out. The tier drawings are transparent and sat
+      straight on the card. A shallow wash of the tile's own ink with an edge —
+      a frame rather than a fill, so the art is still the thing in the box.
 
 ### The shop and Pro mode
 
