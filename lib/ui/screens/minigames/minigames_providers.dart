@@ -5,6 +5,7 @@
 /// list both were talking about.
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/data/quests.dart';
@@ -106,3 +107,11 @@ final divisionIndexProvider = savePick<int>((s) {
 /// `mini_games_engine.dart` since M1 with **no UI caller** — which is why a
 /// resting drill offered no way out of the wait. See `TrainingView`.
 final skipsLeftTodayProvider = savePick<int>(skipAdsLeftToday);
+
+/// What a PERFECT session of one drill pays at this division, or null for a
+/// drill with no ceiling — see [miniGameBestPayout]. The launcher tile draws
+/// it; nothing said what a drill was worth before.
+final miniGameBestProvider = Provider.family<int?, String>((ref, kind) {
+  ref.watch(saveRevisionProvider);
+  return miniGameBestPayout(ref.watch(gameProvider).state, kind);
+});

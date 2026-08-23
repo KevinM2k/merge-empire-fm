@@ -21,6 +21,8 @@ import 'package:merge_empire_fc/ui/screens/minigames/pitch_invaders_screen.dart'
 import 'package:merge_empire_fc/ui/screens/minigames/teamwork_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/through_ball_screen.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 /// The face of each drill.
@@ -153,6 +155,11 @@ class _GameRow extends ConsumerWidget {
 
     final tint = drillTint(kit.accent, game.kind);
     final open = reason == null;
+    // Only for a drill the player can actually reach: a ceiling on a locked
+    // row is a price tag on a door.
+    final best = game.unlocked && game.playable
+        ? ref.watch(miniGameBestProvider(game.kind))
+        : null;
 
     return Card(
       key: ValueKey('training-${game.kind}'),
@@ -200,11 +207,45 @@ class _GameRow extends ConsumerWidget {
           t(game.titleKey),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
-        subtitle: reason == null
+        // **WHAT A SESSION IS WORTH**, which the tab never said — the one
+        // figure a player deciding whether to spend three minutes on a drill
+        // wants, and `miniGameRewardBase`'s own doc says it exists for exactly
+        // this preview. A perfect run, so it is a ceiling rather than a
+        // promise; null for Keepy Uppys, whose taps have no ceiling to quote.
+        //
+        // A COIN AND A NUMBER, no copy: there is no catalogue key for "up to",
+        // and none can be added from this repo.
+        subtitle: reason == null && best == null
             ? null
-            : Text(
-                reason,
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
+            : Row(
+                children: [
+                  if (best != null) ...[
+                    GameIcon('coin', size: 11, color: tint),
+                    const SizedBox(width: 3),
+                    Text(
+                      formatCoins(best),
+                      style: TextStyle(
+                        color: tint,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (reason != null)
+                      Text(
+                        ' · ',
+                        style: TextStyle(color: kit.textMuted, fontSize: 11),
+                      ),
+                  ],
+                  if (reason != null)
+                    Expanded(
+                      child: Text(
+                        reason,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: kit.textMuted, fontSize: 11),
+                      ),
+                    ),
+                ],
               ),
         // **A WAIT GETS AN OFFER; A LOCK DOES NOT.** The skip is only ever shown
         // on a drill that is resting — there is nothing to skip on one that has

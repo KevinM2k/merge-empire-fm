@@ -6322,7 +6322,16 @@ that is not off the extension is the bug, not the symptom.
 
 ### Training
 
-- [ ] **It never says how much a session earns.**
+- [x] **It never says how much a session earns.** `miniGameRewardBase`'s own
+      doc says it exists "for the launcher tiles' reward previews" and nothing
+      drew one. Each tile carries a PERFECT session's payout now — every arm is
+      the payout function's own arithmetic at its ceiling, bonuses included, so
+      it cannot promise what a session will not pay. Keepy Uppys shows nothing:
+      taps are unbounded and there is no honest number. A coin and a figure, no
+      copy — there is no key for "up to" and none can be added here.
+- [ ] **Pitch Invaders: the holes and what comes out of them are tiny.** They
+      should fill the boxes they are in. And the LEFT column of boxes is bigger
+      than the rest, which is a layout bug of its own.
 - [ ] **Penalty training: the keeper is about a metre off his line.**
 - [ ] **The net wants more verticals and horizontals.**
 - [ ] **The run-up crosses its own legs**, which reads as a broken rig.

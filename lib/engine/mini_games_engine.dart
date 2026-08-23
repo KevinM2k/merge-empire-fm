@@ -140,6 +140,56 @@ num _divBase(Map<String, dynamic>? state) {
 double miniGameRewardBase(Map<String, dynamic>? state) =>
     _divBase(state) * getMiniGameCoinMult(state);
 
+/// Where the player's division sits in the ladder, for the difficulty curves.
+int _divIdx(Map<String, dynamic>? state) {
+  final id = _map(state?['progression'])?['currentDivision'] ?? divisions.first.id;
+  final idx = divisions.indexWhere((d) => d.id == id);
+  return idx < 0 ? 0 : idx;
+}
+
+/// The most a PERFECT session of [kind] can pay at this division, with the
+/// club's own multipliers already in it — or null for a drill with no ceiling.
+///
+/// **The launcher never said what a drill was worth**, which is the one figure
+/// a player deciding whether to spend three minutes on one actually wants.
+/// Reported straight off the Training tab, and [miniGameRewardBase]'s own doc
+/// says it exists "for the launcher tiles' reward previews" while nothing drew
+/// one.
+///
+/// Every arm is the payout function's own arithmetic at its maximum, so a
+/// preview cannot promise what a session will not pay — including the two
+/// bonuses, because a perfect board earns both. **Keepy Uppys answers null**:
+/// taps are unbounded, so there is no honest number to quote.
+int? miniGameBestPayout(Map<String, dynamic>? state, String kind) {
+  final base = miniGameRewardBase(state);
+  final divIdx = _divIdx(state);
+  return switch (kind) {
+    MiniGameKind.penalty => roundCoins(
+      base * Penalty.rewardPerGoalMult * Penalty.attempts,
+    ),
+    // Scales with the FRACTION hit rather than the count, so a perfect session
+    // is the whole multiplier however many drills the division spawns.
+    MiniGameKind.training => roundCoins(base * Training.rewardBaseMult),
+    MiniGameKind.throughBall => roundCoins(
+      base * ThroughBall.rewardPerRoundMult * ThroughBall.rounds,
+    ),
+    MiniGameKind.whack => roundCoins(
+      base * Whack.rewardPerCatchMult * whackMaxCatches(divIdx),
+    ),
+    MiniGameKind.pairs => roundCoins(
+      roundCoins(base * Pairs.rewardPerPairMult * pairsDifficulty(divIdx).pairs) *
+          Pairs.clearBonusMult,
+    ),
+    MiniGameKind.bootRoom => roundCoins(
+      roundCoins(
+            base * BootRoom.rewardPerTileMult * bootRoomDifficulty(divIdx).target,
+          ) *
+          BootRoom.targetBonusMult,
+    ),
+    _ => null,
+  };
+}
+
 /// Cooldowns land on a shared 30-second grid — :00 and :30 of each minute —
 /// rather than exactly one cooldown after the tap.
 ///
