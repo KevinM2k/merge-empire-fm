@@ -5301,10 +5301,46 @@ one everywhere it should not.
       the engine's keys now, and there is a second test that builds a result
       with `simulateMatch` and reads the score back off the screen — so the next
       rename breaks a test rather than a victory.
-- [ ] **Roll Trait should roll BOTH sides**, so it is clear what is happening,
-      and the text should say the percentages gained and lost. **And the trait
-      belongs above Career Stats** — it is one of the main things on that page,
-      not a footnote. The roller itself could be styled better.
+- [~] **Roll Trait: both sides roll, the numbers are named, and it sits above
+      Career Stats.** Three of four.
+      **Both reels visibly roll.** The level reel had three rows to the name
+      reel's pool, so `3 * _revolutions` travelled a fraction as far and barely
+      moved — one reel spinning beside a number that changed. Matching the ROW
+      COUNT is what makes it read as two reels.
+      **The numbers are POINTS, not percentages.** Percentages were the first
+      answer and they were wrong: a trait reads as `ATK +228%` because the bonus
+      is a multiplier on a small base — true, and unreadable. It is the card's
+      stats WITH the trait minus the same card without it, computed by
+      DIFFERENCE because `getCardStats` is the documented single source of truth
+      and recomposing the bonus fields here is how the sheet and the sim drift.
+      **And the block is above Career Stats**, which is right for the same
+      reason it wears the accent: it is the one thing on the sheet a player can
+      CHANGE. Career stats are a record of what has happened; the trait is what
+      happens next.
+      **Still open: the spinner itself does not look impressive enough.**
+- [x] **Career Stats does not need its heading** — a box per stat. It was one
+      bordered card with `CAREER STATS` across the top: a label naming what four
+      labelled numbers already say, costing a line on a sheet where the trait
+      block was falling below the fold. Four objects instead of one object with
+      four things in it, which is what they are.
+- [x] **The squad sheet is hard to close.** Every sheet in the game has a DRAG
+      HANDLE now, and it is the control rather than a decoration:
+      `showModalBottomSheet` has had drag-to-dismiss all along and it never
+      fired, because the gesture needs a target the scrolling body does not eat.
+      **An OVERLAY, not a row** — a row above the content takes twenty points
+      off every sheet in the game, and the ones already tight lost their bottom
+      button the moment it went in. Over the content it costs nothing, and the
+      space it sits in is a sheet's own top margin.
+- [x] **The injury percentage was missing from the player page.**
+      `squad.detail.injury_risk` is translated in ten catalogues and nothing
+      printed it — the header plate's own doc-comment still said "rating, income
+      and injury risk" while carrying two of the three.
+      It is `INJ 4%` under ATK and DEF, which is where it was asked for and is
+      right: those are the numbers about what this player IS, as against the
+      record of what he has done. **And the TRAIT counts toward it** — the
+      injury reduction is one of the things a roll can buy, and a figure that
+      ignored it would make the one number the trait moves the one number that
+      did not move.
 - [x] **The ×4/×2 button needs a top-right and bottom-right radius** so the
       border closes properly. Its hairline was a square `Border.all` inside a
       group clipped to 9, so the outer two corners hung out of the clip. They
