@@ -104,6 +104,40 @@ Toast? toastFor(String event, Object? args) {
           'mult': formatPrestigeMultiplier(mult.toDouble()),
         }), good: true);
 
+    // **A LOCKED CONTROL THAT IS TAPPED HAS TO ANSWER.** The Pro segment is
+    // dead until the first prestige and the row's own note says why — but a
+    // note under a control is small print, and a player who has just pressed
+    // the thing and had nothing happen is not reading small print. Reported as
+    // there being no information about why Pro is locked. Same shipped line the
+    // prestige card offers the route with, said at the moment it is asked for.
+    case 'prestige:locked':
+      return _say(t('prestige.body_pro_hint'), good: false);
+
+    // **CONSENT IS NOT REQUIRED WHERE YOU ARE, which is not the same as
+    // "coming soon".** The privacy row is always live — the JS shows it
+    // unconditionally — and outside the EEA there is simply nothing to consent
+    // to. `settings.consent_not_required` is that sentence and shipped in ten
+    // languages with no caller. Not good news and not bad: an answer.
+    case 'consent:unavailable':
+      return _say(t('settings.consent_not_required'), good: false);
+
+    // **THE CAPSTONE GEM ANNOUNCES ITSELF.** `quest:capstone` has been emitted
+    // by `awardDivisionCapstone` since the quest engine was ported and nothing
+    // listened, so clearing a division's whole season track paid a gem in
+    // silence — the one lifetime-capped reward in the game, landing with no
+    // more ceremony than a coin. `quests.capstone_toast` is its sentence and
+    // shipped in ten languages with no caller.
+    case 'quest:capstone':
+      final gems = data?['gems'];
+      if (gems is! num) return null;
+      return _say(
+        t('quests.capstone_toast', {
+          'division': tName('division', data?['divisionId']),
+          'n': gems.toInt(),
+        }),
+        good: true,
+      );
+
     // A rename says so, both ways round. It is the only confirmation there is:
     // the card closes on success, and the name it changed is behind it.
     case 'player:renamed':
@@ -204,6 +238,9 @@ const List<String> toastEvents = [
   'loan:expired',
   'prestige:complete',
   'gems:granted',
+  'quest:capstone',
+  'consent:unavailable',
+  'prestige:locked',
 ];
 
 /// `loan:departed` is deliberately absent: its payload is a Dart RECORD rather

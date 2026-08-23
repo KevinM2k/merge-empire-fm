@@ -6273,13 +6273,21 @@ Written on arrival from here.
 - [x] **The "watch to keep 2x coins" box on the end-of-match screen wants more
       padding at the bottom.** Ten and ten put the rewarded-video control hard
       against the card's edge.
-- [ ] **Privacy options does not link to the right place**, the way it does in
-      the shipped app.
+- [x] **Privacy options does not link to the right place.** The port hid the
+      row behind `adConsentAvailable` and put a dead "coming soon" in its place
+      everywhere else — so a player outside the EEA tapped a control that said
+      the feature was unfinished, when the truth is there is nothing to consent
+      to where they are. `SettingsScreen.js` shows the button unconditionally
+      and toasts when the form comes back unavailable, and
+      `settings.consent_not_required` is that sentence, shipped and uncalled.
 - [ ] **Is the audio bug fixed?** Asked as a question; the bug is not named in
       this session, so it wants pointing at before anybody guesses.
-- [ ] **Settings does not say WHY Pro is locked.** A padlock landed on the
-      segment last session and the row's note prints `prestige.body_pro_hint`;
-      that is evidently not reading as an explanation where it sits.
+- [x] **Settings does not say WHY Pro is locked.** The row prints exactly that
+      information underneath it — but a note under a control is small print, and
+      a player who has just pressed the thing and had NOTHING happen is not
+      reading small print. The locked segment's `onTap` was null. It answers
+      now: still not a switch, it says what would unlock it, at the moment it is
+      asked.
 - [ ] **Account connection does not work.** The row now reads the save and
       reports the truth — nobody is signed in — but there is no way TO sign in,
       which is the actual ask. See the auth rows in M4: the policy half is
@@ -6310,10 +6318,14 @@ Written on arrival from here.
       reads as a different colour rather than the contrast rule. They are now
       the brightest members of each hue that still clear the sweep's floor on
       the light theme's own surfaces: same hue, one step down rather than three.
-- [ ] **A gem from the season quests should announce itself**, the way unlocking
-      training does. Asked as "probably not", and it is: the capstone gem is
-      granted with no popup. `feature_unlock.dart` is the shape the training
-      unlock uses.
+- [x] **A gem from the season quests should announce itself.** It is worse than
+      guessed: `quest:capstone` has been emitted by `awardDivisionCapstone`
+      since the quest engine was ported and NOTHING listened, so clearing a
+      division's whole season track paid the one lifetime-capped reward in the
+      game in silence. `quests.capstone_toast` — "{division} cleared — {n} gem
+      earned!" — shipped in ten languages with no caller. It is on the toast
+      host's list now, which is where the gem grant's own toast already lives
+      and which plays the discovery cue for a gem rather than the coin one.
 - [x] **The play screen and the end-match screen look the SAME in light mode as
       in dark.** Said twice, and it REVERSES a decision made on 31 Aug: those
       two pages were wrapped in the kit's dark theme because the spec's

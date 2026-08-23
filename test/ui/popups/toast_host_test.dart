@@ -375,4 +375,28 @@ void main() {
       expect(busListenerCount('cup:won'), 0);
     });
   });
+
+  group('THE CAPSTONE GEM ANNOUNCES ITSELF', () {
+    // `quest:capstone` has been emitted by `awardDivisionCapstone` since the
+    // quest engine was ported and NOTHING listened, so clearing a division's
+    // whole season track paid a gem in silence — the one lifetime-capped reward
+    // in the game landing with no more ceremony than a coin.
+    // `quests.capstone_toast` shipped in ten languages with no caller.
+    test('and it names the division and the gem', () {
+      final toast = toastFor('quest:capstone', {
+        'divisionId': 'sunday_league',
+        'gems': 1,
+      });
+      expect(toast, isNotNull);
+      expect(toast!.good, isTrue);
+      expect(toast.text, contains('1'));
+      expect(toast.text, isNot(contains('{')));
+      expect(toast.text, isNot(contains('sunday_league')));
+    });
+
+    test('and a payload with no gems in it says nothing', () {
+      expect(toastFor('quest:capstone', {'divisionId': 'sunday_league'}), isNull);
+      expect(toastFor('quest:capstone', null), isNull);
+    });
+  });
 }

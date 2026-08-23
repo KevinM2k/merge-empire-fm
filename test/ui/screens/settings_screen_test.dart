@@ -413,7 +413,11 @@ void main() {
       final segment = tester.widget<SettingsSegment>(
         find.byKey(const ValueKey('setting-hardMode')),
       );
-      expect(segment.choices.last.onTap, isNull);
+      // **NOT null: a locked tap ANSWERS.** It cannot turn Pro on, and it says
+      // what would — because `null` meant pressing it did nothing at all, which
+      // is how "there is no info on why pro is locked" happens on a row that
+      // prints exactly that information underneath it.
+      expect(segment.choices.last.onTap, isNotNull);
       expect(find.text(t('prestige.body_pro_hint')), findsOne);
       // **AND IT WEARS A PADLOCK.** A dead segment does not say it is locked,
       // and the note underneath is a sentence nobody reads until they have

@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
@@ -181,20 +182,26 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         // which is `adConsentAvailable`, cached at boot so this can decide
         // synchronously: a row that arrives a second after the screen is worse
         // than one that is always there.
-        if (adConsentAvailable)
-          SettingsAction(
-            key: const ValueKey('privacy-btn'),
-            icon: 'lock',
-            label: t('settings.privacyOptions'),
-            onTap: () => unawaited(showAdConsentForm()),
-          )
-        else
-          PendingControl(
-            controlKey: 'privacy-btn',
-            icon: 'lock',
-            label: t('settings.privacyOptions'),
-            reason: t('settings.comingSoon'),
-          ),
+        // **ONE ROW, ALWAYS LIVE, and that is the spec's.** The port hid it
+        // behind `adConsentAvailable` and put a dead "coming soon" in its place
+        // everywhere else — so a player outside the EEA tapped a control that
+        // said the feature was unfinished, when the truth is that there is
+        // nothing to consent to where they are. `SettingsScreen.js` shows the
+        // button unconditionally and toasts when the form comes back
+        // unavailable, and `settings.consent_not_required` — "Consent not
+        // required in your region" — is that sentence, shipped in ten languages
+        // with no caller. Reported as privacy options not linking to the right
+        // place the way it does in the shipped app.
+        SettingsAction(
+          key: const ValueKey('privacy-btn'),
+          icon: 'lock',
+          label: t('settings.privacyOptions'),
+          onTap: () async {
+            final result = await showAdConsentForm();
+            if (result == AdConsentFormResult.shown) return;
+            emit('consent:unavailable');
+          },
+        ),
       ],
     ),
     SettingsGroup(head: t('settings.language'), child: _LanguageGrid()),
@@ -442,9 +449,16 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                   // [proModeUnlocked]. The row stays visible and dead rather
                   // than disappearing: a control that is not there answers
                   // nothing, and this one has a reason worth reading.
-                  onTap: hard || !proUnlocked
+                  // **A LOCKED TAP ANSWERS.** `null` here meant pressing Pro
+                  // did nothing at all, which is how "there is no info on why
+                  // pro is locked" happens on a row that prints exactly that
+                  // information underneath it. Still not a switch — it cannot
+                  // turn Pro on — it says what would.
+                  onTap: hard
                       ? null
-                      : () => _confirmDifficulty(hard: true),
+                      : proUnlocked
+                      ? () => _confirmDifficulty(hard: true)
+                      : () => emit('prestige:locked'),
                   // A padlock ON the button. The row's note says why, and a
                   // note under a control nobody has worked out is locked is a
                   // sentence nobody reads.
