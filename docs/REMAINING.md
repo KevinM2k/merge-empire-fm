@@ -6447,12 +6447,20 @@ that is not off the extension is the bug, not the symptom.
       telling its story. Four more keys off the shelf — `won_by`, `won_by_you`,
       `cup_won`, `cup_out` — and the round is NAMED, because `roundReached` is
       an index and printing it reads "out in the 2".
-- [ ] **The season overview's last two blocks:** the season-quest scorecard
-      (`quests_done`, `quests_autopay`) and the collapsible final table
-      (`view_table`, `hide_table`). Both need PRE-settlement data the way the
-      winner and the record do — `endSeason` sweeps the quests and rolls the
-      table — and the quest block is a claimable list rather than a readout, so
-      it wants the quests sheet's own row widget rather than a second one.
+- [x] **The season overview's final table**, folded. `season.end.view_table`
+      and `hide_table` are two more keys that shipped in ten languages with
+      nothing able to print either. Captured with the winner, off the same
+      `buildLeagueTable` call, because `endSeason` rebuilds it for the new
+      campaign. Shut to begin with: twenty rows of a division the player has
+      just spent a season in is not what they came to the page for — the verdict
+      is — and the JS folds it the same way. Its own four-column row rather than
+      the standings widget: that one carries form dots and a movement chevron,
+      and neither means anything about a season that has finished.
+- [ ] **The season overview's LAST block: the quest scorecard**
+      (`quests_done`, `quests_autopay`). It needs pre-settlement data the way
+      the winner and the record do — `endSeason` sweeps the track — and unlike
+      every other block it is CLAIMABLE rather than a readout, so it wants the
+      quests sheet's own row widget rather than a second one built here.
 - [ ] **The home backdrop is still cropping, and quite low.** Third re-report.
       The place-by-its-ground-line fix assumed the art's own ground sits at 62%
       of the drawing; if it crops low, that number is wrong for this image or

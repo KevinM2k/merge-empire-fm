@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/cups.dart';
+import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -32,7 +33,7 @@ final seasonJustEndedProvider = savePick<int>((s) {
   return n is num ? n.toInt() : 1;
 });
 
-class SeasonEndScreen extends ConsumerWidget {
+class SeasonEndScreen extends ConsumerStatefulWidget {
   const SeasonEndScreen({
     super.key,
     required this.outcome,
@@ -41,6 +42,7 @@ class SeasonEndScreen extends ConsumerWidget {
     this.winnerName,
     this.winnerIsUs = false,
     this.cup,
+    this.finalTable = const [],
     this.onContinue,
   });
 
@@ -57,6 +59,10 @@ class SeasonEndScreen extends ConsumerWidget {
   final String? winnerName;
   final bool winnerIsUs;
 
+  /// The division as it finished, for the fold. Captured with the winner, and
+  /// for the same reason: `endSeason` rebuilds it for the new campaign.
+  final List<LeagueRow> finalTable;
+
   /// This season's finished cup run, or null when there was not one — see
   /// [seasonCupRun].
   final ({String cupId, String outcome, int roundReached})? cup;
@@ -66,6 +72,17 @@ class SeasonEndScreen extends ConsumerWidget {
 
   final VoidCallback? onContinue;
 
+  @override
+  ConsumerState<SeasonEndScreen> createState() => _SeasonEndScreenState();
+}
+
+class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
+  /// **SHUT to begin with.** Twenty rows of a table the player has just spent a
+  /// season in is not what they came to this page for — the verdict is, and the
+  /// table is there for the one who wants to check the club below them. The JS
+  /// folds it the same way.
+  bool _tableOpen = false;
+
   /// The league you have just moved into, in the player's own language.
   ///
   /// This card is the one screen a promotion exists for, and it named the
@@ -73,19 +90,19 @@ class SeasonEndScreen extends ConsumerWidget {
   /// data record's literal and `division.<id>` is translated in all ten
   /// catalogues. See `divisionNameProvider`.
   String get _newDivisionName {
-    final div = getDivision(outcome.newDivision);
+    final div = getDivision(widget.outcome.newDivision);
     return tName('division', {'id': div.id, 'name': div.name});
   }
 
   /// The division this season was played in, in the player's own language.
   String get _divisionName {
-    final div = getDivision(outcome.oldDivision);
+    final div = getDivision(widget.outcome.oldDivision);
     return tName('division', {'id': div.id, 'name': div.name});
   }
 
   /// The cup run as one sentence, or null when there was not one.
   String? get _cupLine {
-    final run = cup;
+    final run = widget.cup;
     if (run == null) return null;
     final def = getCupById(run.cupId);
     if (def == null) return null;
@@ -101,7 +118,7 @@ class SeasonEndScreen extends ConsumerWidget {
     return t('season.end.cup_out', {'cup': name, 'round': rounds[reached]});
   }
 
-  String get _headline => switch (outcome.outcome) {
+  String get _headline => switch (widget.outcome.outcome) {
     'promoted' => t('season.end.promoted', {
       'div': _newDivisionName,
     }),
@@ -114,11 +131,11 @@ class SeasonEndScreen extends ConsumerWidget {
   };
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     // First place is worth saying out loud even when it did not move you: the
     // top division has nowhere to be promoted to.
-    final champion = outcome.position == 1;
+    final champion = widget.outcome.position == 1;
 
     return Scaffold(
       key: const ValueKey('season-end'),
@@ -130,7 +147,7 @@ class SeasonEndScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                t('season.end.title', {'n': seasonNumber}),
+                t('season.end.title', {'n': widget.seasonNumber}),
                 key: const ValueKey('season-end-title'),
                 style: TextStyle(
                   fontSize: 20,
@@ -157,7 +174,7 @@ class SeasonEndScreen extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: outcome.outcome == 'relegated'
+                  color: widget.outcome.outcome == 'relegated'
                       ? Colors.redAccent
                       : kit.accent,
                 ),
@@ -171,8 +188,8 @@ class SeasonEndScreen extends ConsumerWidget {
               // the place with its ordinal, the outcome under it.
               Text(
                 tName('division', {
-                  'id': outcome.oldDivision,
-                  'name': getDivision(outcome.oldDivision).name,
+                  'id': widget.outcome.oldDivision,
+                  'name': getDivision(widget.outcome.oldDivision).name,
                 }).toUpperCase(),
                 key: const ValueKey('season-end-division'),
                 style: TextStyle(
@@ -185,9 +202,9 @@ class SeasonEndScreen extends ConsumerWidget {
               Text.rich(
                 TextSpan(
                   children: [
-                    TextSpan(text: '${outcome.position}'),
+                    TextSpan(text: '${widget.outcome.position}'),
                     TextSpan(
-                      text: ordinalSuffix(outcome.position),
+                      text: ordinalSuffix(widget.outcome.position),
                       style: const TextStyle(fontSize: 22),
                     ),
                   ],
@@ -206,7 +223,7 @@ class SeasonEndScreen extends ConsumerWidget {
               // with nothing able to print either — the whole band is the
               // spec's `.se-stats`, and it is what makes this a season
               // OVERVIEW rather than a verdict with a payout under it.
-              if (record case final r?)
+              if (widget.record case final r?)
                 Row(
                   key: const ValueKey('season-end-stats'),
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -230,12 +247,12 @@ class SeasonEndScreen extends ConsumerWidget {
               // `won_by_you` twin have sat translated in ten catalogues with
               // nothing able to print either, and it is the one fact this page
               // can give that the player's own row cannot.
-              if (winnerName case final name?)
+              if (widget.winnerName case final name?)
                 _SeasonLine(
                   lineKey: 'season-end-winner',
                   icon: 'trophy',
-                  ink: winnerIsUs ? kit.accentBright : kit.textMuted,
-                  text: winnerIsUs
+                  ink: widget.winnerIsUs ? kit.accentBright : kit.textMuted,
+                  text: widget.winnerIsUs
                       ? t('season.end.won_by_you', {'div': _divisionName})
                       : t('season.end.won_by', {
                           'team': name,
@@ -248,8 +265,8 @@ class SeasonEndScreen extends ConsumerWidget {
               if (_cupLine case final line?)
                 _SeasonLine(
                   lineKey: 'season-end-cup',
-                  icon: cup!.outcome == 'won' ? 'trophy' : 'cross',
-                  ink: cup!.outcome == 'won'
+                  icon: widget.cup!.outcome == 'won' ? 'trophy' : 'cross',
+                  ink: widget.cup!.outcome == 'won'
                       ? kit.accentBright
                       : kit.textMuted,
                   text: line,
@@ -257,23 +274,56 @@ class SeasonEndScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _Line(
                 label: t('season.end.prize_label'),
-                value: formatCoins(outcome.payout),
+                value: formatCoins(widget.outcome.payout),
                 valueKey: 'season-end-payout',
               ),
-              if (outcome.gemsAwarded > 0)
+              if (widget.outcome.gemsAwarded > 0)
                 _Line(
                   label: t('shop.section.gems'),
-                  value: '${outcome.gemsAwarded}',
+                  value: '${widget.outcome.gemsAwarded}',
                   valueKey: 'season-end-gems',
                 ),
+              // **THE FINAL TABLE, FOLDED.** Twenty rows of a division the
+              // player has just spent a season in is not what they came to
+              // this page for — the verdict is — but the one who wants to
+              // check the club below them should not have to leave to do it.
+              // `season.end.view_table` and `hide_table` are two more keys
+              // that shipped in ten languages with nothing able to print
+              // either. The JS folds it exactly this way.
+              if (widget.finalTable.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                TextButton(
+                  key: const ValueKey('season-end-table-toggle'),
+                  onPressed: () => setState(() => _tableOpen = !_tableOpen),
+                  child: Text(
+                    t(
+                      _tableOpen
+                          ? 'season.end.hide_table'
+                          : 'season.end.view_table',
+                    ),
+                  ),
+                ),
+                if (_tableOpen)
+                  Flexible(
+                    child: SingleChildScrollView(
+                      key: const ValueKey('season-end-table'),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < widget.finalTable.length; i++)
+                            _TableRow(row: widget.finalTable[i], place: i + 1),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
               const Spacer(),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   key: const ValueKey('season-end-continue'),
-                  onPressed: onContinue,
+                  onPressed: widget.onContinue,
                   child: Text(
-                    t('season.end.continue', {'n': seasonNumber + 1}),
+                    t('season.end.continue', {'n': widget.seasonNumber + 1}),
                   ),
                 ),
               ),
@@ -391,4 +441,74 @@ class _SeasonLine extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// One club in the folded final table.
+///
+/// Place, name, played and points — the four a player scans for. Not the whole
+/// standings widget: that one is a live table with form dots and a movement
+/// chevron, and neither means anything about a season that has finished.
+class _TableRow extends StatelessWidget {
+  const _TableRow({required this.row, required this.place});
+
+  final LeagueRow row;
+  final int place;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = row.isPlayer ? kit.accentBright : null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: Text(
+              '$place',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: ink ?? kit.textMuted,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              row.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: row.isPlayer ? FontWeight.w900 : FontWeight.w600,
+                color: ink,
+              ),
+            ),
+          ),
+          Text(
+            '${row.played}',
+            style: TextStyle(
+              fontSize: 11,
+              color: kit.textMuted,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          SizedBox(
+            width: 34,
+            child: Text(
+              '${row.pts}',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w900,
+                color: ink,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

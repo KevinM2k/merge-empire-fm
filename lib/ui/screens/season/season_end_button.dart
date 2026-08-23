@@ -42,6 +42,7 @@ class EndSeasonButton extends ConsumerWidget {
     // the season the page is reporting on.
     final table = buildLeagueTable(game.state ?? <String, dynamic>{});
     final winner = table.isEmpty ? null : table.first;
+    // The whole table, for the fold — the same list, captured once.
     final cup = seasonCupRun(game.state);
     final outcome = game.update(endSeason);
     if (!context.mounted) return;
@@ -62,6 +63,7 @@ class EndSeasonButton extends ConsumerWidget {
           record: record,
           winnerName: winner?.name,
           winnerIsUs: winner?.isPlayer ?? false,
+          finalTable: table,
           cup: cup,
           seasonNumber: finished,
           onContinue: () => Navigator.of(routeContext).maybePop(),

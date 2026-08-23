@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
@@ -281,5 +282,61 @@ void main() {
     expect(find.byKey(const ValueKey('season-end-winner')), findsOneWidget);
     // And no cup line at all when there was no run.
     expect(find.byKey(const ValueKey('season-end-cup')), findsNothing);
+  });
+
+  testWidgets('THE FINAL TABLE IS THERE, and it is FOLDED', (tester) async {
+    // Twenty rows of a division the player has just spent a season in is not
+    // what they came to this page for — the verdict is — but the one who wants
+    // to check the club below them should not have to leave to do it.
+    // `season.end.view_table` and `hide_table` are two more keys that shipped
+    // in ten languages with nothing able to print either.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 2),
+          seasonNumber: 1,
+          finalTable: [
+            for (var i = 0; i < 8; i++)
+              LeagueRow(
+                name: 'Club $i',
+                isPlayer: i == 1,
+                played: 14,
+                won: 8 - i,
+                drawn: 2,
+                lost: 4 + i,
+                pts: 26 - i * 3,
+                gd: 5 - i,
+              ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(t('season.end.view_table')), findsOneWidget);
+    expect(find.byKey(const ValueKey('season-end-table')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('season-end-table-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('season-end-table')), findsOneWidget);
+    expect(find.text(t('season.end.hide_table')), findsOneWidget);
+    expect(find.text('Club 0'), findsOneWidget);
+  });
+
+  testWidgets('and no table at all when nobody handed one over', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(outcome: outcome(position: 1), seasonNumber: 1),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('season-end-table-toggle')),
+      findsNothing,
+    );
   });
 }
