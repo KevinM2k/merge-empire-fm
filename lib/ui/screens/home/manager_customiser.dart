@@ -141,10 +141,37 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// fits in a frame.
   static const int _rowsPerFrame = 1;
 
+  /// Whether the fill has been started. Once only, however many times
+  /// dependencies change.
+  bool _filling = false;
+
+  /// **AND IT DOES NOT START UNTIL THE SHEET HAS ARRIVED.**
+  ///
+  /// Reported as still slow after the row-a-frame fill, and the fill is why: a
+  /// row of rigs is twelve milliseconds, which fits in a frame — but the frames
+  /// it was fitting into are the ones the sheet is TRAVELLING through, and a
+  /// slide that drops even one frame a step reads as the thing opening slowly.
+  /// The route's own animation says when it has stopped moving; the grid fills
+  /// from there, into frames nothing else is using.
   @override
-  void initState() {
-    super.initState();
-    _fillNextRow();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_filling) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.isCompleted) {
+      _filling = true;
+      _fillNextRow();
+      return;
+    }
+    void onStatus(AnimationStatus status) {
+      if (status != AnimationStatus.completed) return;
+      animation.removeStatusListener(onStatus);
+      if (!mounted || _filling) return;
+      _filling = true;
+      _fillNextRow();
+    }
+
+    animation.addStatusListener(onStatus);
   }
 
   /// Reset when the axis changes: a new axis is a new grid of rigs, and
@@ -652,15 +679,20 @@ class _LookPreview extends StatelessWidget {
               child: SizedBox(
                 width: walkerWidth * k,
                 height: walkerHeight * k,
-                child: ManagerWalker(
-                  kit: kit.accent,
-                  skin: const Color(0xFFEEBB8C),
-                  hair: const Color(0xFF3A2A1C),
-                  look: look,
-                  mood: Mood.neutral,
-                  // Still, and that is what keeps nineteen of these free: a
-                  // walker that is not walking starts no clock at all.
-                  walking: false,
+                // Its own layer: twenty rigs in a scrollable grid otherwise
+                // repaint together on every scroll pixel, and a rig is a deep
+                // tree of clipped SVG layers.
+                child: RepaintBoundary(
+                  child: ManagerWalker(
+                    kit: kit.accent,
+                    skin: const Color(0xFFEEBB8C),
+                    hair: const Color(0xFF3A2A1C),
+                    look: look,
+                    mood: Mood.neutral,
+                    // Still, and that is what keeps nineteen of these free: a
+                    // walker that is not walking starts no clock at all.
+                    walking: false,
+                  ),
                 ),
               ),
             ),

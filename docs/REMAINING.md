@@ -6353,8 +6353,14 @@ that is not off the extension is the bug, not the symptom.
       daylit sky sits behind a night pitch. Keeping it rather than dropping it:
       it costs one `LayoutBuilder` and three trees on bare sky was the hole it
       replaced.
-- [ ] **The customise popup is still slow to open.** The row-a-frame fill took
-      the freeze off the sheet's slide and did not make it quick.
+- [x] **The customise popup is still slow to open.** The row-a-frame fill is
+      why: a row of rigs is twelve milliseconds, which fits in a frame — but the
+      frames it was fitting into are the ones the sheet is TRAVELLING through,
+      and a slide that drops a frame a step reads as the thing opening slowly.
+      The route's own animation says when it has stopped moving and the grid
+      fills from there, into frames nothing else is using. Each preview is its
+      own `RepaintBoundary` too: twenty deep SVG trees in a scrollable grid
+      otherwise repaint together on every scroll pixel.
 - [x] **The club's assets have no background**, so they blend into the page
       instead of standing out. The tier drawings are transparent and sat
       straight on the card. A shallow wash of the tile's own ink with an edge —
