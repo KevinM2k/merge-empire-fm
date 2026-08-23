@@ -1486,4 +1486,29 @@ void main() {
       expect(find.byKey(const ValueKey('card-trait')), findsNothing);
     });
   });
+  group('WHAT THE DETAIL SHEET SAYS ABOUT A CARD', () {
+    testWidgets('THE INJURY RISK IS BACK, under ATK and DEF', (tester) async {
+      // `squad.detail.injury_risk` is translated in ten catalogues and nothing
+      // printed it — the plate's own doc-comment still said "rating, income and
+      // injury risk" while carrying two of the three. Reported directly, and it
+      // belongs with the other two numbers about what this player IS rather
+      // than among the record of what he has done.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      expect(find.text('INJ'), findsOneWidget);
+      expect(find.textContaining('%'), findsWidgets);
+    });
+
+    testWidgets('and CAREER STATS has no heading — a box per stat', (
+      tester,
+    ) async {
+      // It was one bordered card with `CAREER STATS` across the top: a label
+      // naming what four labelled numbers already say, costing a line on a
+      // sheet where the trait block was falling below the fold.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      expect(find.text(t('squad.career_stats').toUpperCase()), findsNothing);
+    });
+  });
+
 }

@@ -47,6 +47,9 @@ Future<T?> showBottomSheetPopup<T>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
+    // See [_DragHandle]: the handle is the drag target, so this is what makes
+    // the gesture reach the route at all.
+    enableDrag: true,
     builder: (_) => _Frame(
       key: const ValueKey('bottom-sheet-popup'),
       heightFraction: heightFraction,
@@ -57,10 +60,57 @@ Future<T?> showBottomSheetPopup<T>(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
           border: Border.all(color: kit.border),
         ),
-        child: SafeArea(top: false, child: child),
+        child: SafeArea(
+          top: false,
+          // **THE HANDLE IS AN OVERLAY, not a row.** Tapping outside was the
+          // only way out of a sheet that covers most of the screen — reported
+          // as hard to close — and a drag needs a target the scrolling body
+          // does not eat, which is what the bar at the top is.
+          //
+          // In a `Stack` rather than a `Column` because every sheet in the game
+          // sizes itself to a fraction of the screen: a row above the content
+          // takes twenty points off every one of them, and the ones that were
+          // already tight lost their bottom button. Over the content it costs
+          // nothing, and the space it sits in is a sheet's own top margin.
+          child: Stack(
+            children: [
+              child,
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Center(child: _DragHandle(colour: kit.textMuted)),
+              ),
+            ],
+          ),
+        ),
       ),
     ),
   ).whenComplete(uncover);
+}
+
+/// The bar at the top of a sheet, and the thing you pull it down by.
+///
+/// Padded generously: a 4px bar is a 4px target, and the whole point is that a
+/// thumb finds it without being aimed.
+class _DragHandle extends StatelessWidget {
+  const _DragHandle({required this.colour});
+
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Container(
+      key: const ValueKey('sheet-drag-handle'),
+      width: 38,
+      height: 4,
+      decoration: BoxDecoration(
+        color: colour.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
 }
 
 /// The sheet's box: a fraction of the screen, or as tall as its content needs up

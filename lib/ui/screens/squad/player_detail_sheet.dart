@@ -39,6 +39,8 @@ import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
+import 'package:merge_empire_fc/data/divisions.dart' show divisions;
+import 'package:merge_empire_fc/engine/goal_model.dart' show getInjuryChance;
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -209,6 +211,12 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
               onLoanToUs: onLoanToUs,
               outOnLoan: outOnLoan,
               actionsBelow: !outOnLoan,
+              divisionIndex: divisions
+                  .indexWhere(
+                    (d) =>
+                        d.id == _map(state?['progression'])?['currentDivision'],
+                  )
+                  .clamp(0, divisions.length - 1),
             ),
             // Replace and Bench are both about a SLOT, so they only appear for
             // a man who is in the eleven. From the bench the one thing wanted
@@ -365,11 +373,15 @@ class _Header extends StatelessWidget {
     required this.onLoanToUs,
     required this.outOnLoan,
     required this.actionsBelow,
+    required this.divisionIndex,
   });
 
   final CardInstance card;
   final PlayerDef def;
   final CardStats stats;
+
+  /// Higher leagues are more physical — see [getInjuryChance].
+  final int divisionIndex;
   final bool onLoanToUs;
   final bool outOnLoan;
 
@@ -385,6 +397,16 @@ class _Header extends StatelessWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final rating = stats.rating;
     final seasons = card.seasonsPlayed;
+    // The league's own physicality, less whatever the card's trait takes back
+    // off it — see the note on the `INJ` row.
+    final injuryPct =
+        (getInjuryChance(card.seasonsPlayed, divisionIndex) *
+                (1 - getTraitBonus(card, def.position).injuryReduction).clamp(
+                  0.0,
+                  1.0,
+                ) *
+                100)
+            .round();
     final gamesLeft = _num(card.raw['loanMatchesLeft']).toInt();
     final sponsorMult = _num(_map(card.sponsor)?['multiplier']);
     final income = def.idleIncomePerSec * (sponsorMult > 0 ? sponsorMult : 1);
@@ -440,6 +462,21 @@ class _Header extends StatelessWidget {
               rows: [
                 (label: 'ATK', value: '${stats.attack}'),
                 (label: 'DEF', value: '${stats.defence}'),
+                // **INJURY RISK, which had gone missing entirely.**
+                // `squad.detail.injury_risk` is translated in ten catalogues
+                // and nothing printed it — the plate's own doc-comment still
+                // said "rating, income and injury risk" while carrying two of
+                // the three. Reported directly, and asked for HERE rather than
+                // among the career tallies: it belongs with the other two
+                // numbers about what this player is, not with the record of
+                // what he has done.
+                //
+                // **And the TRAIT counts.** `injuryReduction` is one of the
+                // things a roll can buy, so a figure that ignored it would make
+                // the trait look like it did nothing — the one number it moves
+                // being the one number that did not move is the same defect
+                // `getCardStats` exists to prevent.
+                (label: 'INJ', value: '$injuryPct%'),
               ],
             ),
           ),
@@ -844,80 +881,87 @@ class _CareerStats extends StatelessWidget {
     // Which columns show is by POSITION, not by whether the number is non-zero:
     // a striker on nought goals is information, and hiding it would read as the
     // stat not existing.
-    final cells = <({String label, int value, bool highlight})>[
-      (label: t('squad.stat.played'), value: played, highlight: false),
+    final cells = <({String label, int value, bool highlight, String suffix})>[
+      if (played > 0)
+        (
+          label: t('squad.stat.played'),
+          value: played,
+          highlight: false,
+          suffix: '',
+        ),
       if (goals > 0 || position == 'FWD' || position == 'MID')
         (
           label: '⚽ ${t('squad.stat.goals')}',
           value: goals,
           highlight: goals > 0,
+          suffix: '',
         ),
       if (tackles > 0 || position == 'DEF' || position == 'MID')
         (
           label: '🛡️ ${t('squad.stat.tackles')}',
           value: tackles,
           highlight: false,
+          suffix: '',
         ),
       if (position == 'GK')
-        (label: '🧤 ${t('squad.stat.saves')}', value: saves, highlight: true),
+        (
+          label: '🧤 ${t('squad.stat.saves')}',
+          value: saves,
+          highlight: true,
+          suffix: '',
+        ),
     ];
 
+    // **NO HEADING, AND A BOX PER STAT.** It was one bordered card with
+    // `CAREER STATS` across the top and the figures in a row inside it — a
+    // label naming what four labelled numbers already say, costing a line of
+    // its own on a sheet where the trait block was falling below the fold.
+    // Asked for directly, with the fold as the stated reason.
+    //
+    // Each stat gets its own box instead, which also reads better: the group
+    // was one object with four things in it and is now four objects, which is
+    // what they are.
     return Padding(
       padding: const EdgeInsets.only(top: 10),
-      child: Container(
+      child: Row(
         key: const ValueKey('detail-career-stats'),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: kit.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kit.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              t('squad.career_stats').toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
-                color: kit.textMuted,
+        children: [
+          for (final cell in cells)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  decoration: BoxDecoration(
+                    color: kit.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: kit.border),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '${cell.value}${cell.suffix}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.1,
+                          fontWeight: FontWeight.w800,
+                          color: cell.highlight ? kit.accentBright : null,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        cell.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 9.5, color: kit.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                for (final cell in cells)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(
-                        children: [
-                          Text(
-                            cell.label,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: kit.textMuted,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${cell.value}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: cell.highlight ? kit.accentBright : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
