@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
+import 'package:merge_empire_fc/services/ad_consent.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -173,12 +174,26 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             unawaited(requestNativeReview());
           },
         ),
-        PendingControl(
-          controlKey: 'privacy-btn',
-          icon: 'lock',
-          label: t('settings.privacyOptions'),
-          reason: t('settings.comingSoon'),
-        ),
+        // **Google requires that consent can be REVOKED at any time**, so this
+        // row is not decoration — it is the entry point the policy asks for.
+        // It appears only where consent applies (the EEA, the UK, Switzerland),
+        // which is `adConsentAvailable`, cached at boot so this can decide
+        // synchronously: a row that arrives a second after the screen is worse
+        // than one that is always there.
+        if (adConsentAvailable)
+          SettingsAction(
+            key: const ValueKey('privacy-btn'),
+            icon: 'lock',
+            label: t('settings.privacyOptions'),
+            onTap: () => unawaited(showAdConsentForm()),
+          )
+        else
+          PendingControl(
+            controlKey: 'privacy-btn',
+            icon: 'lock',
+            label: t('settings.privacyOptions'),
+            reason: t('settings.comingSoon'),
+          ),
       ],
     ),
     SettingsGroup(head: t('settings.language'), child: _LanguageGrid()),

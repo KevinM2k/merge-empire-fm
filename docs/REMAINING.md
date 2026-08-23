@@ -6281,7 +6281,23 @@ of buttons that error.
 
 ### The rest
 
-- [ ] AdMob adapter — the half of `energyEngine` left behind in M1
+- [~] AdMob adapter — the half of `energyEngine` left behind in M1. **THE DART
+      HALF IS IN AND THE CHAIN IS ON.** `google_mobile_ads` behind
+      `services/admob_ads.dart`, which is the one override
+      `services/rewarded_ads.dart` said would turn everything on; the APP ids
+      were on disk in the old repo's `capacitor.config.ts` all along and are now
+      in both manifests, pinned by a test that reads them — Android does not
+      degrade on a wrong one, it crashes at initialisation.
+      `services/ad_consent.dart` goes first, because serving before the consent
+      answer exists is what the gate is for, and the Privacy options row in
+      Settings is now live where consent applies (Google requires revocation to
+      be reachable at any time). The port is SIMPLER than the JS's here and it is
+      the plugin that changed: `showPrivacyOptionsForm` exists, so the JS's
+      reset → request → show workaround is gone, and with it the reset that threw
+      away an answer the player had already given.
+      **NOT VERIFIED ON A DEVICE, and it cannot be from here** — `analyze` and
+      the suite are the only evidence in this repo and neither exercises an ad
+      SDK. The seam is tested; the SDK's own behaviour is the M6 device pass.
 - [ ] Firebase: `services/firebase` (146) init, the analytics sink, Crashlytics
 - [ ] `authService` (662), `playGamesService` (155), `nativeAuthPlugin`
 - [ ] `cloudSaveService` (498), `firestoreRest` (334), `firestoreRestAuth` (83)
@@ -6353,7 +6369,7 @@ of buttons that error.
       and a Custom Tab on Android — the same two `@capacitor/browser` opens. It
       REFUSES a non-http scheme: every URL this game has is a store page or a
       policy, so a `tel:` arriving there is a bug and not a feature.
-- [ ] `util/ad_consent` (63) — the UMP SDK, which arrives with AdMob
+- [x] `util/ad_consent` (63) — **DONE**, with the AdMob adapter above.
 
 **Not being ported**, recorded so nobody goes looking:
 

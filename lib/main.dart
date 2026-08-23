@@ -14,7 +14,9 @@ import 'package:merge_empire_fc/ui/popups/toast_host.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/services/admob_ads.dart';
 import 'package:merge_empire_fc/services/prefs_save_store.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,9 +29,21 @@ Future<void> main() async {
   // downstream of it is synchronous, and a save layer that answers null while
   // it warms up would boot the player onto a default state.
   final store = await PrefsSaveStore.open();
+  // **The ad SDK, after consent and before the first frame.** `startAds` asks
+  // for consent first — serving before that answer exists is what the gate is
+  // there to stop — and hands back `NoRewardedAds` on any platform without the
+  // SDK, so a desktop or test host is unchanged.
+  //
+  // Awaited rather than backgrounded because the OVERRIDE is what the whole
+  // chain reads: a provider that starts as the null adapter and swaps later
+  // would leave the first screen's rewarded buttons saying "coming soon".
+  final ads = await startAds();
   runApp(
     ProviderScope(
-      overrides: [saveStoreProvider.overrideWithValue(store)],
+      overrides: [
+        saveStoreProvider.overrideWithValue(store),
+        rewardedAdsProvider.overrideWithValue(ads),
+      ],
       child: const MergeEmpireApp(),
     ),
   );
