@@ -21,7 +21,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show semanticPlate, vsGreenOn, vsRedOn;
+    show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -295,68 +296,92 @@ class _TransferOfferCard extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 10),
-          Text(
-            pitch,
-            key: const ValueKey('transfer-pitch'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, height: 1.5),
-          ),
-          const SizedBox(height: 10),
-          // **THE WHOLE ROW SITS ON A DARK PLATE, in both themes.** The gold
-          // and the band colour are the shipped ones and they need a dark
-          // ground: on a pale card the coin figure and the Jackpot chip were
-          // yellow on near-white, which is the report this was written for. A
-          // plate is also what the sell popup does with the same two, so this
-          // is the game's existing answer rather than a new one.
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: semanticPlate(context),
-              borderRadius: BorderRadius.circular(12),
-            ),
+          // **THE TWO HALVES OF THE QUESTION, SIDE BY SIDE, ON GLASS.**
+          //
+          // They were a centred paragraph and then a plate under it, stacked —
+          // so the card was read top to bottom and the thing being weighed (what
+          // you lose against what you are offered) was never in one glance. Two
+          // panels of equal height put the loss beside the fee, which is the
+          // comparison the player is actually being asked to make.
+          //
+          // Glass rather than a painted plate: the reference shot for this card
+          // is the full material — panes over a blurred page, each with its own
+          // gold edge — and the port had the layout without it. `GlassPanel`
+          // carries `darkGlass: true` for the same reason the price plate was a
+          // dark plate: the gold and the band colours are the shipped ones and
+          // they need a dark ground in BOTH themes, which is the light-mode
+          // legibility report this card was already fixed for once.
+          IntrinsicHeight(
             child: Row(
-              key: const ValueKey('transfer-price'),
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // The plate's own ink: the light-mode coin is deliberately dark
-                // and would vanish here.
-                const CoinIcon(size: 22, solid: true, color: gameGold),
-                const SizedBox(width: 7),
-                Flexible(
-                  child: Text(
-                    formatCoins(price),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: gameGold,
+                Expanded(
+                  child: _GoldPane(
+                    child: Center(
+                      child: Text(
+                        pitch,
+                        key: const ValueKey('transfer-pitch'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.45,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                // What the figure MEANS, named and coloured: five bands the
-                // catalogues have carried all along with nothing able to reach
-                // one of them.
-                Container(
-                  key: ValueKey('transfer-band-${band.key}'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: plateBand.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(7),
-                    border: Border.all(
-                      color: plateBand.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Text(
-                    t(band.key),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w900,
-                      color: plateBand,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _GoldPane(
+                    child: Column(
+                      key: const ValueKey('transfer-price'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // The plate's own ink: the light-mode coin is
+                        // deliberately dark and would vanish here.
+                        const CoinIcon(size: 22, solid: true, color: gameGold),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          child: Text(
+                            formatCoins(price),
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                              color: gameGold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // What the figure MEANS, named and coloured: five bands
+                        // the catalogues have carried all along with nothing
+                        // able to reach one of them.
+                        Container(
+                          key: ValueKey('transfer-band-${band.key}'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: plateBand.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(
+                              color: plateBand.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Text(
+                            t(band.key),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              color: plateBand,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -390,6 +415,33 @@ class _TransferOfferCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// One of the bid card's two panes: glass, with the gold edge the reference
+/// shot draws round both of them.
+///
+/// `GlassPanel` has no border of its own — every other caller sits it on a page
+/// that gives it one — so the edge goes on as a `foregroundDecoration`, over the
+/// blur rather than under it.
+class _GoldPane extends StatelessWidget {
+  const _GoldPane({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    foregroundDecoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: gameGold.withValues(alpha: 0.55), width: 1.5),
+    ),
+    child: GlassPanel(
+      radius: 12,
+      darkGlass: true,
+      density: GlassDensity.deep,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: child,
+    ),
+  );
 }
 
 /// The way back to a bid that was parked.

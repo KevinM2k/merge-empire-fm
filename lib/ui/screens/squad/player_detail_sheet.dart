@@ -417,7 +417,20 @@ class _Header extends StatelessWidget {
     final sponsorMult = _num(_map(card.sponsor)?['multiplier']);
     final income = def.idleIncomePerSec * (sponsorMult > 0 ? sponsorMult : 1);
 
-    return ClipRRect(
+    // **A GOLD RULE ROUND THE HERO.** The reference shot frames the portrait
+    // and its two plates as one object; without an edge the artwork bleeds
+    // straight into the sheet's own background and the plates read as floating
+    // rather than as inset into something. `foregroundDecoration` so the rule
+    // is drawn OVER the crop rather than pushing it in.
+    return Container(
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFD4A64A).withValues(alpha: 0.75),
+          width: 2,
+        ),
+      ),
+      child: ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Stack(
         children: [
@@ -590,6 +603,7 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 }
@@ -755,20 +769,22 @@ class _SlotActions extends StatelessWidget {
       row = Row(
         children: [
           Expanded(
-            child: ElevatedButton(
-              key: const ValueKey('detail-swap'),
-              onPressed: () =>
-                  Navigator.of(context).pop(PlayerDetailAction.swap),
-              child: Text('⇄  ${t('squad.detail.replace')}'),
+            child: _HeroPill(
+              buttonKey: const ValueKey('detail-swap'),
+              glyph: '⇄',
+              label: t('squad.detail.replace'),
+              gold: false,
+              onTap: () => Navigator.of(context).pop(PlayerDetailAction.swap),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
-            child: FilledButton.tonal(
-              key: const ValueKey('detail-bench'),
-              onPressed: () =>
-                  Navigator.of(context).pop(PlayerDetailAction.bench),
-              child: Text('↩  ${t('squad.detail.to_bench')}'),
+            child: _HeroPill(
+              buttonKey: const ValueKey('detail-bench'),
+              glyph: '↩',
+              label: t('squad.detail.to_bench'),
+              gold: true,
+              onTap: () => Navigator.of(context).pop(PlayerDetailAction.bench),
             ),
           ),
         ],
@@ -776,13 +792,12 @@ class _SlotActions extends StatelessWidget {
     } else if (selectable) {
       // Nobody unavailable can be sent on: the match engine rates a loaned or
       // listed player zero, so putting one in the side fields a hole.
-      row = SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          key: const ValueKey('detail-send-on'),
-          onPressed: () => Navigator.of(context).pop(PlayerDetailAction.sendOn),
-          child: Text('⇡  ${t('squad.detail.send_on')}'),
-        ),
+      row = _HeroPill(
+        buttonKey: const ValueKey('detail-send-on'),
+        glyph: '⇡',
+        label: t('squad.detail.send_on'),
+        gold: true,
+        onTap: () => Navigator.of(context).pop(PlayerDetailAction.sendOn),
       );
     } else {
       return const SizedBox.shrink();
@@ -800,6 +815,109 @@ class _SlotActions extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(6, 14, 6, 6),
         child: row,
+      ),
+    );
+  }
+}
+
+/// One of the hero's two controls.
+///
+/// **A PILL, not a Material button.** They are the only buttons in the app that
+/// sit on ARTWORK rather than on a surface, and the theme's `ElevatedButton`
+/// brings a surface with it — so on the reference shot's dark portrait they read
+/// as two grey slabs where the design wants one light pill and one gold one. The
+/// pair also has to be legible whatever the man behind them is wearing, which is
+/// why both carry their own solid ground rather than a tint.
+class _HeroPill extends StatelessWidget {
+  const _HeroPill({
+    required this.buttonKey,
+    required this.glyph,
+    required this.label,
+    required this.gold,
+    required this.onTap,
+  });
+
+  final Key buttonKey;
+  final String glyph;
+  final String label;
+
+  /// The affirmative one. Gold is the game's own "this is the thing to press";
+  /// the other is the same pill in white, so the pair reads as a choice rather
+  /// than as one button and one link.
+  final bool gold;
+
+  /// Null when the pill is dead — mid-spin, or with nothing in the bank. It is
+  /// the same signal `ElevatedButton.onPressed` carried, kept nullable rather
+  /// than wrapped in an `Opacity`, so "is this pressable" stays one question
+  /// with one answer.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const goldTop = Color(0xFFE8C877);
+    const goldBottom = Color(0xFFB98B31);
+    const goldInk = Color(0xFF3A2A08);
+    final ink = gold ? goldInk : const Color(0xFF3A2A08);
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: GestureDetector(
+        key: buttonKey,
+        onTap: onTap,
+        child: Opacity(
+        opacity: onTap == null ? 0.45 : 1,
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: gold
+                ? const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [goldTop, goldBottom],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.white, Color(0xFFEFEFEF)],
+                  ),
+            border: Border.all(
+              color: goldBottom.withValues(alpha: gold ? 0.9 : 0.5),
+              width: 1.5,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(glyph, style: TextStyle(fontSize: 15, color: ink)),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        ),
       ),
     );
   }
@@ -1377,9 +1495,43 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               effects: _effectsOf(card, trait, ratios),
             ),
           const SizedBox(height: 12),
-          SizedBox(
+          // **THE TWO REELS ARE ONE MACHINE, and it looks like one now.** They
+          // were two bare `ListWheelScrollView`s eight points apart, which is a
+          // pair of scrolling lists rather than a roller — reported as the
+          // spinner not looking impressive. What makes a roller read as a
+          // roller is a WINDOW: one frame round both columns, a rule between
+          // them so the numeral has its own cell, and a lit band across the
+          // middle marking the row that counts. The reference shot draws it the
+          // same way, and it needed no new copy at all.
+          Container(
             height: _rowHeight * 3,
-            child: Row(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: kit.surface2,
+              border: Border.all(color: kit.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                // The band the answer stops on. Under the reels, so a name
+                // scrolling past is lit by it rather than hidden behind it.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: _rowHeight,
+                  height: _rowHeight,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: kit.accent.withValues(alpha: 0.14),
+                      border: Border.symmetric(
+                        horizontal: BorderSide(
+                          color: kit.accent.withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
               children: [
                 Expanded(
                   flex: 3,
@@ -1400,7 +1552,8 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                // The rule that gives the numeral its own cell.
+                Container(width: 1, color: kit.border),
                 Expanded(
                   child: _Reel(
                     reelKey: 'trait-reel-level',
@@ -1418,26 +1571,22 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          // The cost rides on the button with the coin beside it — this is the
-          // only gamble on the sheet, so the thing you press says what it takes.
-          ElevatedButton(
-            key: const ValueKey('detail-trait-roll'),
-            onPressed: _spinning || coins < cost ? null : () => _roll(pool),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('🎲', style: TextStyle(fontSize: 15)),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    t('game.trait.cost', {'cost': formatCoins(cost)}),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          // **A GOLD BAR ACROSS THE CARD.** The cost rides on the button with
+          // the dice beside it — this is the only gamble on the sheet, so the
+          // thing you press says what it takes — and it takes the same gold the
+          // hero's Bench pill does, because they are the two affirmative
+          // controls on this sheet and there is no reason for them to be two
+          // different colours.
+          _HeroPill(
+            buttonKey: const ValueKey('detail-trait-roll'),
+            glyph: '🎲',
+            label: t('game.trait.cost', {'cost': formatCoins(cost)}),
+            gold: true,
+            onTap: _spinning || coins < cost ? null : () => _roll(pool),
           ),
           if (coins < cost)
             Padding(

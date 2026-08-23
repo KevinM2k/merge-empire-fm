@@ -4236,10 +4236,13 @@ by a test.
 
 ### The bid card
 
-- [ ] **The bid popup wants the full glass treatment**, as the reference shot
+- [x] **The bid popup wants the full glass treatment**, as the reference shot
       has it: the card is glass over a blurred page, the two info boxes are
       glass panels with their own gold edge, and the accept/decline buttons are
       full-width pills. The port's version has the layout and not the material.
+      The two boxes are `GlassPanel`s side by side now, which also puts the
+      income you lose BESIDE the fee you are offered — the comparison the card
+      exists to ask about, and it was stacked.
 
 ### The player sheet, and the trait roll — 26 Aug, later still
 
@@ -6138,7 +6141,7 @@ unfinished in a way that reads before a word on the screen does.
 
 - [x] **The gaps between its cards are not the same either** — 12 under the
       hero, 10 elsewhere, 20 round the Pro-mode fitness bar.
-- [ ] **Restyle it against the reference shot.** The mock supplied is close to
+- [x] **Restyle it against the reference shot.** The mock supplied is close to
       what is there and differs in the finish rather than the layout: the hero
       wants a gold rule round it, the two plates want to read as inset panels
       rather than scrims, Swap and Bench want to be full pills of their own
@@ -6147,6 +6150,12 @@ unfinished in a way that reads before a word on the screen does.
       other traits want to be a two-column list with the numeral in its own
       right-hand cell, and the roll button wants to be a full-width gold bar.
       Career stats are one row of three at the very bottom.
+
+      Done except the medal's numeral pip, which `_TraitDisc` already draws.
+      The reels are one framed WINDOW now with a lit band across the row that
+      counts and a rule giving the numeral its own cell — which is also the
+      answer to "the spinner doesn't look impressive", since two bare scrolling
+      lists eight points apart is a pair of lists rather than a roller.
 
 ## M0 — foundation and save bridge ✅
 

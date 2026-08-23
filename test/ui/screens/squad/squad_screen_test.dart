@@ -896,10 +896,10 @@ void main() {
       // player is still watching.
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<GestureDetector>(
               find.byKey(const ValueKey('detail-trait-roll')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
 
@@ -937,10 +937,10 @@ void main() {
       );
       expect(
         tester
-            .widget<ElevatedButton>(
+            .widget<GestureDetector>(
               find.byKey(const ValueKey('detail-trait-roll')),
             )
-            .onPressed,
+            .onTap,
         isNull,
       );
       await settleSave(tester);
