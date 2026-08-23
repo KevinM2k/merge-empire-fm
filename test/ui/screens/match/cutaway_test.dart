@@ -347,14 +347,35 @@ void main() {
   });
 
   group('THE PITCH IS IN PERSPECTIVE, and everything on it with it', () {
-    test('the camera is RAISED, not hung over the corner flag', () {
-      // A broadcast's high wide: the far touchline foreshortens, the near one
-      // opens out, and every marking stays readable. Past about fifteen degrees
-      // the far half stops being a place a chance can be understood in, which
-      // is the one thing this band is for.
-      expect(pitchTilt, greaterThan(0));
-      expect(pitchTilt, lessThan(0.27));
+    test('THE FAR TOUCHLINE IS THE TOP ONE, and it is the narrow one', () {
+      // **The sign was wrong and it is the only thing that matters here.**
+      // Flutter's +y is DOWN, so a positive `rotateX` pushes the BOTTOM away
+      // and pulls the top toward the viewer — the far touchline came out at the
+      // bottom of the band, which is a camera lying on the grass behind the
+      // near goal. Asserted on the PROJECTION rather than on the constant,
+      // because the constant's sign is exactly what nobody can read off.
+      const box = Size(300, 160);
+      final m = Matrix4.identity()
+        ..translateByDouble(box.width / 2, box.height / 2, 0, 1)
+        ..setEntry(3, 2, pitchVanish)
+        ..rotateX(pitchTilt)
+        ..translateByDouble(-box.width / 2, -box.height / 2, 0, 1);
+      double widthAt(double y) =>
+          MatrixUtils.transformPoint(m, Offset(box.width, y)).dx -
+          MatrixUtils.transformPoint(m, Offset(0, y)).dx;
+      expect(
+        widthAt(0),
+        lessThan(widthAt(box.height)),
+        reason: 'the near touchline is the narrow one',
+      );
       expect(pitchVanish, greaterThan(0));
+    });
+
+    test('and it is a raised camera rather than a corner flag', () {
+      // Past this the far half stops being a place a chance can be understood
+      // in, which is the one thing this band is for.
+      expect(pitchTilt.abs(), greaterThan(0.3), reason: 'barely tilted at all');
+      expect(pitchTilt.abs(), lessThan(0.5));
     });
 
     testWidgets('ONE TRANSFORM over the markings AND the game', (tester) async {

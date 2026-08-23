@@ -7,6 +7,8 @@
 /// DATA there was no context to call them from at all.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
@@ -85,4 +87,54 @@ void main() {
       expect(light['gold'], const Color(0xFFFFD700));
     });
   });
+  group('AND A DARK PLATE LETS THE DARK-MODE COLOURS BE USED IN BOTH', () {
+    // **"The red and green should be the same as dark mode."** They cannot be,
+    // as INK on a white page — `#4ADE80` is 1.9:1 there and the test above
+    // exists to stop it. What they can be is the same on a plate of their own,
+    // which is what the sell popup already does and what the bid card and the
+    // form guide do now.
+    testWidgets('the plate is dark whichever theme is on', (tester) async {
+      late Color light;
+      late Color dark;
+      for (final isLight in [true, false]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            key: ValueKey(isLight),
+            theme: buildAppTheme(kitId: '#4caf50', light: isLight),
+            home: Builder(
+              builder: (context) {
+                if (isLight) {
+                  light = semanticPlate(context);
+                } else {
+                  dark = semanticPlate(context);
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+      }
+      for (final plate in [light, dark]) {
+        expect(plate.computeLuminance(), lessThan(0.05));
+        expect(plate.a, 1.0, reason: 'the page shows through the plate');
+      }
+    });
+
+    test('and the bright three read against it', () {
+      // The figure this is measured against is the one the light-mode pair was
+      // introduced for: 1.9:1 on white. On the plate all three clear 4.5:1,
+      // which is the small-text bar.
+      double ratio(Color ink, Color on) {
+        final a = ink.computeLuminance();
+        final b = on.computeLuminance();
+        return (math.max(a, b) + 0.05) / (math.min(a, b) + 0.05);
+      }
+
+      const plate = Color(0xFF1A1F26);
+      for (final ink in [vsGreenBright, vsRedBright, vsAmberBright]) {
+        expect(ratio(ink, plate), greaterThan(4.5), reason: '$ink');
+      }
+    });
+  });
+
 }

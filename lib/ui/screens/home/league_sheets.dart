@@ -12,7 +12,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show vsAmberOn, vsGreenOn, vsRedOn;
+    show
+        semanticPlate,
+        vsAmberBright,
+        vsGreenBright,
+        vsRedBright,
+        vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -610,8 +615,13 @@ class _TableRow extends StatelessWidget {
   }
 }
 
-/// One result in the last five. Tinted fill plus a colour hairline, so a run
-/// reads as a shape before any letter is parsed.
+/// One result in the last five, on a DARK PLATE in both themes.
+///
+/// **Reported as "the red and green on the home page are too dark".** They were:
+/// a tinted fill behind a light-mode ink that has to be near-black to be legible
+/// on white, so a win chip in daylight was a grey box with a dark green letter
+/// in it. The plate is what lets the DARK-MODE colours be used in both themes —
+/// see [semanticPlate] — which is what the report was asking for.
 class _FormDot extends StatelessWidget {
   const _FormDot({required this.result, super.key});
 
@@ -620,16 +630,16 @@ class _FormDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colour = switch (result) {
-      'W' => vsGreenOn(context),
-      'D' => vsAmberOn(context),
-      _ => vsRedOn(context),
+      'W' => vsGreenBright,
+      'D' => vsAmberBright,
+      _ => vsRedBright,
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 2),
       decoration: BoxDecoration(
-        color: colour.withValues(alpha: 0.15),
+        color: semanticPlate(context),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: colour.withValues(alpha: 0.33)),
+        border: Border.all(color: colour.withValues(alpha: 0.45)),
       ),
       child: Text(
         result,

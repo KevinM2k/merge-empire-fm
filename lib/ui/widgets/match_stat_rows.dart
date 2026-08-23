@@ -133,6 +133,25 @@ Color semanticInk(BuildContext context, Color ink) {
   };
 }
 
+/// **The dark plate a bright semantic colour can sit on in EITHER theme.**
+///
+/// The light-mode pair above exists because `#4ADE80` on a white pane is 1.9:1
+/// and nobody can read it in daylight — but that only applies to ink printed
+/// straight onto the page. Give the colour a dark ground of its own and the
+/// dark-mode value works everywhere, which is what "the reds and greens should
+/// be the same as dark mode" is actually asking for and what the sell popup
+/// already does.
+///
+/// **Only for CHIPS AND BADGES**, never for a run of body text: a plate behind
+/// a sentence is a highlighter pen. A figure, a letter, a short label.
+Color semanticPlate(BuildContext context) =>
+    _dark(context) ? const Color(0xFF11151A) : const Color(0xFF1A1F26);
+
+/// The three, at their dark-mode brightness, for use ON [semanticPlate].
+const Color vsGreenBright = _vsGreenDark;
+const Color vsRedBright = _vsRedDark;
+const Color vsAmberBright = Color(0xFFFFB020);
+
 /// Green when this figure beats the one it faces, red when it loses, blue level.
 Color vsColor(BuildContext context, int mine, int opp) {
   final dark = _dark(context);

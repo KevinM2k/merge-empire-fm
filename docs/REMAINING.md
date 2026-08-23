@@ -5152,11 +5152,12 @@ been sitting open since 27 Aug asking for a screenshot** — "the tick has no to
 border on the home page" was the coach bubble's TAIL, and it turns out to have
 one everywhere it should not.
 
-- [ ] **A bid in LIGHT MODE: the yellow is unreadable.** The coin figure and
-      especially the jackpot badge beside it. The fix is the one the SELL popup
-      already uses when you tap a player — a dark plate behind them, so the
-      yellow has something to be yellow against instead of sitting on a pale
-      card.
+- [x] **A bid in LIGHT MODE: the yellow is unreadable.** Fixed the way the
+      report asked for it — the whole price row sits on a **dark plate** now, so
+      the gold coin, the figure and the band chip keep their shipped colours and
+      have something to be bright against. The band is asked for its
+      CONTEXT-FREE colour on the plate: `transferBand` darkens its two ends for
+      a light card, and on a dark ground that darkening is exactly backwards.
 - [x] **The coach bubble opens directly over his head and the tail misses.**
       Fixed, and it was one number in three places: the wedge LEANS LEFT, so its
       point is at `coachTailTipX` (1.5) rather than at the middle of its box —
@@ -5200,8 +5201,14 @@ one everywhere it should not.
 - [ ] **Use the glass/blur from the Play screen on the club assets** — and in
       most places, now that it exists.
 - [ ] **The Customise button is mostly cut off on the home page.**
-- [ ] **The red and green on the home page are too dark.** They should be the
-      same red and green dark mode uses.
+- [x] **The red and green on the home page are too dark.** Same answer, and it
+      generalises: `semanticPlate` is a dark ground either theme can put a bright
+      semantic colour on, and the form guide's W/D/L now use the DARK-MODE red,
+      amber and green in both themes because they sit on one.
+      **The light-mode pair stays for INK.** `#4ADE80` printed straight onto a
+      white page is 1.9:1 and there is a test that exists to stop that — a plate
+      is what makes the bright colours usable, not a decision that the contrast
+      floor was wrong. All three clear 4.5:1 on the plate, which is pinned.
 - [ ] **The customise button is STILL laggy** and has not been looked at.
 - [ ] **STADIUMS ARE TIERED and the port does not tier them.** Tier 1 should be
       a dirty pitch with no stadium at all, tier 2 barely better, and it builds
@@ -5212,8 +5219,17 @@ one everywhere it should not.
       the progress bar can be a bottom border on the main card rather than its
       own thing. The tactics bar wants a radius on each side and about 12px of
       bottom margin to separate it from the commentary.
-- [ ] **The pitch perspective is the wrong way round**, and it wants to be a
-      good deal stronger.
+- [x] **The pitch perspective is the wrong way round**, and it wants to be a
+      good deal stronger. **It was a SIGN.** Flutter's +y is down, so the
+      positive `rotateX` pushed the BOTTOM of the pitch away and pulled the top
+      toward the viewer — the far touchline ended up at the bottom of the band,
+      which is a camera lying on the grass behind the near goal. `-0.42` and a
+      slightly stronger vanish; about 24 degrees, at the top of the range the
+      old comment named rather than past it.
+      The test asserts the PROJECTION rather than the constant — the top edge
+      comes out narrower than the bottom — because the sign is precisely the
+      thing nobody can read off a number. Checked by putting the old sign back:
+      it fails.
 - [ ] **A manager-customisation pack in the shop should show what is IN it.**
       Tapping one opens a popup that says nothing about the contents; it should
       list every item with a picture, and TICK the ones already unlocked so a

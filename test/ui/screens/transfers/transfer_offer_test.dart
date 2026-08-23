@@ -383,14 +383,12 @@ void main() {
             )
             .style
             ?.color,
-        // Theme-aware now: `#4ADE80` is the dark-mode green and does not carry
-        // on a light card, so the band is asked in the same theme it drew in.
-        transferBand(
-          120,
-          tester.element(
-            find.byKey(const ValueKey('transfer-band-transfer.market.great')),
-          ),
-        ).colour,
+        // **The CONTEXT-FREE band, because the row sits on a dark plate now.**
+        // `transferBand` takes a context so its two ends darken on a light
+        // card; on a plate that darkening is exactly wrong, and the plate is
+        // what makes the gold and the band legible in light mode at all — the
+        // report was "the yellow is hard to read when there is a bid".
+        transferBand(120).colour,
       );
     });
 

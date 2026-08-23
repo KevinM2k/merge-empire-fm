@@ -21,7 +21,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show vsGreenOn, vsRedOn;
+    show semanticPlate, vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -233,6 +233,11 @@ class _TransferOfferCard extends ConsumerWidget {
       '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.',
     ].join(' ');
     final band = transferBand(premiumPct, context);
+    // **The band's DARK-MODE colour, because the plate under it is dark.**
+    // `transferBand` takes a context so its two ends darken on a light card;
+    // on the plate that darkening is exactly wrong, so this asks for the
+    // context-free pair.
+    final plateBand = transferBand(premiumPct).colour;
 
     return CoachCardFrame(
       key: const ValueKey('transfer-offer'),
@@ -297,46 +302,66 @@ class _TransferOfferCard extends ConsumerWidget {
             style: const TextStyle(fontSize: 13, height: 1.5),
           ),
           const SizedBox(height: 10),
-          Row(
-            key: const ValueKey('transfer-price'),
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CoinIcon(size: 22, solid: true, color: coinFigureInk(context)),
-              const SizedBox(width: 7),
-              Flexible(
-                child: Text(
-                  formatCoins(price),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: coinFigureInk(context),
+          // **THE WHOLE ROW SITS ON A DARK PLATE, in both themes.** The gold
+          // and the band colour are the shipped ones and they need a dark
+          // ground: on a pale card the coin figure and the Jackpot chip were
+          // yellow on near-white, which is the report this was written for. A
+          // plate is also what the sell popup does with the same two, so this
+          // is the game's existing answer rather than a new one.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: semanticPlate(context),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              key: const ValueKey('transfer-price'),
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // The plate's own ink: the light-mode coin is deliberately dark
+                // and would vanish here.
+                const CoinIcon(size: 22, solid: true, color: gameGold),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    formatCoins(price),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: gameGold,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // What the figure MEANS, named and coloured: five bands the
-              // catalogues have carried all along with nothing able to reach
-              // one of them.
-              Container(
-                key: ValueKey('transfer-band-${band.key}'),
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: band.colour.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: band.colour.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  t(band.key),
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                    color: band.colour,
+                const SizedBox(width: 8),
+                // What the figure MEANS, named and coloured: five bands the
+                // catalogues have carried all along with nothing able to reach
+                // one of them.
+                Container(
+                  key: ValueKey('transfer-band-${band.key}'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: plateBand.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: plateBand.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    t(band.key),
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                      color: plateBand,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 10),
           // **THE PERCENTAGE AND THE GRUDGE WARNING ARE BOTH GONE, and that is

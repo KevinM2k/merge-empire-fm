@@ -453,16 +453,23 @@ class _Verdict extends StatelessWidget {
 
 /// How far the camera is raised behind the pitch, in radians.
 ///
-/// **Small on purpose.** This is a broadcast's high wide, not a corner-flag
-/// camera: the far touchline foreshortens, the near one opens out, and every
-/// marking stays readable. Past about fifteen degrees the far half stops being
-/// a place a chance can be understood in, which is the one thing this band is
-/// for.
-const double pitchTilt = 0.22;
+/// **NEGATIVE, and that is the whole of the fix.** Flutter's +y is DOWN, so a
+/// positive `rotateX` pushes the BOTTOM of the pitch away and pulls the top
+/// toward the viewer — the far touchline ended up at the bottom of the band,
+/// which is a camera lying on the grass behind the near goal. A broadcast's
+/// high wide has the far touchline at the TOP and foreshortened.
+///
+/// **And stronger than it was.** 0.22 read as a pitch that was very slightly
+/// not-flat rather than as a pitch seen from anywhere; this is about 24 degrees.
+/// The trade is the one the old comment named — past this the far half stops
+/// being a place a chance can be understood in, and that is the one thing this
+/// band is for — so it is deliberately at the top of the range rather than past
+/// it.
+const double pitchTilt = -0.42;
 
-/// How strong the vanishing is. A gentle value: the pitch is wide and short in
+/// How strong the vanishing is. Still gentle: the pitch is wide and short in
 /// this band, so a strong perspective turns it into a wedge.
-const double pitchVanish = 0.0011;
+const double pitchVanish = 0.0016;
 
 /// The pitch, seen from a camera rather than from directly above.
 ///
