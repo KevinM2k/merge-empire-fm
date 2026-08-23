@@ -6312,11 +6312,25 @@ that is not off the extension is the bug, not the symptom.
       opened it since the tab strip came out. Nothing on the board SAID so,
       which is what an invisible affordance is — and the board's own note
       already called it "the board's own chart button". It has one now.
-- [ ] **The dugout cam needs LIFE.** Five to ten scenarios rather than a single
-      idle: he looks at the bench, somebody behind him celebrates, he high-fives
-      a coach. `ManagerWalker`'s `standing` + `idle` + `poseOverIdle` is the rig
-      for this — see the note in CLAUDE.md — not a second one.
-- [ ] **The dugout cam and the quests block should be the same height.**
+- [x] **The dugout cam needs LIFE.** The missing half was the SCENE, not the
+      man: he already has sixteen gestures weighted by mood and a rota that
+      cycles them on the full-time shot, and he was performing all of it against
+      a run of empty seat backs. There are four substitutes on the bench now, in
+      the club's kit, at their own heights and their own spacing, and they react
+      to what the shot is about — up with their arms in the air on a goal for
+      us, slumped forward on one against. Painted rather than rigged, and
+      deliberately: they are six pixels of head behind a manager who is the
+      subject, and four more `ManagerWalker`s to keep in step with him would be
+      four more rigs for something nobody looks straight at.
+      **Not done, and recorded rather than dropped:** a NEW gesture — turning to
+      the bench, a high five — means new joint angles in `gesture_poses.dart`,
+      and the sixteen there are the JS's own table. Adding one is inventing
+      rather than porting, which is a call worth making deliberately.
+- [x] **The dugout cam and the quests block should be the same height.** They
+      share `summary-reaction-row` on the full-time report, and it was
+      top-aligned — so each finished at whatever height it happened to want and
+      the pair read as two things dropped next to each other. `stretch` inside
+      an `IntrinsicHeight`.
 
 ### The end of a game
 

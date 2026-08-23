@@ -236,30 +236,39 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // are a natural pair: he is reacting to the match and they
                     // are what the match was played for. The shot goes smaller
                     // to pay for it; it is a reaction, not a portrait.
-                    Row(
-                      key: const ValueKey('summary-reaction-row'),
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 120,
-                          child: _Manager(result: result),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: hasQuests
-                              ? GlassPanel(
-                                  darkGlass: true,
-                                  padding: const EdgeInsets.fromLTRB(
-                                    12,
-                                    10,
-                                    12,
-                                    12,
-                                  ),
-                                  child: QuestOutcomes(result: result),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
+                    // **AND THEY ARE THE SAME HEIGHT.** The row was
+                    // top-aligned, so the shot and the quest panel finished at
+                    // whatever height each happened to want and the pair read
+                    // as two things dropped next to each other. Reported as the
+                    // dugout cam and the quests wanting to match. `stretch`
+                    // inside an `IntrinsicHeight`: the taller of the two sets
+                    // the row and the other fills it.
+                    IntrinsicHeight(
+                      child: Row(
+                        key: const ValueKey('summary-reaction-row'),
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            width: 120,
+                            child: _Manager(result: result),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: hasQuests
+                                ? GlassPanel(
+                                    darkGlass: true,
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      10,
+                                      12,
+                                      12,
+                                    ),
+                                    child: QuestOutcomes(result: result),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

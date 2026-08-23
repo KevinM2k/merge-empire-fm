@@ -358,7 +358,7 @@ class _DugoutCamState extends State<DugoutCam> with TickerProviderStateMixin {
                   // into frame.
                   child: Transform.scale(scale: 1.03, child: child),
                 ),
-                child: const _CamBackdrop(),
+                child: _CamBackdrop(tone: widget.tone, kit: widget.kit),
               ),
               AnimatedBuilder(
                 animation: Listenable.merge([
@@ -486,11 +486,14 @@ class _CamFigure extends StatelessWidget {
 /// **Fixed dark colours in both themes**, because it is a camera feed and a
 /// light-mode dugout is just a mistake.
 class _CamBackdrop extends StatelessWidget {
-  const _CamBackdrop();
+  const _CamBackdrop({required this.tone, required this.kit});
+
+  final CamTone tone;
+  final Color kit;
 
   @override
-  Widget build(BuildContext context) => const DecoratedBox(
-    decoration: BoxDecoration(
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -500,7 +503,7 @@ class _CamBackdrop extends StatelessWidget {
     child: Stack(
       fit: StackFit.expand,
       children: [
-        Align(
+        const Align(
           alignment: Alignment.topCenter,
           child: FractionallySizedBox(
             heightFactor: 0.38,
@@ -509,7 +512,7 @@ class _CamBackdrop extends StatelessWidget {
           ),
         ),
         // The roof's lip, starting where the crowd is still behind it.
-        Align(
+        const Align(
           alignment: Alignment(0, -1 + 2 * (0.33 / (1 - 0.09))),
           child: FractionallySizedBox(
             heightFactor: 0.09,
@@ -530,7 +533,7 @@ class _CamBackdrop extends StatelessWidget {
           child: FractionallySizedBox(
             heightFactor: 0.27,
             widthFactor: 1,
-            child: _CamBench(),
+            child: _CamBench(tone: tone, kit: kit),
           ),
         ),
       ],
@@ -586,24 +589,53 @@ class _CrowdPainter extends CustomPainter {
   bool shouldRepaint(_CrowdPainter old) => false;
 }
 
-/// The seat backs, as a run of slats.
+/// The seat backs, and the substitutes sitting on them.
 class _CamBench extends StatelessWidget {
-  const _CamBench();
+  const _CamBench({required this.tone, required this.kit});
+
+  final CamTone tone;
+  final Color kit;
 
   @override
-  Widget build(BuildContext context) => const CustomPaint(
-    painter: _BenchPainter(),
-    child: SizedBox.expand(),
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _BenchPainter(tone: tone, kit: kit),
+    child: const SizedBox.expand(),
   );
 }
 
+/// **THERE IS SOMEBODY BEHIND HIM NOW.**
+///
+/// The dugout was a run of empty seat backs, so every shot was one man against
+/// a fence — reported as the cam needing more life. It is a BENCH: four
+/// substitutes in the club's kit, each at his own height and his own distance
+/// along it, and they react to what the shot is about. A goal for us and they
+/// are up off the seat with their arms in the air; one against and they are
+/// slumped forward with their heads down.
+///
+/// Painted rather than rigged, and deliberately: they are six pixels of head
+/// and a shoulder line at this size, behind a manager who is the subject. A
+/// second `ManagerWalker` back there would be four more rigs to keep in step
+/// with him for something nobody looks straight at.
 class _BenchPainter extends CustomPainter {
-  const _BenchPainter();
+  const _BenchPainter({required this.tone, required this.kit});
+
+  final CamTone tone;
+  final Color kit;
 
   /// One seat back and the gap after it, in pixels — the stylesheet's own 11
   /// and 2.
   static const double slat = 11;
   static const double gap = 2;
+
+  /// Where each substitute sits, across the bench, and how tall he is relative
+  /// to the strip. Uneven on purpose: four men at the same pitch and the same
+  /// height is a fence with faces on it.
+  static const List<(double, double)> _subs = [
+    (0.12, 1.00),
+    (0.31, 0.92),
+    (0.70, 0.96),
+    (0.88, 0.88),
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -615,6 +647,73 @@ class _BenchPainter extends CustomPainter {
     for (var x = 0.0; x < size.width; x += slat + gap) {
       canvas.drawRect(Rect.fromLTWH(x, 0, slat, size.height), seat);
     }
+
+    // **UP, or HEADS DOWN.** The one thing a bench does that a fence cannot.
+    final lift = switch (tone) {
+      CamTone.good => -0.16,
+      CamTone.bad => 0.10,
+      CamTone.flat => 0.0,
+    };
+    final shirt = Paint()..color = kit;
+    final trim = Paint()..color = Color.lerp(kit, Colors.black, 0.45)!;
+    final skin = Paint()..color = const Color(0xFFD9A473);
+    for (final (at, scale) in _subs) {
+      final unit = size.height * 0.34 * scale;
+      final cx = size.width * at;
+      // The seat line they sit ON, so a slumped man drops toward it rather than
+      // through it.
+      final base = size.height * (0.98 + lift * 0.35);
+      // Shoulders: a rounded bar, wider than the head, sitting on the seat.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            cx - unit * 0.62,
+            base - unit * 1.05,
+            unit * 1.24,
+            unit * 1.05,
+          ),
+          Radius.circular(unit * 0.34),
+        ),
+        shirt,
+      );
+      // A collar, so the shirt is a shirt.
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            cx - unit * 0.30,
+            base - unit * 1.05,
+            unit * 0.60,
+            unit * 0.16,
+          ),
+          Radius.circular(unit * 0.08),
+        ),
+        trim,
+      );
+      canvas.drawCircle(
+        Offset(cx, base - unit * (1.05 + 0.34 * (1 + lift))),
+        unit * 0.34,
+        skin,
+      );
+      // Arms up on a goal for us — two bars either side of the head, which at
+      // this size is the whole of a celebration.
+      if (tone == CamTone.good) {
+        for (final side in const [-1.0, 1.0]) {
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(
+                cx + side * unit * 0.62 - unit * 0.11,
+                base - unit * 1.95,
+                unit * 0.22,
+                unit * 0.95,
+              ),
+              Radius.circular(unit * 0.11),
+            ),
+            shirt,
+          );
+        }
+      }
+    }
+
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, 1),
       Paint()..color = Colors.white.withValues(alpha: 0.09),
@@ -622,7 +721,8 @@ class _BenchPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_BenchPainter old) => false;
+  bool shouldRepaint(_BenchPainter old) =>
+      old.tone != tone || old.kit != kit;
 }
 
 /// The caption bar — the thing that makes it read as a camera rather than as a

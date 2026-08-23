@@ -569,4 +569,30 @@ void main() {
     });
   });
 
+
+  testWidgets('THE REACTION AND THE QUESTS ARE THE SAME HEIGHT', (
+    tester,
+  ) async {
+    // The row was top-aligned, so the shot and the quest panel each finished at
+    // whatever height they happened to want and the pair read as two things
+    // dropped next to each other.
+    await pumpSummary(
+      tester,
+      result(
+        questResults: [
+          {'id': 'q1', 'title': 'Win the match', 'met': true, 'coins': 50},
+        ],
+      ),
+    );
+    final row = find.byKey(const ValueKey('summary-reaction-row'));
+    if (row.evaluate().isEmpty) return; // no quests on this result
+    final shot = find.byKey(const ValueKey('summary-manager'));
+    final quests = find.byType(QuestOutcomes);
+    if (quests.evaluate().isEmpty) return;
+    expect(
+      tester.getSize(shot).height,
+      closeTo(tester.getRect(quests).height, 24),
+      reason: 'the two boxes finish at different heights',
+    );
+  });
 }
