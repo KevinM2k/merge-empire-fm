@@ -7925,7 +7925,20 @@ could not render at all without a lookup layer. See
 
 - [ ] **A final Capacitor release from the OLD repo that force-writes the native
       save mirror.** On the critical path: without it the Flutter build cannot
-      read an existing player's local save. Must ship before cutover.
+      read an existing player's local save. Must ship before cutover — that
+      part is a publish and is not this repo's to do.
+      **THE PORT'S END IS NOW PINNED**, though, and it is the highest-stakes
+      string pair in the whole port: one character wrong and every installed
+      player opens the new build to a fresh save, with no crash, no error and no
+      way back. `legacy_save_bridge_keys_test` compares the key against
+      `NATIVE_SAVE_KEY` in `nativeSaveMirror.js` on both platforms, and asserts
+      the ASYMMETRY that is easy to get backwards: iOS carries a
+      `CapacitorStorage.` prefix and Android does not — which is not a port
+      decision but `@capacitor/preferences`'s own `Preferences.swift`, whose
+      group name prefixes every UserDefaults key. It also pins the method
+      channel, because a mismatch there raises `MissingPluginException`, which
+      the bridge swallows as "no legacy save" — the same answer as a genuinely
+      new player.
 - [ ] iOS: signing, dSYM upload, App Store Connect
 - [ ] Android: the CI-generated build config, SDK levels, AGP/Gradle
 - [ ] Store listings, whatsnew, changelog. **The IDENTIFIERS half is done and
