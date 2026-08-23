@@ -6271,10 +6271,15 @@ that is not off the extension is the bug, not the symptom.
       ink over them was the app's own, so light mode was near-black on
       near-black. The page wears the kit's DARK theme now
       (`darkTakeoverThemeProvider`), which is one place rather than forty.
-- [ ] **The spacing round the tactics boxes is not consistent** — between them,
-      above them and below them.
-- [ ] **There is no stats menu anywhere.** `match_stat_rows.dart` exists; grep
-      for who calls it before building a second one.
+- [x] **The spacing round the tactics boxes is not consistent** — between them,
+      above them and below them. The cooldown bar was a two-point row UNDER the
+      panel and inside the strip's own padding, so the gap below the buttons was
+      eight and the gap above them six. It goes inside the clip, which is where
+      this file's own comment said it belonged, and costs the column nothing.
+- [x] **There is no stats menu anywhere.** There is: the whole scoreboard has
+      opened it since the tab strip came out. Nothing on the board SAID so,
+      which is what an invisible affordance is — and the board's own note
+      already called it "the board's own chart button". It has one now.
 - [ ] **The dugout cam needs LIFE.** Five to ten scenarios rather than a single
       idle: he looks at the bench, somebody behind him celebrates, he high-fives
       a coach. `ManagerWalker`'s `standing` + `idle` + `poseOverIdle` is the rig

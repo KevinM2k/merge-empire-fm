@@ -1789,10 +1789,15 @@ class _TacticStrip extends StatelessWidget {
       // gap is `matchGap`, which is what the pitch band above already uses, so
       // the strip sits in equal air rather than being pushed down onto nothing.
       padding: const EdgeInsets.fromLTRB(matchInset, 0, matchInset, matchGap),
-      child: Column(
+      // **AND THE AIR ABOVE IT IS THE AIR BELOW IT.** The cooldown bar was a
+      // two-point row UNDER the panel and inside this padding, so the gap below
+      // the buttons was eight and the gap above them six — the one seam on the
+      // page that did not match, on the control the eye returns to most.
+      // It goes inside the clip, which is where this file's own comment said it
+      // belonged: it cannot square off the strip's corners from in there, and
+      // it costs the column no height at all.
+      child: SizedBox(
         key: const ValueKey('match-tactics'),
-        mainAxisSize: MainAxisSize.min,
-        children: [
           // **ROUNDED AT BOTH ENDS, and ON GLASS.** Five square segments in a
           // row read as a slab rather than as one control; the outer two
           // corners are the strip's own and the clip is what closes them. The
@@ -1803,13 +1808,14 @@ class _TacticStrip extends StatelessWidget {
           // on: this was the last band on the screen painting its own surface,
           // which is what made it read as a bar laid over the page rather than
           // as part of it.
-          GlassPanel(
-            darkGlass: true,
-            radius: 10,
-            padding: EdgeInsets.zero,
-            child: SizedBox(
-              height: 46,
-              child: Row(
+        height: 46,
+        child: GlassPanel(
+          darkGlass: true,
+          radius: 10,
+          padding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              Row(
                 children: [
                   for (final id in strategyStrip)
                     Expanded(
@@ -1823,14 +1829,15 @@ class _TacticStrip extends StatelessWidget {
                     ),
                 ],
               ),
-            ),
-          ),
-          // Only while it is shut. A bar that is always there, empty, is a
-          // control the player has to learn to ignore.
-          SizedBox(
-            height: 2,
-            child: cooldown
-                ? TweenAnimationBuilder<double>(
+              // Only while it is shut. A bar that is always there, empty, is a
+              // control the player has to learn to ignore.
+              if (cooldown)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 2,
+                  child: TweenAnimationBuilder<double>(
                     key: const ValueKey('match-tactic-cooldown'),
                     tween: Tween<double>(begin: 0, end: 1),
                     duration: tacticCooldown,
@@ -1842,10 +1849,11 @@ class _TacticStrip extends StatelessWidget {
                         child: ColoredBox(color: kit.accentBright),
                       ),
                     ),
-                  )
-                : null,
+                  ),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2036,11 +2044,18 @@ class _Scoreboard extends StatelessWidget {
       // nothing. The panel's bottom padding goes with it, and the bar takes the
       // panel's radius on its two bottom corners so it follows the shape rather
       // than squaring it off.
+      // **AND IT SAYS SO.** The whole board has opened the statistics since the
+      // tab strip was taken out, with nothing on it saying it could — reported
+      // as there being no stats menu anywhere, which is what an invisible
+      // affordance is. A chart glyph in the corner, the way the board's own
+      // note said it would be.
       child: GestureDetector(
         key: const ValueKey('match-stats-button'),
         behavior: HitTestBehavior.opaque,
         onTap: onStats,
-        child: GlassPanel(
+        child: Stack(
+          children: [
+        GlassPanel(
         darkGlass: true,
         density: GlassDensity.deep,
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
@@ -2185,7 +2200,22 @@ class _Scoreboard extends StatelessWidget {
             ),
           ],
         ),
-      ),
+        ),
+            Positioned(
+              top: 6,
+              right: 8,
+              child: Container(
+                key: const ValueKey('match-stats-glyph'),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  shape: BoxShape.circle,
+                ),
+                child: GameIcon('bars', size: 13, color: kit.accentBright),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

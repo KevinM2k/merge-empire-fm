@@ -1963,7 +1963,38 @@ void main() {
       expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
     });
   });
+  testWidgets('THE STATISTICS SAY THEY ARE THERE', (tester) async {
+    // The whole board has opened them since the tab strip came out, with
+    // nothing on it saying it could — reported as there being no stats menu
+    // anywhere, which is what an invisible affordance is.
+    await pumpMatch(tester, matchResult());
+    expect(find.byKey(const ValueKey('match-stats-glyph')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('match-stats-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('match-stats-sheet')), findsOneWidget);
+  });
+
   group('ONE INSET DOWN THE PAGE', () {
+    testWidgets('AND THE AIR ABOVE THE TACTICS IS THE AIR BELOW THEM', (
+      tester,
+    ) async {
+      // The cooldown bar was a two-point row UNDER the panel and inside the
+      // strip's own padding, so the gap below the buttons was eight and the gap
+      // above them six — on the control the eye returns to most.
+      await pumpMatch(tester, matchResult());
+      final strip = tester.getRect(find.byKey(const ValueKey('match-tactics')));
+      final pitch = tester.getRect(find.byKey(const ValueKey('match-stage')));
+      final feed = tester.getRect(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey('match-feed')),
+              matching: find.byType(GlassPanel),
+            )
+            .first,
+      );
+      expect(strip.top - pitch.bottom, closeTo(feed.top - strip.bottom, 0.5));
+    });
+
     testWidgets('every band starts and ends on the same margin', (
       tester,
     ) async {
