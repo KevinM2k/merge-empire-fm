@@ -5291,11 +5291,35 @@ one everywhere it should not.
       arithmetic. The one thing not monotonic is the park→stand step, and that
       is right: a tree line is taller than a one-row terrace, so tier 2 reads as
       the first GROUND rather than as a bigger park.
-- [ ] **The Play screen: lose the position label.** The match clock belongs
-      BETWEEN the two teams, above the `vs` — there is a lot of room there — and
-      the progress bar can be a bottom border on the main card rather than its
-      own thing. The tactics bar wants a radius on each side and about 12px of
-      bottom margin to separate it from the commentary.
+- [x] **The Play screen: lose the position label.** All four done. The position
+      chips came across from the next-match card, where they answer "who am I
+      playing"; once the match is running that question is answered and the
+      table is a tap away at full time — and the row they cost is the room the
+      clock moved into. The clock is in the gutter above the `VS`, the progress
+      bar is the card's bottom border rather than a strip with a gap over it,
+      and the tactics strip is clipped to a radius at both ends.
+      **"Full Time" could not come with it.** The gutter is a fixed 34px — that
+      is what makes the ratings line up under the club names — so a two-word
+      label wrapped inside it and moved the whole pitch band down a line at the
+      whistle. The minute stays between the clubs; the label went to the footer
+      strip, where there is width.
+- [x] **The commentary had too much horizontal padding.** Every line carried 14
+      either side INSIDE a panel already inset 13 from the page, so a line
+      started 27 points in on a 320pt phone — a quarter of the screen gone
+      before the first word, on the one band here that is read rather than
+      looked at. Halved.
+- [x] **And the tactics bar's bottom margin should equal its top.** It is
+      `matchGap` both sides now, so the strip sits in equal air rather than
+      being pushed down onto the commentary.
+- [x] **The Customise button is the wrong size — too big.** Its `Row` is
+      `MainAxisSize.min`, but a tight slot stretches the container round it into
+      a lozenge four times the length of the word in it. Centred in its slot, so
+      the slot reserves the room and the pill is the size of its own contents.
+- [ ] **THE FULL-TIME TABLE SHOULD BE US, NOT THE DIVISION.** Only the team
+      above and the team below are worth showing — nobody cares about the rest,
+      they care about themselves. And the move should read like the trait
+      roller: our row comes OUT toward the viewer, the table scrolls underneath
+      it to where we now are, and we drop back into position.
 - [x] **The pitch perspective is the wrong way round**, and it wants to be a
       good deal stronger. **It was a SIGN.** Flutter's +y is down, so the
       positive `rotateX` pushed the BOTTOM of the pitch away and pulled the top
