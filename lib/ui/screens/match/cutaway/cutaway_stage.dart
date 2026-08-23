@@ -220,8 +220,20 @@ class _CutawayStageState extends State<CutawayStage> {
     // caller decides; unbounded, the pitch's own aspect still does.
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.hasBoundedHeight) return _stage(context);
         final width = constraints.maxWidth;
+        if (constraints.hasBoundedHeight) {
+          // **AND IT ONLY TAKES THE HEIGHT THE PITCH USES.** The band is a cap,
+          // not an instruction: given more room than the tilted pitch needs,
+          // the stage filled it and the surplus was dead turf under the near
+          // touchline — reported as most of the 2D match view being missing,
+          // with a shot of a pitch sitting in the top half of a green box.
+          // `tiltedBandHeight` is the height that makes the fit exact, so
+          // asking for it can never leave a gap and never crops.
+          final want = width.isFinite ? tiltedBandHeight(width) : null;
+          return want != null && want < constraints.maxHeight
+              ? SizedBox(height: want, child: _stage(context))
+              : _stage(context);
+        }
         // **THE TILTED shape, not the pitch's own.** A flat pitch's aspect
         // leaves the box nearly half empty once the projection has
         // foreshortened it — a small pitch adrift in a tall green rectangle,

@@ -1393,48 +1393,55 @@ class _StandSegment extends StatelessWidget {
         // Already bundled: the customiser's own backdrop, so nothing new is
         // downloaded for it.
         ? LayoutBuilder(
-            // **THE ART IS PLACED, NOT FITTED.** `BoxFit.cover` on a wide,
-            // short strip scales a square drawing by its WIDTH and crops the
-            // rest, and bottom-aligned that leaves the drawing's own field on
-            // screen with the treeline chopped off above it — reported as the
-            // backdrop being cut off just above the trees. No alignment fixes
-            // it, because on a strip this shape there is no slice that is all
-            // treeline and no field.
+            // **THE ART IS SIZED BY THE STRIP'S HEIGHT AND TILED ACROSS IT.**
             //
-            // Sizing it is what solves it, and it is the same rule the penalty
-            // scene's `backdropRect` follows: the drawing goes down far enough
-            // that its OWN ground line lands on the foot of the strip, and the
-            // surplus goes off the top, which is sky. All four Kenney
-            // backdrops share that layout.
+            // Two passes got this wrong in the same way. `BoxFit.cover` scaled
+            // the square drawing by the strip's WIDTH; placing it by its own
+            // ground line did the same thing by another route — on a strip a
+            // couple of dozen points tall and four hundred wide, either one
+            // makes the drawing so large that the slice on screen is the inch
+            // just above its ground line. Which is the field and the fence
+            // posts, with the TREES sliced flat across the top. Reported three
+            // times, and the third came with the picture that shows it.
+            //
+            // The band that has to be visible is the drawing's own top
+            // [_kenneyGroundLine] — sky, cloud, treeline, down to the ground —
+            // so the drawing is sized so exactly that much fills the strip's
+            // height. That makes it narrower than the strip, which is what the
+            // tiling is for: these backdrops repeat horizontally by design, and
+            // the strip is a scrolling segment that was always going to be
+            // wider than one copy of anything.
             builder: (context, box) {
-              final drawn = math.max(
-                box.maxWidth,
-                box.maxHeight / _kenneyGroundLine,
-              );
+              final side = box.maxHeight <= 0
+                  ? 0.0
+                  : box.maxHeight / _kenneyGroundLine;
+              final across = side <= 0 ? 0 : (box.maxWidth / side).ceil() + 1;
               // **AND IT HAS TO WORK IN BOTH THEMES.** It is a daylit drawing
               // and the scene at these tiers is whatever the player has the app
               // set to. The `_ParkPainter`'s aerial haze goes over it either
               // way, which carries most of it; a dark theme takes the drawing
               // itself down as well, or a bright sky sits behind a night pitch.
-              final night =
-                  Theme.of(context).brightness == Brightness.dark;
+              final night = Theme.of(context).brightness == Brightness.dark;
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  Positioned(
-                    left: (box.maxWidth - drawn) / 2,
-                    top: box.maxHeight - _kenneyGroundLine * drawn,
-                    width: drawn,
-                    height: drawn,
-                    child: ArtImage(
-                      key: const ValueKey('pitch-park-backdrop'),
-                      path: 'assets/bg/kenney/backgroundColorGrass.png',
-                      fit: BoxFit.fill,
-                      dimmed: night,
-                      dimBrightness: 0.55,
-                      fallback: const SizedBox.shrink(),
+                  for (var i = 0; i < across; i++)
+                    Positioned(
+                      left: i * side,
+                      // The drawing's ground line on the strip's foot, with the
+                      // sky above it running off the top.
+                      top: box.maxHeight - _kenneyGroundLine * side,
+                      width: side,
+                      height: side,
+                      child: ArtImage(
+                        key: ValueKey('pitch-park-backdrop-$i'),
+                        path: 'assets/bg/kenney/backgroundColorGrass.png',
+                        fit: BoxFit.fill,
+                        dimmed: night,
+                        dimBrightness: 0.55,
+                        fallback: const SizedBox.shrink(),
+                      ),
                     ),
-                  ),
                   CustomPaint(painter: _ParkPainter(haze: haze, tier: tier)),
                 ],
               );

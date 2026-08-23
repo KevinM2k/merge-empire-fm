@@ -6206,6 +6206,90 @@ unfinished in a way that reads before a word on the screen does.
       answer to "the spinner doesn't look impressive", since two bare scrolling
       lists eight points apart is a pair of lists rather than a roller.
 
+## From playtesting — 1 Sep
+
+**EVERY LINE OF THIS SESSION'S REPORTS, whether or not it is fixed yet.** The
+reporter had to say several of these more than once, which is the failure the
+31 Aug block opens on and it happened again: a fix with no row reads as no fix,
+and a row written after the work is a row that was not there when it was needed.
+Written on arrival from here.
+
+### Fixed in this sitting
+
+- [x] **The backdrop is STILL cropped — the trees are sliced flat.** Third
+      report, and the third came with the picture that shows it. Both earlier
+      passes were wrong the same way: `BoxFit.cover` scaled the square drawing
+      by the strip's WIDTH, and placing it by its own ground line did the same
+      thing by another route. On a strip a couple of dozen points tall and four
+      hundred wide either one makes the drawing so large that the slice on
+      screen is the inch just above its ground line — the field and the fence
+      posts, with the trees cut off across the top.
+      The band that must be visible is the drawing's own top 62% — sky,
+      treeline, down to the ground — so it is sized so exactly that much fills
+      the strip's HEIGHT, which makes it narrower than the strip. That is what
+      the tiling is for: these backdrops repeat horizontally by design and the
+      strip is a scrolling segment that was always going to be wider than one
+      copy.
+- [x] **The 2D match view is missing most of the screen.** Also with a picture:
+      the pitch in the top half of a green box, dead turf under the near
+      touchline. The fit was right — measured, the tilted pitch fills 92–98% of
+      whatever band it is given — but the BAND was taking more height than the
+      pitch needs and the stage filled it. `maxHeight` is a cap, not an
+      instruction: the stage asks for `tiltedBandHeight` and takes the cap only
+      when the pitch wants more.
+
+### Reported and NOT yet done
+
+- [ ] **The traits still are not better.** Named again with no detail, so the
+      earlier note stands: the reels became one framed window with a lit band
+      and a rule, which answered "the spinner does not look impressive". What
+      is still wanted is not established — this wants one sentence about what is
+      wrong with them now.
+- [ ] **The club's items STILL have no background.** THIRD report. Two passes
+      have been made — a tint over `surface2`, then a radial spotlight with a
+      rim — and neither is enough. Stop iterating on the wash: the next pass
+      should give the art an opaque PLATE that is obviously not the card, or a
+      framed thumbnail, and be checked against `ClubScreen.js`.
+- [ ] **The shop's gem tiles do not look like `../merge-empire-fc`'s, and they
+      are not CENTRED.** The centring is a real bug in this port's tile: the
+      contents are a non-positioned child of a `Stack`, which aligns to the
+      top-left corner unless it is told otherwise.
+- [ ] **The buttons are not the same as they were, and none of them do
+      anything.** Which buttons is not established. If it is the shop's, the
+      real-money ones have always been dead behind `paidDisabledReason` — but
+      "not the same as they were" is a change, and a change is this session's.
+- [ ] **The margins between the items on the play-match popup page.**
+- [ ] **The home page STILL shows after a match before the end-match page.**
+      Second report. The first fix made the match route leave instantly, which
+      removes the 300ms slide — but the summary is pushed AFTER that route has
+      gone, so the home page is behind the summary's own entrance. The fix is
+      for the summary to replace the match rather than follow it.
+- [ ] **The "watch to keep 2x coins" box on the end-of-match screen wants more
+      padding at the bottom.**
+- [ ] **Privacy options does not link to the right place**, the way it does in
+      the shipped app.
+- [ ] **Is the audio bug fixed?** Asked as a question; the bug is not named in
+      this session, so it wants pointing at before anybody guesses.
+- [ ] **Settings does not say WHY Pro is locked.** A padlock landed on the
+      segment last session and the row's note prints `prestige.body_pro_hint`;
+      that is evidently not reading as an explanation where it sits.
+- [ ] **Account connection does not work.** The row now reads the save and
+      reports the truth — nobody is signed in — but there is no way TO sign in,
+      which is the actual ask. See the auth rows in M4: the policy half is
+      ported and the plugin is not.
+
+### And the constraint has changed
+
+- [ ] **`../merge-empire-fc` HAS the Play Console, App Store billing and
+      analytics already in place** — said directly, with "there is nothing you
+      cannot do with access to that repo". The M6 and M7 rows below were written
+      on the assumption that consoles and signing were outside this machine.
+      They need re-reading against what that repo actually holds: `android/`,
+      `ios/`, `capacitor.config.ts`, `firebase.json`, `firestore.rules`,
+      `firestore.indexes.json`, `functions/`, the build-and-release scripts and
+      a `.mobileprovision`. Several of those rows are probably portable
+      configuration rather than console work.
+
 ## From playtesting — 31 Aug
 
 **EVERY REPORT IN A SITTING GETS A ROW, said or unsaid.** Four of 30 Aug's were
