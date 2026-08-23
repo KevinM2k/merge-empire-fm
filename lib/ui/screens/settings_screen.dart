@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/rating_prompt.dart';
+import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
@@ -472,21 +473,35 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     ];
   }
 
-  List<Widget> _account() => [
+  List<Widget> _account() {
+    final signedIn = isSignedInLocal(ref.watch(gameProvider).state);
+    return [
     SettingsCard(
       children: [
+        // **IT READS THE SAVE NOW, rather than asserting "coming soon".**
+        // Twenty-six `auth.*` strings ship in ten languages and exactly one had
+        // a caller. `isSignedInLocal` answers off the save with no round trip —
+        // which is what this row needs on the frame it opens — so the state it
+        // reports is the real one whether or not a plugin ever arrives. With no
+        // plugin nobody is ever signed in, and the row says THAT rather than
+        // saying nothing: `auth.not_signed_in` and `auth.connect_tap` are the
+        // JS's own two lines for exactly this state.
         PendingControl(
           controlKey: 'sign-in-btn',
           icon: 'globe',
           label: t('auth.account_connection'),
-          reason: t('settings.comingSoon'),
+          reason: signedIn
+              ? t('auth.connected')
+              : '${t('auth.not_signed_in')} · ${t('settings.comingSoon')}',
         ),
-        // The JS disables this one whenever nobody is signed in, which here is
-        // always — a toggle that writes a preference nothing can act on would be
-        // worse than one that says why it cannot.
+        // The JS disables this one whenever nobody is signed in — which here is
+        // always, and now for a reason the row can state: a toggle that writes a
+        // preference nothing can act on would be worse than one that says why it
+        // cannot.
         SettingsRow(
           icon: 'trophy',
           label: t('leaderboard.rankings_visible'),
+          note: signedIn ? null : t('auth.settings_hint'),
           trailing: const SettingsToggle(
             key: ValueKey('setting-rankingsVisible'),
             value: false,
@@ -505,7 +520,8 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     ),
-  ];
+    ];
+  }
 }
 
 class _TabStrip extends StatelessWidget {

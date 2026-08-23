@@ -717,4 +717,29 @@ void main() {
       reason: 'Team Names still leads nowhere',
     );
   });
+
+  testWidgets('THE ACCOUNT ROW READS THE SAVE, not a fixed string', (
+    tester,
+  ) async {
+    // Twenty-six `auth.*` strings ship in ten languages and exactly one had a
+    // caller. `isSignedInLocal` answers off the save with no round trip, which
+    // is what this row needs on the frame it opens — so the state it reports is
+    // the real one whether or not a plugin ever arrives.
+    await pumpSettings(tester, SettingsTab.account);
+    expect(find.textContaining(t('auth.not_signed_in')), findsOneWidget);
+    expect(find.text(t('auth.settings_hint')), findsOneWidget);
+
+    await pumpSettings(
+      tester,
+      SettingsTab.account,
+      mutate: (s) =>
+          (s['leaderboard'] as Map<String, dynamic>)['authUid'] = 'u1',
+    );
+    expect(find.textContaining(t('auth.connected')), findsOneWidget);
+    expect(
+      find.text(t('auth.settings_hint')),
+      findsNothing,
+      reason: 'a signed-in player does not need telling to sign in',
+    );
+  });
 }

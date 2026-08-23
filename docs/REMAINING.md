@@ -7514,7 +7514,29 @@ of buttons that error.
 - [ ] Firebase Analytics and Crashlytics — the SINK, not the config. Needs the
       plugins and a console; nothing in `firebase.js` beyond `getFirebaseApp`
       speaks to either, so there is no JS half left to port for them.
-- [ ] `authService` (662), `playGamesService` (155), `nativeAuthPlugin`
+- [x] `authService` (662) — **the portable half is PORTED.** The rest of that
+      file is Firebase Auth's own lifecycle, and this build has no Firebase SDK:
+      the leaderboard and cloud save reach Firestore over plain HTTPS and a
+      sign-in will come through whatever plugin the native build carries. What
+      survives the change of transport is what the file DECIDES, and every
+      decision in it is arithmetic over the save or a mapping from an error code
+      to a line of copy — so those are `engine/auth_policy.dart`, pure and
+      tested (12 cases).
+      The two that are not obvious and are both load-bearing: **a DIFFERENT uid
+      resets `careerSeeded` and `anonymousLinked`** or the new account inherits
+      the last one's and the seeding never runs again — and the SAME uid must
+      not, because that is a re-auth and clearing there re-seeds on every token
+      refresh; and **the public name is the email's LOCAL PART**, not the
+      display name, which on a Google account is the person's real one and this
+      goes on a global leaderboard.
+      Wired into Settings, which is the reachability check: twenty-six `auth.*`
+      strings ship in ten languages and exactly ONE had a caller. The row reads
+      the save now — no round trip, which is what it needs on the frame it opens
+      — so with no plugin it says nobody is signed in rather than saying
+      nothing.
+- [ ] `playGamesService` (155) and `nativeAuthPlugin` (6) — both are the plugin
+      bridge itself rather than a decision, and there is nothing left in either
+      to port without one. They go with the M6 rows.
 - [x] `cloudSaveService` (498) — **PORTED, in two halves.**
       `engine/cloud_save_policy.dart` is who wins when the phone and the cloud
       disagree: every hard decision is arithmetic over two summaries, so all of
