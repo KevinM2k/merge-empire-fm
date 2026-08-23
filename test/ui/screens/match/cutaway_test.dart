@@ -451,6 +451,38 @@ void main() {
       );
       expect(tilted, findsWidgets);
     });
+
+    testWidgets('AND THE LAYERS ARE LAID OUT AT THE PITCH\'S OWN SHAPE', (
+      tester,
+    ) async {
+      // **This is the two-pitches bug, and it is a LAYOUT one.** The band is a
+      // wide shallow strip; the plane the tilt is fitted from keeps the pitch's
+      // aspect. The layers were inside a `SizedBox` under a tight expand, which
+      // a `SizedBox` cannot widen — so the markings stretched to the band while
+      // Flame, fitting `visibleGameSize` preserving aspect, letterboxed itself
+      // inside them. A small pitch of players in a wide pitch of markings.
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                height: 130,
+                child: CutawayStage(clip: null),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final size = tester.getSize(find.byKey(const ValueKey('cutaway-idle')));
+      expect(size.width, closeTo(360, 0.5));
+      expect(
+        size.height,
+        closeTo(360 / pitchAspect, 0.5),
+        reason: 'the band is 130 tall; the PLANE is not',
+      );
+    });
   });
 
   group('THE MATCH, BETWEEN THE CHANCES', () {

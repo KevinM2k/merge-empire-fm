@@ -219,9 +219,17 @@ class _CutawayStageState extends State<CutawayStage> {
     // supply one — so filling the box there asks for infinity. Bounded, the
     // caller decides; unbounded, the pitch's own aspect still does.
     return LayoutBuilder(
-      builder: (context, constraints) => constraints.hasBoundedHeight
-          ? _stage(context)
-          : AspectRatio(aspectRatio: pitchAspect, child: _stage(context)),
+      builder: (context, constraints) {
+        if (constraints.hasBoundedHeight) return _stage(context);
+        final width = constraints.maxWidth;
+        // **THE TILTED shape, not the pitch's own.** A flat pitch's aspect
+        // leaves the box nearly half empty once the projection has
+        // foreshortened it — a small pitch adrift in a tall green rectangle,
+        // which is what the goal replay looked like. See [tiltedBandHeight].
+        return width.isFinite
+            ? SizedBox(height: tiltedBandHeight(width), child: _stage(context))
+            : AspectRatio(aspectRatio: pitchAspect, child: _stage(context));
+      },
     );
   }
 
@@ -526,14 +534,33 @@ Matrix4 _tilted() => Matrix4.identity()
 /// inside. They are DIFFERENT boxes and that is the point — the plane keeps the
 /// pitch's aspect so nothing on it is letterboxed, and the band is whatever
 /// height the screen could spare.
-Matrix4 fittedTilt(Size plane, {Size? into}) {
-  final band = into ?? plane;
-  if (plane.isEmpty || band.isEmpty) return Matrix4.identity();
+/// The tilt about the plane's own centre, before anything is fitted.
+Matrix4 _about(Size plane) {
   final centre = Offset(plane.width / 2, plane.height / 2);
-  final about = Matrix4.identity()
+  return Matrix4.identity()
     ..translateByDouble(centre.dx, centre.dy, 0, 1)
     ..multiply(_tilted())
     ..translateByDouble(-centre.dx, -centre.dy, 0, 1);
+}
+
+/// How tall a band [width] across has to be for the tilted pitch to FILL it.
+///
+/// The projection spreads the near edge and foreshortens the far one, so a box
+/// holding the flat pitch's aspect is about two-fifths dead green. Measured
+/// rather than a constant: the perspective divide is in absolute units, so the
+/// shape a tilt comes out as depends on how big the plane is.
+double tiltedBandHeight(double width) {
+  if (width <= 0) return 0;
+  final plane = Size(width, width / pitchAspect);
+  final bounds = MatrixUtils.transformRect(_about(plane), Offset.zero & plane);
+  if (bounds.width <= 0) return plane.height;
+  return bounds.height * (width / bounds.width);
+}
+
+Matrix4 fittedTilt(Size plane, {Size? into}) {
+  final band = into ?? plane;
+  if (plane.isEmpty || band.isEmpty) return Matrix4.identity();
+  final about = _about(plane);
   final bounds = MatrixUtils.transformRect(about, Offset.zero & plane);
   if (bounds.width <= 0 || bounds.height <= 0) return about;
   final fit = math.min(band.width / bounds.width, band.height / bounds.height);
@@ -573,9 +600,26 @@ class _InPerspective extends StatelessWidget {
           // Filtered: the mown stripes are hairlines and nearest-neighbour on
           // a tilted plane is a staircase.
           filterQuality: FilterQuality.medium,
-          child: SizedBox(
-            width: plane.width,
-            height: plane.height,
+          // **`OverflowBox`, BECAUSE A `SizedBox` HERE DID NOTHING.** The
+          // expand above is TIGHT, and a `SizedBox` can only narrow the
+          // constraints it is handed — so the layers went on being laid out at
+          // the BAND's shape while the transform was fitted for the plane's.
+          // The markings stretched to a band two-thirds the height of the plane
+          // and Flame, which fits `visibleGameSize` preserving aspect,
+          // letterboxed itself inside them: a small pitch of players sitting in
+          // a wide pitch of markings, both of them floating high in the box.
+          // That is the two-pitches screenshot, and it is the same bug the last
+          // fix was aimed at rather than a new one.
+          //
+          // Top-left, because [fittedTilt] measures from `Offset.zero & plane`
+          // and a centred child would be drawn half a plane out of register
+          // with its own projection.
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            minWidth: plane.width,
+            maxWidth: plane.width,
+            minHeight: plane.height,
+            maxHeight: plane.height,
             child: child,
           ),
         ),

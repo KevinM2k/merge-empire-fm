@@ -6207,14 +6207,15 @@ that is not off the extension is the bug, not the symptom.
 
 ### The match screen
 
-- [ ] **THE CHANCE CUTAWAY IS WORSE THAN IT WAS.** The fix logged under 30 Aug
-      traded one bug for another: the markings now draw twice, squashed into the
-      top third of a green box far taller than the pitch inside it. Screenshot
-      on the 31 Aug session. Start from what Flame is actually being asked to
-      fit — `visibleGameSize` letterboxes preserving aspect — and check the
-      TILT's fitted plane against the band, because the plane the tilt is fitted
-      into and the plane the game renders are two different sizes and only one
-      of them is the pitch.
+- [x] **THE CHANCE CUTAWAY IS WORSE THAN IT WAS.** The 30 Aug fix gave the
+      layers a plane with the pitch's aspect — inside a `SizedBox`, under a
+      tight `SizedBox.expand`, which a `SizedBox` cannot widen. So the layers
+      went on being laid out at the BAND's shape while the transform was fitted
+      for the plane's: the markings stretched, Flame letterboxed itself inside
+      them, and both floated high in the box. `OverflowBox`, and a test that
+      measures the marking layer rather than looking for a `Transform`.
+      The goal replay's own box now takes the TILTED aspect too — the flat
+      pitch's left it two-fifths dead green.
 - [ ] **The 2D match view is not scaled correctly at all**, which is the same
       family and may be the same cause.
 - [ ] **The Play screen is hard to read in light mode**, the commentary feed
