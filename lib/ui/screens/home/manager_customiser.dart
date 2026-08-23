@@ -653,8 +653,15 @@ Rect _regionFor(String kind) => switch (kind) {
 };
 
 /// One choice, as a picture of itself.
-class _LookPreview extends StatelessWidget {
-  const _LookPreview({required this.axis, required this.look});
+/// A picture of ONE choice, cropped to the part of him the axis changes.
+///
+/// **Public because the shop needs it.** A pack's contents were a list of
+/// NAMES with an axis glyph beside them — "Bucket", "Viking", "Party" — which
+/// tells a player nothing about what they are buying, and this widget has been
+/// drawing exactly that picture in the customiser all along. Reported as
+/// wanting to see what each thing looks like before unlocking it.
+class LookPreview extends StatelessWidget {
+  const LookPreview({required this.axis, required this.look, super.key});
 
   final LookAxis axis;
 
@@ -793,7 +800,7 @@ class _Chip extends StatelessWidget {
                     fit: StackFit.expand,
                     children: [
                       if (swatch == null)
-                        _LookPreview(
+                        LookPreview(
                           axis: axis,
                           // **`defaultManagerLook` when the save has none**,
                           // which is every fresh one — without the fallback the

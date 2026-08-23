@@ -83,7 +83,14 @@ typedef _CamShot = ({
 /// read — which is exactly how it was reported. The radius belongs to
 /// `GlassPanel`, so nothing here draws its own.
 const double matchInset = 13;
-const double matchGap = 6;
+
+/// **TWELVE, the same seam the Play page uses.** It was six here and twelve
+/// there, so walking from one to the other halved the spacing — reported as the
+/// margins on the play-match popup not being fixed, immediately after the Play
+/// page's own were set to twelve. One number for both, and the band heights are
+/// what give the room: the pitch takes only what the tilted pitch needs and the
+/// commentary is `Expanded`.
+const double matchGap = 12;
 
 /// The commentary's own side inset.
 ///

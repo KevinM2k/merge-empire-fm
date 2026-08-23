@@ -20,6 +20,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
+    show managerLookProvider;
+import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart'
+    show LookPreview, lookAxes;
+import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
+    show defaultManagerLook;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
@@ -216,10 +222,23 @@ class _PackContents extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
                 children: [
-                  GameIcon(
-                    lookAxisIcon[axis] ?? 'shirt',
-                    size: 14,
-                    color: has ? kit.accentBright : kit.textMuted,
+                  // **A PICTURE OF IT, not a glyph for its category.** The
+                  // row used to be a shirt icon and a word — "Bucket",
+                  // "Viking", "Party" — which tells a player nothing about
+                  // what they are buying, and the customiser has been drawing
+                  // the real thing all along. Reported as wanting to see each
+                  // item before unlocking it. Same [LookPreview], on the
+                  // player's OWN figure with this one choice swapped in, so a
+                  // hat is previewed over their hair in their colours.
+                  SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: _previewOf(axis, id, ref) ??
+                        GameIcon(
+                          lookAxisIcon[axis] ?? 'shirt',
+                          size: 14,
+                          color: has ? kit.accentBright : kit.textMuted,
+                        ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -600,4 +619,18 @@ class _PackPill extends StatelessWidget {
       onTap: onBuy,
     );
   }
+}
+
+
+/// The drawn preview for one pack item, or null for an axis the customiser
+/// shows as a swatch rather than a figure — a skin tone or a hair colour IS a
+/// colour, and a head drawn to show one is a worse look at it.
+Widget? _previewOf(String axisKind, String id, WidgetRef ref) {
+  final axis = lookAxes.where((a) => a.kind == axisKind).firstOrNull;
+  if (axis == null || axisKind == 'skin' || axisKind == 'color') return null;
+  final look = ref.read(managerLookProvider) ?? defaultManagerLook;
+  return LookPreview(
+    axis: axis,
+    look: <String, dynamic>{...look, axis.field: id},
+  );
 }

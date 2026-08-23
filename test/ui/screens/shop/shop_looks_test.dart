@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart'
+    show LookPreview;
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
@@ -301,4 +303,20 @@ void main() {
     });
   });
 
+
+  testWidgets('A PACK SHOWS WHAT EACH THING LOOKS LIKE', (tester) async {
+    // The rows were a shirt glyph and a word — "Bucket", "Viking", "Party" —
+    // which tells a player nothing about what they are buying. The customiser
+    // has been drawing the real thing all along; the same [LookPreview] is on
+    // the pack now, on the player's OWN figure with the one choice swapped in.
+    await pumpShopWidget(tester, (_) {}, LooksSection.new);
+    final tile = find.byKey(
+      ValueKey('shop-tile-pack-${lookPacks.first.id}'),
+      skipOffstage: false,
+    );
+    await tester.scrollUntilVisible(tile, 80);
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+    expect(find.byType(LookPreview), findsWidgets);
+  });
 }

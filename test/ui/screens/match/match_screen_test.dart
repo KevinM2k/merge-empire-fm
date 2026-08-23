@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show PosChip;
+import 'package:merge_empire_fc/ui/screens/home/home_screen.dart' show playPageGap;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show MatchRow;
@@ -1972,6 +1973,14 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('match-stats-button')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('match-stats-sheet')), findsOneWidget);
+  });
+
+
+  testWidgets('AND IT IS THE SAME SEAM THE PLAY PAGE USES', (tester) async {
+    // Six here and twelve there meant walking from one screen to the other
+    // halved the spacing — reported as the play-match popup's margins not being
+    // fixed, immediately after the Play page's own were set to twelve.
+    expect(matchGap, playPageGap);
   });
 
   group('ONE INSET DOWN THE PAGE', () {

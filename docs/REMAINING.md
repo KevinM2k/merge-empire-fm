@@ -6261,7 +6261,12 @@ Written on arrival from here.
       anything.** Which buttons is not established. If it is the shop's, the
       real-money ones have always been dead behind `paidDisabledReason` — but
       "not the same as they were" is a change, and a change is this session's.
-- [ ] **The margins between the items on the play-match popup page.**
+- [x] **The margins between the items on the play-match popup page.** Six there
+      and twelve on the Play page, so walking from one to the other halved the
+      spacing — reported immediately after the Play page's own were set to
+      twelve. One number for both, pinned by a test, and the band heights are
+      what give the room back: the pitch takes only what the tilted pitch needs
+      and the commentary is `Expanded`.
 - [x] **The home page STILL shows after a match before the end-match page.**
       Second report, and the first fix only shortened it: making the match's
       exit instant removes the 300ms slide, but the summary was still PUSHED
@@ -6352,8 +6357,14 @@ Written on arrival from here.
 - [ ] **Pitch Invaders' boxes should be BIGGER.** Asked again after the holes
       were enlarged and the uneven first column fixed — so it is the tiles
       themselves that want more of the screen, not the holes inside them.
-- [ ] **A manager customisation should SHOW what it unlocks** when you tap it —
-      a picture of each thing in the pack, not a list of names.
+- [x] **A manager customisation should SHOW what it unlocks.** The rows were a
+      shirt glyph and a word — "Bucket", "Viking", "Party" — which tells a
+      player nothing about what they are buying, while the CUSTOMISER has been
+      drawing the real thing all along. That widget is public now and the pack
+      uses it, on the player's OWN figure with the one choice swapped in, so a
+      hat is previewed over their hair in their colours. Skin and hair colour
+      keep their swatch: a colour IS the thing, and a head drawn to show one is
+      a worse look at it.
 - [ ] **THE CURRENCY COLOURS ARE A RULE, and the port breaks it.** Gems blue,
       ads orange, coins yellow, real money green — everywhere, on every control.
       A gem price is currently drawn in yellow. `screens.css`'s `.store-3d--gem`
