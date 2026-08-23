@@ -200,6 +200,11 @@ Gesture? camGesture(
 /// celebration stays an event rather than a twitch — the same restraint
 /// [gestureGapMs] exists for on the diorama, but on a shot the player looks at
 /// for seconds rather than minutes, so every number here is shorter.
+/// **THE JS'S OWN NUMBERS, and a node fixture compares them.** Halving them
+/// here was the obvious answer to "the dugout cam needs to be WAY more active"
+/// and it broke three rows of `dugout_cam_policy_test` on the spot. The
+/// divergence belongs on the SCREEN that wanted it — see `camRotaHurry` and the
+/// full-time report's own `rota` callback.
 const Map<Mood, (int, int)> camRotaGapMs = {
   Mood.elated: (2600, 4600),
   Mood.pleased: (3200, 5600),
@@ -207,6 +212,19 @@ const Map<Mood, (int, int)> camRotaGapMs = {
   Mood.glum: (1300, 2400),
   Mood.crushed: (1000, 2000),
 };
+
+/// **How much shorter the FULL-TIME screen's gaps are.**
+///
+/// The rota's own bands are the JS's and a fixture pins them, so this is the
+/// port's divergence and it lives where it was asked for rather than in the
+/// table. Reported straight after the rota landed: four to seven seconds of
+/// nothing is most of the time a player spends on that screen, so the shot they
+/// actually see is the GAP.
+///
+/// The shape is untouched and the shape is what carries the reading — a beaten
+/// manager stays three times as restless as a happy one, and a celebration
+/// still gets long enough to be an event rather than a twitch.
+const double camRotaHurry = 0.45;
 
 /// How many of his last gestures the rota refuses to repeat. TWO, not one:
 /// avoiding only the previous one leaves A-B-A-B, which is a loop with an extra

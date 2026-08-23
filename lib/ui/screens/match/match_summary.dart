@@ -34,6 +34,7 @@ import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -273,14 +274,49 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // It was the one figure on the report drawn straight onto
                     // the sky, directly under a column of panels — so the
                     // biggest number on the screen read as a caption.
-                    if (_base + _quests > 0)
+                    // **THE BUTTON GOES INSIDE THE CARD.** The offer and the
+                    // figure it changes were a panel with a button sitting
+                    // under it, which is two objects for one decision — the
+                    // card says what you have and the button says what it
+                    // could be, so they are the same thing. Asked for
+                    // directly, and "No thanks" stays outside and at the
+                    // bottom, on its own.
+                    if (_base + _quests > 0 || canDouble)
                       GlassPanel(
                         key: const ValueKey('summary-payout-card'),
                         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                        child: _Payout(
-                          base: _base,
-                          quests: _quests,
-                          doubled: canDouble && _answering,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_base + _quests > 0)
+                              _Payout(
+                                base: _base,
+                                quests: _quests,
+                                doubled: canDouble && _answering,
+                              ),
+                            if (canDouble) ...[
+                              const SizedBox(height: 10),
+                              // **THE SHOP'S OWN BUTTON, in the ad tone.** It
+                              // was a bespoke `ElevatedButton` painted gold by
+                              // hand, on a game whose rule is one button and
+                              // four colours where the colour answers "what
+                              // does this cost me?". A rewarded video is
+                              // yellow and wears the video chip, here as it
+                              // does on the energy sheet and the free shelf.
+                              StoreButton(
+                                key: const ValueKey('summary-double'),
+                                tone: StoreTone.ad,
+                                label: _answering
+                                    ? t('common.loading')
+                                    : '${t('match.double_reward')} → '
+                                          '${formatCoins(_base * 2 + _quests)}',
+                                leading: _answering
+                                    ? null
+                                    : const GameIcon('video', size: 14),
+                                onTap: _answering ? null : _double,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     const SizedBox(height: 8),
@@ -288,46 +324,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // **YELLOW, and it dominates.** This is the offer; the
-                          // other answer is walking away, and walking away should
-                          // not look like a second offer.
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              key: const ValueKey('summary-double'),
-                              onPressed: _answering ? null : _double,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: gameGold,
-                                foregroundColor: const Color(0xFF2A1E00),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                              ),
-                              child: _answering
-                                  ? Text(t('common.loading'))
-                                  : Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.play_circle_fill,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Text(
-                                            '${t('match.double_reward')} → '
-                                            '${formatCoins(_base * 2 + _quests)}',
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ),
                           // **Stripped to TEXT, not a quieter button.** Two
                           // buttons stacked read as a choice between two offers,
                           // and a muted one still invites a press. This is the
@@ -407,12 +403,18 @@ class _ResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassPanel(
       density: GlassDensity.deep,
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      // **TIGHTER TOP AND BOTTOM, and the dugout cam is what it buys.** This
+      // card is the tallest thing on the report and the two things under it —
+      // the cam and the quest list — were falling below the fold on a short
+      // phone. It gives out of its own padding rather than out of the gaps
+      // between the panels, which is what keeps the report reading as a stack
+      // of cards rather than a squeezed column.
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Verdict(won: won, drawn: drawn),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _Score(
             left: left,
             right: right,
@@ -610,8 +612,22 @@ class _Manager extends ConsumerWidget {
           // He keeps reacting for as long as the screen is up: one gesture and
           // then a statue reads as a man who has finished having feelings about
           // the result.
-          rota: (recent) =>
-              camRotaBeat(mood, null, ref.read(gameProvider).state, recent),
+          // **IN A HURRY HERE.** The rota's own gaps are the JS's and a node
+          // fixture pins them; this screen wanted him twice as busy, so the
+          // divergence is applied at the call site rather than in the table.
+          // See [camRotaHurry].
+          rota: (recent) {
+            final beat = camRotaBeat(
+              mood,
+              null,
+              ref.read(gameProvider).state,
+              recent,
+            );
+            return (
+              gesture: beat.gesture,
+              gap: beat.gap * camRotaHurry,
+            );
+          },
         ),
       ),
     );

@@ -12,6 +12,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
+import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -528,6 +530,31 @@ void main() {
       '3–1',
       reason: 'the screen could not read the engine\'s own score',
     );
+  });
+
+  group('THE DUGOUT CAM IS IN A HURRY ON THIS SCREEN', () {
+    // **The obvious answer broke a node fixture.** `camRotaGapMs` is the JS's
+    // own table and `dugout_cam_policy_test` compares it row for row, so
+    // halving it there failed three rows on the spot. The divergence belongs on
+    // the screen that asked for it — four to seven seconds of nothing is most
+    // of the time a player spends here, so the shot they see is the GAP.
+    test('the hurry is a fraction, and it really is shorter', () {
+      expect(camRotaHurry, greaterThan(0));
+      expect(camRotaHurry, lessThan(1));
+      for (final mood in Mood.values) {
+        final beat = camRotaBeat(mood);
+        expect(beat.gap * camRotaHurry, lessThan(beat.gap), reason: '$mood');
+      }
+    });
+
+    test('and the SHAPE survives — a beaten man is still the restless one', () {
+      // The reading is in the ratio between the moods, not in the absolute
+      // wait, so scaling every band by the same figure keeps it.
+      final crushed = camRotaGapMs[Mood.crushed]!;
+      final elated = camRotaGapMs[Mood.elated]!;
+      expect(crushed.$1 * camRotaHurry, lessThan(elated.$1 * camRotaHurry));
+      expect(crushed.$2 * camRotaHurry, lessThan(elated.$2 * camRotaHurry));
+    });
   });
 
 }

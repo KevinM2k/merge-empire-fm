@@ -5265,12 +5265,30 @@ one everywhere it should not.
 - [ ] **The full-time table move should read as a PICK-UP.** Zoom in on our
       club, lift it, carry it to its new place and set it down. Make the
       transition much clearer so it is obvious what happened.
-- [ ] **Put the 2× coins button INSIDE the "watch to keep 2×" card** and leave
-      "No thanks" on its own at the bottom. **And it should wear the same button
-      styling as the energy ones** — the shop's four-colour rule.
-- [ ] **Less top and bottom padding in the full-time top card**, so the dugout
-      cam and the quests fit on the screen.
-- [ ] **The dugout cam manager needs to be WAY more active** on that screen.
+- [x] **The 2× coins button is INSIDE the card now** and "No thanks" is on its
+      own at the bottom. The offer and the figure it changes were a panel with a
+      button under it, which is two objects for one decision — the card says
+      what you have and the button says what it could be, so they are the same
+      thing.
+      **And it is a `StoreButton` in the ad tone**, like the energy sheet and
+      the free shelf. It was a bespoke `ElevatedButton` painted gold by hand, on
+      a game whose rule is one button and four colours where the colour answers
+      "what does this cost me?".
+- [x] **Less top and bottom padding in the full-time top card.** 14 down to 9,
+      and the verdict's own gap with it. It gives out of its OWN padding rather
+      than out of the gaps between panels, which is what keeps the report
+      reading as a stack of cards rather than a squeezed column.
+- [x] **The dugout cam manager needs to be WAY more active** on that screen.
+      Gaps cut to 45% — four to seven seconds of nothing is most of the time a
+      player spends there, so the shot they actually see is the gap.
+      **NOT in the rota table, and that is the interesting half.** Halving
+      `camRotaGapMs` was the obvious answer and it broke three rows of
+      `dugout_cam_policy_test` on the spot: that table is the JS's and a node
+      fixture compares it row for row. So `camRotaHurry` is the port's
+      divergence and it is applied at the full-time screen's own `rota`
+      callback, which is where it was asked for. Scaling every band by the same
+      figure keeps the SHAPE, and the shape is the reading — a beaten manager
+      stays three times as restless as a happy one.
 - [x] **A VICTORY SCREEN WITH FOUR GOALSCORERS AND A 0–0.** The summary read
       `result['ourGoals']` / `['theirGoals']` — keys that exist only on
       `progression.lastMatchResult`, a DIFFERENT map written at full time for
