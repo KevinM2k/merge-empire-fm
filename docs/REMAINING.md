@@ -5483,9 +5483,20 @@ one everywhere it should not.
       symbol laid over a picture; shading the grass IS the picture saying it. It
       fades toward the point rather than ending on an edge, because a hard
       vertical boundary across a pitch reads as a seam between two textures.
-- [ ] **CLUB INVESTMENT SHOULD PAY OUT PER TAP.** The tier reward lands all at
-      once at the end; split it across the presses — twenty clicks for 10% is
-      0.5% a click — so every tap is worth something.
+- [x] **CLUB INVESTMENT PAYS OUT PER TAP.** The whole reward landed at the
+      tier-up, so nineteen of twenty presses bought nothing a player could see
+      and the twentieth bought all of it. `assetTierProgress` is the tier plus
+      how far into the next one the money has got, and the CONTINUOUS benefits
+      read it: match revenue, merch income, media payout, training cooldown and
+      injury recovery all move tap by tap.
+      **Only the continuous ones, and that split is the design.** A percentage
+      can be paid out in twentieths; a squad slot, a minigame and a kit colour
+      cannot — half an unlock is not a thing — so those keep the INTEGER tier
+      and still arrive whole on the tier-up. This is not a fractional tier, it
+      is a fractional payment against one.
+      Nothing in the parity harness moved, and the reason is worth writing down:
+      the fixtures all sit at `invested: 0`, where progress equals the tier
+      exactly, so the change is a no-op at every boundary the JS was dumped at.
 - [ ] **THE UNUSED-CARD COUNT on the Players page should look EMBOSSED** —
       very subtle, pressed into the surface rather than printed on it.
 - [ ] **THE CLUB ASSET CARDS ARE NOT GLASS.** They read as a darker gradient,

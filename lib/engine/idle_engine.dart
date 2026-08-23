@@ -30,6 +30,29 @@ int _assetTier(Map<String, dynamic>? clubAssets, String key) {
   return _num(a['tier'])?.toInt() ?? 0;
 }
 
+/// The tier PLUS how far into the next one the investment has got.
+///
+/// **EVERY TAP HAS TO BE WORTH SOMETHING.** The whole reward landed at the
+/// tier-up, so nineteen of twenty presses bought nothing a player could see and
+/// the twentieth bought all of it. Asked for directly: twenty clicks for ten
+/// per cent should be half a per cent a click.
+///
+/// **Only the CONTINUOUS benefits read this.** A percentage can be paid out in
+/// twentieths; a squad slot, a minigame and a kit colour cannot — half an
+/// unlock is not a thing — so those keep the integer tier and still arrive on
+/// the tier-up. That split is the whole design: this is not a fractional tier,
+/// it is a fractional PAYMENT against one.
+double assetTierProgress(Map<String, dynamic>? clubAssets, String key) {
+  final a = _map(clubAssets?[key]);
+  if (a == null || a['owned'] != true) return 0;
+  final tier = _num(a['tier'])?.toInt() ?? 0;
+  if (tier >= maxAssetTier) return tier.toDouble();
+  final threshold = tierThreshold(tier);
+  if (threshold <= 0) return tier.toDouble();
+  final invested = (_num(a['invested']) ?? 0).toDouble();
+  return tier + (invested / threshold).clamp(0.0, 1.0);
+}
+
 List<CardInstance?> _cells(Map<String, dynamic>? state) {
   final cells = _map(state?['grid'])?['cells'];
   if (cells is! List) return const [];
@@ -75,7 +98,11 @@ double computeBaseRate(List<CardInstance?> gridCells) {
 /// this factor — when they each reproduced the maths locally they drifted, and
 /// the HUD's per-row figure disagreed with the combined multiplier printed
 /// underneath it.
-double merchIncomeMultiplier(int? tier) =>
+/// **Takes a `num`, because the tier it is handed is now FRACTIONAL** — see
+/// [assetTierProgress]. The HUD and the Club screen both print this factor and
+/// both hand it whatever they read, so widening it here is what keeps the three
+/// of them agreeing.
+double merchIncomeMultiplier(num? tier) =>
     1.0 + math.min(0.40, 0.05 * (tier ?? 0));
 
 double computeMultiplier(
@@ -86,7 +113,7 @@ double computeMultiplier(
   int? seasonCount,
 ) {
   var multiplier = merchIncomeMultiplier(
-    _assetTier(clubAssets, AssetCategory.merch),
+    assetTierProgress(clubAssets, AssetCategory.merch),
   );
 
   if (boosts?['incomeBoostActive'] == true &&
@@ -191,7 +218,9 @@ double computeMatchRevenueMultiplier(
   double squadMatchRevBonus = 0,
 ]) {
   // Stadium: x1.10 per tier, multiplicative.
-  var mult = math.pow(1.10, _assetTier(clubAssets, AssetCategory.stadium)).toDouble();
+  var mult = math
+      .pow(1.10, assetTierProgress(clubAssets, AssetCategory.stadium))
+      .toDouble();
 
   // TV Deal: x1.5 during the bought-for season only.
   final tvSeason = _num(boosts?['matchRevBoostSeason']);
@@ -334,12 +363,12 @@ void expireBoosts(Map<String, dynamic> state) {
 
 /// Cooldown multiplier from Training Ground tier.
 double getMiniGameCooldownMult(Map<String, dynamic>? state) =>
-    trainingCooldownMult(_assetTier(_map(state?['clubAssets']), AssetCategory.training));
+    trainingCooldownMult(assetTierProgress(_map(state?['clubAssets']), AssetCategory.training));
 
 /// Coin multiplier for mini-game rewards. Media Centre owns this outright —
 /// Training Ground used to stack a second multiplier onto the same number.
 double getMiniGameCoinMult(Map<String, dynamic>? state) =>
-    mediaPayoutMult(_assetTier(_map(state?['clubAssets']), AssetCategory.media));
+    mediaPayoutMult(assetTierProgress(_map(state?['clubAssets']), AssetCategory.media));
 
 /// Max players on the grid: +1 per Academy tier, and nothing else. Gems used to
 /// sell slots on top, and that ladder was pulled before release.
@@ -348,7 +377,10 @@ int getMaxPlayers(Map<String, dynamic>? state) =>
 
 /// Injury recovery speed from Sponsor tier: -5% per tier, floored.
 double getInjuryRecoveryMult(Map<String, dynamic>? state) {
-  final tier = _assetTier(_map(state?['clubAssets']), AssetCategory.sponsor);
+  final tier = assetTierProgress(
+    _map(state?['clubAssets']),
+    AssetCategory.sponsor,
+  );
   return math.max(0.60, 1 - 0.05 * tier);
 }
 

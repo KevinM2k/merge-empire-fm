@@ -163,12 +163,15 @@ const int maxAssetTier = 8;
 ///
 /// It used to ALSO multiply mini-game payouts, double-dipping with Media Centre
 /// on the same number. Payout is Media's job now; Training owns frequency.
-double trainingCooldownMult(int tier) => 1 - math.min(0.40, 0.05 * tier);
+/// **`num`, because the tier it is handed is FRACTIONAL** — see
+/// `assetTierProgress`. Every tap of investment buys its own share of the
+/// benefit rather than nineteen buying nothing and the twentieth buying it all.
+double trainingCooldownMult(num tier) => 1 - math.min(0.40, 0.05 * tier);
 
 /// Media Centre's one stat: mini-game coin payout. Raised from +10% to +19% per
 /// tier when it absorbed Training's old +5%/tier reward multiplier, so a maxed
 /// pair lands at x2.52 — the ceiling the two stacked multipliers used to reach.
-double mediaPayoutMult(int tier) => 1 + 0.19 * tier;
+double mediaPayoutMult(num tier) => 1 + 0.19 * tier;
 
 /// Kit Sponsor's one stat: player condition. Sports science covers both halves
 /// of "recovers faster" — injuries heal sooner and the squad tires more slowly

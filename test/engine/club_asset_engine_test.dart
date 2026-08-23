@@ -8,6 +8,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 
 const String _key = AssetCategory.training;
@@ -175,4 +176,67 @@ void main() {
       expect(investInAsset(s, key).ok, isTrue, reason: key);
     }
   });
+  group('EVERY TAP OF INVESTMENT IS WORTH SOMETHING', () {
+    // **The whole reward landed at the tier-up**, so nineteen of twenty presses
+    // bought nothing a player could see and the twentieth bought all of it.
+    // Asked for directly: twenty clicks for ten per cent should be half a per
+    // cent a click.
+    Map<String, dynamic> owned(String key, {int tier = 1, int invested = 0}) => {
+      'clubAssets': <String, dynamic>{
+        key: <String, dynamic>{
+          'owned': true,
+          'tier': tier,
+          'invested': invested,
+          'tapCount': 0,
+        },
+      },
+      'resources': <String, dynamic>{'fanCoins': 100000000},
+    };
+
+    test('progress climbs with what has been put in', () {
+      final key = AssetCategory.stadium;
+      Map<String, dynamic> assets(Map<String, dynamic> s) =>
+          s['clubAssets'] as Map<String, dynamic>;
+      final none = owned(key);
+      final half = owned(key, invested: (tierThreshold(1) / 2).round());
+      final full = owned(key, invested: tierThreshold(1));
+
+      expect(assetTierProgress(assets(none), key), 1.0);
+      expect(assetTierProgress(assets(half), key), closeTo(1.5, 0.02));
+      expect(assetTierProgress(assets(full), key), 2.0);
+    });
+
+    test('and the MULTIPLIER moves with it, tap by tap', () {
+      final key = AssetCategory.stadium;
+      double revenue(int invested) => computeMatchRevenueMultiplier(
+        owned(key, invested: invested)['clubAssets'] as Map<String, dynamic>,
+        null,
+        1,
+      );
+      final at0 = revenue(0);
+      final at1 = revenue((tierThreshold(1) / 4).round());
+      final at2 = revenue((tierThreshold(1) / 2).round());
+      expect(at1, greaterThan(at0), reason: 'a quarter in bought nothing');
+      expect(at2, greaterThan(at1));
+    });
+
+    test('BUT AN UNLOCK STILL ARRIVES WHOLE', () {
+      // A percentage can be paid out in twentieths; a squad slot, a minigame
+      // and a kit colour cannot — half an unlock is not a thing. Those keep the
+      // integer tier and still land on the tier-up.
+      final key = AssetCategory.academy;
+      final part = owned(key, invested: (tierThreshold(1) / 2).round());
+      expect(getMaxPlayers(part), getMaxPlayers(owned(key)));
+    });
+
+    test('and a maxed asset does not keep climbing', () {
+      final key = AssetCategory.stadium;
+      final maxed = owned(key, tier: maxAssetTier, invested: 999999);
+      expect(
+        assetTierProgress(maxed['clubAssets'] as Map<String, dynamic>, key),
+        maxAssetTier.toDouble(),
+      );
+    });
+  });
+
 }
