@@ -13,6 +13,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:merge_empire_fc/i18n/i18n.dart' show stableIndex;
+
 import 'package:merge_empire_fc/util/random.dart' show WeightedEntry;
 
 // Male player names — a recognisable male first name followed by a
@@ -132,10 +134,62 @@ const Map<String, List<String>> _femaleNamePools = {
   'GK': _gkFemaleNames,
 };
 
-String pickDisplayName(String position, int tierIdx, {required bool female}) {
+/// The nickname half of every name in a pool — the BANK for that position.
+///
+/// **Derived rather than written out again.** Every entry is "First Nickname"
+/// and the nickname is what carries the position: Wall, Reflex and Glove are
+/// keepers, Bolt and Blaze are forwards. Splitting the pool that already exists
+/// is what keeps the bank and the names from ever disagreeing.
+List<String> _bankOf(List<String> pool) => [
+  for (final full in pool)
+    if (full.contains(' ')) full.substring(full.indexOf(' ') + 1),
+];
+
+final Map<String, List<String>> _surnameBank = {
+  for (final entry in _namePools.entries) entry.key: _bankOf(entry.value),
+};
+final Map<String, List<String>> _femaleSurnameBank = {
+  for (final entry in _femaleNamePools.entries)
+    entry.key: _bankOf(entry.value),
+};
+
+/// The nicknames a player in this position can be given.
+List<String> surnameBank(String position, {required bool female}) {
+  final banks = female ? _femaleSurnameBank : _surnameBank;
+  return banks[position] ?? banks['FWD']!;
+}
+
+/// The name a card is born with.
+///
+/// **THE FIRST NAME IS THE TIER'S; THE SECOND IS THE CARD'S.** It used to be
+/// both — `pool[tierIdx % 10]` for the whole string — so every card of one
+/// position, tier and gender was born the same man, and a squad filled up with
+/// copies of Diego Block. Reported directly, with the fix named: keep the first
+/// name, randomise the second from a bank per position.
+///
+/// [seed] is what varies it. A card passes its instance id; anything with no
+/// per-card identity to offer passes null and gets the tier's own pairing,
+/// which is what the Player Index wants — the index describes a DEFINITION, and
+/// a definition that renamed itself on every rebuild would be unreadable.
+///
+/// **Hashed rather than rolled**, and that is not a preference: `createInstance`
+/// draws the variant and the rating spread from a shared generator whose ORDER
+/// the parity fixtures were taken in, so a new `nextInt` here would shift every
+/// later draw in the file. A hash of the id costs nothing and moves nothing.
+String pickDisplayName(
+  String position,
+  int tierIdx, {
+  required bool female,
+  String? seed,
+}) {
   final pools = female ? _femaleNamePools : _namePools;
   final pool = pools[position] ?? pools['FWD']!;
-  return pool[tierIdx % pool.length];
+  final full = pool[tierIdx % pool.length];
+  if (seed == null || !full.contains(' ')) return full;
+  final first = full.substring(0, full.indexOf(' '));
+  final bank = surnameBank(position, female: female);
+  if (bank.isEmpty) return full;
+  return '$first ${bank[stableIndex(seed, bank.length)]}';
 }
 
 /// ANOTHER name from the same pool, for the Randomise button on the rename

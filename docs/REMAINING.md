@@ -5489,9 +5489,35 @@ one everywhere it should not.
       What is pinned is the half the service owns: every cue hands down a
       finite, short length that matches its definition, and a signing does not
       stack.
-- [ ] **PLAYER NAMES: keep the first name, randomise the SURNAME.** Everyone
-      shares a surname at the moment. A bank per POSITION, since the surname is
-      tied to the position the definition belongs to.
+- [x] **PLAYER NAMES: keep the first name, randomise the SURNAME.** It was
+      `pool[tier % 10]` for the WHOLE string, so every card of one position,
+      tier and gender was born the same man and a squad filled up with copies of
+      Diego Block. The first name is still the tier's — that is what makes the
+      pool read as a position — and the nickname comes from that position's own
+      bank, DERIVED by splitting the pool that already exists so the bank and
+      the names can never disagree.
+      **Hashed off the instance id rather than rolled**, and that is not a
+      preference: `createInstance` draws the variant and the rating spread from
+      a shared generator whose ORDER the parity fixtures were taken in, so a new
+      `nextInt` would shift every later draw in the file.
+      **And the deadline-day harness compares the name field for field.** It is
+      cut to the FIRST NAME on both sides now, with the reasoning inline — the
+      half that did not diverge is still compared exactly, and the half that did
+      is asserted in `merge_engine_test` instead: that the bank is the
+      position's, and that forty cards are not forty of the same man.
+- [x] **The chance pitch was no longer full width** (screenshot), with too much
+      vertical space, **and the top card had too much padding at its foot.**
+      The stage held the pitch's own `AspectRatio`, so a box SHORTER than that
+      aspect made the stage narrower than the box — dead green down both sides
+      and a band of it below. It fills what it is given now, and the band's cap
+      came down to 0.16 of the screen; a shallow box is a shallow pitch rather
+      than a small one.
+      **It still falls back to the aspect when nobody hands it a height** — the
+      goal replay mounts it in a column with none, and filling the box there
+      asks for infinity.
+      The card's foot was a nearly empty strip (a chart button, and FULL TIME at
+      the whistle) with 8px over it; the gap is gone and the button carries its
+      own two.
 - [x] **More perspective again on the 2D pitch**, less vertical space, and the
       band as WIDE as the other boxes. All three. The tilt is -0.80 (about 46
       degrees) — the third increase, and every one of them was asked for with

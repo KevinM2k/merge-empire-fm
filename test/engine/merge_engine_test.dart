@@ -98,9 +98,43 @@ void main() {
           'FWD',
           0,
           female: isVariantFemale(variant),
+          seed: card.instanceId,
         );
         expect(card.displayName, expected);
       }
+    });
+
+    test('AND TWO CARDS OF ONE DEFINITION ARE TWO PEOPLE', () {
+      // **A squad filled up with copies of Diego Block.** The name was
+      // `pool[tier % 10]` for the whole string, so every card of one position,
+      // tier and gender was born the same man. The first name is still the
+      // tier's — that is what makes the pool read as a position — and the
+      // nickname is the card's.
+      setMergeRandom(math.Random(11));
+      final names = <String>{};
+      final firsts = <String>{};
+      for (var i = 0; i < 40; i++) {
+        final card = createInstance('player_t1_fwd', preferredFemale: false);
+        names.add(card.displayName!);
+        firsts.add(card.displayName!.split(' ').first);
+      }
+      expect(names.length, greaterThan(3), reason: 'forty of the same man');
+      expect(firsts, hasLength(1), reason: 'the first name is the tier\'s');
+      // And every nickname it hands out is one this POSITION owns — a keeper's
+      // Wall and Reflex must not turn up on a striker.
+      final bank = surnameBank('FWD', female: false);
+      for (final name in names) {
+        expect(bank, contains(name.split(' ').sublist(1).join(' ')));
+      }
+    });
+
+    test('and a card with no seed still gets the tier\'s own pairing', () {
+      // The Player Index describes a DEFINITION, and one that renamed itself on
+      // every rebuild would be unreadable.
+      final a = pickDisplayName('GK', 3, female: false);
+      final b = pickDisplayName('GK', 3, female: false);
+      expect(a, b);
+      expect(a, contains(' '));
     });
 
     test('a preferred gender pins the variant', () {

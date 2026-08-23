@@ -11,7 +11,6 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
@@ -31,8 +30,6 @@ import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/services/sound_service.dart';
 import 'package:merge_empire_fc/state/card_instance.dart' show CardInstance;
 import 'package:merge_empire_fc/state/game_tick.dart';
-import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart'
-    show pitchAspect;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
@@ -1229,13 +1226,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     // commentary off the bottom by 35 pixels.
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxHeight: math.min(
-                          MediaQuery.sizeOf(context).height * 0.20,
-                          // Never taller than its own natural aspect: past that
-                          // the band is padding rather than pitch.
-                          (MediaQuery.sizeOf(context).width - matchInset * 2) /
-                              pitchAspect,
-                        ),
+                        // **SHORTER AGAIN, and the aspect no longer caps it.**
+                        // The stage used to hold the pitch's own aspect, so a
+                        // box shorter than that made the pitch narrower than
+                        // the box — dead green down both sides. It fills what
+                        // it is given now, so the only cap is how much screen
+                        // this band is worth, and a shallow box is a shallow
+                        // pitch rather than a small one.
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.16,
                         minWidth: double.infinity,
                       ),
                       child: Stack(
@@ -2119,6 +2117,7 @@ class _Scoreboard extends StatelessWidget {
         density: GlassDensity.deep,
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             // **THE POSITION CHIPS ARE GONE.** They came across from the
             // next-match card, where they answer "who am I playing"; during the
@@ -2215,12 +2214,16 @@ class _Scoreboard extends StatelessWidget {
                 leftRating: isHome ? ourRating : theirRating,
                 rightRating: isHome ? theirRating : ourRating,
               ),
-            const SizedBox(height: 8),
+            // **NO GAP ABOVE IT EITHER.** With the competition line gone this
+            // strip is a chart button and, at the whistle, FULL TIME — a nearly
+            // empty row, and the 8px over it plus its own height was reading as
+            // a block of dead space at the foot of the card. Reported from a
+            // screenshot as far too much padding at the bottom.
+            //
             // **THE COMPETITION AND THE VENUE HAVE GONE.** `SUNDAY LEAGUE ·
             // AWAY` is a fact the player brought with them — they chose the
             // fixture a screen ago — and it was costing a whole row on a card
-            // that has none to give. Asked for directly. What is left on this
-            // strip is the chart button and, at the whistle, FULL TIME.
+            // that has none to give. Asked for directly.
             Row(
               children: [
                 const Spacer(),
@@ -2240,7 +2243,7 @@ class _Scoreboard extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: onStats,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
                     child: Icon(
                       Icons.bar_chart,
                       size: 16,

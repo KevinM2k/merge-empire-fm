@@ -208,9 +208,26 @@ class _CutawayStageState extends State<CutawayStage> {
 
   @override
   Widget build(BuildContext context) {
+    // **NO `AspectRatio` — THE STAGE FILLS WHAT IT IS GIVEN.** It held the
+    // pitch's own aspect, so a box shorter than that aspect made the stage
+    // NARROWER than the box: dead green down both sides and a band of it below,
+    // which is exactly what a screenshot of a chance showed. The caller decides
+    // the band's shape; `fittedTilt` fits the projection into whatever arrives,
+    // so a shallow box is simply a shallow pitch.
+    // **UNLESS NOBODY HAS GIVEN IT ONE.** The goal replay mounts this inside a
+    // column with no height to hand down, and it was the aspect that used to
+    // supply one — so filling the box there asks for infinity. Bounded, the
+    // caller decides; unbounded, the pitch's own aspect still does.
+    return LayoutBuilder(
+      builder: (context, constraints) => constraints.hasBoundedHeight
+          ? _stage(context)
+          : AspectRatio(aspectRatio: pitchAspect, child: _stage(context)),
+    );
+  }
+
+  Widget _stage(BuildContext context) {
     final game = _game;
-    return AspectRatio(
-      aspectRatio: pitchAspect,
+    return SizedBox.expand(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: ColoredBox(

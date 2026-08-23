@@ -57,12 +57,36 @@ Map<String, dynamic> _scenario(String name) =>
 /// shape asserted separately.
 const _idKeys = {'instanceId', 'signedInstanceId'};
 
+/// **`displayName` is compared by its FIRST NAME only, and that is a deliberate
+/// divergence rather than a hole.**
+///
+/// The JS gives every card of one position, tier and gender the same full name,
+/// so a squad fills up with copies of Diego Block — reported from a live save.
+/// The port keeps the tier's first name, which is the half that carries the
+/// pool's identity, and picks the NICKNAME from that position's own bank seeded
+/// on the instance id (already stripped above as nothing to do with the deal).
+///
+/// Cutting to the first name is what keeps the check honest: the half that did
+/// not diverge is still compared field for field on both sides, and the half
+/// that did is asserted in `merge_engine_test` instead — that the bank is the
+/// position's, and that forty cards are not forty of the same man.
+///
+/// `playerName` is the same string under another key — the listing's copy of
+/// what the card is called — so it takes the same cut.
+const _divergedNameKeys = {'displayName', 'playerName'};
+
+String _firstNameOf(String full) =>
+    full.contains(' ') ? full.substring(0, full.indexOf(' ')) : full;
+
 Object? _stripIds(Object? v) {
   if (v is List) return [for (final e in v) _stripIds(e)];
   if (v is Map) {
     return {
       for (final e in v.entries)
-        if (!_idKeys.contains(e.key)) '${e.key}': _stripIds(e.value),
+        if (!_idKeys.contains(e.key))
+          '${e.key}': _divergedNameKeys.contains(e.key) && e.value is String
+              ? _firstNameOf(e.value as String)
+              : _stripIds(e.value),
     };
   }
   return v;
@@ -278,7 +302,7 @@ void main() {
 
         expect(
           _json(_digest(state)),
-          scenario['state'],
+          _json(_stripIds(scenario['state'])),
           reason: '${entry.key} — save',
         );
       });
@@ -438,27 +462,31 @@ void main() {
               _json(
                 _stripIds({...signed, 'card': _map(step['result'])?['card']}),
               ),
-              step['result'],
+              _json(_stripIds(step['result'])),
               reason: why,
             );
           } else {
-            expect(_json(_stripIds(result)), step['result'], reason: why);
+            expect(
+              _json(_stripIds(result)),
+              _json(_stripIds(step['result'])),
+              reason: why,
+            );
           }
           expect(
             _json(_stripIds(_find(state, last))),
-            step['listing'],
+            _json(_stripIds(step['listing'])),
             reason: '$why — listing after',
           );
         }
 
         expect(
-          _json(endSession(state, windowEnd)),
-          scenario['summary'],
+          _json(_stripIds(endSession(state, windowEnd))),
+          _json(_stripIds(scenario['summary'])),
           reason: '$name — summary',
         );
         expect(
           _json(_digest(state)),
-          scenario['state'],
+          _json(_stripIds(scenario['state'])),
           reason: '$name — save',
         );
       });

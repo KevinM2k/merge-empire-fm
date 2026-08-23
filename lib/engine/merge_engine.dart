@@ -54,8 +54,16 @@ CardInstance createInstance(String definitionId, {bool? preferredFemale}) {
 
   final def = getPlayerDef(definitionId);
 
+  // The card's own id, decided here rather than inline below so the NAME can
+  // be seeded from it — see the note in `pickDisplayName`.
+  final instanceId = '${definitionId}_${now()}_${_instanceCounter++}';
+
   // Gender-appropriate display name, for player cards only. Club assets go
   // through a different path and have no definition here.
+  //
+  // **Seeded on the instance**, so two cards of one definition are two people
+  // rather than two copies of Diego Block. The first name is still the tier's;
+  // only the nickname varies.
   String? displayName;
   if (def != null) {
     final tierIdx = math.max(0, def.tier - 1);
@@ -63,6 +71,7 @@ CardInstance createInstance(String definitionId, {bool? preferredFemale}) {
       def.position,
       tierIdx,
       female: isVariantFemale(variant),
+      seed: instanceId,
     );
   }
 
@@ -78,7 +87,7 @@ CardInstance createInstance(String definitionId, {bool? preferredFemale}) {
 
   return CardInstance(<String, dynamic>{
     'definitionId': definitionId,
-    'instanceId': '${definitionId}_${now()}_${_instanceCounter++}',
+    'instanceId': instanceId,
     'seasonsPlayed': 0,
     'form': 0,
     'variant': variant,
