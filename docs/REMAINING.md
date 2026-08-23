@@ -6245,11 +6245,14 @@ Written on arrival from here.
       and a rule, which answered "the spinner does not look impressive". What
       is still wanted is not established — this wants one sentence about what is
       wrong with them now.
-- [ ] **The club's items STILL have no background.** THIRD report. Two passes
-      have been made — a tint over `surface2`, then a radial spotlight with a
-      rim — and neither is enough. Stop iterating on the wash: the next pass
-      should give the art an opaque PLATE that is obviously not the card, or a
-      framed thumbnail, and be checked against `ClubScreen.js`.
+- [x] **The club's items STILL have no background.** THIRD report, and the
+      first two passes went at the wrong thing entirely: the ART is an opaque
+      photograph that fills its own strip — the files are JPEGs behind a `.png`
+      extension, which decode fine — so it was never the thing blending. It is
+      the CARD. `surface` on `bg` is `#eef0f3` on white, a difference you have
+      to look for. A card on a page has a SHADOW and this one did not; it has
+      one now, light in daylight and dark at night, which is the same treatment
+      and the same reasoning `SettingsCard` already uses.
 - [ ] **The shop's gem tiles do not look like `../merge-empire-fc`'s, and they
       are not CENTRED.** The centring is a real bug in this port's tile: the
       contents are a non-positioned child of a `Stack`, which aligns to the

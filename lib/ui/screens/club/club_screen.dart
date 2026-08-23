@@ -325,6 +325,7 @@ class _AssetPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final light = Theme.of(context).brightness == Brightness.light;
     final game = ref.read(gameProvider);
     final buildable = tile.blocked == null;
     final ink = assetTierColour(tile.owned ? tile.tier : 0);
@@ -344,12 +345,46 @@ class _AssetPanel extends ConsumerWidget {
       // LIGHT mode; a backdrop was added to give the blur something to do and
       // that was worse. Rejected on sight, twice, and the surface it had before
       // is the right one.
+      // **AND IT HAS TO SEPARATE FROM THE PAGE.** Reported three times as the
+      // assets having no background and blending in — and two passes went at
+      // the ART, which is an opaque photograph that fills its own strip and was
+      // never the thing blending. It is the CARD: `surface` on `bg` is
+      // `#eef0f3` on white, which is a difference you have to look for.
+      // A shadow is what a card on a page has and this one did not; the border
+      // firms up with it. Same treatment `SettingsCard` uses, and for the same
+      // reason — on a dark page a drop shadow is invisible and the border does
+      // the work, on a light one the border alone is a wireframe.
       child: Container(
         padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
           color: kit.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: kit.border),
+          border: Border.all(
+            color: light
+                ? kit.border
+                : kit.border.withValues(alpha: 0.9),
+            width: light ? 1.2 : 1,
+          ),
+          boxShadow: light
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF111827).withValues(alpha: 0.07),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF111827).withValues(alpha: 0.08),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : const [
+                  BoxShadow(
+                    color: Color(0x4D000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
