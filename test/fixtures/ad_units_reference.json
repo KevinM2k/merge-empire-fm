@@ -1,0 +1,26 @@
+{
+  "android": {
+    "energy_pip": "ca-app-pub-0386196346828968/6780310195",
+    "double_match": "ca-app-pub-0386196346828968/6248828703",
+    "skip_cooldown": "ca-app-pub-0386196346828968/4880426231",
+    "heal_all": "ca-app-pub-0386196346828968/3567344561",
+    "idle_boost": "ca-app-pub-0386196346828968/2254262895",
+    "lucky_boot": "ca-app-pub-0386196346828968/2560243013",
+    "match_cooldown": "ca-app-pub-0386196346828968/3046795346",
+    "double_season": "ca-app-pub-0386196346828968/8214511488",
+    "daily_double": "ca-app-pub-0386196346828968/1355120286",
+    "streak_repair": "ca-app-pub-0386196346828968/7343732572"
+  },
+  "ios": {
+    "energy_pip": "ca-app-pub-0386196346828968/9775306487",
+    "double_match": "ca-app-pub-0386196346828968/1738928006",
+    "skip_cooldown": "ca-app-pub-0386196346828968/9256431730",
+    "heal_all": "ca-app-pub-0386196346828968/4028155787",
+    "idle_boost": "ca-app-pub-0386196346828968/7458158549",
+    "lucky_boot": "ca-app-pub-0386196346828968/5410579705",
+    "match_cooldown": "ca-app-pub-0386196346828968/5486601321",
+    "double_season": "ca-app-pub-0386196346828968/8036743041",
+    "daily_double": "ca-app-pub-0386196346828968/7176211614",
+    "streak_repair": "ca-app-pub-0386196346828968/4717569230"
+  }
+}

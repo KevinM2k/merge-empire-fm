@@ -7677,11 +7677,20 @@ of buttons that error.
       finished and waiting on the bridge**: every real-money tile renders its
       real price with a dead button, and nothing calls `purchaseProduct`. Wiring
       `iapClient` to those buttons is the whole of what is left on this line
-- [ ] Every SKU created and priced in App Store Connect AND Play Console, in both
-      cases matching `IapProduct.sku` exactly (see M6)
-
-### The rest
-
+- [x] **The PORT's half of "every SKU created and priced in both consoles" is
+      done and PINNED.** The consoles are set up — said directly — so what this
+      repo owes is a catalogue that matches what they were set up from, and that
+      is now a fixture: `tool/dump_iap_reference.mjs` dumps `iapEngine.js` and
+      `iap_catalogue_parity_test` compares all eleven products id for id, SKU
+      for SKU, type for type and price for price.
+      **Why this one is worth a fixture more than most:** a SKU is a primary key
+      in Play Console and App Store Connect, and renaming, retyping or repricing
+      one does not fail a build — it fails a PURCHASE, on a device, for a paying
+      customer. And quietly: `priceFor` prefers whatever the store reports, so
+      the app would show the store's price against a SKU it cannot fulfil.
+      What is left in the consoles themselves is `scripts/storeProducts.mjs`'s
+      own list: `gems_5`, `gems_15`, `gems_35` and `style_vault` to CREATE, and
+      four retired SKUs still listed.
 - [~] AdMob adapter — the half of `energyEngine` left behind in M1. **THE DART
       HALF IS IN AND THE CHAIN IS ON.** `google_mobile_ads` behind
       `services/admob_ads.dart`, which is the one override
@@ -7919,8 +7928,13 @@ could not render at all without a lookup layer. See
       read an existing player's local save. Must ship before cutover.
 - [ ] iOS: signing, dSYM upload, App Store Connect
 - [ ] Android: the CI-generated build config, SDK levels, AGP/Gradle
-- [ ] Store listings, whatsnew, changelog — the listing NAME becomes
-      "Merge Empire Football Manager"; the bundle id must not move with it
+- [ ] Store listings, whatsnew, changelog. **The IDENTIFIERS half is done and
+      pinned** — `native_identifiers_test` reads the application id, the bundle
+      id and both AdMob APP ids straight out of the native config and compares
+      them to `capacitor.config.ts`. Those are primary keys: a Flutter port that
+      takes what `flutter create` gives it is a SECOND app, with no reviews, no
+      installs and every existing player stranded. What is left is copy and
+      screenshots in the consoles.
 - [ ] **The in-app products themselves, in both consoles.** Eleven SKUs, each
       matching `IapProduct.sku` character for character, with the consumable /
       non-consumable flag matching `IapProduct.type` — the store is what refuses a
@@ -7953,8 +7967,14 @@ could not render at all without a lookup layer. See
       be reused for something else. It is kept whole because its shape and tests
       are the spec for whatever replaces it: a bracket event with a pickable
       side, per-side ratings and colours, and lifetime challenges.
-- [ ] `cosmetic_pack` has no AdMob unit on either platform, so it falls back to
-      `energy_pip` and shares its frequency cap. Carried over from the JS.
+- [x] **`cosmetic_pack` has no AdMob unit on either platform** — and it is NOT
+      a porting gap, which is what this row was carried as. The shipped app has
+      no unit for it either: `energyEngine.js` carries ten placements and this
+      is not one of them, so it is a console job on both sides. Pinned by
+      `ad_units_parity_test`, which also compares all twenty ids byte for byte
+      and asserts the two platforms never share one — an Android unit requested
+      from iOS is a no-fill for ever, silently, and looks exactly like an ad
+      network having no inventory.
 - [ ] Two migration branches (`tutorial`, `leaderboard`) are non-idempotent in
       the JS — a legacy save needs two boots to settle. The port reproduces the
       quirk deliberately and documents it; worth deciding whether to fix.

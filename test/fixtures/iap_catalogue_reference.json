@@ -1,0 +1,112 @@
+[
+  {
+    "id": "coins_small",
+    "sku": "com.mergeempirefc.coins_small",
+    "type": "consumable",
+    "price": "£0.99",
+    "priceValue": 0.99,
+    "category": "coins",
+    "coins": 5000,
+    "gems": null
+  },
+  {
+    "id": "coins_medium",
+    "sku": "com.mergeempirefc.coins_medium",
+    "type": "consumable",
+    "price": "£2.49",
+    "priceValue": 2.49,
+    "category": "coins",
+    "coins": 15000,
+    "gems": null
+  },
+  {
+    "id": "coins_large",
+    "sku": "com.mergeempirefc.coins_large",
+    "type": "consumable",
+    "price": "£5.99",
+    "priceValue": 5.99,
+    "category": "coins",
+    "coins": 50000,
+    "gems": null
+  },
+  {
+    "id": "coins_mega",
+    "sku": "com.mergeempirefc.coins_mega",
+    "type": "consumable",
+    "price": "£12.99",
+    "priceValue": 12.99,
+    "category": "coins",
+    "coins": 150000,
+    "gems": null
+  },
+  {
+    "id": "starter_pack",
+    "sku": "com.mergeempirefc.starter_pack",
+    "type": "non_consumable",
+    "price": "£1.99",
+    "priceValue": 1.99,
+    "category": "bundle",
+    "coins": 10000,
+    "gems": null
+  },
+  {
+    "id": "vip_pass",
+    "sku": "com.mergeempirefc.vip_pass",
+    "type": "non_consumable",
+    "price": "£4.99",
+    "priceValue": 4.99,
+    "category": "vip",
+    "coins": null,
+    "gems": null
+  },
+  {
+    "id": "energy_director",
+    "sku": "com.mergeempirefc.energy_director",
+    "type": "non_consumable",
+    "price": "£7.99",
+    "priceValue": 7.99,
+    "category": "bundle",
+    "coins": null,
+    "gems": null
+  },
+  {
+    "id": "gems_5",
+    "sku": "com.mergeempirefc.gems_5",
+    "type": "consumable",
+    "price": "£0.99",
+    "priceValue": 0.99,
+    "category": "gems",
+    "coins": null,
+    "gems": 5
+  },
+  {
+    "id": "gems_15",
+    "sku": "com.mergeempirefc.gems_15",
+    "type": "consumable",
+    "price": "£1.99",
+    "priceValue": 1.99,
+    "category": "gems",
+    "coins": null,
+    "gems": 15
+  },
+  {
+    "id": "gems_35",
+    "sku": "com.mergeempirefc.gems_35",
+    "type": "consumable",
+    "price": "£3.99",
+    "priceValue": 3.99,
+    "category": "gems",
+    "coins": null,
+    "gems": 35
+  },
+  {
+    "id": "style_vault",
+    "sku": "com.mergeempirefc.style_vault",
+    "type": "non_consumable",
+    "price": "£4.49",
+    "priceValue": 4.49,
+    "category": "cosmetic",
+    "coins": null,
+    "gems": null
+  }
+]
