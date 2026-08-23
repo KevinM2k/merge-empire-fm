@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
+import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/services/sound_service.dart';
 import 'package:merge_empire_fc/state/card_instance.dart' show CardInstance;
 import 'package:merge_empire_fc/state/game_tick.dart';
@@ -316,6 +317,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _sound = ref.read(soundServiceProvider);
     unawaited(_sound.setMusicTrack(MusicBed.match));
     unawaited(_sound.play('whistle'));
+    // **THE ONE SCREEN THE PLAYER WATCHES WITHOUT TOUCHING**, which is the JS's
+    // own reason for taking a wake lock here and nowhere else: everything else
+    // in the game takes taps every few seconds, so only this one can be blacked
+    // out mid-way by the phone's sleep timer.
+    unawaited(wakeLock.acquire());
   }
 
   void _startClock() {
@@ -836,6 +842,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // match popup that follows this screen is still the match as far as the
     // player is concerned.
     unawaited(_sound.setMusicTrack(MusicBed.menu));
+    unawaited(wakeLock.release());
     super.dispose();
   }
 

@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
+import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/services/weather_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/util/region.dart';
@@ -52,6 +53,9 @@ class _GameHostState extends ConsumerState<GameHost>
     _weather = ref.read(weatherProvider.notifier);
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());
     _runner.start();
+    // Start listening BEFORE the first reading is asked for, so an offline boot
+    // does not burn the weather backoff on a request that cannot land.
+    unawaited(network.start());
     _refreshWeather();
     // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
     // whether looking is worth a call, so most of these cost nothing.
@@ -115,6 +119,7 @@ class _GameHostState extends ConsumerState<GameHost>
   void dispose() {
     _weatherPoll?.cancel();
     _weather.stop();
+    unawaited(network.stop());
     WidgetsBinding.instance.removeObserver(this);
     // The host going away means the app is. Same treatment as a background: the
     // loop stops, the pending save lands, the mirror is flushed.
@@ -170,6 +175,7 @@ void refreshWeatherForGame(GameState game) {
     refreshLiveWeather(
       state,
       timeZone: DateTime.now().timeZoneName,
+      online: network.isOnline,
       region: getPlayerRegionCode(state),
       onStored: game.scheduleSave,
     ),

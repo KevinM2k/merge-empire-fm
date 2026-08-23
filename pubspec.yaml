@@ -43,6 +43,13 @@ dependencies:
   flame: ^1.35.1
   audioplayers: ^6.7.1
 
+  # The three platform seams the JS reaches for through Capacitor. Each is one
+  # small file in lib/services and nothing else in the app imports the plugin.
+  url_launcher: ^6.3.2 # utils/openUrl.js — @capacitor/browser
+  wakelock_plus: ^1.6.1 # utils/wakeLock.js — the Screen Wake Lock API
+  connectivity_plus: ^7.3.1 # utils/network.js — navigator.onLine
+  in_app_review: ^2.0.12 # engine/ratingEngine.js — @capacitor-community/in-app-review
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -31,7 +31,7 @@ too late:
 ## Where we are
 
 **THE PLAYTEST QUEUE IS EMPTY.** Every row a player reported has been either
-fixed or answered, and the forty-three boxes still open below are all of one of
+fixed or answered, and the boxes still open below are all of one of
 five kinds, none of which can be closed by writing Dart in this repo:
 
 - **M4 services** — AdMob, Firebase, Play Billing, StoreKit, cloud save,
@@ -1334,7 +1334,7 @@ something was skipped.
 |---|---|
 | `engine/matchEngine.js` (2,709) | `match_orchestration`, `match_events`, `match_resolution`, `match_tactics`, `goal_model`, `squad_rating` |
 | `engine/progressionEngine.js` (1,381) | `league_table`, `league_pyramid`, `season_fixtures`, `season_end`, `team_names` |
-| `engine/ratingEngine.js` (111) | `player_rating` |
+| `engine/ratingEngine.js` (111) | `rating_prompt` + `store_review` |
 | `utils/storage.js` (1,051) | `state/save_slots`, `state/save_codec`, `state/migration` |
 | `data/managerAvatar.js` (1,458) | `data/manager_looks` (the unlock half only — the SVG geometry is M3) |
 | `engine/energyEngine.js` (310) | `engine/energy_engine` + `data/ad_units` (the AdMob call itself is M4) |
@@ -2436,11 +2436,13 @@ are done.
 
 ### Four controls that look broken because they are waiting on M4
 
-- [ ] **Rate Us, Privacy Options and Account Connection** are `PendingControl`s
+- [~] **Rate Us, Privacy Options and Account Connection** were `PendingControl`s
       with "coming soon" on them, and a player reasonably reads that as broken.
-      Rate Us is the one that could ship now — it is a store URL and a
-      `url_launcher` dependency, nothing more. Privacy needs the consent SDK and
-      Account needs auth; both are genuinely M4.
+      **RATE US SHIPS**, which is what this row said it could: `url_launcher` is
+      in, `services/store_review.dart` fires the OS sheet and falls back to the
+      store's write-review page, and a tap records the decision so the prompt
+      scheduler stops asking. Privacy still needs the consent SDK and Account
+      still needs auth; both are genuinely M4 and stay pending.
 - [x] **Team Names is a SCREEN, not a service** — the pyramid editor, with
       presets, import and export (`pyramid.*` has fourteen keys waiting for it).
       It is the one of the four that is only work. Built: the Settings row was a
@@ -3113,7 +3115,7 @@ Ordered by how visible each one is to somebody playing.
       `through_ball`, `whack` and `pairs` were engine-only. All five built
       21 Aug; all seven drills are playable.
 - [x] **Team Names / the pyramid editor** has no screen. Built 21 Aug.
-- [ ] **Rate Us, Privacy and Account connection** are waiting on M4 — a store URL
+- [~] **Rate Us is done; Privacy and Account connection** are waiting on M4 — a store URL
       and `url_launcher`, a consent SDK, and auth respectively. They look broken
       because they are stubs; see 21 Aug.
 - [ ] **Kenney smoke, backdrops and more icons** — the merge burst and the
@@ -5547,7 +5549,14 @@ missing second choices.
 
 **Engines**
 
-- [x] `player_rating` (ratingEngine, 111), `trait_engine` (226)
+- [x] `player_rating` (111), `trait_engine` (226) — **and the mapping here was
+      WRONG, which is how a whole engine went missing.** `ratingEngine.js` is not
+      `player_rating.dart`: one is the app-store review prompt and the other is
+      `getEffectiveRating`, and the two got filed as each other, so 111 lines of
+      prompt scheduling had no row and nobody looked for it. It is ported now —
+      `engine/rating_prompt.dart` — and it is REACHABLE from both of the JS's
+      triggers: a good win at the foot of `_afterMatch`, and a promotion in
+      `season_end_button`.
 - [x] `merge_engine` (217), `idle_engine` (359), `sponsor_engine` (112)
 - [x] `player_energy_engine` (325)
 - [x] `energy_engine` (310, pure half only — the AdMob half is M4)
@@ -6294,8 +6303,21 @@ of buttons that error.
       carries the music beds and `assets/audio/` carries the three files. It sat
       under M4 because sound was filed with the services, and it is the one thing
       in that block that needed no account, no SDK and no console.
-- [ ] `util/wake_lock` (54)
-- [ ] `util/ad_consent` (63), `util/network` (8), `util/open_url` (15)
+- [x] `util/wake_lock` (54) — **DONE.** `wakelock_plus` behind
+      `services/platform_seams.dart`, refcounted, and taken by the LIVE MATCH and
+      nowhere else — the JS's own reasoning, because it is the one screen the
+      player watches without touching. A refusal (battery saver, OS policy) is a
+      no-op rather than an error.
+- [x] `util/network` (8) — **DONE.** `connectivity_plus` behind the same seam,
+      and it answers TRUE when it cannot tell, which is what `navigator.onLine`
+      does. Its live caller is the weather reader: an offline attempt would burn
+      the failure backoff and leave the sky stale after the network came back.
+- [x] `util/open_url` (15) — **DONE.** `url_launcher` in
+      `LaunchMode.externalApplication`, which is `SFSafariViewController` on iOS
+      and a Custom Tab on Android — the same two `@capacitor/browser` opens. It
+      REFUSES a non-http scheme: every URL this game has is a store page or a
+      policy, so a `tel:` arriving there is a bug and not a feature.
+- [ ] `util/ad_consent` (63) — the UMP SDK, which arrives with AdMob
 
 **Not being ported**, recorded so nobody goes looking:
 

@@ -17,12 +17,16 @@
 /// heading. It had been on Account, which is the tab about signing in.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
+import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
@@ -151,11 +155,23 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     ),
     SettingsCard(
       children: [
-        PendingControl(
-          controlKey: 'rate-btn',
+        // **Rate Us was the one of the four that only needed a URL**, and it
+        // has one now: the store's own write-review page, opened in the system
+        // browser. A tap here is also an ANSWER — a player who goes to the
+        // store has been asked, so the prompt scheduler stops asking.
+        SettingsAction(
+          key: const ValueKey('rate-btn'),
           icon: 'star',
           label: t('settings.rateUs'),
-          reason: t('settings.comingSoon'),
+          onTap: () {
+            final game = ref.read(gameProvider);
+            final state = game.state;
+            if (state != null) {
+              recordRatingDecision(state, 'done');
+              game.scheduleSave();
+            }
+            unawaited(requestNativeReview());
+          },
         ),
         PendingControl(
           controlKey: 'privacy-btn',

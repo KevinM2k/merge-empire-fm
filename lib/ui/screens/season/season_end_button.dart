@@ -13,9 +13,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/champions_card.dart';
 import 'package:merge_empire_fc/ui/popups/offseason_report_card.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
@@ -48,6 +50,22 @@ class EndSeasonButton extends ConsumerWidget {
         ),
       ),
     );
+
+    // **GOING UP IS A HIGH-EMOTION MOMENT, which is when to ask.** The JS's
+    // own trigger, and the reason it needs no win threshold of its own — a
+    // promotion is the good news. `rating_prompt.dart` carries the whole of the
+    // restraint: five asks ever, a week apart, and never after an opt-out.
+    //
+    // **NOT through `enqueuePopup`, deliberately.** The review sheet is a
+    // system overlay rather than one of the three popup shapes, so the queue
+    // has no way to know when it closed and would drain the offseason report
+    // out from under it. Fired here, before the queue has anything in it, for
+    // the same reason the JS fires it from this exact line.
+    if (outcome.outcome == 'promoted' &&
+        shouldPromptRatingOnPromotion(game.state ?? {})) {
+      game.update((state) => recordRatingShown(state));
+      unawaited(requestNativeReview());
+    }
 
     // **WHAT THE BREAK DID, which the engine has always reported and nothing
     // has ever read.** `endSeason` returns an injury, a sponsor and an ageing

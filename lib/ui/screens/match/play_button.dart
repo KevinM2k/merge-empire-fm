@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart';
+import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
@@ -22,6 +23,7 @@ import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_button.dart';
+import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_sponsor_offer.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/sponsor_offer_card.dart';
@@ -181,13 +183,39 @@ class PlayMatchButton extends ConsumerWidget {
     final sponsor = game.state == null
         ? null
         : maybeGenerateSponsorshipOffer(game.state!);
-    if (sponsor == null || !context.mounted) return;
-    await showSponsorOffer(
-      context,
-      ref,
-      player: sponsor.player,
-      company: sponsor.company,
-    );
+    if (sponsor != null) {
+      if (!context.mounted) return;
+      await showSponsorOffer(
+        context,
+        ref,
+        player: sponsor.player,
+        company: sponsor.company,
+      );
+      // A sponsor answered is enough for one match too — see below.
+      return;
+    }
+
+    // **AND ONLY IF NOTHING ELSE ASKED FOR ANYTHING: the review sheet.** The
+    // JS's own position, at the foot of this chain after every modal branch has
+    // returned, and its reasoning is the reasoning for the whole file — a good
+    // win is a good moment to be asked, and a good win that has just been
+    // followed by a bid and a sponsor is not.
+    //
+    // **A GOOD win, not a win**: two goals clear, eight matches into a career.
+    // `engine/rating_prompt.dart` carries the cap and the cooldown, because the
+    // OS will not tell us it has stopped showing the sheet.
+    final state = game.state;
+    if (state == null) return;
+    if (!shouldPromptRating(
+      state,
+      won: result['won'] == true,
+      homeGoals: (result['homeGoals'] as num?)?.toInt() ?? 0,
+      awayGoals: (result['awayGoals'] as num?)?.toInt() ?? 0,
+    )) {
+      return;
+    }
+    game.update((s) => recordRatingShown(s));
+    unawaited(requestNativeReview());
   }
 
   @override

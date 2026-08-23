@@ -130,6 +130,7 @@ Future<Map<String, dynamic>?> refreshLiveWeather(
   WeatherFetch fetch = httpGetJson,
   void Function()? onStored,
   bool force = false,
+  bool online = true,
 }) async {
   final weather = ensureWeatherLocation(
     state,
@@ -146,6 +147,13 @@ Future<Map<String, dynamic>?> refreshLiveWeather(
       return _map(weather['live']);
     }
   }
+
+  // **The JS checks `isOnline()` here**, and it is worth keeping even though
+  // every failure below already falls through to the seasonal model: an offline
+  // attempt would otherwise burn the failure backoff, so the sky would stay
+  // stale for the window after the network came back. Supplied by the caller
+  // for the same reason the timezone is — see `providers/game_host.dart`.
+  if (!online) return _map(weather['live']);
 
   final lat = (weather['lat'] as num?)?.toDouble();
   final lon = (weather['lon'] as num?)?.toDouble();
