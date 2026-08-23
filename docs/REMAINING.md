@@ -6981,7 +6981,16 @@ of buttons that error.
       SDK. The seam is tested; the SDK's own behaviour is the M6 device pass.
 - [ ] Firebase: `services/firebase` (146) init, the analytics sink, Crashlytics
 - [ ] `authService` (662), `playGamesService` (155), `nativeAuthPlugin`
-- [ ] `cloudSaveService` (498), `firestoreRest` (334), `firestoreRestAuth` (83)
+- [ ] `cloudSaveService` (498). **`firestoreRest` (334) and `firestoreRestAuth`
+      (83) are PORTED** — `engine/firestore_codec.dart` (the wire format, pure
+      and tested: 20 cases, including that an integer arrives as a string and a
+      whole double must be written as one) and `services/firestore_rest.dart`
+      (the transport, over a swappable `firestoreSend`, 21 cases). REST rather
+      than a Firestore SDK is the JS's own decision — its comment says the SDK's
+      WebChannel streams fail in the native WebView — and keeping it is what let
+      this land with no plugin and no new dependency. `firestoreAuthToken` is
+      the seam the auth port fills; until it does the token is null, which is
+      the NORMAL case, because leaderboard reads are public
 - [ ] `leaderboardService` (1,831)
 - [x] `feedbackService` (195) — **PORTED, and still dormant, which is the spec's
       own arrangement rather than a gap.** It needs no account and no Firebase
