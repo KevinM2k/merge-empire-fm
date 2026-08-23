@@ -1205,11 +1205,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // than the cap below.
                   Flexible(
                     child: Padding(
+                    // **HALF THE AIR.** `matchGap` above AND below put sixteen
+                    // points of nothing round a band that is already the one
+                    // thing here giving up its height — reported twice.
                     padding: const EdgeInsets.fromLTRB(
                       matchInset,
-                      matchGap,
+                      matchGap / 2,
                       matchInset,
-                      matchGap,
+                      matchGap / 2,
                     ),
                     // **AS WIDE AS EVERY OTHER BOX, and shorter than it was.**
                     // It was an `AspectRatio` inside a height cap, so the CAP
@@ -2113,7 +2116,11 @@ class _Scoreboard extends StatelessWidget {
       // nothing. The panel's bottom padding goes with it, and the bar takes the
       // panel's radius on its two bottom corners so it follows the shape rather
       // than squaring it off.
-      child: GlassPanel(
+      child: GestureDetector(
+        key: const ValueKey('match-stats-button'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onStats,
+        child: GlassPanel(
         density: GlassDensity.deep,
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
         child: Column(
@@ -2214,45 +2221,32 @@ class _Scoreboard extends StatelessWidget {
                 leftRating: isHome ? ourRating : theirRating,
                 rightRating: isHome ? theirRating : ourRating,
               ),
-            // **NO GAP ABOVE IT EITHER.** With the competition line gone this
-            // strip is a chart button and, at the whistle, FULL TIME — a nearly
-            // empty row, and the 8px over it plus its own height was reading as
-            // a block of dead space at the foot of the card. Reported from a
-            // screenshot as far too much padding at the bottom.
+            // **THE FOOTER STRIP IS GONE, and the BOARD is the stats door.**
+            // The competition line went first ("Sunday League · Away" is a fact
+            // the player brought with them), which left a chart icon alone in a
+            // row of its own — asked for directly, and it was the last thing
+            // holding that row open.
             //
-            // **THE COMPETITION AND THE VENUE HAVE GONE.** `SUNDAY LEAGUE ·
-            // AWAY` is a fact the player brought with them — they chose the
-            // fixture a screen ago — and it was costing a whole row on a card
-            // that has none to give. Asked for directly.
-            Row(
-              children: [
-                const Spacer(),
-                if (finished)
-                  Text(
-                    t('match.full_time').toUpperCase(),
-                    key: const ValueKey('match-full-time'),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.6,
-                      color: kit.accentBright,
-                    ),
-                  ),
-                GestureDetector(
-                  key: const ValueKey('match-stats-button'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onStats,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
-                    child: Icon(
-                      Icons.bar_chart,
-                      size: 16,
-                      color: kit.textMuted,
-                    ),
+            // **But deleting the icon outright would strand `MatchStatboard`
+            // and `match.tab.stats`**, which is exactly the fault this queue
+            // exists to find. So the whole board takes the tap instead: it
+            // costs no height at all, and the numbers are what the panel is
+            // about, so tapping them to see more of them is where a hand goes
+            // anyway.
+            if (finished)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  t('match.full_time').toUpperCase(),
+                  key: const ValueKey('match-full-time'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
+                    color: kit.accentBright,
                   ),
                 ),
-              ],
-            ),
+              ),
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: const BorderRadius.only(
@@ -2270,6 +2264,7 @@ class _Scoreboard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

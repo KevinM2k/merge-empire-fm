@@ -12,7 +12,7 @@
 /// figure the stat board prints.
 library;
 
-import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
@@ -102,8 +102,8 @@ class _ArrowPainter extends CustomPainter {
     final right = bias >= 0;
     final strength = bias.abs();
     // Never nothing. A dead-level game is still a game being played, and an
-    // empty pitch reads as a screen that has stopped working.
-    final reach = 0.30 + 0.34 * strength;
+    // empty pitch reads as a screen that has stopped working — which is why the
+    // wedge's own span below has a floor rather than starting at zero.
     // **OPAQUE, and ONE colour.** It was the kit at 30–75% alpha, so the mown
     // stripes ran straight through it and the arrow read as a smear rather than
     // as a mark on the grass. A solid shade of the turf itself is what a pitch
@@ -112,32 +112,43 @@ class _ArrowPainter extends CustomPainter {
     // direction is.
     final colour = right ? ours : theirs;
 
-    // The shaft slides toward the goal being attacked as the pressure builds —
-    // pointing left and creeping left is the away side getting the better of it.
-    final centre = Offset(size.width * (0.5 + bias * 0.20), size.height * 0.5);
-    final half = size.width * reach / 2;
-    final from = Offset(centre.dx - (right ? half : -half), centre.dy);
-    final to = Offset(centre.dx + (right ? half : -half), centre.dy);
+    // **A SHADED HALF OF THE PITCH WITH A POINT ON IT, not a drawn arrow.**
+    // Asked for with a screenshot of how a broadcast does it: the territory
+    // being pressed is darkened and the shading itself comes to a point at the
+    // end being attacked. An arrow ON the grass is a symbol laid over a picture;
+    // shading the grass IS the picture saying it.
+    //
+    // Full height, because it is a region rather than a mark, and the region is
+    // the half of the pitch the play is in.
+    final from = right ? 0.0 : size.width;
+    final span = size.width * (0.34 + 0.30 * strength);
+    final tip = right ? from + span : from - span;
+    // Where the point starts closing in: the last third of the wedge.
+    final shoulder = right ? tip - span * 0.34 : tip + span * 0.34;
 
-    final thickness = size.height * (0.105 + 0.05 * strength);
-    final paint = Paint()
-      ..color = colour
-      ..strokeWidth = thickness
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawLine(from, to, paint);
+    final wedge = Path()
+      ..moveTo(from, 0)
+      ..lineTo(shoulder, 0)
+      ..lineTo(tip, size.height / 2)
+      ..lineTo(shoulder, size.height)
+      ..lineTo(from, size.height)
+      ..close();
 
-    // The head, as two strokes off the tip rather than a filled triangle: the
-    // same cap and width as the shaft, so the whole mark is one drawn line.
-    final head = thickness * 1.7;
-    final back = right ? -1.0 : 1.0;
-    for (final sign in [-1.0, 1.0]) {
-      canvas.drawLine(
-        to,
-        to + Offset(back * head * math.cos(0.5), sign * head * math.sin(0.5)),
-        paint,
-      );
-    }
+    // It FADES toward the point rather than ending on an edge: a hard vertical
+    // boundary across a pitch reads as a seam between two textures, and the
+    // whole thing is meant to read as pressure rather than as a shape.
+    canvas.drawPath(
+      wedge,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(from, 0),
+          Offset(tip, 0),
+          [
+            colour.withValues(alpha: 0.34 + 0.22 * strength),
+            colour.withValues(alpha: 0.10 + 0.14 * strength),
+          ],
+        ),
+    );
   }
 
   @override

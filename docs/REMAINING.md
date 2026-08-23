@@ -5468,6 +5468,26 @@ one everywhere it should not.
       bottom edge is the horizon, so an image aligned to it meets the pitch by
       construction and there is nowhere for a gap to be. A hand-drawn hedge line
       went in first and left exactly the gap that was then reported.
+- [x] **The chart icon in the top card's corner is gone**, and the BOARD is the
+      stats door now. Deleting it outright would have stranded `MatchStatboard`
+      and `match.tab.stats`, which is exactly the fault this queue exists to
+      find — so the whole panel takes the tap. It costs no height at all, and
+      the numbers are what the panel is about, so tapping them to see more of
+      them is where a hand goes anyway.
+- [x] **Still too much air above and below the pitch** — `matchGap` on both
+      sides was sixteen points of nothing round the one band already giving up
+      its height. Halved.
+- [x] **THE ARROW IS A SHADED HALF OF THE PITCH, not a drawn arrow.** From the
+      screenshot: the territory being pressed is darkened and the shading itself
+      comes to a point at the end being attacked. An arrow ON the grass is a
+      symbol laid over a picture; shading the grass IS the picture saying it. It
+      fades toward the point rather than ending on an edge, because a hard
+      vertical boundary across a pitch reads as a seam between two textures.
+- [ ] **CLUB INVESTMENT SHOULD PAY OUT PER TAP.** The tier reward lands all at
+      once at the end; split it across the presses — twenty clicks for 10% is
+      0.5% a click — so every tap is worth something.
+- [ ] **THE UNUSED-CARD COUNT on the Players page should look EMBOSSED** —
+      very subtle, pressed into the surface rather than printed on it.
 - [ ] **THE CLUB ASSET CARDS ARE NOT GLASS.** They read as a darker gradient,
       not a blur — because there is nothing behind them to blur. The page is a
       flat colour, so `BackdropFilter` has no work to do and all that shows is
