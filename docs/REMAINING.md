@@ -5507,18 +5507,33 @@ one everywhere it should not.
       Nothing in the parity harness moved, and the reason is worth writing down:
       the fixtures all sit at `invested: 0`, where progress equals the tier
       exactly, so the change is a no-op at every boundary the JS was dumped at.
-- [x] **DARK MODE'S MATCH BACKGROUND IS PURPLE, and it should not be.**
-      `matchBackdrop` decides by theme now. The match took the diorama's sky so
-      that kicking off was not arriving somewhere else — right in principle, and
-      in dark mode the night sky's own third stop is a violet (`#6A4A8C`) that
-      reads as purple behind a page of glass panels.
-      **Dark gets the app's own background, flat. Light still gets a sky, and it
-      gets the NIGHT one** — a flat backdrop there is white, which is the thing
-      the sky was introduced to fix in the first place: pale panels on a pale
-      page and the whole match goes flat. Full time takes the same backdrop,
-      because it is the same evening.
-- [ ] **THE UNUSED-CARD COUNT on the Players page should look EMBOSSED** —
-      very subtle, pressed into the surface rather than printed on it.
+- [x] **DARK MODE'S MATCH BACKGROUND IS PURPLE — and the fix was NOT the
+      background.** Two goes at changing the ground were both wrong (flat theme
+      colour, then a two-surface gradient), and the spec settles it:
+      `.match-page` says the ground is the Play screen's sky at the same stadium
+      tier, in BOTH themes, because "it used to be a hardcoded near-black in
+      both, which made light mode a black hole in an otherwise light app".
+      **The half the port had missed is the next paragraph**: "there is NO
+      light-mode flip, and that is the whole point. Every panel is the
+      scorecard's glass in both themes, because the ground is the sky." The
+      port's panels flipped with the THEME — pale panes on a bright sky in light
+      mode, and thin enough in dark mode to let the night sky's violet through.
+      That violet is the purple. `GlassPanel.darkGlass` pins the material, the
+      sky goes back to being the ground, and the full-time report takes the same
+      pair because the spec keeps the two pages on one material precisely so
+      they cannot drift.
+- [x] **THE UNUSED-CARD COUNT on the Players page should look EMBOSSED.** Faint
+      ink on a faint square is still ink ON something; the number is PRESSED
+      INTO the surface now — the glyph is the square's own colour and what you
+      see is two shadows, a light one a pixel below and a dark one a pixel
+      above. There is no ink at all, so it cannot out-shout a card however
+      bright the theme goes.
+- [x] **The commentary now uses all the vertical space it can.** The pitch band
+      was a `Flexible` at flex 1 beside the feed's `Expanded`, so the two split
+      the free space in half and the pitch then took only its CAP out of that
+      half — the surplus is not redistributed, so a third of the screen was dead
+      between them. At flex 0 the pitch is laid out in the inflexible pass and
+      the feed takes the whole remainder.
 - [x] **THE CLUB ASSET CARDS ARE NOT GLASS.** Right diagnosis, and it was the
       PAGE rather than the panels: a flat colour gives `BackdropFilter` no work
       to do, so all that showed was the panel's own tint. The club's own SKY
