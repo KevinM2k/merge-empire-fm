@@ -6272,8 +6272,14 @@ that is not off the extension is the bug, not the symptom.
       measures the marking layer rather than looking for a `Transform`.
       The goal replay's own box now takes the TILTED aspect too — the flat
       pitch's left it two-fifths dead green.
-- [ ] **The 2D match view is not scaled correctly at all**, which is the same
-      family and may be the same cause.
+- [x] **The 2D match view is not scaled correctly at all**, which is the same
+      family and was the same cause — twice over. The layers were laid out at
+      the band's shape while the tilt was fitted for the pitch's (two pitches,
+      one letterboxed inside the other), and then the fitted quad sat exactly on
+      the clip boundary (no touchlines). Measured at the match band's own
+      proportions the pitch now fills 98% of the width and 93% of the height,
+      with the lines inside. **Re-report it if it is still wrong** — this is the
+      third pass and the first two were both real.
 - [x] **The commentary box has a nasty middle gradient**, and it makes the
       minute down the left unreadable. `GlassPanel`'s sheen: bright at the top,
       clear at 58%, faintly bright again at the foot. On a card that is a lit
@@ -7381,7 +7387,25 @@ of buttons that error.
       **NOT VERIFIED ON A DEVICE, and it cannot be from here** — `analyze` and
       the suite are the only evidence in this repo and neither exercises an ad
       SDK. The seam is tested; the SDK's own behaviour is the M6 device pass.
-- [ ] Firebase: `services/firebase` (146) init, the analytics sink, Crashlytics
+- [x] Firebase: `services/firebase` (146) — **the portable half is PORTED and
+      the rest is a workaround this build does not need.** What matters in that
+      file is the table: Firebase issues one API key PER REGISTERED APP, the iOS
+      and Android keys are restricted to the bundle id and the browser key by
+      referrer, so a device sending the browser key is a 403. That is
+      `data/firebase_config.dart` now — pure, three rows, tested — and
+      `firestore_rest.dart` picks its row off `Platform` rather than hardcoding
+      the web key with a note saying the pair would arrive later.
+      The remainder is a lazy singleton around the Firebase JS SDK plus a
+      Firestore instance carrying two WebView workarounds (forced long polling,
+      `useFetchStreams: false`). The port reaches Firestore over plain HTTPS
+      precisely because that transport is what fails in a native WebView, so
+      porting the cure for an illness this build does not have would be porting
+      a workaround. Same call the coach's ref-counted suppression got.
+      **Still open and moved to its own row below:** the analytics sink and
+      Crashlytics, which are plugins rather than this file.
+- [ ] Firebase Analytics and Crashlytics — the SINK, not the config. Needs the
+      plugins and a console; nothing in `firebase.js` beyond `getFirebaseApp`
+      speaks to either, so there is no JS half left to port for them.
 - [ ] `authService` (662), `playGamesService` (155), `nativeAuthPlugin`
 - [x] `cloudSaveService` (498) — **PORTED, in two halves.**
       `engine/cloud_save_policy.dart` is who wins when the phone and the cloud

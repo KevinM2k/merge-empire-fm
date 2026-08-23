@@ -26,21 +26,34 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:merge_empire_fc/data/firebase_config.dart';
 import 'package:merge_empire_fc/engine/firestore_codec.dart';
 
 /// Ten seconds, connect and read alike. The JS's `REST_TIMEOUT_MS`.
 const Duration firestoreTimeout = Duration(seconds: 10);
 
-/// The project the documents live in, from `services/firebase.js`.
-const String firestoreProjectId = 'merge-empire-fc';
+/// The project the documents live in, from `data/firebase_config.dart`.
+const String firestoreProjectId = firebaseProjectId;
 
-/// **The WEB API key.** Firebase issues one per registered app and the JS picks
-/// between three by platform, because the iOS and Android keys are restricted to
-/// their bundle id and the browser key is restricted by referrer. Which key this
-/// build should send is decided by the same attestation headers below, and
-/// choosing it needs the native app registered — so the web key stands here and
-/// the platform pair arrives with the Firebase port.
-const String firestoreApiKey = 'AIzaSyA1jsF17_Q-wHESG0MqagAuEbDyjqoB5HQ';
+/// **THE KEY FOR THE PLATFORM THIS IS RUNNING ON.**
+///
+/// Firebase issues one per registered app and the JS picks between three,
+/// because the iOS and Android keys are restricted to their bundle id and the
+/// browser key is restricted by referrer — so a device sending the browser key
+/// is a 403. This used to be the web key with a note saying the platform pair
+/// would arrive with the Firebase port; it has.
+///
+/// A variable rather than a constant so a test can pin it, and resolved once:
+/// `Platform` is a syscall and this is read on every request.
+final String firestoreApiKey = firebaseConfigFor(_thisApp).apiKey;
+
+FirebaseApp get _thisApp {
+  if (Platform.isIOS) return FirebaseApp.ios;
+  if (Platform.isAndroid) return FirebaseApp.android;
+  // Desktop and the test host are neither, and the browser key is the one that
+  // is not bundle-restricted — which is exactly the fallback the JS takes.
+  return FirebaseApp.web;
+}
 
 /// Sent so an app-restricted key is accepted. The Firebase SDKs add these
 /// automatically; a raw REST call has to, or the key comes back 403.
