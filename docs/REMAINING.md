@@ -6245,9 +6245,17 @@ that is not off the extension is the bug, not the symptom.
 - [ ] **Loads of views do not work in light mode** — text unreadable against the
       background it is on. This row is the sweep; the ones below are the
       specific sightings so far.
-- [ ] **Squad: the Clear button's red text cannot be read.**
-- [ ] **The table: the W/D/L boxes have a dark background**, and the yellow
-      points text cannot be read.
+- [x] **Squad: the Clear button's red text cannot be read.** The INK was
+      theme-aware and the pill under it was not — black glass in both themes, so
+      the deep `#C62828` a light page needs came out dark red on near-black. The
+      pill carries its own ground now, because it sits over the pitch rather
+      than on a surface.
+- [x] **The table: the W/D/L boxes have a dark background**, and the yellow
+      points text cannot be read. The plate was deliberately dark in BOTH
+      themes — itself the fix for "the red and green are too dark" — which on a
+      daylit table is a row of holes. It is a wash of the chip's own hue in
+      light mode now. The points were pure `#FFD700`; `semanticInk` knows every
+      gold in the palette rather than one of them.
 
 ### The player sheet
 

@@ -358,7 +358,6 @@ class PitchCornerActions extends ConsumerWidget {
           // Theme-aware: `#F87171` is the DARK red, and on a light sheet it
           // is a pink nobody reads a destructive action off.
           ink: vsRedOn(context),
-          edge: vsRedOn(context).withValues(alpha: 0.5),
         ),
         _CornerPill(
           pillKey: 'squad-auto',
@@ -371,8 +370,6 @@ class PitchCornerActions extends ConsumerWidget {
                 ? 'squad.formation.autoRotate'
                 : 'squad.formation.auto',
           ),
-          ink: Colors.white,
-          edge: const Color(0x47FFFFFF),
         ),
       ],
     );
@@ -385,24 +382,35 @@ class _CornerPill extends StatelessWidget {
     required this.onTap,
     required this.icon,
     required this.label,
-    required this.ink,
-    required this.edge,
+    this.ink,
   });
 
   final String pillKey;
   final VoidCallback onTap;
   final String icon;
   final String label;
-  final Color ink;
-  final Color edge;
+
+  /// The label's colour, already resolved for the theme — [vsRedOn] rather than
+  /// a constant. Null is the plain one.
+  final Color? ink;
 
   @override
   Widget build(BuildContext context) {
+    // **THE PILL FOLLOWS THE THEME, and it did not.** It was black glass in
+    // both, so Clear's destructive red — which IS theme-aware, and resolves to
+    // a deep `#C62828` on a light page — came out dark red on near-black.
+    // Reported as unreadable. The pill carries its own ground because it sits
+    // over the pitch rather than on a surface, so the ground has to flip with
+    // the ink rather than with what is behind it.
+    final light = Theme.of(context).brightness == Brightness.light;
+    final tint = ink ?? (light ? const Color(0xFF1A1F26) : Colors.white);
     return Material(
-      color: Colors.black.withValues(alpha: 0.55),
+      color: light
+          ? Colors.white.withValues(alpha: 0.82)
+          : Colors.black.withValues(alpha: 0.55),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: edge),
+        side: BorderSide(color: tint.withValues(alpha: 0.45)),
       ),
       child: InkWell(
         key: ValueKey(pillKey),
@@ -413,14 +421,14 @@ class _CornerPill extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GameIcon(icon, size: 14, color: ink),
+              GameIcon(icon, size: 14, color: tint),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: ink,
+                  color: tint,
                 ),
               ),
             ],
@@ -594,8 +602,6 @@ class _SubsButton extends ConsumerWidget {
       onTap: () => showBenchSheet(context, ref),
       icon: 'squad',
       label: t('squad.bench.count', {'n': count}),
-      ink: Colors.white,
-      edge: const Color(0x47FFFFFF),
     );
   }
 }

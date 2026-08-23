@@ -13,6 +13,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show
+        semanticInk,
         semanticPlate,
         vsAmberBright,
         vsGreenBright,
@@ -567,12 +568,14 @@ class _TableRow extends StatelessWidget {
             children: [
               Text(
                 '${row.pts}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 21,
                   height: 1,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFFFFD700),
-                  fontFeatures: [FontFeature.tabularFigures()],
+                  // Pure `#FFD700` on a white table is a figure nobody can
+                  // read, and the points are the column the table is FOR.
+                  color: semanticInk(context, const Color(0xFFFFD700)),
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
               const SizedBox(height: 3),
@@ -629,15 +632,18 @@ class _FormDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colour = switch (result) {
-      'W' => vsGreenBright,
-      'D' => vsAmberBright,
-      _ => vsRedBright,
-    };
+    final colour = semanticInk(
+      context,
+      switch (result) {
+        'W' => vsGreenBright,
+        'D' => vsAmberBright,
+        _ => vsRedBright,
+      },
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 2),
       decoration: BoxDecoration(
-        color: semanticPlate(context),
+        color: semanticPlate(context, colour),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: colour.withValues(alpha: 0.45)),
       ),

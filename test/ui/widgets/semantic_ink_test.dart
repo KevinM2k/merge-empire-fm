@@ -29,6 +29,7 @@ Future<Map<String, Color>> inksIn(WidgetTester tester, {required bool light}) as
           out['dataRed'] = semanticInk(context, const Color(0xFFF87171));
           out['dataAmber'] = semanticInk(context, const Color(0xFFFBBF24));
           out['gold'] = semanticInk(context, const Color(0xFFFFD700));
+          out['club'] = semanticInk(context, const Color(0xFF7FD4FF));
           return const SizedBox.shrink();
         },
       ),
@@ -78,49 +79,73 @@ void main() {
       expect(dark['dataAmber'], const Color(0xFFFBBF24));
     });
 
+    testWidgets('AND EVERY GOLD IN THE PALETTE, not just the one', (
+      tester,
+    ) async {
+      // The table's points figure is `#FFD700` and it printed unchanged on a
+      // white page — the one column the standings exist for, in daylight
+      // yellow. Reported straight off the table.
+      final light = await inksIn(tester, light: true);
+      expect(light['gold'], light['amber']);
+    });
+
     testWidgets('AND HANDS BACK ANYTHING IT DOES NOT RECOGNISE', (
       tester,
     ) async {
-      // Safe to run a whole column through: a gold, a club accent and a tier
-      // colour are all deliberate and none of them is this bug.
+      // Safe to run a whole column through: a club accent and a tier colour
+      // are deliberate and neither is this bug.
       final light = await inksIn(tester, light: true);
-      expect(light['gold'], const Color(0xFFFFD700));
+      expect(light['club'], const Color(0xFF7FD4FF));
     });
   });
-  group('AND A DARK PLATE LETS THE DARK-MODE COLOURS BE USED IN BOTH', () {
-    // **"The red and green should be the same as dark mode."** They cannot be,
-    // as INK on a white page — `#4ADE80` is 1.9:1 there and the test above
-    // exists to stop it. What they can be is the same on a plate of their own,
-    // which is what the sell popup already does and what the bid card and the
-    // form guide do now.
-    testWidgets('the plate is dark whichever theme is on', (tester) async {
-      late Color light;
-      late Color dark;
-      for (final isLight in [true, false]) {
-        await tester.pumpWidget(
-          MaterialApp(
-            key: ValueKey(isLight),
-            theme: buildAppTheme(kitId: '#4caf50', light: isLight),
-            home: Builder(
-              builder: (context) {
-                if (isLight) {
-                  light = semanticPlate(context);
-                } else {
-                  dark = semanticPlate(context);
-                }
-                return const SizedBox.shrink();
-              },
-            ),
+  group('AND THE PLATE FOLLOWS THE THEME', () {
+    // **The dark plate in both themes was itself a fix, and it caused the next
+    // report.** It answered "the red and green are too dark" — tinted fills
+    // behind a near-black light-mode ink are grey boxes — and a row of
+    // near-black chips on a daylit table is a set of holes in it, which is what
+    // came back off the standings. Dark keeps its plate; light gets a wash of
+    // the chip's own hue with the deep ink over it.
+    testWidgets('dark keeps the near-black one the bright three want', (
+      tester,
+    ) async {
+      late Color plate;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: false),
+          home: Builder(
+            builder: (context) {
+              plate = semanticPlate(context, vsGreenBright);
+              return const SizedBox.shrink();
+            },
           ),
-        );
-      }
-      for (final plate in [light, dark]) {
-        expect(plate.computeLuminance(), lessThan(0.05));
-        expect(plate.a, 1.0, reason: 'the page shows through the plate');
-      }
+        ),
+      );
+      expect(plate.computeLuminance(), lessThan(0.05));
+      expect(plate.a, 1.0, reason: 'the page shows through the plate');
     });
 
-    test('and the bright three read against it', () {
+    testWidgets('AND LIGHT DOES NOT — it is a wash of the ink itself', (
+      tester,
+    ) async {
+      late Color plate;
+      late Color ink;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: true),
+          home: Builder(
+            builder: (context) {
+              ink = semanticInk(context, vsGreenBright);
+              plate = semanticPlate(context, ink);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(plate.a, lessThan(0.3), reason: 'a hole in a daylit table');
+      expect(plate.r, ink.r);
+    });
+
+    test('and the bright three read against the DARK plate', () {
       // The figure this is measured against is the one the light-mode pair was
       // introduced for: 1.9:1 on white. On the plate all three clear 4.5:1,
       // which is the small-text bar.
@@ -136,5 +161,4 @@ void main() {
       }
     });
   });
-
 }

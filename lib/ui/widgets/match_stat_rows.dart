@@ -100,6 +100,7 @@ const Color _vsLevelDark = Color(0xFF60A5FA);
 const Color _vsRedLight = Color(0xFFC62828);
 const Color _vsGreenLight = Color(0xFF15803D);
 const Color _vsLevelLight = Color(0xFF1D4ED8);
+const Color _vsAmberLight = Color(0xFFB45309);
 
 bool _dark(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark;
@@ -109,7 +110,7 @@ Color vsRedOn(BuildContext context) =>
 Color vsGreenOn(BuildContext context) =>
     _dark(context) ? _vsGreenDark : _vsGreenLight;
 Color vsAmberOn(BuildContext context) =>
-    _dark(context) ? const Color(0xFFFF9800) : const Color(0xFFB45309);
+    _dark(context) ? const Color(0xFFFF9800) : _vsAmberLight;
 
 /// The light-mode counterpart of a colour that was chosen against a dark one.
 ///
@@ -127,7 +128,10 @@ Color semanticInk(BuildContext context, Color ink) {
   return switch (ink.toARGB32()) {
     0xFF4ADE80 || 0xFF76E876 => _vsGreenLight,
     0xFFF87171 || 0xFFFF6B70 => _vsRedLight,
-    0xFFFBBF24 => const Color(0xFFB45309),
+    // **Every gold in the palette, not just the one.** A table's points figure
+    // is `#FFD700` and it was pure daylight yellow on a white page — reported
+    // straight off the standings as unreadable.
+    0xFFFBBF24 || 0xFFFFB020 || 0xFFFFD700 || 0xFFFFC93C => _vsAmberLight,
     0xFF60A5FA => _vsLevelLight,
     _ => ink,
   };
@@ -144,8 +148,16 @@ Color semanticInk(BuildContext context, Color ink) {
 ///
 /// **Only for CHIPS AND BADGES**, never for a run of body text: a plate behind
 /// a sentence is a highlighter pen. A figure, a letter, a short label.
-Color semanticPlate(BuildContext context) =>
-    _dark(context) ? const Color(0xFF11151A) : const Color(0xFF1A1F26);
+/// The ground a semantic chip sits on, given the ink that goes over it.
+///
+/// **A dark plate in both themes was itself a report.** It fixed one — the
+/// tinted fills behind a near-black light-mode ink were grey boxes — and caused
+/// the next: a row of near-black chips on a daylit table is a set of holes in
+/// it. Dark mode keeps the plate the bright three were chosen for; light mode
+/// gets a wash of the chip's own hue, with the deep ink over it.
+Color semanticPlate(BuildContext context, [Color? ink]) => _dark(context)
+    ? const Color(0xFF11151A)
+    : (ink ?? _vsLevelLight).withValues(alpha: 0.13);
 
 /// The three, at their dark-mode brightness, for use ON [semanticPlate].
 const Color vsGreenBright = _vsGreenDark;
