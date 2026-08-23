@@ -25,6 +25,8 @@ import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -136,11 +138,20 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
                       // the SDK's business and answers honestly when asked.
                       note: status.full ? t('shop.already_ready') : null,
                       tint: kit.accentBright,
+                      tone: StoreTone.ad,
+                      cta: t('shop.claim_cta'),
+                      // **THE CALLER'S `ref`, NOT THE SHEET'S.** Popping first
+                      // is right — the video takes the screen — but `sheetRef`
+                      // belongs to a `Consumer` inside the route being popped,
+                      // so awaiting a video on it and then reading the game
+                      // reads through a disposed element. Reported as "I
+                      // watched the ad and got no energy", which is exactly
+                      // what that looks like from the couch.
                       onTap: status.full
                           ? null
                           : () {
                               Navigator.of(sheetContext).pop();
-                              unawaited(watchEnergyAd(sheetRef));
+                              unawaited(watchEnergyAd(ref));
                             },
                     ),
                   ),
@@ -204,13 +215,17 @@ class _RefillButton extends ConsumerWidget {
     return _EnergyOption(
       optionKey: const ValueKey('energy-buy-refill'),
       glyph: '💎',
-      title: '${t('gem.$_itemId.name')}  ${item.cost}',
+      title: t('gem.$_itemId.name'),
       note: blocked == null
           ? null
           : blocked == 'insufficient_gems'
           ? t('shop.toast.not_enough_gems')
           : t('settings.comingSoon'),
       tint: kit.accent,
+      // Gems, so the button is the gem BLUE and the price is on it — the cost
+      // was tacked onto the title, which is the one place a price does not go.
+      tone: StoreTone.gem,
+      cta: '${item.cost}',
       onTap: blocked != null
           ? null
           : () {
@@ -277,12 +292,20 @@ class _EnergyOption extends StatelessWidget {
     required this.title,
     required this.note,
     required this.tint,
+    required this.tone,
+    required this.cta,
     required this.onTap,
   });
 
   final Key optionKey;
   final String glyph;
   final String title;
+
+  /// What it costs, which is what colours the button — see [StoreButton].
+  final StoreTone tone;
+
+  /// The verb, or the price.
+  final String cta;
 
   /// Why it cannot be taken, or null when it can.
   final String? note;
@@ -298,6 +321,8 @@ class _EnergyOption extends StatelessWidget {
       color: live ? tint.withValues(alpha: 0.13) : kit.surface,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
+        // The box stays tappable as well as the button: a large target that
+        // does the same thing is a courtesy, not a second control.
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -337,6 +362,22 @@ class _EnergyOption extends StatelessWidget {
                   style: TextStyle(color: kit.textMuted, fontSize: 10),
                 ),
               ],
+              // **AND IT ENDS IN A BUTTON, in the currency's own colour.** The
+              // whole box was the tap target and nothing on it said "press
+              // this" — the shop's rule is one button, four colours, and the
+              // colour always answers "what does this cost me?". Yellow is a
+              // rewarded video and blue is gems, here as everywhere else.
+              const SizedBox(height: 10),
+              StoreButton(
+                key: ValueKey('${(optionKey as ValueKey).value}-btn'),
+                tone: tone,
+                label: cta,
+                small: true,
+                leading: tone == StoreTone.ad
+                    ? const GameIcon('video', size: 13)
+                    : null,
+                onTap: onTap,
+              ),
             ],
           ),
         ),

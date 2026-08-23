@@ -6,8 +6,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
@@ -17,10 +20,29 @@ import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
+/// An SDK that always pays out, so the wiring is what is under test.
+class PayingAds implements RewardedAds {
+  final List<String> shown = [];
+
+  @override
+  Future<AdOutcome> show(String placement) async {
+    shown.add(placement);
+    // **It takes TIME, which is the whole point.** A video that resolves on the
+    // next microtask lands while the sheet's route is still being torn down and
+    // hides the defect this file's last test is about.
+    await Future<void>.delayed(const Duration(seconds: 2));
+    return AdOutcome.rewarded;
+  }
+
+  @override
+  void prepare(String placement) {}
+}
+
 Future<ProviderContainer> pumpShell(
   WidgetTester tester, {
   int energy = 4,
   bool upgraded = false,
+  RewardedAds? ads,
 }) async {
   final state = createDefaultState();
   (state['energy'] as Map<String, dynamic>)['current'] = energy;
@@ -40,6 +62,7 @@ Future<ProviderContainer> pumpShell(
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
     ],
   );
   addTearDown(container.dispose);
@@ -197,4 +220,32 @@ void main() {
     expect(tester.getTopLeft(ad).dy, closeTo(tester.getTopLeft(buy).dy, 0.5));
     expect(tester.getTopLeft(ad).dx, lessThan(tester.getTopLeft(buy).dx));
   });
+  testWidgets('AND THE VIDEO STILL PAYS OUT AFTER THE SHEET CLOSES', (
+    tester,
+  ) async {
+    // **The bug this was written for.** The tap popped the sheet and then
+    // awaited the video on `sheetRef` — a `Consumer`'s ref inside the route
+    // being popped — so the grant read the game through a disposed element and
+    // did nothing. From the couch that is "I watched the ad and got no energy",
+    // which is how it was reported.
+    final ads = PayingAds();
+    final container = await pumpShell(tester, energy: 1, ads: ads);
+    await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('energy-watch-ad-btn')));
+    // The sheet is gone well before the video ends.
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('energy-sheet')), findsNothing);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+
+    expect(ads.shown, isNotEmpty, reason: 'no video was even asked for');
+    expect(
+      (container.read(gameProvider).state!['energy'] as Map)['current'],
+      1 + Energy.adReward,
+    );
+    await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+  });
+
 }

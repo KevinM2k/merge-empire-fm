@@ -5174,6 +5174,21 @@ one everywhere it should not.
       and the floating coach dismissed on a fully transparent layer, so the same
       bubble pushed the page back on one tab and floated over a live screen on
       the other four. `coachScrim` is the one value both take.
+- [x] **"I watched the ad and got no energy" — a real bug, and mine.** The tap
+      popped the sheet and then awaited the video on `sheetRef`, which belongs
+      to a `Consumer` INSIDE the route being popped: by the time a real video
+      finished, the grant was reading the game through a disposed element and
+      `ref` threw. Popping first is right — the video takes the screen — so the
+      fix is to take the CALLER's `ref`, which outlives the sheet.
+      The regression test was checked by putting the bug back: it fails with
+      "Bad state: Cannot use ref after the widget was disposed", and its fake
+      video deliberately takes two seconds, because one that resolves on the
+      next microtask lands before the route is gone and hides the whole thing.
+- [x] **The energy popup needs BUTTONS — blue for gems, yellow for the ad.**
+      Both routes end in a `StoreButton` now, in the shop's own four-colour
+      rule: the colour answers "what does this cost me?", so the video is yellow
+      with the ad chip and the refill is gem blue with the price ON the button
+      rather than tacked onto its title.
 - [ ] **Roll Trait should roll BOTH sides**, so it is clear what is happening,
       and the text should say the percentages gained and lost. **And the trait
       belongs above Career Stats** — it is one of the main things on that page,
