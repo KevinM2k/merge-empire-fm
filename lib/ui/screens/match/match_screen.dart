@@ -85,7 +85,7 @@ typedef _CamShot = ({
 /// read — which is exactly how it was reported. The radius belongs to
 /// `GlassPanel`, so nothing here draws its own.
 const double matchInset = 13;
-const double matchGap = 8;
+const double matchGap = 6;
 
 /// The commentary's own side inset.
 ///
@@ -1214,14 +1214,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   Flexible(
                     flex: 0,
                     child: Padding(
-                    // **HALF THE AIR.** `matchGap` above AND below put sixteen
-                    // points of nothing round a band that is already the one
-                    // thing here giving up its height — reported twice.
+                    // **THE SAME GAP AS EVERY OTHER BAND.** This one was on
+                    // `matchGap / 2` to buy back height, which made it the one
+                    // seam on the page that did not match the others — read
+                    // straight off the screen as the spacing being uneven. The
+                    // height it was buying came out of `matchGap` itself
+                    // instead, so the column is no taller and the seams agree.
                     padding: const EdgeInsets.fromLTRB(
                       matchInset,
-                      matchGap / 2,
+                      matchGap,
                       matchInset,
-                      matchGap / 2,
+                      matchGap,
                     ),
                     // **AS WIDE AS EVERY OTHER BOX, and shorter than it was.**
                     // It was an `AspectRatio` inside a height cap, so the CAP

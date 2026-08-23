@@ -47,7 +47,7 @@ void main() {
       final tab = shopTabOf(id);
       expect(tab, greaterThanOrEqualTo(0), reason: '${id.name} has no tab');
       await tester.tap(
-        find.byKey(ValueKey('shop-tab-${shopTabs[tab].label.name}')),
+        find.byKey(ValueKey('shop-tab-${shopTabSlug(shopTabs[tab])}')),
       );
       await tester.pumpAndSettle();
       expect(
@@ -74,12 +74,18 @@ void main() {
   ) async {
     final flat = [for (final tab in shopTabs) ...tab.sections];
     expect(flat.toSet(), shopSectionOrder.toSet());
+    // One deliberate exception to the enum's order: the free shelf sits at the
+    // BOTTOM of the boosts tab. It is the same kind of thing as the rows above
+    // it — something that makes your next match go better — and the only thing
+    // separating it is that it costs a video, so it goes after the ones a coin
+    // buys rather than ahead of them.
     for (final tab in shopTabs) {
       final order = [
         for (final id in shopSectionOrder)
-          if (tab.sections.contains(id)) id,
+          if (tab.sections.contains(id) && id != ShopSectionId.free) id,
+        if (tab.sections.contains(ShopSectionId.free)) ShopSectionId.free,
       ];
-      expect(tab.sections, order, reason: tab.label.name);
+      expect(tab.sections, order, reason: tab.titleKey);
     }
   });
 
@@ -90,7 +96,7 @@ void main() {
     await pumpShop(tester, (s) {
       (s['shop'] as Map<String, dynamic>)['styleVault'] = true;
     });
-    await tester.tap(find.byKey(const ValueKey('shop-tab-gems')));
+    await tester.tap(find.byKey(const ValueKey('shop-tab-premium')));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('shop-section-gems'), skipOffstage: false),
@@ -136,12 +142,13 @@ void main() {
       greaterThanOrEqualTo(clearance - 1),
       reason: 'under the glass, not behind it',
     );
-    // **The two currencies get a tab each rather than sharing one**, precisely
-    // because they are the deep-link targets: a link landing on a tab holding
-    // both would still ask the player to find the half they came for.
+    // **The two currencies SHARE a tab now.** Both sell a balance and both
+    // shelves state their own prices, so the split cost a tab and bought a
+    // player nothing — a coin link lands on the tab that holds the packs, with
+    // the gems above them on the same page.
     expect(
       find.byKey(const ValueKey('shop-section-gems'), skipOffstage: false),
-      findsNothing,
+      findsOneWidget,
     );
   });
 

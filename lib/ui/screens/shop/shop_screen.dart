@@ -60,6 +60,8 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     if (!mounted) return;
     final pending = ref.read(shellControllerProvider).pendingShopSection;
     if (pending == null) return;
+    // Both land on the same tab now — it holds both shelves, and the gem rows
+    // lead it, so a coin link still arrives with its packs one flick away.
     final id = switch (pending) {
       ShopSection.coins => ShopSectionId.coins,
       ShopSection.gems => ShopSectionId.gems,
@@ -136,10 +138,17 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
 
 /// The strip that picks a shelf.
 ///
-/// **Each tab keeps its section's own colour**, which is the whole reason the
-/// sections have one: painting seven shelves in the club's accent turns the
-/// shop into one undifferentiated list, and a tab strip in one colour does
-/// exactly the same thing to the tabs.
+/// **THEY HAVE TO LOOK LIKE TABS.** What was here was an icon, a label and a
+/// short underline — a row of LINKS, which says which one is highlighted and
+/// never says that the thing below belongs to it. A tab is a container: it has
+/// an edge, it is filled, and its bottom edge is OPEN into the panel, which is
+/// the one detail that does all the work.
+///
+/// So the baseline is drawn per segment rather than across the strip — an
+/// unselected tab draws it, the selected one does not — and the gap it leaves
+/// is the join. The fill and the top accent are the shelf's own colour, which
+/// is why the sections have one: four tabs in the club's accent would be the
+/// same undifferentiated list the colours were introduced to break up.
 class _ShopTabs extends StatelessWidget {
   const _ShopTabs({required this.selected, required this.onPick});
 
@@ -149,47 +158,90 @@ class _ShopTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final rule = kit.textMuted.withValues(alpha: 0.35);
+    const radius = BorderRadius.vertical(top: Radius.circular(12));
     return SizedBox(
-      height: 54,
+      height: 56,
       child: Row(
         key: const ValueKey('shop-tabs'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final (i, tab) in shopTabs.indexed)
             Expanded(
               child: GestureDetector(
-                key: ValueKey('shop-tab-${tab.label.name}'),
+                key: ValueKey('shop-tab-${shopTabSlug(tab)}'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onPick(i),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Icon(
-                      tab.label.icon,
-                      size: 18,
-                      color: i == selected ? tab.label.ink : kit.textMuted,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      t(tab.label.titleKey),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w800,
-                        color: i == selected ? tab.label.ink : kit.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // The underline is the selection, in the shelf's own colour.
-                    Container(
-                      height: 2,
-                      width: 22,
+                    // The tab itself: filled, edged, and rounded at the TOP
+                    // only. A uniform border is a hard requirement of
+                    // `BoxDecoration` once there is a radius, so the top
+                    // accent and the baseline are drawn as their own strips
+                    // over it rather than as sides of this one.
+                    DecoratedBox(
                       decoration: BoxDecoration(
+                        borderRadius: radius,
                         color: i == selected
-                            ? tab.label.ink
+                            ? tab.ink.withValues(alpha: 0.16)
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(1),
+                        border: Border.all(
+                          color: i == selected
+                              ? tab.ink.withValues(alpha: 0.45)
+                              : Colors.transparent,
+                        ),
                       ),
+                    ),
+                    if (i == selected)
+                      // The accent is the tab's own top edge, at the weight a
+                      // frame would be — not a stripe floating under a label.
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: ClipRRect(
+                          borderRadius: radius,
+                          child: Container(height: 3, color: tab.ink),
+                        ),
+                      ),
+                    // **THE BASELINE BREAKS UNDER THE SELECTED TAB.** That gap
+                    // is what makes the panel below read as this tab's
+                    // contents rather than as the next thing down the page,
+                    // and it is the whole difference between a tab and a link.
+                    if (i != selected)
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(height: 1, color: rule),
+                      ),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          tab.icon,
+                          size: 19,
+                          color: i == selected ? tab.ink : kit.textMuted,
+                        ),
+                        const SizedBox(height: 3),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Text(
+                            t(tab.titleKey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: i == selected
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : kit.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

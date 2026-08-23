@@ -50,41 +50,79 @@ const List<ShopSectionId> shopSectionOrder = ShopSectionId.values;
 /// Asked for directly, with the categories left open.
 ///
 /// A tab is a GROUP of the shelves that already exist rather than a new
-/// taxonomy: the sections keep their headings, their colours and their order,
-/// and what changes is how many of them you are looking at. That also means no
-/// new copy — every tab is labelled with the `shop.section.*` key of the shelf
-/// it leads with, and the catalogues are generated so a new key was not
-/// available anyway.
+/// taxonomy: the sections keep their colours and their order, and what changes
+/// is how many of them you are looking at. Every tab is labelled with a shipped
+/// `shop.section.*` key, because the catalogues are generated from the JS and a
+/// new one was not available.
 ///
-/// The two currencies get a tab each rather than sharing one. They are the
-/// deep-link targets (`ShopSection.coins` and `.gems`), and a link that lands on
-/// a tab holding both would still be asking the player to find the half they
-/// came for.
-typedef ShopTab = ({ShopSectionId label, List<ShopSectionId> sections});
+/// **Four tabs, not five.** Gems and coin packs both sell a BALANCE and both
+/// rows state their own price, so splitting them bought a player nothing and
+/// cost them a tab — the label is `shop.section.premium`, which is shipped in
+/// ten languages and which the JS itself never printed. The free shelf moved
+/// out of Offers as well: a quick-fire match and a lucky boot are things that
+/// make your next match go better, which is what the boosts tab is, and the
+/// only thing separating them was that they cost a video rather than a coin.
+typedef ShopTab = ({
+  String titleKey,
+  IconData icon,
+  Color ink,
+  List<ShopSectionId> sections,
+});
 
 const List<ShopTab> shopTabs = [
-  // Everything that is a deal right now: the three special offers, and the two
-  // things a video buys.
   (
-    label: ShopSectionId.offers,
-    sections: [ShopSectionId.offers, ShopSectionId.free],
+    titleKey: 'shop.section.offers',
+    icon: Icons.local_offer,
+    ink: Color(0xFFFFB300),
+    sections: [ShopSectionId.offers],
   ),
-  (label: ShopSectionId.gems, sections: [ShopSectionId.gems]),
-  (label: ShopSectionId.coins, sections: [ShopSectionId.coins]),
-  // A boost and a voucher are the same purchase to a player: something that
-  // makes the next thing they do go better.
   (
-    label: ShopSectionId.boosts,
-    sections: [ShopSectionId.boosts, ShopSectionId.vouchers],
+    titleKey: 'shop.section.premium',
+    icon: Icons.diamond,
+    ink: Color(0xFF7FD4FF),
+    sections: [ShopSectionId.gems, ShopSectionId.coins],
   ),
-  (label: ShopSectionId.looks, sections: [ShopSectionId.looks]),
+  (
+    titleKey: 'shop.section.boosts',
+    icon: Icons.bolt,
+    ink: Color(0xFF66BB6A),
+    sections: [
+      ShopSectionId.boosts,
+      ShopSectionId.vouchers,
+      ShopSectionId.free,
+    ],
+  ),
+  (
+    titleKey: 'shop.section.looks',
+    icon: Icons.checkroom,
+    ink: Color(0xFFB98BFF),
+    sections: [ShopSectionId.looks],
+  ),
 ];
 
 /// Which tab holds a shelf. Every shelf is in exactly one, and a section added
-/// to the enum without a tab would be unreachable — so this throws rather than
-/// silently hiding it.
+/// to the enum without a tab would be unreachable — so this returns -1 rather
+/// than silently hiding it, and the deep link checks.
 int shopTabOf(ShopSectionId id) =>
     shopTabs.indexWhere((tab) => tab.sections.contains(id));
+
+/// The tab's identity in a widget key, off its own label rather than an index —
+/// so a reordered strip does not silently move a test's target.
+String shopTabSlug(ShopTab tab) => tab.titleKey.split('.').last;
+
+/// **A SHELF ONLY WEARS A HEADING WHEN THE TAB HAS NOT ALREADY SAID IT.**
+///
+/// Asked for directly: the tab carries the name now, so a frame that repeats it
+/// prints the same word twice, eighteen points apart. What survives is the case
+/// the tab cannot cover — a tab holding several shelves, where the second and
+/// third still have to be told apart, and even there the one the tab is named
+/// after goes bare.
+bool sectionNeedsHeading(ShopSectionId id) {
+  final index = shopTabOf(id);
+  if (index < 0) return true;
+  final tab = shopTabs[index];
+  return tab.sections.length > 1 && tab.titleKey != id.titleKey;
+}
 
 class ShopSectionFrame extends StatelessWidget {
   const ShopSectionFrame({
@@ -105,13 +143,16 @@ class ShopSectionFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final headed = sectionNeedsHeading(id);
     return Padding(
       key: ValueKey('shop-section-${id.name}'),
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 6),
+      // A headed shelf needs air above it to sit under; a bare one is already
+      // under the tab that names it and the same 18 reads as a dropped row.
+      padding: EdgeInsets.fromLTRB(12, headed ? 18 : 2, 12, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          if (headed) Row(
             children: [
               // NO DISC. Every icon in this shop used to sit in a bordered,
               // tinted box and the gem tiles never did — and the gem tiles are
@@ -163,7 +204,7 @@ class ShopSectionFrame extends StatelessWidget {
                 style: TextStyle(color: kit.textMuted, fontSize: 12),
               ),
             ),
-          const SizedBox(height: 8),
+          if (headed || note != null) const SizedBox(height: 8),
           child,
         ],
       ),

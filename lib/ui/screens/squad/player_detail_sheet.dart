@@ -139,6 +139,13 @@ CardInstance _asHeld(CardInstance card, TraitHold hold) {
   return CardInstance(raw);
 }
 
+/// **ONE GAP BETWEEN THE CARDS, and it is this one.**
+///
+/// The sheet ran 12 under the hero and 10 between everything else, except round
+/// the Pro-mode fitness bar where two of them stacked into 20. Four different
+/// seams on a page of four cards is read as unfinished before a word on it is.
+const double detailGap = 12;
+
 class _PlayerDetail extends ConsumerStatefulWidget {
   const _PlayerDetail({required this.instanceId, required this.slotId});
 
@@ -233,15 +240,14 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
               ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: detailGap),
 
-        if (proMode) ...[const SizedBox(height: 10), _Fitness(card: card)],
+        if (proMode) ...[_Fitness(card: card), const SizedBox(height: detailGap)],
         // **THE TRAIT COMES BEFORE CAREER STATS**, which is a reordering asked
         // for directly and is right for the same reason the block wears the
         // accent: it is the one thing on this sheet a player can CHANGE, and
         // the only place on it they can spend a coin. Career stats are a record
         // of what has happened; the trait is what happens next.
-        const SizedBox(height: 10),
         // Whose player they are decides what it says. A loanee's trait would go
         // back with them; one out on loan cannot take the field, so the roll
         // would buy nothing this season.
@@ -267,15 +273,15 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
             hold: hold,
             onHold: (h) => setState(() => _hold = h),
           ),
-        const SizedBox(height: 10),
+        const SizedBox(height: detailGap),
         _CareerStats(card: card, def: def),
 
         if (_map(card.sponsor) case final sponsor?) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: detailGap),
           _SponsorLine(sponsor: sponsor),
         ],
 
-        const SizedBox(height: 10),
+        const SizedBox(height: detailGap),
         // **NO MARKET VALUE BOX.** Selling is not on this sheet, so a price with
         // no button under it is a figure the player cannot act on — it belongs
         // with the Sell, on the Players tab's own sheet.

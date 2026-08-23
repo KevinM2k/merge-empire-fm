@@ -4206,6 +4206,36 @@ by a test.
       it, so it must not be muted for ten minutes. A test pins that the ledger is
       untouched.
 
+### The diorama, still
+
+- [ ] **The grass does not meet the fence, and the backdrop is cut off.** There
+      is a pale band of sky between the bottom of the park strip and the top of
+      the pitch on tier 1 — the backdrop is being bottom-aligned inside a box
+      that ends above where the grass starts. Same fault as the one closed on
+      29 Aug and it has come back at a different seam: the fix has to be that
+      the park's box and the pitch's top edge are the SAME line, not two numbers
+      that happen to agree at one screen height.
+
+### The home page
+
+- [ ] **Coach's face is not a circle.** The avatar is clipped to something
+      between a circle and a squircle and the head is cropped at the top — it is
+      meant to be a round chip with the whole head inside it.
+
+### The squad
+
+- [ ] **The pitch tokens are dark at the bottom IN LIGHT MODE.** The name plate
+      under each figure is drawn on the dark card face while everything round it
+      is light. Reported before and it is back — `PlayerCard.light` resolves
+      from the theme, so a `PitchToken` reaching for its own colour is the bug.
+
+### The bid card
+
+- [ ] **The bid popup wants the full glass treatment**, as the reference shot
+      has it: the card is glass over a blurred page, the two info boxes are
+      glass panels with their own gold edge, and the accept/decline buttons are
+      full-width pills. The port's version has the layout and not the material.
+
 ### The player sheet, and the trait roll — 26 Aug, later still
 
 - [x] **The numbers belong ON the card, and then the box goes.** Done on 27 Aug —
@@ -6065,6 +6095,53 @@ missing second choices.
       not an argument against a Lottie clip for a manager who is standing
       still**, which is what the customiser's chips are, and that is the cheap
       half of this if the diagnosis holds.
+
+## From playtesting — 30 Aug
+
+One sitting, and it is almost all the shop and the two screens a player spends
+the most minutes on. Nothing here is a mechanic; all of it is the port looking
+unfinished in a way that reads before a word on the screen does.
+
+### The shop is tabs now, and the tabs need to look like it
+
+- [x] **Make the tabs LOOK like tabs.** The strip is an icon, a label and an
+      underline, which is a set of links rather than a set of tabs — a player
+      cannot tell the selected one is a container the panel below belongs to.
+- [x] **Gems and coin packs are ONE tab.** Two tabs that both sell a balance is
+      the split nobody asked for; they are both "currency" and the rows already
+      state their own price.
+- [x] **Drop the per-section heading.** The tab carries the name now, so the
+      frame's own title says it twice.
+- [x] **Quick-fire matches and the free lucky boot are boosts and items**, not
+      offers. Move them into that tab.
+- [x] **Manager customisations want a new style.** The grouping by axis was for
+      a page that held everything at once, and the tab makes it redundant. What
+      the panel HAS to say now is that the money IAP unlocks every gemmed pack
+      as well — that is the whole pitch of the SKU and it is currently invisible.
+
+### The match screen
+
+- [x] **The chance cutaway draws TWO pitches on top of each other**, the inner
+      one far too narrow. Flame fits `visibleGameSize` preserving aspect, so on a
+      band wider and shorter than the pitch the GAME letterboxed itself inside
+      the markings. Fixed by giving the tilted plane the pitch's own aspect and
+      fitting THAT into the band.
+- [x] **The gaps between the cards are not the same.** The pitch band was on
+      `matchGap / 2` and everything else on `matchGap`.
+
+### The player sheet
+
+- [x] **The gaps between its cards are not the same either** — 12 under the
+      hero, 10 elsewhere, 20 round the Pro-mode fitness bar.
+- [ ] **Restyle it against the reference shot.** The mock supplied is close to
+      what is there and differs in the finish rather than the layout: the hero
+      wants a gold rule round it, the two plates want to read as inset panels
+      rather than scrims, Swap and Bench want to be full pills of their own
+      (one light, one gold) rather than floating chips, the trait card wants its
+      `TRAIT` eyebrow and a medal disc with the roman numeral as a pip, the
+      other traits want to be a two-column list with the numeral in its own
+      right-hand cell, and the roll button wants to be a full-width gold bar.
+      Career stats are one row of three at the very bottom.
 
 ## M0 — foundation and save bridge ✅
 

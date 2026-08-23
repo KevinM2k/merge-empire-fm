@@ -54,120 +54,120 @@ class LooksSection extends ConsumerWidget {
 
     return ShopSectionFrame(
       id: ShopSectionId.looks,
-      child: Container(
+      child: Column(
         key: const ValueKey('shop-vault-case'),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: vaultOwned
-                ? kit.accent.withValues(alpha: 0.55)
-                : ShopSectionId.looks.ink.withValues(alpha: 0.45),
-            width: 1.5,
-          ),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              ShopSectionId.looks.ink.withValues(alpha: 0.10),
-              kit.surface,
-            ],
-          ),
-        ),
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (vault != null)
-              _VaultHero(
-                vault: vault,
-                ownedPacks: owned,
-                totalPacks: tiles.length,
-                isOwned: vaultOwned,
-              ),
-            // The lid: what the case holds, and how much of it is already open.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // **THE CASE ROUND ALL OF THIS IS GONE, because the TAB is the case
+          // now.** Grouping the wardrobe inside a bordered container made sense
+          // on a page that held seven shelves at once and had to say where one
+          // ended; on a tab of its own it is a frame drawn round the only thing
+          // on the page, and it cost the vault the width it needed to make its
+          // one argument.
+          //
+          // What replaced it is the argument itself, drawn: the Vault, then the
+          // sentence that it holds every pack, then an arrow into the packs, and
+          // a Vault mark on each one of them. Asked for directly — the money SKU
+          // unlocks all ten gem packs and nothing on the shelf said so.
+          if (vault != null)
+            _VaultHero(
+              vault: vault,
+              ownedPacks: owned,
+              totalPacks: tiles.length,
+              isOwned: vaultOwned,
+            ),
+          if (vault != null)
+            // The spine. A hairline down out of the Vault into the grid, with
+            // the count on it — so the tiles below are read as its contents
+            // rather than as the alternative to it.
             Padding(
-              padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
+                  const SizedBox(width: 22),
+                  Icon(
+                    Icons.subdirectory_arrow_right,
+                    size: 16,
+                    color: ShopSectionId.looks.ink,
+                  ),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      t('shop.looks.case_label', {'total': tiles.length}),
+                      // The count, never the headline — the hero says
+                      // "all customisations unlocked" and saying it twice on
+                      // one shelf is the repetition the tab strip was just
+                      // relieved of.
+                      t('shop.vault.progress', {
+                        'n': vaultOwned ? tiles.length : owned,
+                        'total': tiles.length,
+                      }),
                       key: const ValueKey('shop-vault-case-label'),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: kit.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 0.4,
+                        letterSpacing: 0.3,
                       ),
                     ),
                   ),
-                  if (!vaultOwned)
-                    // Flexible: the label beside it already takes what it can,
-                    // and in German the pair is wider than a 320pt phone.
-                    Flexible(
-                      child: Text(
-                        t('shop.vault.progress', {
-                          'n': owned,
-                          'total': tiles.length,
-                        }),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: kit.textMuted, fontSize: 11),
-                      ),
-                    ),
                 ],
               ),
             ),
-            ShopGrid(
-              columns: 3,
-              children: [
-                for (final tile in tiles)
-                  _LookTile(
-                    packId: tile.packId,
-                    tile: tile.tile,
-                    // **EVERY PACK IS TAPPABLE.** The tile answered "what does
-                    // this cost" and stopped there, because what spent the gems
-                    // was a sheet the port did not have — so the price on ten
-                    // tiles was a figure the player could read and not act on.
-                    // The Shop's own three beats do the rest: ask, and if the
-                    // balance will not cover it, the gem packs rather than a
-                    // sentence explaining that they cannot.
-                    onBuy: tile.tile.status == 'owned' || vaultOwned
-                        ? null
-                        : () => offerToBuy(context, ref, (
-                            key: 'pack-${tile.packId}',
-                            title: t('customise.pack.${tile.packId}'),
-                            // **WHAT IT UNLOCKS, not how many.** "4 items" over
-                            // a confirm is a count of things the player cannot
-                            // see — the tile behind the sheet has the picture
-                            // and the sheet covers it. The pack's own contents
-                            // are `axis:id` pairs and every axis already has a
-                            // catalogue label (`customise.tab.*`), so the
-                            // summary needs no new copy: two Headwear, one
-                            // Accessory, one Celebration.
-                            subtitle: _packContents(tile.packId),
-                            // **AND THE ITEMS THEMSELVES, one row each, with a
-                            // TICK against what is already owned.** The
-                            // subtitle can only summarise — "two Headwear, one
-                            // Accessory" is a count of things the player cannot
-                            // see, and the tile with the picture on it is
-                            // behind this card. Asked for directly.
-                            body: _PackContents(packId: tile.packId),
-                            glyph: 'shirt',
-                            currency: SpendCurrency.gems,
-                            cost: tile.tile.cost,
-                            buy: () => ref
-                                .read(gameProvider)
-                                .update((s) => buyLookPack(s, tile.packId))
-                                .reason,
-                          )),
-                  ),
-              ],
-            ),
-          ],
-        ),
+          ShopGrid(
+            columns: 3,
+            children: [
+              for (final tile in tiles)
+                _LookTile(
+                  packId: tile.packId,
+                  tile: tile.tile,
+                  // **EVERY TILE WEARS THE VAULT'S MARK.** That is the whole
+                  // point of the restyle: a player looking at ten gem prices
+                  // has no way of knowing the one cash price above covers all
+                  // of them, and the shelf never said it.
+                  inVault: vault != null,
+                  vaultOwned: vaultOwned,
+                  // **EVERY PACK IS TAPPABLE.** The tile answered "what does
+                  // this cost" and stopped there, because what spent the gems
+                  // was a sheet the port did not have — so the price on ten
+                  // tiles was a figure the player could read and not act on.
+                  // The Shop's own three beats do the rest: ask, and if the
+                  // balance will not cover it, the gem packs rather than a
+                  // sentence explaining that they cannot.
+                  onBuy: tile.tile.status == 'owned' || vaultOwned
+                      ? null
+                      : () => offerToBuy(context, ref, (
+                          key: 'pack-${tile.packId}',
+                          title: t('customise.pack.${tile.packId}'),
+                          // **WHAT IT UNLOCKS, not how many.** "4 items" over
+                          // a confirm is a count of things the player cannot
+                          // see — the tile behind the sheet has the picture
+                          // and the sheet covers it. The pack's own contents
+                          // are `axis:id` pairs and every axis already has a
+                          // catalogue label (`customise.tab.*`), so the
+                          // summary needs no new copy: two Headwear, one
+                          // Accessory, one Celebration.
+                          subtitle: _packContents(tile.packId),
+                          // **AND THE ITEMS THEMSELVES, one row each, with a
+                          // TICK against what is already owned.** The
+                          // subtitle can only summarise — "two Headwear, one
+                          // Accessory" is a count of things the player cannot
+                          // see, and the tile with the picture on it is
+                          // behind this card. Asked for directly.
+                          body: _PackContents(packId: tile.packId),
+                          glyph: 'shirt',
+                          currency: SpendCurrency.gems,
+                          cost: tile.tile.cost,
+                          buy: () => ref
+                              .read(gameProvider)
+                              .update((s) => buyLookPack(s, tile.packId))
+                              .reason,
+                        )),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -285,8 +285,18 @@ String _packContents(String packId) {
   ].join(' · ');
 }
 
-/// The Vault itself: a row rather than a tile, because it is the lid of the case
-/// under it and not one of the things inside.
+/// **THE VAULT'S ONE JOB IS TO SAY THAT IT HOLDS EVERYTHING BELOW IT.**
+///
+/// It was a row — a glyph, a name and a price button, sat on the lid of a case
+/// whose label carried the actual pitch two lines further down in muted 11pt.
+/// So the shelf showed a cash price and then ten gem prices and never once said
+/// that the first one covers the other ten, which is the entire proposition of
+/// the SKU. Reported exactly that way.
+///
+/// `shop.looks.case_label` — "Includes all {total} packs" — is the sentence,
+/// and it is shipped in ten languages, so this needed no new copy at all. It is
+/// now the headline under the name, at the weight it earns, and the price is a
+/// full-width button under it rather than a chip fighting the title for room.
 class _VaultHero extends StatelessWidget {
   const _VaultHero({
     required this.vault,
@@ -303,89 +313,142 @@ class _VaultHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return Row(
+    final ink = ShopSectionId.looks.ink;
+    return Container(
       key: ValueKey('shop-tile-${vault.product.id}'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: ShopSectionId.looks.ink.withValues(alpha: 0.18),
-          ),
-          // The app's own line art, not the catalogue's emoji — that one is for
-          // the toast, which renders it as text.
-          child: GameIcon('bank', size: 24, color: ShopSectionId.looks.ink),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isOwned ? kit.accent.withValues(alpha: 0.55) : ink,
+          width: 1.5,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [ink.withValues(alpha: 0.22), kit.surface],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                vault.name,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  height: 1.2,
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: ink.withValues(alpha: 0.22),
+                ),
+                // The app's own line art, not the catalogue's emoji — that one
+                // is for the toast, which renders it as text.
+                child: GameIcon('bank', size: 24, color: ink),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      vault.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // **THE PITCH, at the weight of a pitch.** Not the muted
+                    // caption it was.
+                    Text(
+                      isOwned
+                          ? t('shop.looks.vault_owned')
+                          : t('shop.looks.case_label', {'total': totalPacks}),
+                      style: TextStyle(
+                        color: isOwned ? kit.accentBright : ink,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        height: 1.25,
+                      ),
+                    ),
+                    if (!isOwned) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        vault.desc,
+                        style: TextStyle(
+                          color: kit.textMuted,
+                          fontSize: 11,
+                          height: 1.3,
+                        ),
+                      ),
+                      if (paidDisabledReason() case final why?) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          why,
+                          style: TextStyle(color: kit.textMuted, fontSize: 11),
+                        ),
+                      ],
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                isOwned ? t('shop.looks.vault_owned') : vault.desc,
-                style: TextStyle(
-                  color: kit.textMuted,
-                  fontSize: 11,
-                  height: 1.3,
-                ),
-              ),
-              if (!isOwned)
-                if (paidDisabledReason() case final why?) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    why,
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+              if (isOwned)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 8),
+                  child: Text(
+                    t('shop.owned'),
+                    style: TextStyle(
+                      color: kit.accentBright,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ],
+                ),
             ],
           ),
-        ),
-        const SizedBox(width: 8),
-        isOwned
-            ? Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  t('shop.owned'),
-                  style: TextStyle(
-                    color: kit.accentBright,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              )
+          if (!isOwned) ...[
+            const SizedBox(height: 10),
             // The CASE is Looks purple and the button is priced green: the
             // frame says what this is, the button says what it costs. See
             // [StoreButton].
-            : StoreButton(
-                key: ValueKey('shop-buy-${vault.product.id}'),
-                tone: StoreTone.cash,
-                label: vault.product.price,
-                stretch: false,
-                onTap: null,
-              ),
-      ],
+            StoreButton(
+              key: ValueKey('shop-buy-${vault.product.id}'),
+              tone: StoreTone.cash,
+              label: vault.product.price,
+              onTap: null,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
 
 /// One pack, inside the case: its own colour, what it holds, and what it costs.
 class _LookTile extends StatelessWidget {
-  const _LookTile({required this.packId, required this.tile, this.onBuy});
+  const _LookTile({
+    required this.packId,
+    required this.tile,
+    this.inVault = false,
+    this.vaultOwned = false,
+    this.onBuy,
+  });
 
   final String packId;
   final LookTile tile;
+
+  /// Whether the Vault SKU covers this pack — which it does for all of them,
+  /// and which is the fact the shelf was never stating. The mark is small
+  /// deliberately: it is a footnote on ten tiles that adds up to the argument
+  /// the hero above makes once.
+  final bool inVault;
+
+  /// Whether that SKU has already been bought, in which case the mark is the
+  /// REASON this tile is owned rather than a pitch for buying it.
+  final bool vaultOwned;
 
   /// Null for a pack there is nothing left to buy — owned outright, or covered
   /// by the Vault.
@@ -398,6 +461,7 @@ class _LookTile extends StatelessWidget {
     final tint = pack == null ? kit.accent : lookPackTint(pack.tint);
     final owned = tile.status == 'owned';
 
+    final vaultInk = ShopSectionId.looks.ink;
     return GestureDetector(
       onTap: onBuy,
       child: Container(
@@ -406,15 +470,39 @@ class _LookTile extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: tint.withValues(alpha: owned ? 0.20 : 0.10),
-          border: Border.all(color: tint.withValues(alpha: owned ? 0.7 : 0.35)),
+          border: Border.all(
+            // A pack the Vault has already opened is edged in the VAULT's
+            // colour rather than its own, so the ten tiles read as one purchase
+            // instead of ten.
+            color: vaultOwned
+                ? vaultInk.withValues(alpha: 0.7)
+                : tint.withValues(alpha: owned ? 0.7 : 0.35),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              pack?.icon ?? '🎽',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20, height: 1.2),
+            // The Vault mark rides in the glyph's own row so it costs the
+            // tile no height — there is none to give on a three-across shelf.
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  pack?.icon ?? '🎽',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 20, height: 1.2),
+                ),
+                if (inVault)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: GameIcon(
+                      'bank',
+                      size: 11,
+                      color: vaultInk.withValues(alpha: vaultOwned ? 1 : 0.6),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
@@ -443,7 +531,11 @@ class _LookTile extends StatelessWidget {
             ),
             const Spacer(),
             const SizedBox(height: 6),
-            _PackPill(cost: tile.cost, owned: owned, onBuy: onBuy),
+            _PackPill(
+              cost: tile.cost,
+              owned: owned || vaultOwned,
+              onBuy: onBuy,
+            ),
           ],
         ),
       ),

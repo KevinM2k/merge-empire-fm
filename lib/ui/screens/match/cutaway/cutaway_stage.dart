@@ -522,18 +522,23 @@ Matrix4 _tilted() => Matrix4.identity()
 /// own centre until it fits. That is also what makes a stronger tilt safe to
 /// ask for, and a stronger tilt is what buys the band its height back — a
 /// foreshortened plane covers the same ground in less screen.
-Matrix4 fittedTilt(Size size) {
-  if (size.isEmpty) return Matrix4.identity();
-  final centre = Offset(size.width / 2, size.height / 2);
+/// [plane] is the flat pitch's own box; [into] is the band it has to end up
+/// inside. They are DIFFERENT boxes and that is the point — the plane keeps the
+/// pitch's aspect so nothing on it is letterboxed, and the band is whatever
+/// height the screen could spare.
+Matrix4 fittedTilt(Size plane, {Size? into}) {
+  final band = into ?? plane;
+  if (plane.isEmpty || band.isEmpty) return Matrix4.identity();
+  final centre = Offset(plane.width / 2, plane.height / 2);
   final about = Matrix4.identity()
     ..translateByDouble(centre.dx, centre.dy, 0, 1)
     ..multiply(_tilted())
     ..translateByDouble(-centre.dx, -centre.dy, 0, 1);
-  final bounds = MatrixUtils.transformRect(about, Offset.zero & size);
+  final bounds = MatrixUtils.transformRect(about, Offset.zero & plane);
   if (bounds.width <= 0 || bounds.height <= 0) return about;
-  final fit = math.min(size.width / bounds.width, size.height / bounds.height);
+  final fit = math.min(band.width / bounds.width, band.height / bounds.height);
   return Matrix4.identity()
-    ..translateByDouble(centre.dx, centre.dy, 0, 1)
+    ..translateByDouble(band.width / 2, band.height / 2, 0, 1)
     ..scaleByDouble(fit, fit, 1, 1)
     ..translateByDouble(-bounds.center.dx, -bounds.center.dy, 0, 1)
     ..multiply(about);
@@ -550,12 +555,31 @@ class _InPerspective extends StatelessWidget {
     // so how far the near edge spreads depends on how tall the band actually
     // is — a constant would be right at one screen height and wrong at every
     // other.
-    builder: (context, constraints) => Transform(
-      transform: fittedTilt(constraints.biggest),
-      // Filtered: the mown stripes are hairlines and nearest-neighbour on a
-      // tilted plane is a staircase.
-      filterQuality: FilterQuality.medium,
-      child: child,
-    ),
+    builder: (context, constraints) {
+      final band = constraints.biggest;
+      // **THE PLANE KEEPS THE PITCH'S OWN ASPECT, and that is what stopped
+      // there being TWO pitches.** Flame fits `visibleGameSize` into the widget
+      // preserving aspect, so on a band wider-and-shorter than the pitch the
+      // GAME letterboxed itself — a small pitch of players inside a full-width
+      // pitch of markings, which is exactly what a chance looked like.
+      //
+      // Giving the layers a plane of the right shape and tilting THAT into the
+      // band means the markings and the game are the same rectangle again, and
+      // the band's height is free to be whatever the screen can spare.
+      final plane = Size(band.width, band.width / pitchAspect);
+      return SizedBox.expand(
+        child: Transform(
+          transform: fittedTilt(plane, into: band),
+          // Filtered: the mown stripes are hairlines and nearest-neighbour on
+          // a tilted plane is a staircase.
+          filterQuality: FilterQuality.medium,
+          child: SizedBox(
+            width: plane.width,
+            height: plane.height,
+            child: child,
+          ),
+        ),
+      );
+    },
   );
 }
