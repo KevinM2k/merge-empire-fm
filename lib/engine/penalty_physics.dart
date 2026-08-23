@@ -736,12 +736,43 @@ class PenaltyKick {
       ..z = 0;
   }
 
+  /// How wide his BODY is to a ball, from the centre line of it.
+  ///
+  /// **ANY PART OF HIM IS A SAVE.** The check was a circle round the GLOVES
+  /// alone, so a ball through his chest, off his hip or against a trailing leg
+  /// went in — which is not what a keeper is. Reported directly.
+  ///
+  /// A shoulder is about 25cm from the spine and a thigh rather less; this is
+  /// the generous end of that, because the alternative failure — a ball that
+  /// visibly hit him and counted as a goal — is the one a player notices.
+  static const double keeperBodyRadius = 0.28;
+
   bool _keeperGotIt() {
     if (position.y < -0.6 || position.y > 0.35) return false;
     final dx = position.x - keeperHand.x;
     final dz = position.z - keeperHand.z;
     final sweep = reach + ballRadius;
-    return dx * dx + dz * dz < sweep * sweep;
+    if (dx * dx + dz * dz < sweep * sweep) return true;
+
+    // **AND HIS BODY, as a capsule from his middle to his hands.** At full
+    // stretch that segment IS the keeper — hip, torso, shoulder, arm — and at
+    // rest it collapses to a standing figure. Testing the segment rather than
+    // two circles is what stops a ball slipping through the gap between them.
+    final mx = 0.0;
+    final mz = keeperStandZ * 0.55;
+    final vx = keeperHand.x - mx;
+    final vz = keeperHand.z - mz;
+    final len2 = vx * vx + vz * vz;
+    final t = len2 <= 0
+        ? 0.0
+        : (((position.x - mx) * vx + (position.z - mz) * vz) / len2).clamp(
+            0.0,
+            1.0,
+          );
+    final bx = position.x - (mx + vx * t);
+    final bz = position.z - (mz + vz * t);
+    final body = keeperBodyRadius + ballRadius;
+    return bx * bx + bz * bz < body * body;
   }
 }
 

@@ -678,4 +678,27 @@ void main() {
     });
   });
 
+  group('ANY PART OF HIM IS A SAVE', () {
+    // The check was a circle round the GLOVES alone, so a ball through his
+    // chest, off his hip or against a trailing leg went in — which is not what
+    // a keeper is. Reported directly.
+    test('a ball at his midriff is saved, not a goal', () {
+      // Dead centre, waist height, at a keeper who has gone to a CORNER — so
+      // his gloves are two metres away and the ball goes through where his body
+      // is. Unmissable to a human being, and it counted as a goal.
+      final k = kick(
+        (across: 0.0, lift: 0.18, power: 0.7, curl: 0.0),
+        plan: (side: 0.95, height: 0.2, commitAt: 0.03),
+      );
+      expect(k.savedAt, isNotNull, reason: 'it went straight through him');
+    });
+
+    test('and the body is narrower than his reach', () {
+      // It is a torso, not a second pair of arms — a keeper who covers the goal
+      // with his ribs is a wall, and the whole game is beating him.
+      expect(PenaltyKick.keeperBodyRadius, lessThan(keeperReach));
+      expect(PenaltyKick.keeperBodyRadius, greaterThan(0.15));
+    });
+  });
+
 }

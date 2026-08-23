@@ -5423,8 +5423,19 @@ one everywhere it should not.
       the gaffer strolled the touchline with an arm held out). Copying -110
       across on top of the new rest folded the arm forty degrees too far. Same
       delta off the port's own rest instead.
-- [ ] **PENALTY TRAINING: the keeper is off his line**, a little too big, and he
-      does not really dive into the corners. **And any touch should be a save.**
+- [~] **PENALTY TRAINING: the keeper.** **Any touch IS a save now** — the check
+      was a circle round the GLOVES alone, so a ball through his chest, off his
+      hip or against a trailing leg went in, which is not what a keeper is. His
+      body is a CAPSULE from his middle to his hands: at full stretch that
+      segment is the keeper — hip, torso, shoulder, arm — and at rest it
+      collapses to a standing figure. A segment rather than two circles is what
+      stops a ball slipping through the gap between them. Narrower than his
+      reach, deliberately: a keeper who covers the goal with his ribs is a wall,
+      and the whole game is beating him.
+      **Still open: he is off his line, a little too big, and does not dive into
+      the corners.** All three are the VIEW rather than the physics — the goal
+      line is `y = 0` and his hands start there, and `keeperDiveSpan + reach` is
+      the post to the centimetre. Judging them wants a render.
 - [ ] **PRO MODE BECOMES AN UNLOCK, earned by PRESTIGING ONCE.** It is playable
       from the start today; from now on a player has to win the top league and
       prestige before it opens.
