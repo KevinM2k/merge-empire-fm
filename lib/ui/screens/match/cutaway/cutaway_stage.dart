@@ -464,12 +464,17 @@ class _Verdict extends StatelessWidget {
 /// being a place a chance can be understood in, and that is the one thing this
 /// band is for — so it is deliberately at the top of the range rather than past
 /// it.
-/// **STRONGER AGAIN, and this time it buys space.** -0.42 was still a pitch
-/// that was slightly not-flat; at -0.62 (about 36 degrees) the far half really
-/// foreshortens, which is what lets the BAND be shorter without the pitch
-/// looking cropped — a tilted plane needs less height on screen to cover the
-/// same ground. Asked for twice, with the space as the stated reason.
-const double pitchTilt = -0.62;
+/// **STRONGER THREE TIMES, and every time the reason was SPACE.** -0.22 was a
+/// pitch that was slightly not-flat; -0.42 and -0.62 were each still short of
+/// the broadcast wide the screenshot showed. At -0.80 (about 46 degrees) the
+/// far half really foreshortens, which is what lets the BAND be shorter without
+/// the pitch looking cropped — a tilted plane needs less height on screen to
+/// cover the same ground.
+///
+/// This is only safe because of [fittedTilt]: the projection widens the near
+/// edge past its own box, so without the fit each of these steps pushed more of
+/// the near touchline off the sides.
+const double pitchTilt = -0.80;
 
 /// How strong the vanishing is. Still short of a wedge: the pitch is wide and
 /// shallow in this band, and past this the far touchline converges to a point

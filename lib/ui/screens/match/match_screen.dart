@@ -11,6 +11,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
@@ -1206,26 +1207,27 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                       matchInset,
                       matchGap,
                     ),
-                    child: ConstrainedBox(
-                      // Capped: the pitch is landscape and at its natural aspect would
-                      // take a third of a tall phone and all of a short one.
-                      //
-                      // **0.23, and the PERSPECTIVE is what pays for it.** A
-                      // tilted plane covers the same ground in less height, so
-                      // the stronger tilt hands this band back some of the
-                      // screen — which is the reason the tilt was asked for.
-                      // The pitch is the one band here that is a fraction of
-                      // the screen rather than a thing being read, so it is the
-                      // one that gives.
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.23,
+                    // **AS WIDE AS EVERY OTHER BOX, and shorter than it was.**
+                    // It was an `AspectRatio` inside a height cap, so the CAP
+                    // decided the width — the pitch came out narrower than the
+                    // cards above and below it with air down both sides, on the
+                    // one band that wants the room. The width is the page's now
+                    // and the height is capped independently; a shallower box
+                    // is a shallower pitch, which `fittedTilt` handles by
+                    // construction.
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: math.min(
+                        MediaQuery.sizeOf(context).height * 0.20,
+                        // Never taller than its own natural aspect: past that
+                        // the band is padding rather than pitch.
+                        (MediaQuery.sizeOf(context).width - matchInset * 2) /
+                            pitchAspect,
                       ),
-                      child: AspectRatio(
-                        aspectRatio: pitchAspect,
-                        child: Stack(
-                          key: const ValueKey('match-stage'),
-                          fit: StackFit.expand,
-                          children: [
+                      child: Stack(
+                        key: const ValueKey('match-stage'),
+                        fit: StackFit.expand,
+                        children: [
                             // **THE PITCH IS ALWAYS THERE.** The band never
                             // moved, but what was IN it flipped between a
                             // football pitch and a table of numbers every few
@@ -1301,8 +1303,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
@@ -1843,12 +1844,19 @@ class _TacticStrip extends StatelessWidget {
         key: const ValueKey('match-tactics'),
         mainAxisSize: MainAxisSize.min,
         children: [
-          // **ROUNDED AT BOTH ENDS.** Five square segments in a row read as a
-          // slab rather than as one control; the outer two corners are the
-          // strip's own and the clip is what closes them. The cooldown hairline
-          // is inside the clip too, so it cannot square off what it runs under.
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+          // **ROUNDED AT BOTH ENDS, and ON GLASS.** Five square segments in a
+          // row read as a slab rather than as one control; the outer two
+          // corners are the strip's own and the clip is what closes them. The
+          // cooldown hairline is inside the clip too, so it cannot square off
+          // what it runs under.
+          //
+          // The glass is the same pane the scoreboard and the commentary sit
+          // on: this was the last band on the screen painting its own surface,
+          // which is what made it read as a bar laid over the page rather than
+          // as part of it.
+          GlassPanel(
+            radius: 10,
+            padding: EdgeInsets.zero,
             child: SizedBox(
               height: 46,
               child: Row(
@@ -2179,21 +2187,14 @@ class _Scoreboard extends StatelessWidget {
                 rightRating: isHome ? theirRating : ourRating,
               ),
             const SizedBox(height: 8),
+            // **THE COMPETITION AND THE VENUE HAVE GONE.** `SUNDAY LEAGUE ·
+            // AWAY` is a fact the player brought with them — they chose the
+            // fixture a screen ago — and it was costing a whole row on a card
+            // that has none to give. Asked for directly. What is left on this
+            // strip is the chart button and, at the whistle, FULL TIME.
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                      color: kit.textMuted,
-                    ),
-                  ),
-                ),
+                const Spacer(),
                 if (finished)
                   Text(
                     t('match.full_time').toUpperCase(),

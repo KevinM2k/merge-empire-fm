@@ -5360,6 +5360,13 @@ one everywhere it should not.
       arithmetic. The one thing not monotonic is the park→stand step, and that
       is right: a tree line is taller than a one-row terrace, so tier 2 reads as
       the first GROUND rather than as a bigger park.
+- [x] **Lose the `SUNDAY LEAGUE · AWAY` line on the match card too.** It is a
+      fact the player brought with them — they chose the fixture a screen ago —
+      and it was costing a whole row on a card that has none to give. The chart
+      button and, at the whistle, FULL TIME are what is left on that strip.
+- [x] **And the tactics bar takes the same glass.** It was the last band on the
+      screen painting its own surface, which is what made it read as a bar laid
+      over the page rather than as part of it.
 - [x] **The Play screen: lose the position label.** All four done. The position
       chips came across from the next-match card, where they answer "who am I
       playing"; once the match is running that question is answered and the
@@ -5401,6 +5408,21 @@ one everywhere it should not.
       `CFBundleDisplayName`, `android:label`, the window title — so it is a
       brand mark on a prop, the same class of thing as a badge, rather than copy
       a locale would translate.
+- [ ] **PRO MODE BECOMES AN UNLOCK, earned by PRESTIGING ONCE.** It is playable
+      from the start today; from now on a player has to win the top league and
+      prestige before it opens.
+      **And unlocking it is a BIG DEAL** — a full popup, in the shape of the
+      club-tier unlock, but premium-coloured: the blue the world-class players
+      wear, so it reads as the rare thing it is.
+- [ ] **SPLIT THE SHOP INTO TABS.** It is too much on one page. Roughly: special
+      offers, match boosts, currency, scout vouchers, customisations — the
+      categories can be adjusted, the split is the point.
+- [ ] **TIER 1 AND 2 SHOULD HAVE A DIRTY PITCH.** Mud, standing water, tufts —
+      `../merge-empire-fc` has all of it (`_decoBands`, `_tuftBands`), and the
+      pitch should only start improving around tier 3. The port draws the same
+      clean turf at every tier.
+- [ ] **And the park's fence does not touch the pitch** at tiers 1 and 2.
+- [ ] **And tiers 1 and 2 need a BACKDROP** rather than nothing behind them.
 - [ ] **THE CLUB ASSET CARDS ARE NOT GLASS.** They read as a darker gradient,
       not a blur — because there is nothing behind them to blur. The page is a
       flat colour, so `BackdropFilter` has no work to do and all that shows is
@@ -5410,9 +5432,16 @@ one everywhere it should not.
 - [ ] **PLAYER NAMES: keep the first name, randomise the SURNAME.** Everyone
       shares a surname at the moment. A bank per POSITION, since the surname is
       tied to the position the definition belongs to.
-- [ ] **More perspective again on the 2D pitch**, less vertical space, and the
-      band needs to be as WIDE as the other boxes on the screen — there is a lot
-      of room around it.
+- [x] **More perspective again on the 2D pitch**, less vertical space, and the
+      band as WIDE as the other boxes. All three. The tilt is -0.80 (about 46
+      degrees) — the third increase, and every one of them was asked for with
+      SPACE as the reason.
+      **The width was an `AspectRatio` inside a height cap**, so the CAP decided
+      the width: the pitch came out narrower than the cards above and below it
+      with air down both sides, on the one band that wants the room. The width
+      is the page's now and the height is capped independently. A shallower box
+      is simply a shallower pitch, which `fittedTilt` handles by construction —
+      which is also the only reason three increases in a row were safe.
 - [ ] **THE FULL-TIME TABLE SHOULD BE US, NOT THE DIVISION.** Only the team
       above and the team below are worth showing — nobody cares about the rest,
       they care about themselves. And the move should read like the trait

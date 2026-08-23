@@ -415,8 +415,8 @@ void main() {
       // tilt is what let `maxHeight` come down. Past this the far half stops
       // being a place a chance can be understood in, which is the one thing
       // this band is for.
-      expect(pitchTilt.abs(), greaterThan(0.5), reason: 'barely tilted at all');
-      expect(pitchTilt.abs(), lessThan(0.8), reason: 'lying on the grass');
+      expect(pitchTilt.abs(), greaterThan(0.7), reason: 'barely tilted at all');
+      expect(pitchTilt.abs(), lessThan(1.0), reason: 'lying on the grass');
     });
 
     testWidgets('AND NOBODY DRIFTS ABOUT BETWEEN CHANCES', (tester) async {
