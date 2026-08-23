@@ -5211,6 +5211,24 @@ one everywhere it should not.
       sweep packs everything to the front; on thirteen rows with four on screen
       the result is very often nowhere near where the player was, and a
       set-piece played off screen is the same as none.
+- [ ] **THE MATCH RUNS TOO FAST.** 1× has sped up and 2× is far too fast.
+- [ ] **The pitch perspective needs quite a bit MORE still**, enough to buy back
+      vertical space on the band.
+- [ ] **And what if a player does not want the 2D pitch at all?** The bodies
+      should be there for CHANCES, not drifting between them.
+- [ ] **An injured player on the bench should stay ON the pitch**, rated 0, with
+      a big red `+` across the middle of the card. If nobody swaps them out they
+      are effectively off the pitch and worth nothing anyway — but the card has
+      to say so.
+- [ ] **The full-time table move should read as a PICK-UP.** Zoom in on our
+      club, lift it, carry it to its new place and set it down. Make the
+      transition much clearer so it is obvious what happened.
+- [ ] **Put the 2× coins button INSIDE the "watch to keep 2×" card** and leave
+      "No thanks" on its own at the bottom. **And it should wear the same button
+      styling as the energy ones** — the shop's four-colour rule.
+- [ ] **Less top and bottom padding in the full-time top card**, so the dugout
+      cam and the quests fit on the screen.
+- [ ] **The dugout cam manager needs to be WAY more active** on that screen.
 - [ ] **Roll Trait should roll BOTH sides**, so it is clear what is happening,
       and the text should say the percentages gained and lost. **And the trait
       belongs above Career Stats** — it is one of the main things on that page,
