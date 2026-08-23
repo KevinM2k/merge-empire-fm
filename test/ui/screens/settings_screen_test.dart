@@ -637,6 +637,31 @@ void main() {
         isNot('Ember Rovers'),
       );
     });
+
+    testWidgets('AND IT ASKS WHETHER TO SEE THE TUTORIAL AGAIN', (
+      tester,
+    ) async {
+      // `reset.show_tutorial` and `fullReset.show_tutorial` sat translated in
+      // ten catalogues with nothing able to print either — the JS's reset
+      // dialog has this tick and the port dropped it, while `resetState` has
+      // taken the flag since M1 and every caller used the default.
+      final container = await pumpSettings(tester, SettingsTab.general);
+      await tester.tap(find.byKey(const ValueKey('reset-btn')));
+      await tester.pumpAndSettle();
+      expect(find.text(t('reset.show_tutorial')), findsOne);
+
+      // A soft reset skips it by default — a repeat player knows the ropes —
+      // so ticking it is what asks for the tutorial back.
+      await tester.tap(find.byKey(const ValueKey('reset-show-tutorial')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('coach-action-reset.confirm')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      final tutorial =
+          container.read(gameProvider).state!['tutorial']
+              as Map<String, dynamic>;
+      expect(tutorial['done'], isFalse, reason: 'it was asked for');
+    });
   });
 
   testWidgets('an M4 control is visible but disabled, not hidden', (

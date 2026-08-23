@@ -6307,8 +6307,12 @@ that is not off the extension is the bug, not the symptom.
 
 ### Starting out
 
-- [ ] **A "show tutorial" tickbox on the new-club flow.** Starting a new team
-      offers no way to say whether the tutorial should run.
+- [x] **A "show tutorial" tickbox on the new-club flow.** `reset.show_tutorial`
+      and `fullReset.show_tutorial` — "Show the tutorial again" — sat translated
+      in ten catalogues with nothing able to print either, and `resetState` has
+      taken the flag since M1 with every caller on the default. It is on both
+      Start Over cards now, defaulting the engine's way round: a soft reset
+      skips it, a full wipe runs it.
 
 ### Transfers
 

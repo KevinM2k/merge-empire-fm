@@ -267,30 +267,50 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Both rows used to open Colin's card with an EMPTY handler behind the
   /// confirm button — so a player could read the warning, agree to it, and watch
   /// nothing happen. The engine has had both resets since M1.
+  /// **AND IT ASKS WHETHER TO RUN THE TUTORIAL AGAIN.** `reset.show_tutorial`
+  /// and `fullReset.show_tutorial` — "Show the tutorial again" — sit translated
+  /// in all ten catalogues with nothing able to print either, which is the
+  /// loudest tell there is: the JS's reset dialog has this tick and the port
+  /// dropped it. `resetState` and `fullResetState` have taken the flag since
+  /// M1 and every caller was using the default.
+  ///
+  /// The default is the engine's own and the two differ on purpose: a soft
+  /// reset is a repeat player starting again and skips it; a full wipe is the
+  /// closest thing to a fresh install and runs it.
   void _confirmReset({required bool soft}) {
-    showCoachCard<void>(
-      context,
-      titleKey: soft ? 'reset.title' : 'fullReset.title',
-      bodyKey: soft ? 'reset.body' : 'fullReset.body',
-      actions: [
-        CoachAction(labelKey: 'common.cancel', onTap: () {}),
-        CoachAction(
-          labelKey: soft ? 'reset.confirm' : 'fullReset.confirm',
-          tone: CoachTone.decline,
-          onTap: () {
-            final game = ref.read(gameProvider);
-            if (soft) {
-              game.resetState();
-            } else {
-              game.fullResetState();
-            }
-            // Back to the game. The JS reloads the page here, and landing on
-            // the Settings screen of a save that no longer exists is the
-            // closest thing to nothing having happened.
-            Navigator.of(context).maybePop();
-          },
+    var replayTutorial = !soft;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setTick) => CoachCardFrame(
+          title: t(soft ? 'reset.title' : 'fullReset.title'),
+          body: t(soft ? 'reset.body' : 'fullReset.body'),
+          actions: [
+            CoachAction(labelKey: 'common.cancel', onTap: () {}),
+            CoachAction(
+              labelKey: soft ? 'reset.confirm' : 'fullReset.confirm',
+              tone: CoachTone.decline,
+              onTap: () {
+                final game = ref.read(gameProvider);
+                if (soft) {
+                  game.resetState(replayTutorial: replayTutorial);
+                } else {
+                  game.fullResetState(replayTutorial: replayTutorial);
+                }
+                // Back to the game. The JS reloads the page here, and landing
+                // on the Settings screen of a save that no longer exists is the
+                // closest thing to nothing having happened.
+                Navigator.of(context).maybePop();
+              },
+            ),
+          ],
+          child: _TutorialTick(
+            label: t(soft ? 'reset.show_tutorial' : 'fullReset.show_tutorial'),
+            value: replayTutorial,
+            onChanged: (v) => setTick(() => replayTutorial = v),
+          ),
         ),
-      ],
+      ),
     );
   }
 
@@ -623,4 +643,65 @@ class _LanguageTile extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// The tick on a reset card: run the tutorial on the fresh save or skip it.
+///
+/// A row rather than a `CheckboxListTile`: Colin's card is not a settings page
+/// and a Material tile brings its own metrics, its own ripple and its own
+/// leading column to a body that is otherwise one sentence.
+class _TutorialTick extends StatelessWidget {
+  const _TutorialTick({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return InkWell(
+      key: const ValueKey('reset-show-tutorial'),
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => onChanged(!value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: value ? kit.accentBright : Colors.transparent,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: value ? kit.accentBright : kit.border,
+                  width: 1.5,
+                ),
+              ),
+              child: value
+                  ? Icon(Icons.check, size: 14, color: kit.accentBrightInk)
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: kit.textMuted,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
