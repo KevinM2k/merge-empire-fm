@@ -1150,11 +1150,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // same tier, so kicking off is not arriving somewhere else.
       backgroundColor: Colors.transparent,
       body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: skyGradient(
-            brightness: Theme.of(context).brightness,
-            tier: ref.watch(stadiumTierProvider),
-          ),
+        decoration: matchBackdrop(
+          context: context,
+          tier: ref.watch(stadiumTierProvider),
         ),
         child: SafeArea(
           child: Stack(

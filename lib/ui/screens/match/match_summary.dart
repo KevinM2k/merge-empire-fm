@@ -182,11 +182,11 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
       key: const ValueKey('match-summary'),
       backgroundColor: Colors.transparent,
       body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: skyGradient(
-            brightness: Theme.of(context).brightness,
-            tier: ref.watch(stadiumTierProvider),
-          ),
+        // The same backdrop the match itself stands under — see
+        // [matchBackdrop]. Full time is the same evening.
+        decoration: matchBackdrop(
+          context: context,
+          tier: ref.watch(stadiumTierProvider),
         ),
         child: SafeArea(
           child: Column(

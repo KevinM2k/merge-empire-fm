@@ -30,6 +30,8 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show MatchRow;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Map<String, dynamic> matchResult({
@@ -1989,6 +1991,59 @@ void main() {
       }
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+    });
+  });
+
+  group('WHAT A MATCH STANDS UNDER', () {
+    // **Dark mode gets the app's own background, flat.** The match took the
+    // diorama's sky so that kicking off was not arriving somewhere else —
+    // right in principle, and in dark mode the night sky's third stop is a
+    // violet that reads as purple behind a page of glass panels. Reported
+    // exactly that way.
+    testWidgets('dark mode is flat, and it is the theme\'s own', (tester) async {
+      late Decoration dark;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: false),
+          home: Builder(
+            builder: (context) {
+              dark = matchBackdrop(context: context, tier: 3);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      final box = dark as BoxDecoration;
+      expect(box.gradient, isNull, reason: 'still a sky');
+      expect(box.color, isNotNull);
+    });
+
+    testWidgets('and LIGHT mode still gets one, because white is the bug', (
+      tester,
+    ) async {
+      // A flat backdrop there is white, which is what the sky was introduced to
+      // fix: pale panels on a pale page, and the whole match goes flat.
+      late Decoration light;
+      await tester.pumpWidget(
+        MaterialApp(
+          key: const ValueKey('light'),
+          theme: buildAppTheme(kitId: '#4caf50', light: true),
+          home: Builder(
+            builder: (context) {
+              light = matchBackdrop(context: context, tier: 3);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      final box = light as BoxDecoration;
+      expect(box.gradient, isNotNull, reason: 'a white page under a white card');
+      // The NIGHT sky, whichever theme is on — that is the one that gives a
+      // bright page something to sit on.
+      expect(
+        (box.gradient! as LinearGradient).colors,
+        skyColours(brightness: Brightness.dark, tier: 3),
+      );
     });
   });
 

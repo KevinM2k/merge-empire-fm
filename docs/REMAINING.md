@@ -5507,10 +5507,16 @@ one everywhere it should not.
       Nothing in the parity harness moved, and the reason is worth writing down:
       the fixtures all sit at `invested: 0`, where progress equals the tier
       exactly, so the change is a no-op at every boundary the JS was dumped at.
-- [ ] **DARK MODE'S MATCH BACKGROUND IS PURPLE, and it should not be.** In dark
-      mode just use the app's own dark background — it works, and matching the
-      home screen is not worth the purple. LIGHT mode cannot do that (it is
-      white), so use the NIGHT sky's blue there instead, which reads well.
+- [x] **DARK MODE'S MATCH BACKGROUND IS PURPLE, and it should not be.**
+      `matchBackdrop` decides by theme now. The match took the diorama's sky so
+      that kicking off was not arriving somewhere else — right in principle, and
+      in dark mode the night sky's own third stop is a violet (`#6A4A8C`) that
+      reads as purple behind a page of glass panels.
+      **Dark gets the app's own background, flat. Light still gets a sky, and it
+      gets the NIGHT one** — a flat backdrop there is white, which is the thing
+      the sky was introduced to fix in the first place: pale panels on a pale
+      page and the whole match goes flat. Full time takes the same backdrop,
+      because it is the same evening.
 - [ ] **THE UNUSED-CARD COUNT on the Players page should look EMBOSSED** —
       very subtle, pressed into the surface rather than printed on it.
 - [x] **THE CLUB ASSET CARDS ARE NOT GLASS.** Right diagnosis, and it was the

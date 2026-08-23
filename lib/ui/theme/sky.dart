@@ -25,6 +25,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/data/club_assets.dart' show maxAssetTier;
 
 /// Light mode is day, dark mode is night. The one decision the rest of the file
@@ -91,6 +92,33 @@ LinearGradient skyGradient({
   colors: skyColours(brightness: brightness, tier: tier),
   stops: _skyStops,
 );
+
+/// What a MATCH stands under, which is not always a sky.
+///
+/// **Dark mode gets the app's own background, flat.** The match screen took the
+/// diorama's sky so that kicking off was not arriving somewhere else — right in
+/// principle, and in dark mode the night sky's own third stop is a violet
+/// (`#6A4A8C`) that reads as purple behind a page of glass panels. Reported
+/// exactly that way: the dark theme's background already works, and matching
+/// the home screen is not worth the purple.
+///
+/// **Light mode still gets a sky, and it gets the NIGHT one.** A flat backdrop
+/// there is white, which is the thing the sky was introduced to fix — pale
+/// panels on a pale page, and the whole match goes flat. The night sky is the
+/// one that gives a bright theme something to sit on, and it was the answer
+/// asked for.
+Decoration matchBackdrop({
+  required BuildContext context,
+  required int tier,
+}) {
+  final kit = Theme.of(context).extension<KitTheme>()!;
+  if (Theme.of(context).brightness == Brightness.dark) {
+    return BoxDecoration(color: kit.bg);
+  }
+  return BoxDecoration(
+    gradient: skyGradient(brightness: Brightness.dark, tier: tier),
+  );
+}
 
 /// The colour the distance hazes TO, which is the sky at the horizon rather than
 /// the sky overhead.
