@@ -533,7 +533,23 @@ The same treatment as the shop, against `src/ui/styles/`:
       scorecard's ATK/DEF figures are coloured by `vsColor`, whose greens and
       reds are picked for a dark ground — which is exactly the pair the port had
       to re-pick for light mode, and did.
-- [ ] Home — `league-scene.css` (4,444 lines, the biggest by far)
+- [x] Home — `league-scene.css` (4,444 lines, the biggest by far). **Diffed
+      against its 111 `.ps-*` classes, and every concept has a counterpart**:
+      the sky, the sun and stars, the day/night fade, the overcast, the fog and
+      the gusts, the rain and its puddles, the snow and its footprints, the mown
+      stripes, the stands with their decks, facades, roofs, flags and scarves,
+      the fireworks, the lightning, the trees, fences and bushes, the ball and
+      its shadow, and the walker's whole rig.
+      **The diff's one real find is fixed**: `.ps-hold-arm`, the over-the-ball
+      copy of the near arm, which is what makes a carried ball look CARRIED
+      rather than balanced. The JS builds an entire second SVG for it; see the
+      1 Sep block in `docs/REMAINING.md`.
+      **Where the port diverges it is recorded where the divergence lives**, not
+      here: nine of the ten dock orbs moved into the burger (`home_dock.dart`),
+      the scene keys off the stadium tier rather than the division — which is
+      what the JS's code does whatever its header says (see the scene row above)
+      — and the rig is a painter rather than transforms on SVG children, which
+      is the exception `CLAUDE.md`'s porting habits call out.
 - [~] HUD — `hud.css`. **Diffed class by class**, and the port carries every
       chip: the crest, the three resources in one trough, the two `+` buttons,
       the cog outside the trough.
