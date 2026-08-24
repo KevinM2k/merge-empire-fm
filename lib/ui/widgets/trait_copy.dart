@@ -14,6 +14,7 @@
 /// same idea, which is exactly the split the shop already makes.
 library;
 
+import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 
@@ -50,4 +51,20 @@ String traitTitle(Map<String, dynamic>? instance) {
 String traitInstanceDesc(Map<String, dynamic>? instance) {
   final trait = getTrait(instance?['id'] as String?);
   return trait == null ? '' : traitDesc(trait);
+}
+
+/// What a TIER is called — "Bronze", "Legend" — with the catalogue winning.
+///
+/// **The same rule and the same fallback as the trait names above.** It lived
+/// as a private helper on the player index, which is the one screen that lists
+/// every tier by name; the merge float needs the same words for the tier a
+/// merge just produced, and two copies of "what is this tier called" is how one
+/// screen ends up translated and the other does not.
+String tierName(int tier) {
+  final key = 'player.tier.$tier';
+  final hit = t(key);
+  if (hit != key) return hit;
+  // The definition's English literal, which is what the catalogue is generated
+  // FROM — so this only shows for a tier the catalogue has no key for.
+  return players.firstWhere((p) => p.tier == tier).tierName;
 }

@@ -48,9 +48,21 @@ gaps are in this list.
       entry points, and the second matters because the rules fire on the Players
       tab: a scouted card of a switched-on tier never reaches the grid.
 - [x] The player-count pill, red at the roster limit
-- [ ] The merged-into float — `grid.merged_into` ('✨ {name}!'), which names the
+- [x] The merged-into float — `grid.merged_into` ('✨ {name}!'), which names the
       tier a merge produced at the cell it landed in. The burst says something
-      happened; this says what.
+      happened; this says what. **Done**, and it is the JS's own label: 1.4s,
+      a 40px climb, and `#76e876` whatever the kit is — the same "you gained
+      something" green the income floats use, and a label that changed colour
+      with the club would stop meaning that.
+      **Outside the burst rather than inside it**: the burst scales and squashes
+      its child, and a label squashing with the card reads as part of the card
+      rather than as something rising off it. The NAME is held for the length of
+      the float, so a second merge landing elsewhere cannot rewrite it half way
+      up. Reduce motion keeps the words and drops the climb — what the merge
+      produced is information, the rise is not.
+      **And `tierName` is one function now.** It was private to the player index;
+      two copies of "what is this tier called" is how one screen ends up
+      translated and the other does not.
 - [ ] Lazy card mounting — only if a profile run asks for it
 
 ## Squad — `screens/SquadScreen.js`

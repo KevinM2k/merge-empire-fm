@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
@@ -279,7 +280,7 @@ class _FilterBar extends StatelessWidget {
             value: filters.tier,
             options: [
               (null, t('pi.filter.all')),
-              for (final tier in tiers) (tier, _tierName(tier)),
+              for (final tier in tiers) (tier, tierName(tier)),
             ],
             onChanged: (v) => onChanged((
               position: filters.position,
@@ -325,13 +326,6 @@ class _FilterBar extends StatelessWidget {
       ],
     );
   }
-}
-
-String _tierName(int tier) {
-  final key = 'player.tier.$tier';
-  final hit = t(key);
-  if (hit != key) return hit;
-  return players.firstWhere((p) => p.tier == tier).tierName;
 }
 
 class _Dropdown<T> extends StatelessWidget {

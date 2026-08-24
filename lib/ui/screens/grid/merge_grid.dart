@@ -37,6 +37,7 @@ import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
+import 'package:merge_empire_fc/ui/screens/grid/merged_float.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -895,11 +896,18 @@ class _CardSlot extends ConsumerWidget {
       key: ValueKey('grid-drop-${cell.index}'),
       onWillAcceptWithDetails: (d) => d.data != cell.index,
       onAcceptWithDetails: (d) => onDrop(d.data, cell.index),
-      builder: (context, candidate, _) => MergeBurst(
-        tier: burstTier,
-        playing: bursting,
-        onDone: onBurstDone,
-        child: AnimatedOpacity(
+      builder: (context, candidate, _) => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // **The float is OUTSIDE the burst, not inside it.** The burst scales
+          // and squashes its child — that is the pop — and a label that
+          // squashed with the card would read as part of the card rather than
+          // as something rising off it.
+          MergeBurst(
+            tier: burstTier,
+            playing: bursting,
+            onDone: onBurstDone,
+            child: AnimatedOpacity(
           // A square that cannot take the card recedes AND loses its colour. The
           // opacity alone was not enough: the cards are tier-coloured, so a
           // bronze at 28% still reads as bronze and the eye keeps offering it.
@@ -954,7 +962,15 @@ class _CardSlot extends ConsumerWidget {
               ),
             ),
           ),
-        ),
+            ),
+          ),
+          // **"✨ Legend!", at the square rather than at the top of the
+          // screen.** The burst says something happened; this says what, and
+          // the square is what the player is looking at.
+          Positioned.fill(
+            child: MergedFloat(tier: burstTier, playing: bursting),
+          ),
+        ],
       ),
     );
   }
