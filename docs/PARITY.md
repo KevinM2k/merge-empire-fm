@@ -513,7 +513,26 @@ The same treatment as the shop, against `src/ui/styles/`:
       small to read the face on" case that floor was written to prevent, so on
       the one size where it matters most the floor was enforcing the fault. Two
       below 360, the port's own growth rule above it.
-- [ ] Match page — `match-page.css` (1,041 lines)
+- [x] Match page — `match-page.css` (1,041 lines). **Diffed.** Every band the
+      stylesheet names is there — head, scorecard, stage, tactics, tabs, body,
+      clock bar, footer — under the port's own keys, and the one rule it states
+      as a warning is honoured: **NO max-width.** Nothing else in the app
+      narrows itself, and a cap here would put gutters of bare backdrop down
+      both sides of the one surface that is supposed to BE the screen. The only
+      constraint on the page is a HEIGHT cap on the stage, which is a different
+      thing and has its own reasoning.
+      **The `--mp-ink` token block is deliberately NOT ported**, and it is the
+      one place this file and the port genuinely disagree. Those tokens pin
+      every band's ink dark in both themes, and a playtester reversed that call
+      directly — "the play screen and the end-match screen look the SAME in
+      light mode as in dark", said twice. The reporter outranks the spec here,
+      so the panes follow the theme and the INK moves through `glassAccent`
+      rather than the pane going opaque. See the 1 Sep block in
+      `docs/REMAINING.md`, which records both failed attempts at it.
+      **What the stylesheet knows and the port should keep in view**: the
+      scorecard's ATK/DEF figures are coloured by `vsColor`, whose greens and
+      reds are picked for a dark ground — which is exactly the pair the port had
+      to re-pick for light mode, and did.
 - [ ] Home — `league-scene.css` (4,444 lines, the biggest by far)
 - [~] HUD — `hud.css`. **Diffed class by class**, and the port carries every
       chip: the crest, the three resources in one trough, the two `+` buttons,
