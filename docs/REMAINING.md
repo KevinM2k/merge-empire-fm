@@ -8416,6 +8416,21 @@ could not render at all without a lookup layer. See
       repeat purchase of a one-time product, not our code. They already exist for
       the live app; this is a check, not a creation, and the check matters because
       a renamed product id is an unbuyable product.
+      **The PORT's side of that is already pinned** — `iap_catalogue_parity_test`
+      compares all eleven ids and types against a node-dumped fixture, so a
+      rename here fails a build rather than a console. What is left is genuinely
+      the console: confirming the eleven are still Active under those exact ids.
+- [ ] **Buy VIP, let it lapse, buy it AGAIN — that is the one case that can be
+      silently broken.** `vip_pass` is registered with the store as a
+      NON-CONSUMABLE and is deliberately not `oneTime`, so the port offers a
+      lapsed VIP the buy button while the store is entitled to refuse a second
+      purchase of something the account already owns. Neither store has a code
+      for that beyond a generic failure, so the player would get "payment
+      failed" and no way forward. This is the JS's arrangement exactly — the
+      port matches it product for product — so it is a property of the LIVE
+      app rather than a port regression, and it must not be "fixed" here on a
+      guess: whether it works at all depends on how `vip_pass` is really
+      declared in the two consoles, which cannot be read from this repo.
 - [ ] Sandbox purchase pass on both platforms: every SKU bought once, plus a
       restore on a clean install.
 
