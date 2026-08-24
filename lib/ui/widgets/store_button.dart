@@ -26,6 +26,8 @@
 /// and it is the one tone in the set that inverts.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -86,6 +88,7 @@ class StoreButton extends StatefulWidget {
     this.leading,
     this.small = false,
     this.stretch = true,
+    this.onHold,
   });
 
   final StoreTone tone;
@@ -110,12 +113,74 @@ class StoreButton extends StatefulWidget {
   /// Fills its parent's width. Off for a button sitting in a row beside text.
   final bool stretch;
 
+  /// **HOLD TO KEEP SPENDING.** Fired every [holdRepeat] once the button has
+  /// been held for [holdArms], and null on every control where one press means
+  /// one purchase.
+  ///
+  /// It is here rather than at the call site because the JS puts it on the
+  /// button too, and because the interesting part is the ARMING: a hold that
+  /// fired immediately would make every ordinary tap spend twice, and one that
+  /// fired [onTap] as well on release would spend an extra time at the end. So
+  /// a press that arms the repeat swallows its own tap.
+  final VoidCallback? onHold;
+
   @override
   State<StoreButton> createState() => _StoreButtonState();
 }
 
+/// How long the button has to be held before it starts repeating, and how often
+/// it repeats after that. The JS's own 500 and 150.
+const Duration holdArms = Duration(milliseconds: 500);
+const Duration holdRepeat = Duration(milliseconds: 150);
+
 class _StoreButtonState extends State<StoreButton> {
   bool _down = false;
+
+  Timer? _arming;
+  Timer? _repeating;
+
+  /// The repeat has fired at least once, so the release must NOT also tap.
+  bool _repeated = false;
+
+  @override
+  void dispose() {
+    _stopHold();
+    super.dispose();
+  }
+
+  void _press() {
+    if (widget.onTap == null) return;
+    setState(() => _down = true);
+    if (widget.onHold == null) return;
+    _repeated = false;
+    _arming = Timer(holdArms, () {
+      _repeating = Timer.periodic(holdRepeat, (_) {
+        // **The caller decides when to stop by going dead.** A hold that ran
+        // past the last affordable upgrade would spend coins that are not
+        // there; `onTap` null is the same signal a tap reads.
+        if (widget.onTap == null) {
+          _stopHold();
+          return;
+        }
+        _repeated = true;
+        widget.onHold!.call();
+      });
+    });
+  }
+
+  void _release({required bool tapped}) {
+    final repeated = _repeated;
+    _stopHold();
+    if (_down) setState(() => _down = false);
+    if (tapped && !repeated) widget.onTap?.call();
+  }
+
+  void _stopHold() {
+    _arming?.cancel();
+    _repeating?.cancel();
+    _arming = null;
+    _repeating = null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -204,10 +269,18 @@ class _StoreButtonState extends State<StoreButton> {
       button: true,
       enabled: !dead,
       child: GestureDetector(
-        onTap: widget.onTap,
-        onTapDown: dead ? null : (_) => setState(() => _down = true),
-        onTapUp: dead ? null : (_) => setState(() => _down = false),
-        onTapCancel: dead ? null : () => setState(() => _down = false),
+        // **The TAP fires on release, not on `onTap`.** A hold that has already
+        // spent must not spend once more when the finger comes off, and
+        // `onTap` cannot know whether it did.
+        //
+        // **The handlers are attached whatever the state**, and the deadness is
+        // checked inside them. Dropping them on `dead` looks tidier and is
+        // wrong: a button that goes dead DURING a press — which is exactly what
+        // the last affordable upgrade does — loses the recogniser mid-gesture,
+        // and Flutter reports the release as a spontaneous cancel.
+        onTapDown: (_) => _press(),
+        onTapUp: (_) => _release(tapped: true),
+        onTapCancel: () => _release(tapped: false),
         child: Opacity(opacity: dead ? 0.55 : 1, child: body),
       ),
     );

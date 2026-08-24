@@ -486,6 +486,15 @@ class _AssetPanel extends ConsumerWidget {
               small: true,
               label: _actionLabel(),
               onTap: !buildable ? null : () => _buy(context, ref, game),
+              // **HOLD TO KEEP INVESTING.** Filling tier one takes ten taps and
+              // tier seven takes forty, so the JS lets the button repeat — and
+              // the repeat spends WITHOUT the tier-up splash, because a
+              // full-screen celebration arriving mid-hold stands between the
+              // player and the button they are still pressing. The splash on
+              // release is the tap's job.
+              onHold: !buildable || !tile.owned
+                  ? null
+                  : () => game.update((s) => investInAsset(s, tile.key)),
             ),
           ],
         ),
