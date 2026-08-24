@@ -167,9 +167,17 @@ bool isIapAllowed(Map<String, dynamic> state) {
   return av['parentalConsentGiven'] == true;
 }
 
+/// What Play last said about this account, or [AgeGroup.unknown].
+///
+/// Public because the notice a parent reads NAMES which of the two it is —
+/// "under 13" or "under 18" — and a card that has to ask twice would be reading
+/// the same field through two different answers.
+AgeGroup ageGroupOf(Map<String, dynamic> state) =>
+    AgeGroup.fromName(_block(state)?['status']);
+
 /// Whether Play has told us this is a child or a teen.
 bool isConfirmedMinor(Map<String, dynamic> state) {
-  final status = AgeGroup.fromName(_block(state)?['status']);
+  final status = ageGroupOf(state);
   return status == AgeGroup.child || status == AgeGroup.teen;
 }
 

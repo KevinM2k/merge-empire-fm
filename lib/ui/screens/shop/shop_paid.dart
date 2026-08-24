@@ -1,12 +1,17 @@
 /// The real-money shelves: Offers, Gems and Coins, plus Restore Purchases.
 ///
-/// Every control here is DEAD until M4 lands the billing bridge, and every tile
-/// still shows its real price — a shelf that hides its prices stops being a
-/// shop. `purchaseProduct` is deliberately not called anywhere in this file: it
+/// **THE TILES BUY NOW.** They were dead behind `paidDisabledReason()` while
+/// there was no bridge, and `services/iap_purchase.dart` is that bridge — which
+/// is also why `purchaseProduct` is STILL not called anywhere in this file. It
 /// is the GRANT step, what runs once a store has confirmed a payment, so a
-/// button wired to it would hand out paid goods for free.
+/// button wired straight to it hands out paid goods for free; `initiatePurchase`
+/// is what asks the store first and calls it after.
+///
+/// Every tile shows its real price whatever the state of billing — a shelf that
+/// hides its prices stops being a shop.
 library;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
@@ -23,7 +28,12 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
+import 'package:merge_empire_fc/services/iap_purchase.dart';
+import 'package:merge_empire_fc/ui/popups/age_gate_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Said on every real-money control, so a player is told the feature is coming
@@ -34,7 +44,89 @@ import 'package:merge_empire_fc/util/format.dart';
 /// printing "Already ready" AND "Coming soon" on the same tile: the first is
 /// the ad GATE reporting itself open, the second is there being no ad SDK, and
 /// both were true statements that contradict each other to a player.
-String? paidDisabledReason() => billingReady ? null : t('settings.comingSoon');
+String? paidDisabledReason() =>
+    billingReady || simulatePurchases ? null : t('settings.comingSoon');
+
+/// **What a refusal is called on screen, and the JS's own branch order.**
+/// Every string here is shipped copy keyed to `iapEngine`'s wire reasons.
+///
+/// Two of the branches are decisions rather than mappings:
+///
+/// - **`cancelled` says nothing.** The player pressed Back, which is an answer
+///   rather than a fault, and a toast for it is the app arguing with them.
+/// - **"Try again" is the one thing NOT to say to a SKU the store does not
+///   know.** A product missing or inactive in the console never fixes itself,
+///   so a player told to retry would tap forever. The JS spends a paragraph on
+///   this and gives all four of those reasons one calmer line.
+String? purchaseRefusalCopy(String? reason) => switch (reason) {
+  null || 'cancelled' || 'parental_consent_required' => null,
+  'already_purchased' => t('shop.toast.already_purchased'),
+  'vip_already_active' => t('toast.vip_already_active'),
+  'product_not_found' ||
+  'no_offer' ||
+  'billing_unavailable' ||
+  'not_initialized' => t('shop.toast.unavailable'),
+  _ => t('shop.toast.purchase_failed'),
+};
+
+/// Tap Buy on a real-money tile.
+///
+/// **The confirm card comes first, on every real-money tap** — the JS's own
+/// comment on the line that binds these tiles — and the store's payment sheet
+/// after it. See `confirmRealMoneyPurchase` for why two are not one too many.
+Future<void> buyProduct(
+  BuildContext context,
+  WidgetRef ref,
+  IapProduct product,
+  String name,
+  String price,
+) async {
+  final game = ref.read(gameProvider);
+  final state = game.state;
+  if (state == null) return;
+  final ok = await confirmRealMoneyPurchase(
+    context,
+    productId: product.id,
+    icon: product.icon,
+    name: name,
+    description: productDesc(product, state: state, hardMode: hardModeOf(state)),
+    price: price,
+    android: defaultTargetPlatform == TargetPlatform.android,
+  );
+  if (!ok || !context.mounted) return;
+
+  final result = await initiatePurchase(
+    state,
+    product.id,
+    (apply) => game.update(apply),
+  );
+  if (result.ok) {
+    emit('toast:success', t('shop.toast.purchased', {
+      'icon': product.icon,
+      'name': name,
+    }));
+    return;
+  }
+  // A verified minor with no consent on file gets the notice, not a refusal —
+  // the whole point of the gate is that it is answerable.
+  if (result.reason == 'parental_consent_required') {
+    if (!context.mounted) return;
+    if (await showAgeGateSheet(context)) {
+      emit('toast:success', t('shop.toast.purchases_unlocked'));
+    }
+    return;
+  }
+  if (purchaseRefusalCopy(result.reason) case final line?) {
+    emit('toast:error', line);
+  }
+}
+
+/// Pro mode changes what a pack DOES, so the confirm card's description has to
+/// know which mode it is describing.
+bool hardModeOf(Map<String, dynamic> state) {
+  final settings = state['settings'];
+  return settings is Map<String, dynamic> && settings['hardMode'] == true;
+}
 
 /// What the store has told us about, or null when billing is not running.
 ///
@@ -82,6 +174,13 @@ List<Widget> paidTilesFor(
       tone: StoreTone.cash,
       badge: tile.product.popular ? t('shop.most_popular') : null,
       disabledReason: paidDisabledReason(),
+      onBuy: () => buyProduct(
+        ref.context,
+        ref,
+        tile.product,
+        tile.name,
+        priceFor(tile.product.sku, tile.product.price, known),
+      ),
       featured: featured,
       // The spec's `.shop-hero__ribbon`: the product's own bonus line, or the
       // one-time badge for the two that are bought once and kept. It was a
@@ -683,8 +782,40 @@ class CoinPackTile extends StatelessWidget {
 
 /// Required by App Store guidelines, and correctly the LAST thing on the screen
 /// rather than buried mid-shop.
-class RestoreRow extends StatelessWidget {
+class RestoreRow extends ConsumerStatefulWidget {
   const RestoreRow({super.key});
+
+  @override
+  ConsumerState<RestoreRow> createState() => _RestoreRowState();
+}
+
+class _RestoreRowState extends ConsumerState<RestoreRow> {
+  bool _running = false;
+
+  /// **Only NON-CONSUMABLES come back.** A coin pack is consumed the moment it
+  /// is granted and the store lists it forever; re-granting one on every
+  /// restore is a free coin button. `restorePurchases` is where that is
+  /// decided, and it grants only what this save does not already own.
+  Future<void> _restore() async {
+    final game = ref.read(gameProvider);
+    final state = game.state;
+    if (state == null) return;
+    setState(() => _running = true);
+    final result = await restorePurchases(state, (apply) => game.update(apply));
+    if (!mounted) return;
+    setState(() => _running = false);
+    // **Nothing owned and nothing reachable read the same from here**, which is
+    // the JS's own conflation and the right one: neither is a failure the
+    // player can act on, and both leave the save exactly as it was.
+    emit(
+      result.restored.isEmpty ? 'toast:info' : 'toast:success',
+      t(
+        result.restored.isEmpty
+            ? 'shop.toast.restore_failed'
+            : 'shop.toast.restore_success',
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -701,7 +832,11 @@ class RestoreRow extends StatelessWidget {
         child: InkWell(
           key: const ValueKey('shop-restore'),
           borderRadius: BorderRadius.circular(10),
-          onTap: null,
+          // **Dead while it is running**, because a restore is several store
+          // round trips and a second tap would grant the same non-consumables
+          // twice — the JS disables its button and swaps the label for the
+          // same reason.
+          onTap: _running ? null : _restore,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Row(
@@ -710,7 +845,7 @@ class RestoreRow extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    t('shop.restore_purchases'),
+                    _running ? '…' : t('shop.restore_purchases'),
                     style: TextStyle(
                       color: kit.textMuted,
                       fontSize: 13,

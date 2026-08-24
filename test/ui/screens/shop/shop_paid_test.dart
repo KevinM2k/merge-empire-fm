@@ -1,13 +1,23 @@
-/// The real-money shelves and the free shelf. Nothing here can be bought yet.
+/// The real-money shelves and the free shelf.
+///
+/// **They BUY now**, so the half of this file that asserted a dead shop has
+/// been rewritten rather than deleted: what it was pinning — that a tile which
+/// cannot complete still shows its price and says why — is still the rule, it
+/// just applies to a narrower case.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/iap_billing.dart';
+import 'package:merge_empire_fc/services/iap_purchase.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
@@ -25,7 +35,19 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 void main() {
   tearDown(resetLocale);
 
-  Future<void> pumpPaid(WidgetTester tester) => pumpShopWidget(
+  /// The row is the last thing on a long scrolling shop, so it has to be
+  /// brought on screen before it can be tapped — a tap that misses reads as a
+  /// restore that did nothing.
+  Future<void> tapRestore(WidgetTester tester) async {
+    final row = find.byKey(const ValueKey('shop-restore'));
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+  }
+
+  Future<ProviderContainer> pumpPaid(WidgetTester tester) => pumpShopWidget(
     tester,
     (_) {},
     () => const Column(
@@ -38,14 +60,32 @@ void main() {
     ),
   );
 
-  testWidgets('every paid tile is priced and dead', (tester) async {
+  testWidgets('every paid tile is priced and BUYS', (tester) async {
+    // It used to assert the opposite, and the reason was honest: there was no
+    // bridge, so a live button would have taken a tap and done nothing. There
+    // is one now — `services/iap_purchase.dart`.
     await pumpPaid(tester);
     final buttons = tester.widgetList<StoreButton>(find.byType(StoreButton));
     expect(buttons, isNotEmpty);
     for (final b in buttons) {
-      expect(b.onTap, isNull);
+      expect(b.onTap, isNotNull);
     }
+  });
+
+  testWidgets('and says COMING SOON only where nothing can take a payment', (
+    tester,
+  ) async {
+    // A test host is a debug build, which is the JS's own simulate path — the
+    // one place a purchase may be granted without a store. Turn that off and
+    // the shelf goes back to saying so rather than offering a button that
+    // cannot complete.
+    simulatePurchases = false;
+    addTearDown(() => simulatePurchases = true);
+    await pumpPaid(tester);
     expect(find.text(t('settings.comingSoon')), findsWidgets);
+    for (final b in tester.widgetList<StoreButton>(find.byType(StoreButton))) {
+      expect(b.onTap, isNotNull, reason: 'the tile still explains itself');
+    }
   });
 
   testWidgets('the coin section lists the bundles at their real prices', (
@@ -102,12 +142,55 @@ void main() {
     }
   });
 
-  testWidgets('Restore Purchases is present and disabled', (tester) async {
+  testWidgets('Restore Purchases is present and RUNS', (tester) async {
     await pumpPaid(tester);
     expect(find.text(t('shop.restore_purchases')), findsOneWidget);
     expect(
       tester.widget<InkWell>(find.byKey(const ValueKey('shop-restore'))).onTap,
-      isNull,
+      isNotNull,
+    );
+  });
+
+  testWidgets('a restore with nothing to restore says so and grants nothing', (
+    tester,
+  ) async {
+    // Nothing owned and nothing reachable read the same from here, which is
+    // the JS's own conflation: neither is a failure the player can act on.
+    final container = await pumpPaid(tester);
+    final before = jsonEncode(container.read(gameProvider).state);
+    await tapRestore(tester);
+    expect(jsonEncode(container.read(gameProvider).state), before);
+  });
+
+  testWidgets('A RESTORE RE-GRANTS ONLY WHAT THE SAVE DOES NOT OWN', (
+    tester,
+  ) async {
+    // And only non-consumables: a coin pack is consumed the moment it is
+    // granted and the store lists it forever, so re-granting one would be a
+    // free coin button.
+    final vault = getProduct('style_vault')!;
+    final coins = getShopProducts().firstWhere((p) => p.category == 'coins');
+    iapRestoreSource = () async => {vault.sku, coins.sku};
+    addTearDown(resetIapBillingSource);
+
+    final container = await pumpPaid(tester);
+    final coinsBefore = container.read(coinsProvider);
+    await tapRestore(tester);
+
+    final shop =
+        container.read(gameProvider).state!['shop'] as Map<String, dynamic>;
+    expect(shop['purchasedIds'], contains(vault.id));
+    expect(
+      container.read(coinsProvider),
+      coinsBefore,
+      reason: 'a consumable must not come back',
+    );
+
+    // Twice is not two grants.
+    await tapRestore(tester);
+    expect(
+      (shop['purchasedIds'] as List).where((id) => id == vault.id),
+      hasLength(1),
     );
   });
 

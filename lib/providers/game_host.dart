@@ -22,6 +22,8 @@ import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/engine/age_verification.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
+import 'package:merge_empire_fc/engine/iap_engine.dart';
+import 'package:merge_empire_fc/services/iap_billing.dart';
 import 'package:merge_empire_fc/services/feedback_service.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
@@ -88,6 +90,14 @@ class _GameHostState extends ConsumerState<GameHost>
     // network to draw its first frame would be paying for it every launch.
     wireAuthToFirestore();
     unawaited(AuthService.instance.restore(_runner.game.state));
+    // **THE STORE, ASKED ONCE AND EARLY.** `wireNativeBilling` also starts the
+    // purchase stream, and it has to be listening BEFORE anything is bought:
+    // that stream carries purchases this session started and ones the store is
+    // redelivering from a session that died mid-payment, and a subscription
+    // opened per tap would miss the second kind entirely. Which is how a
+    // paid-for pack goes missing.
+    wireNativeBilling({for (final product in products) product.sku});
+    unawaited(storeCatalogue());
     _refreshWeather();
     // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
     // whether looking is worth a call, so most of these cost nothing.

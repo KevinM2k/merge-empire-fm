@@ -106,6 +106,138 @@ Future<void> offerToBuy(
   );
 }
 
+/// **EVERY REAL-MONEY TAP GOES THROUGH THIS**, which is the JS's own sentence
+/// and its own comment on the line that binds the tiles. It looks redundant
+/// beside the store's own payment sheet and is not: the store's sheet says what
+/// is being charged, and this one says what is being BOUGHT — a product name, a
+/// description and the price, in the game's own words, before the platform
+/// takes the screen.
+///
+/// It also carries `shop.payment_disclaimer`, which is shipped copy this port
+/// had no caller for, and it is the JS that decides the wording per platform:
+/// the string names the App Store and Google Play is substituted on Android.
+Future<bool> confirmRealMoneyPurchase(
+  BuildContext context, {
+  required String productId,
+  required String icon,
+  required String name,
+  required String? description,
+  required String price,
+  required bool android,
+}) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (_) => _PaidConfirmCard(
+      productId: productId,
+      icon: icon,
+      name: name,
+      description: description,
+      price: price,
+      android: android,
+    ),
+  );
+  return confirmed == true;
+}
+
+class _PaidConfirmCard extends StatelessWidget {
+  const _PaidConfirmCard({
+    required this.productId,
+    required this.icon,
+    required this.name,
+    required this.description,
+    required this.price,
+    required this.android,
+  });
+
+  final String productId;
+  final String icon;
+  final String name;
+  final String? description;
+  final String price;
+  final bool android;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return AlertDialog(
+      key: ValueKey('paid-confirm-$productId'),
+      backgroundColor: kit.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: kit.border),
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The product's own glyph, which for the paid shelf is an emoji in
+          // the catalogue rather than a name in `game_icon.dart`.
+          Text(icon, style: const TextStyle(fontSize: 40)),
+          const SizedBox(height: 8),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          if (description != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              description!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: kit.textMuted, fontSize: 13, height: 1.5),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Text(
+            price,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFFFFD700),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                key: ValueKey('paid-cancel-$productId'),
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(t('common.cancel')),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              // Green: this is the one tone that leaves the game to be paid.
+              child: StoreButton(
+                key: ValueKey('paid-confirm-yes-$productId'),
+                tone: StoreTone.cash,
+                label: t('shop.buy_now'),
+                onTap: () => Navigator.of(context).pop(true),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Text(
+            android
+                ? t('shop.payment_disclaimer').replaceAll(
+                    'App Store',
+                    'Google Play',
+                  )
+                : t('shop.payment_disclaimer'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: kit.textMuted, fontSize: 10, height: 1.4),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ConfirmCard extends StatelessWidget {
   const _ConfirmCard({required this.offer});
 

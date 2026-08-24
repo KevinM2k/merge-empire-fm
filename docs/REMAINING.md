@@ -1709,7 +1709,11 @@ things a player could see:
 
 ### Not code decisions
 
-- [ ] **The IAP tiles are `onPressed: null` with "coming soon"** because there
+- [x] ~~**The IAP tiles are `onPressed: null` with "coming soon"**~~ **They buy
+      now** — see the IAP block in M4. "Coming soon" survives only where nothing
+      can take a payment, which in a release build means billing did not come
+      up. The row as written was:
+      **The IAP tiles are `onPressed: null` with "coming soon"** because there
       is no billing plugin in the project — `starter_pack`, `vip_pass`, the gem
       packs and the coin packs all sit behind `paidDisabledReason()`. They can
       be wired to grant their contents for testing, but that is giving away paid
@@ -7758,10 +7762,52 @@ of buttons that error.
       Blocked separately on copy — the JS's `AgeGateModal` needs a sentence
       asking a parent, and there is no shipped key for one, so the SHEET cannot
       be built from this repo.
-- [ ] `initiatePurchase` — the "user tapped Buy" flow that ties the three
-      together. Deliberately left out of the M1 port because it needs the two
-      above; the pre-flight checks it does are already in the engine
-- [ ] Restore purchases, and re-grant of non-consumables on a fresh install
+- [x] `initiatePurchase` — **DONE, in `services/iap_purchase.dart`, and the
+      bridge under it is `in_app_purchase` behind `services/iap_billing.dart`.**
+      It is in the SERVICE layer rather than in `iap_engine` because it is the
+      half that has to ask a plugin whether the money arrived; the JS keeps both
+      in one file and says in its own test that this function is deliberately
+      untested for exactly that reason.
+      **Three things the transport change forced, and each is a real shape
+      difference from the cordova plugin:**
+      - **A purchase arrives on a STREAM, not as a return value.** `buy()` says
+        only that the store's sheet went up. So the subscription has to be open
+        before anything is bought — it also carries purchases the store is
+        REDELIVERING from a session that died mid-payment, and one opened per
+        tap would miss those entirely. That is how a paid-for pack goes missing,
+        and it is why `wireNativeBilling` runs at boot.
+      - **An uncompleted purchase is redelivered forever.** `completePurchase`
+        is what tells the store the goods were handed over, and it runs on
+        failures too — a cancelled purchase is still pending until acknowledged.
+      - **The cancel CODES are the plugin's, not cordova's.** 6500/6501 were
+        `cordova-plugin-purchase`'s; `failureForStoreCode` was written to be
+        re-pointed and most cancels now arrive as their own status instead.
+      The refusal copy is the JS's own branch order, including the one it argues
+      for at length: **"try again" is the one thing not to say** to a SKU the
+      console does not know, because that never fixes itself and a player would
+      tap forever.
+      **And every real-money tap goes through a confirm card first**, which is
+      the JS's own comment on the line that binds the tiles. It looks redundant
+      beside the store's payment sheet and is not — that one says what is being
+      CHARGED, this one says what is being BOUGHT — and it is the only caller
+      `shop.payment_disclaimer` has ever had.
+- [x] Restore purchases, and re-grant of non-consumables on a fresh install.
+      **DONE.** Only non-consumables come back: a coin pack is consumed the
+      moment it is granted and the store lists it forever, so re-granting one
+      would be a free coin button. Only what the save does not already own, so
+      tapping twice is not two grants. And a store that will not answer un-owns
+      nothing — an empty restore and an unreachable one read the same from here,
+      which is the JS's own conflation and the right one.
+- [x] **THE AGE GATE SHEET WAS NEVER BLOCKED ON COPY.** The note above says it
+      needed a sentence asking a parent and that there was no shipped key for
+      one. There were TEN — `agegate.title`, `.intro`, `.under_13`, `.under_18`,
+      `.collect_heading` and five more, in ten languages, with no caller in
+      `lib/` at all. It is `ui/popups/age_gate_sheet.dart` now, opened by the
+      one refusal that is answerable: a verified minor tapping Buy gets the
+      notice rather than a toast. **Gameplay is never blocked by it** — the JS's
+      own opening line — so the second button is "Play Without Purchases", and
+      Allow records consent WITHOUT touching the status, because they are still
+      a minor and ad targeting reads the status.
 - [x] The Shop screen (`ShopScreen`, 1,387 — counted in M3). **The UI is
       finished and waiting on the bridge**: every real-money tile renders its
       real price with a dead button, and nothing calls `purchaseProduct`. Wiring
