@@ -1,10 +1,15 @@
 /// The tutorial, on screen.
 ///
-/// **Nine steps, and it is Coach Colin's card** — which is the port's standing
-/// rule and happens to be right here for a second reason: the JS anchors each
-/// step to a DOM selector and draws a tooltip beside it, and a selector is not
-/// a thing this port has. What it does have is the one character who explains
-/// the game, and a tutorial IS him explaining the game.
+/// **Nine steps, and it is Coach Colin's card** — the port's standing rule, and
+/// a tutorial IS him explaining the game.
+///
+/// **BUT A STEP WITH A TARGET IS NOT A MODAL**, and that is the difference
+/// between a tutorial and a wall. The JS lays a full-screen blocker over the
+/// app with a HOLE in it at the control being taught, so the one thing on
+/// screen that can be pressed is the one the step is about. A modal card cannot
+/// do that: it eats every tap, including the one the step is waiting for. The
+/// three steps that carry a target are exactly the three that wait on the save.
+/// See `tutorial_spotlight.dart` and `tutorial_anchor.dart`.
 ///
 /// **A step ends one of two ways and never both.** Either it carries a button
 /// and the player taps to move on, or it waits on the SAVE — and the card says
@@ -16,6 +21,14 @@
 /// re-checks the condition; here the step is re-read whenever the save changes,
 /// which is the same thing without a timer — and it means a step satisfied by
 /// something happening three screens away still moves on.
+///
+/// **ONBOARDING OWNS THE SCREEN END TO END**, which is `blockPopups('tutorial')`
+/// in the JS and was the whole of the reported break. Without it the DAILY
+/// REWARD sheet opened over the welcome card on a brand-new save and absorbed
+/// every tap on it — the card stayed visible the entire time, so it read as the
+/// tutorial being broken rather than as a sheet being in the way, and a
+/// first-time player was stuck on step 0 forever. The queue holds indefinitely
+/// rather than expiring, so nothing waiting behind the block is lost.
 library;
 
 import 'package:flutter/material.dart';
@@ -24,16 +37,30 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'dart:async';
+
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_anchor.dart';
+import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_spotlight.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/util/popup_queue.dart';
 
 /// Where the script is, live off the save.
 final tutorialStepProvider = savePick<TutorialStep?>(tutorialStepFor);
 
 /// Which of the four `tut.match_reaction.*` pairs this save has earned.
 final matchReactionProvider = savePick<String>(matchReactionKind);
+
+/// Whether the current step's condition has been satisfied by the save.
+///
+/// **This is what moves a condition step on**, and nothing used to: `condition`
+/// had no caller in `lib/`, so the three steps that end this way — scout one,
+/// scout three, play a match — were each a dead end. Watching it here rather
+/// than polling is the same thing without a timer, and it means a step
+/// satisfied three screens away still moves on.
+final tutorialConditionProvider = savePick<bool>(tutorialConditionMet);
 
 /// The club's name, for the welcome. Falls back to the catalogue's own.
 final tutorialClubProvider = savePick<String>((s) {
@@ -71,26 +98,137 @@ class TutorialHost extends ConsumerStatefulWidget {
   ConsumerState<TutorialHost> createState() => TutorialHostState();
 }
 
+/// The blocker tag, and the JS's own string.
+const String tutorialPopupBlocker = 'tutorial';
+
 class TutorialHostState extends ConsumerState<TutorialHost> {
   /// The step a card is currently up for, so one is not opened twice.
   String? _showing;
   bool _busy = false;
 
+  /// Whether this host is holding the popup queue.
+  bool _blocking = false;
+
   /// Test seam: which step has a card up, or null.
   String? get showing => _showing;
+
+  /// The step already sent on by its condition, so one satisfied save does not
+  /// queue an advance on every rebuild.
+  String? _satisfied;
+
+  /// Where the current step's control is, refreshed on the JS's own cadence.
+  Rect? _anchor;
+  Timer? _tracking;
+
+  @override
+  void dispose() {
+    _tracking?.cancel();
+    // A host that goes away holding the block would strand the queue for the
+    // rest of the process — and the welcome-back card in it holds coins that
+    // exist nowhere else.
+    if (_blocking) unblockPopups(tutorialPopupBlocker);
+    super.dispose();
+  }
+
+  /// **The target MOVES**, so its rectangle is re-measured rather than taken
+  /// once: the tab it lives on animates in, the grid scrolls, the play button
+  /// grows a cooldown bar. The JS re-positions on the same 600ms poll it uses
+  /// to re-check conditions, and this is that poll with the condition half
+  /// already handled by watching the save.
+  void _track(String key) {
+    _tracking ??= Timer.periodic(
+      const Duration(milliseconds: 600),
+      (_) => _measure(key),
+    );
+    _measure(key);
+  }
+
+  void _measure(String key) {
+    if (!mounted) return;
+    final rect = tutorialAnchorRect(key);
+    if (rect != _anchor) setState(() => _anchor = rect);
+  }
+
+  void _stopTracking() {
+    _tracking?.cancel();
+    _tracking = null;
+    _anchor = null;
+  }
+
+  /// Hold the queue while the script is running, and let go the moment it is
+  /// not. **Both directions matter**: taking the block is what stops a sheet
+  /// landing on the card, and giving it back is what lets the daily reward the
+  /// player has actually earned finally open.
+  void _setBlocking(bool wanted) {
+    if (wanted == _blocking) return;
+    _blocking = wanted;
+    if (wanted) {
+      blockPopups(tutorialPopupBlocker);
+    } else {
+      unblockPopups(tutorialPopupBlocker);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final step = ref.watch(tutorialStepProvider);
+    _setBlocking(step != null);
+    if (step == null) {
+      _showing = null;
+      _stopTracking();
+      return const SizedBox.shrink();
+    }
+
+    // **Satisfied steps advance themselves.** Deferred off the frame like every
+    // other write here: a Riverpod write inside a widget lifecycle is refused.
+    if (ref.watch(tutorialConditionProvider) && _satisfied != step.id) {
+      _satisfied = step.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(gameProvider).update(advanceTutorial);
+      });
+    }
+
+    if (step.targetKey case final key?) {
+      // **Drawn, not pushed.** A spotlight step is a layer over the running
+      // app, so it lives in this widget's own tree rather than on the
+      // navigator — a route would cover the control it is pointing at.
+      if (step.id != _showing) {
+        _showing = step.id;
+        _anchor = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _openTab(step));
+      }
+      _track(key);
+      return TutorialSpotlight(
+        target: _anchor,
+        child: _Tooltip(step: step, onSkip: _skip),
+      );
+    }
+
+    _stopTracking();
     // **Deferred off the frame.** Opening a route inside `build` is navigation
     // during a build, and it is the same fault this port already documents for
     // a Riverpod write inside a widget lifecycle.
-    if (step != null && step.id != _showing && !_busy) {
+    if (step.id != _showing && !_busy) {
       _showing = step.id;
       WidgetsBinding.instance.addPostFrameCallback((_) => run(step));
     }
-    if (step == null) _showing = null;
     return const SizedBox.shrink();
+  }
+
+  void _skip() => ref.read(gameProvider).update(skipTutorial);
+
+  /// The tab the step belongs on, so the card — or the hole — is over the thing
+  /// it is talking about.
+  void _openTab(TutorialStep step) {
+    if (!mounted) return;
+    switch (step.tab) {
+      case TutorialTab.grid:
+        ref.read(shellControllerProvider.notifier).goTab(ShellTab.grid);
+      case TutorialTab.league:
+        ref.read(shellControllerProvider.notifier).goTab(ShellTab.home);
+      case TutorialTab.none:
+        break;
+    }
   }
 
   /// One step, start to finish. Public so a test can drive it without a shell.
@@ -98,15 +236,7 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
     if (!mounted) return;
     _busy = true;
     try {
-      // The tab first, so the card opens over the thing it is talking about.
-      switch (step.tab) {
-        case TutorialTab.grid:
-          ref.read(shellControllerProvider.notifier).goTab(ShellTab.grid);
-        case TutorialTab.league:
-          ref.read(shellControllerProvider.notifier).goTab(ShellTab.home);
-        case TutorialTab.none:
-          break;
-      }
+      _openTab(step);
       if (!mounted) return;
       final answered = await showTutorialCard(context, ref, step);
       if (!mounted) return;
@@ -126,6 +256,47 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
     }
   }
 }
+
+/// The line for a spotlight step — the same card every other step wears, laid
+/// over the dim rather than pushed as a route.
+///
+/// **It carries SKIP and nothing else.** The step is answered by doing the
+/// thing the hole is around; a "next" button beside it would be a second way
+/// past a step whose whole point is that the player performs it. `tut.skip` is
+/// still here because a tutorial you cannot leave is a trap.
+class _Tooltip extends ConsumerWidget {
+  const _Tooltip({required this.step, required this.onSkip});
+
+  final TutorialStep step;
+  final VoidCallback onSkip;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => CoachCardFrame(
+    title: t(step.titleKey, tutorialParams(ref)),
+    body: t(step.bodyKey, tutorialParams(ref)),
+    extraLines: const [
+      // The player is being asked to do something rather than to read
+      // something, and the card has no button to say so for it.
+      (key: 'tut.complete_above', params: <String, Object?>{}, strong: false),
+    ],
+    actions: [
+      CoachAction(labelKey: 'tut.skip', onTap: onSkip),
+    ],
+  );
+}
+
+/// Every placeholder any step can ask for, supplied for all of them.
+///
+/// The params a key needs are the union across the steps that share a call
+/// site, and a spare costs nothing — the same rule the pooled coach copy taught
+/// this repo, learned there as an intermittent failure.
+Map<String, Object?> tutorialParams(WidgetRef ref) => {
+  'coins': formatCoins(startingCoins),
+  'club': ref.read(tutorialClubProvider),
+  'count': ref.read(tutorialGridCountProvider),
+  'needed': 3,
+  'score': ref.read(tutorialScoreProvider),
+};
 
 /// The two steps that DO something as they are answered.
 ///
@@ -157,17 +328,7 @@ Future<TutorialAnswer?> showTutorialCard(
     context,
     titleKey: titleKey,
     bodyKey: bodyKey,
-    // **Every placeholder any step can ask for, supplied for all of them.** The
-    // params a key needs are the union across the steps that share this call
-    // site, and a spare costs nothing — the same rule the pooled coach copy
-    // taught this repo, learned there as an intermittent failure.
-    bodyParams: {
-      'coins': formatCoins(startingCoins),
-      'club': ref.read(tutorialClubProvider),
-      'count': ref.read(tutorialGridCountProvider),
-      'needed': 3,
-      'score': ref.read(tutorialScoreProvider),
-    },
+    bodyParams: tutorialParams(ref),
     extraLines: [
       // A step waiting on the save says so, or it reads as a card whose button
       // has failed to load.

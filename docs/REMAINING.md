@@ -6220,6 +6220,57 @@ unfinished in a way that reads before a word on the screen does.
       answer to "the spinner doesn't look impressive", since two bare scrolling
       lists eight points apart is a pair of lists rather than a roller.
 
+## From playtesting — 24 Aug
+
+Written on arrival, before the work, which is the rule the 31 Aug block opens on.
+
+- [x] **The tutorial is broken.** Reported with no further detail than that and
+      an instruction to walk the steps rather than guess at which one. **THE
+      WALK WAS THE WHOLE POINT — it found THREE faults, and no two of them had
+      the same cause.** A player could not get past step 0, and if they had they
+      could not have got past step 1.
+      1. **The DAILY REWARD sheet opened over the welcome card and absorbed
+         every tap on it.** The card stayed visible the entire time, which is
+         exactly why it read as the tutorial being broken rather than as a sheet
+         being in the way. The port's own rule names the cause — a popup goes on
+         screen through `enqueuePopup` — and the JS says it in one line:
+         `blockPopups('tutorial')`, onboarding owns the screen end to end. The
+         queue holds indefinitely, so nothing waiting behind the block is lost.
+      2. **`TutorialStep.condition` HAD NO CALLER ANYWHERE IN `lib/`.** Three of
+         the nine steps end by the player doing something — scout one, scout
+         three, play a match — and every one was a dead end: the card said go
+         and do it, they went and did it, and the script sat where it was. Nine
+         steps were ported, tested and shipped with a third of them impassable.
+      3. **A condition step's card was a MODAL**, so it ate the very tap the
+         step was waiting for.
+      **Every one of the three was invisible to the tests that existed**, and in
+      the same way: each constructs the state a step needs and drives the host
+      from there, so each proves a beat works and none asks whether a player can
+      get from one to the next. `tutorial_walkthrough_test` walks all nine in
+      the real app, tapping only what a player can see.
+- [x] **Highlight the right button each step, with the pointing hand.** Asked
+      for directly, and it is what fixes (3) above rather than decoration on
+      top of it. The JS anchors each step to a DOM selector and draws a
+      spotlight, a ring and a hand at it; the port's overlay note said a
+      selector "is not a thing this port has" and dropped all three.
+      **It does have one: a `ValueKey`.** Every control the script points at
+      already carries one, because the widget tests find them by it. What was
+      missing was a way to turn a key into a RECTANGLE from outside the widget
+      that owns it, which is `tutorial_anchor.dart` — a walk of the live element
+      tree, which is what `querySelector` is, run when the step changes and on
+      the JS's own 600ms repositioning tick rather than per frame.
+      **The hole is a hole, not a lighter rectangle** — cut with
+      `BlendMode.dstOut` so what shows through is the live control, still
+      animating, still in the player's own kit colours.
+      **And the input hole is four rectangles, not a hit-test lie.** The dim is
+      one `IgnorePointer` layer and the blocking is four `AbsorbPointer`s laid
+      around the hole, so the gap in the middle has no widget over it at all and
+      the tap simply lands on the app. A painter that lied in `hitTest` would
+      block or pass the whole layer, never a region of it.
+      The three steps that carry a target are exactly the three that wait on the
+      save, which is not a coincidence: a step the player has to DO something
+      for is the only kind that needs telling where.
+
 ## From playtesting — 1 Sep
 
 **EVERY LINE OF THIS SESSION'S REPORTS, whether or not it is fixed yet.** The

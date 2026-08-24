@@ -16,9 +16,17 @@ import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 
+/// **A save that has been PLAYED**, which is what stops the tutorial running.
+///
+/// It used to be a bare default state, and that was a save the tutorial should
+/// and now does run for — onboarding holds the popup queue for the whole
+/// script, so the entry below waited rather than opening. None of these tests
+/// is about onboarding; `tutorial_walkthrough_test` is, and it checks the block
+/// is taken and handed back.
 Future<void> pumpApp(WidgetTester tester, {String kit = '#4caf50'}) async {
   final state = createDefaultState();
   (state['club'] as Map<String, dynamic>)['kitPrimaryColor'] = kit;
+  (state['progression'] as Map<String, dynamic>)['matchesPlayed'] = 4;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [

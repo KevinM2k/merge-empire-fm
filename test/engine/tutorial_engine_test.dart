@@ -249,4 +249,56 @@ void main() {
       }
     });
   });
+
+  group('what satisfies a step', () {
+    // **`condition` had no caller in `lib/` at all**, so the three steps that
+    // end this way were each a dead end: the card said go and do it, the
+    // player went and did it, and the script sat where it was.
+    Map<String, dynamic> at(int step, {int cards = 0, int played = 0}) {
+      final s = createDefaultState();
+      (s['tutorial'] as Map<String, dynamic>)
+        ..['step'] = step
+        ..['done'] = false;
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      for (var i = 0; i < cards; i++) {
+        cells[i] = <String, dynamic>{
+          'definitionId': 'player_t1_mid',
+          'instanceId': 'c$i',
+          'variant': 0,
+        };
+      }
+      (s['progression'] as Map<String, dynamic>)['seasonAwardedPlayed'] = played;
+      return s;
+    }
+
+    test('scouting one clears the first scout step and not before', () {
+      expect(tutorialConditionMet(at(1)), isFalse);
+      expect(tutorialConditionMet(at(1, cards: 1)), isTrue);
+    });
+
+    test('the second wants THREE, which is what its copy says', () {
+      expect(tutorialConditionMet(at(2, cards: 2)), isFalse);
+      expect(tutorialConditionMet(at(2, cards: 3)), isTrue);
+    });
+
+    test('the match step waits on a SETTLED result', () {
+      // `seasonAwardedPlayed`, not `seasonMatchesPlayed`: the JS waits for the
+      // rewards to have moved, which is the counter they move.
+      expect(tutorialConditionMet(at(5)), isFalse);
+      expect(tutorialConditionMet(at(5, played: 1)), isTrue);
+    });
+
+    test('a step that waits on its BUTTON is never satisfied by the save', () {
+      // Either a button or a condition, never both — so nothing may advance
+      // one of these behind the player's back.
+      expect(tutorialConditionMet(at(0, cards: 9, played: 5)), isFalse);
+      expect(tutorialConditionMet(at(3, cards: 9, played: 5)), isFalse);
+    });
+
+    test('and a finished script satisfies nothing', () {
+      final done = at(1, cards: 9);
+      (done['tutorial'] as Map<String, dynamic>)['done'] = true;
+      expect(tutorialConditionMet(done), isFalse);
+    });
+  });
 }

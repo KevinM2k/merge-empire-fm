@@ -49,6 +49,15 @@ typedef TutorialStep = ({
   /// True once the save has done what the step is asking for. Null for a step
   /// that waits on the button instead.
   bool Function(Map<String, dynamic>? state)? condition,
+
+  /// The `ValueKey` of the control this step is about, or null.
+  ///
+  /// **The JS's `target` selector, in the only form this port has one.** The
+  /// three steps that carry one are exactly the three that wait on the save,
+  /// which is not a coincidence: a step the player has to DO something for is
+  /// the only kind that needs to be told where. See
+  /// `ui/screens/tutorial/tutorial_spotlight.dart`.
+  String? targetKey,
 });
 
 List<dynamic> _cells(Map<String, dynamic>? state) {
@@ -73,6 +82,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.none,
     buttonKey: 'tut.welcome.btn',
     condition: null,
+    targetKey: null,
   ),
   (
     id: 'scout_1',
@@ -81,6 +91,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.grid,
     buttonKey: null,
     condition: (s) => _filled(s) >= 1,
+    targetKey: 'add-player',
   ),
   (
     id: 'scout_2',
@@ -89,6 +100,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.grid,
     buttonKey: null,
     condition: (s) => _filled(s) >= 3,
+    targetKey: 'add-player',
   ),
   (
     id: 'loan_boost',
@@ -97,6 +109,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.grid,
     buttonKey: 'tut.loan_boost.btn',
     condition: null,
+    targetKey: null,
   ),
   (
     id: 'play_match',
@@ -105,6 +118,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.grid,
     buttonKey: 'tut.play_match.btn',
     condition: null,
+    targetKey: null,
   ),
   (
     id: 'play_match_action',
@@ -117,6 +131,7 @@ final List<TutorialStep> tutorialSteps = [
     condition: (s) =>
         (_num(_map(s?['progression'])?['seasonAwardedPlayed'])?.toInt() ?? 0) >=
         1,
+    targetKey: 'play-match',
   ),
   (
     id: 'match_result_reaction',
@@ -128,6 +143,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.league,
     buttonKey: 'common.ok',
     condition: null,
+    targetKey: null,
   ),
   (
     id: 'loan_depart',
@@ -136,6 +152,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.grid,
     buttonKey: 'tut.loan_depart.btn',
     condition: null,
+    targetKey: null,
   ),
   (
     id: 'done',
@@ -144,6 +161,7 @@ final List<TutorialStep> tutorialSteps = [
     tab: TutorialTab.league,
     buttonKey: 'tut.done.btn',
     condition: null,
+    targetKey: null,
   ),
 ];
 
@@ -165,6 +183,21 @@ TutorialStep? tutorialStepFor(Map<String, dynamic>? state) {
   if (tut == null || tut['done'] == true) return null;
   final i = _num(tut['step'])?.toInt() ?? 0;
   return i >= 0 && i < tutorialSteps.length ? tutorialSteps[i] : null;
+}
+
+/// **Has the save DONE what the step is asking for?**
+///
+/// Three of the nine steps end this way rather than on a button — scout one,
+/// scout three, play a match — and for a long time nothing in `lib/` called
+/// `condition` at all. Every one of those three was a dead end: the card said
+/// go and do it, the player went and did it, and the script sat where it was.
+/// A tutorial that cannot be finished is worse than none, because it is the
+/// first thing a new player meets.
+///
+/// False for a step that waits on its button, and for a finished script.
+bool tutorialConditionMet(Map<String, dynamic>? state) {
+  final step = tutorialStepFor(state);
+  return step?.condition?.call(state) ?? false;
 }
 
 /// Move on, and mark it finished when the script runs out.
