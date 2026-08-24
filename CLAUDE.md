@@ -239,6 +239,17 @@ layer run under plain `dart test` with no widget binding.
   catalogues are generated; a string that renders its own tags is a call site
   nobody has looked at. `cup.win_reward.body` was printing
   `<strong>Nike</strong>` to players.
+- **A DESIGN NOTE WRITTEN IN THE PRESENT TENSE is a third tell, and the
+  quietest of the three.** `look_pack_engine.dart` said "every item inside the
+  sheet has its own ▶, and so does every locked chip in the customiser" — flat,
+  as a statement of what the port does. Neither ▶ existed. The sentence was
+  describing the plan the tile's own simplification had handed the work off to,
+  and from then on it read as a description on every re-read. Shipped copy with
+  no caller announces itself to a grep; a comment claiming a feature does NOT,
+  because it is indistinguishable from a comment documenting one. The only way
+  to tell them apart is to grep for a caller of whatever it describes —
+  `grantLookItem` had none, and its own doc comment called it "the
+  rewarded-video reward" the whole time.
 - A port with no tests is not done.
 
 ## Identifiers
