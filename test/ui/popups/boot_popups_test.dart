@@ -139,9 +139,10 @@ void main() {
     expect(hasPopupWork(), isFalse);
   });
 
-  testWidgets('the ad double is present and dead until AdMob lands', (
-    tester,
-  ) async {
+  testWidgets('THE AD DOUBLE IS LIVE', (tester) async {
+    // The grant was always the engine's own `doubled` flag; what was missing
+    // was the video, and `daily_double` has been a real unit id with no caller
+    // the whole time.
     await boot(tester, saveWith());
     expect(
       tester
@@ -149,7 +150,7 @@ void main() {
             find.byKey(const ValueKey('daily-claim-double')),
           )
           .onPressed,
-      isNull,
+      isNotNull,
     );
   });
 

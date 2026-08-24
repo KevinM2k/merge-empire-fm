@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -52,15 +53,34 @@ Map<String, dynamic> save({
   return s;
 }
 
+/// A stand-in SDK. Both offers on this sheet are rewarded videos now.
+class FakeAds implements RewardedAds {
+  FakeAds([this.outcome = AdOutcome.rewarded]);
+
+  AdOutcome outcome;
+  final List<String> shown = [];
+
+  @override
+  Future<AdOutcome> show(String placement) async {
+    shown.add(placement);
+    return outcome;
+  }
+
+  @override
+  void prepare(String placement) {}
+}
+
 Future<ProviderContainer> pumpSheet(
   WidgetTester tester,
-  Map<String, dynamic> state,
-) async {
+  Map<String, dynamic> state, {
+  RewardedAds? ads,
+}) async {
   final container = ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
     ],
   );
   addTearDown(container.dispose);
@@ -157,16 +177,49 @@ void main() {
       expect(find.byKey(const ValueKey('daily-day-1')), findsNothing);
     });
 
-    testWidgets('the repair needs an ad, so it is dead for now', (
+    testWidgets('THE REPAIR IS A REWARDED VIDEO, AND IT WORKS', (tester) async {
+      // `streak_repair` has been a real unit id with no caller since the ad
+      // units landed, and `repairStreak` a ported engine function with no
+      // caller since before that — so the one way back from a broken streak
+      // was present, dead, and explained.
+      final ads = FakeAds();
+      final container = await pumpSheet(
+        tester,
+        save(lastClaimDaysAgo: 3),
+        ads: ads,
+      );
+      await tester.tap(find.byKey(const ValueKey('daily-repair')));
+      await tester.pumpAndSettle();
+
+      expect(ads.shown, ['streak_repair']);
+      expect(
+        find.byKey(const ValueKey('daily-broken')),
+        findsNothing,
+        reason: 'the streak was not put back',
+      );
+      await settleSave(tester);
+      expect(container.read(gameProvider).state, isNotNull);
+    });
+
+    testWidgets('and a video closed early repairs NOTHING', (tester) async {
+      // Backing out is a choice, not a fault: nothing is owed and nothing is
+      // said.
+      final ads = FakeAds(AdOutcome.dismissed);
+      await pumpSheet(tester, save(lastClaimDaysAgo: 3), ads: ads);
+      await tester.tap(find.byKey(const ValueKey('daily-repair')));
+      await tester.pumpAndSettle();
+      expect(ads.shown, ['streak_repair']);
+      expect(find.byKey(const ValueKey('daily-broken')), findsOneWidget);
+    });
+
+    testWidgets('with no ad to show it says so and changes nothing', (
       tester,
     ) async {
-      await pumpSheet(tester, save(lastClaimDaysAgo: 3));
-      expect(
-        tester
-            .widget<ElevatedButton>(find.byKey(const ValueKey('daily-repair')))
-            .onPressed,
-        isNull,
-      );
+      final ads = FakeAds(AdOutcome.unavailable);
+      await pumpSheet(tester, save(lastClaimDaysAgo: 3), ads: ads);
+      await tester.tap(find.byKey(const ValueKey('daily-repair')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('daily-broken')), findsOneWidget);
     });
 
     testWidgets('starting over goes on to the claim', (tester) async {
@@ -341,4 +394,50 @@ void main() {
     });
   });
 
+
+  group('claiming at double', () {
+    testWidgets('WATCHING IT THROUGH PAYS TWICE', (tester) async {
+      final ads = FakeAds();
+      final container = await pumpSheet(tester, save(), ads: ads);
+      final before = (container.read(gameProvider).state!['resources']
+          as Map<String, dynamic>)['fanCoins'] as num;
+
+      await tester.tap(find.byKey(const ValueKey('daily-claim-double')));
+      await tester.pumpAndSettle();
+      expect(ads.shown, ['daily_double']);
+      final doubled = (container.read(gameProvider).state!['resources']
+          as Map<String, dynamic>)['fanCoins'] as num;
+      expect(doubled, greaterThan(before));
+      await settleSave(tester);
+    });
+
+    testWidgets('AN UNAVAILABLE AD CLAIMS NOTHING AT ALL', (tester) async {
+      // Not even at the single rate. The player asked for the doubled one, and
+      // quietly giving them half of it spends their day's reward on a choice
+      // they did not make — the single-rate button is still right there.
+      final ads = FakeAds(AdOutcome.unavailable);
+      final container = await pumpSheet(tester, save(), ads: ads);
+      final before = (container.read(gameProvider).state!['resources']
+          as Map<String, dynamic>)['fanCoins'] as num;
+
+      await tester.tap(find.byKey(const ValueKey('daily-claim-double')));
+      await tester.pumpAndSettle();
+      expect(
+        (container.read(gameProvider).state!['resources']
+            as Map<String, dynamic>)['fanCoins'],
+        before,
+      );
+      expect(find.byKey(const ValueKey('daily-claim')), findsOneWidget);
+    });
+
+    testWidgets('and backing out of one leaves the day unclaimed', (
+      tester,
+    ) async {
+      final ads = FakeAds(AdOutcome.dismissed);
+      await pumpSheet(tester, save(), ads: ads);
+      await tester.tap(find.byKey(const ValueKey('daily-claim-double')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('daily-claim')), findsOneWidget);
+    });
+  });
 }

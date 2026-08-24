@@ -252,8 +252,19 @@ All seven shelves are present and in the JS's own order.
       broken-streak branch were invisible, and day seven's gems (the only
       recurring gem faucet in the game) were never advertised.
 - [x] The broken-streak branch, with both ways out
-- [ ] The repair itself and Claim ×2, which need a rewarded ad (M4). Both are
-      present and disabled rather than hidden.
+- [x] The repair itself and Claim ×2. **BOTH LIVE** — the ad SDK is in, and
+      `daily_double` and `streak_repair` had both been real unit ids in
+      `ad_units.dart` with no caller since the units landed. `repairStreak` was
+      a ported engine function with no caller since before that, so the one way
+      back from a broken streak was present, dead, and explained.
+      **An unavailable ad claims NOTHING, not even at the single rate.** The
+      player asked for the doubled one, and quietly giving them half of it
+      spends their day's reward on a choice they did not make — the single-rate
+      button is still right there. Backing out of the video is the same: a
+      choice, not a fault, so nothing is owed and nothing is said.
+      And the engine decides whether a streak CAN be repaired; the sheet only
+      asks for the video. A second answer to that question is how a window comes
+      to disagree with itself.
 
 ## Settings — `screens/SettingsScreen.js`
 

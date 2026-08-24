@@ -22,6 +22,8 @@ import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -72,6 +74,51 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
   /// The player chose to start the week again rather than repair it.
   bool _repairDeclined = false;
 
+  /// A video is up. Both offers go dead together — the sheet is one decision
+  /// and two of them in flight is two claims against one day.
+  bool _busy = false;
+
+  /// Claim at double, if the video is watched to the end.
+  Future<void> _claimDoubled() async {
+    setState(() => _busy = true);
+    final outcome = await ref.read(rewardedAdsProvider).show(dailyDoublePlacement);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (outcome == AdOutcome.unavailable) {
+      emit('toast:info', t('toast.no_ad'));
+      return;
+    }
+    // Dismissed early is a choice, not a fault: nothing is owed and nothing is
+    // said. The single-rate button is still there.
+    if (outcome != AdOutcome.rewarded) return;
+    setState(() {
+      _claimed = ref
+          .read(gameProvider)
+          .update((s) => claimDailyReward(s, doubled: true));
+    });
+  }
+
+  /// Put the streak back, if the video is watched to the end.
+  Future<void> _repairStreak() async {
+    setState(() => _busy = true);
+    final outcome = await ref
+        .read(rewardedAdsProvider)
+        .show(streakRepairPlacement);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (outcome == AdOutcome.unavailable) {
+      emit('toast:info', t('toast.no_ad'));
+      return;
+    }
+    if (outcome != AdOutcome.rewarded) return;
+    // **The engine decides whether it CAN be repaired, not this.** The window
+    // is its own — a streak broken long enough ago is gone — and re-deciding it
+    // here would be a second answer to the same question.
+    final done = ref.read(gameProvider).update((s) => repairStreak(s));
+    if (!mounted || !done.ok) return;
+    setState(() {});
+  }
+
   /// Test seam.
   DailyClaim? get claimed => _claimed;
 
@@ -114,6 +161,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
           _BrokenStreak(
             streak: status.streak,
             onStartOver: () => setState(() => _repairDeclined = true),
+            onRepair: _busy ? null : _repairStreak,
           )
         else ...[
           // The whole week, so the player can see where day seven is. Today is
@@ -157,22 +205,30 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
                   width: double.infinity,
                   child: ElevatedButton(
                     key: const ValueKey('daily-claim'),
-                    onPressed: () => setState(() {
-                      _claimed = game.update((s) => claimDailyReward(s));
-                    }),
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() {
+                            _claimed = game.update((s) => claimDailyReward(s));
+                          }),
                     child: Text(t('daily.claim')),
                   ),
                 ),
                 const SizedBox(height: 6),
-                // The ad double, present and dead: the grant is the engine's
-                // `doubled` flag and the ad is AdMob's, which M4 has not
-                // delivered. Shown rather than hidden, so the offer is not a
-                // surprise the day it starts working.
+                // **THE AD DOUBLE IS LIVE.** The grant has always been the
+                // engine's own `doubled` flag; what was missing was the video,
+                // and `daily_double` has been a real unit id in `ad_units.dart`
+                // with no caller the whole time.
+                //
+                // **The claim happens ONLY if the video was watched to the
+                // end.** An unavailable ad must not silently claim at the
+                // single rate — the player asked for the doubled one, and
+                // quietly giving them half of it spends their day's reward on a
+                // choice they did not make.
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
                     key: const ValueKey('daily-claim-double'),
-                    onPressed: null,
+                    onPressed: _busy ? null : _claimDoubled,
                     child: Text(t('daily.claim_double')),
                   ),
                 ),
@@ -431,17 +487,33 @@ class _StreakBand extends StatelessWidget {
   }
 }
 
+/// The two placements this sheet spends. Keys from `data/ad_units.dart`, both
+/// of which have carried a real unit id and no caller since the units landed.
+const String dailyDoublePlacement = 'daily_double';
+const String streakRepairPlacement = 'streak_repair';
+
 /// The broken-streak branch.
 ///
-/// A repair needs a rewarded ad, which M4 has not delivered — so the offer is
-/// present and dead, and Reset is live. The alternative was to hide the repair
-/// and reset the streak silently, which is the same outcome with none of the
-/// explanation.
+/// **The repair is a rewarded video, and it works now.** `streak_repair` has
+/// been a real unit id in `ad_units.dart` with no caller since the ad units
+/// landed, and `repairStreak` a ported engine function with no caller since
+/// before that — so the one way back from a broken streak was present, dead,
+/// and explained.
+///
+/// Reset stays beside it: a player who does not want to watch anything should
+/// not have to close the sheet to say so.
 class _BrokenStreak extends StatelessWidget {
-  const _BrokenStreak({required this.streak, required this.onStartOver});
+  const _BrokenStreak({
+    required this.streak,
+    required this.onStartOver,
+    required this.onRepair,
+  });
 
   final int streak;
   final VoidCallback onStartOver;
+
+  /// Null while a video is already up.
+  final VoidCallback? onRepair;
 
   @override
   Widget build(BuildContext context) {
@@ -468,7 +540,7 @@ class _BrokenStreak extends StatelessWidget {
           width: double.infinity,
           child: ElevatedButton(
             key: const ValueKey('daily-repair'),
-            onPressed: null,
+            onPressed: onRepair,
             child: Text(t('daily.repair')),
           ),
         ),
