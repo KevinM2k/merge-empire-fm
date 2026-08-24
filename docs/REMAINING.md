@@ -2550,16 +2550,23 @@ has a trap in it that is worth stating before the first line is written.
       constrained to end in a known state, which means solving for the flight
       that reaches the given corner and the given result rather than integrating
       forces and seeing what happens.
-- [ ] **USE THE KENNEY PACKS FOR CELEBRATION AND BACKDROP.**
-      `kenney_smoke-particles` for a merge, a discovery, a pop — anything that
-      appears or is worth celebrating; `kenney_background-elements-remastered`
-      behind the manager customiser, the training screens and the match popups;
-      and more of `kenney_game-icons` where the app's own set has no glyph.
-      **The trap: the merge burst is currently PROCEDURAL** and draws at any size
-      in any tier's colours, which a sprite sheet cannot do. So this is an
-      addition rather than a replacement — sprites for the things that have no
-      effect at all today, and the procedural burst stays where a tier colour has
-      to drive it.
+- [~] **USE THE KENNEY PACKS FOR CELEBRATION AND BACKDROP.**
+      **THE SMOKE IS IN, and it turns out the assets were already here.**
+      `assets/fx/puff_0..7.png` have shipped in `pubspec.yaml` since the packs
+      were imported and **nothing in `lib/` named one** — the same class of
+      finding as a translated string nothing can print, and it took a grep to
+      see. `ui/screens/grid/smoke_puff.dart` is their caller.
+      **It goes UNDER the merge burst, which is how the trap is avoided rather
+      than argued with.** The burst is procedural and draws in whatever colour
+      the tier calls for, so a sprite may not replace it — but smoke is
+      COLOURLESS, and that is the whole reason it can sit beneath one: it reads
+      as displaced air rather than as a second opinion about what tier the card
+      was. Over the card, under the sparks, wider than the square, and reduce
+      motion drops it entirely rather than showing frame eight, because a puff
+      is decoration with no information in it.
+      **Still to do**: `kenney_background-elements-remastered` behind the
+      customiser, the training screens and the match popups, and more of
+      `kenney_game-icons` where the app's own set has no glyph.
 
 ### Odds and ends closed on the way
 

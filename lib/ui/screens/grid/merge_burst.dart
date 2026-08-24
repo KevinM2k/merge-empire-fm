@@ -38,6 +38,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/grid/smoke_puff.dart';
 
 /// The whole set-piece: the JS's GSAP timeline end to end — a 90ms squash, a
 /// 150ms stretch, and an 850ms elastic settle.
@@ -220,6 +221,26 @@ class MergeBurstState extends State<MergeBurst>
           alignment: Alignment.center,
           children: [
             body,
+            // **THE SMOKE GOES UNDER THE BURST, and only under it.**
+            // `docs/REMAINING.md` names the trap: the burst is procedural and
+            // draws in whatever colour the tier calls for, which a sprite sheet
+            // cannot do — so the sprite may not replace it. Smoke can sit
+            // beneath it because smoke is COLOURLESS: it reads as displaced air
+            // rather than as a second opinion about what tier the card was.
+            //
+            // Behind `body` in the stack would put it behind the card; here it
+            // is over the card and under the sparks, which is where displaced
+            // air belongs.
+            Positioned.fill(
+              child: Center(
+                child: SmokePuff(
+                  playing: widget.playing,
+                  // Wider than the square it happens in, because smoke that
+                  // stops at the card's edge reads as a texture on the card.
+                  size: mergeSmokeSpread,
+                ),
+              ),
+            ),
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
@@ -242,6 +263,13 @@ class MergeBurstState extends State<MergeBurst>
     );
   }
 }
+
+/// How wide the merge's own puff is drawn.
+///
+/// Wider than a grid square on purpose: smoke that stops at the card's edge
+/// reads as a texture printed on the card rather than as air being pushed out
+/// of the way.
+const double mergeSmokeSpread = 120;
 
 /// Where the pop is at, in x and y — the JS's three tweens, back to back.
 ///
