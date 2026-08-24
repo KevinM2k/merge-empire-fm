@@ -8058,12 +8058,44 @@ of buttons that error.
       day short of an hour: 30 March 2026 is W14 in the shipped app and came out
       W13 here. One hour, once a year, and it would have put two runtimes'
       players in different weekly buckets.
-- [ ] `leaderboardService`'s TRANSPORT half — the fetch with its client-side
-      inactivity filter and backfill pages, the four-period write on a finished
-      match, and the opt-out sweep that hides or deletes a player's rows. It
-      sits on `firestore_rest.dart`, which is ported, and it is blocked on a
-      UID: `authService`'s plugin is what supplies one, so this is downstream of
-      the M6 rows rather than of anything in this repo.
+- [~] `leaderboardService`'s TRANSPORT half. **The uid arrived with the auth
+      port, so this stopped being blocked** — `services/leaderboard_service.dart`
+      is the fetch, the four-period write and the opt-out sweep, and
+      `ui/screens/leaderboard/leaderboard_board.dart` is the ranked list that
+      the sheet had a one-line apology in place of.
+      **THE BOARD IS BUILT BY A CLOUD FUNCTION**, which is the JS's own primary
+      path and the reason this is small: a rank is a `count()` over the whole
+      collection — one server call, or a hundred document reads on a phone. The
+      client sends who it is, which period, which metric and which filters, and
+      gets a finished view back.
+      **What is NOT ported, and is why this row is `~` rather than `x`:** the
+      direct-read FALLBACK the JS drops to when the function call fails. That is
+      a multi-query path — top rows, neighbours, two counts and a backfill sweep
+      — and several hundred lines of it. A board that fails to load says so
+      instead. It is a narrowing, deliberately, and written down rather than
+      half-built.
+      **Four things in it worth keeping:**
+      - **A finished match is FOUR writes, not forty-eight**, in one atomic
+        commit — schema v2 puts one row per player per period and makes the
+        scope a `where` filter. Increment-by-zero is deliberate: it creates the
+        field without resetting an existing score, so a drawn or lost match
+        still puts the club on every board.
+      - **Opting out PATCHES `listed` and never deletes.** A row update is
+        always permitted and a delete may not be, so this is what guarantees the
+        scores vanish from every public board — and the scores keep accruing, so
+        opting back in loses nothing.
+      - **The row meta writes `accountName` as NULL rather than leaving it out**
+        (email-derived names are never published, and stating the null scrubs
+        the field from a row an older version wrote) and **leaves `badgeId` out
+        entirely** when this device has never chosen one, so a second device
+        with an unsynced save cannot stomp the stored badge back to default.
+      - **The cache is keyed on the row LABELS as well as the query** — the
+        uid, the club name, the badge, whether they are listed — because those
+        are stamped onto the player's own row, so a rename has to miss the cache
+        rather than serve a view with the old name on it.
+      The boot repair (`ensureLeaderboardOptOutApplied`) runs ahead of the cloud
+      sync, which is the JS's ordering: somebody who asked not to be listed
+      still being listed is the direction that matters.
 - [x] `feedbackService` (195) — **PORTED, and still dormant, which is the spec's
       own arrangement rather than a gap.** It needs no account and no Firebase
       SDK: the Cloud Function records the message and emails it on, writes
