@@ -1404,17 +1404,24 @@ class _StandSegment extends StatelessWidget {
             // posts, with the TREES sliced flat across the top. Reported three
             // times, and the third came with the picture that shows it.
             //
-            // The band that has to be visible is the drawing's own top
-            // [_kenneyGroundLine] — sky, cloud, treeline, down to the ground —
-            // so the drawing is sized so exactly that much fills the strip's
-            // height. That makes it narrower than the strip, which is what the
-            // tiling is for: these backdrops repeat horizontally by design, and
-            // the strip is a scrolling segment that was always going to be
-            // wider than one copy of anything.
+            // The band that has to be visible is [_kenneyTreeLine] down to
+            // [_kenneyGroundLine], so the drawing is sized so exactly that much
+            // fills the strip's height. That makes it narrower than the strip,
+            // which is what the tiling is for: these backdrops repeat
+            // horizontally by design, and the strip is a scrolling segment that
+            // was always going to be wider than one copy of anything.
+            //
+            // **THE SKY WAS THE FOURTH REPORT.** Taking the drawing's whole top
+            // 62% spent HALF the strip on flat sky, which left the trees a
+            // sliver along the bottom — read as the backdrop being cropped, and
+            // low, which is exactly what it was. The sky above the treeline is
+            // the one part of a backdrop the scene does not need: it draws its
+            // own. Clipping it lifts the trees to fill the band and makes them
+            // nearly three times the size, which is also three times fewer
+            // copies across the segment.
             builder: (context, box) {
-              final side = box.maxHeight <= 0
-                  ? 0.0
-                  : box.maxHeight / _kenneyGroundLine;
+              const band = _kenneyGroundLine - _kenneyTreeLine;
+              final side = box.maxHeight <= 0 ? 0.0 : box.maxHeight / band;
               final across = side <= 0 ? 0 : (box.maxWidth / side).ceil() + 1;
               // **AND IT HAS TO WORK IN BOTH THEMES.** It is a daylit drawing
               // and the scene at these tiers is whatever the player has the app
@@ -1465,7 +1472,15 @@ class _StandSegment extends StatelessWidget {
 /// Sky and cloud above, a treeline, then a flat field filling the bottom. The
 /// field is the part that must NOT be seen: the scene draws its own ground, and
 /// a second one behind it at a different perspective is a hill.
-const double _kenneyGroundLine = 0.62;
+const double _kenneyGroundLine = 0.624;
+
+/// And where the tallest tree's crown starts, on the same scale.
+///
+/// Measured off the pixels rather than guessed: the first green in the drawing
+/// is at 0.330, and this sits a little above it so a crown is never cut by the
+/// strip's own top edge. Everything above is flat sky, and the scene has its
+/// own.
+const double _kenneyTreeLine = 0.28;
 
 /// **THE BOTTOM TWO TIERS HAVE NO GROUND**, which is the art brief and which
 /// the port had dropped: a hedge line, three trees, a low white fence — and at

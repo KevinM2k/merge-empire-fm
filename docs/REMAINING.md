@@ -6688,11 +6688,20 @@ that is not off the extension is the bug, not the symptom.
       The JS's block is claimable because it renders BEFORE the settle; the
       port's page renders after, and reordering that chain would move the rating
       prompt, the offseason report and the champions card with it.
-- [ ] **The home backdrop is still cropping, and quite low.** Third re-report,
+- [x] **The home backdrop is still cropping, and quite low.** Third re-report,
       and filed twice in the same sitting — one row, not two.
-      The place-by-its-ground-line fix assumed the art's own ground sits at 62%
-      of the drawing; if it crops low, that number is wrong for this image or
-      the band it is placed in is not the band being seen.
+      The 62% was RIGHT: read off the pixels, the drawing's ground starts at
+      0.624 and the tallest crown at 0.330. What was wrong is that the band
+      being shown ran from the TOP — so half the fifty-point strip was flat sky
+      and the treeline was the sliver under it. That is both halves of the
+      report at once, and it is why placing the ground line correctly did not
+      fix it: the crop was at the other end.
+      The visible band is `_kenneyTreeLine` (0.28, a little clear of the tallest
+      crown) to `_kenneyGroundLine` now, so the trees fill the strip at nearly
+      three times the size and in a third as many copies across it. Two tests
+      in `pitch_scene_test.dart` hold the band, the ground line landing on the
+      strip's foot, the crown clearing its top edge, and the tiling covering
+      the segment.
 - [ ] **The customise sheet is STILL slow to open.** Second re-report after
       waiting for the route's animation. Measure it rather than guessing again:
       the next pass wants a timeline, not another deferral.

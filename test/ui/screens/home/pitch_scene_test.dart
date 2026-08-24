@@ -525,6 +525,54 @@ void main() {
       },
     );
   });
+
+  group('THE PARK BACKDROP', () {
+    // Reported four times as cropped, and the fourth time as low with it. The
+    // strip is fifty-odd points tall; what fills it decides whether there is a
+    // treeline behind the park or a sliver of one under a lot of sky.
+    testWidgets('shows the TREELINE, not the sky above it', (tester) async {
+      await pumpScene(tester);
+      final strip = tester.getRect(find.byKey(const ValueKey('pitch-stand-segment')).first);
+      final tile = tester.getRect(
+        find.byKey(const ValueKey('pitch-park-backdrop-0')).first,
+      );
+
+      // The drawing is square, so its height is its width — and the band of it
+      // on screen is the strip. Anything much over a third of the drawing
+      // showing means the sky came with it.
+      expect(tile.width, moreOrLessEquals(tile.height, epsilon: 0.5));
+      expect(
+        strip.height / tile.height,
+        lessThan(0.4),
+        reason: 'more than a third of the drawing is visible — the sky is back',
+      );
+
+      // Its ground line lands on the strip's foot: the turf starts there, so a
+      // second field behind it would be a hill.
+      expect(tile.top + 0.624 * tile.height, moreOrLessEquals(strip.bottom, epsilon: 1));
+
+      // And the tallest crown, at 0.330 of the drawing, is inside the strip
+      // rather than cut off by its top edge.
+      expect(tile.top + 0.330 * tile.height, greaterThan(strip.top));
+    });
+
+    testWidgets('and it tiles across the whole segment', (tester) async {
+      await pumpScene(tester);
+      final strip = tester.getRect(find.byKey(const ValueKey('pitch-stand-segment')).first);
+      final tile = tester.getRect(
+        find.byKey(const ValueKey('pitch-park-backdrop-0')).first,
+      );
+      final copies = find
+          .byWidgetPredicate(
+            (w) => w.key is ValueKey<String> &&
+                (w.key as ValueKey<String>).value.startsWith('pitch-park-backdrop-'),
+          )
+          .evaluate()
+          .length;
+      expect(copies * tile.width, greaterThanOrEqualTo(strip.width));
+    });
+  });
+
 }
 
 /// The gradient the scene actually painted its sky with — the first full-bleed
