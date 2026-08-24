@@ -21,7 +21,10 @@ import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/engine/age_verification.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
+import 'package:merge_empire_fc/engine/cloud_save_policy.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
+import 'package:merge_empire_fc/services/cloud_sync.dart';
+import 'package:merge_empire_fc/ui/popups/cloud_conflict_card.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
 import 'package:merge_empire_fc/services/feedback_service.dart';
@@ -89,7 +92,7 @@ class _GameHostState extends ConsumerState<GameHost>
     // costs a player nothing they can see, and a boot that waited on the
     // network to draw its first frame would be paying for it every launch.
     wireAuthToFirestore();
-    unawaited(AuthService.instance.restore(_runner.game.state));
+    unawaited(_restoreSessionAndCloud());
     // **THE STORE, ASKED ONCE AND EARLY.** `wireNativeBilling` also starts the
     // purchase stream, and it has to be listening BEFORE anything is bought:
     // that stream carries purchases this session started and ones the store is
@@ -126,6 +129,34 @@ class _GameHostState extends ConsumerState<GameHost>
       // and Riverpod refuses a provider write inside a widget lifecycle.
       _weather.start();
     });
+  }
+
+  /// The session, then the cloud — **in that order and awaited between**.
+  ///
+  /// The sync needs a live bearer token, and `restore` is what turns the stored
+  /// refresh token into one; running them together means the first Firestore
+  /// read goes out unauthenticated and the player's own save comes back 403.
+  ///
+  /// **It is fired and forgotten from `initState`, not awaited in front of the
+  /// first frame.** A boot that waited on the network to draw would pay for it
+  /// on every launch, and the fallback at every step is the save already on the
+  /// device.
+  Future<void> _restoreSessionAndCloud() async {
+    // The card is the UI's half of the decision; the sync service holds the
+    // seam so nothing below this layer has to know one exists.
+    conflictPrompt = (cloud, local) async {
+      final ctx = context;
+      if (!mounted) return CloudSaveAction.upload;
+      return showCloudConflictCard(ctx, cloud, local);
+    };
+    await AuthService.instance.restore(_runner.game.state);
+    if (!mounted) return;
+    final outcome = await runCloudBootSync(_runner.game);
+    if (!mounted) return;
+    if (outcome == CloudSyncOutcome.restored) {
+      // The whole save changed underneath every screen watching it.
+      _runner.game.notifyChanged();
+    }
   }
 
   /// Ask Play what age group this player is in, and tell AdMob.
@@ -206,6 +237,11 @@ class _GameHostState extends ConsumerState<GameHost>
       case AppLifecycleState.detached:
         ref.read(appHiddenProvider.notifier).state = true;
         _runner.pause();
+        // **AND THE CLOUD COPY, IMMEDIATELY.** `pause()` lands the local save;
+        // the cloud upload is behind a debounce of its own, and a debounce is
+        // exactly what the OS suspending the process eats. This is the moment
+        // a save most needs to have arrived.
+        unawaited(flushSaveToCloud(_runner.game.state));
         // The spells stop with the loop. A sky rolling over every thirty seconds
         // behind a backgrounded app is a save read and a rebuild for something
         // nobody is looking at.

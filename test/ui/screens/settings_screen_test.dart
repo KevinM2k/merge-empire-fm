@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/cloud_save_service.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -75,8 +76,16 @@ Map<String, dynamic> settingsOf(ProviderContainer c) =>
 
 /// Every write arms the 2s debounced save. Pump past it, or the test ends with
 /// a timer still pending and the binding rightly complains.
-Future<void> settleSave(WidgetTester tester) =>
-    tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+///
+/// **And the save arms a SECOND timer once somebody is signed in** — the cloud
+/// upload's own 2.5s debounce, which stacks on this one deliberately so a merge
+/// spree is one Firestore write. It outlives the tree in a test that never gets
+/// that far, so it is cancelled rather than waited out: what a settings test is
+/// about is the key the toggle wrote, not the document it would have shipped.
+Future<void> settleSave(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+  cancelPendingCloudUpload();
+}
 
 void main() {
   tearDown(resetLocale);

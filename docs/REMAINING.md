@@ -7899,9 +7899,28 @@ of buttons that error.
       Writing the tests found a branch that could never run: `fetchCloudSave`
       had a "legacy nested map" path, and the codec answers null for a
       `mapValue` on purpose because the save is stored as JSON TEXT. Deleted.
-      **What it is still waiting on is a UID.** Nothing calls any of this yet:
-      the uid comes from `authService`, and the conflict card needs the twelve
-      `cloud.conflict.*` keys placed on a screen.
+      **IT RUNS NOW.** The uid arrived with the auth port, and
+      `services/cloud_sync.dart` is the caller every piece of this was waiting
+      for: the boot sync, the sign-in sync, the debounced upload hook that
+      `GameState` has always had a slot for and nobody filled, and the flush on
+      the app going to the background. `ui/popups/cloud_conflict_card.dart` is
+      the sixteenth-string half — twelve `cloud.conflict.*` plus the four
+      `cloudsave.*` relative-time bands, all shipped, none of them called.
+      **Four decisions in the wiring worth keeping:**
+      - **The card is TWO CARDS, not a dialog with two buttons.** Which save to
+        keep is a question about two things — a club, a division, a season, a
+        match count, when each was last played — and nobody can answer it from
+        the words "Cloud" and "Device".
+      - **Keeping the device FORCES the write.** The precondition token belongs
+        to the cloud copy the player just rejected, so an ordinary upload is
+        refused as stale and the choice silently does not stick.
+      - **With nobody to ask, the device wins.** `conflictPrompt` null keeps the
+        local save: it is the one the player has been playing, and replacing it
+        unasked is the only irreversible move in the file.
+      - **An unreadable cloud document is overwritten, not obeyed** — and the
+        local save is never replaced by one that will not migrate.
+      The upload debounce STACKS on the local save's on purpose: a merge spree
+      is one Firestore write rather than one per merge.
 
       **`firestoreRest` (334) and `firestoreRestAuth`
       (83) are PORTED** — `engine/firestore_codec.dart` (the wire format, pure

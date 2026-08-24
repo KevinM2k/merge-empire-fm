@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
+import 'package:merge_empire_fc/services/cloud_sync.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -35,8 +36,17 @@ final saveStoreProvider = Provider<SaveStore>((ref) {
 });
 
 /// The save itself.
+///
+/// **The cloud hook is passed HERE rather than reached for inside `GameState`**,
+/// which is what keeps `lib/state` free of the services layer: the state knows
+/// only that a real event has happened and that somebody may want to hear about
+/// it. It does nothing at all until somebody is signed in — `scheduleSave`
+/// checks the save's own `authUid` before calling.
 final gameProvider = Provider<GameState>((ref) {
-  final game = GameState(store: ref.watch(saveStoreProvider));
+  final game = GameState(
+    store: ref.watch(saveStoreProvider),
+    uploadCloudSave: uploadSaveToCloud,
+  );
   ref.onDispose(game.dispose);
   return game;
 });

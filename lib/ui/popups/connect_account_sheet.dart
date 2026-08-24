@@ -17,12 +17,15 @@
 /// one had a caller before the sign-in route existed.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
+import 'package:merge_empire_fc/services/cloud_sync.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
@@ -88,6 +91,11 @@ class _ConnectBodyState extends ConsumerState<_ConnectBody> {
       if (!mounted) return;
       emit('toast:success', t('auth.sign_in_success'));
       Navigator.of(context).pop(true);
+      // **THE CLOUD IS RECONCILED AFTER THE SHEET IS GONE, not before.** The
+      // sync can put a conflict card up, and a second route arriving on top of
+      // the one being dismissed is how a decision ends up behind a sheet
+      // nobody can see. The JS defers it for the same reason and says so.
+      unawaited(runCloudBootSync(game));
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
