@@ -151,7 +151,15 @@ Future<void> showSellSheet(
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 6),
+                            // **THE GAUGE.** The figure alone says what this
+                            // sale is worth and nothing at all about whether it
+                            // is a GOOD one — which is the whole decision the
+                            // market clock exists to create. Red to green with
+                            // a marker on it turns a number into a position,
+                            // and the JS draws exactly this.
+                            MarketBar(mult: offer.mult),
+                            const SizedBox(height: 6),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -309,4 +317,68 @@ Future<void> showSellSheet(
       },
     ),
   );
+}
+
+/// The red-to-green track with the offer's marker on it.
+///
+/// **The gradient is the JS's own five stops** and it is not decorative: the
+/// colours are where the eye reads "bad" and "good" without a legend, and the
+/// marker's position is what makes a 1.3 and a 1.8 different at a glance rather
+/// than two numbers to compare.
+class MarketBar extends StatelessWidget {
+  const MarketBar({super.key, required this.mult});
+
+  final double mult;
+
+  /// `linear-gradient(90deg, #e53935 0%, #ff9800 30%, #ffd600 52%, #8bc34a 76%,
+  /// #16a34a 100%)`, stop for stop.
+  static const List<Color> _band = [
+    Color(0xFFE53935),
+    Color(0xFFFF9800),
+    Color(0xFFFFD600),
+    Color(0xFF8BC34A),
+    Color(0xFF16A34A),
+  ];
+  static const List<double> _stops = [0, 0.30, 0.52, 0.76, 1];
+
+  @override
+  Widget build(BuildContext context) {
+    final at = marketPosition(mult);
+    return LayoutBuilder(
+      builder: (context, box) => SizedBox(
+        key: const ValueKey('sell-market-bar'),
+        height: 16,
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                  gradient: LinearGradient(colors: _band, stops: _stops),
+                ),
+              ),
+            ),
+            // Four points wide, and inset by its own width at the far end so a
+            // jackpot's marker is ON the bar rather than half off it.
+            Positioned(
+              key: const ValueKey('sell-market-marker'),
+              left: (box.maxWidth - 4) * at,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                  boxShadow: [
+                    BoxShadow(color: Color(0xCCFFFFFF), blurRadius: 6),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

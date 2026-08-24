@@ -63,6 +63,20 @@ const List<MarketTier> marketTiers = [
 ];
 
 /// Which rung a multiplier sits on.
+/// Where a multiplier sits along the market's own range, 0 to 1.
+///
+/// **The top of the scale is the best rung PLUS a half**, which is the JS's own
+/// `MARKET_TIERS[4].mult + 0.5` and is not arbitrary: a roll lands on a rung and
+/// adds a little on top, so the jackpot's own 2.8 is the FLOOR of the best band
+/// rather than the ceiling of the scale. Ending the bar at 2.8 would peg every
+/// jackpot at the far end and make the best outcome in the game look identical
+/// to the second-best.
+double marketPosition(double mult) {
+  final low = marketTiers.first.mult;
+  final high = marketTiers.last.mult + 0.5;
+  return ((mult - low) / (high - low)).clamp(0.0, 1.0);
+}
+
 MarketTier marketTierFor(double mult) {
   for (var i = marketTiers.length - 1; i >= 0; i--) {
     if (mult >= marketTiers[i].mult) return marketTiers[i];

@@ -157,4 +157,31 @@ void main() {
       expect(sellMarketFactor, lessThan(1));
     });
   });
+
+  group('where a multiplier sits on the bar', () {
+    test('the worst rung is the FLOOR and the best is not the ceiling', () {
+      // The top of the scale is the best rung PLUS a half, which is the JS's
+      // own figure and is not arbitrary: a roll lands on a rung and adds a
+      // little on top, so the jackpot's 2.8 is the floor of the best band. End
+      // the bar at 2.8 and every jackpot pegs at the far end — the best outcome
+      // in the game would look identical to the second best.
+      expect(marketPosition(marketTiers.first.mult), 0);
+      expect(marketPosition(marketTiers.last.mult), lessThan(1));
+      expect(marketPosition(marketTiers.last.mult + 0.5), 1);
+    });
+
+    test('and it rises with the offer', () {
+      var last = -1.0;
+      for (final tier in marketTiers) {
+        final at = marketPosition(tier.mult);
+        expect(at, greaterThan(last));
+        last = at;
+      }
+    });
+
+    test('nothing can walk off either end', () {
+      expect(marketPosition(-5), 0);
+      expect(marketPosition(100), 1);
+    });
+  });
 }

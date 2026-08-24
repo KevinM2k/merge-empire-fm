@@ -97,8 +97,20 @@ gaps are in this list.
         builds out of DOM strips repeated seven times, and a looping delegate
         plus `animateToItem` gives three revolutions and a landing with no clock
         of our own.
-  - [ ] Rename (`.detail-rename-btn`)
-  - [ ] The market-value BAR — the price is there, the coloured gauge is not
+  - [x] Rename (`.detail-rename-btn`) — built as `_RenameButton`, and the row
+        was stale rather than open.
+  - [x] The market-value BAR — the price was there and the coloured gauge was
+        not. **Done**, on the sell sheet where the decision is made: the JS's
+        own five-stop red-to-green track with a white marker on it.
+        **The figure alone says what a sale is worth and nothing about whether
+        it is a GOOD one**, which is the entire decision the market clock
+        exists to create — a position on a coloured track says it without a
+        legend.
+        **The top of the scale is the best rung PLUS a half**, which is the JS's
+        own `MARKET_TIERS[4].mult + 0.5` and is not arbitrary: a roll lands on a
+        rung and adds a little on top, so the jackpot's 2.8 is the FLOOR of the
+        best band. Ending the bar at 2.8 would peg every jackpot at the far end
+        and make the best outcome in the game look identical to the second best.
 
 ## Home — `screens/LeagueScreen.js`, `components/PitchScene.js`
 
