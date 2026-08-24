@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/summary_league_move.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/util/random.dart';
 
 /// Pump the block over a save, with animations LIVE — this widget is about
 /// movement, so the harness's usual reduced-motion default would test the one
@@ -104,6 +105,18 @@ List<String> orderOnScreen(WidgetTester tester) {
 }
 
 void main() {
+  // **THE PYRAMID IS DRAWN FROM THE SHARED STREAM, and that stream is seeded
+  // off the wall clock** — `random.dart` matches the JS module's
+  // `let seed = Date.now()`. So `createDefaultState` plus a boot stamped a
+  // different division every run, and about one run in ten the three-row window
+  // happened to hold clubs whose settled order and previous order were the
+  // same. Nothing passed anybody, and the block had nothing to show.
+  //
+  // Reported as an intermittent failure on `after != before` and correctly
+  // diagnosed as upstream: the assertion is the whole claim the widget makes
+  // and must not be loosened. Seeding the stream fixes what varies instead.
+  setUp(() => setSeed(20260824));
+
   testWidgets('IT OPENS ON THE TABLE AS IT WAS, then moves', (tester) async {
     final container = await pumpMove(tester);
     playRounds(container, upTo: 1);
