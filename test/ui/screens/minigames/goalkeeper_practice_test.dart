@@ -12,6 +12,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
@@ -397,4 +399,20 @@ void main() {
     });
   });
 
+
+  testWidgets('THE GOAL HAS A HORIZON BEHIND IT', (tester) async {
+    // `art_paths.dart` says what the backdrops are for in as many words: a goal
+    // standing against a wash of flat colour has nothing behind it. The penalty
+    // screen has had one since they were bundled and this drill — the other one
+    // with a goal in it — was still on `surface2`.
+    await pumpGame(tester);
+    final art = tester.widget<ArtImage>(
+      find.byKey(const ValueKey('train-backdrop')),
+    );
+    // FOREST, not the penalty screen's grass: the two drills should not be the
+    // same picture with different rules on top.
+    expect(art.path, backdropPath(Backdrop.forest));
+    expect(art.path, isNot(backdropPath(Backdrop.grass)));
+    await closeGame(tester);
+  });
 }

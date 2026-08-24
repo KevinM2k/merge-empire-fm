@@ -28,6 +28,8 @@ import 'package:merge_empire_fc/data/divisions.dart'
     show currentDivisionIndex;
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
+import 'package:merge_empire_fc/data/art_paths.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
@@ -483,6 +485,26 @@ class _Stage extends StatelessWidget {
           builder: (context, box) => Stack(
             key: const ValueKey('train-stage'),
             children: [
+              // **A HORIZON BEHIND THE GOAL.** `art_paths.dart` says what these
+              // are for in as many words: a goal standing against a wash of
+              // flat colour has nothing behind it. The penalty screen has had
+              // one since the backdrops were bundled and this drill — the other
+              // one with a goal in it — was still on `surface2`.
+              //
+              // FOREST rather than the penalty screen's grass, so the two
+              // drills are not the same picture with different rules on top.
+              Positioned.fill(
+                child: ArtImage(
+                  key: const ValueKey('train-backdrop'),
+                  path: backdropPath(Backdrop.forest),
+                  // The band is far wider than it is tall, so the drawing is
+                  // cropped to its top — the sky and the treeline — the same
+                  // way the diorama's strip takes only what it needs.
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  fallback: const SizedBox.shrink(),
+                ),
+              ),
               if (current == null && flash == null)
                 Center(
                   child: Text(

@@ -2386,14 +2386,18 @@ now uses the app's own line art and the coin bundles get real pictures.
       works in. The rig turns JOINTS, so giving it real parts to turn is a swap
       rather than a rewrite. **This is what unblocks the whole manager cluster
       above**, previews included.
-- [ ] **`kenney_background-elements-remastered` (1.6MB) is the next candidate** —
-      for the customiser's backdrop, and possibly the diorama. **It is a
-      DOWNLOAD, and it is not on this machine or in `../merge-empire-fc`** — the
-      spec repo's `public/assets/` holds bg, club, penalty, players, trophies,
-      ui and whack, and no Kenney pack among them. So this row is a fetch
-      somebody has to choose to make, not work waiting to be done here. The four
-      backdrops the port DOES bundle are in use: the park at tiers one and two
-      draws one of them.
+- [x] **`kenney_background-elements-remastered` (1.6MB)** — **the row was stale:
+      the pack IS on this machine now**, at `kenneynl/`, 162 PNGs including the
+      whole `Backgrounds/` set. The download somebody had to choose to make has
+      been made.
+      Four of them are bundled in `assets/bg/kenney/` and all four are wired
+      through `art_paths.dart`: the diorama's park draws one, the customiser
+      draws one, and the penalty screen draws one.
+      **Goalkeeper Practice now draws one too**, which is the gap the enum's own
+      note described — "a goal standing against a wash of flat colour has
+      nothing behind it" — and it was the other drill with a goal in it, still
+      on `surface2`. Forest rather than the penalty screen's grass, so the two
+      are not the same picture with different rules on top.
 - [x] **`kenney_sports-pack` is already half-extracted** into `assets/pitch/`,
       and going back to it for the 2D cutaway is DONE — that is what the cutaway
       draws with. Forty-three files in the folder, and `cutawayGame` loads the
@@ -3152,9 +3156,19 @@ Ordered by how visible each one is to somebody playing.
 - [~] **Rate Us is done; Privacy and Account connection** are waiting on M4 — a store URL
       and `url_launcher`, a consent SDK, and auth respectively. They look broken
       because they are stubs; see 21 Aug.
-- [ ] **Kenney smoke, backdrops and more icons** — the merge burst and the
-      celebrations should use the particle sheets, and the customiser, training and
-      match popups could use the backdrops. See 22 Aug.
+- [~] **Kenney smoke, backdrops and more icons.**
+      **Smoke: DONE** — see the celebration row above. The eight puff frames had
+      shipped in `pubspec.yaml` with no caller; they go under the merge burst
+      rather than instead of it, because the burst is procedural and
+      colour-driven and smoke is colourless.
+      **Backdrops: the customiser, the penalty screen and now Goalkeeper
+      Practice all draw one.** The remaining candidates are the other four
+      training drills and the match popups, and each wants a reason of its own
+      rather than a sweep — a horizon behind a GOAL is the enum's stated
+      purpose, and Keepy Uppys has no goal in it.
+      **Icons: still open.** `kenney_game-icons` where the app's own set has no
+      glyph, which is a question about specific missing glyphs rather than a
+      pack to import.
 - [x] **The rest of the `SheetHeader` sweep** — done 21 Aug, including all seven
       mini-game screens. Coach Colin's card, the achievement banner and the player
       sheet stay exceptions on purpose, and each says so.
