@@ -551,6 +551,7 @@ class ManagerWalker extends StatefulWidget {
     this.gesture,
     this.idle,
     this.carrying = false,
+    this.ballLayer,
     super.key,
   });
 
@@ -630,6 +631,20 @@ class ManagerWalker extends StatefulWidget {
   /// It BEATS a gesture, and the screen stops offering one while it is true —
   /// his arms are visibly full.
   final bool carrying;
+
+  /// **The stray ball, drawn INSIDE him rather than over him.**
+  ///
+  /// It has to be here and not a sibling because of what goes on top of it: the
+  /// near arm again, so that a carried ball is CLOSED ROUND rather than balanced
+  /// on. The JS has the same problem from the other direction — `.ps-ball` is a
+  /// DOM sibling with a z-index, and nothing inside an SVG can be stacked
+  /// against one, so it builds a whole second `.ps-hold-arm` copy to get above
+  /// it. Flutter has no z-index and paint order is the answer, but the JS's own
+  /// warning still applies: **the copy must share the figure's clock**, or the
+  /// real arm swings and the copy sits still and the duplicate surfaces on every
+  /// stride. Sharing it is the whole reason the ball is passed in here rather
+  /// than stacked outside.
+  final Widget? ballLayer;
 
   @override
   State<ManagerWalker> createState() => _ManagerWalkerState();
@@ -1207,6 +1222,40 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // pallor and the flush belong on the face, and a beanie must
                     // not be able to cover his breath.
                     _SetBack(child: _Comfort(comfort: widget.comfort)),
+                    // **THE BALL, OVER ALL OF HIM** — which is where the JS puts
+                    // it too, and right: at his boot it belongs in front of the
+                    // near leg, and in his hands the cradle is in front of his
+                    // chest.
+                    ?widget.ballLayer,
+                    // **AND THE NEAR ARM ONE MORE TIME, over the ball, while he
+                    // is carrying it.** This is the JS's `.ps-hold-arm`, and its
+                    // own comment says exactly what its absence looks like: the
+                    // arm that should close round a carried ball was always
+                    // behind it and *he looked like he was balancing it*. Which
+                    // is how it was reported here.
+                    //
+                    // Drawn from the same painter, on the same clock, with the
+                    // same pose — so there is no window in which the copy and
+                    // the real arm are in different places, and nothing to
+                    // crossfade. The JS needs a whole second SVG for this; here
+                    // it is one more pass.
+                    if (widget.carrying)
+                      CustomPaint(
+                        key: const ValueKey('manager-walker-carry-arm'),
+                        painter: _WalkerPainter(
+                          t: t,
+                          kit: widget.kit,
+                          skin: parts.skin,
+                          build: buildScales(look['build'] as String?),
+                          outfit: outfitPalette(look['outfit'] as String?),
+                          sleevesAreKit: outfitSleevesAreKit(
+                            look['outfit'] as String?,
+                          ),
+                          standing: standing,
+                          pose: pose,
+                          arms: WalkerArms.nearOnly,
+                        ),
+                      ),
                   ],
                 ),
               ),

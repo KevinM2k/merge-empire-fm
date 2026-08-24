@@ -589,7 +589,7 @@ class PitchScene extends StatelessWidget {
   const PitchScene({
     super.key,
     required this.mood,
-    required this.walker,
+    required this.walkerBuilder,
     this.tier = 1,
     this.kitColor = const Color(0xFF4CAF50),
     this.walkerBottom = 150 + walkerBottomClearance,
@@ -606,7 +606,10 @@ class PitchScene extends StatelessWidget {
 
   /// The figure. Passed in rather than built here so the scene stays about the
   /// GROUND and the rig stays about the body.
-  final Widget walker;
+  /// Him, built around the ball. The scene owns the ball's geometry — it is
+  /// measured off the scene's width — and he owns its DEPTH, so the two have to
+  /// meet somewhere and this is it.
+  final Widget Function(Widget ball) walkerBuilder;
 
   /// The club's colour. Some of the crowd wear it — support that grows with you
   /// is the one thing the stand can say about the season.
@@ -936,22 +939,26 @@ class PitchScene extends StatelessWidget {
                         // because a pass has to travel most of the scene's
                         // width and his box is 120 units wide; the scene's own
                         // `ClipRect` is what stops it at the frame.
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned.fill(child: walker),
-                            Positioned.fill(
-                              key: const ValueKey('pitch-ball'),
-                              child: PitchBall(
-                                mood: mood,
-                                wind: ballWind,
-                                frozen: frozen,
-                                onCue: onBallCue ?? (_) {},
-                                sceneWidth: w,
-                                walkerLeft: w * 0.45 - 57,
-                              ),
+                        // **THE BALL GOES INSIDE HIM NOW, not over him.** It
+                        // still draws above every part of the figure — that has
+                        // not changed and is right — but being one of his own
+                        // layers is what lets the near arm be drawn ONE MORE
+                        // TIME on top of it while he is carrying, so the ball is
+                        // closed round rather than balanced on. See
+                        // `ManagerWalker.ballLayer`, and the JS's `.ps-hold-arm`,
+                        // which exists to solve the same thing the hard way.
+                        child: walkerBuilder(
+                          Positioned.fill(
+                            key: const ValueKey('pitch-ball'),
+                            child: PitchBall(
+                              mood: mood,
+                              wind: ballWind,
+                              frozen: frozen,
+                              onCue: onBallCue ?? (_) {},
+                              sceneWidth: w,
+                              walkerLeft: w * 0.45 - 57,
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),

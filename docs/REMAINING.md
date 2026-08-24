@@ -6473,10 +6473,25 @@ Written on arrival from here.
       manager's own rig has shaded its far leg all along; the taker's never did.
       The plant leg is the far one, drawn first and darkened, so the kicking leg
       passes in front of it.
-- [ ] **The manager's hands when he CARRIES THE BALL.** Head-in-hands got a
-      second arm pass last session; carrying is a different pose and was not in
-      the set. Asked as a question, so it also wants confirming which poses
-      still look wrong.
+- [x] **The manager's hands when he CARRIES THE BALL.** **FOUND, and the JS
+      names the symptom in its own comment**: "the arm that should close round a
+      carried ball was always behind it and *he looked like he was balancing
+      it*." That is the report, word for word, from the other codebase.
+      It was never the POSE. The arm angles were already ported and reasoned —
+      the port rebased the forearm's rest, so it carries the JS's DELTA rather
+      than its number — and the pointing finger is already suppressed mid-carry.
+      What was missing is the LAYER. The JS's `.ps-ball` is a DOM sibling with a
+      z-index and nothing inside an SVG can stack against one, so it builds an
+      entire second SVG — `.ps-hold-arm`, same markup, same wrappers, no pose of
+      its own — purely to get an arm above the ball. The port had the same
+      problem by another route: the ball was a sibling stacked over the whole
+      figure.
+      Flutter has no z-index and paint order is the answer, so the ball is now
+      one of HIS layers and the near arm is drawn once more after it. **The JS's
+      warning survives the change of mechanism though**, and it is the reason
+      the ball is passed INTO him rather than the arm being lifted out: the copy
+      must share the figure's clock, or the real arm swings, the copy sits still
+      and the duplicate surfaces on every stride.
 - [ ] **Adverts on the locked manager customisations.** **ANSWERED, and it is a
       FEATURE REQUEST rather than a port gap** — which is worth saying before
       anybody builds it as parity. The spec's look unlocks are a Fan Zone tier,

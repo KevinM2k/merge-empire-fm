@@ -36,7 +36,10 @@ void main() {
               mood: mood,
               tier: tier,
               walkerBottom: 150 + walkerBottomClearance,
-              walker: const SizedBox(width: 120, height: 170),
+              // The scene hands the ball to the walker now, so a stand-in has to
+              // take it — see `ManagerWalker.ballLayer`.
+              walkerBuilder: (ball) =>
+                  Stack(children: [const SizedBox(width: 120, height: 170), ball]),
             ),
           ),
         ),

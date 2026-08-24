@@ -493,7 +493,7 @@ class _SceneState extends ConsumerState<_Scene> {
       // It layers UNDER the walk and under any gesture, joint by joint, which
       // is `poseOverIdle`'s entire job — so a playing gesture still outruns it
       // and nothing here competes with the stride.
-      walker: ManagerIdle(
+      walkerBuilder: (ball) => ManagerIdle(
         mood: mood,
         // **AND THE MOOD'S LEAN, which was cam-only.** `--lean` is a whole-body
         // pitch about the boots — head down on a bad night, chest out on a
@@ -518,6 +518,9 @@ class _SceneState extends ConsumerState<_Scene> {
             gesture: _cue,
             carrying: _carrying,
             idle: idle.pose,
+            // Handed the ball rather than having it stacked over him: what
+            // goes on TOP of it is his own near arm, closing round it.
+            ballLayer: ball,
           ),
         ),
       ),

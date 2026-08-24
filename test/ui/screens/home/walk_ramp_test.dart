@@ -118,10 +118,12 @@ void main() {
               // The walker is handed in from the screen above, so this is
               // also the proof that he can SEE the scene's clock — he is
               // inside its subtree.
-              walker: Builder(
+              walkerBuilder: (ball) => Builder(
                 builder: (context) {
                   beat = WalkBeat.maybeOf(context);
-                  return const SizedBox(width: 120, height: 170);
+                  return Stack(
+                    children: [const SizedBox(width: 120, height: 170), ball],
+                  );
                 },
               ),
             ),
@@ -221,10 +223,12 @@ void main() {
                 mood: Mood.neutral,
                 tier: 1,
                 walkerBottom: 150 + walkerBottomClearance,
-                walker: Builder(
+                walkerBuilder: (ball) => Builder(
                   builder: (context) {
                     beat = WalkBeat.maybeOf(context);
-                    return const SizedBox(width: 120, height: 170);
+                    return Stack(
+                      children: [const SizedBox(width: 120, height: 170), ball],
+                    );
                   },
                 ),
               ),

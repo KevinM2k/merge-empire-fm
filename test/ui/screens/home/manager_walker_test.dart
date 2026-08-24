@@ -28,6 +28,8 @@ Future<void> pumpWalker(
   Mood mood = Mood.neutral,
   bool reduceMotion = true,
   double height = walkerHeight,
+  bool carrying = false,
+  Widget? ballLayer,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: buildAppTheme(kitId: '#4caf50', light: false),
@@ -44,6 +46,8 @@ Future<void> pumpWalker(
               hair: const Color(0xFF3A2A1C),
               look: look,
               mood: mood,
+              carrying: carrying,
+              ballLayer: ballLayer,
             ),
           ),
         ),
@@ -823,4 +827,54 @@ void main() {
     expect(carryFore, lessThan(carryArm));
   });
 
+
+  group('the ball in his hands', () {
+    // **The JS builds a whole second SVG for this**, `.ps-hold-arm`, and its own
+    // comment says what its absence looks like: the arm that should close round
+    // a carried ball was always behind it and *he looked like he was balancing
+    // it*. Which is how it was reported here.
+    const ball = SizedBox(key: ValueKey('the-ball'), width: 12, height: 12);
+
+    testWidgets('THE NEAR ARM IS DRAWN AGAIN, OVER IT, while carrying', (
+      tester,
+    ) async {
+      await pumpWalker(tester, carrying: true, ballLayer: ball);
+      final arm = find.byKey(const ValueKey('manager-walker-carry-arm'));
+      expect(arm, findsOneWidget);
+
+      // Over the ball, which is the whole point: paint order in a Stack is
+      // child order, so the copy has to come after it.
+      final children = tester
+          .widget<Stack>(
+            find.ancestor(of: arm, matching: find.byType(Stack)).first,
+          )
+          .children;
+      final ballAt = children.indexWhere((c) => c.key == const ValueKey('the-ball'));
+      final armAt = children.indexWhere(
+        (c) => c.key == const ValueKey('manager-walker-carry-arm'),
+      );
+      expect(ballAt, isNonNegative);
+      expect(armAt, greaterThan(ballAt));
+    });
+
+    testWidgets('and NOT while he is empty-handed', (tester) async {
+      // An arm drawn twice for no reason is a duplicate that surfaces on every
+      // stride.
+      await pumpWalker(tester, ballLayer: ball);
+      expect(
+        find.byKey(const ValueKey('manager-walker-carry-arm')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('the ball is one of HIS layers, over all of him', (
+      tester,
+    ) async {
+      // At his boot it belongs in front of the near leg, and in his hands the
+      // cradle is in front of his chest — so it is above the figure either way,
+      // which is where the JS puts it too.
+      await pumpWalker(tester, ballLayer: ball);
+      expect(find.byKey(const ValueKey('the-ball')), findsOneWidget);
+    });
+  });
 }
