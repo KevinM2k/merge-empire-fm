@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
+import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 
@@ -347,4 +349,186 @@ void main() {
     await tester.pumpAndSettle();
     expect(grid, findsOneWidget);
   });
+
+  /// **THE VIDEO ROUTE, which had no surface at all.** `grantLookItem`'s own
+  /// comment calls it the rewarded-video reward and nothing in `lib/` called
+  /// it, so every locked chip in this grid could do exactly one thing: name
+  /// what it was waiting on. Half the wardrobe was waiting on a video nobody
+  /// could watch.
+  group('unlocking a cosmetic with a video', () {
+    /// A seam that answers [outcome] to every placement, and records what it
+    /// was asked for — the placement matters, because the frequency cap is per
+    /// AD UNIT and hats must not spend energy's budget.
+    ({List<String> asked, RewardedAds ads}) fakeAds(AdOutcome outcome) {
+      final asked = <String>[];
+      return (asked: asked, ads: _FakeAds(outcome, asked));
+    }
+
+    testWidgets('a chip in a pack offers a video; a cup exclusive does not', (
+      tester,
+    ) async {
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+
+      // `hat:tophat` is in `pack_legend` — a video buys it.
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('customise-chip-hat-tophat')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('customise-chip-hat-tophat')),
+          matching: find.byKey(const ValueKey('customise-chip-video')),
+        ),
+        findsOneWidget,
+        reason: 'no ▶ on a hat a video would hand over',
+      );
+
+      // `hat:diamond` is the World Club Cup's. It keeps its padlock: it is
+      // worthless the moment a video can buy it.
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('customise-chip-hat-diamond')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('customise-chip-hat-diamond')),
+          matching: find.byKey(const ValueKey('customise-chip-video')),
+        ),
+        findsNothing,
+        reason: 'the crown was on offer',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('customise-chip-hat-diamond')),
+          matching: find.byIcon(Icons.lock),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('watching one grants it, spends a slot and WEARS it', (
+      tester,
+    ) async {
+      phone(tester);
+      final fake = fakeAds(AdOutcome.rewarded);
+      final container = await pumpHome(
+        tester,
+        overrides: [rewardedAdsProvider.overrideWithValue(fake.ads)],
+      );
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      await tapChip(tester, 'hat', 'tophat');
+      await settleSave(tester);
+
+      final state = container.read(gameProvider).state!;
+      expect(isLookUnlocked(state, 'hat', 'tophat'), isTrue);
+      expect(
+        recentPackAds(state).length,
+        1,
+        reason: 'the grant landed without spending the slot',
+      );
+      // Its own unit, not energy's — the cap is per ad unit.
+      expect(fake.asked, ['cosmetic_pack']);
+      // And it is being worn, which is the whole feedback: there is no shipped
+      // key for "unlocked!" and the catalogues are generated.
+      final club = state['club'] as Map<String, dynamic>;
+      expect((club['managerAvatar'] as Map)['hat'], 'tophat');
+    });
+
+    testWidgets('a video that will not fill grants nothing and says so', (
+      tester,
+    ) async {
+      phone(tester);
+      final fake = fakeAds(AdOutcome.unavailable);
+      final container = await pumpHome(
+        tester,
+        overrides: [rewardedAdsProvider.overrideWithValue(fake.ads)],
+      );
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      await tapChip(tester, 'hat', 'tophat');
+      await settleSave(tester);
+
+      final state = container.read(gameProvider).state!;
+      expect(isLookUnlocked(state, 'hat', 'tophat'), isFalse);
+      expect(
+        recentPackAds(state),
+        isEmpty,
+        reason: 'a video that never played took a slot',
+      );
+      expect(find.text(t('toast.ad_unavailable')), findsOneWidget);
+    });
+
+    testWidgets('one the player closed early takes nothing and says nothing', (
+      tester,
+    ) async {
+      phone(tester);
+      final fake = fakeAds(AdOutcome.dismissed);
+      final container = await pumpHome(
+        tester,
+        overrides: [rewardedAdsProvider.overrideWithValue(fake.ads)],
+      );
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      await tapChip(tester, 'hat', 'tophat');
+      await settleSave(tester);
+
+      final state = container.read(gameProvider).state!;
+      expect(isLookUnlocked(state, 'hat', 'tophat'), isFalse);
+      expect(recentPackAds(state), isEmpty);
+      // Backing out is a decision the player was told the terms of, so it is
+      // not an error and does not get a line.
+      expect(find.text(t('toast.ad_unavailable')), findsNothing);
+    });
+
+    testWidgets('a spent cap shows the countdown instead of the ▶', (
+      tester,
+    ) async {
+      phone(tester);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await pumpHome(
+        tester,
+        mutate: (s) => s['ads'] = {
+          'packUnlocks': [
+            for (var i = 0; i < adPackLimit; i++) now - (i + 1) * 1000,
+          ],
+        },
+      );
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('customise-chip-hat-tophat')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('customise-chip-hat-tophat')),
+          matching: find.byKey(const ValueKey('customise-chip-wait')),
+        ),
+        findsOneWidget,
+        reason: 'the cap was spent and the chip still offered a video',
+      );
+    });
+  });
+}
+
+/// A rewarded-ad seam with a fixed answer, recording every placement asked for.
+class _FakeAds implements RewardedAds {
+  _FakeAds(this.outcome, this.asked);
+
+  final AdOutcome outcome;
+  final List<String> asked;
+
+  @override
+  Future<AdOutcome> show(String placement) async {
+    asked.add(placement);
+    return outcome;
+  }
+
+  @override
+  void prepare(String placement) {}
 }

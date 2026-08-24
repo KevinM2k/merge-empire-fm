@@ -42,8 +42,9 @@ Future<ProviderContainer> pumpShopWidget(
   void Function(Map<String, dynamic> state) mutate,
   Widget Function() build, {
   bool scroll = true,
+  List<Override> overrides = const [],
 }) async {
-  final container = shopContainer(mutate);
+  final container = shopContainer(mutate, overrides: overrides);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,

@@ -77,6 +77,16 @@ enum StoreTone {
       StoreTone.neutral => null,
     };
 
+/// The palette for [tone], or null for [StoreTone.neutral] — which has no fixed
+/// value and is resolved from the kit at build time.
+///
+/// Public because the tones are a RULE, not this widget's private taste: "the
+/// colour always answers what does this cost me?" holds for anything that
+/// spends, and a caller too small to be a [StoreButton] — the ▶ on one cosmetic
+/// in a pack list — must take the yellow from here rather than retyping it.
+({Color face, Color edge, Color ink})? storeTonePalette(StoreTone tone) =>
+    _paletteFor(tone);
+
 class StoreButton extends StatefulWidget {
   const StoreButton({
     super.key,

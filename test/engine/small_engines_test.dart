@@ -434,4 +434,108 @@ void main() {
       }
     });
   });
+
+  /// The video route, which is where the tile's old "▶ FREE" pill went: one
+  /// video buys ONE item, so the offer belongs on the item and not on the pack.
+  ///
+  /// **Both halves of the reward are pinned here**, because the port has been
+  /// bitten by a pair where only one half had a caller — and this was that pair
+  /// until now: `grantLookItem` says in its own doc comment that it is the
+  /// rewarded-video reward, and nothing in `lib/` called it or `recordPackAd`.
+  group('unlocking one cosmetic with a video', () {
+    // `pack_legend`'s top hat is bought with a video; the diamond crown is a
+    // cup exclusive and the slicked hair is a Fan Zone tier, and neither is.
+    const inAPack = ('hat', 'tophat');
+    const wonCup = ('hat', 'diamond');
+    const fanZone = ('hair', 'slick');
+
+    Map<String, dynamic> spent(int videos) => {
+      'ads': {
+        'packUnlocks': [
+          for (var i = 0; i < videos; i++) now - (i + 1) * _min,
+        ],
+      },
+    };
+
+    test('a pack item offers a video, and the gate is what shuts it', () {
+      expect(
+        lookItemOffer(<String, dynamic>{}, inAPack.$1, inAPack.$2).status,
+        'video',
+      );
+      final full = lookItemOffer(spent(adPackLimit), inAPack.$1, inAPack.$2);
+      expect(full.status, 'wait');
+      expect(full.waitMs, greaterThan(0), reason: 'a wait with no countdown');
+      // One short of the cap is still an offer.
+      expect(
+        lookItemOffer(spent(adPackLimit - 1), inAPack.$1, inAPack.$2).status,
+        'video',
+      );
+    });
+
+    test('what is EARNED is never offered, whatever the gate says', () {
+      // The diamond crown is worthless the moment a video can buy it, and an
+      // open gate must not change that answer.
+      for (final item in [wonCup, fanZone]) {
+        expect(
+          lookItemOffer(<String, dynamic>{}, item.$1, item.$2).status,
+          'earned',
+          reason: '${item.$1}:${item.$2}',
+        );
+      }
+    });
+
+    test('an item already owned offers nothing', () {
+      final s = {
+        'club': {
+          'lookItems': ['${inAPack.$1}:${inAPack.$2}'],
+        },
+      };
+      expect(lookItemOffer(s, inAPack.$1, inAPack.$2).status, 'owned');
+    });
+
+    test('the claim grants the item AND spends the slot', () {
+      final s = <String, dynamic>{};
+      expect(claimLookItemAd(s, inAPack.$1, inAPack.$2), isTrue);
+      expect(isLookUnlocked(s, inAPack.$1, inAPack.$2), isTrue);
+      expect(
+        recentPackAds(s).length,
+        1,
+        reason: 'granted without spending: the cap would never bite',
+      );
+    });
+
+    test('and a refused claim spends nothing', () {
+      // Neither half runs, so a stray caller cannot burn a slot on a cup
+      // exclusive it was never going to be handed.
+      final s = <String, dynamic>{};
+      expect(claimLookItemAd(s, wonCup.$1, wonCup.$2), isFalse);
+      expect(isLookUnlocked(s, wonCup.$1, wonCup.$2), isFalse);
+      expect(recentPackAds(s), isEmpty);
+
+      // Nor does claiming the same item twice.
+      claimLookItemAd(s, inAPack.$1, inAPack.$2);
+      expect(claimLookItemAd(s, inAPack.$1, inAPack.$2), isFalse);
+      expect(recentPackAds(s).length, 1);
+    });
+
+    test('three videos in the window and the fourth waits', () {
+      final s = <String, dynamic>{};
+      final items = getLookPack('pack_legend')!.items.take(adPackLimit);
+      for (final item in items) {
+        final parts = item.split(':');
+        expect(claimLookItemAd(s, parts.first, parts.last), isTrue);
+      }
+      expect(recentPackAds(s).length, adPackLimit);
+      expect(canWatchPackAd(s), isFalse);
+      // Every remaining item in the catalogue now reads as a wait rather than
+      // as an offer, which is the countdown the chip draws.
+      expect(lookItemOffer(s, 'hat', 'viking').status, 'wait');
+    });
+
+    test('the placement is its own unit, not energy\'s', () {
+      // The cap is per AD UNIT: hats sharing the energy budget is the whole
+      // thing a separate unit prevents.
+      expect(cosmeticPlacement, 'cosmetic_pack');
+    });
+  });
 }

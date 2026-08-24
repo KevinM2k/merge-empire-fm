@@ -37,6 +37,7 @@ Future<void> settleSave(WidgetTester tester) =>
 Future<ProviderContainer> pumpHome(
   WidgetTester tester, {
   void Function(Map<String, dynamic> state)? mutate,
+  List<Override> overrides = const [],
 }) async {
   final state = createDefaultState();
   mutate?.call(state);
@@ -46,6 +47,11 @@ Future<ProviderContainer> pumpHome(
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      // After the save store, so a caller can replace anything above it — the
+      // rewarded-ad seam in particular, which is `NoRewardedAds` by default and
+      // therefore answers `unavailable` to every test that does not say
+      // otherwise.
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);

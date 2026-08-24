@@ -24,6 +24,7 @@
 library;
 
 import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 
 /// A pack tile: what it costs, and how much of it the player already has.
@@ -92,4 +93,72 @@ LookPackPurchase buyLookPack(Map<String, dynamic> state, String? packId) {
   }
   grantLookPack(state, packId);
   return (ok: true, reason: null);
+}
+
+/// The AdMob placement a cosmetic unlock spends. A key from `ad_units.dart`.
+///
+/// Its own unit, not the energy one, because the cap is PER UNIT — see
+/// `ad_gate_engine.dart`. Hats sharing energy's budget is the thing a separate
+/// unit exists to prevent.
+const String cosmeticPlacement = 'cosmetic_pack';
+
+/// What ONE locked cosmetic offers right now.
+///
+/// `status` is one of:
+///
+/// - `owned` — already theirs, by any route. Nothing to offer.
+/// - `video` — a rewarded video would unlock it, and the gate is open.
+/// - `wait` — the video route is the right one but the cap is spent;
+///   `waitMs` is how long until it reopens.
+/// - `earned` — there is NO video route and there is not meant to be. Fan Zone
+///   tiers and cup exclusives are earned, and the diamond crown in particular is
+///   worthless the moment a video can buy it. The caller shows the requirement.
+typedef LookItemOffer = ({String status, int waitMs});
+
+/// The offer on `kind:id`.
+///
+/// **Eligibility is `grantLookItem`'s rule, read from the same place.** A thing
+/// with no pack behind it is earned, and asking here rather than listing the
+/// exceptions again is what stops the two answers drifting apart — the grant
+/// refuses one of those keys whatever this says.
+LookItemOffer lookItemOffer(
+  Map<String, dynamic>? state,
+  String kind,
+  String id, [
+  int? nowMs,
+]) {
+  if (isLookUnlocked(state, kind, id)) {
+    return (status: 'owned', waitMs: 0);
+  }
+  if (lookRequirement(kind, id)?.packId == null) {
+    return (status: 'earned', waitMs: 0);
+  }
+  final wait = msUntilPackAd(state, nowMs);
+  if (wait > 0) return (status: 'wait', waitMs: wait);
+  return (status: 'video', waitMs: 0);
+}
+
+/// Take the reward for a watched cosmetic video: grant the item AND spend the
+/// slot, or neither.
+///
+/// **The two halves are one call because the port has been bitten by exactly
+/// this shape before** — a pair where only one half has a caller. Granting
+/// without recording leaves a cap that never bites, so the local mirror runs
+/// behind AdMob's own and the UI offers videos the SDK then declines;
+/// recording without granting takes the slot and pays nothing.
+///
+/// False when the key is not one a video may buy, or the player already has it.
+/// Callers reach this only from the reward callback: a video that did not pay
+/// out consumed nothing on AdMob's side either, and counting it would lock the
+/// player out over a network blip.
+bool claimLookItemAd(
+  Map<String, dynamic>? state,
+  String kind,
+  String id, [
+  int? nowMs,
+]) {
+  if (state == null) return false;
+  if (!grantLookItem(state, '$kind:$id')) return false;
+  recordPackAd(state, nowMs);
+  return true;
 }

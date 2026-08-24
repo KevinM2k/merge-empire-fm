@@ -31,8 +31,11 @@ import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
+import 'package:merge_empire_fc/engine/look_pack_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
@@ -205,6 +208,49 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     setState(() {});
   }
 
+  /// Watch one video, unlock one cosmetic.
+  ///
+  /// **The grant and the cap are one call** — `claimLookItemAd` — so this
+  /// cannot pay out without spending the slot. Only [AdOutcome.rewarded] pays:
+  /// a video the player closed early is a decision they were told the terms of,
+  /// and one that would not fill is not their doing, so that one says so.
+  ///
+  /// The unlocked item is then SELECTED, which is the whole feedback. A chip
+  /// that loses its ▶ and is immediately being worn says what happened without
+  /// a line of copy — and there is no shipped key for one, the catalogues being
+  /// generated from the JS.
+  Future<void> _watchFor(LookAxis axis, String id) async {
+    final outcome = await ref.read(rewardedAdsProvider).show(cosmeticPlacement);
+    if (!mounted) return;
+    if (outcome == AdOutcome.unavailable) {
+      _say(t('toast.ad_unavailable'));
+      return;
+    }
+    if (outcome != AdOutcome.rewarded) return;
+    var granted = false;
+    ref.read(gameProvider).update((s) {
+      granted = claimLookItemAd(s, axis.kind, id);
+    });
+    if (granted) {
+      _set(
+        axis.field,
+        axis.kind == 'color' ? hairColorValue(id) : id,
+      );
+    } else {
+      setState(() {});
+    }
+  }
+
+  /// One line, over the sheet. The customiser's own idiom — it is a bottom
+  /// sheet, so a toast on the host behind it would come up underneath.
+  void _say(String message) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+  }
+
   void _randomise() {
     ref.read(gameProvider).update((s) {
       final club = s.putIfAbsent('club', () => <String, dynamic>{});
@@ -316,6 +362,8 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
                     // the walker paints with and what `hairColorId` reads back.
                     axis.kind == 'color' ? hairColorValue(id) : id,
                   ),
+                  onWatch: (id) => _watchFor(axis, id),
+                  onBlocked: _say,
                 ),
         ),
       ],
@@ -556,6 +604,8 @@ class _Grid extends StatelessWidget {
     required this.ready,
     required this.state,
     required this.onPick,
+    required this.onWatch,
+    required this.onBlocked,
   });
 
   final LookAxis axis;
@@ -567,6 +617,13 @@ class _Grid extends StatelessWidget {
   final int ready;
   final Map<String, dynamic>? state;
   final void Function(String id) onPick;
+
+  /// Spend a video on this id. The sheet's own state runs it — this grid has no
+  /// `ref` and the flow needs one.
+  final void Function(String id) onWatch;
+
+  /// Say why a tap did nothing.
+  final void Function(String message) onBlocked;
 
   /// What is selected on THIS axis, as the gate's own id.
   String? get _current {
@@ -595,25 +652,33 @@ class _Grid extends StatelessWidget {
         if (i >= ready) return const SizedBox.shrink();
         final id = ids[i];
         final locked = lockedReason(state, axis.kind, id);
+        // **WHAT A LOCKED CHIP OFFERS, not just what it is waiting on.** A
+        // cosmetic that sits in a pack is bought with one video, and until now
+        // the only thing this grid could do with a locked chip was name the
+        // requirement — `grantLookItem` says in its own comment that it is the
+        // rewarded-video reward and nothing called it. `earned` is the case
+        // that keeps its padlock: a cup exclusive is not for sale.
+        final offer = lookItemOffer(state, axis.kind, id);
         return _Chip(
           axis: axis,
           id: id,
           look: look,
           selected: id == current,
           lockedReason: locked,
+          offer: offer,
           onTap: () {
-            if (locked != null) {
-              ScaffoldMessenger.of(context)
-                ..clearSnackBars()
-                ..showSnackBar(
-                  SnackBar(
-                    content: Text(locked),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              return;
+            switch (offer.status) {
+              case 'video':
+                onWatch(id);
+              // The countdown is the answer, and it is the same one the chip is
+              // already showing — said out loud for the tap that did nothing.
+              case 'wait':
+                onBlocked(formatAdWait(offer.waitMs));
+              case 'earned':
+                if (locked != null) onBlocked(locked);
+              default:
+                onPick(id);
             }
-            onPick(id);
           },
         );
       },
@@ -710,6 +775,7 @@ class _Chip extends StatelessWidget {
     required this.look,
     required this.selected,
     required this.lockedReason,
+    required this.offer,
     required this.onTap,
   });
 
@@ -720,6 +786,10 @@ class _Chip extends StatelessWidget {
   final ManagerLook? look;
   final bool selected;
   final String? lockedReason;
+
+  /// What this one offers right now — see `lookItemOffer`. It decides which
+  /// corner badge the chip wears, and the tap follows the same answer.
+  final LookItemOffer offer;
   final VoidCallback onTap;
 
   /// The colour axes show the colour; everything else shows its name.
@@ -801,21 +871,57 @@ class _Chip extends StatelessWidget {
                                 : id,
                           },
                         ),
+                      // **THE BADGE SAYS WHICH KIND OF LOCKED IT IS.** A
+                      // padlock on a hat a video would hand over in thirty
+                      // seconds is the grid refusing something that is on
+                      // offer — so the padlock now means EARNED, and the two
+                      // that are for sale wear the play glyph or the wait.
+                      //
+                      // A glyph rather than a word on purpose: the catalogues
+                      // are generated from the JS and there is no shipped key
+                      // for "watch to unlock", so copy invented here would be
+                      // untranslated in ten languages. ▶ is the same mark the
+                      // JS's own pill used.
                       if (locked)
                         Align(
                           alignment: Alignment.topRight,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               color: kit.bg.withValues(alpha: 0.8),
-                              shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(9),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(2),
-                              child: Icon(
-                                Icons.lock,
-                                size: 12,
-                                color: kit.textMuted,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: offer.status == 'wait' ? 4 : 2,
+                                vertical: 2,
                               ),
+                              child: switch (offer.status) {
+                                'video' => Text(
+                                  '▶',
+                                  key: const ValueKey('customise-chip-video'),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w900,
+                                    color: kit.accentBright,
+                                  ),
+                                ),
+                                'wait' => Text(
+                                  formatAdWait(offer.waitMs),
+                                  key: const ValueKey('customise-chip-wait'),
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    height: 1.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: kit.textMuted,
+                                  ),
+                                ),
+                                _ => Icon(
+                                  Icons.lock,
+                                  size: 12,
+                                  color: kit.textMuted,
+                                ),
+                              },
                             ),
                           ),
                         ),

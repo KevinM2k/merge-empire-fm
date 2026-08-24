@@ -28,8 +28,10 @@ import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show defaultManagerLook;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
@@ -38,6 +40,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// A pack's tint, as a colour. Stored as a CSS hex because the catalogue is
 /// generated from the JS's own data.
@@ -262,13 +265,107 @@ class _PackContents extends ConsumerWidget {
                   // this pack still has to give them, so the ones they have are
                   // the marked ones — a padlock on the rest would read as the
                   // pack being unavailable.
+                  //
+                  // **And what it does NOT have yet is a ▶.** One video buys
+                  // one item, which is why the tile above sells the pack for
+                  // gems and says nothing about ads: the video route belongs
+                  // here, on the thing it actually buys. Until now it was
+                  // nowhere — `grantLookItem` had no caller outside its test.
                   if (has)
-                    Icon(Icons.check, size: 15, color: kit.accentBright),
+                    Icon(Icons.check, size: 15, color: kit.accentBright)
+                  else
+                    _ItemVideo(axis: axis, id: id, packId: packId),
                 ],
               ),
             );
           }(),
       ],
+    );
+  }
+}
+
+/// The ▶ on one unowned item: watch a video, own it.
+///
+/// **Its own widget so it watches its own slice of the save.** The gate is a
+/// rolling five-minute window, so the countdown moves while the sheet is open,
+/// and rebuilding the whole pack list — every row a `LookPreview`, which is a
+/// drawn figure — to move one label would be the "customise comes up laggy"
+/// defect arriving by another route.
+class _ItemVideo extends ConsumerWidget {
+  const _ItemVideo({
+    required this.axis,
+    required this.id,
+    required this.packId,
+  });
+
+  final String axis;
+  final String id;
+  final String packId;
+
+  /// One video, one item. [claimLookItemAd] is the pair — grant and cap
+  /// together — so this cannot pay out without spending the slot.
+  ///
+  /// No success toast: the row's own ▶ becomes a tick under the player's
+  /// finger, which says it. `unavailable` DOES speak, because a button that
+  /// did nothing through no fault of the player has to account for itself.
+  Future<void> _watch(WidgetRef ref) async {
+    final outcome = await ref.read(rewardedAdsProvider).show(cosmeticPlacement);
+    if (outcome == AdOutcome.rewarded) {
+      ref.read(gameProvider).update((s) => claimLookItemAd(s, axis, id));
+    } else if (outcome == AdOutcome.unavailable) {
+      emit('toast:info', t('toast.ad_unavailable'));
+    }
+  }
+
+  static final Color _adInk = storeTonePalette(StoreTone.ad)!.ink;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final offer = lookItemOffer(ref.watch(gameProvider).state, axis, id);
+
+    // A pack item is never `earned` — everything in a pack has a pack behind
+    // it, which is the rule `grantLookItem` enforces — but the row renders
+    // nothing rather than asserting, so a catalogue change cannot crash a shop.
+    if (offer.status == 'wait') {
+      return Text(
+        formatAdWait(offer.waitMs),
+        key: ValueKey('pack-item-wait-$packId-$axis-$id'),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: kit.textMuted,
+        ),
+      );
+    }
+    if (offer.status != 'video') return const SizedBox.shrink();
+
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        key: ValueKey('pack-item-video-$packId-$axis-$id'),
+        onTap: () => _watch(ref),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            // The ad tone, which is the rule: the colour of a button answers
+            // "what does this cost me?" and a video is yellow. See
+            // [StoreTone] in `store_button.dart`.
+            color: storeTonePalette(StoreTone.ad)!.face,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Text(
+            '▶',
+            style: TextStyle(
+              fontSize: 10,
+              height: 1.2,
+              fontWeight: FontWeight.w900,
+              // The ad tone's own ink, dark on yellow.
+              color: _adInk,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

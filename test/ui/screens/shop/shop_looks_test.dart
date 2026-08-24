@@ -7,7 +7,9 @@ import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart'
     show LookPreview;
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
+import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
@@ -301,6 +303,106 @@ void main() {
       );
       expect(ticks, findsOneWidget, reason: 'one owned, one tick');
     });
+
+    testWidgets('AND WHAT IS NOT CARRIES A ▶', (tester) async {
+      // One video buys ONE item, which is why the tile above sells the pack
+      // for gems and says nothing about ads — the video route belongs on the
+      // thing it actually buys. It was nowhere at all: `grantLookItem` calls
+      // itself the rewarded-video reward in its own comment and had no caller
+      // outside its test.
+      final pack = lookPacks.first;
+      await pumpShopWidget(
+        tester,
+        (s) => (s['club'] as Map<String, dynamic>)['lookItems'] = <dynamic>[
+          pack.items.first,
+        ],
+        LooksSection.new,
+      );
+      await tester.tap(
+        find.byKey(ValueKey('shop-tile-pack-${pack.id}'), skipOffstage: false),
+      );
+      await tester.pumpAndSettle();
+
+      // One owned item is ticked; every other row is on offer.
+      for (final item in pack.items) {
+        final parts = item.split(':');
+        final video = find.byKey(
+          ValueKey('pack-item-video-${pack.id}-${parts.first}-${parts.last}'),
+        );
+        expect(
+          video,
+          item == pack.items.first ? findsNothing : findsOneWidget,
+          reason: item,
+        );
+      }
+    });
+
+    testWidgets('and tapping it buys that one item', (tester) async {
+      final pack = lookPacks.first;
+      final item = pack.items.first;
+      final parts = item.split(':');
+      final container = await pumpShopWidget(
+        tester,
+        (_) {},
+        LooksSection.new,
+        overrides: [
+          rewardedAdsProvider.overrideWithValue(
+            const _AlwaysRewards(),
+          ),
+        ],
+      );
+      await tester.tap(
+        find.byKey(ValueKey('shop-tile-pack-${pack.id}'), skipOffstage: false),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          ValueKey('pack-item-video-${pack.id}-${parts.first}-${parts.last}'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final state = container.read(gameProvider).state!;
+      expect(isLookUnlocked(state, parts.first, parts.last), isTrue);
+      // The slot is spent with the grant, never one without the other.
+      expect(recentPackAds(state).length, 1);
+      // ONE item, not the pack: the rest of it is still for sale.
+      expect(isPackComplete(state, pack.id), isFalse);
+      await settleSave(tester);
+    });
+
+    testWidgets('a spent cap shows the countdown instead', (tester) async {
+      final pack = lookPacks.first;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await pumpShopWidget(
+        tester,
+        (s) => s['ads'] = {
+          'packUnlocks': [
+            for (var i = 0; i < adPackLimit; i++) now - (i + 1) * 1000,
+          ],
+        },
+        LooksSection.new,
+      );
+      await tester.tap(
+        find.byKey(ValueKey('shop-tile-pack-${pack.id}'), skipOffstage: false),
+      );
+      await tester.pumpAndSettle();
+
+      final parts = pack.items.first.split(':');
+      expect(
+        find.byKey(
+          ValueKey('pack-item-video-${pack.id}-${parts.first}-${parts.last}'),
+        ),
+        findsNothing,
+        reason: 'the cap was spent and the row still offered a video',
+      );
+      expect(
+        find.byKey(
+          ValueKey('pack-item-wait-${pack.id}-${parts.first}-${parts.last}'),
+        ),
+        findsOneWidget,
+      );
+    });
   });
 
 
@@ -319,4 +421,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LookPreview), findsWidgets);
   });
+}
+
+/// Every video fills and pays.
+class _AlwaysRewards implements RewardedAds {
+  const _AlwaysRewards();
+
+  @override
+  Future<AdOutcome> show(String placement) async => AdOutcome.rewarded;
+
+  @override
+  void prepare(String placement) {}
 }
