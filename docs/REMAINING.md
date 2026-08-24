@@ -3061,7 +3061,7 @@ each.
 
 Ordered by how visible each one is to somebody playing.
 
-- [ ] **The reading is only as local as a timezone.** `Europe/London` is one
+- [~] **The reading is only as local as a timezone.** `Europe/London` is one
       coordinate for the whole UK, so a player in the rain in Manchester gets
       London's sky. IP geolocation would normally fix that to city level with no
       permission prompt — but it was checked against a Starlink connection and
@@ -3069,6 +3069,13 @@ Ordered by how visible each one is to somebody playing.
       satellite users. Accepted as country-level for now; a town picker in
       Settings, using Open-Meteo's own free geocoding search, is the only thing
       that would be exact without a permission.
+      **AND THAT PICKER IS BLOCKED ON COPY, which is worth stating rather than
+      leaving it reading as an open design question.** It needs a Settings row
+      label, a search placeholder and a "use my timezone" fallback, and there is
+      not one `weather.*`, `location.*`, `city.*` or `town.*` key in any of the
+      ten catalogues. The catalogues are generated from `../merge-empire-fc`'s
+      own `en.js`, so this is the second kind of blocked: it needs new copy
+      there and a `gen_i18n.mjs` run, not work in this repo.
 
 - [x] **`CoachFloating.js` is ported — he follows you across every tab now.**
       See 24 Aug. `CoachTips.js` (448 lines) is still not: that is the OTHER
@@ -8119,9 +8126,21 @@ of buttons that error.
       the save now — no round trip, which is what it needs on the frame it opens
       — so with no plugin it says nobody is signed in rather than saying
       nothing.
-- [ ] `playGamesService` (155) and `nativeAuthPlugin` (6) — both are the plugin
+- [~] `playGamesService` (155) and `nativeAuthPlugin` (6) — both are the plugin
       bridge itself rather than a decision, and there is nothing left in either
       to port without one. They go with the M6 rows.
+      **`nativeAuthPlugin` is now MOOT**, which the row could not have known:
+      it is six lines wrapping `@capacitor-firebase/authentication`, and the
+      port signs in without a Firebase auth plugin at all — the two OAuth
+      plugins hand back an `id_token` and Identity Toolkit mints the session
+      over REST. See the `authService` row above.
+      **`playGamesService` is still open and is genuinely additive.** It is
+      Android-only, it mints a Firebase session from a Play Games identity via a
+      CUSTOM TOKEN — which needs a Cloud Function deployed to sign one — and
+      signing in already works on both platforms without it. What it buys is
+      that a player who has only ever used Play Games is not a second
+      leaderboard row; `linkPgsToAccount` is the JS's own answer to that and it
+      is downstream of the function, not of this repo.
 - [x] `cloudSaveService` (498) — **PORTED, in two halves.**
       `engine/cloud_save_policy.dart` is who wins when the phone and the cloud
       disagree: every hard decision is arithmetic over two summaries, so all of
@@ -8414,6 +8433,10 @@ could not render at all without a lookup layer. See
       be reused for something else. It is kept whole because its shape and tests
       are the spec for whatever replaces it: a bracket event with a pickable
       side, per-side ratings and colours, and lifetime challenges.
+      **It is a DECISION rather than work**, and it needs one sentence from the
+      owner: what replaces it. Everything downstream — the window, the copy, the
+      side list — is generated from `../merge-empire-fc`, so a replacement is
+      new data there before it is anything here.
 - [x] **`cosmetic_pack` has no AdMob unit on either platform** — and it is NOT
       a porting gap, which is what this row was carried as. The shipped app has
       no unit for it either: `energyEngine.js` carries ten placements and this
