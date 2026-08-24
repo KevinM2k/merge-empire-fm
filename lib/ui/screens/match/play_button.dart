@@ -18,7 +18,9 @@ import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_result_cards.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
@@ -181,6 +183,11 @@ class PlayMatchButton extends ConsumerWidget {
     final game = ref.read(gameProvider);
     final tie = game.update(beginCupRound);
     if (tie == null || !context.mounted) return;
+    // **Captured BEFORE the round is committed**, because committing it moves
+    // the round counter — so read afterwards, "which round did we just play"
+    // is already the wrong answer.
+    final cup = getCupById(activeCup(game.state)?['cupId'] as String?);
+    final playedRound = tie.prepared.round;
 
     CupSponsorDrop? drop;
     blockPopups(_matchBlocker);
@@ -200,10 +207,60 @@ class PlayMatchButton extends ConsumerWidget {
     game.update(startMatchCooldown);
     if (!context.mounted) return;
 
+    // **THE CUP REACTS, and it never did.** Twenty-odd `cup.round_win.*`,
+    // `cup.knocked_out.*` and `cup.banner.*` strings shipped in ten languages
+    // with no caller: a round won and a run ended were the same event from the
+    // screen's side — a scoreline, a toast, and back to the Play tab.
+    //
+    // BEFORE the sponsor offer, which is the JS's order and the right one: what
+    // just happened comes before what it earned you.
+    if (cup != null) await _sayHowItWent(context, cup, playedRound, tie);
+    if (!context.mounted) return;
+
     final sponsor = drop;
     if (sponsor != null) await showCupSponsorOffer(context, ref, sponsor);
     unblockPopups(_matchBlocker);
     emit('match:close');
+  }
+
+  /// Through, out, or the trophy.
+  Future<void> _sayHowItWent(
+    BuildContext context,
+    Cup cup,
+    int round,
+    CupTie tie,
+  ) async {
+    final roundName = round < cup.rounds.length
+        ? cup.rounds[round]
+        : t('cup.tip.generic_round');
+    if (!tie.prepared.won) {
+      return showCupKnockedOut(
+        context,
+        cupName: t('cup.${cup.id}') == 'cup.${cup.id}'
+            ? cup.name
+            : t('cup.${cup.id}'),
+        roundName: roundName,
+        wasFinal: round == cup.rounds.length - 1,
+        wasSemi: round == cup.rounds.length - 2,
+      );
+    }
+    final next = cupNextRoundName(cup, round);
+    if (next == null) {
+      // Won the final: the trophy, not a "through to" card for a round that
+      // does not exist.
+      return showCupWon(
+        context,
+        cupName: t('cup.${cup.id}') == 'cup.${cup.id}'
+            ? cup.name
+            : t('cup.${cup.id}'),
+      );
+    }
+    return showCupRoundWin(
+      context,
+      nextRoundName: next,
+      nextIsFinal: round + 1 == cup.rounds.length - 1,
+      nextIsSemi: round + 1 == cup.rounds.length - 2,
+    );
   }
 
   /// What arrives once the result screen is gone.

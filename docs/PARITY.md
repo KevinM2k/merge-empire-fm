@@ -290,7 +290,31 @@ All seven shelves are present and in the JS's own order.
       full time
 - [x] The sponsor a win can drop, offered rather than applied — `acceptCupSponsorDrop`
 - [ ] The shootout REVEAL (`components/penaltyReveal.js`), kick by kick
-- [ ] The cup-win celebration, the round-win card and the knocked-out card
+- [x] The cup-win celebration, the round-win card and the knocked-out card.
+      **Twenty-odd `cup.round_win.*`, `cup.knocked_out.*` and `cup.banner.*`
+      strings shipped in ten languages with no caller** — the whole of the cup's
+      reaction. A round won and a run ended were the same event from the
+      screen's side: a scoreline, a toast, and back to the Play tab.
+      **They are the UNLOCK SPLASH, not a fourth shape.** `feature_unlock.dart`
+      already makes the argument and it applies word for word: a tier-up and a
+      first build are the same kind of event, and giving them different shapes
+      would make the smaller one read as a lesser thing. A cup round won is that
+      same beat. The elimination takes the same card in RED, which is the whole
+      reason it is not simply the same call — the splash is a celebration by
+      default, and the same card in green would read as congratulating somebody
+      on going out.
+      **The JS's button is dropped**: "Bring it on!" does nothing but dismiss,
+      and the splash dismisses itself.
+      **Which line each earns is told by POSITION, and that bit once.**
+      "Quarter-Final" contains the word "final", so sniffing the round's NAME
+      called a quarter-final exit a heartbreak at the last hurdle. The round
+      index cannot be wrong about it. The win path reads the round AHEAD for the
+      same reason: "one win away from lifting the cup" is a thing to say to
+      somebody about to play a final, not to somebody who has just won a
+      quarter-final, and the difference is one index.
+      **And the round is captured BEFORE the commit**, because committing moves
+      the round counter — read after, "which round did we just play" is already
+      the wrong answer.
 - [x] The tie in the fixture list (`cupInsertAt`), and the round badge on the
       next-match card. **The badge was already built** (`fixture_caption.dart`
       names the competition and the round when a tie is due); the LIST was not,
