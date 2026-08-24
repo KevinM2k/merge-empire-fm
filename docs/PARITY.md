@@ -140,7 +140,12 @@ gaps are in this list.
       the boot flatter than the shin, and a stride-long sway.
 - [x] **The Leaderboard tile**, with the signed-out and offline states the JS
       really shows. The ranked list needs `leaderboardService` (M4).
-- [ ] The parallax scene behind him, evolving with the division
+- [x] The parallax scene behind him — **and it evolves with the STADIUM, which
+      is what the JS actually does.** Its own header says "the background
+      evolves with the division tier" and this row copied that; the code reads
+      `clubAssets.STADIUM.tier`, and so does the port (`stadiumTierProvider`).
+      Worth writing down, because a future pass comparing the two would have
+      found the comment first and "fixed" a scene that was already right.
 - [x] **CUSTOMISE badge** → the manager customiser. Built — the pill between the
       two orbs (`dock-customise`), opening `manager_customiser.dart`.
 - [x] **Prestige orb, when a prestige is available.** Built — and this line and
@@ -165,7 +170,9 @@ gaps are in this list.
       new key can be minted here, and the one shipped string — `daily.streak`,
       "{n}-day streak" — is a sentence, which on a 54pt tile is four words of
       nothing.
-- [ ] The news ticker
+- [x] The news ticker — built, in `event_strip.dart`: the NEWS chip and the
+      headlines strung into one line that scrolls right to left, off
+      `deadline_news_engine.dart`.
 
 ## Club — `screens/ClubScreen.js`
 
@@ -301,8 +308,9 @@ All seven shelves are present and in the JS's own order.
       pinned to it so reopening does not redraw what has just been read
 - [x] Reroll, free twice a season and then gems, refused when nothing is left to
       swap
-- [ ] The quest block on the home card, which is where the JS shows the match
-      track before kick-off rather than behind the burger
+- [x] The quest block on the home card — `match_quests_block.dart`, the fifth
+      thing on the next-match card, which is where the JS shows the match track
+      before kick-off rather than behind the burger.
 
 ## Boot popups — `WelcomeBackPopup.js`, `DailyRewardPopup.js`
 
