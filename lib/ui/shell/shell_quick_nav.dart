@@ -87,6 +87,11 @@ List<QuickNavGroup> quickNavGroups(BuildContext context, WidgetRef ref) => [
         labelKey: 'scene.dock.daily',
         icon: Icons.calendar_today,
         dot: ref.watch(dailyRewardUnclaimedProvider),
+        // **THE STREAK, ON THE TILE.** A streak is the one number in the game
+        // that exists to bring a player back tomorrow, and it was only legible
+        // once the sheet was already open — which is one tap too late to be the
+        // reason for the tap. `getDailyStreak` had no caller outside that sheet.
+        badge: _DailyStreakBadge(),
         onTap: () =>
             showDailyRewardSheet(context, game: ref.read(gameProvider)),
       ),
@@ -131,6 +136,54 @@ final quickNavNeedsAttentionProvider = Provider<bool>(
 /// Two rows wide at the bottom, one at the top — except in the Champions Cup
 /// where only first place goes up, and Sunday League where there is nowhere
 /// below to fall to. `leagueZoneFor` owns those rules.
+/// The daily streak, in place of the calendar glyph.
+///
+/// **Only from two days.** A streak of one is not a streak, it is today — and a
+/// "1" on the tile every morning after a missed day would report a run the
+/// player has just lost as if it were an achievement. Below that the tile keeps
+/// its icon, which is also what a save that has never claimed shows.
+class _DailyStreakBadge extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final streak = ref.watch(dailyStreakProvider);
+    if (streak < 2) {
+      return Icon(Icons.calendar_today, color: kit.accent, size: 26);
+    }
+    // **A GLYPH RATHER THAN A WORD, and that is a constraint not a
+    // preference.** The catalogues are generated from `../merge-empire-fc`'s
+    // own `en.js`, so no new key can be minted here — and the one shipped
+    // string, `daily.streak` ("{n}-day streak"), is a sentence, which on a 54pt
+    // tile is four words of nothing. A flame says "run" in every language the
+    // game ships in.
+    return SizedBox(
+      height: 26,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.local_fire_department,
+            size: 15,
+            color: kit.accentBright,
+          ),
+          Text(
+            '$streak',
+            style: TextStyle(
+              color: kit.accentBright,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// How many days in a row, off the save.
+final dailyStreakProvider = savePick<int>(getDailyStreak);
+
 class _TablePositionBadge extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {

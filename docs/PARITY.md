@@ -141,8 +141,8 @@ gaps are in this list.
 - [x] **The Leaderboard tile**, with the signed-out and offline states the JS
       really shows. The ranked list needs `leaderboardService` (M4).
 - [ ] The parallax scene behind him, evolving with the division
-- [ ] **CUSTOMISE badge** → the manager customiser. Its parts are generated
-      already (`data/manager_art.g.dart`): hair, beard, hat, outfit, neck.
+- [x] **CUSTOMISE badge** → the manager customiser. Built — the pill between the
+      two orbs (`dock-customise`), opening `manager_customiser.dart`.
 - [x] **Prestige orb, when a prestige is available.** Built — and this line and
       `home_dock.dart`'s own header agreed about it independently, which is what
       made it safe to place from a container that cannot read the JS. The whole
@@ -150,11 +150,21 @@ gaps are in this list.
       no caller in `lib/`, fourteen `prestige.*` strings were translated ten
       times over with nothing able to print one, and three achievements read a
       level that could never rise. `ui/popups/prestige_card.dart`.
-- [ ] Daily-reward orb with its streak count. **`getDailyStreak`
-      (`daily_reward_engine.dart`) is the count and has no caller** — its doc
-      names a HUD chip, this line names an orb, and the port has neither: the
-      daily lives in the burger, where the sheet prints the streak once it is
-      open. So the engine is not dead, it is waiting on this.
+- [x] Daily-reward orb with its streak count. **The ORB stays in the burger** —
+      that is the port's own documented divergence, nine of the JS's ten orbs
+      moved in there and only what INTERRUPTS was left on the scene. What was
+      genuinely missing is the half that matters: the STREAK, which was legible
+      only once the sheet was already open, one tap too late to be the reason
+      for the tap. It is on the Daily tile now, in the `badge` slot the table
+      tile already uses for a live value.
+      **From two days, not one.** A streak of one is not a streak, it is today —
+      and a "1" every morning after a missed day would report a run the player
+      has just lost as if it were an achievement.
+      **A flame rather than a word, and that is a constraint not a preference:**
+      the catalogues are generated from `../merge-empire-fc`'s own `en.js` so no
+      new key can be minted here, and the one shipped string — `daily.streak`,
+      "{n}-day streak" — is a sentence, which on a 54pt tile is four words of
+      nothing.
 - [ ] The news ticker
 
 ## Club — `screens/ClubScreen.js`
@@ -244,8 +254,10 @@ All seven shelves are present and in the JS's own order.
 - [ ] In-match tactic changes
 - [ ] Stats tab
 - [ ] Tactics tab
-- [ ] The doubling offer on the closing screen (the rewards are already deferred
-      for it — see `play_button.dart`)
+- [x] The doubling offer on the closing screen — built in `match_summary.dart`
+      on the `double_match` placement, with the rewards deferred for it exactly
+      as `play_button.dart` set up. One tap only: a second while the video is
+      opening would double twice.
 
 ## The domestic cup — `_playCupMatch` in `LeagueScreen.js`
 
