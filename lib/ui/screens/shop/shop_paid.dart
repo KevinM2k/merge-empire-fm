@@ -351,7 +351,7 @@ class GemPacksSection extends ConsumerWidget {
 /// mid, a deep and an EDGE — the flat bar under it is what makes it read as
 /// something with thickness rather than a coloured rectangle — plus a sheen
 /// across the top third for a light source.
-class GemPackTile extends StatelessWidget {
+class GemPackTile extends ConsumerWidget {
   const GemPackTile({super.key, required this.tile, this.hero = false});
 
   final PaidTile tile;
@@ -372,7 +372,7 @@ class GemPackTile extends StatelessWidget {
   static const Color _heroDeep = Color(0xFF0F4A82);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final art = GemPackPicture(
       art: gemPackArtFor(tile.product.id),
       size: hero ? 96 : 74,
@@ -443,9 +443,21 @@ class GemPackTile extends StatelessWidget {
       label: '${tile.name} ${tile.product.price}',
       child: GestureDetector(
         key: ValueKey('shop-tile-${tile.product.id}'),
-        // Dead until the billing bridge lands, like every other real-money
-        // control on this screen.
-        onTap: null,
+        // **THROUGH THE CONFIRM, like every other real-money tap.** The JS's
+        // own comment on this line says gem bundles and the Vault used to
+        // charge straight off the tile, so a mis-tap on a two-across grid was a
+        // completed purchase with no interstitial.
+        onTap: () => buyProduct(
+          context,
+          ref,
+          tile.product,
+          tile.name,
+          priceFor(
+            tile.product.sku,
+            tile.product.price,
+            ref.read(storeCatalogueProvider).valueOrNull,
+          ),
+        ),
         child: Container(
           padding: hero
               ? const EdgeInsets.fromLTRB(16, 12, 16, 12)

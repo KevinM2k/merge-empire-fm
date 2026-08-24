@@ -31,6 +31,7 @@ import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
+import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
@@ -319,7 +320,7 @@ String _packContents(String packId) {
 /// and it is shipped in ten languages, so this needed no new copy at all. It is
 /// now the headline under the name, at the weight it earns, and the price is a
 /// full-width button under it rather than a chip fighting the title for room.
-class _VaultHero extends StatelessWidget {
+class _VaultHero extends ConsumerWidget {
   const _VaultHero({
     required this.vault,
     required this.ownedPacks,
@@ -333,7 +334,7 @@ class _VaultHero extends StatelessWidget {
   final bool isOwned;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final ink = ShopSectionId.looks.ink;
     return Container(
@@ -439,8 +440,24 @@ class _VaultHero extends StatelessWidget {
             StoreButton(
               key: ValueKey('shop-buy-${vault.product.id}'),
               tone: StoreTone.cash,
-              label: vault.product.price,
-              onTap: null,
+              label: priceFor(
+                vault.product.sku,
+                vault.product.price,
+                ref.watch(storeCatalogueProvider).valueOrNull,
+              ),
+              // The Vault is the other tile the JS names as having charged
+              // straight off itself before the confirm went in.
+              onTap: () => buyProduct(
+                context,
+                ref,
+                vault.product,
+                vault.name,
+                priceFor(
+                  vault.product.sku,
+                  vault.product.price,
+                  ref.read(storeCatalogueProvider).valueOrNull,
+                ),
+              ),
             ),
           ],
         ],

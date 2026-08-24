@@ -6373,14 +6373,30 @@ Written on arrival from here.
       to look for. A card on a page has a SHADOW and this one did not; it has
       one now, light in daylight and dark at night, which is the same treatment
       and the same reasoning `SettingsCard` already uses.
-- [ ] **The shop's gem tiles do not look like `../merge-empire-fc`'s, and they
-      are not CENTRED.** The centring is a real bug in this port's tile: the
-      contents are a non-positioned child of a `Stack`, which aligns to the
-      top-left corner unless it is told otherwise.
-- [ ] **The buttons are not the same as they were, and none of them do
-      anything.** Which buttons is not established. If it is the shop's, the
-      real-money ones have always been dead behind `paidDisabledReason` — but
-      "not the same as they were" is a change, and a change is this session's.
+- [x] **The shop's gem tiles do not look like `../merge-empire-fc`'s, and they
+      are not CENTRED.** The centring was a real bug and is fixed: the contents
+      were a non-positioned child of a `Stack`, which aligns to the top-left
+      corner unless it is told otherwise. The sheen and the ribbon are
+      `Positioned` and were never affected, which is why only the pile, the
+      number and the price had moved.
+      **The LOOK half was checked against `_renderGemPacks` and matches**: a
+      two-across grid, escalating pile art so the bundles differ at a glance,
+      the `.store-3d--gem` face with its edge bar, the bonus ribbon, and the odd
+      one out running full width as a hero — that last is the JS's own rule and
+      the only way the chest gets room to read as one.
+      **What was actually still wrong was the TAP**: the tile was dead. It buys
+      now, through the confirm card, which the JS's own comment on that line
+      says was added because gem bundles and the Vault used to charge straight
+      off themselves — a mis-tap on a two-across grid was a completed purchase
+      with no interstitial.
+- [x] **The buttons are not the same as they were, and none of them do
+      anything.** The second half is ANSWERED and fixed: the shop's real-money
+      controls were all dead behind `paidDisabledReason`, and they buy now — the
+      offer tiles, the gem bundles and the Style Vault. "Coming soon" survives
+      only where nothing can take a payment.
+      The first half stays unestablished, and is probably the 3D treatment
+      landing on every Material button at once (below) — which is a change, and
+      was this session's.
 - [x] **The margins between the items on the play-match popup page.** Six there
       and twelve on the Play page, so walking from one to the other halved the
       spacing — reported immediately after the Play page's own were set to
@@ -6461,9 +6477,17 @@ Written on arrival from here.
       second arm pass last session; carrying is a different pose and was not in
       the set. Asked as a question, so it also wants confirming which poses
       still look wrong.
-- [ ] **Adverts on the locked manager customisations.** Each look that is meant
-      to be unlockable by watching a video needs the ad route on it. Nothing in
-      the customiser offers one today.
+- [ ] **Adverts on the locked manager customisations.** **ANSWERED, and it is a
+      FEATURE REQUEST rather than a port gap** — which is worth saying before
+      anybody builds it as parity. The spec's look unlocks are a Fan Zone tier,
+      a cup record, the trophy cabinet, or a bought pack; `showRewardedAd` has
+      six call sites in the JS and not one of them is a look. So there is
+      nothing to port, and adding one is an economy decision: a video that
+      unlocks a cosmetic competes directly with the Style Vault and the six
+      packs, which are real money.
+      What it needs first is a ruling on WHICH looks and how many videos —
+      after which the ad route itself is small, because `services/rewarded_ads.dart`
+      already works.
 
 - [x] **The light-mode red and green do not match the dark ones.** Third time
       of asking, and the answer that was being given was wrong in a way worth
@@ -6505,9 +6529,11 @@ Written on arrival from here.
       `--color-gold`, and the league-move block finally sits on a pane like
       every other band on that report rather than straight on the sky.
 
-- [ ] **Pitch Invaders' boxes should be BIGGER.** Asked again after the holes
-      were enlarged and the uneven first column fixed — so it is the tiles
-      themselves that want more of the screen, not the holes inside them.
+- [x] **Pitch Invaders' boxes should be BIGGER.** Done, and the row was written
+      before the fix landed rather than after. The board is the game, so it gets
+      the room: the instruction paragraph is capped at two lines and gives its
+      height back, and the nine tiles are laid out in full rather than in a lazy
+      grid — nine holes the player cannot all see is not a board.
 - [x] **A manager customisation should SHOW what it unlocks.** The rows were a
       shirt glyph and a word — "Bucket", "Viking", "Party" — which tells a
       player nothing about what they are buying, while the CUSTOMISER has been
@@ -6524,14 +6550,19 @@ Written on arrival from here.
       build-and-upgrade control was a Material `ElevatedButton` in the club's
       accent, for a thing bought with coins, with none of the three-dimensional
       face. It is the coin tone now.
-- [ ] **The rest of the app's buttons.** `pyramid_editor_sheet`, the kit picker
-      and the club stats panel still use Material buttons. None of them spends a
-      currency, so the tone is not the question — the `.store-3d` FACE is, and
-      whether a control that spends nothing should have it at all is worth
-      deciding rather than assuming.
-- [ ] **And EVERY button wants the same 3D treatment** — the face, the mid, the
-      deep and the flat edge bar under it that `.store-3d` draws. The gem tiles
-      have it; nothing else does.
+- [x] **The rest of the app's buttons** and **EVERY button wants the same 3D
+      treatment.** Both done, and as ONE change: `mouldedButtonStyle` is the
+      `.store-3d` face — the fill, the hard edge bar under it, and a press that
+      drops the face onto its own edge — and it is applied through the THEME
+      rather than at eighty-odd call sites.
+      `backgroundBuilder` is the hook: it wraps the padded child inside the
+      button's own `Material`, whose `clipBehavior` is `Clip.none`, so the hard
+      edge underneath survives. The face it paints also covers the ink splash,
+      which is the point — a moulded button answers a press by DROPPING, and a
+      ripple over the top of that is two different answers to one tap.
+      **`TextButton` is deliberately left flat.** It is a text link — "Maybe
+      later", "Cancel" — and giving a link a moulded face makes every dismissal
+      look like a second offer.
 
 - [x] **Get rid of the duplicate scout voucher** — the one beside the TV
       broadcast deal, which is the same thing as the random voucher further

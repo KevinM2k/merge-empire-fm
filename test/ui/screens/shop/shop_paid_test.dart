@@ -465,4 +465,49 @@ void main() {
     }
   });
 
+
+  group('EVERY REAL-MONEY TAP GOES THROUGH THE CONFIRM', () {
+    // The JS's own comment on the line that binds these tiles, and it names the
+    // two that used to charge straight off themselves: the gem bundles and the
+    // Style Vault. On a two-across grid a mis-tap was a completed purchase with
+    // no interstitial.
+    testWidgets('a gem bundle asks before it charges', (tester) async {
+      await pumpPaid(tester);
+      final gems = getShopProducts().firstWhere((p) => p.category == 'gems');
+      final tile = find.byKey(ValueKey('shop-tile-${gems.id}'));
+      await tester.ensureVisible(tile);
+      await tester.pumpAndSettle();
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('paid-confirm-${gems.id}')), findsOneWidget);
+      // And the disclaimer, which is shipped copy this card is the only caller
+      // of.
+      expect(find.textContaining('will be charged'), findsOneWidget);
+    });
+
+    testWidgets('and cancelling grants nothing', (tester) async {
+      final container = await pumpPaid(tester);
+      final gems = getShopProducts().firstWhere((p) => p.category == 'gems');
+      final before = jsonEncode(container.read(gameProvider).state);
+      final tile = find.byKey(ValueKey('shop-tile-${gems.id}'));
+      await tester.ensureVisible(tile);
+      await tester.pumpAndSettle();
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('paid-cancel-${gems.id}')));
+      await tester.pumpAndSettle();
+      expect(jsonEncode(container.read(gameProvider).state), before);
+    });
+
+    testWidgets('an offer tile asks too', (tester) async {
+      await pumpPaid(tester);
+      final offer = getShopProducts().firstWhere((p) => p.category == 'bundle');
+      final buy = find.byKey(ValueKey('shop-buy-${offer.id}'));
+      await tester.ensureVisible(buy);
+      await tester.pumpAndSettle();
+      await tester.tap(buy);
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey('paid-confirm-${offer.id}')), findsOneWidget);
+    });
+  });
 }

@@ -20,7 +20,10 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 void main() {
   tearDown(resetLocale);
 
-  testWidgets('the vault is real money and disabled', (tester) async {
+  testWidgets('the vault is real money and BUYS', (tester) async {
+    // It was dead while there was no bridge. The JS names it and the gem
+    // bundles as the two tiles that used to charge straight off themselves,
+    // which is why the tap goes through the confirm rather than the store.
     await pumpShopWidget(tester, (_) {}, LooksSection.new);
     final vault = products.firstWhere((p) => p.styleVault);
     expect(find.text(vault.price), findsOneWidget);
@@ -28,7 +31,7 @@ void main() {
       tester
           .widget<StoreButton>(find.byKey(ValueKey('shop-buy-${vault.id}')))
           .onTap,
-      isNull,
+      isNotNull,
     );
   });
 
