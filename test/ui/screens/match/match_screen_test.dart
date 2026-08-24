@@ -1477,8 +1477,15 @@ void main() {
       expect(benchColumns(360), 3, reason: 'a small phone');
       expect(benchColumns(430), 3, reason: 'a large phone');
       expect(benchColumns(834), greaterThan(3), reason: 'a tablet');
-      // And it never narrows below three, however small the sheet gets.
-      expect(benchColumns(120), 3);
+      // **And TWO on the narrowest, which is `.bench-grid`'s own
+      // `max-width: 359px` step.** The floor of three was overriding it — and
+      // three across 320 points is precisely the "too small to read the face
+      // on" case the floor exists to prevent, so it was enforcing the fault
+      // rather than stopping it on the one size where it matters most.
+      expect(benchColumns(320), 2, reason: 'the narrowest phones there are');
+      expect(benchColumns(359), 2);
+      // And never below two, however small the sheet gets.
+      expect(benchColumns(120), 2);
     });
 
     testWidgets('THE CLOCK WAITS while it is open', (tester) async {

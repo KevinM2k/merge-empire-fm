@@ -50,10 +50,21 @@ const double _gap = 6;
 const double _pad = 8;
 
 /// `.grid-container`'s column ladder, by viewport width.
+///
+/// **`max-width: 359px` INCLUDES 359**, which is the one thing a CSS breakpoint
+/// says that a `<` does not: the port read it as `width < 359`, so a 359-point
+/// viewport got three columns where the shipped app gives two. One point wide,
+/// and only on the narrowest phones there are — which is exactly the width that
+/// rule exists for.
+///
+/// **And past 1100 the stylesheet MEASURES** — `auto-fill, minmax(200px, 1fr)`
+/// — where this stopped at five. On a tablet the grid was five wide with the
+/// rest of the row empty.
 int gridColumnsFor(double width) {
+  if (width >= 1100) return ((width + _gap) / (200 + _gap)).floor().clamp(5, 9);
   if (width >= 800) return 5;
   if (width >= 640) return 4;
-  if (width < 359) return 2;
+  if (width <= 359) return 2;
   return Grid.cols;
 }
 

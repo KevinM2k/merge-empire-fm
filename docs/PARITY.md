@@ -496,7 +496,23 @@ The same treatment as the shop, against `src/ui/styles/`:
       `.add-asset-row` has no counterpart: the port draws owned and unbuilt
       facilities in ONE grid, so the row's separate breakpoints (five across at
       800 rather than four) do not apply.
-- [ ] Players grid — `grid.css` (872 lines)
+- [x] Players grid — `grid.css` (872 lines). **Diffed**, and the ladder was
+      almost right: three columns, two on the narrowest, four from 640, five
+      from 800, gap 6 and `aspect-ratio: 3 / 4` all matched. Two things did not.
+      **`max-width: 359px` INCLUDES 359**, which is the one thing a CSS
+      breakpoint says that a `<` does not — the port read it as `width < 359`,
+      so a 359-point viewport got three columns where the shipped app gives two.
+      One point wide, and only on the narrowest phones there are, which is
+      exactly the width that rule exists for.
+      **And past 1100 the stylesheet MEASURES** — `auto-fill, minmax(200px, 1fr)`
+      — where the port stopped at five, so a tablet drew five columns with the
+      rest of the row empty.
+      **`.bench-grid` had the same 359 step and a floor that overrode it.**
+      `benchColumns` refuses to go below three so a four-column delegate cannot
+      squeeze a narrow sheet — and three across 320 points is precisely the "too
+      small to read the face on" case that floor was written to prevent, so on
+      the one size where it matters most the floor was enforcing the fault. Two
+      below 360, the port's own growth rule above it.
 - [ ] Match page — `match-page.css` (1,041 lines)
 - [ ] Home — `league-scene.css` (4,444 lines, the biggest by far)
 - [~] HUD — `hud.css`. **Diffed class by class**, and the port carries every

@@ -128,15 +128,27 @@ class PlayerFace extends StatelessWidget {
 
 /// How many of these fit across a bench grid of [width].
 ///
-/// **Three is the FLOOR, not the answer.** A max-extent delegate fits as many
-/// cards as the width allows, which is four on most phones — and four across a
-/// sheet an inch or two wide leaves each one too small to read the face on. A
-/// tablet earns the columns its width actually pays for.
+/// **Three is the FLOOR, not the answer — above 359 points.** A max-extent
+/// delegate fits as many cards as the width allows, which is four on most
+/// phones, and four across a sheet an inch or two wide leaves each one too
+/// small to read the face on. A tablet earns the columns its width actually
+/// pays for.
+///
+/// **Below that the floor was the bug it was written to prevent.** `.bench-grid`
+/// drops to two at `max-width: 359px`, and three across 320 points is exactly
+/// the "too small to read the face on" case — so the floor was enforcing it
+/// rather than preventing it on the one size where it matters most.
 ///
 /// Lives here rather than on either screen because BOTH benches use it — the
 /// squad's and the match's — and two different answers to the same question
 /// would read as a bug.
 int benchColumns(double width) {
+  // **TWO ON THE NARROWEST PHONES, which is `.bench-grid`'s own
+  // `max-width: 359px` step and which the floor of three was overriding.** The
+  // floor exists so a four-column delegate cannot squeeze a sheet an inch wide
+  // — and that is the same argument, one size further down: three across 320
+  // points is the case it was written against, not an exception to it.
+  if (width <= 359) return 2;
   final earned = (width / benchColumnWidth).floor();
   return earned < 3 ? 3 : earned;
 }

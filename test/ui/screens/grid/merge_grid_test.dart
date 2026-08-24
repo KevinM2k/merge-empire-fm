@@ -202,6 +202,26 @@ void main() {
       expect(gridColumnsFor(900), 5);
     });
 
+    testWidgets('AND `max-width: 359px` INCLUDES 359', (tester) async {
+      // The one thing a CSS breakpoint says that a `<` does not. Read as
+      // `width < 359`, a 359-point viewport got three columns where the shipped
+      // app gives two — one point wide, and only on the narrowest phones there
+      // are, which is exactly the width that rule exists for.
+      await pumpGrid(tester);
+      expect(gridColumnsFor(359), 2);
+      expect(gridColumnsFor(360), Grid.cols);
+    });
+
+    testWidgets('and past 1100 it MEASURES rather than stopping at five', (
+      tester,
+    ) async {
+      // `auto-fill, minmax(200px, 1fr)`. On a tablet the grid was five wide
+      // with the rest of the row empty.
+      await pumpGrid(tester);
+      expect(gridColumnsFor(1100), greaterThanOrEqualTo(5));
+      expect(gridColumnsFor(1600), greaterThan(gridColumnsFor(1100)));
+    });
+
     testWidgets('offers a slot for every cell the schema holds', (
       tester,
     ) async {
