@@ -365,10 +365,22 @@ All seven shelves are present and in the JS's own order.
       clears an active run whose `startedSeason` is not the current one, and its
       own comment names "ghost scores on the fixture list" as what a leaked run
       looks like — which is exactly what these rows would have shown.
-- [ ] In-match tactic changes rewrite a cup scoreline in the JS, which is what
-      its commit carries the popup's final goals for. `PreparedCupRound` is a
-      record and cannot be mutated, so a screen that can change a result will
-      have to hand the goals in — see the note on `settleCupRound`.
+- [x] In-match tactic changes rewrite a cup scoreline. **DONE, and it was a
+      live bug** rather than a missing feature: the tactic control is on the cup
+      tie's screen like any other match, `reSimulateRemainder` rewrites the
+      result's scoreline in place — its own first line says so — and
+      `settleCupRound` was committing `prepared.homeGoals`. So a tie the player
+      watched end 3-1 went into the bracket as 2-1.
+      `commitCupRound` takes the goals as overrides now, because
+      `PreparedCupRound` is a record and cannot be updated. `won` had always
+      been passed separately for exactly this reason, which is the half that was
+      already right.
+      **AND A CUP TIE CANNOT END LEVEL, which a re-simulation is free to make
+      it.** The ninety-minute engine has no opinion about that — in the league a
+      draw is a result — so a re-simulated level score is decided by the
+      SHOOTOUT that was already rolled for exactly this case. Re-rolling one
+      there would be a second draw from the same hat, and could disagree with
+      the kicks already on the save and now on the screen.
 
 ## Quests — the block in `LeagueScreen.js`
 

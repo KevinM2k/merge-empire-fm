@@ -824,11 +824,23 @@ void _applyInjury(Map<String, dynamic> state, CupInjury entry) {
 ///
 /// Applies the coins, the sponsor drop and the fitness cost, then advances or
 /// eliminates. Returns the sponsor drop so the UI can offer it.
+/// **The goals are OVERRIDABLE because the screen can change them.** An
+/// in-match tactic change re-simulates the remainder and rewrites the result's
+/// scoreline in place — `reSimulateRemainder` says so in its own first line —
+/// and `PreparedCupRound` is a record, so the figure this was given at kickoff
+/// cannot be updated. Without the override the cup's history recorded the
+/// pre-match simulation while the player watched a different score: a tie the
+/// screen ended 3-1 went into the bracket as 2-1.
+///
+/// `won` has always been passed separately for the same reason, which is the
+/// half that was already right.
 CupSponsorDrop? commitCupRound(
   Map<String, dynamic> state,
   bool won,
-  PreparedCupRound? prepared,
-) {
+  PreparedCupRound? prepared, {
+  int? homeGoals,
+  int? awayGoals,
+}) {
   final cups = _ensureCupState(state);
   final run = _map(cups['active']);
   if (run == null || prepared == null) return null;
@@ -853,8 +865,8 @@ CupSponsorDrop? commitCupRound(
     'roundName': prepared.roundName,
     'opponentName': prepared.opponentName,
     'won': won,
-    'homeGoals': prepared.homeGoals,
-    'awayGoals': prepared.awayGoals,
+    'homeGoals': homeGoals ?? prepared.homeGoals,
+    'awayGoals': awayGoals ?? prepared.awayGoals,
     'earned': prepared.earned,
     // Stored as a plain map, not the record: this result goes into the cup
     // history, which is part of the save, and a record cannot be serialised.

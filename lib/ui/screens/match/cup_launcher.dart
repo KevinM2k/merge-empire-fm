@@ -215,7 +215,34 @@ List<ScorerCandidate> _takers(Map<String, dynamic> state) {
 /// change a result yet — so `won` is passed through and the goals are the
 /// prepared ones. A screen that can change them will have to hand them in.
 CupSponsorDrop? settleCupRound(Map<String, dynamic> state, CupTie tie) {
-  final drop = commitCupRound(state, tie.prepared.won, tie.prepared);
+  // **WHAT THE SCREEN ENDED ON, not what was simulated before it opened.** An
+  // in-match tactic change re-simulates the remainder and rewrites the result's
+  // scoreline in place, so the two disagree the moment a player uses the tactic
+  // control — the bracket recorded a 2-1 while the feed had just played out a
+  // 3-1.
+  final finalHome = _num(tie.result['homeGoals'])?.toInt() ?? tie.prepared.homeGoals;
+  final finalAway = _num(tie.result['awayGoals'])?.toInt() ?? tie.prepared.awayGoals;
+  var won = tie.result['won'] == true;
+
+  // **A CUP TIE CANNOT END LEVEL**, and a re-simulation is free to make it
+  // level — which the ninety-minute engine has no opinion about, because in the
+  // league a draw is a result. The shootout that was rolled for exactly this
+  // case decides it; re-rolling one here would be a second draw from the same
+  // hat and could disagree with the kicks already on the save.
+  if (finalHome == finalAway) {
+    final shootout = _map(tie.result['penaltyShootout']);
+    won = shootout != null
+        ? shootout['playerWins'] == true
+        : tie.prepared.won;
+  }
+
+  final drop = commitCupRound(
+    state,
+    won,
+    tie.prepared,
+    homeGoals: finalHome,
+    awayGoals: finalAway,
+  );
   tie.result['questResults'] = [
     for (final outcome in resolveMatchQuests(state, tie.result))
       <String, dynamic>{

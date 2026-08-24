@@ -296,4 +296,88 @@ void main() {
       expect(heard, hasLength(1));
     });
   });
+
+  group('a tactic change mid-tie', () {
+    // `reSimulateRemainder` rewrites the result's scoreline IN PLACE — its own
+    // first line says so — and `PreparedCupRound` is a record, so the figure
+    // the commit was given at kickoff cannot be updated. Without the override
+    // the bracket recorded the pre-match simulation while the player watched a
+    // different score.
+    test('THE BRACKET RECORDS WHAT THE SCREEN ENDED ON', () {
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      // What the screen would have done: a re-sim, in place.
+      tie.result['homeGoals'] = 4;
+      tie.result['awayGoals'] = 1;
+      tie.result['won'] = true;
+      settleCupRound(s, tie);
+
+      final stored = _map(_cupResults(s).single)!;
+      expect(stored['homeGoals'], 4);
+      expect(stored['awayGoals'], 1);
+      expect(stored['won'], isTrue);
+    });
+
+    test('and a re-simulated defeat ends the run, whatever was prepared', () {
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      tie.result['homeGoals'] = 0;
+      tie.result['awayGoals'] = 2;
+      tie.result['won'] = false;
+      settleCupRound(s, tie);
+
+      expect(
+        _map(_map(_map(s['progression'])?['cups'])?['active']),
+        isNull,
+        reason: 'a defeat should have ended it',
+      );
+    });
+
+    test('A CUP TIE CANNOT END LEVEL, and a re-sim is free to make it one', () {
+      // The ninety-minute engine has no opinion about that — in the league a
+      // draw is a result — so the shootout rolled for exactly this case
+      // decides it rather than a fresh draw from the same hat.
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      tie.result['homeGoals'] = 2;
+      tie.result['awayGoals'] = 2;
+      tie.result['won'] = false;
+      tie.result['penaltyShootout'] = <String, dynamic>{
+        'playerWins': true,
+        'homeScore': 5,
+        'awayScore': 4,
+        'kicks': <dynamic>[],
+      };
+      settleCupRound(s, tie);
+
+      expect(_map(_cupResults(s).single)!['won'], isTrue);
+      expect(
+        _map(_map(_map(s['progression'])?['cups'])?['active']),
+        isNotNull,
+        reason: 'winning on penalties should carry the run on',
+      );
+    });
+
+    test('and with no shootout to fall back on it keeps what was prepared', () {
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      final prepared = tie.prepared.won;
+      tie.result['homeGoals'] = 1;
+      tie.result['awayGoals'] = 1;
+      tie.result['won'] = false;
+      tie.result['penaltyShootout'] = null;
+      settleCupRound(s, tie);
+      expect(_map(_cupResults(s).single)!['won'], prepared);
+    });
+
+    test('an untouched result still commits the prepared score', () {
+      // The overwhelming case: nobody changed anything.
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      settleCupRound(s, tie);
+      final stored = _map(_cupResults(s).single)!;
+      expect(stored['homeGoals'], tie.prepared.homeGoals);
+      expect(stored['awayGoals'], tie.prepared.awayGoals);
+    });
+  });
 }
