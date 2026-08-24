@@ -1,4 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- **DECLARED HERE RATHER THAN INHERITED FROM THE PLUGINS.** The manifest
+         merger would supply all three anyway — the ad SDK, the billing client
+         and the network watcher each declare what they need — and that is
+         exactly the problem: a plugin bump that drops one is invisible until a
+         release build cannot reach the network or Play refuses the upload.
+         INTERNET was in the DEBUG manifest only, which is the Flutter template's
+         doing and means the shipped build's most basic permission came from
+         whatever happened to be in `pubspec.yaml` that week.
+         The same three the shipped app's own manifest carries. AD_ID is a Play
+         requirement for anything that reads the advertising id on Android 13+,
+         and BILLING is what makes the in-app products visible to the client. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+    <uses-permission android:name="com.android.vending.BILLING" />
     <application
         android:label="Merge Empire Football Manager"
         android:name="${applicationName}"

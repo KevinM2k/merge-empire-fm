@@ -6587,15 +6587,34 @@ Written on arrival from here.
 
 ### And the constraint has changed
 
-- [ ] **`../merge-empire-fc` HAS the Play Console, App Store billing and
+- [~] **`../merge-empire-fc` HAS the Play Console, App Store billing and
       analytics already in place** — said directly, with "there is nothing you
-      cannot do with access to that repo". The M6 and M7 rows below were written
-      on the assumption that consoles and signing were outside this machine.
-      They need re-reading against what that repo actually holds: `android/`,
-      `ios/`, `capacitor.config.ts`, `firebase.json`, `firestore.rules`,
-      `firestore.indexes.json`, `functions/`, the build-and-release scripts and
-      a `.mobileprovision`. Several of those rows are probably portable
-      configuration rather than console work.
+      cannot do with access to that repo".
+      **RE-READ, and the portable half is now ported.** What came across, and
+      what each was worth:
+      - `google-services.json` and `GoogleService-Info.plist`, plus the two
+        gradle plugins at the shipped app's own versions — see the analytics row
+        in M4.
+      - **Fifty `SKAdNetworkIdentifier` entries and
+        `NSUserTrackingUsageDescription`**, and this one is REVENUE rather than
+        paperwork: without the SKAdNetwork list an install cannot be attributed
+        to the network that served the ad, so AdMob's mediation partners are
+        paid nothing for it and bid accordingly. Without the tracking key iOS
+        refuses to show the ATT prompt at all, so the consent flow has nothing
+        to ask with. The port had neither.
+      - **The three Android permissions, declared rather than inherited.**
+        INTERNET was in the DEBUG manifest only — the Flutter template's doing —
+        so the shipped build's most basic permission came from whichever plugins
+        happened to declare it. AD_ID is a Play requirement for reading the
+        advertising id on Android 13+, and BILLING is what makes the in-app
+        products visible to the client.
+      - The Google Sign-In URL scheme and the Sign in with Apple entitlement —
+        see the auth row.
+      **What is genuinely NOT portable**, and stays as console work: the signing
+      keystore and the `.mobileprovision` (secrets, not configuration),
+      `firestore.rules` and `functions/` (deployed to Firebase, not built into
+      the app), and every row that ends in somebody pressing a button in a
+      console.
 
 ## From playtesting — 31 Aug
 

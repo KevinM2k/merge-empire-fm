@@ -72,6 +72,40 @@ void main() {
       );
     });
 
+    test('AND THE RELEASE MANIFEST DECLARES ITS OWN PERMISSIONS', () {
+      // The merger would supply all three from the plugins, which is the
+      // problem: a plugin bump that drops one is invisible until a release
+      // build cannot reach the network or Play refuses the upload. INTERNET was
+      // in the DEBUG manifest only — the Flutter template's doing.
+      final manifest = File(
+        'android/app/src/main/AndroidManifest.xml',
+      ).readAsStringSync();
+      for (final permission in [
+        'android.permission.INTERNET',
+        'com.google.android.gms.permission.AD_ID',
+        'com.android.vending.BILLING',
+      ]) {
+        expect(manifest, contains(permission), reason: permission);
+      }
+    });
+
+    test('AND iOS CAN ATTRIBUTE AN INSTALL, which is revenue not paperwork', () {
+      // Without `SKAdNetworkItems` an install cannot be attributed to the
+      // network that served the ad, so AdMob's mediation partners are paid
+      // nothing for it and bid accordingly. The list is AdMob's own and is
+      // copied verbatim from the shipped app — a count rather than a set,
+      // because curating it is not this repo's job.
+      final plist = File('ios/Runner/Info.plist').readAsStringSync();
+      expect(
+        RegExp('SKAdNetworkIdentifier').allMatches(plist).length,
+        greaterThanOrEqualTo(50),
+        reason: 'the SKAdNetwork list has been trimmed',
+      );
+      // And without this key iOS refuses to show the ATT prompt at all, so the
+      // consent flow has nothing to ask with.
+      expect(plist, contains('NSUserTrackingUsageDescription'));
+    });
+
     test('and they are the shipped listing\'s own', () {
       expect(admobAppIdAndroid, startsWith('ca-app-pub-'));
       expect(admobAppIdIos, startsWith('ca-app-pub-'));
