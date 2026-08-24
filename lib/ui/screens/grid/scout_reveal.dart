@@ -286,12 +286,32 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
     _resolveLanding();
   }
 
+  /// **`onDone` MUST FIRE EXACTLY ONCE, INCLUDING ON THE WAY OUT.** The caller
+  /// awaits a `Completer` this resolves, and it holds a guard while it waits —
+  /// `_revealing` in `add_player_button.dart`, which is what stops a second
+  /// scout landing on top of the first. Every path out of [_leave] used to be
+  /// conditional on `mounted`, so an unmount mid-exit left the completer
+  /// hanging for the life of the process and **the Add Player button dead
+  /// permanently** — no error, no message, a control that had worked twice and
+  /// then did nothing. It was found walking the tutorial, where it stops a new
+  /// player at two cards of the three the second step asks for.
+  bool _announced = false;
+
+  void _announceDone() {
+    if (_announced) return;
+    _announced = true;
+    widget.onDone();
+  }
+
   @override
   void dispose() {
     _hold?.cancel();
     _in.dispose();
     _out.dispose();
     _fly.dispose();
+    // Last resort, and it has to be after the controllers rather than before:
+    // the caller is free to start another reveal the moment this resolves.
+    _announceDone();
     super.dispose();
   }
 
@@ -387,7 +407,7 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
       if (!mounted) return;
       await Future.wait<void>([out, _fly.forward()]);
     }
-    if (mounted) widget.onDone();
+    _announceDone();
   }
 
   @override

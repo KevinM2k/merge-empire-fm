@@ -116,13 +116,15 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
   /// queue an advance on every rebuild.
   String? _satisfied;
 
-  /// Where the current step's control is, refreshed on the JS's own cadence.
+  /// Where the current step's control is, re-measured after every frame that
+  /// anything else draws.
   Rect? _anchor;
-  Timer? _tracking;
+  TutorialAnchor? _anchorFor;
+  bool _tracking = false;
 
   @override
   void dispose() {
-    _tracking?.cancel();
+    _tracking = false;
     // A host that goes away holding the block would strand the queue for the
     // rest of the process — and the welcome-back card in it holds coins that
     // exist nowhere else.
@@ -135,23 +137,47 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
   /// grows a cooldown bar. The JS re-positions on the same 600ms poll it uses
   /// to re-check conditions, and this is that poll with the condition half
   /// already handled by watching the save.
+  /// **AFTER EVERY FRAME, because the control moves.** The JS repositions on
+  /// its own 600ms poll and can afford to: a DOM tooltip that lags a scroll
+  /// looks untidy. Here the hole is also the INPUT hole — everything outside it
+  /// is absorbed — so a stale one does not look untidy, it eats the tap the
+  /// step is waiting for. The scout reveal scrolls the grid to the square the
+  /// new card is flying into, which moves the button out from under the hole,
+  /// and that is exactly how a player got stuck at two cards of the three the
+  /// second step asks for.
+  ///
+  /// **A post-frame callback rather than a Ticker**, and the difference is not
+  /// cosmetic: a Ticker asks for a frame, so the app would draw for ever while
+  /// a spotlight step was up — every `pumpAndSettle` in the suite hangs, and a
+  /// phone renders continuously to watch a button that is not moving. This
+  /// re-registers after each frame SOMEBODY ELSE draws, so it follows a scroll
+  /// exactly and sleeps the moment the screen is still. Nothing can move
+  /// without a frame, so there is nothing to miss.
+  ///
+  /// Cheap because [TutorialAnchor] walks the tree once and then re-measures
+  /// the render box it found.
   void _track(String key) {
-    _tracking ??= Timer.periodic(
-      const Duration(milliseconds: 600),
-      (_) => _measure(key),
-    );
-    _measure(key);
+    if (_anchorFor?.id != key) {
+      _anchorFor = TutorialAnchor(key);
+      _anchor = null;
+    }
+    if (_tracking) return;
+    _tracking = true;
+    _scheduleMeasure();
   }
 
-  void _measure(String key) {
-    if (!mounted) return;
-    final rect = tutorialAnchorRect(key);
-    if (rect != _anchor) setState(() => _anchor = rect);
+  void _scheduleMeasure() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_tracking) return;
+      final rect = _anchorFor?.measure();
+      if (rect != _anchor) setState(() => _anchor = rect);
+      _scheduleMeasure();
+    });
   }
 
   void _stopTracking() {
-    _tracking?.cancel();
-    _tracking = null;
+    _tracking = false;
+    _anchorFor = null;
     _anchor = null;
   }
 

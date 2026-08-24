@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/engine/cloud_save_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/services/cloud_save_service.dart';
+import 'package:merge_empire_fc/services/leaderboard_service.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/migration.dart';
@@ -77,6 +78,17 @@ Future<CloudSyncOutcome> runCloudBootSync(GameState game) async {
   final uid = sessionUid(state);
   if (state == null || uid == null) return CloudSyncOutcome.none;
   if (!await cloudOnline()) return CloudSyncOutcome.none;
+
+  // **The visibility repair goes FIRST**, which is the JS's own ordering: it
+  // retries a hide or an opt-in that was interrupted mid-toggle, and somebody
+  // who asked not to be listed still being listed is the failure that matters.
+  // It never blocks the restore — a leaderboard that will not answer is not a
+  // reason to leave a player's save unsynced.
+  try {
+    await ensureLeaderboardOptOutApplied(state);
+  } catch (_) {
+    // Repaired on the next boot instead.
+  }
 
   final CloudSaveEvaluation evaluation;
   try {

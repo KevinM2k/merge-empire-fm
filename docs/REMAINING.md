@@ -6248,6 +6248,17 @@ Written on arrival, before the work, which is the rule the 31 Aug block opens on
       from there, so each proves a beat works and none asks whether a player can
       get from one to the next. `tutorial_walkthrough_test` walks all nine in
       the real app, tapping only what a player can see.
+- [ ] **One player per scout during the tutorial.** The batch control offers
+      ×2 and ×3, and a new player pressing one of those in the middle of "scout
+      a player" is being taught the wrong lesson and spending coins they will
+      want. Locked to 1× until the script is done.
+- [ ] **Animate the cards in for gold and legend signings.** Asked for
+      alongside the batch lock — the reveal already flies a card to its square,
+      so this is about the top tiers arriving with something worth watching.
+- [ ] **ALWAYS WIN THE FIRST MATCH.** The tutorial's fifth step waits on a
+      settled result and then reacts to it; a new player losing the one match
+      the game walks them through is the worst first impression the port can
+      make, and there are four reaction lines because the JS lets it happen.
 - [x] **Highlight the right button each step, with the pointing hand.** Asked
       for directly, and it is what fixes (3) above rather than decoration on
       top of it. The JS anchors each step to a DOM selector and draws a
@@ -6270,6 +6281,27 @@ Written on arrival, before the work, which is the rule the 31 Aug block opens on
       The three steps that carry a target are exactly the three that wait on the
       save, which is not a coincidence: a step the player has to DO something
       for is the only kind that needs telling where.
+      **AND THE HOLE HAS TO FOLLOW THE CONTROL, which is where the real cost
+      was.** The scout reveal scrolls the grid to the square the new card is
+      flying into, so the button moves out from under a hole measured a moment
+      earlier — and because the hole is also the INPUT hole, a stale one does
+      not look untidy, it EATS the tap the step is waiting for. That is a
+      player stuck at two cards of the three step two asks for, pressing a
+      button that does nothing.
+      So `TutorialAnchor` walks the tree ONCE and then re-measures the render
+      box it found, which is cheap enough to redo after every frame. **A
+      post-frame callback rather than a Ticker**, and that is not cosmetic: a
+      Ticker asks for a frame, so the app would draw for ever while a spotlight
+      step was up — every `pumpAndSettle` in the suite hangs and a phone renders
+      continuously to watch a button that is not moving. Re-registering after
+      each frame somebody else draws follows a scroll exactly and sleeps when
+      the screen is still. Nothing can move without a frame, so there is nothing
+      to miss.
+      **The anchor also has to ask whether the control is ON SCREEN, not merely
+      whether it exists.** The shell keeps every tab alive in an `IndexedStack`,
+      so the scout button is in the tree, laid out and sized, while the player
+      is looking at another tab entirely — and the first version happily put the
+      hole over it there.
 
 ## From playtesting — 1 Sep
 

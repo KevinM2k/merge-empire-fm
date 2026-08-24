@@ -19,8 +19,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/leaderboard/leaderboard_board.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
@@ -63,6 +65,7 @@ class LeaderboardView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final me = ref.watch(localStandingProvider);
+    final signedIn = isSignedInLocal(ref.watch(gameProvider).state);
 
     return Padding(
       key: const ValueKey('leaderboard'),
@@ -153,19 +156,21 @@ class LeaderboardView extends ConsumerWidget {
           ),
 
           const SizedBox(height: 20),
-          // The board itself. One line, and the JS's own.
-          Text(
-            t('leaderboard.offline'),
-            key: const ValueKey('leaderboard-unavailable'),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, height: 1.5, color: kit.textMuted),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            t('leaderboard.guest_footer'),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: kit.textMuted),
-          ),
+          // **THE BOARD ITSELF.** It was one line saying the service was not
+          // here; `services/leaderboard_service.dart` is, so this is the ranked
+          // list. Signed out it still loads — the boards are public to READ,
+          // which is the JS's own Firestore rule — and the footer below says
+          // what signing in adds.
+          const LeaderboardBoard(),
+          if (!signedIn) ...[
+            const SizedBox(height: 8),
+            Text(
+              t('leaderboard.guest_footer'),
+              key: const ValueKey('leaderboard-guest'),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: kit.textMuted),
+            ),
+          ],
         ],
       ),
     );

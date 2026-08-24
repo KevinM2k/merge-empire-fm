@@ -30,6 +30,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/services/ad_consent.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
+import 'package:merge_empire_fc/services/leaderboard_service.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -497,6 +498,28 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _rankingsVisible(Map<String, dynamic>? save) =>
       _map(save?['leaderboard'])?['rankingsVisible'] != false;
 
+  /// Opt in or out of the public boards.
+  ///
+  /// **The preference lands first and the server is told second**, because the
+  /// two can disagree: a hide that never leaves the device is repaired on the
+  /// next signed-in boot by `ensureLeaderboardOptOutApplied`, and the direction
+  /// that matters is somebody who asked not to be listed still being listed.
+  ///
+  /// **Opting out HIDES rather than deletes.** Scores keep accruing so the
+  /// rolling windows stay correct, and opting back in re-lists the same rows
+  /// with nothing lost.
+  void _setRankingsVisible(bool value) {
+    final game = ref.read(gameProvider);
+    game.update((s) {
+      final board = _map(s['leaderboard']);
+      if (board != null) board['rankingsVisible'] = value;
+    });
+    final state = game.state;
+    if (state != null) {
+      unawaited(setLeaderboardListed(state, listed: value));
+    }
+  }
+
   /// Open the sheet, or sign out. **The signed-out half is a QUESTION and the
   /// signed-in half is not** — connecting picks a provider, disconnecting has
   /// nothing to pick — so one is a sheet and the other happens where it is
@@ -565,12 +588,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           trailing: SettingsToggle(
             key: const ValueKey('setting-rankingsVisible'),
             value: _rankingsVisible(save),
-            onChanged: signedIn
-                ? (value) => ref.read(gameProvider).update((s) {
-                    final board = _map(s['leaderboard']);
-                    if (board != null) board['rankingsVisible'] = value;
-                  })
-                : null,
+            onChanged: signedIn ? _setRankingsVisible : null,
           ),
         ),
       ],

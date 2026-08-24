@@ -27,6 +27,8 @@ import 'package:merge_empire_fc/services/cloud_sync.dart';
 import 'package:merge_empire_fc/ui/popups/cloud_conflict_card.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/services/leaderboard_service.dart';
 import 'package:merge_empire_fc/services/feedback_service.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
@@ -101,6 +103,11 @@ class _GameHostState extends ConsumerState<GameHost>
     // paid-for pack goes missing.
     wireNativeBilling({for (final product in products) product.sku});
     unawaited(storeCatalogue());
+    // **THE LEADERBOARD LISTENS FROM HERE, not from `game_wiring`.** That file
+    // is bus listeners that change the SAVE and nothing else, and this one
+    // opens a socket — the same split that keeps the toasts and the sounds in
+    // the UI layer on the same bus.
+    on('match:complete', _submitMatch);
     _refreshWeather();
     // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
     // whether looking is worth a call, so most of these cost nothing.
@@ -129,6 +136,22 @@ class _GameHostState extends ConsumerState<GameHost>
       // and Riverpod refuses a provider write inside a widget lifecycle.
       _weather.start();
     });
+  }
+
+  /// Put a finished match on all four boards.
+  ///
+  /// **Fired and forgotten, and a failure is silent.** The JS queues a failed
+  /// batch and replays it on reconnect; either way a board that is a match
+  /// behind is not a save at risk, and there is nothing for the player to do
+  /// about it. Signed out it is a no-op — there is no row to write to.
+  void _submitMatch(Object? args) {
+    final state = _runner.game.state;
+    if (state == null || args is! Map<String, dynamic>) return;
+    unawaited(
+      submitMatchStats(state, args).then((ok) {
+        if (ok && mounted) _runner.game.scheduleSave();
+      }).catchError((Object _) {}),
+    );
   }
 
   /// The session, then the cloud — **in that order and awaited between**.
@@ -205,6 +228,7 @@ class _GameHostState extends ConsumerState<GameHost>
 
   @override
   void dispose() {
+    off('match:complete', _submitMatch);
     _weatherPoll?.cancel();
     _weather.stop();
     unawaited(network.stop());
