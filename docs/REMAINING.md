@@ -6487,8 +6487,24 @@ Written on arrival from here.
       to where they are. `SettingsScreen.js` shows the button unconditionally
       and toasts when the form comes back unavailable, and
       `settings.consent_not_required` is that sentence, shipped and uncalled.
-- [ ] **Is the audio bug fixed?** Asked as a question; the bug is not named in
-      this session, so it wants pointing at before anybody guesses.
+- [x] **Is the audio bug fixed?** Asked as a question with the bug unnamed, so
+      the port's audio was diffed against `utils/sound.js` instead of guessing.
+      The INVENTORY is exact — all 24 cues match the JS's `_play` names, and
+      after the trait roulette's `rouletteClick` was wired up (above) every one
+      of them has a caller in `lib/`. The lifecycle is right too: `inactive` is
+      correctly ignored so a notification shade does not cut the music.
+      **What was wrong is that the port never set an AUDIO SESSION at all.**
+      `audioplayers` defaults to `AudioContextConfigFocus.gain`, which leaves
+      `mixWithOthers` off on iOS and requests `AndroidAudioFocus.gain` on
+      Android — so the first coin sound PAUSED whatever the player was
+      listening to. The shipped app cannot do that: its audio is WebAudio
+      inside a WKWebView, which mixes. A regression the port introduced by
+      saying nothing, and one that gets reported as "the game stopped my music"
+      rather than as a session category. It mixes now, pinned.
+      `respectSilence` was deliberately left alone — making the game obey the
+      ring switch is a change of behaviour rather than a restoration of one,
+      and belongs on the device pass below.
+      Reopen with the actual symptom if this was not it.
 - [x] **Settings does not say WHY Pro is locked.** The row prints exactly that
       information underneath it — but a note under a control is small print, and
       a player who has just pressed the thing and had NOTHING happen is not

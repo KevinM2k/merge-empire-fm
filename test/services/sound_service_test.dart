@@ -6,6 +6,7 @@
 /// often enough to be commented.
 library;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -90,6 +91,7 @@ class TestClock {
 }
 
 void main() {
+  _sessionGroup();
   group('effects', () {
     test('play at the base level times the player\'s own', () {
       final (service: s, backend: b, clock: clock) = build();
@@ -393,4 +395,31 @@ void main() {
     });
   });
 
+}
+
+void _sessionGroup() {
+  group('THE AUDIO SESSION', () {
+    test('MIXES rather than taking the device', () {
+      // **The port never set one, and the default takes exclusive focus.**
+      // `AudioContextConfigFocus.gain` — what `audioplayers` uses when nobody
+      // says otherwise — leaves `mixWithOthers` off on iOS and requests
+      // `AndroidAudioFocus.gain` on Android, so the first coin sound PAUSES
+      // whatever the player was listening to. The shipped app is WebAudio in a
+      // WKWebView and mixes, so this was a regression the port introduced by
+      // saying nothing at all — and one that gets reported as "the game
+      // stopped my music", never as an audio session being wrong.
+      expect(
+        AudioPlayersBackend.sessionConfig.focus,
+        AudioContextConfigFocus.mixWithOthers,
+      );
+    });
+
+    test('and does not claim the ring switch either way', () {
+      // Making the game obey silent mode is a real question, but it is a
+      // CHANGE of behaviour rather than a restoration of it — it wants checking
+      // on hardware against the shipped build, so the default stands and this
+      // records that it was a decision.
+      expect(AudioPlayersBackend.sessionConfig.respectSilence, isFalse);
+    });
+  });
 }

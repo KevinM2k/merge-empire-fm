@@ -341,10 +341,47 @@ class AudioPlayersBackend implements SoundBackend {
     }
   }
 
+  /// **THE GAME DOES NOT STOP THE PLAYER'S MUSIC.**
+  ///
+  /// `audioplayers` defaults to `AudioContextConfigFocus.gain`, which on iOS
+  /// leaves the session without `mixWithOthers` and on Android takes
+  /// `AndroidAudioFocus.gain` — both of which mean "this app is now the only
+  /// thing the user is listening to", so the first coin sound PAUSES their
+  /// podcast. Nothing in the port ever set an audio context, so that default
+  /// was in force.
+  ///
+  /// The shipped app cannot behave that way: its audio is WebAudio inside a
+  /// WKWebView, which mixes. So this is a regression the port introduced by
+  /// saying nothing, and it is the kind nobody reports as "your audio session
+  /// is wrong" — they report that the game stopped their music, or just stop
+  /// playing it on the bus.
+  ///
+  /// `respectSilence` is left at its default deliberately: making the game
+  /// obey the ring switch is a real question, but it is a change of behaviour
+  /// rather than a restoration of it, and it wants checking on hardware
+  /// against the shipped build rather than deciding from here.
+  static Future<void> _configureSession() async {
+    if (_sessionConfigured) return;
+    _sessionConfigured = true;
+    await _quietly(
+      () => AudioPlayer.global.setAudioContext(sessionConfig.build()),
+    );
+  }
+
+  /// The session the game asks for. Exposed because it is the DECISION that
+  /// matters and a unit test cannot reach the plugin to observe the call.
+  static final AudioContextConfig sessionConfig = AudioContextConfig(
+    focus: AudioContextConfigFocus.mixWithOthers,
+  );
+
+  static bool _sessionConfigured = false;
+
   /// A player with its release mode already set. The cascade form leaves an
   /// un-awaited platform call behind, and on a slow first frame that raced the
   /// `play` that followed it.
   static Future<AudioPlayer> _newPlayer(ReleaseMode mode) async {
+    // Before the first player exists, so the session is right for it.
+    await _configureSession();
     final player = AudioPlayer();
     await player.setReleaseMode(mode);
     return player;
