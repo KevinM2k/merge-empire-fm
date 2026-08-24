@@ -18,6 +18,8 @@ import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
 import 'package:merge_empire_fc/services/analytics_service.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/providers/low_end_device.dart';
 import 'package:merge_empire_fc/services/prefs_save_store.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 
@@ -78,7 +80,10 @@ class MergeEmpireApp extends ConsumerWidget {
       // SoundHost OUTSIDE the game host: the engine's warm-up and its
       // lifecycle handling have nothing to do with the save, and putting it
       // inside would tie the first sound to a boot that has to finish first.
-      home: const SoundHost(
+      // **NOT `const` any more**, because the tree now reads a provider: the
+      // low-end answer decides whether the glass blurs, and a const subtree
+      // cannot watch anything.
+      home: SoundHost(
         child: GameHost(
           // PopupHost sits above the shell: it releases the queue's no-host
           // blocker, so anything queued during boot has waited rather than been
@@ -87,8 +92,15 @@ class MergeEmpireApp extends ConsumerWidget {
           // it sits under whatever the queue has put up rather than over it. The
           // achievement banner is inside both for the same reason, and it is the
           // innermost of the three: it is the one that is purely a celebration.
-          child: PopupHost(
-            // **THE TUTORIAL IS THE APP'S, not the shell's.** It draws nothing
+          // **THE ONE PLACE THE LOW-END ANSWER IS SUPPLIED.** `util/device.dart`
+          // was ported, fixture-tested against the JS and called by NOTHING:
+          // every threshold matched, the one-way promotion was implemented, and
+          // no widget ever asked. `glass.css` names the backdrop blur as the
+          // thing that most wants the opt-out, so the glass is what reads it.
+          child: GlassQuality(
+            blurAllowed: !ref.watch(lowEndDeviceProvider),
+            child: const PopupHost(
+              // **THE TUTORIAL IS THE APP'S, not the shell's.** It draws nothing
             // itself — it opens Colin's card and switches tabs — and it hangs
             // here rather than inside `AppShell` for a reason worth keeping:
             // a shell built for a test is a save that has never been played,
@@ -96,10 +108,11 @@ class MergeEmpireApp extends ConsumerWidget {
             // about the HUD, the tabs and the popups are not about that, and a
             // widget that opens a card over all of them belongs at the app's
             // own root where they never reach it.
-            child: ToastHost(
-              child: AchievementUnlockHost(
-                child: Stack(
-                  children: [AppShell(), TutorialHost()],
+              child: ToastHost(
+                child: AchievementUnlockHost(
+                  child: Stack(
+                    children: [AppShell(), TutorialHost()],
+                  ),
                 ),
               ),
             ),

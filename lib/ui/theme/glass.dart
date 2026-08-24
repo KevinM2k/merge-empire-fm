@@ -255,6 +255,36 @@ double paneContrast(Color ink) => _ratio(paneLuminance, ink);
 Color glassMuted(BuildContext context) =>
     glassText(context).withValues(alpha: 0.66);
 
+/// **Whether the blur is turned off for this device**, and it is an
+/// `InheritedWidget` rather than a Riverpod read because `GlassPanel` is a
+/// plain `StatelessWidget` used in hundreds of places — turning every one of
+/// them into a `ConsumerWidget` to answer a question that changes at most once
+/// a session is a lot of rebuild plumbing for a boolean.
+///
+/// `glass.css` names these panels as the thing that most wants the opt-out:
+/// they are "on screen for a whole match with a 2D clip playing over them".
+class GlassQuality extends InheritedWidget {
+  const GlassQuality({
+    super.key,
+    required this.blurAllowed,
+    required super.child,
+  });
+
+  final bool blurAllowed;
+
+  /// True — blur on — where nobody has said otherwise, which is every test and
+  /// every screen built outside the app's own root.
+  static bool of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<GlassQuality>()
+          ?.blurAllowed ??
+      true;
+
+  @override
+  bool updateShouldNotify(GlassQuality old) =>
+      old.blurAllowed != blurAllowed;
+}
+
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
@@ -350,7 +380,11 @@ class GlassPanel extends StatelessWidget {
       ),
     );
 
-    if (blur) {
+    // **The tint stays whatever happens, and only the blur goes.** The file's
+    // own first rule is that the TINT carries legibility and the blur does not
+    // — so a device that cannot afford the blur loses the depth and keeps
+    // every word.
+    if (blur && GlassQuality.of(context)) {
       panel = BackdropFilter(
         // Saturate FIRST, then blur — the lift is meant to apply to the
         // backdrop's own colours, and doing it after would just tint a grey wash.

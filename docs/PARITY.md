@@ -535,7 +535,30 @@ The same treatment as the shop, against `src/ui/styles/`:
       **Deliberately NOT ported**: `.hud-prestige`, because the port moved
       prestige to the dock (see `home_dock.dart`), and `.hud-avatar`, because
       the crest here IS the badge button.
-- [ ] The glass treatment — `glass.css` (983 lines), which is app-wide
+- [~] The glass treatment — `glass.css` (983 lines), which is app-wide.
+      **The recipe was already diffed and its departures already argued**, in
+      `ui/theme/glass.dart`: the tint stops, the inverted ink for light mode,
+      the sheen, the rim, and a blur sigma of 20 where the JS uses a 14px CSS
+      radius — because `backdrop-filter` silently no-ops on the Android WebViews
+      the JS ships to, so it could never lean on it and a Flutter
+      `BackdropFilter` always works.
+      **What was missing is the one rule that turns it OFF.** `.low-end-device`
+      drops `backdrop-filter` on exactly these panels, and the file says why:
+      they are "on screen for a whole match with a 2D clip playing over them".
+      **AND THE POLICY BEHIND IT WAS PORTED, FIXTURE-TESTED AND CALLED BY
+      NOTHING.** `util/device.dart` matched every threshold, implemented the
+      one-way promotion and compared seven constants against a node dump — and
+      no widget ever asked, so the whole thing was inert. It is
+      `providers/low_end_device.dart` now: the static hardware heuristic, then
+      the JS's own two frame probes at 5s and 25s, then nothing — a device is
+      slowest while warming up, and a probe that kept sampling would be a
+      permanent cost paid to answer a question already answered.
+      **The tint stays and only the blur goes**, which is the file's own first
+      rule: the tint carries legibility, the blur does not. A device that cannot
+      afford the blur loses the depth and keeps every word.
+      **Still open**: a low-end pass over the crowd density, the particle counts
+      and the walk-cycle frame rate, which is the rest of what the JS gates on
+      the same signal.
 
 ---
 
