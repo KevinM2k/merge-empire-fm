@@ -7940,7 +7940,18 @@ could not render at all without a lookup layer. See
       the bridge swallows as "no legacy save" — the same answer as a genuinely
       new player.
 - [ ] iOS: signing, dSYM upload, App Store Connect
-- [ ] Android: the CI-generated build config, SDK levels, AGP/Gradle
+- [ ] Android: the CI-generated build config, AGP/Gradle, and the signing
+      keystore. **The SDK LEVELS half is done and pinned.** minSdk is the one
+      that can strand players: an update whose minSdk is HIGHER than the shipped
+      app's is not offered to the devices below it — those players keep the
+      Capacitor build for ever, and Play reports it as a smaller device count
+      rather than as an error. The shipped app is 24 and Flutter 3.44's default
+      is 24, so the port is level; the test reads the toolchain's own value so a
+      version bump that raises it is caught here rather than in the console.
+      targetSdk moves the OTHER way — Play requires a recent one to accept an
+      upload at all — so that assertion is a floor rather than a ceiling.
+      What is left is signing (`keystore.properties` is in the old repo and is
+      not committed here) and the release pipeline.
 - [ ] Store listings, whatsnew, changelog. **The IDENTIFIERS half is done and
       pinned** — `native_identifiers_test` reads the application id, the bundle
       id and both AdMob APP ids straight out of the native config and compares
