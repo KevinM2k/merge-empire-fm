@@ -18,9 +18,20 @@ class _Fake implements NoticeBackend {
   final List<int> cancelled = [];
   int permissionAsks = 0;
 
+  int permissionChecks = 0;
+
   @override
   Future<bool> requestPermission() async {
     permissionAsks += 1;
+    return granted;
+  }
+
+  /// **Asked without asking** — the Settings note reads this, and requesting
+  /// there would put a system prompt in front of somebody who merely opened
+  /// the screen.
+  @override
+  Future<bool> permissionGranted() async {
+    permissionChecks += 1;
     return granted;
   }
 
@@ -105,5 +116,17 @@ void main() {
     final fake = _Fake();
     await clearNotices(backend: fake);
     expect(fake.cancelled.toSet(), allNoticeIds().toSet());
+  });
+
+  group('checking without asking', () {
+    test('THEY ARE DIFFERENT QUESTIONS', () async {
+      // Conflating them shows a permission prompt to somebody who only opened
+      // Settings — which is why the note reads one and the arming reads the
+      // other.
+      final fake = _Fake(granted: false);
+      expect(await fake.permissionGranted(), isFalse);
+      expect(fake.permissionAsks, 0, reason: 'checking asked');
+      expect(fake.permissionChecks, 1);
+    });
   });
 }

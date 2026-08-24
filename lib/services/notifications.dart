@@ -35,11 +35,31 @@ import 'package:timezone/timezone.dart' as tz;
 /// player: the game telling them something is ready.
 const String noticeChannelId = 'merge_empire_reminders';
 
+/// The one the app uses. A variable so a test can answer for it without
+/// reaching a plugin — the same seam shape `platform_seams.dart` explains.
+NoticeBackend notices = PluginNoticeBackend();
+
+/// Put it back. For tests.
+void resetNotices() => notices = PluginNoticeBackend();
+
 /// Everything that touches the platform, and nothing else. A test replaces this.
 abstract class NoticeBackend {
   /// Ask, once. False means the player said no — and a no is FINAL as far as
   /// this app is concerned: it never asks twice and never explains.
   Future<bool> requestPermission();
+
+  /// **Whether the OS would actually deliver one, WITHOUT asking.**
+  ///
+  /// Separate from [requestPermission] because the two are different questions
+  /// and conflating them shows a permission prompt to somebody who only opened
+  /// Settings. What this is for is the case the JS gives its own line to: the
+  /// toggle is ON and the OS is refusing, so the switch reads as working while
+  /// nothing can ever arrive — which is indistinguishable from a broken
+  /// feature.
+  ///
+  /// True on any platform that cannot answer, because a warning nobody can act
+  /// on is worse than no warning.
+  Future<bool> permissionGranted();
 
   Future<void> schedule(ScheduledNotice notice);
 
@@ -79,6 +99,27 @@ class PluginNoticeBackend implements NoticeBackend {
       ),
     );
     _ready = true;
+  }
+
+  @override
+  Future<bool> permissionGranted() async {
+    await _init();
+    try {
+      if (Platform.isAndroid) {
+        final android = _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        return await android?.areNotificationsEnabled() ?? true;
+      }
+      // **iOS cannot be asked without asking.** `checkPermissions` is not on
+      // the plugin's iOS surface, and requesting would put a system prompt in
+      // front of somebody who merely opened Settings. So iOS keeps its silence
+      // rather than gaining a warning it cannot compute.
+      return true;
+    } catch (_) {
+      return true;
+    }
   }
 
   @override

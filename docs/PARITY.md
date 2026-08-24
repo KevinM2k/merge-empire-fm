@@ -411,9 +411,26 @@ All seven shelves are present and in the JS's own order.
 ## Settings — `screens/SettingsScreen.js`
 
 52 interactive elements in the JS, the most of any screen after the events.
-Not yet diffed control by control.
 
-- [ ] Diff it
+- [x] **Diffed control by control**, against the JS's own bound selectors — the
+      thirty-four `addEventListener` targets in `SettingsScreen.js` rather than
+      a count of tags, because a selector nothing binds is decoration.
+      **Everything is there**: the six toggles (account, light mode, music,
+      notifications, rankings, rankings-visible), the three rows (auto-tier,
+      rename, team names), the four buttons (privacy, rate, reset, full reset)
+      with their confirms, the four segmented groups (difficulty, pitch view,
+      speed, volume), the language grid and the tab strip.
+      **One thing was genuinely missing and it was not a control**:
+      `[data-notif-warn]`, the hidden note under the notifications toggle.
+      `settings.notifications_blocked` ships in ten languages and had no caller,
+      so a toggle that is ON while the phone refuses read as working while
+      nothing could ever be delivered — indistinguishable from a broken feature,
+      which is what the JS's own comment on that line says.
+      **It is CHECKED, never requested**, and the two are separate methods on
+      the backend for that reason: requesting would put a system prompt in front
+      of somebody who merely opened Settings. iOS keeps its silence — the
+      plugin has no check-without-ask there — because a warning nobody can act
+      on is worse than no warning.
 
 ## Mini-games
 

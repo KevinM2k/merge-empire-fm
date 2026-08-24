@@ -17,6 +17,8 @@ import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/engine/notification_plan.dart';
+import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/cloud_save_service.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -85,6 +87,33 @@ Map<String, dynamic> settingsOf(ProviderContainer c) =>
 Future<void> settleSave(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
   cancelPendingCloudUpload();
+}
+
+/// A phone that will or will not deliver.
+class _Notices implements NoticeBackend {
+  _Notices(this.granted);
+
+  final bool granted;
+  bool asked = false;
+  bool checked = false;
+
+  @override
+  Future<bool> permissionGranted() async {
+    checked = true;
+    return granted;
+  }
+
+  @override
+  Future<bool> requestPermission() async {
+    asked = true;
+    return granted;
+  }
+
+  @override
+  Future<void> schedule(ScheduledNotice notice) async {}
+
+  @override
+  Future<void> cancel(Iterable<int> ids) async {}
 }
 
 void main() {
@@ -839,5 +868,57 @@ void main() {
       findsNothing,
       reason: 'a signed-in player does not need telling to sign in',
     );
+  });
+
+  group('the notifications toggle', () {
+    /// A phone that refuses to deliver.
+    Future<void> pumpWithNotices(
+      WidgetTester tester, {
+      required bool granted,
+      bool enabled = true,
+    }) async {
+      notices = _Notices(granted);
+      addTearDown(resetNotices);
+      await pumpSettings(
+        tester,
+        SettingsTab.general,
+        mutate: (s) => (s['settings'] as Map<String, dynamic>)
+            ['notificationsEnabled'] = enabled,
+      );
+      // The check is a future; the note lands on the frame after it answers.
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('SAYS SO WHEN THE PHONE IS REFUSING', (tester) async {
+      // A toggle that is on while the OS refuses is a broken feature and
+      // indistinguishable from one. `settings.notifications_blocked` shipped in
+      // ten languages with no caller.
+      await pumpWithNotices(tester, granted: false);
+      expect(find.text(t('settings.notifications_blocked')), findsOneWidget);
+    });
+
+    testWidgets('and says nothing when it is not', (tester) async {
+      await pumpWithNotices(tester, granted: true);
+      expect(find.text(t('settings.notifications_blocked')), findsNothing);
+    });
+
+    testWidgets('A WARNING ABOUT A FEATURE YOU TURNED OFF IS NOISE', (
+      tester,
+    ) async {
+      await pumpWithNotices(tester, granted: false, enabled: false);
+      expect(find.text(t('settings.notifications_blocked')), findsNothing);
+    });
+
+    testWidgets('and it never ASKS — that would prompt on opening Settings', (
+      tester,
+    ) async {
+      final backend = _Notices(false);
+      notices = backend;
+      addTearDown(resetNotices);
+      await pumpSettings(tester, SettingsTab.general);
+      await tester.pumpAndSettle();
+      expect(backend.asked, isFalse);
+      expect(backend.checked, isTrue);
+    });
   });
 }

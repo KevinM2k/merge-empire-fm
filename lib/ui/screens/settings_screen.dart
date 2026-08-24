@@ -29,6 +29,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/services/ad_consent.dart';
+import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/services/leaderboard_service.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
@@ -40,6 +41,17 @@ import 'package:merge_empire_fc/ui/screens/settings_audio_row.dart';
 import 'package:merge_empire_fc/ui/screens/settings/pyramid_editor_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+
+/// Is the OS refusing to deliver, while the player thinks it is not?
+///
+/// **Asked WITHOUT requesting**, which is the whole point: requesting would put
+/// a system prompt in front of somebody who merely opened Settings. False on
+/// any platform that cannot answer, because a warning nobody can act on is
+/// worse than no warning.
+final noticesBlockedProvider = FutureProvider<bool>((ref) async {
+  if (!ref.watch(settingPick<bool>('notificationsEnabled', true))) return false;
+  return !await notices.permissionGranted();
+});
 
 enum SettingsTab { general, audio, match, account }
 
@@ -152,10 +164,21 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           icon: 'sun',
           label: t('settings.lightMode'),
         ),
+        // **A TOGGLE THAT IS ON WHILE THE PHONE REFUSES IS A BROKEN FEATURE**,
+        // and indistinguishable from one. `settings.notifications_blocked`
+        // ships in ten languages and had no caller, so the switch read as
+        // working while nothing could ever be delivered — which is the exact
+        // line the JS gives its own hidden note to.
+        //
+        // Only while the toggle is ON: a warning about a feature the player has
+        // turned off is noise.
         SettingSwitch(
           settingKey: 'notificationsEnabled',
           icon: 'bell',
           label: t('settings.notifications'),
+          note: ref.watch(noticesBlockedProvider).valueOrNull == true
+              ? t('settings.notifications_blocked')
+              : null,
         ),
       ],
     ),
