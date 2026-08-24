@@ -455,7 +455,10 @@ All seven shelves are present and in the JS's own order.
       be shipping a palette nothing can pick. Every colour a division wore is
       unchanged.
 - [x] Boot Room
-- [ ] Training Drills, Keepy Uppys, Through Ball, Whack, Teamwork
+- [x] Training Drills, Keepy Uppys, Through Ball, Whack, Teamwork — all five
+      built, reachable from the training sheet, and each with its own test file.
+      Whack is `pitch_invaders_screen.dart`, which is why a search for the JS's
+      name finds nothing.
 
 ---
 
@@ -467,7 +470,26 @@ The same treatment as the shop, against `src/ui/styles/`:
 - [ ] Players grid — `grid.css` (872 lines)
 - [ ] Match page — `match-page.css` (1,041 lines)
 - [ ] Home — `league-scene.css` (4,444 lines, the biggest by far)
-- [ ] HUD — `hud.css`
+- [~] HUD — `hud.css`. **Diffed class by class**, and the port carries every
+      chip: the crest, the three resources in one trough, the two `+` buttons,
+      the cog outside the trough.
+      **One thing was genuinely missing: `.hud-boosts`** — the active-boost
+      pills in the middle of the bar. A player with VIP running or an idle
+      double going had nothing on the HUD saying so, and the pills need no copy
+      at all, which is why they could be ported: the JS writes "×2" and
+      "🌟 VIP" with a unit letter after a number and there is not a `t()` in the
+      whole function.
+      **Only the boosts that affect IDLE INCOME**, which is the JS's own rule
+      and its own reason: the pills sit beside the income rate, so what belongs
+      there is what changes it. A match-only boost goes in the pre-match prize
+      card and the income breakdown instead.
+      **The time is the truth and the flag is a hint** — nothing clears
+      `incomeBoostActive` on the tick, so an expired boost still carries it.
+      Both counts round UP and floor at one: forty seconds left is not "0m",
+      which reads as expired.
+      **Deliberately NOT ported**: `.hud-prestige`, because the port moved
+      prestige to the dock (see `home_dock.dart`), and `.hud-avatar`, because
+      the crest here IS the badge button.
 - [ ] The glass treatment — `glass.css` (983 lines), which is app-wide
 
 ---

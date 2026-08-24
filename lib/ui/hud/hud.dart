@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/hud/hud_boosts.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/coin_flight.dart'
     show coinChipKey, coinRewardProvider;
@@ -212,6 +213,12 @@ class Hud extends ConsumerWidget {
             ),
             onPressed: () => showTrophyRoomSheet(context),
           ),
+          // **BETWEEN THE CREST AND THE CLUSTER, which is where the JS puts
+          // them** — beside the income rate, because what belongs next to a
+          // rate is what changes it. Only the boosts that affect IDLE income
+          // for that reason; a match-only one goes in the pre-match card and
+          // the income breakdown instead.
+          const HudBoosts(),
           // `.hud-chips { margin-left: auto }` — the resources are a group on the
           // RIGHT and the crest is on the left, which is the JS's own layout. The
           // port had them all packed against the badge with the empty half of the
