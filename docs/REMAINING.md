@@ -2142,12 +2142,27 @@ section. Nothing on the list below is blocked for want of art any more.
       it. Confirmed now that the engine exists: `AudioPlayer.setVolume` is
       `AVAudioPlayer.volume` on iOS and it is writable, so the sliders are shown
       everywhere.
-- [ ] **Prefer the Kenney packs, Flame or Rive over emoji** for artwork —
+- [~] **Prefer the Kenney packs, Flame or Rive over emoji** for artwork —
       `kenneynl/` holds game-icons, sports, emotes, modular-characters,
       background-elements and smoke-particles, all CC0. Settings is done: every
       row takes a glyph from the app's own line-art set. The two Start Over rows
       keep their emoji ON PURPOSE — a ball and a skull are what tell those two
       apart at a glance and neither is in the set.
+      **The Club screen is done too, and the sweep found a worse bug than an
+      emoji.** `'★ MAX'` on the tier badge was HARDCODED ENGLISH on a screen
+      that ships in ten languages — `club.maxed` has been the shipped string all
+      along. The build-and-invest button, which is the most-pressed control on
+      that screen, wore a 💰 where every other priced control in the app wears
+      `GameIcon('coin')`; it takes the button's `leading` slot now, and so gets
+      the button's ink for free.
+      **`club.need_more` keeps its emoji and has to**: its `{coin}` sits mid
+      sentence — "Need {coin} {amount} more" — and moves with the language, so
+      there is no position on the button for a widget to take. A `String` cannot
+      carry one, which is the same limit `t()` states about `<strong>`.
+      **Still emoji, and each wants its own look**: the mini-games' subject
+      glyphs (a goal, a glove, a dog, a steward), the quest gift, the trophy on
+      the fixtures header. Several are the "sixteen unrelated subjects used once
+      each" case `coach_card.dart` already argues is not worth an icon set.
 - [x] **The JS's button treatments are `StoreButton`, and the rule is the JS's
       own sentence: ONE BUTTON, FOUR COLOURS, and the colour always answers
       "what does this cost me?"** Green real money, blue gems, gold coins, yellow

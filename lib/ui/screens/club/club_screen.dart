@@ -508,6 +508,7 @@ class _AssetPanel extends ConsumerWidget {
               tone: tile.maxed ? StoreTone.neutral : StoreTone.coin,
               small: true,
               label: _actionLabel(),
+              leading: _actionGlyph(),
               onTap: !buildable ? null : () => _buy(context, ref, game),
               // **HOLD TO KEEP INVESTING.** Filling tier one takes ten taps and
               // tier seven takes forty, so the JS lets the button repeat — and
@@ -535,7 +536,7 @@ class _AssetPanel extends ConsumerWidget {
   /// "you need this much more". The other two refusals — no players yet, top of
   /// the ladder — are their own copy.
   String _actionLabel() => switch (tile.blocked) {
-    _ when tile.maxed => '★ ${t('club.maxed')}',
+    _ when tile.maxed => t('club.maxed'),
     'needs_player' => t('club.sign_player_first'),
     'insufficient_coins' when tile.shortBy > 0 => t('club.need_more', {
       'coin': '💰',
@@ -545,8 +546,27 @@ class _AssetPanel extends ConsumerWidget {
     // happen; a dead button with a price on it and no reason should not either.
     null || 'insufficient_coins' =>
       '${tile.owned ? t('club.invest') : t('club.build')} '
-          '💰 ${formatCoins(tile.nextCost)}',
+          '${formatCoins(tile.nextCost)}',
     _ => t('settings.comingSoon'),
+  };
+
+  /// The glyph before the label, from the app's own line art.
+  ///
+  /// **A price gets the coin and a maxed facility gets the star**, and both used
+  /// to be emoji inside the label string — the one control on this screen a
+  /// player presses most, wearing a 💰 where every other priced control in the
+  /// app wears `GameIcon('coin')`.
+  ///
+  /// **`club.need_more` keeps its emoji and has to.** Its `{coin}` sits mid
+  /// sentence — "Need {coin} {amount} more" — and moves with the language, so
+  /// there is no position on the button for a widget to take. A `String` cannot
+  /// carry one, which is the same limit `t()` states about `<strong>`.
+  Widget? _actionGlyph() => switch (tile.blocked) {
+    _ when tile.maxed => const GameIcon('star', size: 12),
+    'needs_player' => null,
+    'insufficient_coins' when tile.shortBy > 0 => null,
+    null || 'insufficient_coins' => const GameIcon('coin', size: 12),
+    _ => null,
   };
 }
 
@@ -632,18 +652,38 @@ class _Art extends StatelessWidget {
                       color: tile.maxed ? const Color(0xFF00C8FF) : ink,
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                      tile.maxed ? '★ MAX' : t('club.tier_n', {'n': tile.tier}),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        height: 1.4,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(color: Color(0x66000000), blurRadius: 2),
+                    // **"★ MAX" WAS HARDCODED ENGLISH**, which is the worse
+                    // half of what it looked like: an emoji star beside a word
+                    // no catalogue could translate, on a badge that ships in
+                    // ten languages. `club.maxed` is the shipped string and the
+                    // star is in the app's own set.
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (tile.maxed) ...[
+                          const GameIcon(
+                            'star',
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 3),
                         ],
-                      ),
+                        Text(
+                          tile.maxed
+                              ? t('club.maxed')
+                              : t('club.tier_n', {'n': tile.tier}),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            height: 1.4,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.3,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(color: Color(0x66000000), blurRadius: 2),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : Container(

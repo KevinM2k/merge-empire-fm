@@ -31,9 +31,11 @@ Future<ProviderContainer> pumpClub(
   WidgetTester tester, {
   int coins = 0,
   int players = 1,
+  void Function(Map<String, dynamic> state)? mutate,
 }) async {
   final state = createDefaultState();
   (state['resources'] as Map<String, dynamic>)['fanCoins'] = coins;
+  mutate?.call(state);
   final cells =
       (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
   for (var i = 0; i < players; i++) {
@@ -604,5 +606,43 @@ void main() {
           .tone,
       StoreTone.coin,
     );
+  });
+
+  group('the app\'s own art, not emoji', () {
+    testWidgets('THE MAXED BADGE WAS HARDCODED ENGLISH', (tester) async {
+      // An emoji star beside a word no catalogue could translate, on a badge
+      // that ships in ten languages. `club.maxed` is the shipped string.
+      await pumpClub(tester, mutate: (s) {
+        final assets = s['clubAssets'] as Map<String, dynamic>;
+        assets['STADIUM'] = <String, dynamic>{
+          'owned': true,
+          'tier': maxAssetTier,
+          'tapCount': 0,
+        };
+      });
+      expect(find.text(t('club.maxed')), findsWidgets);
+      expect(find.textContaining('MAX'), findsNothing);
+      expect(find.textContaining('★'), findsNothing);
+    });
+
+    testWidgets('and the buy button wears the set\'s coin', (tester) async {
+      // Every other priced control in the app wears `GameIcon('coin')`; this
+      // one — the most-pressed control on the screen — wore a 💰.
+      await pumpClub(tester, coins: 1000000);
+      expect(find.textContaining('💰'), findsNothing);
+      expect(find.text(t('club.build')), findsNothing, reason: 'it has a price');
+      expect(find.textContaining(t('club.build')), findsWidgets);
+    });
+
+    testWidgets('BUT `club.need_more` KEEPS ITS EMOJI, and has to', (
+      tester,
+    ) async {
+      // Its `{coin}` sits mid sentence — "Need {coin} {amount} more" — and
+      // moves with the language, so there is no position on the button for a
+      // widget to take. A `String` cannot carry one, which is the same limit
+      // `t()` states about `<strong>`.
+      await pumpClub(tester, coins: 0);
+      expect(find.textContaining('💰'), findsWidgets);
+    });
   });
 }
