@@ -64,6 +64,16 @@ gaps are in this list.
       two copies of "what is this tier called" is how one screen ends up
       translated and the other does not.
 - [ ] Lazy card mounting — only if a profile run asks for it
+- [x] **A COUNT WAS ANNOUNCING MERGES THAT NEVER HAPPENED.** `mergeablePairs`
+      answers "what would Merge All eliminate" by running a sweep against a COPY
+      of the cells — "asking the question must not answer it" — and the copy
+      protected the grid but not the BUS. Every probe merge fired
+      `merge:complete`, whose listener re-syncs the lineup and writes to the
+      save, so the number on the button wrote to the save on every rebuild.
+      It surfaced as a CRASH rather than as drift, which is the only lucky part:
+      the count is read by a provider, so the write bumped the save revision
+      from inside another provider's build and Riverpod refuses that outright.
+      `announce: false` is the probe flag; a real sweep still emits.
 
 ## Squad — `screens/SquadScreen.js`
 
@@ -289,7 +299,26 @@ All seven shelves are present and in the JS's own order.
 - [x] The prize, the bracket, the fitness charge and the match quests, all at
       full time
 - [x] The sponsor a win can drop, offered rather than applied — `acceptCupSponsorDrop`
-- [ ] The shootout REVEAL (`components/penaltyReveal.js`), kick by kick
+- [~] The shootout, kick by kick. **The kicks now reach the screen and are
+      drawn; the JS's animated step-through is not ported, deliberately.**
+      The engine has always simulated a shootout kick by kick — sudden death and
+      all — and `cup_launcher.dart` carried only its three totals, so a drawn
+      tie arrived as a bare one-goal defeat the player never saw decided. That
+      is `penaltyReveal.js`'s own warning about this field, word for word: "a
+      2-2 tie surfacing as lost 2-3 with no penalties shown".
+      **IT IS DRAWN, NOT WRITTEN, and that is a constraint rather than a
+      style.** The JS's reveal is hardcoded English — "It's going to
+      penalties!", "We go through!", "Out on penalties" — with no `t()` key
+      behind any of it, and the catalogues here are generated from that same
+      repo, so there is no translated copy to port and none can be minted. Two
+      totals over two rows of ticks and crosses say the same thing in ten
+      languages and say the part that matters: which kicks went in.
+      **The step-through went with the copy.** That machinery exists to build
+      suspense and the suspense was in the words; marks appearing one at a time
+      saying nothing would be a progress bar. Worth revisiting if `en.js` ever
+      gains the lines.
+      **And it turned up a real bug on the way**, recorded under Players above:
+      counting the mergeable pairs was announcing merges that never happened.
 - [x] The cup-win celebration, the round-win card and the knocked-out card.
       **Twenty-odd `cup.round_win.*`, `cup.knocked_out.*` and `cup.banner.*`
       strings shipped in ten languages with no caller** — the whole of the cup's

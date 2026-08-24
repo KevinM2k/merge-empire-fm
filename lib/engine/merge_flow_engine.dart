@@ -216,13 +216,22 @@ int mergeAllCost(Map<String, dynamic>? state) {
 
 /// How many pairs a sweep would actually eliminate.
 ///
-/// Run against a COPY: asking the question must not answer it.
+/// **Run against a COPY, and SILENTLY: asking the question must not answer it.**
+/// The copy was there from the start and protected the grid; what it did not
+/// protect was the BUS. Every probe merge fired `merge:complete`, whose
+/// listener re-syncs the lineup and writes to the save — so counting the pairs
+/// behind a "Merge All (3)" button announced three merges that never happened,
+/// on every rebuild of the button.
 int mergeablePairs(Map<String, dynamic>? state, {int? maxTier}) {
   final probe = [
     for (final c in _cells(state))
       if (c is Map<String, dynamic>) <String, dynamic>{...c} else c,
   ];
-  return mergeAll(probe, maxTier: maxTier ?? _divisionTier(state));
+  return mergeAll(
+    probe,
+    maxTier: maxTier ?? _divisionTier(state),
+    announce: false,
+  );
 }
 
 int _divisionTier(Map<String, dynamic>? state) {

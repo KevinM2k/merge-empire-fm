@@ -152,12 +152,25 @@ String? loanBlock(CardInstance c) {
 /// Attempts to merge or move a card between two grid slots, mutating [cells].
 ///
 /// [maxTier] caps merges by division.
+/// **`announce: false` IS A PROBE, and it exists because a question was
+/// answering itself.** `mergeablePairs` counts what a sweep would eliminate by
+/// running one against a COPY of the cells — "asking the question must not
+/// answer it", as it says — and the copy protects the grid but not the BUS.
+/// Every probe merge fired `merge:complete`, whose listener re-syncs the lineup
+/// and writes to the save, so counting the pairs behind a "Merge All (3)"
+/// button announced three merges that never happened.
+///
+/// It surfaced as a crash rather than as drift, which is the only lucky part:
+/// the count is read by a PROVIDER, so the save it wrote to bumped the save
+/// revision from inside another provider's build, and Riverpod refuses that
+/// outright.
 MergeResult attemptMerge(
   int sourceIdx,
   int targetIdx,
   List<dynamic> cells, {
   Map<String, dynamic>? stats,
   int? maxTier,
+  bool announce = true,
 }) {
   if (sourceIdx == targetIdx) {
     return const MergeResult(ok: false, reason: 'same_cell');
@@ -245,10 +258,12 @@ MergeResult attemptMerge(
     }
   }
 
-  emit('merge:complete', {
-    'newCard': newCard,
-    'newDef': getDefinition(def.mergesInto),
-  });
+  if (announce) {
+    emit('merge:complete', {
+      'newCard': newCard,
+      'newDef': getDefinition(def.mergesInto),
+    });
+  }
   return MergeResult(ok: true, action: MergeAction.merge, result: newCard);
 }
 
@@ -308,6 +323,9 @@ int mergeAll(
   Map<String, dynamic>? stats,
   int? maxTier,
   Set<String>? mergedIds,
+
+  /// False for a COUNT rather than a sweep — see [attemptMerge].
+  bool announce = true,
 }) {
   var totalMerges = 0;
   var keepGoing = true;
@@ -350,6 +368,7 @@ int mergeAll(
           cells,
           stats: stats,
           maxTier: maxTier,
+          announce: announce,
         );
         if (result.ok && result.action == MergeAction.merge) {
           totalMerges++;

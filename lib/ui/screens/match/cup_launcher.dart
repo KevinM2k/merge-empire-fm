@@ -138,12 +138,26 @@ CupTie? beginCupRound(Map<String, dynamic> state) {
     // Stored as a plain map, not the record: this result reaches the screen and
     // the quest engine, and a record on the way through a `Map<String, dynamic>`
     // is the kind of thing that only fails when it is serialised.
+    // **THE KICKS TRAVEL WITH IT.** The engine simulates a shootout kick by
+    // kick — `simulatePenaltyShootout` builds the whole list, sudden death and
+    // all — and only the three totals were carried through, so a tie decided on
+    // penalties reached the screen as a one-goal defeat the player never saw
+    // decided. That is the JS's own warning about this exact field: "a 2-2 tie
+    // surfacing as lost 2-3 with no penalties shown".
     'penaltyShootout': shootout == null
         ? null
         : <String, dynamic>{
             'playerWins': shootout.playerWins,
             'homeScore': shootout.homeScore,
             'awayScore': shootout.awayScore,
+            'kicks': [
+              for (final kick in shootout.kicks)
+                <String, dynamic>{
+                  'team': kick.team,
+                  'scored': kick.scored,
+                  'suddenDeath': kick.suddenDeath,
+                },
+            ],
           },
     'events': [
       for (final e in generateMatchEvents(

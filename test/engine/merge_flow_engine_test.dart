@@ -449,4 +449,56 @@ void main() {
     });
   });
 
+
+  group('counting the pairs', () {
+    test('ASKING THE QUESTION DOES NOT ANSWER IT — on the bus either', () {
+      // The copy was there from the start and protected the grid; what it did
+      // not protect was the BUS. Every probe merge fired `merge:complete`,
+      // whose listener re-syncs the lineup and writes to the save — so counting
+      // the pairs behind a "Merge All (3)" button announced three merges that
+      // never happened, on every rebuild of the button.
+      //
+      // It surfaced as a crash rather than as drift, which is the only lucky
+      // part: the count is read by a PROVIDER, so the write bumped the save
+      // revision from inside another provider's build and Riverpod refused.
+      final heard = <Object?>[];
+      void listener(Object? args) => heard.add(args);
+      on('merge:complete', listener);
+      addTearDown(() => off('merge:complete', listener));
+
+      final state = createDefaultState();
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      for (var i = 0; i < 4; i++) {
+        cells[i] = <String, dynamic>{
+          'definitionId': 'player_t1_mid',
+          'instanceId': 'c$i',
+          'variant': 0,
+        };
+      }
+
+      final pairs = mergeablePairs(state);
+      expect(pairs, greaterThan(0), reason: 'nothing to count');
+      expect(heard, isEmpty, reason: 'the count announced a merge');
+      // And the grid is untouched, which is what the copy was always for.
+      expect(cells.where((c) => c != null), hasLength(4));
+    });
+
+    test('a REAL sweep still announces every merge it makes', () {
+      final heard = <Object?>[];
+      void listener(Object? args) => heard.add(args);
+      on('merge:complete', listener);
+      addTearDown(() => off('merge:complete', listener));
+
+      final cells = <dynamic>[
+        for (var i = 0; i < 2; i++)
+          <String, dynamic>{
+            'definitionId': 'player_t1_mid',
+            'instanceId': 'c$i',
+            'variant': 0,
+          },
+      ];
+      expect(mergeAll(cells, maxTier: 9), 1);
+      expect(heard, hasLength(1));
+    });
+  });
 }

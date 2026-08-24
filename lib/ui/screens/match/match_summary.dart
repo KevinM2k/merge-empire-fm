@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
@@ -252,6 +253,18 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // whatever height each happened to want and the pair read
                     // as two things dropped next to each other. Reported as the
                     // dugout cam and the quests wanting to match. `stretch`
+                    // **A TIE DECIDED ON PENALTIES SAYS SO.** Above the
+                    // reaction, because it is not a reaction — it is the rest
+                    // of the result, and without it the scoreline above is a
+                    // one-goal defeat the player never saw decided.
+                    if (shootoutFrom(result) case final penalties?) ...[
+                      ShootoutRow(
+                        ours: penalties.ours,
+                        theirs: penalties.theirs,
+                        won: penalties.won,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     // inside an `IntrinsicHeight`: the taller of the two sets
                     // the row and the other fills it.
                     IntrinsicHeight(
