@@ -21,6 +21,10 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    // Firebase, for analytics and Crashlytics. Same two the shipped app's own
+    // `android/build.gradle` carries — see `../merge-empire-fc`.
+    id("com.google.gms.google-services") version "4.4.0" apply false
+    id("com.google.firebase.crashlytics") version "3.0.2" apply false
 }
 
 include(":app")

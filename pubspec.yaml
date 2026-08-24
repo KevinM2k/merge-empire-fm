@@ -59,6 +59,14 @@ dependencies:
   sign_in_with_apple: ^7.0.1
   crypto: ^3.0.7 # the SHA-256 Apple's nonce is hashed with
   in_app_purchase: ^3.3.0 # engine/iapClient.js — cordova-plugin-purchase
+  # utils/analytics.js — @capacitor-firebase/analytics and /crashlytics. The one
+  # place the port DOES take the Firebase SDK: a crash reporter has to be native
+  # (it catches the process dying), and analytics has no REST route without a
+  # console-generated Measurement Protocol secret. Firestore and Auth still go
+  # over plain HTTPS — see data/firebase_config.dart.
+  firebase_core: ^4.13.0
+  firebase_analytics: ^12.4.6
+  firebase_crashlytics: ^5.2.7
 
 dev_dependencies:
   flutter_test:

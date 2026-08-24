@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// The three screens that present over a tab rather than replacing it.
@@ -68,6 +69,11 @@ class ShellController extends Notifier<ShellState> {
   /// [noSlide] is for a move that should arrive already in place — a deep link,
   /// or anything that scrolls the incoming screen the moment it opens.
   void goTab(ShellTab tab, {bool noSlide = false}) {
+    // **THE SCREEN DIMENSION IS SENT BY HAND, or it is empty.** A Flutter app
+    // is one Activity, so the automatic screen name is `(not set)` for every
+    // session — and that dimension is the one that says where people are when
+    // they stop playing. The JS says the same thing about its WebView.
+    if (state.tab != tab) logScreen(tab.name);
     state = ShellState(tab: tab, noSlide: noSlide);
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
@@ -15,6 +17,7 @@ import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
+import 'package:merge_empire_fc/services/analytics_service.dart';
 import 'package:merge_empire_fc/services/prefs_save_store.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 
@@ -28,6 +31,12 @@ Future<void> main() async {
   // The store is read into memory before the first frame: everything
   // downstream of it is synchronous, and a save layer that answers null while
   // it warms up would boot the player onto a default state.
+  // **Analytics and the crash reporter go up FIRST**, before anything that
+  // could fail: their whole value is catching what happens next, and a boot
+  // that crashes before the reporter is installed is the one crash nobody ever
+  // sees. Not awaited beyond its own init — every step inside is guarded, and a
+  // build with no Firebase leaves the default sink, which drops.
+  unawaited(startAnalytics());
   final store = await PrefsSaveStore.open();
   // **The ad SDK, after consent and before the first frame.** `startAds` asks
   // for consent first — serving before that answer exists is what the gate is

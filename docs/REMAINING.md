@@ -7965,9 +7965,39 @@ of buttons that error.
       a workaround. Same call the coach's ref-counted suppression got.
       **Still open and moved to its own row below:** the analytics sink and
       Crashlytics, which are plugins rather than this file.
-- [ ] Firebase Analytics and Crashlytics — the SINK, not the config. Needs the
-      plugins and a console; nothing in `firebase.js` beyond `getFirebaseApp`
-      speaks to either, so there is no JS half left to port for them.
+- [x] Firebase Analytics and Crashlytics — the SINK. **DONE**, in
+      `services/analytics_service.dart`, and it is **the one place the port
+      takes the Firebase SDK** — which is worth stating plainly given that
+      `data/firebase_config.dart` argues at length for not taking it anywhere
+      else. Firestore and Auth go over plain HTTPS because the SDK's transport
+      is the thing that fails in the environment the JS ships in. Neither of
+      these two has that option:
+      - **A crash reporter has to be native.** Its whole job is to survive the
+        process dying — an OOM kill, a renderer crash — and nothing written in
+        Dart can report its own SIGKILL.
+      - **Analytics has no REST route from here.** The Measurement Protocol
+        needs an api_secret generated in the console, which is in neither repo,
+        and inventing one is not a thing a port can do.
+      `google-services.json` and `GoogleService-Info.plist` are the shipped
+      app's own, copied across, and the two gradle plugins are the versions from
+      its `android/build.gradle` — crashlytics applied AFTER google-services,
+      which its own docs require.
+      **The rules that decide what an event may CONTAIN are pure and tested**
+      and live in `util/analytics.dart`: Firebase takes a number or a string of
+      at most a hundred characters and silently drops anything else, which is
+      the worst way for an event to be wrong, so the sanitising happens at the
+      boundary rather than at eighty call sites. Booleans become 1 and 0 because
+      that is what the JS sends and the dashboards are built on it, and
+      `bucketCoins` is the JS's own six bands.
+      **Two things that would have been quietly missing.** `FlutterError.onError`
+      and `PlatformDispatcher.onError` are the errors nobody wrote a `catch`
+      for, which is exactly the set worth reporting — and `screen_view` has to
+      be sent BY HAND, because a Flutter app is one Activity and the automatic
+      screen name is `(not set)` for every session. That dimension is the one
+      that says where people are when they stop playing. `goTab` sends it.
+      **Dev builds send nothing**, which is the JS's own first line: production
+      dashboards stay clean and a developer playing for an afternoon does not
+      look like a very engaged user.
 - [x] `authService` (662) — **the portable half is PORTED.** The rest of that
       file is Firebase Auth's own lifecycle, and this build has no Firebase SDK:
       the leaderboard and cloud save reach Firestore over plain HTTPS and a

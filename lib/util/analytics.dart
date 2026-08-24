@@ -32,8 +32,72 @@ AnalyticsSink setAnalyticsSink(AnalyticsSink? sink) {
 /// game action that merely happened to be worth counting.
 void logAppEvent(String name, [Map<String, Object?> params = const {}]) {
   try {
-    _sink(name, params);
+    _sink(name, sanitiseAnalyticsParams(params));
   } catch (_) {
     // Deliberately swallowed — see above.
   }
+}
+
+/// **Firebase's own limits, applied at the boundary rather than at the call
+/// sites.** A parameter value may be a number or a string of at most a hundred
+/// characters; anything else is dropped on the floor by the SDK without saying
+/// so, which is the worst way for an event to be wrong. Booleans become 1 and
+/// 0 because that is what the JS sends and the dashboards are built on it.
+Map<String, Object?> sanitiseAnalyticsParams(Map<String, Object?> params) => {
+  for (final entry in params.entries) entry.key: _sanitise(entry.value),
+};
+
+Object _sanitise(Object? value) {
+  if (value is num && value.isFinite) return value;
+  if (value is bool) return value ? 1 : 0;
+  final text = '${value ?? ''}';
+  return text.length <= 100 ? text : text.substring(0, 100);
+}
+
+/// **Coins bucketed into bands, so a report does not explode with
+/// cardinality.** The JS's own six, and its own reasoning: a raw figure is
+/// useless as a dimension because almost every value is unique.
+String bucketCoins(num n) {
+  if (n < 100) return '<100';
+  if (n < 1000) return '100-1k';
+  if (n < 10000) return '1k-10k';
+  if (n < 100000) return '10k-100k';
+  if (n < 1000000) return '100k-1M';
+  return '1M+';
+}
+
+/// Something went wrong. [fatal] is a crash rather than a handled fault.
+///
+/// **It is an EVENT as well as a crash report**, which is the JS's arrangement:
+/// the crash reporter catches the process dying and the event is what shows up
+/// beside the rest of the funnel, so a spike in errors is visible in the same
+/// place as the behaviour that caused it.
+void logError(Object? message, {bool fatal = false}) {
+  logAppEvent(fatal ? 'app_crash' : 'app_error', {
+    'description': '$message',
+    'fatal': fatal,
+  });
+  _errors?.call(message, fatal);
+}
+
+/// Where a crash report goes. Null drops them, which is what a test wants.
+void Function(Object? message, bool fatal)? _errors;
+
+/// Send crash reports to [sink]. Returns the one being replaced.
+void Function(Object?, bool)? setCrashSink(
+  void Function(Object?, bool)? sink,
+) {
+  final previous = _errors;
+  _errors = sink;
+  return previous;
+}
+
+/// Which screen the player is on.
+///
+/// **Native builds report `(not set)` without this**, because the whole app is
+/// one Activity — so the screen dimension, which is the one that says where
+/// people are when they leave, is empty unless it is sent by hand.
+void logScreen(String? screen) {
+  if (screen == null || screen.isEmpty) return;
+  logAppEvent('screen_view', {'screen_name': screen});
 }

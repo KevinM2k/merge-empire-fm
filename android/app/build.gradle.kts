@@ -3,6 +3,12 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Reads `google-services.json`. Without it the native Firebase SDKs have no
+    // project to talk to and analytics is silently empty — which is the failure
+    // the JS's own comment records, on the other platform.
+    id("com.google.gms.google-services")
+    // AFTER google-services, which is the order its own docs require.
+    id("com.google.firebase.crashlytics")
 }
 
 android {
