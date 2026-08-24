@@ -125,65 +125,53 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// wait, it is the difference between a sheet that slides and a sheet that
   /// jumps.
   ///
-  /// **AND THEY ARRIVE A ROW AT A TIME, because one frame of sixty is still
-  /// four dropped ones.** Reported as still laggy after the deferral above, and
-  /// the deferral is why: it moved the whole 60ms off the opening frame and
-  /// onto the next one, which is exactly the frames the sheet is sliding
-  /// through. A row of four rigs is ~12ms — inside the budget — so the grid
-  /// fills downward over five frames while the sheet travels, and the rows
-  /// arrive above the fold first.
+  /// **AND THEY ARRIVE ONE CHIP AT A TIME.** Reported slow twice more after the
+  /// deferral, and the third pass measured it instead of guessing again —
+  /// `customise_timeline_test.dart` prints the frames. A row of four was the
+  /// unit, and a row is not 12ms: it is 39ms on the first and 16ms on the
+  /// second, which is two and a half frames and one, so wherever the fill was
+  /// put it dropped frames there. Moving it behind the route's animation just
+  /// moved the stutter to the moment the sheet LANDS, which is the worst place
+  /// for it — the sheet stops, then judders.
   ///
-  /// It stops the moment every row is up, so nothing schedules callbacks for a
+  /// One chip is inside the budget, so the unit is the chip. Twenty of them
+  /// fill over twenty frames, the slide is fifteen of those, and the frames it
+  /// travels through were measured costing 1.5ms out of 16 — headroom that was
+  /// going to waste while the work waited for the end.
+  ///
+  /// It stops the moment every chip is up, so nothing schedules callbacks for a
   /// sheet that is finished.
-  int _rowsReady = 0;
+  int _chipsReady = 0;
 
-  /// Rows revealed per frame. One, because the point is that a frame's work
+  /// Chips revealed per frame. One, because the point is that a frame's work
   /// fits in a frame.
-  static const int _rowsPerFrame = 1;
 
   /// Whether the fill has been started. Once only, however many times
   /// dependencies change.
   bool _filling = false;
 
-  /// **AND IT DOES NOT START UNTIL THE SHEET HAS ARRIVED.**
+  /// **AND IT STARTS AT ONCE, rather than waiting for the sheet to land.**
   ///
-  /// Reported as still slow after the row-a-frame fill, and the fill is why: a
-  /// row of rigs is twelve milliseconds, which fits in a frame — but the frames
-  /// it was fitting into are the ones the sheet is TRAVELLING through, and a
-  /// slide that drops even one frame a step reads as the thing opening slowly.
-  /// The route's own animation says when it has stopped moving; the grid fills
-  /// from there, into frames nothing else is using.
+  /// Waiting was the previous pass's answer to a row costing more than a frame,
+  /// and it is the wrong one: a chip fits in a frame, and the sliding frames
+  /// are the emptiest ones there are.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_filling) return;
-    final animation = ModalRoute.of(context)?.animation;
-    if (animation == null || animation.isCompleted) {
-      _filling = true;
-      _fillNextRow();
-      return;
-    }
-    void onStatus(AnimationStatus status) {
-      if (status != AnimationStatus.completed) return;
-      animation.removeStatusListener(onStatus);
-      if (!mounted || _filling) return;
-      _filling = true;
-      _fillNextRow();
-    }
-
-    animation.addStatusListener(onStatus);
+    _filling = true;
+    _fillNextChip();
   }
 
   /// Reset when the axis changes: a new axis is a new grid of rigs, and
   /// building twenty of those in the frame a tab is tapped is the same cost
   /// arriving through a different door.
-  void _fillNextRow() {
+  void _fillNextChip() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final rows = ((_idsFor(lookAxes[_axis].kind).length + 3) ~/ 4);
-      if (_rowsReady >= rows) return;
-      setState(() => _rowsReady += _rowsPerFrame);
-      _fillNextRow();
+      if (_chipsReady >= _idsFor(lookAxes[_axis].kind).length) return;
+      setState(() => _chipsReady++);
+      _fillNextChip();
     });
   }
 
@@ -306,21 +294,21 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
             onPick: (i) {
               setState(() {
                 _axis = i;
-                _rowsReady = 1;
+                _chipsReady = 0;
               });
-              _fillNextRow();
+              _fillNextChip();
             },
           ),
         ),
         const SizedBox(height: 8),
         Expanded(
-          // Empty for one frame, then a row a frame. See [_rowsReady].
-          child: _rowsReady == 0
+          // Empty for one frame, then a chip a frame. See [_chipsReady].
+          child: _chipsReady == 0
               ? const SizedBox.shrink()
               : _Grid(
                   axis: axis,
                   look: look,
-                  rows: _rowsReady,
+                  ready: _chipsReady,
                   state: _save,
                   onPick: (id) => _set(
                     axis.field,
@@ -565,7 +553,7 @@ class _Grid extends StatelessWidget {
   const _Grid({
     required this.axis,
     required this.look,
-    required this.rows,
+    required this.ready,
     required this.state,
     required this.onPick,
   });
@@ -573,10 +561,10 @@ class _Grid extends StatelessWidget {
   final LookAxis axis;
   final ManagerLook? look;
 
-  /// How many rows are allowed on screen yet — see `_rowsReady`. The grid keeps
-  /// its full extent so the scrollbar and the scroll position do not jump as
-  /// the rows arrive; what this caps is how many CHIPS are built.
-  final int rows;
+  /// How many chips are allowed on screen yet — see `_chipsReady`. The grid
+  /// keeps its full extent so the scrollbar and the scroll position do not jump
+  /// as they arrive; what this caps is how many are BUILT.
+  final int ready;
   final Map<String, dynamic>? state;
   final void Function(String id) onPick;
 
@@ -604,7 +592,7 @@ class _Grid extends StatelessWidget {
       itemCount: ids.length,
       itemBuilder: (context, i) {
         // Still filling. An empty box costs nothing and holds the row open.
-        if (i >= rows * 4) return const SizedBox.shrink();
+        if (i >= ready) return const SizedBox.shrink();
         final id = ids[i];
         final locked = lockedReason(state, axis.kind, id);
         return _Chip(

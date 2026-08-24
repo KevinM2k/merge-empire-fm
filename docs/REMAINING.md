@@ -6702,9 +6702,23 @@ that is not off the extension is the bug, not the symptom.
       in `pitch_scene_test.dart` hold the band, the ground line landing on the
       strip's foot, the crown clearing its top edge, and the tiling covering
       the segment.
-- [ ] **The customise sheet is STILL slow to open.** Second re-report after
-      waiting for the route's animation. Measure it rather than guessing again:
-      the next pass wants a timeline, not another deferral.
+- [x] **The customise sheet is STILL slow to open.** Second re-report after
+      waiting for the route's animation. Measured this time —
+      `test/ui/screens/home/customise_timeline_test.dart` prints the frames and
+      the file's own header carries the numbers.
+      What it found: an empty sheet of the same shape opens in 18ms, so that
+      much is the popup machinery; the customiser's opening frame is 40ms; the
+      fifteen frames it then slides through cost 1.5ms out of sixteen each. And
+      a ROW of four chips — the fill unit both previous passes used — is 39ms
+      then 16ms. A row does not fit in a frame, so it dropped one wherever it
+      was put, and putting it behind the route's animation dropped it at the
+      moment the sheet LANDS, which is the most visible frame there is.
+      The unit is one chip now, and it starts immediately: 32ms on the first
+      (it carries the one-time cost) and ~12ms on each of the rest, so the grid
+      is full by frame five and the sheet lands at frame fifteen into frames
+      costing nothing. The test asserts that structurally rather than in
+      milliseconds — no chip arrives after the sheet stops moving — because the
+      timings are the machine's and would flake in CI.
 
 ### The manager's rig
 
