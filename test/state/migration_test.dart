@@ -146,6 +146,37 @@ void main() {
       final snapshot = jsonEncode(once);
       expect(jsonEncode(migrate(_clone(once))!), snapshot);
     });
+
+    test('AND THE TWO BRANCHES THE JS NEEDS A SECOND BOOT FOR', () {
+      // `tutorial` and `leaderboard` are the two the JS creates BARE and only
+      // completes through its own else path on the next boot — so a legacy save
+      // there takes two passes to settle. The port fills them on the way in
+      // instead. Both builds reach the same state; this pins that ours reaches
+      // it once, because a save that needs a second boot to be correct is a
+      // save that is wrong for a whole session if the first one crashes.
+      final legacy = _legacy({});
+      legacy.remove('tutorial');
+      legacy.remove('leaderboard');
+
+      final once = migrate(legacy)!;
+      final tutorial = once['tutorial']! as Map<String, dynamic>;
+      expect(tutorial['borrowedPlayersAdded'], isFalse);
+      expect(tutorial['borrowedPlayersRemoved'], isFalse);
+      final board = once['leaderboard']! as Map<String, dynamic>;
+      expect(board['allTimeRepairDone'], isFalse);
+
+      // The two branches specifically, rather than the whole save: a bare
+      // `{'version': 1}` has no `resources` at all, which no real v1 save does,
+      // and that synthetic hole moves on the second pass for its own reasons.
+      final twice = migrate(_clone(once))!;
+      for (final branch in ['tutorial', 'leaderboard']) {
+        expect(
+          jsonEncode(twice[branch]),
+          jsonEncode(once[branch]),
+          reason: '$branch still needs a second boot to settle',
+        );
+      }
+    });
   });
 
   group('load-boundary sanitisation', () {

@@ -8047,9 +8047,20 @@ could not render at all without a lookup layer. See
       and asserts the two platforms never share one — an Android unit requested
       from iOS is a no-fill for ever, silently, and looks exactly like an ad
       network having no inventory.
-- [ ] Two migration branches (`tutorial`, `leaderboard`) are non-idempotent in
-      the JS — a legacy save needs two boots to settle. The port reproduces the
-      quirk deliberately and documents it; worth deciding whether to fix.
+- [x] Two migration branches (`tutorial`, `leaderboard`) are non-idempotent in
+      the JS — a legacy save needs two boots to settle. **Decided, and the port
+      had already decided it**: this row said the quirk was reproduced, and the
+      code says the opposite in both places. `_migrateTutorialAndTips` writes
+      the two loan-hook flags on the way in and `migrateLeaderboard` writes
+      `allTimeRepairDone`, each with a comment saying the JS adds them on the
+      NEXT boot through its else path. Both builds land on the same state; ours
+      lands on it once, and a save that is only correct after a second boot is
+      wrong for a whole session if the first one never finishes.
+      Pinned now rather than left to the comments — the idempotency group has a
+      test that strips both branches from a legacy save and compares them after
+      a second pass. It compares THOSE BRANCHES, not the whole save: a bare
+      `{'version': 1}` has no `resources` key, which no real v1 save has, and
+      that synthetic hole does move on the second pass.
 
 ---
 
