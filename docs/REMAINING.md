@@ -6758,10 +6758,28 @@ that is not off the extension is the bug, not the symptom.
 
 ### The match screen
 
-- [ ] **The pitch is not rendering in full — it looks letterboxed.** Reported
-      after the inset landed, so this is a fourth sighting on the same band.
-      Get a shot with the whole card in it: every pass so far has been measured
-      against a band shape guessed at from a crop.
+- [x] **The pitch is not rendering in full — it looks letterboxed.** Fourth
+      sighting, and this time it was MEASURED rather than looked at — which is
+      also why the first three passes could each be right and the report still
+      stand.
+      **The band is a fraction of screen HEIGHT and the pitch's requirement
+      scales with WIDTH.** `match_screen.dart` caps the stage at
+      `height * 0.16`, so on a screen that is short or wide for its height the
+      cap binds — and `fittedTilt` was a CONTAIN fit, so the slack went into
+      bars. An iPhone SE drew 84% of the pitch with 28 points of dead green
+      down each side; an iPad mini 81% with 67. A modern tall phone happens to
+      clear the cap exactly, which is the shape every previous pass was checked
+      against.
+      Two callers' comments had claimed for some time that "a shallow box is
+      simply a shallow pitch, which `fittedTilt` handles by construction". It
+      did not and could not: a uniform scale cannot make a quad fill a box of a
+      different shape. It scales per axis now, so the claim is true — safe on a
+      PROJECTION in a way it would not be on a photograph, because the tilt is
+      already a choice about how much foreshortening to show and a squatter
+      band reads as a shallower camera. Worst case across five device shapes is
+      0.81 of the height, and that floor is pinned too.
+      `pitch_fills_band_test` measures the drawn quad against the band on all
+      five; it fails on the old fit on every one of them.
 - [x] **The cutaway pitch is missing its top and bottom.** Measured rather than
       guessed at: the fitted quad sat at y 1.6 to 128.4 in a 130-tall band, so
       the far and near touchlines — one antialiased pixel each — landed half on

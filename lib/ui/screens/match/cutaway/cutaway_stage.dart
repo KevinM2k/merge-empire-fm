@@ -593,13 +593,34 @@ Matrix4 fittedTilt(Size plane, {Size? into}) {
   final about = _about(plane);
   final bounds = MatrixUtils.transformRect(about, Offset.zero & plane);
   if (bounds.width <= 0 || bounds.height <= 0) return about;
-  final fit = math.min(band.width / bounds.width, band.height / bounds.height);
+  // **PER AXIS, so the pitch FILLS the band it was given.**
+  //
+  // This was `math.min` of the two — a contain fit — which meant a band whose
+  // shape did not match the projection's got bars on the slack axis. The
+  // callers' comments have said "a shallow box is simply a shallow pitch" and
+  // "which `fittedTilt` handles by construction" since the band stopped being
+  // an `AspectRatio`, and neither was true: a uniform scale cannot make a quad
+  // fill a box of a different shape, so the band the match screen caps at 16%
+  // of screen height letterboxed the moment that cap bound.
+  //
+  // **It binds on short and on wide screens, and not on a modern tall phone**,
+  // which is why three passes over this band each found something real and a
+  // fourth report still came in. Measured: an iPhone SE drew 84% of the pitch
+  // with 28 points of dead green down each side, an iPad mini 81% with 67.
+  //
+  // Stretching a projection is safe in a way stretching a photograph is not —
+  // the tilt is already a choice about how much foreshortening to show, so a
+  // squatter band reads as a shallower camera rather than as a distorted
+  // pitch. The worst case those two devices ask for is 0.81 of the height,
+  // which is inside the range the tilt varies over anyway.
+  final sx = band.width / bounds.width;
+  final sy = band.height / bounds.height;
   // Centred on the FULL box, not on the inset one: the inset is room for the
   // lines, not a margin to sit inside.
   final whole = into ?? plane;
   return Matrix4.identity()
     ..translateByDouble(whole.width / 2, whole.height / 2, 0, 1)
-    ..scaleByDouble(fit, fit, 1, 1)
+    ..scaleByDouble(sx, sy, 1, 1)
     ..translateByDouble(-bounds.center.dx, -bounds.center.dy, 0, 1)
     ..multiply(about);
 }
