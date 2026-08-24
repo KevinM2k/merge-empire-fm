@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/data/kit_palette.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -100,5 +101,45 @@ ThemeData buildAppTheme({required String kitId, required bool light}) {
       brightness: brightness,
     ),
     extensions: [kit],
+    // **EVERY BUTTON WEARS THE SHOP'S FACE.** Reported as the shop's controls
+    // being moulded and nothing else in the app being — see
+    // [mouldedButtonStyle]. Set here so it reaches all eighty-odd Material
+    // buttons without eighty-odd edits, and so a new one is moulded by
+    // default rather than by remembering.
+    //
+    // `TextButton` is deliberately left alone: it is a text link — "Maybe
+    // later", "Load", "Export" — and a moulded face on one would make the
+    // cancel look like the action.
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: mouldedButtonStyle(
+        face: kit.accent,
+        edge: Color.alphaBlend(Colors.black.withValues(alpha: 0.45), kit.accent),
+        ink: kit.accentInk,
+        dead: kit.surface2,
+        deadInk: kit.textMuted,
+        border: kit.border,
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: mouldedButtonStyle(
+        face: kit.accent,
+        edge: Color.alphaBlend(Colors.black.withValues(alpha: 0.45), kit.accent),
+        ink: kit.accentInk,
+        dead: kit.surface2,
+        deadInk: kit.textMuted,
+        border: kit.border,
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: mouldedButtonStyle(
+        face: kit.accent,
+        edge: kit.border,
+        ink: kit.accent,
+        dead: kit.surface2,
+        deadInk: kit.textMuted,
+        border: kit.border,
+        outline: true,
+      ),
+    ),
   );
 }

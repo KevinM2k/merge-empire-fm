@@ -240,3 +240,83 @@ class _AdChip extends StatelessWidget {
     ),
   );
 }
+
+/// **The `.store-3d` face, for the buttons that are not [StoreButton].**
+///
+/// The shop's controls have been moulded since the tone palette went in and
+/// nothing else in the app was: a Material `ElevatedButton` next to one of these
+/// is flat, differently rounded and lights up with a ripple, and the two read as
+/// two apps. Reported as every button wanting the same treatment.
+///
+/// Applied through the THEME rather than at eighty-odd call sites — see
+/// `app_theme.dart`. `backgroundBuilder` is the hook: it wraps the padded child
+/// inside the button's own `Material`, whose `clipBehavior` is `Clip.none`, so
+/// the hard edge underneath survives. The face it paints also covers the ink
+/// splash, which is the point — a moulded button answers a press by DROPPING,
+/// and a ripple over the top of that is two different answers to one tap.
+///
+/// [outline] is the secondary form: the same geometry and the same edge bar, an
+/// empty face. A cancel that carried a solid face would out-shout the button
+/// beside it, which is the one thing the shape is for.
+ButtonStyle mouldedButtonStyle({
+  required Color face,
+  required Color edge,
+  required Color ink,
+  required Color dead,
+  required Color deadInk,
+  required Color border,
+  bool outline = false,
+}) {
+  const radius = 10.0;
+  const lift = 3.0;
+  return ButtonStyle(
+    backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+    shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+    surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+    overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+    elevation: const WidgetStatePropertyAll(0),
+    side: const WidgetStatePropertyAll(BorderSide.none),
+    padding: const WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+    ),
+    shape: WidgetStateProperty.all(
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+    ),
+    textStyle: const WidgetStatePropertyAll(
+      TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+    ),
+    foregroundColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled) ? deadInk : ink,
+    ),
+    iconColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled) ? deadInk : ink,
+    ),
+    backgroundBuilder: (context, states, child) {
+      final off = states.contains(WidgetState.disabled);
+      final down = states.contains(WidgetState.pressed) && !off;
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 80),
+        transform: Matrix4.translationValues(0, down ? lift - 1 : 0, 0),
+        decoration: BoxDecoration(
+          color: off
+              ? dead
+              : (outline ? Colors.transparent : face),
+          borderRadius: BorderRadius.circular(radius),
+          border: off || outline
+              ? Border.all(color: off ? border : edge, width: outline ? 1.4 : 1)
+              : null,
+          boxShadow: off
+              ? null
+              : [
+                  BoxShadow(
+                    color: edge,
+                    offset: Offset(0, down ? 1 : lift),
+                    blurRadius: 0,
+                  ),
+                ],
+        ),
+        child: child,
+      );
+    },
+  );
+}
