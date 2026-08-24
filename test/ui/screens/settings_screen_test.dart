@@ -14,8 +14,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
+import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -672,15 +674,13 @@ void main() {
     tester,
   ) async {
     // A control that vanishes reads as a missing feature; one that explains
-    // itself reads as a feature that is coming.
+    // itself reads as a feature that is coming. Sign-in used to be on this
+    // list and has come off it — see the account rows below.
     await pumpSettings(tester, SettingsTab.account);
-    for (final key in ['sign-in-btn', 'feedback-btn']) {
-      final found = find.byKey(ValueKey(key));
-      expect(found, findsOne, reason: key);
-      expect(tester.widget<SettingsAction>(found).onTap, isNull, reason: key);
-    }
-    // And the rankings toggle, which the JS also disables whenever nobody is
-    // signed in.
+    final found = find.byKey(const ValueKey('feedback-btn'));
+    expect(found, findsOne);
+    expect(tester.widget<SettingsAction>(found).onTap, isNull);
+    // The rankings toggle, which the JS disables whenever nobody is signed in.
     expect(
       tester
           .widget<SettingsToggle>(
@@ -689,6 +689,91 @@ void main() {
           .onChanged,
       isNull,
     );
+  });
+
+  testWidgets('THE RANKINGS TOGGLE COMES ALIVE ONCE SOMEBODY IS SIGNED IN', (
+    tester,
+  ) async {
+    // It was dead in every state, for a reason the row had to state: with no
+    // sign-in route there was nobody to be visible AS.
+    final container = await pumpSettings(
+      tester,
+      SettingsTab.account,
+      mutate: (s) =>
+          (s['leaderboard'] as Map<String, dynamic>)['authUid'] = 'u1',
+    );
+    final toggle = find.byKey(const ValueKey('setting-rankingsVisible'));
+    expect(tester.widget<SettingsToggle>(toggle).onChanged, isNotNull);
+    // A save that has never been asked is visible, which is the JS's default.
+    expect(tester.widget<SettingsToggle>(toggle).value, isTrue);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+    final board =
+        container.read(gameProvider).state!['leaderboard']
+            as Map<String, dynamic>;
+    expect(board['rankingsVisible'], isFalse);
+    expect(tester.widget<SettingsToggle>(toggle).value, isFalse);
+  });
+
+  testWidgets('THE ACCOUNT ROW OPENS THE CONNECT SHEET', (tester) async {
+    // The row read the save honestly and led nowhere, which is the half of the
+    // report that mattered: "account connection does not work".
+    await pumpSettings(tester, SettingsTab.account);
+    await tester.tap(find.byKey(const ValueKey('sign-in-btn')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('connect-account-sheet')), findsOneWidget);
+    // Google is offered everywhere. Apple is Apple's own rule, not ours, and
+    // the test host is neither iOS nor macOS.
+    expect(find.byKey(const ValueKey('auth-google')), findsOneWidget);
+    // Apple is Apple's own rule — offered wherever their SDK is, hidden on
+    // Android — rather than a product decision, so the test asks the same
+    // question the sheet does rather than pinning the host it happens to run on.
+    expect(
+      find.byKey(const ValueKey('auth-apple')),
+      AuthService.appleAvailable ? findsOneWidget : findsNothing,
+    );
+    // `auth.connect_lead` and `auth.settings_hint` are the same sentence in
+    // English, and the rankings row behind the sheet is still showing one.
+    expect(find.text(t('auth.connect_lead')), findsWidgets);
+    expect(find.text(t('auth.terms_link')), findsOneWidget);
+  });
+
+  testWidgets('and SIGNS OUT where it is tapped, with no sheet', (
+    tester,
+  ) async {
+    // Connecting picks a provider; disconnecting has nothing to pick.
+    final container = await pumpSettings(
+      tester,
+      SettingsTab.account,
+      mutate: (s) => (s['leaderboard'] as Map<String, dynamic>)
+        ..['authUid'] = 'u1'
+        ..['authProvider'] = 'google',
+    );
+    await tester.tap(find.byKey(const ValueKey('sign-in-btn')));
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+    expect(find.byKey(const ValueKey('connect-account-sheet')), findsNothing);
+    expect(
+      isSignedInLocal(container.read(gameProvider).state),
+      isFalse,
+    );
+    expect(find.textContaining(t('auth.not_signed_in')), findsOneWidget);
+  });
+
+  testWidgets('a signed-in row names the ACCOUNT rather than repeating itself', (
+    tester,
+  ) async {
+    await pumpSettings(
+      tester,
+      SettingsTab.account,
+      mutate: (s) => (s['leaderboard'] as Map<String, dynamic>)
+        ..['authUid'] = 'u1'
+        ..['accountName'] = 'kevin',
+    );
+    expect(find.text('kevin'), findsOneWidget);
+    expect(find.text(t('auth.sign_out')), findsOneWidget);
   });
 
   testWidgets('the entries the JS has that the port was missing are here', (

@@ -6303,10 +6303,41 @@ Written on arrival from here.
       reading small print. The locked segment's `onTap` was null. It answers
       now: still not a switch, it says what would unlock it, at the moment it is
       asked.
-- [ ] **Account connection does not work.** The row now reads the save and
-      reports the truth — nobody is signed in — but there is no way TO sign in,
-      which is the actual ask. See the auth rows in M4: the policy half is
-      ported and the plugin is not.
+- [x] **Account connection does not work.** **DONE — a player can sign in.**
+      The plugin half is `services/auth_service.dart`, and the shape it took is
+      worth writing down because it is NOT the obvious one: the port has no
+      `firebase_core` and deliberately reaches Firestore over plain HTTPS, so
+      adding the Firebase SDK just for auth would have been two transports for
+      one project. Google and Apple hand back an OAuth `id_token` — that is all
+      either plugin is for — and Identity Toolkit's `accounts:signInWithIdp`
+      exchanges one for a Firebase uid and an ID token over the SAME REST
+      transport the leaderboard already uses. What is native is the two consent
+      screens and nothing else.
+      **It unblocks more than the row.** `firestoreAuthToken` was a stub
+      returning null with a comment saying it was waiting for this; cloud save
+      and every leaderboard WRITE were reachable but unauthenticated.
+      `wireAuthToFirestore` at boot is what connects them.
+      **Four things that are not obvious and are all load-bearing:**
+      - **Apple's nonce travels WITH the token.** Firebase checks the hash baked
+        into the identity token against the nonce sent beside it, so the seam
+        returns both rather than the caller inventing one.
+      - **The refresh token is kept out of the SAVE.** The save goes to the
+        cloud and `cloud_save_service` already strips `authUid` because it
+        belongs to the device that wrote it; a refresh token is the same thing
+        with the account attached.
+      - **Unreachable is not revoked.** A refused refresh is a sign-out — the
+        token is gone and retrying is a loop — but a socket that will not open
+        is a player on a train, and signing them out for it is a logout the JS
+        does not have. That is why `_refresh` answers with two fields.
+      - **`signOut` returns nothing to wait on.** The save is the record of who
+        is signed in; a preferences write that hangs must not leave somebody who
+        asked to disconnect still connected.
+      Copy cost nothing: twenty-six `auth.*` keys ship in ten languages and one
+      had a caller. The rankings toggle comes alive with it, since there is
+      finally somebody to be visible as. Native config is lifted from the
+      shipped app's own — the reversed iOS client id as a URL scheme, the Sign
+      in with Apple entitlement through an xcconfig rather than the pbxproj,
+      which `flutter create` would regenerate.
 
 - [x] **The penalty run-up STILL crosses its legs.** The legs are SUPPOSED to
       pass each other — that is what running is in a side view — and the first

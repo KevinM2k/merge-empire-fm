@@ -48,5 +48,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Google's consent screen returns through the reversed iOS client id;
+	     lifted from the shipped app's own Info.plist. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Google Sign-In</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.500974365483-a3vk7f51brjg5s2rd1tmh2gm4gmqmkek</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

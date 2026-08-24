@@ -29,9 +29,11 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/services/ad_consent.dart';
+import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/popups/connect_account_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/settings_audio_row.dart';
 import 'package:merge_empire_fc/ui/screens/settings/pyramid_editor_sheet.dart';
@@ -487,39 +489,88 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     ];
   }
 
+  Map<String, dynamic>? _map(Object? v) =>
+      v is Map<String, dynamic> ? v : null;
+
+  /// Opted out is the only stored `false`; anything else is a save that has
+  /// never been asked, and the JS defaults those to visible.
+  bool _rankingsVisible(Map<String, dynamic>? save) =>
+      _map(save?['leaderboard'])?['rankingsVisible'] != false;
+
+  /// Open the sheet, or sign out. **The signed-out half is a QUESTION and the
+  /// signed-in half is not** — connecting picks a provider, disconnecting has
+  /// nothing to pick — so one is a sheet and the other happens where it is
+  /// tapped, which is the JS's arrangement too.
+  Future<void> _toggleAccount(bool signedIn) async {
+    final game = ref.read(gameProvider);
+    final state = game.state;
+    if (state == null) return;
+    if (signedIn) {
+      AuthService.instance.signOut(state);
+      // The save moved underneath the tab, which reads it.
+      game.update((_) {});
+      emit('toast:info', t('auth.signed_out'));
+      return;
+    }
+    await showConnectAccountSheet(context);
+  }
+
   List<Widget> _account() {
-    final signedIn = isSignedInLocal(ref.watch(gameProvider).state);
+    // **The tab REDRAWS when the save moves.** `gameProvider` hands back the
+    // same object however much the map inside it changes, so a screen watching
+    // it alone holds whatever it read on the frame it opened — which is why
+    // signing in left the row still saying nobody was. Every other live value
+    // in the app reaches a widget through `savePick`, which watches this.
+    ref.watch(saveRevisionProvider);
+    final save = ref.watch(gameProvider).state;
+    final signedIn = isSignedInLocal(save);
+    final accountName = _map(save?['leaderboard'])?['accountName'];
     return [
     SettingsCard(
       children: [
-        // **IT READS THE SAVE NOW, rather than asserting "coming soon".**
-        // Twenty-six `auth.*` strings ship in ten languages and exactly one had
-        // a caller. `isSignedInLocal` answers off the save with no round trip —
-        // which is what this row needs on the frame it opens — so the state it
-        // reports is the real one whether or not a plugin ever arrives. With no
-        // plugin nobody is ever signed in, and the row says THAT rather than
-        // saying nothing: `auth.not_signed_in` and `auth.connect_tap` are the
-        // JS's own two lines for exactly this state.
-        PendingControl(
-          controlKey: 'sign-in-btn',
+        // **IT SIGNS IN NOW.** Twenty-six `auth.*` strings ship in ten
+        // languages and exactly one had a caller, because the row had no route
+        // behind it: `isSignedInLocal` answered off the save, which with no
+        // plugin meant nobody was ever signed in and the row could only say so.
+        // `services/auth_service.dart` is that plugin — Google and Apple hand
+        // back an OAuth token and Identity Toolkit mints the Firebase session
+        // over the same REST transport the leaderboard already uses.
+        SettingsRow(
+          key: const ValueKey('sign-in-btn'),
           icon: 'globe',
           label: t('auth.account_connection'),
-          reason: signedIn
-              ? t('auth.connected')
-              : '${t('auth.not_signed_in')} · ${t('settings.comingSoon')}',
+          // Signed in, the useful line is WHO — an account row that says
+          // "connected" and not to what is the same row twice.
+          note: signedIn
+              ? (accountName is String && accountName.isNotEmpty
+                    ? accountName
+                    : t('auth.connected'))
+              : t('auth.connect_tap'),
+          onTap: () => _toggleAccount(signedIn),
+          trailing: Text(
+            signedIn ? t('auth.sign_out') : t('auth.not_signed_in'),
+            style: TextStyle(
+              color: Theme.of(context).extension<KitTheme>()!.accentBright,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ),
-        // The JS disables this one whenever nobody is signed in — which here is
-        // always, and now for a reason the row can state: a toggle that writes a
-        // preference nothing can act on would be worse than one that says why it
-        // cannot.
+        // The JS disables this one whenever nobody is signed in, which is now a
+        // state a player can leave rather than the only one there is.
         SettingsRow(
           icon: 'trophy',
           label: t('leaderboard.rankings_visible'),
           note: signedIn ? null : t('auth.settings_hint'),
-          trailing: const SettingsToggle(
-            key: ValueKey('setting-rankingsVisible'),
-            value: false,
-            onChanged: null,
+          trailing: SettingsToggle(
+            key: const ValueKey('setting-rankingsVisible'),
+            value: _rankingsVisible(save),
+            onChanged: signedIn
+                ? (value) => ref.read(gameProvider).update((s) {
+                    final board = _map(s['leaderboard']);
+                    if (board != null) board['rankingsVisible'] = value;
+                  })
+                : null,
           ),
         ),
       ],

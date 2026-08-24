@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/engine/age_verification.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
+import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/services/feedback_service.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
@@ -78,6 +79,15 @@ class _GameHostState extends ConsumerState<GameHost>
     // child is the one thing this whole chain exists to prevent, and
     // `applyAgeFlagsToAds` is what carries it across to the SDK.
     unawaited(_checkAgeSignal());
+    // **The session, picked back up.** `wireAuthToFirestore` is what gives the
+    // REST layer a bearer token at all — until it runs, `firestoreAuthToken`
+    // is the stub that answers null — and `restore` turns the refresh token
+    // kept beside the save back into a live one. Fired and forgotten: every
+    // read the leaderboard makes is public, so a session that never comes back
+    // costs a player nothing they can see, and a boot that waited on the
+    // network to draw its first frame would be paying for it every launch.
+    wireAuthToFirestore();
+    unawaited(AuthService.instance.restore(_runner.game.state));
     _refreshWeather();
     // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
     // whether looking is worth a call, so most of these cost nothing.

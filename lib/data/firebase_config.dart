@@ -78,3 +78,25 @@ FirebaseConfig firebaseConfigFor(FirebaseApp app) {
     measurementId: app == FirebaseApp.web ? 'G-32J7EDZMSM' : null,
   );
 }
+
+/// **The OAuth clients Google Sign-In needs, which are NOT the Firebase keys.**
+///
+/// A Firebase apiKey identifies the project to Firebase; an OAuth client
+/// identifies the app to Google's consent screen, and the two are separate
+/// registrations. They live here rather than in the service because they come
+/// out of the same console pages as the table above — the iOS one is
+/// `CLIENT_ID` in `GoogleService-Info.plist`, the server one is the
+/// `client_type: 3` entry in `google-services.json`.
+///
+/// **The SERVER client is what makes the sign-in usable**, and it is the part
+/// that is easy to leave out: without it Google returns an access token and no
+/// `id_token`, and an access token cannot be exchanged for a Firebase session.
+/// Android needs nothing else — the app is recognised by its signing
+/// certificate, which is why there is no Android client id here to pass.
+const String googleServerClientId =
+    '500974365483-3eov9k0h8qf6v1aftpgh471rf4824g47.apps.googleusercontent.com';
+
+/// iOS's own OAuth client. Its reversed form is the URL scheme in `Info.plist`
+/// that Google's consent screen returns through.
+const String googleIosClientId =
+    '500974365483-a3vk7f51brjg5s2rd1tmh2gm4gmqmkek.apps.googleusercontent.com';
