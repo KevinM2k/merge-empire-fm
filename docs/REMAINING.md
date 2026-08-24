@@ -6743,8 +6743,23 @@ that is not off the extension is the bug, not the symptom.
       at the edges — a salute's hand is level with the brow and a wave's is not,
       a few degrees apart. Only the NEAR arm: the far one is behind him by
       construction and putting it over the face is the same bug reversed.
-- [ ] **Hair comes out from under a hat.** Where a hat is worn the hair beneath
+- [x] **Hair comes out from under a hat.** Where a hat is worn the hair beneath
       it has to be hidden, not drawn through.
+      Rendered every hat crossed with every hairstyle to a PNG and looked at
+      them rather than reasoning about the clip: `hatCrownY` was doing its job
+      on the solid hats — a cap's hair and the cap start on the same row,
+      because the number IS the cap's own dome top. **The crown and the tiara
+      were the ones drawn through.** They are one zigzag path, up to a point,
+      down into a notch at y36, up to the next, and their line was at the
+      POINTS — so the hair was drawn across every notch and showed through the
+      gaps in the metal, which is the report word for word. Their line is the
+      notch floor now, so what shows between the points is his head.
+      `manager_looks_test` reads the tips and the band foot out of the
+      generated art and holds the line between them.
+      **What was NOT changed, deliberately:** an afro is wider than a cap and
+      still escapes at the sides. That is `hatCrownY`'s stated design — it
+      hides what goes THROUGH a hat and leaves what escapes around it — and a
+      hat that shaved the silhouette flat would be the other bug.
 
 - [x] **The vertical gap between the boxes on the Play page should be 12px.**
       One `playPageGap` rather than a ten here and a ten there — the seams on

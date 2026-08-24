@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 
 final Map<String, dynamic> _ref =
@@ -614,6 +617,39 @@ void main() {
         // would clip everything or nothing.
         expect(y, greaterThan(15));
         expect(y, lessThan(40));
+      }
+    });
+
+    test('A NOTCHED HAT CLIPS AT THE NOTCH, not at its points', () {
+      // The crown and the tiara are one zigzag path — up to a point, down into
+      // a notch, up to the next. A line at the POINTS leaves the hair drawn
+      // across every notch between them and it shows through the gaps in the
+      // metal, which is "drawn through the hat" rather than hidden under it.
+      // The line has to be where the hat covers its whole span.
+      for (final hat in ['crown', 'diamond']) {
+        final art = managerHats[hat]!;
+        final ys = RegExp(r'd="([^"]+)"')
+            .allMatches(art)
+            .expand(
+              (m) => RegExp(r'-?\d+(?:\.\d+)?')
+                  .allMatches(m.group(1)!)
+                  .map((n) => double.parse(n.group(0)!)),
+            )
+            .toList();
+        // The path is x,y pairs; the odd entries are the ys.
+        final tip = [for (var i = 1; i < ys.length; i += 2) ys[i]].reduce(min);
+        final foot = [for (var i = 1; i < ys.length; i += 2) ys[i]].reduce(max);
+        final line = hairHiddenAboveY(hat);
+        expect(
+          line,
+          greaterThan(tip),
+          reason: '$hat clips at its points, so the notches show hair',
+        );
+        expect(
+          line,
+          lessThanOrEqualTo(foot),
+          reason: '$hat clips below its own band, which hides his head',
+        );
       }
     });
 

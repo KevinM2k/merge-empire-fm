@@ -79,6 +79,14 @@ const List<String> facialHairIds = [
 /// The numbers are the top of each hat's own DOME, not of its trimming: a
 /// beanie's bobble and a Santa hat's pom sit above the part that covers
 /// anything.
+///
+/// **AND "the dome" means where the hat covers ITS WHOLE SPAN**, which is not
+/// the top of its drawing when the top is a row of points. The crown and the
+/// tiara are one zigzag path — up to a point, down into a notch at y36, up to
+/// the next — so a line at the POINTS left the hair drawn across every notch
+/// between them, showing through the gaps in the metal. Reported as hair being
+/// drawn through a hat rather than hidden under it. Their line is the notch
+/// floor, so what shows between the points is his head.
 const Map<String, double?> hatCrownY = {
   'none': null,
   // Bands. They sit around the head and hide nothing above themselves.
@@ -89,7 +97,7 @@ const Map<String, double?> hatCrownY = {
   // And the ones that sit on the crown.
   'cap': 30.5,
   'beanie': 28.2,
-  'crown': 27.5,
+  'crown': 36,
   'flatcap': 32,
   'bucket': 28.4,
   'snapback': 30.5,
@@ -99,7 +107,7 @@ const Map<String, double?> hatCrownY = {
   'viking': 29,
   'party': 22.4,
   'hardhat': 29.6,
-  'diamond': 27.5,
+  'diamond': 36,
 };
 
 /// Above this, the hair is not drawn. Null leaves it alone.
