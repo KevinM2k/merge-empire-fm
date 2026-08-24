@@ -291,8 +291,27 @@ All seven shelves are present and in the JS's own order.
 - [x] The sponsor a win can drop, offered rather than applied — `acceptCupSponsorDrop`
 - [ ] The shootout REVEAL (`components/penaltyReveal.js`), kick by kick
 - [ ] The cup-win celebration, the round-win card and the knocked-out card
-- [ ] The tie in the fixture list (`cupInsertAt`), and the round badge on the
-      next-match card
+- [x] The tie in the fixture list (`cupInsertAt`), and the round badge on the
+      next-match card. **The badge was already built** (`fixture_caption.dart`
+      names the competition and the round when a tie is due); the LIST was not,
+      so a player's fixtures showed only league games and the tie between them
+      was invisible until it was the next thing to play.
+      **A tie does NOT take a fixture slot.** Cups run between league games —
+      the league index does not move for one, which is why a cup season is not a
+      league season one match shorter — so the row is INTERLEAVED after the
+      league match it waits on rather than replacing one. `cupDueAfterMatches`
+      is already the single source both the list and the play button read, so
+      they cannot disagree about when a tie is due.
+      **And the row looks deliberately unlike a league row**: inset, tinted, led
+      by the round rather than by a venue chip. A row that matched its
+      neighbours would read as a fifteenth league game, which is the one thing
+      the fixture count must not suggest. Before it is played it names the
+      COMPETITION, because the opponent is not drawn yet; after, the opponent
+      and the score.
+      **Writing the test found the guard that protects it**: the migration
+      clears an active run whose `startedSeason` is not the current one, and its
+      own comment names "ghost scores on the fixture list" as what a leaked run
+      looks like — which is exactly what these rows would have shown.
 - [ ] In-match tactic changes rewrite a cup scoreline in the JS, which is what
       its commit carries the popup's final goals for. `PreparedCupRound` is a
       record and cannot be mutated, so a screen that can change a result will

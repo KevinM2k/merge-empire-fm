@@ -5,6 +5,8 @@
 /// result.
 library;
 
+import 'package:merge_empire_fc/engine/cup_engine.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'dart:math' as math;
 
 import 'package:merge_empire_fc/engine/match_tactics.dart';
@@ -53,6 +55,72 @@ typedef OurFixture = ({
   /// played them, which is when it is materialised.
   int rating,
   bool ratingEstimated,
+});
+
+/// A cup tie, where it sits in the season.
+///
+/// **A tie does NOT take a fixture slot.** Cups run BETWEEN league games — the
+/// league index does not move for one, which is why a cup season is not a
+/// league season one match shorter. So a tie is placed AFTER a league match
+/// rather than instead of it, and `afterMatch` is that match's index.
+typedef CupTie = ({
+  /// The league match this tie follows. The JS's `cupInsertAt` keys: 3, 8, 12.
+  int afterMatch,
+
+  String competition,
+  String roundName,
+  bool played,
+
+  /// The one due next, and only while it actually is.
+  bool isNext,
+
+  /// Null until it has been played.
+  String? opponent,
+  int? ourGoals,
+  int? theirGoals,
+  bool won,
+});
+
+/// The ties in this season's run, in order.
+///
+/// **Empty when there is no cup for this division**, which is most of the
+/// pyramid: a fixture list with a phantom tie in it would be worse than one
+/// with none.
+final ourCupTiesProvider = savePick<List<CupTie>>((s) {
+  final run = activeCup(s);
+  final cup = cupForDivision(s);
+  if (run == null || cup == null) return const [];
+  final at = _int(run['round']);
+  final played = _int(_map(s['progression'])?['seasonMatchesPlayed']);
+  final results = run['results'];
+
+  return [
+    for (var round = 0; round < cup.rounds.length; round++)
+      () {
+        final result = results is List && round < results.length
+            ? _map(results[round])
+            : null;
+        // `cupDueAfterMatches` is the count of league matches that must be
+        // behind you; the tie itself sits after the LAST of them.
+        final after = round < cupDueAfterMatches.length
+            ? cupDueAfterMatches[round] - 1
+            : matchesPerSeason - 1;
+        return (
+          afterMatch: after,
+          competition: t('cup.${cup.id}') == 'cup.${cup.id}'
+              ? cup.name
+              : t('cup.${cup.id}'),
+          roundName: cup.rounds[round],
+          played: result != null,
+          // Due, and nothing before it still to play.
+          isNext: result == null && round == at && played >= after + 1,
+          opponent: result?['opponentName'] as String?,
+          ourGoals: result == null ? null : _int(result['homeGoals']),
+          theirGoals: result == null ? null : _int(result['awayGoals']),
+          won: result?['won'] == true,
+        );
+      }(),
+  ];
 });
 
 /// The manager's own season, all fourteen, in order.

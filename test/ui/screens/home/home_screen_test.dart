@@ -507,6 +507,89 @@ void main() {
         prog['seasonOpponentRatings'] = {'s1_o0': 31};
       }
 
+      /// A season with a cup run in it: the first round played, the second due.
+      void withCup(Map<String, dynamic> s) {
+        ourSeason(s);
+        final prog = s['progression'] as Map<String, dynamic>;
+        // The first cup unlocks at Regional League, division index 2.
+        prog['currentDivision'] = 'regional_league';
+        prog['seasonMatchesPlayed'] = 9;
+        prog['cups'] = <String, dynamic>{
+          'active': <String, dynamic>{
+            'cupId': 'regional_cup',
+            // **Stamped with the season, or the migration clears it** — and
+            // rightly: its own comment names "ghost scores on the fixture
+            // list" as what a run leaking across a season boundary looks like,
+            // which is precisely what these rows would show.
+            'startedSeason': 1,
+            'round': 1,
+            'opponents': ['Ayton', 'Beeches', 'Corley'],
+            'results': [
+              <String, dynamic>{
+                'round': 0,
+                'roundName': 'R1',
+                'opponentName': 'Ayton',
+                'won': true,
+                'homeGoals': 2,
+                'awayGoals': 1,
+              },
+            ],
+          },
+        };
+      }
+
+      testWidgets('A CUP TIE SITS BETWEEN LEAGUE GAMES, not instead of one', (
+        tester,
+      ) async {
+        // The league index does not move for a tie — which is why a cup season
+        // is not a league season one match shorter. `cupInsertAt` in the JS.
+        final container = await pumpHome(tester, mutate: withCup);
+        expect(
+          container.read(ourFixturesProvider),
+          hasLength(matchesPerSeason),
+          reason: 'a tie took a league slot',
+        );
+        final ties = container.read(ourCupTiesProvider);
+        expect(ties, isNotEmpty);
+        // Three rounds, each after the last of the league matches it waits on.
+        expect(
+          ties.map((t) => t.afterMatch),
+          [for (final n in cupDueAfterMatches) n - 1],
+        );
+      });
+
+      testWidgets('a played tie carries its opponent and its score', (
+        tester,
+      ) async {
+        final container = await pumpHome(tester, mutate: withCup);
+        final first = container.read(ourCupTiesProvider).first;
+        expect(first.played, isTrue);
+        expect(first.opponent, 'Ayton');
+        expect(first.ourGoals, 2);
+        expect(first.theirGoals, 1);
+        expect(first.won, isTrue);
+      });
+
+      testWidgets('and one that has not been played names the COMPETITION', (
+        tester,
+      ) async {
+        // Before it is played the opponent is not known; the interesting fact
+        // is which round it is and in what.
+        final container = await pumpHome(tester, mutate: withCup);
+        final second = container.read(ourCupTiesProvider)[1];
+        expect(second.played, isFalse);
+        expect(second.opponent, isNull);
+        expect(second.competition, isNotEmpty);
+        expect(second.isNext, isTrue, reason: 'it is due now');
+      });
+
+      testWidgets('NO CUP, NO PHANTOM TIE', (tester) async {
+        // Most of the pyramid has no cup, and a fixture list with a tie in it
+        // that cannot be played is worse than one with none.
+        final container = await pumpHome(tester, mutate: ourSeason);
+        expect(container.read(ourCupTiesProvider), isEmpty);
+      });
+
       testWidgets('EVERY ROW IS ONE OF OURS, named by the opponent', (
         tester,
       ) async {

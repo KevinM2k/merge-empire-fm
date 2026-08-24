@@ -675,6 +675,12 @@ class FixturesView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final fixtures = ref.watch(ourFixturesProvider);
+    // **The ties, keyed by the league match they FOLLOW.** A cup does not take
+    // a fixture slot — it runs between league games — so the tie is interleaved
+    // rather than replacing a row, which is `cupInsertAt` in the JS.
+    final ties = <int, CupTie>{
+      for (final tie in ref.watch(ourCupTiesProvider)) tie.afterMatch: tie,
+    };
 
     if (fixtures.isEmpty) {
       return Padding(
@@ -706,6 +712,7 @@ class FixturesView extends ConsumerWidget {
         comingUpShown = true;
       }
       rows.add(_FixtureRow(fixture: fixture));
+      if (ties[fixture.matchNum] case final tie?) rows.add(_CupRow(tie: tie));
     }
 
     // **HE IS IN THE CORNER, not at the head of the list.** A portrait and two
@@ -719,6 +726,84 @@ class FixturesView extends ConsumerWidget {
         // not underneath him.
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 84),
         children: rows,
+      ),
+    );
+  }
+}
+
+/// A cup tie, between two league rows.
+///
+/// **It looks deliberately unlike a league row.** A tie is a different
+/// competition on a different night, and a row that matched its neighbours
+/// would read as a fifteenth league game — which is the one thing the fixture
+/// count must not suggest. So it is inset, tinted, and led by the competition
+/// rather than by a venue chip: at a cup tie the venue is neutral and the
+/// interesting fact is which round it is.
+class _CupRow extends StatelessWidget {
+  const _CupRow({required this.tie});
+
+  final CupTie tie;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final ink = tie.played
+        ? (tie.won ? kit.accentBright : kit.textMuted)
+        : kit.accentBright;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 3, 24, 3),
+      child: Container(
+        key: ValueKey('fixture-cup-${tie.afterMatch}'),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: kit.surface2,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: tie.isNext ? kit.accentBright : kit.border,
+            width: tie.isNext ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.emoji_events, size: 14, color: ink),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tie.roundName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
+                  ),
+                  Text(
+                    // Once it has been played the OPPONENT is the fact worth
+                    // having; before that, the competition is.
+                    tie.opponent ?? tie.competition,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10, color: kit.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            if (tie.played)
+              Text(
+                '${tie.ourGoals}-${tie.theirGoals}',
+                key: ValueKey('fixture-cup-score-${tie.afterMatch}'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
