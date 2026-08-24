@@ -17,7 +17,7 @@ const int saveVersion = 7;
 /// against `pubspec.yaml`, because a version string that has quietly drifted is
 /// worse than none: it is the first thing a support message needs and the one
 /// thing a screenshot cannot tell you.
-const String appVersion = '1.0.0';
+const String appVersion = '1.2.0';
 
 /// Coins a brand-new player starts with. Single source of truth — used by
 /// `createDefaultState` and surfaced in the welcome tutorial copy.

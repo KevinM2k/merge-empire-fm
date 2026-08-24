@@ -16,7 +16,17 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+# **ABOVE THE SHIPPED APP'S, and this is not cosmetic.** Play refuses an upload
+# whose versionCode is not higher than the live one, and the App Store the same
+# for CFBundleVersion — so `1.0.0+1`, which is what `flutter create` writes,
+# could not have been uploaded at all. The live build is versionCode 10112 /
+# versionName 1.1.12 (`../merge-empire-fc/android/app/build.gradle`).
+#
+# The scheme is the shipped app's own: major*10000 + minor*100 + patch. 1.2.0
+# because a whole reimplementation is not a patch release, and because it leaves
+# the 1.1.x line free for anything the old build still has to ship.
+# Pinned by `test/native_version_test.dart`.
+version: 1.2.0+10200
 
 environment:
   sdk: ^3.10.1

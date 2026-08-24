@@ -8392,6 +8392,15 @@ could not render at all without a lookup layer. See
       version bump that raises it is caught here rather than in the console.
       targetSdk moves the OTHER way — Play requires a recent one to accept an
       upload at all — so that assertion is a floor rather than a ceiling.
+      **The VERSION half is done too, and it was wrong.** The port carried
+      `flutter create`'s `1.0.0+1` — versionCode 1, against a live build of
+      10112. Play refuses an upload whose code is not higher than the shipped
+      one, so the port as it stood could not have been uploaded at all, and
+      `1.0.0` would have read as a downgrade on the listing beside 1.1.12. Now
+      1.2.0+10200, on the shipped app's own major×10000 scheme, pinned by
+      `native_version_test` along with the Dart `appVersion` the Settings footer
+      prints and the two native configs — both DERIVE from pubspec, and a
+      hardcoded number there is the same console-only failure.
       What is left is signing (`keystore.properties` is in the old repo and is
       not committed here) and the release pipeline.
 - [ ] Store listings, whatsnew, changelog. **The IDENTIFIERS half is done and
