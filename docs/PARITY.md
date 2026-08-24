@@ -162,13 +162,28 @@ gaps are in this list.
 - [x] Seven facilities, build and invest, tier bar, refusals explained
 - [x] Facility artwork, dimmed when unbuilt
 - [x] Stadium hero
-- [ ] **Kit redesign** (`.kit-redesign-btn` → swatch grid). The row under the
-      hero, a five-across grid of colours, locked ones included, and the striped
-      kits deriving their swatch from the same bands the shirt is painted with.
-      The Shop sells colours that currently cannot be chosen.
-- [ ] **Upgrade-path ladder** (`.asset-open-path`) — what the next tiers give
-- [ ] **Club stats block** (`.club-stats`)
-- [ ] Hold-to-invest
+- [x] **Kit redesign** (`.kit-redesign-btn` → swatch grid) — `kit_picker.dart`,
+      built and reachable. The row under the hero, a five-across grid of
+      colours, locked ones included, and the striped kits deriving their swatch
+      from the same bands the shirt is painted with.
+- [x] **Upgrade-path ladder** (`.asset-open-path`) — `asset_ladder_sheet.dart`,
+      built and reachable off the tier badge on the facility's art.
+- [x] **Club stats block** (`.club-stats`) — `club_stats_panel.dart`, built.
+- [x] **Hold-to-invest.** The JS's own 500ms to arm and 150ms a tick, and it is
+      on `StoreButton` rather than at the call site because the button already
+      owns the press — so any priced control can have it.
+      **Two things it has to get right and neither is the repeat.** A hold that
+      fired immediately would make every ordinary tap spend twice; one that also
+      fired `onTap` on release would spend an extra time at the end. So the tap
+      moved to the RELEASE, and a press that armed the repeat swallows it.
+      **And the gesture handlers stay attached when the button goes dead**, with
+      the check moved inside them. Dropping them on `dead` looks tidier and is
+      wrong: the last affordable upgrade kills the button DURING a press, which
+      loses the recogniser mid-gesture and reports the release as a spontaneous
+      cancel.
+      The repeat spends WITHOUT the tier-up splash — a full-screen celebration
+      arriving mid-hold stands between the player and the button they are still
+      pressing. The splash on release is the tap's job.
 
 ## Shop — `screens/ShopScreen.js`
 
