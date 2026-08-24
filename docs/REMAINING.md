@@ -6569,7 +6569,7 @@ that is not off the extension is the bug, not the symptom.
 
 ### The end of a game
 
-- [ ] **`summary_league_move_test` is INTERMITTENT, and the flake is real.**
+- [x] **`summary_league_move_test` is INTERMITTENT, and the flake is real.**
       "IT OPENS ON THE TABLE AS IT WAS, then moves" fails on `after != before`:
       within the three-row window the settled order and the previous order are
       the same, so nothing passed anybody. Measured rather than guessed at —
@@ -6579,6 +6579,16 @@ that is not off the extension is the bug, not the symptom.
       season, so the nondeterminism is upstream in what `createDefaultState`
       stamps. **Do not "fix" it by loosening the assertion**: the assertion is
       the whole claim the widget makes.
+      **Found: the shared random stream is seeded off the WALL CLOCK.**
+      `random.dart`'s `_shared` is `Mulberry32(DateTime.now()...)`, matching the
+      JS module's `let seed = Date.now()`, and the boot draws the whole pyramid
+      out of it — so every run got a different division, and in some of them the
+      three clubs in the window had the same order before and after. Exactly the
+      upstream nondeterminism this row suspected, and nothing to do with the
+      table's own seeding.
+      Confirmed rather than argued: swept twenty-six seeds and two of them fail,
+      which is the ~8% the reports describe. The test seeds the stream in
+      `setUp` now, and the assertion is untouched.
 
 - [x] **The home page flashes up before the end-of-game screen.** Not a frame:
       the awaited push does not resolve until the match route has finished
