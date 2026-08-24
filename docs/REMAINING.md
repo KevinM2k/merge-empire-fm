@@ -2383,9 +2383,19 @@ now uses the app's own line art and the coin bundles get real pictures.
       rather than a rewrite. **This is what unblocks the whole manager cluster
       above**, previews included.
 - [ ] **`kenney_background-elements-remastered` (1.6MB) is the next candidate** —
-      for the customiser's backdrop, and possibly the diorama.
-- [ ] **`kenney_sports-pack` is already half-extracted** into `assets/pitch/`.
-      Worth going back to it for the 2D cutaway rather than drawing more by hand.
+      for the customiser's backdrop, and possibly the diorama. **It is a
+      DOWNLOAD, and it is not on this machine or in `../merge-empire-fc`** — the
+      spec repo's `public/assets/` holds bg, club, penalty, players, trophies,
+      ui and whack, and no Kenney pack among them. So this row is a fetch
+      somebody has to choose to make, not work waiting to be done here. The four
+      backdrops the port DOES bundle are in use: the park at tiers one and two
+      draws one of them.
+- [x] **`kenney_sports-pack` is already half-extracted** into `assets/pitch/`,
+      and going back to it for the 2D cutaway is DONE — that is what the cutaway
+      draws with. Forty-three files in the folder, and `cutawayGame` loads the
+      ten green, ten red and one white kit frames plus the ball out of it. What
+      is drawn by hand there is the markings and the perspective, which is a
+      projection rather than a sprite and is not something a pack can supply.
 
 Three that are deliberately NOT bundled, so nobody spends the download twice:
 
