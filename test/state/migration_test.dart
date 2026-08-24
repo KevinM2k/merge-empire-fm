@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:merge_empire_fc/engine/season_end.dart'
+    show prestigeMultiplierFor;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
@@ -535,11 +538,44 @@ void main() {
 
   group('prestige and economy', () {
     test('recomputes the income multiplier at the current rate', () {
+      // The rate has moved twice — 1.5 then 1.1 per level compounding, and now
+      // a flat +0.1 — and the point of the recompute is that a save carrying an
+      // old rate is brought onto the current one rather than grandfathered.
+      // 3.375 is 1.5^3, which is what a save from the first era stored.
       final s = migrate(_legacy({'prestige': {'level': 3, 'incomeMultiplier': 3.375}}))!;
       expect(
         (s['prestige'] as Map)['incomeMultiplier'],
-        closeTo(math.pow(1.1, 3).toDouble(), 1e-9),
+        closeTo(prestigeMultiplierFor(3), 1e-9),
       );
+      // Stated in full as well as by the function, so a change to the rule has
+      // to come past a number somebody chose rather than through a helper that
+      // agrees with itself.
+      expect((s['prestige'] as Map)['incomeMultiplier'], closeTo(1.3, 1e-9));
+      expect(
+        (s['prestige'] as Map)['incomeMultiplier'],
+        isNot(closeTo(math.pow(1.1, 3).toDouble(), 1e-9)),
+        reason: 'the JS compounding rule is still in force',
+      );
+    });
+
+    test('the rate is linear, and the migration uses the ENGINE\'s copy', () {
+      // This branch carried its own `math.pow(1.1, level)` — a second answer to
+      // "what is a prestige worth", in the one place a disagreement cannot be
+      // seen: it runs on every load and overwrites whatever `performPrestige`
+      // last wrote, so its copy silently won.
+      for (final (level, want) in [(1, 1.1), (5, 1.5), (10, 2.0), (55, 6.5)]) {
+        final s = migrate(_legacy({'prestige': {'level': level}}))!;
+        expect(
+          (s['prestige'] as Map)['incomeMultiplier'],
+          closeTo(want, 1e-9),
+          reason: 'level $level',
+        );
+        expect(
+          (s['prestige'] as Map)['incomeMultiplier'],
+          closeTo(prestigeMultiplierFor(level), 1e-9),
+          reason: 'level $level disagreed with the engine',
+        );
+      }
     });
 
     test('clamps an absurd prestige level so income cannot go non-finite', () {

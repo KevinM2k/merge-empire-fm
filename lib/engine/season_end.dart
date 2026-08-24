@@ -567,7 +567,24 @@ void checkDivisionUnlock(Map<String, dynamic>? state) {}
 
 // ── Prestige ────────────────────────────────────────────────────────────────
 
-const double _prestigeIncomeBonus = 1.1;
+/// What one prestige adds to the income multiplier.
+///
+/// **LINEAR, and this is a DELIBERATE DIVERGENCE from the JS**, which
+/// compounds: its bonus is `1.1 ^ level`. Same first step — level one is 1.1
+/// either way — and then they part company, hard. Level 10 is 2.6× compounding
+/// against 2.0× here; level 55 is **189×** against 6.5×.
+///
+/// A career's worth of prestiges is meant to be worth taking and not to end the
+/// economy, and an exponent on a counter with no ceiling does end it: past
+/// about level 40 the multiplier outruns every other number in the game and
+/// nothing else the player owns matters. The JS has already moved this once —
+/// the migration's own comment records the bonus going from 1.5 to 1.1 per
+/// level — so the rate is a balance dial rather than a mechanic, and this is
+/// the same dial turned again.
+///
+/// The divergence is SAFE for parity: `season_end_reference` pins prestige at
+/// level ONE, where both rules agree.
+const double _prestigeIncomeBonus = 0.1;
 
 /// Winning the Champions League unlocks prestige PERMANENTLY for that run — the
 /// option stays available even if the club is later relegated.
@@ -602,12 +619,20 @@ bool proModeUnlocked(Map<String, dynamic>? state) =>
 /// The permanent income multiplier at [level] — the engine's own arithmetic,
 /// exposed rather than restated.
 ///
+/// `1 + 0.1 × level`: five adventures is 1.5×, fifty-five is 6.5×.
+///
 /// A screen offering the NEXT adventure has to name the number it will pay, and
-/// a card that computed `1.1 ^ (level + 1)` for itself would sooner or later
-/// promise a multiplier the reset did not hand over. [performPrestige] reads
-/// this too, so there is one power in the game.
+/// a card that computed the rate for itself would sooner or later promise a
+/// multiplier the reset did not hand over. [performPrestige] reads this, and so
+/// does the MIGRATION — which used to carry its own `math.pow(1.1, level)` and
+/// was therefore a second answer to the same question, in the one place a
+/// disagreement is invisible: the migration recomputes the stored multiplier
+/// from the level on every load, so its copy silently won.
+///
+/// Clamped at level zero: a negative level is a corrupt save and must not
+/// produce a multiplier below 1 that quietly halves a player's income.
 double prestigeMultiplierFor(int level) =>
-    math.pow(_prestigeIncomeBonus, level).toDouble();
+    1 + _prestigeIncomeBonus * math.max(0, level);
 
 /// What a prestige did.
 typedef PrestigeResult = ({

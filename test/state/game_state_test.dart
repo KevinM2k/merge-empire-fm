@@ -15,8 +15,11 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/season_end.dart'
+    show prestigeMultiplierFor;
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -49,6 +52,45 @@ Map<String, dynamic> _withoutRatios(Map<String, dynamic> state) =>
       for (final e in state.entries)
         if (e.key != 'definitionRatios') e.key: e.value,
     };
+
+/// The JS's own answer, with its prestige multiplier RESTATED under the port's
+/// rule — the one deliberate divergence in this file.
+///
+/// The JS compounds the prestige bonus (`1.1 ^ level`); the port adds a flat
+/// `+0.1` per level, because an exponent on an uncapped counter ends the economy
+/// — level 55 is 189× compounding against 6.5× here. The whole argument is on
+/// `_prestigeIncomeBonus` in `engine/season_end.dart`. The reference saves sit
+/// at level 3, so 1.331 and 1.3 disagree by design; at level 0 and level 1 the
+/// two rules agree exactly and this changes nothing.
+///
+/// **Translated rather than DROPPED, and never "corrected" in the fixture.** A
+/// parity fixture is the JS's answer and cannot be edited to suit the port (see
+/// `CLAUDE.md`), and dropping the field would stop the harness checking that it
+/// is present and right at all — which is most of what it is for, since at
+/// level 0 the port must still say exactly 1. So the field is still compared;
+/// what is substituted is only the number the port deliberately pays
+/// differently, computed from the level the FIXTURE carries rather than from
+/// anything the code under test produced.
+Map<String, dynamic> _expected(Object? want) {
+  final state = _withoutRatios((want as Map).cast<String, dynamic>());
+  final prestige = state['prestige'];
+  if (prestige is! Map) return state;
+  final level = (prestige['incomeMultiplier'] == null)
+      ? null
+      : (prestige['level'] as num?)?.toInt();
+  if (level == null) return state;
+  final restated = <String, dynamic>{
+    for (final e in prestige.entries) '${e.key}': e.value,
+  };
+  // An int in the fixture where the rule yields a whole number, so the
+  // comparison is not defeated by 1 versus 1.0.
+  final mult = prestigeMultiplierFor(level);
+  restated['incomeMultiplier'] = mult == mult.roundToDouble() &&
+          prestige['incomeMultiplier'] is int
+      ? mult.toInt()
+      : mult;
+  return <String, dynamic>{...state, 'prestige': restated};
+}
 
 /// A save exactly as the reference had it before the reset ran.
 Map<String, dynamic> _before(String label) {
@@ -95,7 +137,7 @@ void main() {
           ),
           _ => throw ArgumentError(label),
         };
-        expect(_withoutRatios(after), row['after']);
+        expect(_withoutRatios(after), _expected(row['after']));
         // And what landed in the store, which is what the next boot reads.
         expect(
           loaded.store.values.keys.toSet(),
@@ -106,7 +148,9 @@ void main() {
             jsonDecode(loaded.store.values[saveKeyPrimary]!)
                 as Map<String, dynamic>,
           ),
-          _withoutRatios(
+          // The STORED save goes through the same translation — it is the
+          // same divergence, and this is the copy the next boot reads.
+          _expected(
             jsonDecode((row['stored'] as Map)[saveKeyPrimary] as String)
                 as Map<String, dynamic>,
           ),
@@ -123,9 +167,33 @@ void main() {
       // undo what the first preserved.
       final want = _section('softThenFull');
       final loaded = _loaded(_before('softRich'));
-      expect(_withoutRatios(loaded.game.resetState()), want['soft']);
-      expect(_withoutRatios(loaded.game.fullResetState()), want['full']);
+      expect(_withoutRatios(loaded.game.resetState()), _expected(want['soft']));
+      expect(
+        _withoutRatios(loaded.game.fullResetState()),
+        _expected(want['full']),
+      );
     });
+  });
+
+  test('the prestige multiplier is the port\'s rule, not the JS\'s', () {
+    // The one field `_withoutRatios` drops for a reason other than randomness,
+    // so it is asserted here as a property. The reference saves are at level 3:
+    // the JS stores 1.1^3 = 1.331 and the port recomputes 1 + 0.1*3 = 1.3 on
+    // load. That the recompute HAPPENS is the load-bearing half — it is what
+    // stops a save carrying a rate the game no longer pays.
+    final loaded = _loaded(_before('softRich'));
+    final prestige = loaded.game.state!['prestige'] as Map;
+    final level = (prestige['level'] as num).toInt();
+    expect(level, greaterThan(0), reason: 'the fixture stopped covering this');
+    expect(
+      prestige['incomeMultiplier'],
+      closeTo(prestigeMultiplierFor(level), 1e-9),
+    );
+    expect(
+      prestige['incomeMultiplier'],
+      isNot(closeTo(math.pow(1.1, level).toDouble(), 1e-9)),
+      reason: 'the JS rule is still in force somewhere',
+    );
   });
 
   test('a reset regenerates the per-install ATK/DEF split', () {

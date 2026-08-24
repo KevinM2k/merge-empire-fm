@@ -23,6 +23,8 @@ import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
+import 'package:merge_empire_fc/engine/season_end.dart' 
+    show prestigeMultiplierFor;
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/migration_progression.dart';
@@ -497,8 +499,10 @@ void _migrateEconomy(Map<String, dynamic> data) {
       'totalTrophies': 0,
     };
   } else {
-    // Sanitise a corrupt or absurd level so the pow below cannot yield a
-    // non-finite multiplier and poison income. Legitimate play never nears it.
+    // Sanitise a corrupt or absurd level before it reaches the multiplier.
+    // The rate is linear now so it cannot go non-finite the way the old power
+    // could, but a level of 999999 is still a corrupt save rather than a
+    // 100,000× economy. Legitimate play never nears the clamp.
     var lvl = _num(prestige['level'])?.toDouble() ?? 0;
     if (!lvl.isFinite || lvl < 0) lvl = 0;
     lvl = math.min(lvl, 5000);
@@ -507,10 +511,20 @@ void _migrateEconomy(Map<String, dynamic> data) {
     // against the JS save — the main tool for proving the port faithful.
     prestige['level'] = lvl == lvl.roundToDouble() ? lvl.toInt() : lvl;
 
-    // Recompute after the income bonus changed from 1.5 to 1.1 per level.
+    // **RECOMPUTED FROM THE LEVEL, at the CURRENT rate**, which is what makes
+    // a rate change apply to saves that already exist — nobody is grandfathered
+    // onto the old one and two players at the same level always earn the same.
+    // The bonus has moved twice now: 1.5 to 1.1 per level compounding, and then
+    // to a flat +0.1 per level.
+    //
+    // **And it asks the ENGINE for it rather than restating it.** This branch
+    // carried its own `math.pow(1.1, level)`, so there were two answers to
+    // "what is a prestige worth" in the one place a disagreement cannot be
+    // seen: this runs on every load and overwrites whatever `performPrestige`
+    // last wrote, so the copy here silently won.
     final level = lvl;
     if (level > 0) {
-      final m = math.pow(1.1, level).toDouble();
+      final m = prestigeMultiplierFor(level.toInt());
       prestige['incomeMultiplier'] = m.isFinite ? m : 1.0;
     } else {
       final mult = _num(prestige['incomeMultiplier'])?.toDouble();

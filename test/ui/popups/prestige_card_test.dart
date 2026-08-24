@@ -130,14 +130,39 @@ void main() {
   group('THE MULTIPLIER ON THE CARD IS THE ONE THE RESET PAYS', () {
     test('the offer names the NEXT level, not the current one', () {
       expect(nextPrestigeMultiplier(saveWith(level: 0)), closeTo(1.1, 1e-9));
-      expect(nextPrestigeMultiplier(saveWith(level: 1)), closeTo(1.21, 1e-9));
+      expect(nextPrestigeMultiplier(saveWith(level: 1)), closeTo(1.2, 1e-9));
+      expect(nextPrestigeMultiplier(saveWith(level: 4)), closeTo(1.5, 1e-9));
       expect(nextPrestigeMultiplier(null), closeTo(1.1, 1e-9));
     });
 
+    test('THE RATE IS FLAT: +0.1 an adventure, and it does not compound', () {
+      // The JS compounds (`1.1 ^ level`) and the port does not — the divergence
+      // is argued on `_prestigeIncomeBonus` in `engine/season_end.dart`. Five
+      // adventures is 1.5x and fifty-five is 6.5x; compounding, fifty-five
+      // would be 189x, which is the number the change exists to prevent.
+      expect(prestigeMultiplierFor(0), closeTo(1.0, 1e-9));
+      expect(prestigeMultiplierFor(1), closeTo(1.1, 1e-9));
+      expect(prestigeMultiplierFor(5), closeTo(1.5, 1e-9));
+      expect(prestigeMultiplierFor(55), closeTo(6.5, 1e-9));
+      // Evenly spaced, which is what "does not compound" means and what a
+      // single spot-check cannot catch.
+      for (var level = 1; level < 60; level++) {
+        expect(
+          prestigeMultiplierFor(level) - prestigeMultiplierFor(level - 1),
+          closeTo(0.1, 1e-9),
+          reason: 'step $level',
+        );
+      }
+      // A corrupt level must not produce a multiplier BELOW 1 and quietly halve
+      // a player's income.
+      expect(prestigeMultiplierFor(-5), closeTo(1.0, 1e-9));
+    });
+
     test('and a run deep enough to float is still readable', () {
-      // `1.1 ^ 7` is 1.9487171000000004, and a bare interpolation would have
-      // put every digit of that on the card.
-      expect(formatPrestigeMultiplier(prestigeMultiplierFor(7)), '1.95');
+      // Binary floating point does not hold 0.1, so `1 + 0.1 * 7` is
+      // 1.7000000000000002 and a bare interpolation would have put every digit
+      // of that on the card.
+      expect(formatPrestigeMultiplier(prestigeMultiplierFor(7)), '1.7');
       expect(formatPrestigeMultiplier(1.1), '1.1');
       expect(formatPrestigeMultiplier(2), '2');
       expect(formatPrestigeMultiplier(1.21), '1.21');
