@@ -30,13 +30,37 @@ too late:
 
 ## Where we are
 
-**THE PLAYTEST QUEUE IS EMPTY.** Every row a player reported has been either
-fixed or answered, and the boxes still open below are all of one of
-five kinds, none of which can be closed by writing Dart in this repo:
+**THE PLAYTEST QUEUE IS NOT EMPTY, and this paragraph said it was for a
+week.** It was written before the 1 Sep session and never re-read after it;
+that session's `Reported and NOT yet done` block has stood open underneath it
+the whole time. **A summary at the top of a file is a claim with no test behind
+it**, and it decays silently in a way the boxes below it cannot — the boxes are
+at least wrong in one place each. Anything read from here is worth confirming
+against `grep -c '^- \[ \]'` and the newest dated block before it is believed.
+
+What is actually open, after a pass that checked every unticked row against the
+code rather than against this paragraph:
+
+- **Six rows a player reported and nobody has closed** — see the 1 Sep block.
+  Four of those six are **blocked on the REPORTER, not on the work**: "the
+  traits still are not better", "the buttons are not the same and none of them
+  do anything", "is the audio bug fixed?" and the carry pose all name a
+  complaint without naming what is wrong, and the last screenshot-shaped one
+  ("the pitch looks letterboxed") may already have gone with the 1 Sep band fix.
+  **One sentence each would unblock all five.** The two that are neither
+  blocked nor done are Pitch Invaders' tile size and the `.store-3d` sweep.
+- **A DECISION, not a defect** — should a button that spends no currency wear
+  the `.store-3d` face at all? The 1 Sep block asks it directly and nothing can
+  be built either way until somebody answers. See "The rest of the app's
+  buttons".
+
+And then the four kinds that genuinely cannot be closed by writing Dart here:
 
 - **M4 services** — AdMob, Firebase, Play Billing, StoreKit, cloud save,
   leaderboards, notifications, the weather service's timezone. Accounts, SDKs
-  and native bridges.
+  and native bridges. **`cosmetic_pack`'s ad unit id joined this list** when the
+  customiser's ▶ landed: the code path is live and the placement falls back to
+  energy_pip until somebody creates the unit.
 - **M6 release and M7 cutover** — signing, both store consoles, staged rollout.
 - **Device passes** — the play button's pop, the crowd surge and the ear have
   never been seen on physical hardware, and nor has profile mode.
@@ -53,7 +77,7 @@ five kinds, none of which can be closed by writing Dart in this repo:
 Also still open, and deliberately so: the carried risks at the foot of the file
 are DECISIONS, not work.
 
-**4,575 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**5,087 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **The newest pass also ran green on 3.38.3**, which is the version that happened
@@ -6263,10 +6287,16 @@ Written on arrival from here.
       to look for. A card on a page has a SHADOW and this one did not; it has
       one now, light in daylight and dark at night, which is the same treatment
       and the same reasoning `SettingsCard` already uses.
-- [ ] **The shop's gem tiles do not look like `../merge-empire-fc`'s, and they
+- [x] **The shop's gem tiles do not look like `../merge-empire-fc`'s, and they
       are not CENTRED.** The centring is a real bug in this port's tile: the
       contents are a non-positioned child of a `Stack`, which aligns to the
-      top-left corner unless it is told otherwise.
+      top-left corner unless it is told otherwise. **FIXED in 83f13f2** and the
+      box was never ticked — `alignment: Alignment.center`, with the sheen and
+      the ribbon left `Positioned` so they are unaffected. Written down because
+      an unticked row that is already done costs the next session the same
+      twenty minutes of reading: the row is the record, not the code.
+      What is NOT answered is the first half — "do not look like the JS's" —
+      which needs the spec on disk to diff against.
 - [ ] **The buttons are not the same as they were, and none of them do
       anything.** Which buttons is not established. If it is the shop's, the
       real-money ones have always been dead behind `paidDisabledReason` — but
@@ -6320,9 +6350,40 @@ Written on arrival from here.
       second arm pass last session; carrying is a different pose and was not in
       the set. Asked as a question, so it also wants confirming which poses
       still look wrong.
-- [ ] **Adverts on the locked manager customisations.** Each look that is meant
+      **Half of this HAS had a pass and the row does not say so**: `carryArm`
+      and `carryFore` in `manager_walker.dart` carry a comment about the fold
+      reading "exactly as reported: odd", and the fix was to take the JS's
+      DELTA (58°) off the port's own rebased rest rather than its absolute
+      -110. So the cradle has already been corrected once. Whether it is the
+      cradle that still looks wrong, or the hands themselves — there are no
+      hands in the rig, the forearm simply ends — is the sentence this needs.
+      Blocked on the reporter, not on the work.
+- [x] **Adverts on the locked manager customisations.** Each look that is meant
       to be unlockable by watching a video needs the ad route on it. Nothing in
       the customiser offers one today.
+      **DONE, and it was the biggest unreachable thing left in `lib/`.** The
+      whole route existed and none of it had a caller: `grantLookItem` calls
+      itself "the rewarded-video reward" in its own comment, `recordPackAd` is
+      the cap it spends, `ad_gate_engine` is the five-minute window, and
+      `look_pack_engine.dart` describes the surface in the PRESENT TENSE —
+      "every item inside the sheet has its own ▶, and so does every locked chip
+      in the customiser". Neither ▶ was ever built. A design note written as
+      though it shipped is a new kind of tell and is worth adding to the list:
+      it reads as a description on every re-read, and only a grep for the
+      caller says otherwise.
+      `lookItemOffer` decides (`owned` / `video` / `wait` / `earned`) and
+      `claimLookItemAd` grants and spends in ONE call, because a pair whose
+      halves can be called apart is the exact shape this file already records
+      being bitten by. The padlock now means EARNED — a cup exclusive is not
+      for sale at any price — and the two that ARE wear ▶ or the countdown.
+      **No new copy**: the affordance is a glyph and `formatAdWait`, because
+      there is no shipped key for "watch to unlock" and one invented here would
+      be untranslated in ten languages.
+      **What is still owed is the CONSOLE**, not the code: `cosmetic_pack` is
+      null in `ad_units.dart` and falls back to energy_pip, which files the
+      revenue under the wrong placement and — the part that matters — shares
+      energy's frequency cap, which is the whole thing a separate unit prevents.
+      See the M4 ad rows.
 
 - [x] **The light-mode red and green do not match the dark ones.** Third time
       of asking, and the answer that was being given was wrong in a way worth
@@ -6367,6 +6428,19 @@ Written on arrival from here.
 - [ ] **Pitch Invaders' boxes should be BIGGER.** Asked again after the holes
       were enlarged and the uneven first column fixed — so it is the tiles
       themselves that want more of the screen, not the holes inside them.
+      **Measured before touching it, and the board is already WIDTH-limited**,
+      which is why the last two passes bought so little: the tile is an
+      `AspectRatio(1)` in a three-across `Row` under a stretched `Column`, so
+      its size is `(width - 28 - 12) / 3` and nothing above it is holding
+      height back any more. Every point left to win is padding — 8 outside, 6
+      inside the turf frame, 6 between columns — which is about seven points a
+      tile and not what "bigger" means.
+      **So this one needs a decision rather than another trim.** The levers
+      that would actually work are a 2×2 or 2×3 board instead of 3×3 (fewer,
+      larger targets — a change to `Whack.holes`, which is the ENGINE and is
+      pinned against the JS), or letting the board be taller than it is wide by
+      dropping the square aspect. Both are spec changes, and `../merge-empire-fc`
+      is not on disk to check what the JS's own board does.
 - [x] **A manager customisation should SHOW what it unlocks.** The rows were a
       shirt glyph and a word — "Bucket", "Viking", "Party" — which tells a
       player nothing about what they are buying, while the CUSTOMISER has been
@@ -6474,6 +6548,14 @@ that is not off the extension is the bug, not the symptom.
       after the inset landed, so this is a fourth sighting on the same band.
       Get a shot with the whole card in it: every pass so far has been measured
       against a band shape guessed at from a crop.
+      **MAY ALREADY BE GONE.** The 1 Sep block fixed "the 2D match view is
+      missing most of the screen" the day after this was written, and the cause
+      there was the BAND taking more height than the pitch needs — a green box
+      with the pitch in the top half of it, which is what letterboxed describes
+      from the other side. `maxHeight` is a cap now and the stage asks for
+      `tiltedBandHeight`. One screenshot closes this row either way; nothing
+      should be changed on the band until it arrives, because four passes have
+      now been aimed at a shape guessed from a crop.
 - [x] **The cutaway pitch is missing its top and bottom.** Measured rather than
       guessed at: the fitted quad sat at y 1.6 to 128.4 in a 130-tall band, so
       the far and near touchlines — one antialiased pixel each — landed half on
