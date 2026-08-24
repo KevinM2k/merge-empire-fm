@@ -250,10 +250,21 @@ All seven shelves are present and in the JS's own order.
       what was missed as well as what was won. `resolveMatchQuests` had no caller
       and `rollMatchQuests` had none either, so the track was empty for every
       match ever played — see the method note.
-- [ ] In-match subs
-- [ ] In-match tactic changes
-- [ ] Stats tab
-- [ ] Tactics tab
+- [x] In-match subs — `subs_panel.dart`, behind the Subs button, with the
+      kickoff lineup captured because it has to go back.
+- [x] In-match tactic changes — `applyStrategy`, on its own cooldown, and the
+      remainder of the match is genuinely RE-DECIDED rather than re-labelled.
+- [x] Stats tab — **as a different affordance, deliberately.** The statistics
+      used to be the stage's resting state, which is what made the pitch flip in
+      and out; the port made the SCOREBOARD the door instead. It costs no height
+      at all, and the numbers are what the panel is about, so tapping them to
+      see more of them is where a hand goes anyway.
+      **`match.tab.stats`, `.commentary` and `.tactics` therefore have no caller
+      and should not** — they name a tab strip this port does not draw. Recorded
+      here so a future sweep of uncalled copy reads this rather than building
+      one.
+- [x] Tactics tab — same: the tactic picker is a control on the screen rather
+      than a tab of its own.
 - [x] The doubling offer on the closing screen — built in `match_summary.dart`
       on the `double_match` placement, with the rewards deferred for it exactly
       as `play_button.dart` set up. One tap only: a second while the video is
