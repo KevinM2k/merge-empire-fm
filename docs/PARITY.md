@@ -478,7 +478,24 @@ All seven shelves are present and in the JS's own order.
 
 The same treatment as the shop, against `src/ui/styles/`:
 
-- [ ] Club — `screens.css` `.club-grid`, `.asset-*`
+- [x] Club — `screens.css` `.club-grid`, `.asset-*`. **Diffed.**
+      **The grid was citing a rule that does not exist.** It computed its column
+      count from a `minmax(165px, 1fr)` it said was the JS's, and there is no
+      such rule anywhere in `screens.css`: `.club-grid` is two columns flat,
+      three from 640, four from 800, and only past 1100 does it become
+      `auto-fill minmax(200px)`.
+      **The arithmetic happened to agree across every width a phone has**, which
+      is exactly why a wrong citation can sit unnoticed — it was right by
+      coincidence, and would have drifted the first time either number was
+      touched. It is the stylesheet's own steps now, pinned by a test.
+      **The GAP stays at ten where the CSS says six, deliberately.** Ten is what
+      every other grid in this port uses and a playtester has asked twice for
+      more room between cards rather than less; taking the six would make the
+      one screen full of large artwork the tightest in the app. Written down so
+      the next diff does not read it as drift.
+      `.add-asset-row` has no counterpart: the port draws owned and unbuilt
+      facilities in ONE grid, so the row's separate breakpoints (five across at
+      800 rather than four) do not apply.
 - [ ] Players grid — `grid.css` (872 lines)
 - [ ] Match page — `match-page.css` (1,041 lines)
 - [ ] Home — `league-scene.css` (4,444 lines, the biggest by far)

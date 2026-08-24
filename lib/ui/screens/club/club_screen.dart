@@ -216,16 +216,39 @@ class _AssetGrid extends StatelessWidget {
 
   final List<AssetTile> tiles;
 
-  /// The JS's `minmax(165px, 1fr)`.
-  static const double _minTile = 165;
+  /// **The stylesheet's own breakpoints, and it has no `minmax` at this size.**
+  /// This used to compute a column count from a `minmax(165px, 1fr)` it said
+  /// was the JS's — and that rule is nowhere in `screens.css`. `.club-grid` is
+  /// two columns flat, three from 640, four from 800, and only past 1100 does it
+  /// become `auto-fill minmax(200px)`. The arithmetic happened to agree across
+  /// every width a phone has, which is exactly why a wrong citation can sit
+  /// unnoticed: it was right by coincidence and would have drifted the first
+  /// time either number was touched.
+  /// **TEN, WHERE THE STYLESHEET SAYS SIX, and that is a decision rather than
+  /// a miss.** Ten is what every other grid in this port uses, and a playtester
+  /// has asked twice for MORE room between cards rather than less — the shop's
+  /// tiles and the fixture rows both went up for exactly that reason. Taking
+  /// the CSS's six here would make the one screen full of large artwork the
+  /// tightest in the app. Written down so the next diff does not read it as
+  /// drift.
   static const double _gap = 10;
+
+  /// How many across, at [width]. Public through [AssetGridColumns] so the
+  /// steps can be pinned without pumping seven screen sizes.
+  static int columnsAt(double width) {
+    if (width >= 1100) {
+      // `auto-fill, minmax(200px, 1fr)` — the only breakpoint that measures.
+      return ((width + _gap) / (200 + _gap)).floor().clamp(4, 8);
+    }
+    if (width >= 800) return 4;
+    if (width >= 640) return 3;
+    return 2;
+  }
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final columns = ((constraints.maxWidth + _gap) / (_minTile + _gap))
-          .floor()
-          .clamp(1, 4);
+      final columns = columnsAt(constraints.maxWidth);
       final rows = <List<AssetTile>>[];
       for (var i = 0; i < tiles.length; i += columns) {
         rows.add(tiles.sublist(i, math.min(i + columns, tiles.length)));
@@ -664,4 +687,9 @@ class _Art extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The facility grid's column steps, for a test.
+abstract final class AssetGridColumns {
+  static int at(double width) => _AssetGrid.columnsAt(width);
 }
