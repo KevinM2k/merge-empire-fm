@@ -177,6 +177,38 @@ String matchReactionKind(Map<String, dynamic>? state) {
   return 'loss';
 }
 
+/// Is the script over — or was it never running?
+///
+/// **A save with no `tutorial` branch, or a null `done`, is FINISHED.** That is
+/// every save written before the flag existed, and most of the saves in the
+/// wild; requiring an explicit `true` read all of them as mid-tutorial, which
+/// hid the ×N batch control and the auto-sell pill from players who had
+/// finished years ago. One implementation, because two answers to this question
+/// is how the batch control and the batch SIZE came to disagree.
+bool tutorialFinished(Map<String, dynamic>? state) {
+  final tutorial = state?['tutorial'];
+  if (tutorial is! Map) return true;
+  return tutorial['done'] != false;
+}
+
+/// **The tutorial's guaranteed first win.**
+///
+/// A player losing the one match the game walks them through is the worst
+/// first impression the port can make, and `simulateMatch` has taken a
+/// `forceWin` since the port landed — with a comment naming the tutorial —
+/// that nothing ever passed. The JS's own condition, exactly: the script is
+/// still running AND no match has been played.
+///
+/// **`matchesPlayed`, not `seasonAwardedPlayed`.** This asks whether the player
+/// has ever kicked off, which survives a season rolling over; the step that
+/// waits for the result asks whether the rewards have MOVED, which is a
+/// different counter and a different question.
+bool tutorialFirstMatch(Map<String, dynamic>? state) {
+  if (tutorialFinished(state)) return false;
+  final played = _num(_map(state?['progression'])?['matchesPlayed']);
+  return (played?.toInt() ?? 0) == 0;
+}
+
 /// Where the script is, or null once it is finished.
 TutorialStep? tutorialStepFor(Map<String, dynamic>? state) {
   final tut = _map(state?['tutorial']);

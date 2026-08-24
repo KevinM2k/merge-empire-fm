@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/engine/quest_match.dart';
@@ -88,7 +89,14 @@ Map<String, dynamic>? beginMatch(Map<String, dynamic> state) {
   }
 
   final division = _map(state['progression'])?['currentDivision'] as String?;
-  return simulateMatch(state, division);
+  // **THE TUTORIAL'S FIRST MATCH IS ALWAYS WON.** `simulateMatch` has taken a
+  // `forceWin` since the port landed, with a comment naming this as its reason,
+  // and nothing had ever passed it — so a new player could lose the one match
+  // the game walks them through, which is the worst first impression this can
+  // make. Read the flag BEFORE the sim: it counts matches played, and the sim
+  // is about to make it one.
+  final first = tutorialFirstMatch(state);
+  return simulateMatch(state, division, forceWin: first);
 }
 
 /// Commit the result. Called at full time, with the screen still up.

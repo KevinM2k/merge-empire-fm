@@ -8,6 +8,7 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/club_assets.dart';
@@ -242,6 +243,13 @@ List<int> availableScoutBatchSizes(Map<String, dynamic>? state) {
 /// What a Scout tap will actually buy: the stored choice, clamped down to what
 /// is available.
 int effectiveScoutBatch(Map<String, dynamic>? state) {
+  // **ONE AT A TIME WHILE THE TUTORIAL IS RUNNING.** The batch control is
+  // already hidden until the script finishes, but the SIZE it would have used
+  // is stored on the save — so a player part-way through the tutorial on a
+  // save that had picked ×3 would spend three times the coins on a step that
+  // asks for one card, and be taught the wrong lesson at the same time. The
+  // step counts cards, not presses; the ×N control is the reward for finishing.
+  if (!tutorialFinished(state)) return 1;
   final sizes = availableScoutBatchSizes(state);
   final want = scoutBatch(state);
   final affordable = [

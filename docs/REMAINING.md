@@ -6248,17 +6248,40 @@ Written on arrival, before the work, which is the rule the 31 Aug block opens on
       from there, so each proves a beat works and none asks whether a player can
       get from one to the next. `tutorial_walkthrough_test` walks all nine in
       the real app, tapping only what a player can see.
-- [ ] **One player per scout during the tutorial.** The batch control offers
-      ×2 and ×3, and a new player pressing one of those in the middle of "scout
-      a player" is being taught the wrong lesson and spending coins they will
-      want. Locked to 1× until the script is done.
-- [ ] **Animate the cards in for gold and legend signings.** Asked for
-      alongside the batch lock — the reveal already flies a card to its square,
-      so this is about the top tiers arriving with something worth watching.
-- [ ] **ALWAYS WIN THE FIRST MATCH.** The tutorial's fifth step waits on a
-      settled result and then reacts to it; a new player losing the one match
-      the game walks them through is the worst first impression the port can
-      make, and there are four reaction lines because the JS lets it happen.
+- [x] **One player per scout during the tutorial.** The ×N control was already
+      hidden until the script finishes — but the batch SIZE it would have used
+      is stored on the save, so a resumed save that had picked ×3 spent three
+      times the coins on a step that asks for one card. `effectiveScoutBatch`
+      returns 1 while the tutorial runs.
+      **And `tutorialFinished` is now ONE function.** The provider behind the
+      hidden control and the engine deciding the size were two answers to the
+      same question, which is exactly how a control and the thing it controls
+      come to disagree.
+- [x] **Animate the cards in for gold and legend signings.** `RevealTier` is
+      three bands — plain, star, legend — **on the CAPTION's own thresholds**,
+      5 and 7, because the line, the glow and now the arrival all have to break
+      in the same place: three answers to "how good is this" that disagreed
+      would be worse than one that is only roughly right.
+      A star falls further and lands slower than a bronze; a legend further and
+      slower again; both catch a band of light across the face once they are
+      turned over, clipped to the card rather than haloed round it — the rim
+      already carries the tier's colour and a second glow is the same statement
+      twice. The HOLD grows with the best card in the batch, so one legend among
+      four makes it a legend's reveal.
+      **The reveal's clock had to be lengthened with it**, which is the part
+      that would have been missed: `elapsed` is read off the entrance
+      controller, so leaving it at the flip's own length capped it before the
+      sweep had moved and a star's shine would have been a stripe that never
+      travelled.
+- [x] **ALWAYS WIN THE FIRST MATCH.** `simulateMatch` has taken a `forceWin`
+      since the port landed, with a comment naming the tutorial as its reason —
+      **and nothing had ever passed it**, so a new player could lose the one
+      match the game walks them through. The JS's own condition exactly: the
+      script is still running AND no match has been played.
+      `matchesPlayed`, not `seasonAwardedPlayed` — this asks whether they have
+      ever kicked off, which survives a season rolling over; the step that waits
+      for the result asks whether the rewards have MOVED, which is a different
+      counter and a different question.
 - [x] **Highlight the right button each step, with the pointing hand.** Asked
       for directly, and it is what fixes (3) above rather than decoration on
       top of it. The JS anchors each step to a DOM selector and draws a

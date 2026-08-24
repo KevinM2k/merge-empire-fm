@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
@@ -57,11 +58,7 @@ final autoTierActiveProvider = savePick<bool>(
 /// saves in the wild. Requiring an explicit `true` read all of them as
 /// mid-tutorial, which hid the ×N batch control and the auto-sell pill from
 /// players who had finished the tutorial long ago.
-final tutorialDoneProvider = savePick<bool>((s) {
-  final tutorial = s['tutorial'];
-  if (tutorial is! Map) return true;
-  return tutorial['done'] != false;
-});
+final tutorialDoneProvider = savePick<bool>(tutorialFinished);
 
 /// What one card of [tier] fetches.
 ///

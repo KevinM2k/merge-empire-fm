@@ -24,11 +24,20 @@ import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// A save with money and an empty grid — the state Add Player is for.
-Map<String, dynamic> _save({int coins = 100000, bool autoSell = false}) {
+/// **The tutorial is FINISHED by default here**, because the batch control is
+/// its reward: while the script is running a scout signs exactly one card
+/// however big a batch the save has stored. Everything in this file that is
+/// about batches is therefore about a save past the tutorial; the lock itself
+/// has its own test below.
+Map<String, dynamic> _save({
+  int coins = 100000,
+  bool autoSell = false,
+  bool tutorialDone = true,
+}) {
   final s = createDefaultState();
   (s['resources'] as Map<String, dynamic>)['fanCoins'] = coins;
+  (s['tutorial'] as Map<String, dynamic>)['done'] = tutorialDone;
   if (autoSell) {
-    (s['tutorial'] as Map<String, dynamic>)['done'] = true;
     // BOTH tiers Sunday League can draw. Marking only tier one left the test
     // flaky about one run in seven — a tier-two draw is a 15% slice of that
     // pool, and an unmarked card is a reveal with nothing to cash in.
@@ -596,6 +605,52 @@ void main() {
 
       expect(_filled(container.read(gameProvider).state), before + 4);
       expect(heard, isEmpty);
+    });
+  });
+
+  group('how a star arrives', () {
+    // The whole point of scouting is the moment a good one turns over, and the
+    // standard pacing is tuned for the bronze card that arrives nine times out
+    // of ten: long enough to read, not long enough to enjoy.
+    test('the bands are the CAPTION\'s own thresholds', () {
+      // Three answers to "how good is this" that disagreed would be worse than
+      // one that is only roughly right — the line, the glow and the arrival
+      // all break at 5 and 7.
+      expect(RevealTier.of(1), RevealTier.plain);
+      expect(RevealTier.of(4), RevealTier.plain);
+      expect(RevealTier.of(5), RevealTier.star);
+      expect(RevealTier.of(6), RevealTier.star);
+      expect(RevealTier.of(7), RevealTier.legend);
+      expect(RevealTier.of(9), RevealTier.legend);
+    });
+
+    test('a better card falls further and lands slower', () {
+      expect(RevealTier.plain.drop, 0);
+      expect(RevealTier.star.drop, greaterThan(RevealTier.plain.drop));
+      expect(RevealTier.legend.drop, greaterThan(RevealTier.star.drop));
+      expect(
+        RevealTier.legend.entrance,
+        greaterThan(RevealTier.star.entrance),
+      );
+      expect(RevealTier.star.entrance, greaterThan(RevealTier.plain.entrance));
+    });
+
+    test('and only a star or better catches the light', () {
+      expect(RevealTier.plain.shines, isFalse);
+      expect(RevealTier.star.shines, isTrue);
+      expect(RevealTier.legend.shines, isTrue);
+    });
+
+    test('THE HOLD GROWS WITH THE BEST CARD IN THE BATCH', () {
+      // One legend among four makes it a legend's reveal.
+      final plain = scoutRevealHold(1);
+      expect(scoutRevealHold(1, topTier: 5), greaterThan(plain));
+      expect(
+        scoutRevealHold(1, topTier: 7),
+        greaterThan(scoutRevealHold(1, topTier: 5)),
+      );
+      // And the default is unchanged, so nothing that does not ask is affected.
+      expect(scoutRevealHold(1, topTier: 1), plain);
     });
   });
 }

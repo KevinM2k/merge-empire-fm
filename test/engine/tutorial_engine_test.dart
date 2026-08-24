@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -299,6 +300,48 @@ void main() {
       final done = at(1, cards: 9);
       (done['tutorial'] as Map<String, dynamic>)['done'] = true;
       expect(tutorialConditionMet(done), isFalse);
+    });
+  });
+
+  group('what the tutorial holds back', () {
+    Map<String, dynamic> running({int matches = 0, int batch = 4}) {
+      final s = createDefaultState();
+      (s['tutorial'] as Map<String, dynamic>)
+        ..['step'] = 1
+        ..['done'] = false;
+      (s['progression'] as Map<String, dynamic>)['matchesPlayed'] = matches;
+      (s['settings'] as Map<String, dynamic>)['scoutBatch'] = batch;
+      return s;
+    }
+
+    test('ONE PLAYER PER SCOUT while the script is running', () {
+      // The ×N control is hidden until the tutorial is done, but the SIZE it
+      // would have used is on the save — so a resumed save that had picked ×3
+      // would spend three times the coins on a step that asks for one card.
+      expect(effectiveScoutBatch(running()), 1);
+      final done = running()
+        ..['tutorial'] = <String, dynamic>{'done': true};
+      expect(effectiveScoutBatch(done), greaterThan(1));
+    });
+
+    test('THE FIRST MATCH IS ALWAYS WON', () {
+      // `simulateMatch` has taken a `forceWin` since the port landed, with a
+      // comment naming the tutorial, and nothing ever passed it.
+      expect(tutorialFirstMatch(running()), isTrue);
+    });
+
+    test('and only the first — it is not a cheat that outstays the script', () {
+      expect(tutorialFirstMatch(running(matches: 1)), isFalse);
+      final done = running()..['tutorial'] = <String, dynamic>{'done': true};
+      expect(tutorialFirstMatch(done), isFalse);
+    });
+
+    test('a save with no tutorial branch is FINISHED, not mid-script', () {
+      // Every save written before the flag existed, which is most of them.
+      final old = createDefaultState()..remove('tutorial');
+      expect(tutorialFinished(old), isTrue);
+      expect(tutorialFirstMatch(old), isFalse);
+      expect(effectiveScoutBatch(old), greaterThanOrEqualTo(1));
     });
   });
 }

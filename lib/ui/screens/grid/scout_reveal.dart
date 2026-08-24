@@ -159,8 +159,51 @@ const Duration _captionDelay = Duration(milliseconds: 360);
 
 /// How long the cards are held before dismissing themselves. A batch gets
 /// longer: there is more to take in.
-Duration scoutRevealHold(int cards) =>
-    Duration(milliseconds: (cards > 1 ? 2300 : 1900) + 150);
+///
+/// **And a star or a legend gets longer still.** The whole point of scouting is
+/// the moment one of them turns over, and the standard hold is tuned for the
+/// bronze card that arrives nine times out of ten — long enough to read, not
+/// long enough to enjoy. [topTier] is the best tier in the batch.
+Duration scoutRevealHold(int cards, {int topTier = 1}) => Duration(
+  milliseconds:
+      (cards > 1 ? 2300 : 1900) +
+      150 +
+      (topTier >= 7 ? 900 : (topTier >= 5 ? 450 : 0)),
+);
+
+/// The three bands the reveal treats differently: bronze, star, legend.
+///
+/// **The thresholds are the caption's own** — `merge.signing.star` at 5 and
+/// `merge.signing.legendary` at 7 — and the glow's, so a card that is called a
+/// legend is lit like one and now arrives like one. Three answers to "how good
+/// is this" that disagreed would be worse than one that is only roughly right.
+enum RevealTier {
+  plain,
+  star,
+  legend;
+
+  static RevealTier of(int tier) =>
+      tier >= 7 ? RevealTier.legend : (tier >= 5 ? RevealTier.star : plain);
+
+  /// How far the card falls in, as a fraction of its own height. A legend
+  /// arrives from further away, so the eye follows it in.
+  double get drop => switch (this) {
+    RevealTier.plain => 0,
+    RevealTier.star => 0.22,
+    RevealTier.legend => 0.38,
+  };
+
+  /// How long the arrival takes. Slower reads as heavier.
+  Duration get entrance => switch (this) {
+    RevealTier.plain => _popIn,
+    RevealTier.star => const Duration(milliseconds: 340),
+    RevealTier.legend => const Duration(milliseconds: 460),
+  };
+
+  /// A light sweeping across the face once it is turned over. The one thing
+  /// here that is pure celebration, so the plain card does not get it.
+  bool get shines => this != RevealTier.plain;
+}
 
 /// The burst a cashed-in card comes apart with. The backdrop stays up through
 /// it — a card exploding over the live UI reads as a glitch rather than a sale.
@@ -235,9 +278,25 @@ class ScoutRevealOverlay extends StatefulWidget {
 
 class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
     with TickerProviderStateMixin {
+  /// The best tier in the batch, which is what decides how the reveal is
+  /// paced: one legend in four cards makes it a legend's reveal.
+  RevealTier get _band => RevealTier.of(
+    widget.reveal.cards.map((c) => c.view.tier).reduce(math.max),
+  );
+
+  /// **The clock the whole reveal is read off**, so it has to outlast the last
+  /// thing drawn on it — the sweep, which starts where the flip ends. Leaving
+  /// it at the flip's own length capped `elapsed` before the sweep had moved,
+  /// so a star's shine would have been a stripe that never travelled.
   late final AnimationController _in = AnimationController(
     vsync: this,
-    duration: _popDelay + _flipDelay + _flip,
+    duration:
+        _popDelay +
+        _flipDelay +
+        _flip +
+        (_band.shines
+            ? const Duration(milliseconds: _shineMs)
+            : Duration.zero),
   );
   late final AnimationController _out = AnimationController(
     vsync: this,
@@ -282,7 +341,13 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
   void initState() {
     super.initState();
     _in.forward();
-    _hold = Timer(scoutRevealHold(widget.reveal.cards.length), _dismiss);
+    _hold = Timer(
+      scoutRevealHold(
+        widget.reveal.cards.length,
+        topTier: widget.reveal.cards.map((c) => c.view.tier).reduce(math.max),
+      ),
+      _dismiss,
+    );
     _resolveLanding();
   }
 
@@ -593,12 +658,19 @@ class _RevealCard extends StatelessWidget {
 
     // Reduce-motion keeps the reveal — it is information, not decoration — and
     // drops the movement: the card is simply there, face up, with its caption.
-    final pop = reduceMotion
+    // **THE TOP TIERS ARRIVE DIFFERENTLY.** A star falls further and lands
+    // slower than a bronze; a legend further and slower again. Same curve, so
+    // it is recognisably the same reveal — what changes is the weight.
+    final band = RevealTier.of(card.view.tier);
+    final arriving = reduceMotion
         ? 1.0
-        : Curves.easeOutBack.transform(
-            ((elapsed - _popDelay.inMilliseconds) / _popIn.inMilliseconds)
-                .clamp(0.0, 1.0),
-          );
+        : ((elapsed - _popDelay.inMilliseconds) /
+                  band.entrance.inMilliseconds)
+              .clamp(0.0, 1.0);
+    final pop = reduceMotion ? 1.0 : Curves.easeOutBack.transform(arriving);
+    final drop = reduceMotion
+        ? 0.0
+        : (1 - Curves.easeOutCubic.transform(arriving)) * band.drop;
     final flip = reduceMotion
         ? 1.0
         : ((elapsed - _popDelay.inMilliseconds - _flipDelay.inMilliseconds) /
@@ -699,8 +771,25 @@ class _RevealCard extends StatelessWidget {
       );
     }
 
-    return Transform.scale(
-      scale: pop * (1 - settle * 0.85),
+    // The sweep, after it is face up: one pass, and only for a star or better.
+    if (band.shines && faceUp && !reduceMotion) {
+      body = _Shine(
+        progress:
+            ((elapsed -
+                        _popDelay.inMilliseconds -
+                        _flipDelay.inMilliseconds -
+                        _flip.inMilliseconds) /
+                    _shineMs)
+                .clamp(0.0, 1.0),
+        radius: 14,
+        child: body,
+      );
+    }
+
+    return Transform.translate(
+      offset: Offset(0, size * aspect * drop),
+      child: Transform.scale(
+        scale: pop * (1 - settle * 0.85),
       // A REAL rotation about Y, under the JS's own 1100px perspective. It had
       // been faked as a horizontal squeeze, on the reasoning that the
       // perspective is invisible at this size — it is not: a squeeze reads as
@@ -711,7 +800,68 @@ class _RevealCard extends StatelessWidget {
         transform: Matrix4.identity()
           ..setEntry(3, 2, 1 / 1100)
           ..rotateY(reduceMotion ? 0 : (1 - flip) * math.pi),
-        child: Opacity(opacity: (1 - settle).clamp(0.0, 1.0), child: body),
+          child: Opacity(opacity: (1 - settle).clamp(0.0, 1.0), child: body),
+        ),
+      ),
+    );
+  }
+}
+
+/// How long the sweep takes to cross the card.
+const int _shineMs = 620;
+
+/// A band of light crossing the face, once.
+///
+/// **Clipped to the card and drawn OVER it**, rather than a glow around it: the
+/// rim already carries the tier's colour and a second halo would just be a
+/// brighter version of the same statement. A sweep is the card catching the
+/// light, which is what a special card in every other game in the genre does.
+class _Shine extends StatelessWidget {
+  const _Shine({
+    required this.progress,
+    required this.radius,
+    required this.child,
+  });
+
+  /// 0 to 1 across the card. At 1 it draws nothing at all.
+  final double progress;
+  final double radius;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (progress <= 0 || progress >= 1) return child;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          child,
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    // Diagonal, which is what makes it read as a reflection
+                    // rather than as a wipe.
+                    begin: const Alignment(-1.6, -1),
+                    end: const Alignment(1.6, 1),
+                    colors: const [
+                      Color(0x00FFFFFF),
+                      Color(0x66FFFFFF),
+                      Color(0x00FFFFFF),
+                    ],
+                    stops: [
+                      (progress - 0.22).clamp(0.0, 1.0),
+                      progress.clamp(0.0, 1.0),
+                      (progress + 0.22).clamp(0.0, 1.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
