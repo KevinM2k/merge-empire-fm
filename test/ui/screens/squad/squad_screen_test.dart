@@ -5,6 +5,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
@@ -12,7 +14,6 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
-import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -21,6 +22,9 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
+import 'package:merge_empire_fc/engine/trait_engine.dart';
+import 'package:merge_empire_fc/data/traits.dart';
+import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
@@ -749,6 +753,84 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('A LOST ROLL IS NOT CELEBRATED', (tester) async {
+      // **`none` is in the trait pool**, so a roll can come back with nothing —
+      // that is the downside the gamble is built on. `getTrait('none')` is a
+      // real entry rather than null, so the payoff splash fired for it too: the
+      // player paid, lost, and was shown "✕ None" over up to three gold stars.
+      // The red band is the whole of the answer a loss gets.
+      addTearDown(resetTraitRandom);
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait-roll');
+      await tester.pumpAndSettle();
+
+      // Force the loss rather than hunting a seed: `rollTrait` takes the trait
+      // by `nextInt(pool.length)`, so the index of `none` in the live pool is
+      // the whole of the fix.
+      // The block already knows which man it is showing.
+      final def = tester.widget<TraitBlock>(find.byType(TraitBlock)).def;
+      final pool = getTraitPoolForPosition(def.position, hardMode: false);
+      setTraitRandom(_AlwaysPicks(pool.indexWhere((t) => t.id == 'none')));
+
+      await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
+      await tester.pump();
+      await tester.pump(
+        TraitBlockState.spin +
+            TraitBlockState.flash +
+            const Duration(milliseconds: 800),
+      );
+      expect(
+        find.byKey(const ValueKey('feature-unlock')),
+        findsNothing,
+        reason: 'losing the gamble threw a party',
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('and the level reel has a row for it', (tester) async {
+      // Three numerals and nowhere to put a loss meant a lost spin stopped on
+      // a numeral and read as a win. `TraitRoulette.js` carries the dash.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait-roll');
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('trait-reel-level')),
+          matching: find.text('—'),
+        ),
+        findsWidgets,
+      );
+    });
+
+    testWidgets('THE LEVER PULLS, and it is the machine\'s own handle', (
+      tester,
+    ) async {
+      // The JS spins from a rod-and-ball lever beside the face; the port had
+      // replaced it with a rectangular button, which is most of why the thing
+      // stopped reading as a slot machine.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait-roll');
+      await tester.pumpAndSettle();
+
+      final lever = find.byKey(const ValueKey('detail-trait-lever'));
+      expect(lever, findsOneWidget);
+      await tester.tap(lever);
+      await tester.pump();
+      final block = tester.state<TraitBlockState>(find.byType(TraitBlock));
+      expect(block.spinning, isTrue, reason: 'the handle did not spin it');
+      await tester.pump(
+        TraitBlockState.spin +
+            TraitBlockState.flash +
+            const Duration(milliseconds: 800),
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
     testWidgets('AND THE LABEL DOES NOT GIVE THE ANSWER AWAY', (tester) async {
       // The badge above the reels reads the save, and the roll writes the save
       // BEFORE the reels move — so the answer was sitting above a wheel still
@@ -783,7 +865,9 @@ void main() {
       // splash takes itself away after `featureUnlockHold`, so a
       // `pumpAndSettle` walks straight past it and finds nothing. The first
       // version of this assertion did exactly that and cost a wrong diagnosis.
-      await tester.pump(const Duration(milliseconds: 400));
+      // The band flashes its answer first — green for a hit, red for a loss —
+      // and the splash comes after it, so the pump has to clear the flash.
+      await tester.pump(TraitBlockState.flash + const Duration(milliseconds: 400));
       expect(find.byKey(const ValueKey('feature-unlock')), findsOneWidget);
       await tester.pump(featureUnlockHold);
       await tester.pumpAndSettle();
@@ -1511,4 +1595,23 @@ void main() {
     });
   });
 
+}
+
+
+/// A generator that always draws the same index — used to force the `none`
+/// outcome without hunting for a seed. `rollTrait` takes the trait by
+/// `nextInt(pool.length)` and then the level by `nextDouble`.
+class _AlwaysPicks implements math.Random {
+  _AlwaysPicks(this.index);
+
+  final int index;
+
+  @override
+  int nextInt(int max) => index % max;
+
+  @override
+  double nextDouble() => 0.5;
+
+  @override
+  bool nextBool() => false;
 }

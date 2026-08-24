@@ -6403,11 +6403,34 @@ Written on arrival from here.
 
 ### Reported and NOT yet done
 
-- [ ] **The traits still are not better.** Named again with no detail, so the
-      earlier note stands: the reels became one framed window with a lit band
-      and a rule, which answered "the spinner does not look impressive". What
-      is still wanted is not established — this wants one sentence about what is
-      wrong with them now.
+- [x] **The traits still are not better.** Reported twice with no detail, so
+      the third pass stopped guessing at taste and DIFFED THE SPEC instead —
+      and `TraitRoulette.js` had four things the port did not, one of them a
+      straight bug.
+      **A lost roll threw a party.** `none` is in the trait pool on both sides,
+      so a spin can come back with nothing; `getTrait('none')` is a real entry
+      rather than null, so the payoff splash fired for it too — a player who
+      paid coins and lost was shown "✕ None" over up to three gold stars. The
+      JS flashes the band RED for exactly this case, and green when it paid.
+      Both are in, and a loss is no longer celebrated.
+      **The level reel had nowhere to put a loss** either: three numerals, so a
+      `none` landed on a numeral and read as a win. The JS's strip carries a
+      fourth row, `—`, and now so does this one — a glyph, so no new copy.
+      **`rouletteClick` shipped with the port and NOTHING played it.** The
+      per-tile ratchet is most of what makes a reel sound like a reel; the 70ms
+      `retriggerFloor` thins the fast head of the spin by itself, which is the
+      job it was put there for.
+      **And the machine had no handle.** The JS spins from a rod-and-ball lever
+      you pull; the port had a rectangular button. The lever is back, dipping
+      and springing off its stop, with the cost still on the gold pill because
+      a gamble has to say what it takes.
+      Two smaller ones with it: the reels now START on the trait the card
+      already has, the way the JS sets both strips before anything spins, and
+      the lit band is drawn ONCE by the window — there were two, stacked, so
+      the accent was laid down twice and the rule between the columns cut the
+      lit row in half.
+      Left open only if this still is not it, in which case it really does want
+      a sentence about what is wrong.
 - [x] **The club's items STILL have no background.** THIRD report, and the
       first two passes went at the wrong thing entirely: the ART is an opaque
       photograph that fills its own strip — the files are JPEGs behind a `.png`
