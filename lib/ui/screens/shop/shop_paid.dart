@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_owned.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
@@ -35,6 +36,7 @@ import 'package:merge_empire_fc/ui/popups/age_gate_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/util/time.dart';
 
 /// Said on every real-money control, so a player is told the feature is coming
 /// rather than left with a button that does nothing.
@@ -153,12 +155,18 @@ List<Widget> paidTilesFor(
   // because SKUs go live one at a time. Null is "nobody to ask", which offers
   // everything; see [canOffer].
   final known = ref.watch(storeCatalogueProvider).valueOrNull;
+  // **What the save already owns.** Watched rather than read: buying one of
+  // these changes it, and a tile that kept saying "Buy" after a purchase is how
+  // a player is invited into a refusal.
+  final save = ref.watch(gameProvider).state;
+  final nowMs = now();
   return [
   for (final tile
       in ref
           .watch(paidTilesProvider)
           .where((t) => categories.contains(t.product.category)))
     if (canOffer(tile.product.sku, known))
+    if (ownedStateFor(tile.product, save, nowMs: nowMs) case final owned)
     ShopTile(
       tileKey: tile.product.id,
       title: tile.name,
@@ -169,28 +177,42 @@ List<Widget> paidTilesFor(
       // The STORE's price when it has one: the catalogue's is a fallback in
       // one currency, and a player in Japan being shown a pound sign is the
       // whole reason the store is asked.
-      price: priceFor(tile.product.sku, tile.product.price, known),
+      // Owned, the button carries the STATE rather than the price: a price on
+      // something you already have is an offer to buy it twice.
+      price: owned.buttonKey != null
+          ? t(owned.buttonKey!)
+          : priceFor(tile.product.sku, tile.product.price, known),
       // Real money, and the only tone that leaves the game to be paid.
       tone: StoreTone.cash,
       badge: tile.product.popular ? t('shop.most_popular') : null,
-      disabledReason: paidDisabledReason(),
-      onBuy: () => buyProduct(
-        ref.context,
-        ref,
-        tile.product,
-        tile.name,
-        priceFor(tile.product.sku, tile.product.price, known),
-      ),
+      disabledReason: owned.noteKey != null
+          ? t(owned.noteKey!, {'days': owned.days})
+          : paidDisabledReason(),
+      onBuy: owned.owned
+          ? null
+          : () => buyProduct(
+              ref.context,
+              ref,
+              tile.product,
+              tile.name,
+              priceFor(tile.product.sku, tile.product.price, known),
+            ),
       featured: featured,
       // The spec's `.shop-hero__ribbon`: the product's own bonus line, or the
       // one-time badge for the two that are bought once and kept. It was a
       // line of grey text under the description, which is the same words in
       // the quietest place on the card.
-      ribbon:
-          productBonus(tile.product) ??
-          (_oneTime.contains(tile.product.id)
-              ? t('product.starter_pack.badge_onetime')
-              : null),
+      // A lapsed VIP's ribbon REPLACES the bonus line — "REACTIVATE" is the one
+      // thing worth saying to somebody who has paid for this before — and an
+      // active one has no ribbon at all.
+      ribbon: owned.ribbonKey != null
+          ? t(owned.ribbonKey!)
+          : owned.owned
+          ? null
+          : productBonus(tile.product) ??
+                (_oneTime.contains(tile.product.id)
+                    ? t('product.starter_pack.badge_onetime')
+                    : null),
       accent: _offerInk[tile.product.id],
     ),
   ];

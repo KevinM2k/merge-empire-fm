@@ -164,10 +164,34 @@ All seven shelves are present and in the JS's own order.
       the CSS comment says in as many words that it was taken OUT, because a
       frame round a glyph competes with the card's own edge and shrinks the art
       to pay for it.
-- [ ] **Lucky Boot ad button** (`.lucky-boot-ad-btn`)
-- [ ] **Match-cooldown ad button** (`.match-cooldown-ad-btn`)
-- [ ] The premium section's emoji header (`shop.section.premium_emoji` — the one
-      section key the port does not use)
+- [x] **Lucky Boot ad button** (`.lucky-boot-ad-btn`) — built, on the free
+      shelf, with its own HELD state: a boot already waiting is not capped, it
+      is there, and a second would overwrite it.
+- [x] **Match-cooldown ad button** (`.match-cooldown-ad-btn`) — built, with the
+      cap of its own (three a day) on top of the shared frequency gate.
+- [x] ~~The premium section's emoji header~~ — **the row misread the key.**
+      `shop.section.premium_emoji` is not a header: it is the VIP tile's RIBBON
+      fallback, shown when the product has no bonus line of its own. Chasing it
+      found the real gap, which was much bigger.
+- [x] **THE OWNED AND ACTIVE STATES ON THE THREE PREMIUM TILES.** Seven
+      `shop.vip.*` keys shipped in ten languages with no caller, plus
+      `shop.owned_check`, `shop.owned_regranted` and the Energy Director's
+      active note — a state machine the JS draws on three tiles and the port
+      drew on none. Every one of them printed its price and a live Buy button
+      whatever the save said.
+      **It stopped being cosmetic the moment the tiles could actually buy**: a
+      player who owns the Starter Pack was being offered it again, and the
+      purchase now gets as far as `initiatePurchase` before being refused
+      `already_purchased` — a dead end reached by pressing the thing the shop
+      was pointing at.
+      **VIP has three states and the middle one is the interesting one.** Active
+      and never-bought are obvious; LAPSED — it ran and has run out — gets its
+      own ribbon and its own line, because a player who has paid once is the one
+      most likely to pay again and the tile is the only place that can say so.
+      And the Energy Director is owned by its EFFECT (`energyUpgraded`) rather
+      than by a receipt, because that flag is what every other reader checks; a
+      second source for "do they have it" is how a restore and a purchase come
+      to disagree.
 
 ## Match — `components/MatchPopup.js`
 

@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/util/time.dart';
 
 import 'shop_helpers.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -508,6 +509,64 @@ void main() {
       await tester.tap(buy);
       await tester.pumpAndSettle();
       expect(find.byKey(ValueKey('paid-confirm-${offer.id}')), findsOneWidget);
+    });
+  });
+
+  group('a tile you already own', () {
+    testWidgets('SAYS SO INSTEAD OF ASKING FOR THE MONEY AGAIN', (tester) async {
+      // The purchase would get as far as `initiatePurchase` and be refused
+      // `already_purchased` — a dead end reached by pressing the thing the shop
+      // was pointing at.
+      await pumpShopWidget(
+        tester,
+        (s) => (s['shop'] as Map<String, dynamic>)['purchasedIds'] = [
+          'starter_pack',
+        ],
+        () => const Column(children: [OffersSection()]),
+      );
+      expect(find.text(t('shop.owned_check')), findsWidgets);
+      expect(find.text(t('shop.owned_regranted')), findsWidgets);
+      final button = tester.widget<StoreButton>(
+        find.byKey(const ValueKey('shop-buy-starter_pack')),
+      );
+      expect(button.onTap, isNull);
+    });
+
+    testWidgets('and a running VIP counts down rather than selling', (
+      tester,
+    ) async {
+      await pumpShopWidget(
+        tester,
+        (s) => (s['shop'] as Map<String, dynamic>)['vipExpiresAt'] =
+            now() + const Duration(days: 9).inMilliseconds,
+        () => const Column(children: [OffersSection()]),
+      );
+      expect(find.text(t('shop.vip.active_btn')), findsWidgets);
+      expect(find.text(t('shop.vip.active', {'days': 9})), findsWidgets);
+      expect(
+        tester
+            .widget<StoreButton>(find.byKey(const ValueKey('shop-buy-vip_pass')))
+            .onTap,
+        isNull,
+      );
+    });
+
+    testWidgets('A LAPSED VIP IS ASKED BACK', (tester) async {
+      // The one state worth its own ribbon: they have paid before.
+      await pumpShopWidget(
+        tester,
+        (s) => (s['shop'] as Map<String, dynamic>)['vipExpiresAt'] = 1,
+        () => const Column(children: [OffersSection()]),
+      );
+      expect(find.text(t('shop.vip.reactivate_ribbon')), findsWidgets);
+      expect(find.text(t('shop.vip.lapsed_note')), findsWidgets);
+      expect(
+        tester
+            .widget<StoreButton>(find.byKey(const ValueKey('shop-buy-vip_pass')))
+            .onTap,
+        isNotNull,
+        reason: 'a lapsed pass is buyable again',
+      );
     });
   });
 }
