@@ -29,6 +29,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart' show nightSceneOf;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// How long the old table stays up before the division rearranges itself.
@@ -92,6 +93,10 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
     final afterSlot = _slots(window, (i) => i);
 
     return GlassPanel(
+      // Deep, like every other card on the report: this IS the table's card
+      // now — the panel the summary wrapped round it was a card in a card —
+      // and on the daylight sky the lighter glass left the points at 2.9:1.
+      density: GlassDensity.deep,
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -294,7 +299,14 @@ class _MoveRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(9),
           // The lift is neutral, the way the full table marks your row: a hue
           // here would compete with the arrow that is the point of the block.
-          color: row.isPlayer ? ink.withValues(alpha: 0.11) : null,
+          // And LIGHTER on a daylight pane: the text ink there is dark, and a
+          // dark wash under the gold points took them to 2.9:1 once the table
+          // stopped sitting on a second pane.
+          color: !row.isPlayer
+              ? null
+              : nightSceneOf(context)
+              ? ink.withValues(alpha: 0.11)
+              : Colors.white.withValues(alpha: 0.45),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),

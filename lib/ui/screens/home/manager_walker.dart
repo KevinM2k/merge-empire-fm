@@ -589,6 +589,7 @@ class ManagerWalker extends StatefulWidget {
     this.idle,
     this.carrying = false,
     this.ballLayer,
+    this.soft = true,
     super.key,
   });
 
@@ -682,6 +683,13 @@ class ManagerWalker extends StatefulWidget {
   /// stride. Sharing it is the whole reason the ball is passed in here rather
   /// than stacked outside.
   final Widget? ballLayer;
+
+  /// Blurred shading on the skin, the limbs and the shirt.
+  ///
+  /// **Off for a still.** A dozen `MaskFilter.blur` passes are the most
+  /// expensive thing a rig rasterises, and on an 80-point chip the softness
+  /// they buy is below a pixel. The customiser's grid turns them off.
+  final bool soft;
 
   @override
   State<ManagerWalker> createState() => _ManagerWalkerState();
@@ -861,6 +869,8 @@ class _ManagerWalkerState extends State<ManagerWalker>
       body: pose?.body,
       bodyLift: pose?.bodyLift,
       legs: pose?.legs,
+      kickThigh: pose?.kickThigh,
+      kickShin: pose?.kickShin,
       finger: 0,
     );
   }
@@ -921,6 +931,8 @@ class _ManagerWalkerState extends State<ManagerWalker>
       body: idle.body,
       bodyLift: idle.bodyLift,
       legs: null,
+      kickThigh: null,
+      kickShin: null,
       finger: idle.finger,
     );
   }
@@ -994,6 +1006,10 @@ class _ManagerWalkerState extends State<ManagerWalker>
         ? Offset(0.35 - phase * 1.4, phase * 0.4)
         : Offset(-0.35 + (phase - 0.5) * 1.4, (1 - phase) * 0.4);
   }
+
+  /// A cached layer while he moves; the bare tree while he stands still.
+  static Widget _cached(bool on, Widget child) =>
+      on ? RepaintBoundary(child: child) : child;
 
   @override
   void dispose() {
@@ -1149,6 +1165,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     CustomPaint(
                       key: const ValueKey('manager-walker'),
                       painter: _WalkerPainter(
+                        soft: widget.soft,
                         t: t,
                         kit: widget.kit,
                         skin: parts.skin,
@@ -1185,55 +1202,52 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // reason [_headSetBack] does: the art is all drawn against a
                     // skull at 62, so turning the painted head alone slides the
                     // face out from under its own hat.
-                    for (final layer in parts.behindHead)
-                      _Tilt(
-                        degrees: headTilt,
-                        child: _SetBack(child: _HeadArt(layer: layer)),
-                      ),
+                    // **THE HEAD IS ONE LAYER.** Every part of it — hair
+                    // behind, skin, beard, features, hat — tilts by the same
+                    // angle, and each used to carry its own `_Tilt`, so a
+                    // frame of walking re-rasterised six SVGs, two skull
+                    // clips and eight blurred shadows at 3x. Grouped, the
+                    // boundary caches the raster and the tilt becomes a layer
+                    // transform; only a blink or a new look repaints it.
+                    // Off for a rig that is not moving (the customiser's
+                    // chips): a layer each for twenty stills is memory for
+                    // nothing.
                     _Tilt(
                       degrees: headTilt,
                       child: _SetBack(
-                        child: CustomPaint(
-                          painter: _HeadPainter(
-                            skin: parts.skin,
-                            blink: _blink,
+                        child: _cached(
+                          _animating(context),
+                          Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              for (final layer in parts.behindHead)
+                                _HeadArt(layer: layer),
+                              CustomPaint(
+                                painter: _HeadPainter(
+                                  soft: widget.soft,
+                                  skin: parts.skin,
+                                  blink: _blink,
+                                ),
+                              ),
+                              for (final layer in parts.onSkin)
+                                _HeadArt(layer: layer),
+                              for (final layer in parts.overHair)
+                                _HeadArt(layer: layer),
+                              CustomPaint(
+                                painter: _HeadPainter(
+                                  soft: widget.soft,
+                                  skin: parts.skin,
+                                  blink: _blink,
+                                  features: true,
+                                ),
+                              ),
+                              for (final layer in parts.overHead)
+                                _HeadArt(layer: layer),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                    // Paint, before the fringe goes over it — see
-                    // [ManagerParts.onSkin].
-                    for (final layer in parts.onSkin)
-                      _Tilt(
-                        degrees: headTilt,
-                        child: _SetBack(child: _HeadArt(layer: layer)),
-                      ),
-                    for (final layer in parts.overHair)
-                      _Tilt(
-                        degrees: headTilt,
-                        child: _SetBack(child: _HeadArt(layer: layer)),
-                      ),
-                    // Then the eye, over the paint and the fringe both — the
-                    // other half of the same JS note: paint belongs under the
-                    // hair AND under the eye, or war paint blinds him. Before
-                    // the glasses and the hat, which have to cover it.
-                    _Tilt(
-                      degrees: headTilt,
-                      child: _SetBack(
-                        child: CustomPaint(
-                          painter: _HeadPainter(
-                            skin: parts.skin,
-                            blink: _blink,
-                            features: true,
-                          ),
-                        ),
-                      ),
-                    ),
-                    for (final layer in parts.overHead)
-                      _Tilt(
-                        degrees: headTilt,
-                        child: _SetBack(child: _HeadArt(layer: layer)),
-                      ),
                     // **AND THE NEAR ARM, if the hand belongs in front of the
                     // face.** Everything above is the head and what it wears,
                     // and the rig is under all of it — so this is the only
@@ -1242,6 +1256,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                       CustomPaint(
                         key: const ValueKey('manager-walker-hands'),
                         painter: _WalkerPainter(
+                          soft: widget.soft,
                           t: t,
                           kit: widget.kit,
                           skin: parts.skin,
@@ -1280,6 +1295,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                       CustomPaint(
                         key: const ValueKey('manager-walker-carry-arm'),
                         painter: _WalkerPainter(
+                          soft: widget.soft,
                           t: t,
                           kit: widget.kit,
                           skin: parts.skin,
@@ -1565,6 +1581,8 @@ GesturePose? poseOverIdle(GesturePose? playing, GesturePose? idle) {
     body: playing.body ?? idle.body,
     bodyLift: playing.bodyLift ?? idle.bodyLift,
     legs: playing.legs ?? idle.legs,
+    kickThigh: playing.kickThigh ?? idle.kickThigh,
+    kickShin: playing.kickShin ?? idle.kickShin,
     finger: playing.finger,
   );
 }
@@ -1823,7 +1841,11 @@ class _HeadPainter extends CustomPainter {
     required this.skin,
     this.blink = 0,
     this.features = false,
+    this.soft = true,
   });
+
+  /// See [ManagerWalker.soft].
+  final bool soft;
 
   /// **The EYE AND BROW, drawn as their own pass.**
   ///
@@ -1961,7 +1983,7 @@ class _HeadPainter extends CustomPainter {
       Rect.fromCenter(center: const Offset(73.4, 51.8), width: 5, height: 2.6),
       Paint()
         ..color = Colors.black.withValues(alpha: 0.13)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 1.2) : null,
     );
     // The cheekbone, and the shadow under it. Two soft marks and the face has
     // structure — without them the skin is a flat disc whatever shape it is cut
@@ -1970,20 +1992,20 @@ class _HeadPainter extends CustomPainter {
       Rect.fromCenter(center: const Offset(68.4, 50.6), width: 9, height: 5),
       Paint()
         ..color = Colors.white.withValues(alpha: 0.10)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 2) : null,
     );
     canvas.drawOval(
       Rect.fromCenter(center: const Offset(66.6, 56.4), width: 11, height: 5.5),
       Paint()
         ..color = Colors.black.withValues(alpha: 0.12)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.4),
+        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 2.4) : null,
     );
     // The neck's own shadow across the jaw, so the head sits ON the shoulders.
     canvas.drawOval(
       Rect.fromCenter(center: const Offset(60, 61.6), width: 15, height: 5),
       Paint()
         ..color = Colors.black.withValues(alpha: 0.16)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2),
+        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 2.2) : null,
     );
     canvas.restore();
 
@@ -2070,7 +2092,10 @@ class _HeadPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_HeadPainter old) =>
-      old.skin != skin || old.blink != blink || old.features != features;
+      old.skin != skin ||
+      old.blink != blink ||
+      old.features != features ||
+      old.soft != soft;
 }
 
 /// Which arms a rig pass draws.
@@ -2107,7 +2132,11 @@ class _WalkerPainter extends CustomPainter {
     this.standing = false,
     this.pose,
     this.arms = WalkerArms.both,
+    this.soft = true,
   });
+
+  /// See [ManagerWalker.soft].
+  final bool soft;
 
   final double t;
   final Color kit;
@@ -2280,11 +2309,14 @@ class _WalkerPainter extends CustomPainter {
     // A planted figure holds the angles the art is DRAWN at, which is what the
     // stylesheet's `animation: none` leaves on the four leg elements — and it
     // is nowhere on the cycle, so there is no phase to read it off.
+    // A kick rides on top of whatever the leg was doing: the near leg only.
+    final kickThigh = near ? (pose?.kickThigh ?? 0) : 0.0;
+    final kickShin = near ? (pose?.kickShin ?? 0) : 0.0;
     final solved = standing
-        ? (thigh: 0.0, shin: 0.0)
+        ? (thigh: kickThigh, shin: kickShin)
         : (
-            thigh: walkerThighAngle(phase, near: near),
-            shin: walkerShinAngle(phase, near: near),
+            thigh: walkerThighAngle(phase, near: near) + kickThigh,
+            shin: walkerShinAngle(phase, near: near) + kickShin,
           );
     // **No rotation of its own.** The boot is drawn inside the shin's frame, so
     // zero is the JS's arrangement exactly: it points where the lower leg points,
@@ -2313,6 +2345,7 @@ class _WalkerPainter extends CustomPainter {
       // with long socks.
       final bare = outfit.shin == null;
       paintLimb(
+        soft: soft,
         canvas,
         hip,
         knee,
@@ -2324,6 +2357,7 @@ class _WalkerPainter extends CustomPainter {
       if (bare) {
         final hem = Offset(hip.dx, hip.dy + _shortsLeg);
         paintLimb(
+          soft: soft,
           canvas,
           hip,
           hem,
@@ -2353,6 +2387,7 @@ class _WalkerPainter extends CustomPainter {
         // reads as a chair leg.
         final belly = Offset.lerp(knee, foot, 0.34)!;
         paintLimb(
+          soft: soft,
           canvas,
           knee,
           belly,
@@ -2362,6 +2397,7 @@ class _WalkerPainter extends CustomPainter {
           far: !near,
         );
         paintLimb(
+          soft: soft,
           canvas,
           belly,
           foot,
@@ -2410,6 +2446,7 @@ class _WalkerPainter extends CustomPainter {
         // here and leaves the legs near normal — which is also what sells the
         // arms as the thing that changed.
         paintLimb(
+          soft: soft,
           canvas,
           const Offset(56, 62),
           const Offset(56, 81),
@@ -2429,6 +2466,7 @@ class _WalkerPainter extends CustomPainter {
             // is a child's proportion — the hand hung level with the hip and the
             // whole figure read as short-armed.
             paintLimb(
+              soft: soft,
               canvas,
               const Offset(56, 81),
               const Offset(56, 98.5),
@@ -2501,7 +2539,13 @@ class _WalkerPainter extends CustomPainter {
     // head used to sit straight on the shirt, which is the other half of why it
     // read as stuck on.
     paintNeck(canvas, skin);
-    paintTorso(canvas, _top, build: build.torso, bulge: build.bulge);
+    paintTorso(
+      canvas,
+      _top,
+      build: build.torso,
+      bulge: build.bulge,
+      soft: soft,
+    );
 
     // Where the shirt meets the shorts. A garment that ends without a shadow
     // under it reads as printed on rather than worn.
@@ -2531,5 +2575,6 @@ class _WalkerPainter extends CustomPainter {
       old.outfit != outfit ||
       old.sleevesAreKit != sleevesAreKit ||
       old.standing != standing ||
-      old.pose != pose;
+      old.pose != pose ||
+      old.soft != soft;
 }

@@ -5,7 +5,10 @@
 /// speed of the turf they stand in, and a stand behind them that barely moves.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
@@ -442,9 +445,18 @@ void main() {
       // the slip is the price. Still comfortably better than the 78 a wholly
       // constant ground was rejected for: a planted foot creeping a little is a
       // much smaller lie than a pitch stalling under a man mid-stride.
+      // **The guard was 55, and the world stalled to earn it.** Peak slip and a
+      // world that never stops are the same number seen from two sides: at the
+      // hand-over the supporting foot creeps BACKWARDS for a few per cent, so
+      // any ground still moving forwards there counts as slip. The player
+      // reported the stall ("he freezes, background and all, on every step"),
+      // so `groundEaseMinRate` fills that hole and the peak slip at it is what
+      // it is — 86 at t≈0.10, on the three samples of the hand-over, and the
+      // foot's own everywhere else. The stall guard below is the one that
+      // matters now, and it is tight.
       expect(
         worst,
-        lessThan(55),
+        lessThan(90),
         reason:
             'slip of ${worst.toStringAsFixed(1)} at t=$worstAt — a constant '
             'ground was 78 out at its worst',
@@ -468,14 +480,16 @@ void main() {
         }
         if (rate > fastest) fastest = rate;
       }
+      // Measured before the hand-over was filled: 0.34 against a peak of 1.47,
+      // a fourfold swing that read as a stall twice a stride. Now 0.68 to 1.36.
       expect(
         slowest,
-        greaterThan(0.2),
+        greaterThan(0.6),
         reason: 'the world stalls at u=$slowestAt, rate $slowest',
       );
       // And the surge out of it is bounded too: a rate that swings twenty to one
       // reads as a stutter even without ever reaching zero.
-      expect(fastest / slowest, lessThan(6));
+      expect(fastest / slowest, lessThan(2.2));
     });
 
     test('and the ease is a distance, so it never goes backwards', () {
@@ -529,50 +543,163 @@ void main() {
     );
   });
 
-  group('THE PARK BACKDROP', () {
-    // Reported four times as cropped, and the fourth time as low with it. The
-    // strip is fifty-odd points tall; what fills it decides whether there is a
-    // treeline behind the park or a sliver of one under a lot of sky.
-    testWidgets('shows the TREELINE, not the sky above it', (tester) async {
-      await pumpScene(tester);
-      final strip = tester.getRect(find.byKey(const ValueKey('pitch-stand-segment')).first);
-      final tile = tester.getRect(
-        find.byKey(const ValueKey('pitch-park-backdrop-0')).first,
+  group('AND IT DOES NOT WASH THE SKY ABOVE IT', () {
+    // **THE LINE, reported nine times.** The aerial haze at the foot of
+    // `ParkPainter` was a `drawRect` over the WHOLE strip at 22% of the sky's
+    // own horizon colour. On the terrace that is right — a stand fills its
+    // strip and the haze lands on seats. A park does not: the trees, the hedge
+    // and the fence are the bottom third of it and the rest is sky, so the wash
+    // painted a hard-edged rectangle of slightly lighter sky across the
+    // diorama, its top edge exactly `parkHeight` above the horizon.
+    //
+    // Every previous pass read that edge as the BACKDROP being cropped and went
+    // after the Kenney plate — its scale, its crop, its knocked-out sky, its
+    // dark-theme dimming, and finally the plate itself. The plate never drew the
+    // line; it only hid some of it, which is why the line outlived it.
+    //
+    // Nothing about this is visible from outside the painter, so the pixels are
+    // what is checked. Painted over solid black: any pixel that is not still
+    // black is something the painter put there.
+    Future<({List<int> px, int w, int h})> parkOver(
+      WidgetTester tester,
+      Color under,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: RepaintBoundary(
+              key: const ValueKey('park-ink'),
+              child: ColoredBox(
+                color: under,
+                child: const SizedBox(
+                  width: farSegmentWidth,
+                  height: parkHeight,
+                  child: CustomPaint(
+                    // A LIGHT haze, so a wash over the sky could not hide in
+                    // the background it was painted on.
+                    painter: ParkPainter(haze: Color(0xFFBFD8FF), tier: 1),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       );
+      final boundary =
+          tester.renderObject(find.byKey(const ValueKey('park-ink')))
+              as RenderRepaintBoundary;
+      var out = <int>[];
+      var w = 0;
+      var h = 0;
+      await tester.runAsync(() async {
+        // `toImage` is 1:1 with logical pixels by default, so the image's own
+        // dimensions are the only safe index — not the view's ratio.
+        final image = await boundary.toImage();
+        w = image.width;
+        h = image.height;
+        final bytes = await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        image.dispose();
+        out = bytes!.buffer.asUint8List().toList();
+      });
+      return (px: out, w: w, h: h);
+    }
 
-      // The drawing is square, so its height is its width — and the band of it
-      // on screen is the strip. Anything much over a third of the drawing
-      // showing means the sky came with it.
-      expect(tile.width, moreOrLessEquals(tile.height, epsilon: 0.5));
-      expect(
-        strip.height / tile.height,
-        lessThan(0.4),
-        reason: 'more than a third of the drawing is visible — the sky is back',
-      );
+    /// How many pixels in row [y] are not still the background.
+    int touched(List<int> px, int width, int y) {
+      var n = 0;
+      for (var x = 0; x < width; x++) {
+        final i = (y * width + x) * 4;
+        if (px[i] != 0 || px[i + 1] != 0 || px[i + 2] != 0) n++;
+      }
+      return n;
+    }
 
-      // Its ground line lands on the strip's foot: the turf starts there, so a
-      // second field behind it would be a hill.
-      expect(tile.top + 0.624 * tile.height, moreOrLessEquals(strip.bottom, epsilon: 1));
-
-      // And the tallest crown, at 0.330 of the drawing, is inside the strip
-      // rather than cut off by its top edge.
-      expect(tile.top + 0.330 * tile.height, greaterThan(strip.top));
+    testWidgets('no row above the fence is painted from edge to edge', (
+      tester,
+    ) async {
+      // **A WASH COVERS EVERY PIXEL IN ITS ROW; A TREE DOES NOT.** That is the
+      // whole distinction, and it is what makes this robust against the trees
+      // and the hedge moving: measured over the strip, the busiest row above the
+      // fence touches 127 of 480 pixels, and the full-strip haze touched 480 of
+      // 480 on every row of it.
+      //
+      // The fence's rail is the one thing that legitimately spans the width, and
+      // it is at the very bottom — see the test below, which is the other half
+      // of this one.
+      final img = await parkOver(tester, const Color(0xFF000000));
+      for (var y = 0; y < img.h * 0.6; y++) {
+        expect(
+          touched(img.px, img.w, y),
+          lessThan(img.w ~/ 2),
+          reason: 'row $y of the strip is painted across its whole width — the '
+              'haze is a rectangle over the sky again, and that rectangle is '
+              'the line',
+        );
+      }
     });
 
-    testWidgets('and it tiles across the whole segment', (tester) async {
-      await pumpScene(tester);
-      final strip = tester.getRect(find.byKey(const ValueKey('pitch-stand-segment')).first);
-      final tile = tester.getRect(
-        find.byKey(const ValueKey('pitch-park-backdrop-0')).first,
+    testWidgets('but the park itself is still drawn, and still hazed', (
+      tester,
+    ) async {
+      // The other half of it: a fix that painted NOTHING would sail through the
+      // test above. The fence's rail is the one thing that legitimately runs the
+      // full width, so it has to still be there — and it has to be down at the
+      // horizon rather than up in the sky, which is what tells a rail apart from
+      // a wash.
+      final img = await parkOver(tester, const Color(0xFF000000));
+      final full = [
+        for (var y = 0; y < img.h; y++)
+          if (touched(img.px, img.w, y) == img.w) y,
+      ];
+      expect(
+        full,
+        isNotEmpty,
+        reason: 'the fence rail is gone — the park is not being drawn at all',
       );
-      final copies = find
-          .byWidgetPredicate(
-            (w) => w.key is ValueKey<String> &&
-                (w.key as ValueKey<String>).value.startsWith('pitch-park-backdrop-'),
-          )
-          .evaluate()
-          .length;
-      expect(copies * tile.width, greaterThanOrEqualTo(strip.width));
+      expect(
+        full.first,
+        greaterThan(img.h * 0.6),
+        reason: 'something spans the full width up in the sky, which is where '
+            'the haze rectangle used to be',
+      );
+      // And the trees and posts are there either side of it.
+      expect(touched(img.px, img.w, img.h ~/ 2), greaterThan(0));
+      expect(touched(img.px, img.w, img.h - 2), greaterThan(0));
+    });
+  });
+
+  group('THE PARK DRAWS ITSELF', () {
+    // **Five reports, and the answer to the fifth was to take it out.** A
+    // Kenney plate behind the park was scaled by the wrong axis, then cropped
+    // to its treeline, then had its sky knocked out, then dimmed for the dark
+    // theme — and still read as a pasted rectangle in both. `_ParkPainter` was
+    // drawing the whole horizon in front of it the entire time.
+    testWidgets('and there is no photographic plate behind it', (tester) async {
+      await pumpScene(tester);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w.key is ValueKey<String> &&
+              (w.key as ValueKey<String>).value.startsWith(
+                'pitch-park-backdrop-',
+              ),
+        ),
+        findsNothing,
+        reason: 'the Kenney plate is back behind the park',
+      );
+    });
+
+    testWidgets('and the horizon strip is still there and still full', (
+      tester,
+    ) async {
+      // The strip is what the pitch meets, so losing the plate must not lose
+      // the segment: every element the painter draws stands on its bottom edge.
+      await pumpScene(tester);
+      final strip = find.byKey(const ValueKey('pitch-stand-segment'));
+      expect(strip, findsWidgets);
+      expect(tester.getRect(strip.first).height, greaterThan(0));
     });
   });
 

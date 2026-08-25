@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/state/game_wiring.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/time.dart';
+import 'package:merge_empire_fc/util/club_name.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
@@ -82,6 +83,29 @@ class GameRunner {
     //
     // The grant flags itself in the gem ledger, and the ledger survives both
     // resets, so it pays once per player rather than once per boot.
+    game.onFreshState = prepareSave;
+    prepareSave(state);
+    return state;
+  }
+
+  /// Everything a save needs before it is played, whether it was just loaded
+  /// or just made.
+  ///
+  /// **A RESET IS A BOOT WITHOUT THE BOOT.** The JS reloads the page after one,
+  /// so its fresh save goes through the same start-up as any other. The port
+  /// swaps the map in place and carried on — so the season's opponents and its
+  /// schedule, rolled only here, were never rolled: the next-match card read
+  /// "Opponent" and the Fixtures sheet sat on "loading" until the app was
+  /// killed and reopened. `GameState.onFreshState` brings a reset back here.
+  void prepareSave(Map<String, dynamic> state) {
+    // **A NAME, before anything reads it.** The JS auto-names an unnamed club
+    // at boot — a random one, renamed later in Settings — because asking first
+    // was friction on the way in. Fixture rows for OUR matches carry a null
+    // side and every reader substitutes the club's name, so an empty name is
+    // also a fixture list with a hole in it.
+    if (state['clubName'] is! String || (state['clubName'] as String).isEmpty) {
+      state['clubName'] = generateClubName();
+    }
     grantTutorialGems(state);
     // The season quest track, which nothing rolled outside the season boundary:
     // a fresh save reached the Quests sheet with an empty season track and the
@@ -112,7 +136,6 @@ class GameRunner {
     if (club != null && _map(club['managerAvatar']) == null) {
       club['managerAvatar'] = randomAvatar(state);
     }
-    return state;
   }
 
   /// Start the loop. Calling it twice is a no-op rather than two loops.

@@ -256,6 +256,8 @@ void main() {
         body: null,
         bodyLift: -0.5,
         legs: null,
+        kickThigh: null,
+        kickShin: null,
         finger: 0.0,
       );
       const playing = (
@@ -267,6 +269,8 @@ void main() {
         body: null,
         bodyLift: null,
         legs: null,
+        kickThigh: null,
+        kickShin: null,
         finger: 1.0,
       );
       final over = poseOverIdle(playing, idle)!;
@@ -290,6 +294,8 @@ void main() {
         body: null,
         bodyLift: -0.5,
         legs: null,
+        kickThigh: null,
+        kickShin: null,
         finger: 0.0,
       );
       expect(poseOverIdle(null, idle), idle);

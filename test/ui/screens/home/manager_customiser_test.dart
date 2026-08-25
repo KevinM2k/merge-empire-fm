@@ -175,6 +175,12 @@ void main() {
       );
       expect(art.top, closeTo(stage.top, 0.5));
       expect(art.bottom, closeTo(stage.bottom, 0.5));
+      // **AND ITS WIDTH.** Top and bottom matched while the drawing was a
+      // 190px square centred in the slot: a `Row` hands a loose height and an
+      // image with none sizes to its own aspect. What slid past him was a
+      // patch with the sheet's sky either side of it.
+      expect(art.left, closeTo(stage.left, 0.5));
+      expect(art.width, closeTo(stage.width, 0.5));
       // And the stage carries the same side margins as the controls under it.
       expect(stage.left, greaterThanOrEqualTo(10));
       expect(stage.right, lessThanOrEqualTo(box.right + 0.5));
@@ -402,6 +408,49 @@ void main() {
         find.byKey(const ValueKey('customise-chip-emote-fistpump')),
         findsOneWidget,
       );
+    });
+
+    testWidgets('and each chip shows ITS OWN celebration', (tester) async {
+      // **Sixteen copies of the same picture.** The axis has no field — an
+      // emote is not worn — so the look handed to every chip was identical and
+      // the grid told the player nothing about which one they were picking. A
+      // gesture is a POSE, not a garment, so the thing to vary is the rig's
+      // angles: see `LookPreview.pose`.
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'emote');
+
+      final poses = tester
+          .widgetList<LookPreview>(find.byType(LookPreview))
+          .map((p) => p.pose)
+          .toList();
+      expect(poses, isNotEmpty, reason: 'no chips on the Celebrations axis');
+      expect(
+        poses.every((p) => p != null),
+        isTrue,
+        reason: 'a celebration chip with no pose is the walking figure again',
+      );
+      expect(
+        poses.toSet(),
+        hasLength(poses.length),
+        reason: 'two celebrations drew the same figure',
+      );
+    });
+
+    testWidgets('and a WORN axis holds no pose', (tester) async {
+      // The pose is for the axis that swaps no garment. Every other one varies
+      // the look itself, and a held pose there would freeze the same figure
+      // into all of them.
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      final poses = tester
+          .widgetList<LookPreview>(find.byType(LookPreview))
+          .map((p) => p.pose);
+      expect(poses, isNotEmpty);
+      expect(poses.every((p) => p == null), isTrue);
     });
   });
 

@@ -29,9 +29,12 @@ import 'dart:math' as math;
 import 'package:flame/cache.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flame/text.dart';
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_sequences.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
+    show shortName;
 
 /// How a chance ended.
 enum CutawayOutcome { goal, saved, post, wide, over, tackled }
@@ -108,7 +111,19 @@ class Mover extends PositionComponent {
   late final double _basePace = paceScale;
 
   /// A surname or a shirt number. Null draws nothing.
-  final String? label;
+  /// What is written under him: a name for our eleven, a shirt number for
+  /// theirs, `GK` for the keeper — the JS's dots, on a figure. Mutable because
+  /// the scorer's name moves onto whoever takes the shot.
+  String? label;
+
+  static final TextPaint _labelPaint = TextPaint(
+    style: const TextStyle(
+      fontSize: 12.8,
+      fontWeight: FontWeight.w800,
+      color: Colors.white,
+      shadows: [Shadow(offset: Offset(0.5, 0.5), color: Colors.black87)],
+    ),
+  );
 
   Vector2 target = Vector2.zero();
   final Vector2 _velocity = Vector2.zero();
@@ -224,6 +239,17 @@ class Mover extends PositionComponent {
     canvas.translate(-size.x / 2, -size.y / 2);
     sprite.render(canvas, size: size);
     canvas.restore();
+
+    // Under his feet, upright whichever way he is running. Drawn at four times
+    // the size and scaled down, because a 3-unit font rasterises as mush.
+    final text = label;
+    if (text != null && text.isNotEmpty) {
+      canvas.save();
+      canvas.translate(size.x / 2, size.y + 0.3);
+      canvas.scale(0.25);
+      _labelPaint.render(canvas, text, Vector2.zero(), anchor: Anchor.topCenter);
+      canvas.restore();
+    }
   }
 }
 
@@ -282,13 +308,32 @@ class PitchBackdrop extends PositionComponent {
 
   static const Color turf = Color(0xFF2D6A2D);
 
+  /// What is OUTSIDE the touchlines.
+  ///
+  /// **The pitch and the not-pitch were the same green, which is what made most
+  /// of the pitch look missing.** The stage backs its clip box with a flat fill
+  /// and it was [turf] — the identical colour the pitch itself is painted in. So
+  /// a tilted pitch is a trapezoid inside a rectangle, and the two triangles of
+  /// dead space beside the far touchline were indistinguishable from the grass:
+  /// what a player saw was a green rectangle with some faint white lines
+  /// floating in the middle of it, nowhere near its edges.
+  ///
+  /// Measured rather than guessed — on a 375-point band the far touchline spans
+  /// 249 points of it, so a third of the box's width at the top is outside the
+  /// pitch. That space is not a bug in the fit (`fittedTilt` puts all four
+  /// corners inside the band, three points in); it is what a camera behind the
+  /// goal SEES, and it has to be a different colour or the tilt reads as a crop.
+  static const Color surround = Color(0xFF14351B);
+
   @override
   void render(Canvas canvas) {
-    final line = Paint()
-      ..color = Colors.white.withValues(alpha: 0.32)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.6;
+    renderTurf(canvas);
+    renderLines(canvas);
+  }
 
+  /// The grass alone — split from the markings so the idle stage can lay the
+  /// momentum shading between the two.
+  void renderTurf(Canvas canvas) {
     canvas.drawRect(
       const Rect.fromLTWH(0, 0, pitchWidth, pitchHeight),
       Paint()..color = turf,
@@ -298,6 +343,14 @@ class PitchBackdrop extends PositionComponent {
     for (var i = 0; i < 10; i += 2) {
       canvas.drawRect(Rect.fromLTWH(i * 20, 0, 20, pitchHeight), stripe);
     }
+  }
+
+  /// The markings alone.
+  void renderLines(Canvas canvas) {
+    final line = Paint()
+      ..color = Colors.white.withValues(alpha: 0.32)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.6;
 
     canvas.drawRect(
       const Rect.fromLTWH(3, 3, pitchWidth - 6, pitchHeight - 6),
@@ -420,8 +473,20 @@ class CutawayGame extends FlameGame {
     required this.attackingRight,
     required this.outcome,
     required this.seed,
+    this.ours = true,
+    this.names = const [],
+    this.scorerName,
     this.onDone,
   });
+
+  /// Whether the attacking side is ours — the side that wears the names.
+  final bool ours;
+
+  /// Our eleven's names, lineup order, for the figures on our side.
+  final List<String> names;
+
+  /// The goalscorer, put on whoever takes the shot when it goes in.
+  final String? scorerName;
 
   final CutawaySequence sequence;
 
@@ -441,6 +506,18 @@ class CutawayGame extends FlameGame {
 
   /// Which attacker currently has it.
   int carrier = 0;
+
+  /// A pass that has landed and not yet been collected: who is coming for it.
+  int? _loose;
+
+  /// Whether the ball is in the air or rolling from a kick.
+  bool get inFlight => _flight != null;
+
+  /// Whether the ball is lying where a pass landed, waiting to be collected.
+  bool get isLoose => _loose != null;
+
+  /// How close a receiver has to get to a loose ball to have it.
+  static const double _collectRadius = 3.0;
 
   /// How far through the script we are.
   int beatIndex = 0;
@@ -490,12 +567,23 @@ class CutawayGame extends FlameGame {
 
     // Attackers: the carrier plus everyone a beat names a run for. Built from
     // the script so there are exactly as many bodies as the passage uses.
+    // The JS's pool: our names, the scorer's held back so no second figure
+    // wears it, and a shirt number when the names run out.
+    final pool = <String>[
+      for (final n in names)
+        if (scorerName == null || n != scorerName) shortName(n),
+    ];
+    String nameOr(String number) =>
+        pool.isEmpty ? number : pool.removeAt(0);
+
     final starts = _attackerStarts();
     for (var i = 0; i < starts.length; i++) {
+      final number = '${attackerNumbers[i % attackerNumbers.length]}';
       final mover = Mover(
         sprite: sprites['green_${(i % 10) + 1}.png']!,
         start: _at(starts[i]),
         paceScale: 0.9 + _rng.nextDouble() * 0.35,
+        label: ours ? nameOr(number) : number,
       );
       mover.target = mover.position.clone();
       attackers.add(mover);
@@ -503,10 +591,12 @@ class CutawayGame extends FlameGame {
     }
 
     for (var i = 0; i < defensiveBlock.length; i++) {
+      final number = '${defenderNumbers[i % defenderNumbers.length]}';
       final mover = Mover(
         sprite: sprites['red_${(i % 10) + 1}.png']!,
         start: _at(defensiveBlock[i]),
         paceScale: 0.82 + _rng.nextDouble() * 0.3,
+        label: ours ? number : nameOr(number),
       );
       mover.target = mover.position.clone();
       defenders.add(mover);
@@ -517,6 +607,7 @@ class CutawayGame extends FlameGame {
       sprite: sprites['white_1.png']!,
       start: _at((p: keeperP, q: 0.5)),
       paceScale: 0.7,
+      label: 'GK',
     );
     keeper.target = keeper.position.clone();
     world.add(keeper);
@@ -554,11 +645,11 @@ class CutawayGame extends FlameGame {
           to: to,
           style: style,
           bendSide: _rng.nextBool() ? 1 : -1,
-          onArrive: () {
-            carrier = receiver;
-            beatIndex++;
-            _beginBeat();
-          },
+          // **THE BALL WAITS TO BE COLLECTED.** It used to change hands the
+          // instant it landed, and the next frame drew it at the receiver's
+          // feet wherever he had got to — a ball that moved with nobody
+          // kicking it. It lies where it landed until he reaches it.
+          onArrive: () => _loose = receiver,
         );
         // The receiver runs to MEET it, at the pace that gets him there —
         // which is the half that was missing. See [Mover.sprintTo].
@@ -577,6 +668,16 @@ class CutawayGame extends FlameGame {
   }
 
   void _shoot(Finish beat) {
+    // The JS forces the scorer's real name onto the shooter's dot.
+    final scorer = scorerName;
+    if (ours && scorer != null && outcome == CutawayOutcome.goal) {
+      final me = attackers[carrier];
+      final label = shortName(scorer);
+      for (final a in attackers) {
+        if (a != me && a.label == label) a.label = me.label;
+      }
+      me.label = label;
+    }
     final style = finishStyles[beat.style] ?? finishStyles['placed']!;
     // Where the ball ends up is the OUTCOME's business, not the script's — the
     // same passage has to be able to end in the net, in the keeper's hands or
@@ -614,6 +715,9 @@ class CutawayGame extends FlameGame {
       bendSide: _rng.nextBool() ? 1 : -1,
       onArrive: _finish,
     );
+    // Struck. The boot is on the ball THIS frame, which is the frame the kick
+    // has to be heard on.
+    struck.value++;
   }
 
   /// Scythed down. The passage becomes a free kick from wherever it happened.
@@ -653,9 +757,27 @@ class CutawayGame extends FlameGame {
   bool _freeKickTaken = false;
   double _freeKickDelay = 0;
 
+  /// Bumped the instant the ball is STRUCK — see [_shoot].
+  ///
+  /// **THE SOUND AND THE PICTURE WERE ON DIFFERENT CLOCKS.** The match screen
+  /// played the shot and the crowd off the MINUTE tick, and a passage runs a
+  /// second or two of run-ups and passes before anybody shoots. So the net
+  /// bulged in silence and the goal sound had already gone off while the ball
+  /// was still in midfield — reported as the sounds and the action not syncing
+  /// up at all.
+  ///
+  /// A counter rather than a flag: a notifier only fires on a CHANGE, and the
+  /// question is "has it happened", which a bool that is already true cannot
+  /// answer twice. Paired with [verdict], the two beats a shot has — struck, and
+  /// arrived — are both watchable from outside the game.
+  final ValueNotifier<int> struck = ValueNotifier(0);
+
   /// The verdict, once the ball has arrived. Watched by the stage, which draws
   /// the banner in Flutter rather than in Flame — a headline wants the app's own
   /// type, and Flame's text renderer has none of it.
+  ///
+  /// Always AFTER [struck]: `_finish` is only ever reached by the shot flight's
+  /// `onArrive`, so a clip cannot deliver a verdict it never shot for.
   final ValueNotifier<CutawayOutcome?> verdict = ValueNotifier(null);
 
   /// How much of the OUTRO is left.
@@ -769,11 +891,30 @@ class CutawayGame extends FlameGame {
         flight.onArrive();
       }
     } else if (beatIndex < sequence.play.length) {
-      // At the carrier's feet, a step ahead of them — dribbling.
+      final loose = _loose;
+      if (loose != null) {
+        if (attackers[loose].position.distanceTo(ball.position) >
+            _collectRadius) {
+          _thinkDefenders(dt);
+          return;
+        }
+        _loose = null;
+        carrier = loose;
+        beatIndex++;
+        _beginBeat();
+        if (_flight != null) {
+          _thinkDefenders(dt);
+          return;
+        }
+      }
+      // At the carrier's feet, a step ahead of them — dribbling. Eased rather
+      // than pinned: pinned, a turn swung the ball round him in one frame,
+      // which is the same fault as the snap above.
       final me = attackers[carrier];
       final ahead = Vector2(math.sin(me.heading), -math.cos(me.heading))
         ..scale(3.2);
-      ball.position.setFrom(me.position + ahead);
+      final want = me.position + ahead;
+      ball.position.add((want - ball.position)..scale(math.min(1, 14 * dt)));
       ball.loft = 0;
 
       final beat = sequence.play[beatIndex];

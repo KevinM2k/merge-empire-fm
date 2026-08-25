@@ -21,9 +21,10 @@ void main() {
       ),
     );
     expect(find.byType(MaterialApp), findsOneWidget);
-    // Booted onto a default state: the club has no name until the picker runs,
-    // but the save exists and the loop is running.
-    expect(container(tester).read(clubNameProvider), '');
+    // Booted onto a default state: the club is auto-named at boot, as the JS
+    // does — a random one, renamed later in Settings — the save exists and the
+    // loop is running.
+    expect(container(tester).read(clubNameProvider), isNotEmpty);
     expect(container(tester).read(gameRunnerProvider).running, isTrue);
   });
 }

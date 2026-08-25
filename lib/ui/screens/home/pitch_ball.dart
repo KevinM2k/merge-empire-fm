@@ -666,8 +666,18 @@ class PitchBall extends StatefulWidget {
     this.frozen = false,
     this.sceneWidth = 0,
     this.walkerLeft = 0,
+    this.onStrike,
     super.key,
   });
+
+  /// He is about to play the ball back: fired [_PitchBallState.kickLead]
+  /// seconds before the sim releases it, so a kick cued on it lands its
+  /// contact as the ball goes.
+  ///
+  /// **Screen-side, not a `BallCue`.** The sim's cues and its trace are pinned
+  /// to the JS fixture frame for frame, so the kick — which the JS never drew —
+  /// is read off the trap timer here rather than added to the sim.
+  final VoidCallback? onStrike;
 
   /// He has planted his feet. The ball keeps moving; he stops dealing with it.
   final bool frozen;
@@ -706,6 +716,39 @@ class _PitchBallState extends State<PitchBall>
   double _last = 0;
   double _lastWorld = 0;
 
+  /// The kick's wind-up: the gesture's contact is at 0.6 of 520ms.
+  static const double kickLead = 0.31;
+
+  /// How long the played ball is lifted off the turf, and how high, in pixels.
+  /// A cosmetic hop — the sim's own y is the fixture's — so a pass that would
+  /// otherwise slide away reads as struck.
+  static const double _flickSeconds = 0.28;
+  static const double _flickHeight = 7;
+
+  bool _strikeCued = false;
+  bool _wasTrap = false;
+  double _flick = 0;
+
+  /// The cosmetic lift, in pixels, on top of the sim's y.
+  double get _hop => _flick <= 0
+      ? 0
+      : math.sin(math.pi * (1 - _flick / _flickSeconds)) * _flickHeight;
+
+  void _watchStrike(double dt) {
+    final trap = _sim.phase == BallPhase.trap && _sim.play != 'pickup';
+    if (trap && !_strikeCued && _sim.timer <= kickLead && !_sim.halted) {
+      _strikeCued = true;
+      widget.onStrike?.call();
+    }
+    // Left the trap for the turf: the ball has just been struck.
+    if (_wasTrap && _sim.phase == BallPhase.out && _sim.grounded) {
+      _flick = _flickSeconds;
+    }
+    if (!trap) _strikeCued = false;
+    _wasTrap = trap;
+    if (_flick > 0) _flick = math.max(0, _flick - dt);
+  }
+
   void _onTick(Duration elapsed) {
     final now = elapsed.inMicroseconds / 1e6;
     final dt = now - _last;
@@ -722,6 +765,7 @@ class _PitchBallState extends State<PitchBall>
       _sim.wind = widget.wind;
       _sim.halted = widget.frozen;
       _sim.step(dt, walkSpeed: moved / dt, nominalWalkSpeed: _nominalWalkSpeed);
+      _watchStrike(dt);
     });
   }
 
@@ -773,7 +817,7 @@ class _PitchBallState extends State<PitchBall>
   @override
   Widget build(BuildContext context) {
     if (!_sim.visible) return const SizedBox.shrink();
-    final height = _sim.y / _maxY;
+    final height = (_sim.y + _hop) / _maxY;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -804,7 +848,7 @@ class _PitchBallState extends State<PitchBall>
         ),
         Positioned(
           left: ballHomeX + _sim.x,
-          bottom: ballGroundLine + _sim.y,
+          bottom: ballGroundLine + _sim.y + _hop,
           width: ballSize,
           height: ballSize,
           child: Transform.rotate(

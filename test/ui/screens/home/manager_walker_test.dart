@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/ui/screens/home/walker_figure.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 
@@ -781,6 +782,8 @@ void main() {
         body: 1.0,
         bodyLift: 0.0,
         legs: null,
+        kickThigh: null,
+        kickShin: null,
         finger: 0.0,
       );
       await tester.pumpWidget(
@@ -876,5 +879,70 @@ void main() {
       await pumpWalker(tester, ballLayer: ball);
       expect(find.byKey(const ValueKey('the-ball')), findsOneWidget);
     });
+  });
+  testWidgets('A BEAT TICK DOES NOT REBUILD HIM', (tester) async {
+    // `WalkBeat` is an `InheritedNotifier`, and DEPENDING on one rebuilds the
+    // dependent every tick — the whole rig, art re-parsed, once a frame, for a
+    // number its painter listens to directly. Measured at one full build per
+    // frame on the customiser's preview.
+    final beat = ValueNotifier<double>(0);
+    addTearDown(beat.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: WalkBeat(
+          notifier: beat,
+          child: const Center(
+            child: SizedBox(
+              width: walkerWidth,
+              height: walkerHeight,
+              child: ManagerWalker(
+                kit: _kit,
+                skin: Color(0xFFEEBB8C),
+                hair: Color(0xFF3A2A1C),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    var rebuilt = 0;
+    debugOnRebuildDirtyWidget = (element, _) {
+      if (element.widget is ManagerWalker) rebuilt++;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    for (var i = 0; i < 5; i++) {
+      beat.value += 0.1;
+      await tester.pump();
+    }
+    expect(rebuilt, 0, reason: 'the rig was rebuilt on a clock it already listens to');
+    // He still moved: the painter reads the beat without the widget rebuilding.
+    expect(find.byType(ManagerWalker), findsOneWidget);
+  });
+  testWidgets('THE HEAD IS ONE CACHED LAYER WHILE HE MOVES, and none at rest', (
+    tester,
+  ) async {
+    // Six SVGs, two skull clips and eight blurred shadows tilt by the same
+    // angle, and each used to be its own `_Tilt` — so a frame of walking
+    // re-rasterised all of them at 3x. One boundary under one tilt makes the
+    // tilt a layer transform. And NOT for a still (the customiser's twenty
+    // chips), where a layer each is memory for nothing.
+    await pumpWalker(tester, reduceMotion: false);
+    expect(
+      find.descendant(
+        of: find.byType(ManagerWalker),
+        matching: find.byType(RepaintBoundary),
+      ),
+      findsOneWidget,
+    );
+    await pumpWalker(tester, reduceMotion: true);
+    expect(
+      find.descendant(
+        of: find.byType(ManagerWalker),
+        matching: find.byType(RepaintBoundary),
+      ),
+      findsNothing,
+    );
   });
 }

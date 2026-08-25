@@ -19,6 +19,9 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/idle_pitch_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
+import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
+    show cardById;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_sequences.dart';
 
 /// What a feed event should look like on the pitch, or null when it is not a
@@ -39,7 +42,46 @@ typedef CutawayClip = ({
   bool attackingRight,
   CutawayOutcome outcome,
   int seed,
+  /// Whether the attacking side is OURS — which side wears the names.
+  bool ours,
+  /// Our eleven's names, in the JS's order (the lineup, last slot first).
+  List<String> names,
+  /// The goalscorer, forced onto whoever takes the shot.
+  String? scorerName,
 });
+
+/// A label as the JS's `_short` prints it: the last word of the name — the
+/// surname, or the whole of a one-word name — cut to eight and an ellipsis
+/// past nine.
+String shortName(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  final s = parts.isEmpty || parts.last.isEmpty ? name : parts.last;
+  return s.length > 9 ? '${s.substring(0, 8)}…' : s;
+}
+
+/// Our eleven's names for the dots, the JS's `_ourSurnames`: the lineup read
+/// last slot first, each slot's card by name. A slot with no card is skipped.
+List<String> lineupNames(Map<String, dynamic>? state) {
+  final squad = state?['squad'];
+  final lineup = squad is Map ? squad['lineup'] : null;
+  if (lineup is! List) return const [];
+  final out = <String>[];
+  for (final raw in lineup.reversed) {
+    if (raw is! Map) continue;
+    final name = cardDisplayName(state, '${raw['cardInstanceId'] ?? ''}');
+    if (name != null && name.isNotEmpty) out.add(name);
+  }
+  return out;
+}
+
+/// A card's display name, or null when the save no longer has it.
+String? cardDisplayName(Map<String, dynamic>? state, String instanceId) {
+  if (instanceId.isEmpty) return null;
+  final card = cardById(state, instanceId);
+  final def = getPlayerDef(card?.definitionId);
+  if (card == null || def == null) return null;
+  return card.name(def.name);
+}
 
 /// The smallest chance worth cutting to, as the JS's own threshold.
 const double cutawayBigXg = 0.22;
@@ -75,6 +117,8 @@ CutawayClip? clipFor(
   bool ourTeamOn = true,
   bool opponentOn = true,
   int? lastCutawayMinute,
+  List<String> names = const [],
+  String? scorerName,
 }) {
   if (!(ours ? ourTeamOn : opponentOn)) return null;
   if (event.type == 'chance') {
@@ -93,6 +137,9 @@ CutawayClip? clipFor(
     attackingRight: ours ? ourSideLeft : !ourSideLeft,
     outcome: outcome,
     seed: seed,
+    ours: ours,
+    names: names,
+    scorerName: scorerName,
   );
 }
 
@@ -109,17 +156,42 @@ class CutawayStage extends StatefulWidget {
   const CutawayStage({
     required this.clip,
     this.onDone,
+    this.onStruck,
+    this.onVerdict,
     this.scorer,
     this.scorerFromLeft = true,
     this.momentum,
     this.attackingRight = true,
+    this.onGrass,
     super.key,
   });
+
+  /// Drawn ON the pitch between chances — under the markings, in the pitch's
+  /// own perspective. The momentum shading was a sibling of the stage in screen
+  /// space, so it lay flat across the tilted pitch and the surround alike.
+  final Widget? onGrass;
 
   /// Null shows the idle pitch — which is most of a match.
   final CutawayClip? clip;
 
   final void Function(CutawayOutcome outcome)? onDone;
+
+  /// The ball has been STRUCK — the frame the boot is on it.
+  ///
+  /// **THE SOUND WAS ON THE MINUTE AND THE PICTURE WAS ON THE CLIP.** A passage
+  /// runs a second or two of run-ups and passes before anybody shoots, and the
+  /// match screen fired the shot and the crowd the instant the minute ticked. So
+  /// the goal was heard while the ball was still in midfield and the net bulged
+  /// in silence — reported as the sounds and the action not syncing up at all.
+  ///
+  /// These two are the passage's own beats, so a caller can hang a cue on the
+  /// moment rather than on a guess at how long the moment takes to arrive.
+  /// [onVerdict] always follows [onStruck]: the game only reaches a verdict
+  /// through the shot's own flight.
+  final VoidCallback? onStruck;
+
+  /// The ball has ARRIVED, and this is what happened to it.
+  final void Function(CutawayOutcome outcome)? onVerdict;
 
   /// Who to stand on the touchline the moment the ball goes in, or null when
   /// there is nobody to name — theirs, or one of ours the save has lost.
@@ -191,19 +263,54 @@ class _CutawayStageState extends State<CutawayStage> {
   void _syncGame() {
     final clip = widget.clip;
     if (clip == null) {
+      _listen(null);
       _game = null;
       _seed = null;
       return;
     }
     if (_seed == clip.seed && _game != null) return;
     _seed = clip.seed;
-    _game = CutawayGame(
+    final game = CutawayGame(
       sequence: clip.sequence,
       attackingRight: clip.attackingRight,
       outcome: clip.outcome,
       seed: clip.seed,
+      ours: clip.ours,
+      names: clip.names,
+      scorerName: clip.scorerName,
       onDone: widget.onDone,
     );
+    _listen(game);
+    _game = game;
+  }
+
+  /// The game whose beats are being relayed, so the listeners come off the one
+  /// they were put on — `_game` has already moved on by then.
+  CutawayGame? _heard;
+
+  void _listen(CutawayGame? game) {
+    _heard?.struck.removeListener(_onStruck);
+    _heard?.verdict.removeListener(_onVerdict);
+    _heard = game;
+    if (game == null) return;
+    game.struck.addListener(_onStruck);
+    game.verdict.addListener(_onVerdict);
+  }
+
+  void _onStruck() {
+    // A counter, so the first bump is 1 — see `CutawayGame.struck`.
+    if ((_heard?.struck.value ?? 0) > 0) widget.onStruck?.call();
+  }
+
+  void _onVerdict() {
+    final outcome = _heard?.verdict.value;
+    if (outcome != null) widget.onVerdict?.call(outcome);
+  }
+
+  @override
+  void dispose() {
+    _listen(null);
+    super.dispose();
   }
 
   @override
@@ -251,15 +358,24 @@ class _CutawayStageState extends State<CutawayStage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: ColoredBox(
-          color: PitchBackdrop.turf,
+          // **NOT the turf** — see [PitchBackdrop.surround]. Filling this with
+          // the pitch's own green is what made the trapezoid invisible and the
+          // pitch look cropped.
+          color: PitchBackdrop.surround,
           child: game == null
-              ? const _InPerspective(
+              ? _InPerspective(
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      CustomPaint(
+                      const CustomPaint(
                         key: ValueKey('cutaway-idle'),
-                        painter: _IdlePitchPainter(),
+                        painter: _IdlePitchPainter(lines: false),
+                        size: Size.infinite,
+                      ),
+                      // See [CutawayStage.onGrass]: under the lines.
+                      ?widget.onGrass,
+                      const CustomPaint(
+                        painter: _IdlePitchPainter(turf: false),
                         size: Size.infinite,
                       ),
                       // **THE BODIES ARE FOR CHANCES, and this reverses "the
@@ -401,18 +517,25 @@ class _ScorerSlide extends StatelessWidget {
 /// Deliberately the same geometry as [PitchBackdrop] — it IS that, scaled to
 /// the widget — so the clip cutting in does not visibly move the markings.
 class _IdlePitchPainter extends CustomPainter {
-  const _IdlePitchPainter();
+  const _IdlePitchPainter({this.turf = true, this.lines = true});
+
+  /// Either half on its own, so something can be drawn between them.
+  final bool turf;
+  final bool lines;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / pitchWidth, size.height / pitchHeight);
-    PitchBackdrop().render(canvas);
+    final backdrop = PitchBackdrop();
+    if (turf) backdrop.renderTurf(canvas);
+    if (lines) backdrop.renderLines(canvas);
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_IdlePitchPainter oldDelegate) => false;
+  bool shouldRepaint(_IdlePitchPainter old) =>
+      old.turf != turf || old.lines != lines;
 }
 
 /// GOAL, SAVED, MISSED.
@@ -511,12 +634,12 @@ class _Verdict extends StatelessWidget {
 /// This is only safe because of [fittedTilt]: the projection widens the near
 /// edge past its own box, so without the fit each of these steps pushed more of
 /// the near touchline off the sides.
-const double pitchTilt = -0.80;
+const double pitchTilt = 0;
 
 /// How strong the vanishing is. Still short of a wedge: the pitch is wide and
 /// shallow in this band, and past this the far touchline converges to a point
 /// rather than to a line.
-const double pitchVanish = 0.0024;
+const double pitchVanish = 0;
 
 /// The pitch, seen from a camera rather than from directly above.
 ///

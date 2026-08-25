@@ -96,6 +96,44 @@ void main() {
     });
   });
 
+  group('WHAT IS IN THE SKY AT NIGHT IS THE MOON', () {
+    // The scene goes dark with the theme — `nightScene` is the whole of it —
+    // and the `sunny` layer went on painting a warm bloom, twelve turning rays
+    // and a bright yellow disc into a floodlit night. Reported as a nice bright
+    // sun of a nighttime.
+    //
+    // The CONDITION is unchanged: `sunny` still owns this layer and still
+    // floors the temperature, so the manager still sweats. What swaps is what
+    // gets drawn in it.
+    testWidgets('a sunny night draws the moon, not the sun', (tester) async {
+      await pumpScene(tester, condition: 'sunny');
+      expect(find.byKey(const ValueKey('pitch-moon')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pitch-sun')), findsNothing);
+    });
+
+    testWidgets('and by day it is still the sun', (tester) async {
+      await pumpScene(
+        tester,
+        condition: 'sunny',
+        brightness: Brightness.light,
+      );
+      expect(find.byKey(const ValueKey('pitch-sun')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pitch-moon')), findsNothing);
+    });
+
+    testWidgets('the moon keeps the sun\'s own place in the sky', (
+      tester,
+    ) async {
+      // One centre for both, so the sky's one bright thing does not jump when
+      // the theme changes.
+      await pumpScene(tester, condition: 'sunny', brightness: Brightness.light);
+      final byDay = tester.getRect(find.byKey(const ValueKey('pitch-sun')));
+      await pumpScene(tester, condition: 'sunny');
+      final byNight = tester.getRect(find.byKey(const ValueKey('pitch-moon')));
+      expect(byNight, byDay);
+    });
+  });
+
   group('each condition shows its own layer', () {
     testWidgets('and nothing else', (tester) async {
       // The particle layers only. `overcast` and `clouds` are shared across

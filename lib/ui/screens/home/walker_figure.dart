@@ -98,6 +98,7 @@ void paintLimb(
   required Color base,
   bool far = false,
   bool occlude = true,
+  bool soft = true,
 }) {
   final limb = taperedLimb(from, to, wFrom, wTo);
   final axis = to - from;
@@ -131,7 +132,7 @@ void paintLimb(
     taperedLimb(from + inset, to + inset, wFrom * 0.30, wTo * 0.30),
     Paint()
       ..color = Colors.white.withValues(alpha: far ? 0.06 : 0.13)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4),
+      ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 1.4) : null,
   );
   if (occlude) {
     canvas.drawCircle(
@@ -368,6 +369,7 @@ void paintTorso(
   Color kit, {
   double build = 1,
   ({double cx, double cy, double rx, double ry})? bulge,
+  bool soft = true,
 }) {
   final path = torsoPath(build: build);
   final bounds = path.getBounds();
@@ -389,7 +391,7 @@ void paintTorso(
     Rect.fromCenter(center: const Offset(58.4, 62.5), width: 13, height: 7.5),
     Paint()
       ..color = Colors.black.withValues(alpha: 0.13)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2),
+      ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 2.2) : null,
   );
   // And a soft shadow where the shirt tucks in, so the hem is worn rather than
   // printed on.

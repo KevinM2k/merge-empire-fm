@@ -140,8 +140,14 @@ class WalkBeat extends InheritedNotifier<ValueNotifier<double>> {
   /// The scene's clock, or null when there is no scene — the customiser's chip
   /// and the widget tests both build a walker with no diorama around it, and he
   /// falls back to a clock of his own there.
+  ///
+  /// **A LOOKUP, not a dependency.** `dependOnInheritedWidgetOfExactType` on an
+  /// `InheritedNotifier` rebuilds the caller on every tick, and every caller
+  /// already listens to the notifier itself — so the whole rig was being
+  /// rebuilt, art re-parsed, once a frame for a number its painter was going
+  /// to read anyway.
   static ValueNotifier<double>? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<WalkBeat>()?.notifier;
+      context.getInheritedWidgetOfExactType<WalkBeat>()?.notifier;
 }
 
 /// A walk clock for a walker with no diorama around it.

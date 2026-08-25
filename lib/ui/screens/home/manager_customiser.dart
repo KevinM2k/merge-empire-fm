@@ -26,6 +26,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +38,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
@@ -199,14 +201,34 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   ///
   /// It stops the moment every chip is up, so nothing schedules callbacks for a
   /// sheet that is finished.
-  int _chipsReady = 0;
-
-  /// Chips revealed per frame. One, because the point is that a frame's work
-  /// fits in a frame.
+  ///
+  /// **A NOTIFIER RATHER THAN STATE, because `setState` made the fill O(n²).**
+  /// The count lived on this State, so every increment rebuilt the whole sheet
+  /// — and `GridView.builder` re-runs `itemBuilder` for every live item, so
+  /// each frame rebuilt every chip already up as well as the new one. Measured
+  /// on the Hat axis: eighteen chips cost 171 rig builds, which is 18×19/2
+  /// exactly. Celebrations 136, Hair 120 — triangular numbers, the signature of
+  /// the whole grid rebuilding once per chip.
+  ///
+  /// Worse than the total, the SHAPE was backwards: the point of a chip a frame
+  /// is that a frame's work is constant, and this made the last frame of the
+  /// fill the most expensive one. The frames were measured at a p50 of 15-17ms
+  /// against a 16ms budget, so the fill dropped frames the whole way down.
+  ///
+  /// Off a notifier each chip watches for itself, only the chip crossing its
+  /// own threshold rebuilds: eighteen builds for eighteen chips. See [_Reveal].
+  final ValueNotifier<int> _ready = ValueNotifier<int>(0);
 
   /// Whether the fill has been started. Once only, however many times
   /// dependencies change.
   bool _filling = false;
+
+  @override
+  void dispose() {
+    _ready.dispose();
+    _preview.dispose();
+    super.dispose();
+  }
 
   /// **AND IT STARTS AT ONCE, rather than waiting for the sheet to land.**
   ///
@@ -227,8 +249,8 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   void _fillNextChip() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (_chipsReady >= _idsFor(lookAxes[_axis].kind).length) return;
-      setState(() => _chipsReady++);
+      if (_ready.value >= _idsFor(lookAxes[_axis].kind).length) return;
+      _ready.value++;
       _fillNextChip();
     });
   }
@@ -264,7 +286,14 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   }
 
   /// A gesture to play once on the preview, or null when he is just walking.
-  GestureCue? _preview;
+  ///
+  /// **A NOTIFIER, because the GRID does not depend on it.** Playing one used to
+  /// `setState` the whole sheet, and on the Celebrations axis that rebuilt all
+  /// sixteen chip rigs to change one figure that is not in the grid at all —
+  /// measured at 30-42ms on the frame of every tap, against 7ms for a tap on
+  /// any other axis. Two dropped frames every time the player tried a
+  /// celebration, which is the one thing that tab is for.
+  final ValueNotifier<GestureCue?> _preview = ValueNotifier<GestureCue?>(null);
 
   /// One video in flight at a time — a double tap is two videos and one grant.
   bool _adInFlight = false;
@@ -322,7 +351,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   void _play(String id) {
     final gesture = gestures.where((g) => g.id == id).firstOrNull;
     if (gesture == null) return;
-    setState(() => _preview = GestureCue(gesture));
+    _preview.value = GestureCue(gesture);
   }
 
   void _randomise() {
@@ -378,14 +407,17 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
         // scene's own sky and turf (`theme/sky.dart`), so what you are dressing
         // him for is the ground he will be standing on.
         _PreviewStage(
-          child: ManagerWalker(
-            key: const ValueKey('customise-preview'),
-            kit: kit.accent,
-            skin: const Color(0xFFEEBB8C),
-            hair: const Color(0xFF3A2A1C),
-            look: look,
-            mood: Mood.pleased,
-            gesture: _preview,
+          child: ValueListenableBuilder<GestureCue?>(
+            valueListenable: _preview,
+            builder: (context, cue, _) => ManagerWalker(
+              key: const ValueKey('customise-preview'),
+              kit: kit.accent,
+              skin: const Color(0xFFEEBB8C),
+              hair: const Color(0xFF3A2A1C),
+              look: look,
+              mood: Mood.pleased,
+              gesture: cue,
+            ),
           ),
         ),
         // **ONE CONTROL, NOT EIGHT.**
@@ -413,40 +445,44 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
             // in the frame the tab is pressed is the original fault through a
             // different door.
             onPick: (i) {
-              setState(() {
-                _axis = i;
-                _chipsReady = 0;
-              });
+              _ready.value = 0;
+              setState(() => _axis = i);
               _fillNextChip();
             },
           ),
         ),
         const SizedBox(height: 8),
         Expanded(
-          // Empty for one frame, then a chip a frame. See [_chipsReady].
-          child: _chipsReady == 0
-              ? const SizedBox.shrink()
-              : _Grid(
-                  axis: axis,
-                  look: look,
-                  ready: _chipsReady,
-                  state: _save,
-                  onLocked: (id, watchable) {
-                    if (watchable) {
-                      unawaited(_watchForItem(axis.kind, id));
-                      return;
-                    }
-                    final why = lockedReason(_save, axis.kind, id);
-                    if (why != null) emit('toast:info', why);
-                  },
-                  onPlay: _play,
-                  onPick: (id) => _set(
-                    axis.field,
-                    // Hair colour is stored as the VALUE, not the id — that is what
-                    // the walker paints with and what `hairColorId` reads back.
-                    axis.kind == 'color' ? hairColorValue(id) : id,
-                  ),
-                ),
+          // Empty for one frame, then a chip a frame. See [_ready] and
+          // [_Reveal] — the GRID waits for the first chip's turn, so the frame
+          // that opens the sheet builds no part of it, and after that it is
+          // built once per axis while the chips let themselves in.
+          child: _Reveal(
+            ready: _ready,
+            index: 0,
+            builder: (context) => _Grid(
+              axis: axis,
+              look: look,
+              ready: _ready,
+              state: _save,
+              onLocked: (id, watchable) {
+                if (watchable) {
+                  unawaited(_watchForItem(axis.kind, id));
+                  return;
+                }
+                final why = lockedReason(_save, axis.kind, id);
+                if (why != null) emit('toast:info', why);
+              },
+              onPlay: _play,
+              onPick: (id) => _set(
+                axis.field,
+                // Hair colour is stored as the VALUE, not the id — that is
+                // what the walker paints with and what `hairColorId` reads
+                // back.
+                axis.kind == 'color' ? hairColorValue(id) : id,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -474,7 +510,10 @@ class _PreviewStage extends StatelessWidget {
       // The same 13 either side as the picker and the grid, so the sheet has one
       // margin rather than a full-bleed picture over inset controls.
       padding: const EdgeInsets.symmetric(horizontal: 13),
-      child: ClipRRect(
+      // Its own layer: the only thing on this sheet that moves every frame,
+      // and without the boundary the whole sheet re-rasterised with it.
+      child: RepaintBoundary(
+        child: ClipRRect(
         key: const ValueKey('customise-stage'),
         borderRadius: BorderRadius.circular(14),
         child: WalkClock(
@@ -555,6 +594,7 @@ class _PreviewStage extends StatelessWidget {
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -603,8 +643,21 @@ class _ScrollingBackdrop extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(width: constraints.maxWidth, child: art),
-                    SizedBox(width: constraints.maxWidth, child: art),
+                  // **Both dimensions, or it is a square in the middle.** A
+                  // `Row` hands its children a LOOSE height, and an image with
+                  // no height sizes itself to its own aspect — so the drawing
+                  // was a 190px square centred in a 362px slot, and what slid
+                  // past him was a patch with the sky gradient either side.
+                    SizedBox(
+                      width: constraints.maxWidth,
+                      height: constraints.maxHeight,
+                      child: art,
+                    ),
+                    SizedBox(
+                      width: constraints.maxWidth,
+                      height: constraints.maxHeight,
+                      child: art,
+                    ),
                   ],
                 ),
               ),
@@ -693,10 +746,10 @@ class _Grid extends StatelessWidget {
   final LookAxis axis;
   final ManagerLook? look;
 
-  /// How many chips are allowed on screen yet — see `_chipsReady`. The grid
-  /// keeps its full extent so the scrollbar and the scroll position do not jump
-  /// as they arrive; what this caps is how many are BUILT.
-  final int ready;
+  /// How many chips are allowed on screen yet — see `_ready`. The grid keeps its
+  /// full extent so the scrollbar and the scroll position do not jump as they
+  /// arrive; what this caps is how many are BUILT.
+  final ValueNotifier<int> ready;
   final Map<String, dynamic>? state;
   final void Function(String id) onPick;
 
@@ -716,7 +769,6 @@ class _Grid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ids = _idsFor(axis.kind);
-    final current = _current;
 
     return GridView.builder(
       key: ValueKey('customise-grid-${axis.kind}'),
@@ -729,40 +781,103 @@ class _Grid extends StatelessWidget {
       ),
       itemCount: ids.length,
       itemBuilder: (context, i) {
-        // Still filling. An empty box costs nothing and holds the row open.
-        if (i >= ready) return const SizedBox.shrink();
         final id = ids[i];
-        final locked = lockedReason(state, axis.kind, id);
-        final watchable = isPackLocked(state, axis.kind, id);
-        return _Chip(
-          axis: axis,
-          id: id,
-          look: look,
-          // An emote is never "worn", so nothing on that tab is current.
-          selected: axis.field.isNotEmpty && id == current,
-          lockedReason: locked,
-          adUnlockable: watchable,
-          onTap: () {
-            // **THROUGH THE APP'S OWN TOAST, not a `SnackBar`.**
-            // `ScaffoldMessenger.of` walks up to the Scaffold BEHIND this
-            // modal sheet, so the explanation was posted underneath the thing
-            // the player was looking at — reported as tapping a locked item
-            // doing nothing at all. Every other message in the game goes on
-            // the bus and `toast_host` draws it over the top.
-            if (locked != null) {
-              onLocked(id, watchable);
-              return;
-            }
-            if (axis.field.isEmpty) {
-              onPlay(id);
-              return;
-            }
-            onPick(id);
-          },
+        // Still filling. An empty box costs nothing and holds the row open, and
+        // the chip watches [ready] for its own turn rather than the grid being
+        // rebuilt to hand it one — see [_Reveal].
+        return _Reveal(
+          ready: ready,
+          index: i,
+          builder: (context) => _chip(id),
         );
       },
     );
   }
+
+  Widget _chip(String id) {
+    final locked = lockedReason(state, axis.kind, id);
+    final watchable = isPackLocked(state, axis.kind, id);
+    return _Chip(
+      axis: axis,
+      id: id,
+      look: look,
+      // An emote is never "worn", so nothing on that tab is current.
+      selected: axis.field.isNotEmpty && id == _current,
+      lockedReason: locked,
+      adUnlockable: watchable,
+      onTap: () {
+        // **THROUGH THE APP'S OWN TOAST, not a `SnackBar`.**
+        // `ScaffoldMessenger.of` walks up to the Scaffold BEHIND this modal
+        // sheet, so the explanation was posted underneath the thing the player
+        // was looking at — reported as tapping a locked item doing nothing at
+        // all. Every other message in the game goes on the bus and
+        // `toast_host` draws it over the top.
+        if (locked != null) {
+          onLocked(id, watchable);
+          return;
+        }
+        if (axis.field.isEmpty) {
+          onPlay(id);
+          return;
+        }
+        onPick(id);
+      },
+    );
+  }
+}
+
+/// One thing's turn to be built — a chip, or the grid they all sit in.
+///
+/// **The fill's cost has to be per CHIP, not per grid.** `_ready` used to be
+/// State on the sheet, so raising it rebuilt everything — and `GridView.builder`
+/// re-runs `itemBuilder` for every live item, so the frame that revealed the
+/// eighteenth chip rebuilt eighteen full [ManagerWalker] rigs. 171 rig builds
+/// for eighteen chips, and the last frame the most expensive.
+///
+/// This listens for its own index instead and drops the listener the moment it
+/// is in, so a fill costs one chip's work per frame all the way down. It still
+/// rebuilds normally when the sheet above it does, which is what keeps every
+/// chip previewing the look the player just picked.
+class _Reveal extends StatefulWidget {
+  const _Reveal({
+    required this.ready,
+    required this.index,
+    required this.builder,
+  });
+
+  final ValueNotifier<int> ready;
+  final int index;
+  final WidgetBuilder builder;
+
+  @override
+  State<_Reveal> createState() => _RevealState();
+}
+
+class _RevealState extends State<_Reveal> {
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _shown = widget.ready.value > widget.index;
+    if (!_shown) widget.ready.addListener(_check);
+  }
+
+  void _check() {
+    if (_shown || widget.ready.value <= widget.index) return;
+    widget.ready.removeListener(_check);
+    setState(() => _shown = true);
+  }
+
+  @override
+  void dispose() {
+    widget.ready.removeListener(_check);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _shown ? widget.builder(context) : const SizedBox.shrink();
 }
 
 /// What part of the figure an axis actually changes, in the rig's own units.
@@ -793,13 +908,30 @@ Rect _regionFor(String kind) => switch (kind) {
 /// drawing exactly that picture in the customiser all along. Reported as
 /// wanting to see what each thing looks like before unlocking it.
 class LookPreview extends StatelessWidget {
-  const LookPreview({required this.axis, required this.look, super.key});
+  const LookPreview({
+    required this.axis,
+    required this.look,
+    this.pose,
+    super.key,
+  });
 
   final LookAxis axis;
 
   /// The player's current look with this one choice swapped in — so a beard is
   /// previewed on HIS face, under HIS hat, in HIS colour.
   final ManagerLook look;
+
+  /// A pose to hold him in, for an axis that changes no part of the LOOK.
+  ///
+  /// **Celebrations had nothing to swap, so all sixteen chips drew the same
+  /// man.** The axis has no field — an emote is not worn — so the look handed
+  /// to each chip was identical and the grid was sixteen copies of one picture,
+  /// which told the player nothing about which celebration they were about to
+  /// pick. A gesture is a POSE, not a garment, so the thing to vary is the rig's
+  /// angles rather than its wardrobe: [gesturePose] sampled at its peak, handed
+  /// over as the walker's `idle` because that is the parameter for a held pose
+  /// (`walking: false` freezes him, so the gesture's own clock would never run).
+  final GesturePose? pose;
 
   @override
   Widget build(BuildContext context) {
@@ -808,29 +940,45 @@ class LookPreview extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final k = box.maxWidth / region.width;
-        return ClipRect(
-          child: OverflowBox(
-            alignment: Alignment.topLeft,
-            maxWidth: double.infinity,
-            maxHeight: double.infinity,
-            child: Transform.translate(
-              offset: Offset(-region.left * k, -region.top * k),
-              child: SizedBox(
-                width: walkerWidth * k,
-                height: walkerHeight * k,
-                // Its own layer: twenty rigs in a scrollable grid otherwise
-                // repaint together on every scroll pixel, and a rig is a deep
-                // tree of clipped SVG layers.
-                child: RepaintBoundary(
+        // Its own layer: twenty rigs in a scrollable grid otherwise repaint
+        // together on every scroll pixel, and a rig is a deep tree of clipped
+        // SVG layers. **OUTSIDE the clip**, so the texture is the chip's size:
+        // inside it the cached raster was the whole rig at scale k — a quarter
+        // of a megapixel per chip at 3x, eighteen times over on Celebrations,
+        // for a 40-unit crop of each.
+        // **A PICTURE, not a live rig.** Impeller has no raster cache, so a
+        // `RepaintBoundary` isolates repaints and stores nothing: while the
+        // preview walked, every still chip — a full rig, skull clips, a dozen
+        // blurred shadows — was re-rasterised on the GPU each frame, eighteen
+        // of them on Celebrations. Reported as that tab slowing everything to
+        // a crawl. Snapshotted once and drawn as an image until the look or
+        // the pose changes; the key is what throws the old picture away.
+        return _Still(
+          key: ValueKey(Object.hash(axis.kind, look, pose)),
+          child: ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.topLeft,
+              maxWidth: double.infinity,
+              maxHeight: double.infinity,
+              child: Transform.translate(
+                offset: Offset(-region.left * k, -region.top * k),
+                child: SizedBox(
+                  width: walkerWidth * k,
+                  height: walkerHeight * k,
                   child: ManagerWalker(
                     kit: kit.accent,
                     skin: const Color(0xFFEEBB8C),
                     hair: const Color(0xFF3A2A1C),
                     look: look,
                     mood: Mood.neutral,
+                    idle: pose,
                     // Still, and that is what keeps nineteen of these free: a
                     // walker that is not walking starts no clock at all.
                     walking: false,
+                    // And unblurred: a dozen blur passes per rig was most of
+                    // what the grid cost to rasterise, for softness below a
+                    // pixel at this size.
+                    soft: false,
                   ),
                 ),
               ),
@@ -838,6 +986,51 @@ class LookPreview extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// A child rasterised once and drawn as an image from then on.
+///
+/// Recreate it (a new key) to take a new picture — `SnapshotWidget` never
+/// notices its child repainting, by design.
+class _Still extends StatefulWidget {
+  const _Still({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  State<_Still> createState() => _StillState();
+}
+
+class _StillState extends State<_Still> {
+  final SnapshotController _controller = SnapshotController(
+    allowSnapshotting: true,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    // Taken at 2x at most: the snapshot reads the device ratio, and a 3x
+    // picture of an 80-point crop is 2.25 times the pixels for nothing the eye
+    // gets — twenty of them during the frames the sheet is sliding.
+    return MediaQuery(
+      data: media.copyWith(
+        devicePixelRatio: math.min(media.devicePixelRatio, 2),
+      ),
+      child: SnapshotWidget(
+        controller: _controller,
+        // Permissive: the rig is plain painting, and a chip that cannot be
+        // snapshotted should still draw rather than throw.
+        mode: SnapshotMode.permissive,
+        child: widget.child,
+      ),
     );
   }
 }
@@ -871,6 +1064,18 @@ class _Chip extends StatelessWidget {
   final bool adUnlockable;
 
   final VoidCallback onTap;
+
+  /// The pose this chip holds him in, for an axis that swaps no garment.
+  ///
+  /// Sampled a little past halfway, which is where every gesture's own peak
+  /// falls — its tracks ease out to rest by the end, so a pose taken at 1.0 is
+  /// the same standing figure for all sixteen of them. See [LookPreview.pose].
+  GesturePose? get _pose {
+    if (axis.kind != 'emote') return null;
+    final gesture = gestures.where((g) => g.id == id).firstOrNull;
+    if (gesture == null) return null;
+    return gesturePose(id, 0.55, gestureMs: gesture.ms);
+  }
 
   /// The colour axes show the colour; everything else shows its name.
   Color? get _swatch {
@@ -934,6 +1139,7 @@ class _Chip extends StatelessWidget {
                       if (swatch == null)
                         LookPreview(
                           axis: axis,
+                          pose: _pose,
                           // **`defaultManagerLook` when the save has none**,
                           // which is every fresh one — without the fallback the
                           // whole grid was words on exactly the saves most likely

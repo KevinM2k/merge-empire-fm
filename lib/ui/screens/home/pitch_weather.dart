@@ -47,6 +47,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 /// The seed every particle field is laid out from.
 ///
@@ -178,37 +179,58 @@ class WeatherSky extends StatelessWidget {
   final String condition;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      _Layer(
-        key: weatherLayerKey('sun'),
-        visible: condition == 'sunny',
-        fade: const Duration(milliseconds: 1600),
-        child: _Motion(
-          active: condition == 'sunny',
-          builder: (context, t) =>
-              CustomPaint(size: Size.infinite, painter: _SunPainter(t)),
+  Widget build(BuildContext context) {
+    // **A HOT SUN OVER A FLOODLIT NIGHT.** The scene goes dark with the theme —
+    // `nightScene` is the whole of it — and the sunny sky kept painting a
+    // blazing yellow disc, rays and a warm bloom into it. What is in the sky at
+    // night is the MOON, so the condition keeps its layer and swaps what the
+    // layer draws. Same key: `sunny` is the engine's condition and it still owns
+    // this layer, which is what `pitch_weather_test` asserts.
+    final night = nightSceneOf(context);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _Layer(
+          key: weatherLayerKey('sun'),
+          visible: condition == 'sunny',
+          fade: const Duration(milliseconds: 1600),
+          // **The moon does not turn.** The rays are the only thing the clock
+          // drove, so at night this is a still painting and there is no reason
+          // to tick a frame for it.
+          child: night
+              ? const CustomPaint(
+                  key: ValueKey('pitch-moon'),
+                  size: Size.infinite,
+                  painter: _MoonPainter(),
+                )
+              : _Motion(
+                  active: condition == 'sunny',
+                  builder: (context, t) => CustomPaint(
+                    key: const ValueKey('pitch-sun'),
+                    size: Size.infinite,
+                    painter: _SunPainter(t),
+                  ),
+                ),
         ),
-      ),
       // Not a condition's layer: the clouds are always in the sky. What the
       // condition changes is how fast they go and how heavy they read — they
       // race in a gale, crawl in a storm and disappear altogether in fog, which
       // is the same handful of nodes retimed rather than a layer per sky.
-      _Layer(
-        key: weatherLayerKey('clouds'),
-        visible: condition != 'fog',
-        fade: const Duration(milliseconds: 1200),
-        child: _Motion(
-          active: condition != 'fog',
-          builder: (context, t) => CustomPaint(
-            size: Size.infinite,
-            painter: _CloudPainter(seconds: t, condition: condition),
+        _Layer(
+          key: weatherLayerKey('clouds'),
+          visible: condition != 'fog',
+          fade: const Duration(milliseconds: 1200),
+          child: _Motion(
+            active: condition != 'fog',
+            builder: (context, t) => CustomPaint(
+              size: Size.infinite,
+              painter: _CloudPainter(seconds: t, condition: condition),
+            ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 // ── Air: overcast, rain, snow, fog, wind ────────────────────────────────────
@@ -1349,6 +1371,102 @@ class _SunPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SunPainter old) => old.seconds != seconds;
+}
+
+// ── Moon ────────────────────────────────────────────────────────────────────
+
+/// The sun's place in the sky, at night.
+///
+/// **The scene is dark and the sun was still up in it.** `nightScene` turns the
+/// whole diorama over to the floodlights, and the `sunny` layer went on painting
+/// a warm bloom, twelve turning rays and a yellow-white disc into it — a hot
+/// noon sky behind a lit stadium.
+///
+/// Everything structural is the sun's, deliberately: the same centre, the same
+/// layer, the same fade. What changes is that the light is COLD and there is no
+/// corona — a moon lights nothing, so the bloom shrinks to a close halo and the
+/// rays go entirely. The craters are what stop a plain pale disc reading as a
+/// dimmed sun.
+class _MoonPainter extends CustomPainter {
+  const _MoonPainter();
+
+  /// The sun's own centre, so the sky's one bright thing does not move when the
+  /// theme changes. See [_SunPainter._centre].
+  Offset _centre(Size size) =>
+      Offset(size.width * 0.84 - 22, size.height * 0.09 + 22);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = _centre(size);
+
+    // A close, cold halo. Across the whole scene for the same reason the sun's
+    // is — a soft gradient in a box its own size draws its own edges — but a
+    // third of the reach and a fraction of the strength, because moonlight does
+    // not warm a sky.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          c,
+          96,
+          const [
+            Color(0x33CFE2FF),
+            Color(0x1FC7DBFA),
+            Color(0x0FC0D5F5),
+            Color(0x00BCD1F0),
+          ],
+          const [0, 0.38, 0.68, 1],
+        ),
+    );
+
+    // The disc, lit from the same upper left the sun is.
+    canvas.drawCircle(
+      c,
+      24,
+      Paint()
+        ..color = const Color(0x59D7E6FF)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
+    );
+    canvas.drawCircle(
+      c,
+      20,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          c + const Offset(-3.5, -5),
+          20,
+          const [
+            Color(0xFFFDFEFF),
+            Color(0xFFE9F0FA),
+            Color(0xFFCBD8EA),
+            Color(0xFFA9BACF),
+          ],
+          const [0, 0.42, 0.78, 1],
+        ),
+    );
+
+    // Craters. Clipped to the disc so one near the rim cannot spill off it, and
+    // flat grey rather than shaded — at twenty pixels a lit crater rim is a
+    // smudge, and three plain dents are what read as a moon.
+    canvas.save();
+    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: 20)));
+    const craters = [
+      (Offset(5.5, -6.5), 5.0),
+      (Offset(-6.0, 3.5), 3.6),
+      (Offset(4.0, 7.5), 2.8),
+      (Offset(-1.5, -2.0), 2.0),
+    ];
+    for (final crater in craters) {
+      canvas.drawCircle(
+        c + crater.$1,
+        crater.$2,
+        Paint()..color = const Color(0x2E6E7F96),
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_MoonPainter old) => false;
 }
 
 // ── Lightning ───────────────────────────────────────────────────────────────

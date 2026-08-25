@@ -41,7 +41,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show
         walkerAnkle,
@@ -265,20 +264,39 @@ double groundSpeedPxPerSec(Mood mood) =>
 /// untouched, and both are monotone, so the world still cannot reverse.
 const double groundEaseFloor = 0.3;
 
+/// The slowest the SOLVED rate may run, as a fraction of its mean, before the
+/// floor above is blended in.
+///
+/// **The floor alone still stalled.** Measured in sixteenths of a half-stride
+/// the rate ran 0.54, 0.46, **0.34**, then 0.70 and up to 1.47 — a fourfold
+/// swing whose dip lands exactly on the front foot's strike, which is where it
+/// was reported: "he freezes, background and all, on every step". Raising the
+/// floor to fix it costs slip everywhere (0.65 measured 83 units a cycle,
+/// against a guard of 55); this clamps only the three samples in the hole and
+/// leaves the rest of the stance the foot's own. The clamped curve is
+/// renormalised so a half-stride still covers the same ground.
+const double groundEaseMinRate = 0.6;
+
 final ({List<double> table, double distance}) _groundEase = () {
   const steps = 256;
   double sole(double t, bool near) =>
       walkerBootSoleY(t, near: near) - walkerHipRise(t);
-  final out = <double>[0];
-  var sum = 0.0;
+  final steps_ = <double>[];
   for (var i = 0; i < steps; i++) {
     final t = i / steps * 0.5;
     final t2 = (i + 1) / steps * 0.5;
     final near = sole(t, true) >= sole(t, false);
-    sum += math.max(
-      0,
-      walkerAnkle(t, near: near).x - walkerAnkle(t2, near: near).x,
+    steps_.add(
+      math.max(0, walkerAnkle(t, near: near).x - walkerAnkle(t2, near: near).x),
     );
+  }
+  // The hand-over hole, filled — see [groundEaseMinRate].
+  final travelled = steps_.fold(0.0, (a, b) => a + b);
+  final mean = travelled / steps;
+  final out = <double>[0];
+  var sum = 0.0;
+  for (final d in steps_) {
+    sum += math.max(d, mean * groundEaseMinRate);
     out.add(sum);
   }
   // Normalised, then blended toward a constant rate — see [groundEaseFloor].
@@ -288,7 +306,9 @@ final ({List<double> table, double distance}) _groundEase = () {
         (1 - groundEaseFloor) * (out[i] / sum) +
             groundEaseFloor * (i / (out.length - 1)),
     ],
-    distance: sum,
+    // The foot's own distance, not the clamped curve's: the table is
+    // normalised, so the clamp reshapes a half-stride without lengthening it.
+    distance: travelled,
   );
 }();
 
@@ -597,6 +617,7 @@ class PitchScene extends StatelessWidget {
     this.onThunder,
     this.frozen = false,
     this.onBallCue,
+    this.onBallStrike,
     this.ballWind = 0,
     this.onTapWalker,
     this.celebration,
@@ -665,6 +686,9 @@ class PitchScene extends StatelessWidget {
   /// untouched. `pitch_ball.dart` owns the ball; the screen above owns the man,
   /// so the two meet here rather than the sim reaching into the figure.
   final void Function(BallCue cue)? onBallCue;
+
+  /// He is about to play the stray ball back — see [PitchBall.onStrike].
+  final VoidCallback? onBallStrike;
 
   /// What the weather does to a ball in flight, from `windAccelFor`.
   ///
@@ -955,6 +979,7 @@ class PitchScene extends StatelessWidget {
                               wind: ballWind,
                               frozen: frozen,
                               onCue: onBallCue ?? (_) {},
+                              onStrike: onBallStrike,
                               sceneWidth: w,
                               walkerLeft: w * 0.45 - 57,
                             ),
@@ -1391,89 +1416,24 @@ class _StandSegment extends StatelessWidget {
     width: farSegmentWidth,
     height: double.infinity,
     child: tier < firstStandTier
-        // **A KENNEY BACKDROP BEHIND THE PARK, and its FEET are the horizon.**
-        // Three trees on bare sky read as a hole rather than a place, and the
-        // hand-drawn hedge that replaced it left a gap over the turf. This
-        // strip's bottom edge IS the horizon, so an image aligned to the bottom
-        // meets the pitch by construction — there is nowhere for a gap to be.
+        // **THE PARK DRAWS ITSELF; there is no photographic plate behind it.**
         //
-        // Already bundled: the customiser's own backdrop, so nothing new is
-        // downloaded for it.
-        ? LayoutBuilder(
-            // **THE ART IS SIZED BY THE STRIP'S HEIGHT AND TILED ACROSS IT.**
-            //
-            // Two passes got this wrong in the same way. `BoxFit.cover` scaled
-            // the square drawing by the strip's WIDTH; placing it by its own
-            // ground line did the same thing by another route — on a strip a
-            // couple of dozen points tall and four hundred wide, either one
-            // makes the drawing so large that the slice on screen is the inch
-            // just above its ground line. Which is the field and the fence
-            // posts, with the TREES sliced flat across the top. Reported three
-            // times, and the third came with the picture that shows it.
-            //
-            // The band that has to be visible is [_kenneyTreeLine] down to
-            // [_kenneyGroundLine], so the drawing is sized so exactly that much
-            // fills the strip's height. That makes it narrower than the strip,
-            // which is what the tiling is for: these backdrops repeat
-            // horizontally by design, and the strip is a scrolling segment that
-            // was always going to be wider than one copy of anything.
-            //
-            // **THE SKY WAS THE FOURTH REPORT.** Taking the drawing's whole top
-            // 62% spent HALF the strip on flat sky, which left the trees a
-            // sliver along the bottom — read as the backdrop being cropped, and
-            // low, which is exactly what it was. The sky above the treeline is
-            // the one part of a backdrop the scene does not need: it draws its
-            // own. Clipping it lifts the trees to fill the band and makes them
-            // nearly three times the size, which is also three times fewer
-            // copies across the segment.
-            //
-            // **AND THE FIFTH REPORT WAS THE SKY THAT WAS LEFT.** Cropping to
-            // the treeline still leaves the plate's own near-white sky BEHIND
-            // the trees and a hard edge along the top of the strip, so the
-            // backdrop read as a pale rectangle pasted over the scene's darker
-            // sky — "it only goes up about fifty points and then is fully cut
-            // off", which is a fair description of a rectangle.
-            //
-            // The plate is `parkTreeline.png` now: the same drawing with its
-            // sky and cloud knocked out (`tool/gen_park_backdrop.py`), so the
-            // scene's own sky shows through and there is no edge left to see.
-            // Asked for as a shadow backdrop or none at all; this is the first
-            // of those, and it keeps the trees.
-            builder: (context, box) {
-              const band = _kenneyGroundLine - _kenneyTreeLine;
-              final side = box.maxHeight <= 0 ? 0.0 : box.maxHeight / band;
-              final across = side <= 0 ? 0 : (box.maxWidth / side).ceil() + 1;
-              // **AND IT HAS TO WORK IN BOTH THEMES.** It is a daylit drawing
-              // and the scene at these tiers is whatever the player has the app
-              // set to. The `_ParkPainter`'s aerial haze goes over it either
-              // way, which carries most of it; a dark theme takes the drawing
-              // itself down as well, or a bright sky sits behind a night pitch.
-              final night = Theme.of(context).brightness == Brightness.dark;
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  for (var i = 0; i < across; i++)
-                    Positioned(
-                      left: i * side,
-                      // The drawing's ground line on the strip's foot, with the
-                      // sky above it running off the top.
-                      top: box.maxHeight - _kenneyGroundLine * side,
-                      width: side,
-                      height: side,
-                      child: ArtImage(
-                        key: ValueKey('pitch-park-backdrop-$i'),
-                        path: 'assets/bg/kenney/parkTreeline.png',
-                        fit: BoxFit.fill,
-                        dimmed: night,
-                        dimBrightness: 0.55,
-                        fallback: const SizedBox.shrink(),
-                      ),
-                    ),
-                  CustomPaint(painter: _ParkPainter(haze: haze, tier: tier)),
-                ],
-              );
-            },
-          )
+        // A Kenney backdrop was tried here through five reports and every one of
+        // them was the same fault in a new place: a daylit square drawing does
+        // not belong behind a scene that has its own sky and its own light. It
+        // was scaled by the wrong axis, then cropped to its treeline, then had
+        // its sky knocked out in `tool/gen_park_backdrop.py`, then dimmed by
+        // 45% for the dark theme — and it still read as a pasted rectangle in
+        // both themes, because the thing that was wrong with it was never the
+        // crop. Reported last as not working in either mode.
+        //
+        // [ParkPainter] was always drawing the park IN FRONT of it — three
+        // trees, a hedge, a spectator or two and the white fence — off the kit
+        // scale and against the scene's own sky. That is the whole horizon, and
+        // it cannot come apart from the pitch: every element stands on
+        // `size.height`, which is the horizon by construction. So the plate is
+        // gone and nothing has replaced it.
+        ? CustomPaint(painter: ParkPainter(haze: haze, tier: tier))
         : CustomPaint(
             painter: _StandPainter(
               kitColor: kitColor,
@@ -1486,28 +1446,22 @@ class _StandSegment extends StatelessWidget {
   );
 }
 
-/// Where the Kenney backdrops' own ground line sits, as a fraction of the
-/// square drawing's height.
-///
-/// Sky and cloud above, a treeline, then a flat field filling the bottom. The
-/// field is the part that must NOT be seen: the scene draws its own ground, and
-/// a second one behind it at a different perspective is a hill.
-const double _kenneyGroundLine = 0.624;
-
-/// And where the tallest tree's crown starts, on the same scale.
-///
-/// Measured off the pixels rather than guessed: the first green in the drawing
-/// is at 0.330, and this sits a little above it so a crown is never cut by the
-/// strip's own top edge. Everything above is flat sky, and the scene has its
-/// own.
-const double _kenneyTreeLine = 0.28;
 
 /// **THE BOTTOM TWO TIERS HAVE NO GROUND**, which is the art brief and which
 /// the port had dropped: a hedge line, three trees, a low white fence — and at
 /// tier 1, one or two people loitering on the touchline. No stand, just a
 /// couple of people. Ported from `_parkSegment`.
-class _ParkPainter extends CustomPainter {
-  const _ParkPainter({required this.haze, required this.tier});
+/// The park at the horizon: three trees, a hedge, a spectator or two and the
+/// low white fence, on the strip whose bottom edge IS the horizon.
+///
+/// **Public so a test can read its pixels back.** The invariant that kept
+/// regressing is that the strip is TRANSPARENT above the treeline — the aerial
+/// haze used to be a `drawRect` over the whole of it, which put a hard-edged
+/// rectangle of lighter sky across the diorama and was reported nine times as
+/// the backdrop being cropped. Nothing about that is visible from the outside
+/// except the pixels, so the pixels are what `pitch_scene_test` checks.
+class ParkPainter extends CustomPainter {
+  const ParkPainter({required this.haze, required this.tier});
 
   final Color haze;
   final int tier;
@@ -1519,10 +1473,13 @@ class _ParkPainter extends CustomPainter {
     final scale = _crowdScale;
     final unitW = size.width / 480;
 
-    // The BACKDROP is a Kenney plate behind this painter — see the segment.
-    // What is drawn here is what stands in front of it.
+    // This IS the horizon at these tiers — there is no plate behind it. See
+    // the segment for the five reports that established that.
 
-    void tree(double x, double s) {
+    void tree(double x, double size_) {
+      // No taller than the strip: the biggest tree stood 59 units in a 46-unit
+      // box and its crown was clipped flat, which read as something behind it.
+      final s = math.min(size_, size.height / (49 * scale));
       final w = 34 * scale * s;
       final trunkH = 15 * scale * s;
       final crown = w;
@@ -1545,6 +1502,30 @@ class _ParkPainter extends CustomPainter {
     }
 
     final unit = unitW;
+
+    // **THE HAZE GOES ON THE THINGS AT THE HORIZON, NOT ON THE AIR ABOVE THEM,
+    // and that rectangle is the line this strip has been reported for.**
+    //
+    // The wash at the foot of this method was `drawRect(Offset.zero & size)` —
+    // the WHOLE strip, at 22% of the sky's own horizon colour. On the terrace
+    // that is correct, because a stand fills its strip and the haze lands on
+    // seats. A PARK does not: the trees, the hedge and the fence are the bottom
+    // third of it and the rest is sky. So the wash painted a hard-edged
+    // rectangle of slightly lighter sky across the diorama, with its top edge
+    // exactly [parkHeight] above the horizon.
+    //
+    // Every previous pass read that edge as the BACKDROP being cropped and went
+    // after the Kenney plate — its scale, then its crop, then its knocked-out
+    // sky, then its dark-theme dimming, and finally the plate itself. The plate
+    // was never what drew the line; it only hid some of it, which is why the
+    // line survived its removal.
+    //
+    // `srcATop` in the painter's own layer tints only the pixels this painter
+    // put down. Empty sky has no alpha to composite against, so there is
+    // nothing left with an edge — and the horizon still sits at the terrace's
+    // distance, which is what the haze is for.
+    canvas.saveLayer(Offset.zero & size, Paint());
+
     tree((30 + rng.nextDouble() * 30) * unit, 0.9 + rng.nextDouble() * 0.3);
     tree((190 + rng.nextDouble() * 40) * unit, 0.7 + rng.nextDouble() * 0.3);
     tree((350 + rng.nextDouble() * 50) * unit, 0.85 + rng.nextDouble() * 0.35);
@@ -1603,15 +1584,19 @@ class _ParkPainter extends CustomPainter {
     }
 
     // The same aerial haze the terrace takes, so the two horizons sit at the
-    // same distance.
+    // same distance — but ONLY where this painter drew something. See the
+    // `saveLayer` above.
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = haze.withValues(alpha: 0.22),
+      Paint()
+        ..color = haze.withValues(alpha: 0.22)
+        ..blendMode = BlendMode.srcATop,
     );
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_ParkPainter old) =>
+  bool shouldRepaint(ParkPainter old) =>
       old.haze != haze || old.tier != tier;
 }
 

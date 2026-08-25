@@ -44,6 +44,7 @@ import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 /// The vertical seam between the stacked boxes on the Play page.
 ///
@@ -349,6 +350,13 @@ class _SceneState extends ConsumerState<_Scene> {
   ///
   /// The sim owns the ball and this owns the manager, so it reports rather than
   /// reaching in — the JS's `onEvent`, and the same three answers.
+  /// The stray ball is about to leave his boot: swing at it. Not a rota
+  /// gesture and not a celebration — it exists only for this cue, so it is
+  /// built here rather than listed in `gestures` (where the customiser would
+  /// offer it as an emote).
+  void _onBallStrike() =>
+      _start(const Gesture(id: 'kick', ms: 520, weight: {}));
+
   void _onBall(BallCue cue) {
     if (!mounted) return;
     switch (cue) {
@@ -463,6 +471,7 @@ class _SceneState extends ConsumerState<_Scene> {
       // **The stray ball, at last** — `pitchBallSim.js`, and the last thing on
       // this screen that moves in the JS and did not exist here.
       onBallCue: _onBall,
+      onBallStrike: _onBallStrike,
       // What the weather does to one in flight. `windAccelFor` has been ported
       // and tested since the weather landed and had no reader at all: the chain
       // resolved a gust and nothing was ever blown by it.
@@ -506,8 +515,10 @@ class _SceneState extends ConsumerState<_Scene> {
           alignment: camBootPivot,
           child: ManagerWalker(
             // How he is getting on in what the player dressed him in. Read fresh
-            // rather than cached, because both halves move on their own.
-            comfort: ref.watch(managerComfortProvider),
+            // rather than cached, because both halves move on their own — and
+            // through [sceneComfort], which is what stops him sweating under a
+            // moon.
+            comfort: sceneComfort(context, ref.watch(managerComfortProvider)),
             kit: kit.accent,
             skin: const Color(0xFFEEBB8C),
             hair: const Color(0xFF3A2A1C),

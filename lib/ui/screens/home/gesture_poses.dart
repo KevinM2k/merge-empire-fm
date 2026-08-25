@@ -47,6 +47,11 @@ typedef GesturePose = ({
   /// The legs counter-rotating a body fold, so they stay under him.
   double? legs,
 
+  /// The NEAR leg alone, swinging about the hip and folding at the knee —
+  /// a kick. Positive is backwards, like the walk's own tracks.
+  double? kickThigh,
+  double? kickShin,
+
   /// The index finger's opacity, 0 to 1.
   ///
   /// **Kept out of sight the rest of the time on purpose.** At this size a
@@ -64,6 +69,8 @@ const GesturePose _rest = (
   body: null,
   bodyLift: null,
   legs: null,
+  kickThigh: null,
+  kickShin: null,
   finger: 0,
 );
 
@@ -78,6 +85,8 @@ class GestureAnimation {
     this.body,
     this.bodyLift,
     this.legs,
+    this.kickThigh,
+    this.kickShin,
     this.finger,
     this.curve = Curves.easeInOut,
     this.cycleMs,
@@ -91,6 +100,8 @@ class GestureAnimation {
   final GestureTrack? body;
   final GestureTrack? bodyLift;
   final GestureTrack? legs;
+  final GestureTrack? kickThigh;
+  final GestureTrack? kickShin;
 
   /// `psvFingerShow`: out almost at once, away again at the end.
   final GestureTrack? finger;
@@ -337,6 +348,16 @@ final Map<String, GestureAnimation> _animations = {
     finger: _fingerOut,
     head: _chinUp,
   ),
+  // ── KICK. Not a celebration and not in the rota: the stray ball's, cued by
+  // the screen when he is about to play it back (see `PitchBall.onStrike`).
+  // The near thigh draws back, then snaps through with the shin extending, and
+  // the contact lands at 0.6 — which is where the ball leaves his boot.
+  'kick': const GestureAnimation(
+    kickThigh: [(0, 0), (0.30, 24), (0.60, -58), (1, 0)],
+    kickShin: [(0, 0), (0.30, 52), (0.60, -6), (1, 0)],
+    armNear: [(0, armNearRest), (0.30, armNearRest + 14), (0.60, armNearRest - 22), (1, armNearRest)],
+    curve: Curves.easeInOut,
+  ),
   // ── SALUTE. Snapped up rather than eased: the curve is the gesture.
   'salute': GestureAnimation(
     armNear: _hold(armNearRest, -117, 0.12, 0.82),
@@ -510,6 +531,8 @@ GesturePose gesturePose(String id, double progress, {int? gestureMs}) {
     body: _at(a.body, phase, a.curve),
     bodyLift: _at(a.bodyLift, phase, a.curve),
     legs: _at(a.legs, phase, a.curve),
+    kickThigh: _at(a.kickThigh, phase, a.curve),
+    kickShin: _at(a.kickShin, phase, a.curve),
     // Linear, not the gesture's curve: it is an appearance, not a movement.
     finger: _at(a.finger, phase, Curves.linear) ?? 0,
   );

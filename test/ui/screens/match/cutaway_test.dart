@@ -346,8 +346,10 @@ void main() {
     });
   });
 
-  group('THE PITCH IS IN PERSPECTIVE, and everything on it with it', () {
-    test('THE FAR TOUCHLINE IS THE TOP ONE, and it is the narrow one', () {
+  group('THE PITCH IS FLAT, for now, and everything on it with it', () {
+    // The perspective was dropped at the player's request until it works;
+    // the projection stays in place at zero so it can come back as two consts.
+    test('THE TOUCHLINES ARE THE SAME WIDTH', () {
       // **The sign was wrong and it is the only thing that matters here.**
       // Flutter's +y is DOWN, so a positive `rotateX` pushes the BOTTOM away
       // and pulls the top toward the viewer — the far touchline came out at the
@@ -363,12 +365,8 @@ void main() {
       double widthAt(double y) =>
           MatrixUtils.transformPoint(m, Offset(box.width, y)).dx -
           MatrixUtils.transformPoint(m, Offset(0, y)).dx;
-      expect(
-        widthAt(0),
-        lessThan(widthAt(box.height)),
-        reason: 'the near touchline is the narrow one',
-      );
-      expect(pitchVanish, greaterThan(0));
+      expect(widthAt(0), closeTo(widthAt(box.height), 0.001));
+      expect(pitchVanish, 0);
     });
 
     test('THE WHOLE PITCH STAYS IN THE BOX, near corners included', () {
@@ -401,7 +399,7 @@ void main() {
         double widthAt(double y) =>
             MatrixUtils.transformPoint(m, Offset(size.width, y)).dx -
             MatrixUtils.transformPoint(m, Offset(0, y)).dx;
-        expect(widthAt(0), lessThan(widthAt(size.height)), reason: '$size');
+        expect(widthAt(0), closeTo(widthAt(size.height), 0.001), reason: '$size');
       }
     });
 
@@ -428,14 +426,8 @@ void main() {
       expect(fittedTilt(Size.zero), Matrix4.identity());
     });
 
-    test('and it is a raised camera rather than a corner flag', () {
-      // **The band's height is bought with this**, which is why it kept
-      // growing: a tilted plane covers the same ground in less screen, so the
-      // tilt is what let `maxHeight` come down. Past this the far half stops
-      // being a place a chance can be understood in, which is the one thing
-      // this band is for.
-      expect(pitchTilt.abs(), greaterThan(0.7), reason: 'barely tilted at all');
-      expect(pitchTilt.abs(), lessThan(1.0), reason: 'lying on the grass');
+    test('and the camera is straight overhead, for now', () {
+      expect(pitchTilt, 0, reason: 'the perspective is off until it works');
     });
 
     testWidgets('AND NOBODY DRIFTS ABOUT BETWEEN CHANCES', (tester) async {

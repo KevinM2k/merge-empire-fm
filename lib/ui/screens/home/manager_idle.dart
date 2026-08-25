@@ -153,6 +153,8 @@ const GestureTrack _scanTrack = [(0, -1), (0.3, 0.85), (0.62, -0.3), (1, -1)];
     body: null,
     bodyLift: trackAt(_breathTrack, breath)! * tune.breathUnits,
     legs: null,
+    kickThigh: null,
+    kickShin: null,
     finger: 0,
   ),
   tilt: tune.lean + trackAt(_weightTrack, weight)! * tune.weightDegrees,

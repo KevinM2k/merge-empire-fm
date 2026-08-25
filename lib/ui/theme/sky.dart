@@ -35,6 +35,25 @@ bool nightScene(Brightness brightness) => brightness == Brightness.dark;
 bool nightSceneOf(BuildContext context) =>
     nightScene(Theme.of(context).brightness);
 
+/// The manager's comfort as the SCENE should show it.
+///
+/// **A blazing sun at midnight was making him sweat.** `sunny` floors the
+/// temperature at `sunnyC` — that is the JS's rule and the parity harness's, so
+/// it stays in the engine where it is — but the scene draws that same condition
+/// under a MOON once the theme is dark. So a manager mopped his brow and ran
+/// with a flushed face under a night sky, and the heat he was suffering came
+/// from a sun that is not in the picture.
+///
+/// The divergence belongs HERE rather than in `estimatedTempC`: night is a
+/// property of the scene, the engine has no idea there is one, and a temperature
+/// a fixture compares cannot be bent to suit a drawing.
+///
+/// **Only the heat goes.** A cold night is colder than a cold day, so an
+/// underdressed gaffer still shivers in the dark — which is the half of this
+/// that was never wrong.
+String sceneComfort(BuildContext context, String comfort) =>
+    comfort == 'hot' && nightSceneOf(context) ? 'ok' : comfort;
+
 /// A park on a bright afternoon — the JS's `data-tier="0"`.
 const List<Color> _dayPark = [
   Color(0xFF6DB3E8),

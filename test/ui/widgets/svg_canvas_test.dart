@@ -263,4 +263,20 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+  test('THE SAME DRAWING IS PARSED ONCE', () {
+    // The rig builds five of these a frame on a walk clock; a fresh node list
+    // each time meant a fresh parse AND a repaint of every path.
+    const svg = '<svg viewBox="0 0 80 80"><rect x="1" y="2" width="3" height="4" fill="#fff"/></svg>';
+    final a = SvgArt(svg: svg);
+    final b = SvgArt(svg: svg);
+    expect(identical(a.nodes, b.nodes), isTrue);
+    expect(identical(a.gradients, b.gradients), isTrue);
+    expect(
+      SvgPainter(nodes: a.nodes, viewBox: a.viewBox, gradients: a.gradients)
+          .shouldRepaint(
+        SvgPainter(nodes: b.nodes, viewBox: b.viewBox, gradients: b.gradients),
+      ),
+      isFalse,
+    );
+  });
 }

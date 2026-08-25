@@ -33,6 +33,8 @@ import 'package:merge_empire_fc/services/sound_service.dart';
 import 'package:merge_empire_fc/state/card_instance.dart' show CardInstance;
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
+    show CutawayOutcome;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
@@ -201,6 +203,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// The last minute a clip was cut for, so a rebuild does not restart one.
   int _clippedMinute = -1;
+
+  /// The event the 2D pitch is retelling right now, or null between clips.
+  ///
+  /// Its shot and its crowd are played off the CLIP's beats rather than off the
+  /// minute — see [_soundFor] and [_clipStruck].
+  TimelineEvent? _clippedEvent;
 
   /// What Colin is saying, and when he last said anything.
   ///
@@ -443,10 +451,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// Read off the timeline rather than off the cutaway, because a chance the 2D
   /// pitch is not showing — the player has it switched off, or it is the
   /// opponent's — still happened and still deserves the crowd's reaction.
+  ///
+  /// **EXCEPT THE ONE THE PITCH IS RETELLING.** That event's shot and crowd ride
+  /// the clip's own beats instead — see [_clipStruck] and [_clipVerdict]. This
+  /// method fires on the MINUTE TICK, and a passage runs a second or two of
+  /// run-ups and passes before anybody shoots, so a goal was heard while the
+  /// ball was still in midfield and the net then bulged in silence. The fixed
+  /// 180ms and 200ms gaps below are right for a chance with no clip, where there
+  /// is no picture to be late for; they were never a flight time.
   void _soundFor(int minute) {
     final sound = ref.read(soundServiceProvider);
     for (final event in _timeline) {
       if (event.minute != minute) continue;
+      // The clip will play this one's shot when it takes it.
+      if (event == _clippedEvent) continue;
       // `home` is US on an event, whichever ground we are on — see
       // `MatchFrame`. Reading it through `isHome` played the crowd's
       // disappointment for our own goals in every away fixture.
@@ -486,6 +504,51 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         default:
           break;
       }
+    }
+  }
+
+  /// The clip's boot has hit the ball: the shot, on the frame it is struck.
+  ///
+  /// Which sound is still the EVENT's decision, exactly as it is on the minute
+  /// path — a goal is struck harder than a half-chance — so nothing about what
+  /// plays has changed. Only when.
+  void _clipStruck() {
+    final event = _clippedEvent;
+    if (event == null || !mounted) return;
+    final sound = ref.read(soundServiceProvider);
+    switch (event.type) {
+      case 'goal':
+        unawaited(sound.play('shotKick'));
+      case 'chance':
+        unawaited(sound.play('kick'));
+      default:
+        break;
+    }
+  }
+
+  /// The ball has arrived, so now the crowd knows.
+  ///
+  /// Off the CLIP's arrival rather than a fixed gap after the kick: a shot from
+  /// the edge of the box and a tap-in are not the same wait, and the whole
+  /// complaint was a reaction that did not land with the thing it was reacting
+  /// to. The outcome the clip reports is the one the event gave it, so this
+  /// still reads the event.
+  void _clipVerdict(CutawayOutcome _) {
+    final event = _clippedEvent;
+    if (event == null || !mounted) return;
+    final ours = event.team != 'away';
+    final sound = ref.read(soundServiceProvider);
+    switch (event.type) {
+      case 'goal':
+        unawaited(sound.play(ours ? 'goal' : 'goalAgainst'));
+      case 'chance':
+        // A chance that hit the target and stayed out is the one the crowd
+        // reacts to; a wild one off target is not worth a sound.
+        if (event.shotResult == 'on_target') {
+          unawaited(sound.play(ours ? 'crowdOoh' : 'woodwork'));
+        }
+      default:
+        break;
     }
   }
 
@@ -544,6 +607,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         // from the scoreboard, which reads home side left.
         ourSideLeft: widget.result['isHome'] == true,
         ours: ours,
+        names: lineupNames(ref.read(gameProvider).state),
+        scorerName: event.type == 'goal' && ours
+            ? cardDisplayName(
+                ref.read(gameProvider).state,
+                event.scorerId ?? '',
+              )
+            : null,
         // Seeded off the minute so the same match replays the same chances —
         // and BRACKETED, because `??` binds looser than `+`: without them the
         // minute was only added when the result carried no seed at all, so
@@ -560,6 +630,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       );
       if (clip == null) continue;
       _clippedMinute = event.minute;
+      // **WHICH event, not just which minute.** Two things can land on the same
+      // minute — a chance and an injury — and only the one the pitch is
+      // retelling has its sounds moved onto the clip's beats. See [_soundFor].
+      _clippedEvent = event;
       if (event.type == 'chance') _lastChanceCutMinute = event.minute;
       // **THE GRASS BELONGS TO THE CHANCE.** The float shot sits bottom-right
       // OVER the pitch, which is fine while nothing is happening on it and is
@@ -816,10 +890,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// skipping costs the player the story and nothing else.
   void skipToEnd() {
     if (!mounted) return;
-    // Nothing to watch on the way to full time.
+    // Nothing to watch on the way to full time — and nothing left to hear for
+    // it either, so the clip's own cues go with it.
     setState(() {
       _minute = _end;
       _clip = null;
+      _clippedEvent = null;
     });
     _finish();
   }
@@ -1345,19 +1421,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 // was going in.
                                 scorer: _scorerBadge(),
                                 scorerFromLeft: home,
-                                onDone: (_) {
-                                  if (!mounted) return;
-                                  final told = _clippedMinute;
-                                  setState(() => _clip = null);
-                                  // Now it has been told, he can react to it.
-                                  _dugoutCamFor(told);
-                                },
-                              ),
-                              // Between chances: which way the game is going, on
-                              // the pitch it is going on. Off while a clip runs —
-                              // there is a real move on the grass to watch.
-                              if (_clip == null)
-                                MomentumArrow(
+                                // **THE SOUND RIDES THE PICTURE.** Both cues
+                                // used to fire on the minute tick, a second or
+                                // two before the passage got anywhere near the
+                                // shot. See [_clipStruck].
+                                onStruck: _clipStruck,
+                                onVerdict: _clipVerdict,
+                                // Between chances: which way the game is going,
+                                // ON the pitch it is going on — in its
+                                // perspective and under its lines, where a
+                                // sibling in screen space lay flat across the
+                                // tilt and spilled over the surround. The stage
+                                // drops it while a clip runs.
+                                onGrass: MomentumArrow(
                                   bias: momentumBias(
                                     dangerHome: stats.dangerHome,
                                     isHome: home,
@@ -1368,6 +1444,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                   ours: momentumOurs,
                                   theirs: momentumTheirs,
                                 ),
+                                onDone: (_) {
+                                  if (!mounted) return;
+                                  final told = _clippedMinute;
+                                  setState(() {
+                                    _clip = null;
+                                    _clippedEvent = null;
+                                  });
+                                  // Now it has been told, he can react to it.
+                                  _dugoutCamFor(told);
+                                },
+                              ),
+                              // Between chances: which way the game is going, on
+                              // the pitch it is going on. Off while a clip runs —
+                              // there is a real move on the grass to watch.
                               // **OVER THE PITCH, bottom right**, which is where a
                               // broadcast puts a cut-in and the one corner of this
                               // band that carries no statistic. A cutaway owns the
@@ -1694,6 +1784,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       event,
       ourSideLeft: widget.result['isHome'] == true,
       ours: ours,
+      names: lineupNames(ref.read(gameProvider).state),
+      scorerName: ours
+          ? cardDisplayName(ref.read(gameProvider).state, event.scorerId ?? '')
+          : null,
       // The same seed the live cut used, so the replay is the passage that was
       // watched rather than another one from the same table.
       seed: ((widget.result['seed'] as num?)?.toInt() ?? 0) + minute,

@@ -20,7 +20,6 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsAmberOn, vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
-import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
@@ -28,9 +27,12 @@ import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
+    show clipFor, lineupNames, cardDisplayName;
+import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_clock.dart'
+    show timelineOf;
 import 'package:merge_empire_fc/ui/screens/match/summary_league_move.dart';
-import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
-    show cardById;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
@@ -220,6 +222,10 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                       result: result,
                     ),
                     const SizedBox(height: 12),
+                    // **THEIR OWN CARD, so each goal can carry its replay.**
+                    // The scorers were a line inside the result card, which
+                    // left nowhere to put a control beside a name.
+                    _ScorersCard(result: result),
                     // **THE TABLE IS SECOND, and that is the whole ordering
                     // decision on this screen.** It is the one thing here that
                     // MOVES — every club sliding to where the round left it —
@@ -234,12 +240,10 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                       // in dark mode looked deliberate and in light mode left a
                       // column of figures on a daylight blue — the points at
                       // 1.9:1. A panel is what the rest of the page is made of
-                      // and it is what gives these rows a ground.
-                      const GlassPanel(
-                        density: GlassDensity.deep,
-                        padding: EdgeInsets.fromLTRB(10, 10, 10, 10),
-                        child: LeagueMove(key: ValueKey('summary-table')),
-                      ),
+                      // and it is what gives these rows a ground. `LeagueMove`
+                      // draws that pane ITSELF now, so a second one round it
+                      // was a card inside a card.
+                      const LeagueMove(key: ValueKey('summary-table')),
                       const SizedBox(height: 12),
                     ],
                     // **THE MANAGER AND THE QUESTS SHARE A ROW, so the whole
@@ -470,7 +474,6 @@ class _ResultCard extends StatelessWidget {
           // down with a portrait on every row, which is a second card telling
           // the same story as the number above it — and the number is the part
           // that has to be found first. Names and minutes, on one line each.
-          _ScorerLines(result: result),
           if (trophies > 0) ...[
             // The rule wears the verdict's colour rather than the pane's
             // hairline grey: both halves are about the same result.
@@ -694,10 +697,44 @@ class _Manager extends ConsumerWidget {
 /// is a second card telling the story the number above it already told, and the
 /// number is the part that has to be found first. Ours only — a goal against is
 /// on the opposition's teamsheet, not on ours.
-class _ScorerLines extends ConsumerWidget {
-  const _ScorerLines({required this.result});
+class _ScorersCard extends ConsumerWidget {
+  const _ScorersCard({required this.result});
 
   final Map<String, dynamic> result;
+
+  /// Replay one of our goals: the same clip the match drew, rebuilt from the
+  /// result the way `MatchScreen._replayClip` does.
+  Future<void> _replay(
+    BuildContext context,
+    WidgetRef ref,
+    int minute,
+    String scorerName,
+  ) async {
+    final event = timelineOf(result)
+        .where(
+          (e) => e.type == 'goal' && e.team == 'home' && e.minute == minute,
+        )
+        .firstOrNull;
+    if (event == null) return;
+    final save = ref.read(gameProvider).state;
+    final clip = clipFor(
+      event,
+      ourSideLeft: result['isHome'] == true,
+      ours: true,
+      seed: ((result['seed'] as num?)?.toInt() ?? 0) + minute,
+      names: lineupNames(save),
+      scorerName: scorerName,
+    );
+    if (clip == null) return;
+    await showGoalReplay(
+      context,
+      clip: clip,
+      minute: minute,
+      title: '',
+      ours: true,
+      scorerFromLeft: result['isHome'] == true,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -706,34 +743,53 @@ class _ScorerLines extends ConsumerWidget {
     if (raw is! List) return const SizedBox.shrink();
     final save = ref.read(gameProvider).state;
 
-    final lines = <String>[];
+    final goals = <({String name, int minute})>[];
     for (final entry in raw) {
       final e = _map(entry);
       if (e == null || e['type'] != 'goal' || e['team'] != 'home') continue;
-      final card = cardById(save, '${e['scorerInstanceId'] ?? ''}');
-      final def = getPlayerDef(card?.definitionId);
-      // The NAME is on the event whether or not the save still has a card to
-      // draw — a scorer who has since been sold still scored.
-      final name = card != null && def != null
-          ? card.name(def.name)
-          : '${e['scorer'] ?? ''}';
+      // By the card if it is still on the grid, else the name the result
+      // recorded — a scorer who has since been sold still scored.
+      final name =
+          cardDisplayName(save, '${e['scorerInstanceId'] ?? ''}') ??
+          '${e['scorer'] ?? ''}';
       if (name.isEmpty) continue;
-      lines.add("$name ${_num(e['minute']).toInt()}'");
+      goals.add((name: name, minute: _num(e['minute']).toInt()));
     }
-    if (lines.isEmpty) return const SizedBox.shrink();
+    if (goals.isEmpty) return const SizedBox.shrink();
 
+    final ink = glassAccent(context, kit.accentBright);
     return Padding(
-      key: const ValueKey('summary-scorers'),
-      padding: const EdgeInsets.only(top: 8),
-      child: Text(
-        // A comma list rather than a row each: two goals is the common case and
-        // three lines of chrome for it would undo the space this saved.
-        lines.join('  ·  '),
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: glassAccent(context, kit.accentBright),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GlassPanel(
+        key: const ValueKey('summary-scorers'),
+        density: GlassDensity.deep,
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final g in goals)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      "${g.name} ${g.minute}'",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ink,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    key: ValueKey('summary-replay-${g.minute}'),
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(Icons.replay, size: 18, color: ink),
+                    onPressed: () => _replay(context, ref, g.minute, g.name),
+                  ),
+                ],
+              ),
+          ],
         ),
       ),
     );

@@ -802,9 +802,14 @@ class GameState {
 
   /// The shared reset epilogue: the tutorial, the offline-earnings guard, the
   /// cloud-overwrite flag, and the flush.
+  /// Run over a save that was just MADE — a reset — before it is written.
+  /// The runner hangs its boot-time sweep here; see `GameRunner.prepareSave`.
+  void Function(Map<String, dynamic> state)? onFreshState;
+
   void _finalizeReset(ResetKind kind, bool replayTutorial) {
     final state = _state!;
     state['tutorial'] = <String, dynamic>{'done': !replayTutorial, 'step': 0};
+    onFreshState?.call(state);
     // Prevents offline earnings on the reload that follows.
     state['lastSeen'] = now();
     // The cloud still holds the OLD save. Without this flag the next signed-in

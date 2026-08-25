@@ -102,4 +102,67 @@ void main() {
     );
     expect(atLanding, greaterThan(0));
   });
+
+  testWidgets('A CHIP ARRIVING DOES NOT REBUILD THE CHIPS ALREADY UP', (
+    tester,
+  ) async {
+    // **The fill was O(n²) and the shape of the cost was backwards.** The
+    // count lived on the sheet's State, so every increment rebuilt the sheet —
+    // and `GridView.builder` re-runs `itemBuilder` for every live item, so the
+    // frame that revealed the last chip rebuilt every chip before it. Counted
+    // on the Hat axis: 171 full `ManagerWalker` rigs for eighteen chips, which
+    // is 18×19/2. Celebrations 136, Hair 120. Triangular numbers are the
+    // signature.
+    //
+    // So the point of a chip a frame was lost: the fill got more expensive the
+    // further it got, and the frames measured a p50 of 15-17ms against a 16ms
+    // budget all the way down.
+    //
+    // Asserted on widget IDENTITY rather than on milliseconds, which are the
+    // machine's. A chip that was not rebuilt is the same `_Chip` instance; one
+    // the grid built again is a new object however identical it looks.
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await pumpHome(tester);
+    await tester.tap(find.byKey(const ValueKey('dock-customise')));
+
+    // Part-way through the fill, with chips up and more still coming.
+    var before = <Widget>[];
+    for (var i = 0; i < 24; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (_chipsBuilt() >= 3) break;
+    }
+    expect(_chipsBuilt(), greaterThanOrEqualTo(3), reason: 'the fill stalled');
+    before = _chipWidgets();
+
+    await tester.pump(const Duration(milliseconds: 16));
+    final after = _chipWidgets();
+    expect(
+      after.length,
+      greaterThan(before.length),
+      reason: 'no chip arrived on that frame, so this proves nothing',
+    );
+    for (var i = 0; i < before.length; i++) {
+      expect(
+        after[i],
+        same(before[i]),
+        reason:
+            'chip $i was rebuilt by the arrival of a later one — the fill is '
+            'quadratic again',
+      );
+    }
+    await tester.pumpAndSettle();
+  });
 }
+
+/// The chips on screen, in grid order.
+List<Widget> _chipWidgets() => find
+    .byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key as ValueKey<String>).value.startsWith('customise-chip-'),
+    )
+    .evaluate()
+    .map((e) => e.widget)
+    .toList();

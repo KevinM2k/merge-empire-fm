@@ -140,7 +140,7 @@ void main() {
     // reading is not what they came for — the block shows us and whoever is
     // beside us at either END of the move, because the club we overtook has to
     // be on screen for the overtake to be visible.
-    expect(before, contains('Your Club'));
+    expect(before, contains(container.read(gameProvider).state!['clubName']));
     expect(before.length, lessThan(settled.length));
     // And within the window, the order is the order the previous round left.
     final wasOrder = [
@@ -218,7 +218,7 @@ void main() {
     expect(settled.every((r) => r.prevPos == null), isTrue);
     // Still a window round us, and every row in it already where it ends.
     final shown = orderOnScreen(tester);
-    expect(shown, contains('Your Club'));
+    expect(shown, contains(container.read(gameProvider).state!['clubName']));
     expect(shown, [
       for (final row in settled)
         if (shown.contains(row.name)) row.name,
@@ -242,7 +242,7 @@ void main() {
     // Settled from the first frame, and the deltas are up: they are
     // information, not decoration.
     final shown = orderOnScreen(tester);
-    expect(shown, contains('Your Club'));
+    expect(shown, contains(container.read(gameProvider).state!['clubName']));
     expect(shown, [
       for (final row in container.read(leagueTableProvider))
         if (shown.contains(row.name)) row.name,

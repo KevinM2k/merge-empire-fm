@@ -19,6 +19,7 @@ library;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
@@ -135,6 +136,44 @@ void main() {
       expect(
         stageBandHeight(width: 349, pool: 200, hasTacticStrip: true),
         stageMinHeight,
+      );
+    });
+  });
+
+  group('AND WHAT IS OUTSIDE THE TOUCHLINES IS NOT TURF', () {
+    // **The pitch and the not-pitch were the same green.** The stage backs its
+    // clip box with a flat fill and it was `PitchBackdrop.turf` — the identical
+    // colour the pitch is painted in. A tilted pitch is a trapezoid in a
+    // rectangle, so the two triangles beside the far touchline were the same
+    // grass as the pitch: a green box with faint lines floating in the middle
+    // of it, nowhere near its edges. Reported as most of the pitch missing.
+    //
+    // The fit is not what was wrong — `fittedTilt` puts all four corners inside
+    // the band, three points in, which the group above pins. What was wrong is
+    // that there was nothing to SEE the trapezoid against.
+    test('so the trapezoid has an edge to be seen against', () {
+      expect(
+        PitchBackdrop.surround,
+        isNot(PitchBackdrop.turf),
+        reason: 'the surround is the turf again — the pitch has no visible edge',
+      );
+      // Darker, not merely different: the space beyond a touchline reads as
+      // shadow, and a lighter surround would pull the eye off the pitch.
+      expect(
+        PitchBackdrop.surround.computeLuminance(),
+        lessThan(PitchBackdrop.turf.computeLuminance()),
+      );
+    });
+
+    test('and flat, the far touchline spans the band less its inset', () {
+      const band = Size(375, 135);
+      final plane = Size(band.width, band.width / pitchAspect);
+      final m = fittedTilt(plane, into: band);
+      final farLeft = MatrixUtils.transformPoint(m, Offset.zero);
+      final farRight = MatrixUtils.transformPoint(m, Offset(plane.width, 0));
+      expect(
+        farRight.dx - farLeft.dx,
+        closeTo(band.width - pitchFitInset * 2, 0.5),
       );
     });
   });

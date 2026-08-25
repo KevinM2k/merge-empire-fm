@@ -561,6 +561,20 @@ class SvgPainter extends CustomPainter {
   /// centre-parameterisation conversion it looks like it should.
   Path? parsePath(String? d) {
     if (d == null || d.isEmpty) return null;
+    // Parsed once per `d`: a rotating joint repaints its SVG every frame.
+    final cached = _paths[d];
+    if (cached != null) return cached;
+    final parsed = _parsePath(d);
+    if (parsed != null) {
+      if (_paths.length > 4096) _paths.clear();
+      _paths[d] = parsed;
+    }
+    return parsed;
+  }
+
+  static final Map<String, Path> _paths = <String, Path>{};
+
+  Path? _parsePath(String d) {
     final path = Path();
     final commands = RegExp(
       r'([MLHVCSQTAZmlhvcsqtaz])([^MLHVCSQTAZmlhvcsqtaz]*)',
@@ -721,9 +735,16 @@ class SvgPainter extends CustomPainter {
       old.nodes != nodes || old.gradients != gradients;
 }
 
-/// Draws an SVG string at whatever size it is given.
-class SvgArt extends StatelessWidget {
-  SvgArt({super.key, required String svg})
+/// One SVG string, parsed once.
+///
+/// **The rig rebuilt its art every frame and parsed the XML again each time.**
+/// `ManagerWalker` builds five of these per frame on a walk clock, and each one
+/// ran three regex passes over the whole document — and handed the painter a
+/// NEW node list, so `shouldRepaint` said yes and every path was re-parsed at
+/// paint as well. Memoised on the string: the same drawing is the same nodes,
+/// so an unchanged part neither parses nor repaints.
+class _ParsedSvg {
+  _ParsedSvg(String svg)
     : nodes = parseSvg(svg),
       viewBox = viewBoxOf(svg),
       gradients = parseGradients(svg);
@@ -731,6 +752,26 @@ class SvgArt extends StatelessWidget {
   final List<SvgNode> nodes;
   final Size viewBox;
   final Map<String, SvgGradient> gradients;
+}
+
+final Map<String, _ParsedSvg> _parsedSvgs = <String, _ParsedSvg>{};
+
+_ParsedSvg _parsedSvg(String svg) {
+  // Bounded: the wardrobe and the club art are a few hundred drawings, not
+  // an unbounded stream.
+  if (_parsedSvgs.length > 512) _parsedSvgs.clear();
+  return _parsedSvgs.putIfAbsent(svg, () => _ParsedSvg(svg));
+}
+
+/// Draws an SVG string at whatever size it is given.
+class SvgArt extends StatelessWidget {
+  SvgArt({super.key, required String svg}) : _parsed = _parsedSvg(svg);
+
+  final _ParsedSvg _parsed;
+
+  List<SvgNode> get nodes => _parsed.nodes;
+  Size get viewBox => _parsed.viewBox;
+  Map<String, SvgGradient> get gradients => _parsed.gradients;
 
   @override
   Widget build(BuildContext context) => CustomPaint(

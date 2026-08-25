@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/engine/weather_engine.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 void main() {
   /// The figure at its own size, with a boundary round it to read back.
@@ -246,6 +247,60 @@ void main() {
           garmentWarmth({'outfit': 'kit'}),
         ),
         'cold',
+      );
+    });
+  });
+
+  group('BUT HE DOES NOT SWEAT UNDER A MOON', () {
+    // `sunny` floors the temperature, which is the JS's rule and stays in the
+    // engine — and the scene draws that same condition as a MOON once the theme
+    // is dark. So the manager ran with a flushed face and beads off his temple
+    // under a night sky, suffering heat from a sun that is not in the picture.
+    Future<String> seen(WidgetTester tester, String comfort, Brightness b) async {
+      late String out;
+      // An explicit inner `Theme`, not `MaterialApp.theme`: that one is picked
+      // against the platform brightness and will not do as it is told.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Theme(
+            data: ThemeData(brightness: b),
+            child: Builder(
+              builder: (context) {
+                out = sceneComfort(context, comfort);
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+      return out;
+    }
+
+    testWidgets('the heat comes off in the dark', (tester) async {
+      expect(await seen(tester, 'hot', Brightness.dark), 'ok');
+      expect(await seen(tester, 'hot', Brightness.light), 'hot');
+    });
+
+    testWidgets('and the COLD does not — a night is colder, not warmer', (
+      tester,
+    ) async {
+      expect(await seen(tester, 'cold', Brightness.dark), 'cold');
+      expect(await seen(tester, 'cold', Brightness.light), 'cold');
+    });
+
+    testWidgets('and `ok` is left alone either way', (tester) async {
+      expect(await seen(tester, 'ok', Brightness.dark), 'ok');
+      expect(await seen(tester, 'ok', Brightness.light), 'ok');
+    });
+
+    test('the ENGINE is untouched — a fixture compares that number', () {
+      // The divergence is the scene's, not the model's: `estimatedTempC` still
+      // floors a sunny sky, whatever the app's theme is set to.
+      const winter = <String, dynamic>{};
+      final january = DateTime.utc(2026, 1, 15).millisecondsSinceEpoch;
+      expect(
+        estimatedTempC(winter, january, 'sunny'),
+        greaterThanOrEqualTo(hotC),
       );
     });
   });
