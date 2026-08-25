@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/card_shatter.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
@@ -328,6 +329,32 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('scout-reveal')));
       await tester.pump(const Duration(milliseconds: 16));
       expect(find.byType(MergeBurst), findsOneWidget);
+      // **AND IT COMES APART, rather than fading out behind the coins.** The
+      // pieces are clones of the card's own face, so it is visibly THAT player
+      // being cashed in — `burstAway`.
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(find.byKey(const ValueKey('card-shatter')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('scout-reveal-card')),
+        findsNWidgets(shatterCols * shatterRows),
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('AND THE GLOW GOES WITH IT', (tester) async {
+      // A rim of light round a card that is no longer there is a rectangle of
+      // nothing: the JS hides the wrapper and shatters the face.
+      final save = _save(autoSell: true);
+      signPlayers(save, 1);
+      final reveal = _revealFor(save, 1).reveal!;
+      await pumpReveal(tester, reveal);
+      await tester.pump(_flipped);
+      expect(find.byKey(const ValueKey('scout-reveal-glow')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(find.byKey(const ValueKey('scout-reveal-glow')), findsNothing);
       await tester.pumpAndSettle();
     });
 

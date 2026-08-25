@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -23,6 +24,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
@@ -1452,4 +1454,69 @@ void main() {
       expect(view.physics, isA<BouncingScrollPhysics>());
     });
   });
+
+  group('the loan stars arriving', () {
+    testWidgets('DROP IN ONE AT A TIME, not all on one frame', (tester) async {
+      // The tutorial's own set-piece: eight players appearing at once is the
+      // save being rewritten, half a second apart it is players walking in.
+      final container = await pumpGridAnimated(tester, tutorialDone: false);
+      final lent = container.read(gameProvider).update(lendTutorialPlayers);
+      expect(lent, greaterThan(2), reason: 'nothing was lent to watch');
+      await tester.pump();
+
+      final delays = tester
+          .widgetList<LoanArrival>(find.byType(LoanArrival))
+          .map((w) => w.delay)
+          .whereType<Duration>()
+          .toList();
+      expect(delays, hasLength(lent));
+      expect(
+        delays.toSet(),
+        hasLength(lent),
+        reason: 'a shared delay is not a stagger',
+      );
+      expect(delays, contains(Duration.zero));
+      expect(delays, contains(loanArrivalStagger));
+      await tester.pump(loanArrivalWindow(lent));
+      await settleSave(tester);
+    });
+
+    testWidgets('AND A CARD ALREADY THERE DOES NOT RE-ARRIVE', (tester) async {
+      // A save reopened mid-tutorial would otherwise replay the whole loan
+      // every time the Players tab was visited.
+      final state = createDefaultState();
+      (state['tutorial'] as Map<String, dynamic>)['done'] = false;
+      lendTutorialPlayers(state);
+
+      final container = ProviderContainer(
+        overrides: [
+          saveStoreProvider.overrideWithValue(
+            MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(gameProvider).load();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: const Scaffold(body: MergeGrid()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(
+        tester
+            .widgetList<LoanArrival>(find.byType(LoanArrival))
+            .where((w) => w.delay != null),
+        isEmpty,
+        reason: 'they were already on the grid',
+      );
+    });
+  });
+
 }

@@ -116,6 +116,13 @@ const String noHostBlocker = 'no-popup-host';
 /// Nothing may open while a blocker is held — no host, a match, the tutorial.
 bool arePopupsBlocked() => _blockers.isNotEmpty;
 
+/// Whether one particular blocker is held.
+///
+/// The tutorial holds a blocker of its own for as long as it runs, so "is
+/// anything blocking?" is always true there and cannot answer "is the match
+/// still up?".
+bool isPopupBlockedBy(String tag) => _blockers.contains(tag);
+
 void blockPopups(String tag) => _blockers.add(tag);
 
 void unblockPopups(String tag) {

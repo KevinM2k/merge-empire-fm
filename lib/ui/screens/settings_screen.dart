@@ -320,7 +320,11 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: t(soft ? 'reset.title' : 'fullReset.title'),
           body: t(soft ? 'reset.body' : 'fullReset.body'),
           actions: [
-            CoachAction(labelKey: 'common.cancel', onTap: () {}),
+            CoachAction(
+              labelKey: 'common.cancel',
+              tone: CoachTone.decline,
+              onTap: () {},
+            ),
             CoachAction(
               labelKey: soft ? 'reset.confirm' : 'fullReset.confirm',
               tone: CoachTone.decline,

@@ -85,14 +85,16 @@ class FreeShelfSection extends ConsumerWidget {
     // A cap that is spent says so; otherwise the row says how long until the
     // next view. Waiting is information, not a hidden row.
     //
-    // **"ALREADY READY" IS TRUE AGAIN.** It went while there was no ad, because
-    // the gate really was open and there was still nothing to watch — the tile
-    // read "Already ready" with "Coming soon" directly under it. There is
-    // something to watch now.
-    final gateStatus = gate.remaining <= 0
+    // **AN OPEN GATE SAYS NOTHING**, which is what the JS does — `_renderLuckyBoot`
+    // has two states, `✓ Active` and the Claim button, and no badge for "you may
+    // watch one". "Already ready" sat on BOTH free tiles at once and reads as a
+    // claim about the reward rather than about the gate: the player has not got
+    // the thing, so being told it is ready is a lie in the only sense they care
+    // about. `shop.already_ready` is an orphan key in the JS too.
+    final String? gateStatus = gate.remaining <= 0
         ? t('shop.daily_cap')
         : gate.ready
-        ? t('shop.already_ready')
+        ? null
         : formatAdWait(gate.waitMs);
     final gateBlocked = gate.ready ? null : gateStatus;
 

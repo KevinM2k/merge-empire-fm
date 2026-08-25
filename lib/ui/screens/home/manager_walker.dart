@@ -53,9 +53,19 @@ import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 /// not drawn. It exists for exactly one thing — a hat hiding the hair going
 /// through it — and it is on the LAYER rather than on the whole head because the
 /// hat itself must not be clipped by its own brow. See [hatCrownY].
-typedef HeadLayer = ({String svg, double? hideAbove});
+///
+/// [clipToSkull] keeps this layer inside the skull circle. **The brow line is
+/// not enough on its own**: the hair paths deliberately bulge OUTSIDE the skull
+/// so the hair reads as having thickness, and under anything snug — a beanie, a
+/// cap — that bulge escaped around the sides of the hat while every part of it
+/// above the brow was correctly hidden. Reported as hair popping out of the top
+/// of hats. The JS reaches the same place by `clip-path="url(#psvSkull)"` on the
+/// front hair, and its comment records three narrower fixes that each failed
+/// before this one.
+typedef HeadLayer = ({String svg, double? hideAbove, bool clipToSkull});
 
-/// One head layer, clipped to below a hat's brow when it has one.
+/// One head layer, clipped to below a hat's brow and inside the skull when it
+/// is hair being worn under something solid.
 class _HeadArt extends StatelessWidget {
   const _HeadArt({required this.layer});
 
@@ -63,7 +73,10 @@ class _HeadArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final art = SvgArt(svg: layer.svg);
+    Widget art = SvgArt(svg: layer.svg);
+    if (layer.clipToSkull) {
+      art = ClipPath(clipper: const _SkullClipper(), child: art);
+    }
     final above = layer.hideAbove;
     if (above == null) return art;
     return ClipRect(
@@ -71,6 +84,30 @@ class _HeadArt extends StatelessWidget {
       child: art,
     );
   }
+}
+
+/// The skull, as the art draws it: a circle at (62, 48.5) with r 12.5 in the
+/// 120x170 space — the JS's `psvSkull` clip path, to the number.
+class _SkullClipper extends CustomClipper<Path> {
+  const _SkullClipper();
+
+  static const double _cx = 62;
+  static const double _cy = 48.5;
+  static const double _r = 12.5;
+
+  @override
+  Path getClip(Size size) => Path()
+    ..addOval(
+      Rect.fromLTRB(
+        size.width * (_cx - _r) / managerArtWidth,
+        size.height * (_cy - _r) / managerArtHeight,
+        size.width * (_cx + _r) / managerArtWidth,
+        size.height * (_cy + _r) / managerArtHeight,
+      ),
+    );
+
+  @override
+  bool shouldReclip(_SkullClipper old) => false;
 }
 
 /// Keeps the bottom [_BelowClipper.from] of a box, as a fraction of its height.
@@ -1660,12 +1697,14 @@ ManagerParts managerPartsFor(
       if (svg != null && svg.trim().isNotEmpty) paint(svg),
   ];
 
-  List<HeadLayer> layers(Iterable<String?> raw, {double? hideAbove}) => [
-    for (final svg in present(raw)) (svg: svg, hideAbove: hideAbove),
+  List<HeadLayer> layers(
+    Iterable<String?> raw, {
+    double? hideAbove,
+    bool clipToSkull = false,
+  }) => [
+    for (final svg in present(raw))
+      (svg: svg, hideAbove: hideAbove, clipToSkull: clipToSkull),
   ];
-
-  final (hairBack, hairFront) =
-      managerHair['${look['style']}'] ?? managerHair['crop']!;
 
   // **A HAT HIDES THE HAIR GOING THROUGH IT.** The hat is drawn over the hair,
   // so whatever its own shape covers is already hidden — what came through was
@@ -1673,6 +1712,19 @@ ManagerParts managerPartsFor(
   // clipped, because a fin has a back half too. Null for a headband or a pair of
   // headphones, which cover nothing above themselves — see [hatCrownY].
   final crown = hairHiddenAboveY('${look['hat']}');
+  // A hat with a brow line is one with a solid crown, which is the same set the
+  // JS keeps in `HAIR_COVERED_BY`.
+  final crownHat = crown != null;
+
+  final style = '${look['style']}';
+  final (hairBack, hairFrontRaw) =
+      managerHair[style] ?? managerHair['crop']!;
+  // **A BUN IS ON TOP OF THE HEAD, not behind it.** Every other back piece — a
+  // ponytail, dreads, braids, a mullet's curtain — emerges from under the brim,
+  // which is what hair does under a hat and should stay. The bun sits inside a
+  // beanie's dome, so it goes with the front. The JS's `BACK_HAIR_AT_CROWN`.
+  final hairBackDrawn = hairAtCrown.contains(style) && crownHat ? null : hairBack;
+  final hairFront = hairFrontRaw;
 
   return (
     skin: _colourOf(skinColour) ?? skin,
@@ -1680,11 +1732,11 @@ ManagerParts managerPartsFor(
       managerOutfits['${look['outfit']}'],
       managerNeck['${look['neck']}'],
     ]),
-    behindHead: layers([hairBack], hideAbove: crown),
+    behindHead: layers([hairBackDrawn], hideAbove: crown),
     onSkin: layers([
       if (faceIsUnderHair('${look['face']}')) managerFaces['${look['face']}'],
     ]),
-    overHair: layers([hairFront], hideAbove: crown),
+    overHair: layers([hairFront], hideAbove: crown, clipToSkull: crownHat),
     overHead: [
       ...layers([
         managerBeards['${look['beard']}'],

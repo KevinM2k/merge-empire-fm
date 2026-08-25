@@ -214,6 +214,12 @@ List<Widget> paidTilesFor(
                     ? t('product.starter_pack.badge_onetime')
                     : null),
       accent: _offerInk[tile.product.id],
+      skin: featured
+          ? offerSkinFor(
+              tile.product.id,
+              Theme.of(ref.context).extension<KitTheme>()!,
+            )
+          : null,
     ),
   ];
 }
@@ -229,6 +235,51 @@ const Map<String, Color> _offerInk = {
   'vip_pass': Color(0xFFB77BFF),
   'energy_director': Color(0xFF64B5F6),
 };
+
+/// `.premium-vip`, `.premium-starter`, `.premium-director` — the background and
+/// rim each hero wears in the spec, at 135deg, which is a top-left to
+/// bottom-right sweep.
+///
+/// A null border takes the club's accent, which is what `.premium-starter`
+/// asks for (`var(--color-accent)`).
+const Map<String, ({List<Color> colors, Color? border, double width})>
+_offerSkin = {
+  'vip_pass': (
+    colors: [Color(0xFF1A0050), Color(0xFF2A1200), Color(0xFF000000)],
+    border: Color(0xFFFFD700),
+    width: 2,
+  ),
+  'starter_pack': (
+    colors: [Color(0xFF0A2A1A), Color(0xFF1A0A2A)],
+    border: null,
+    width: 1.5,
+  ),
+  'energy_director': (
+    colors: [Color(0xFF0A1A2A), Color(0xFF001A0A)],
+    border: Color(0xFFFFD54A),
+    width: 1.5,
+  ),
+};
+
+/// The hero's skin as the tile takes it, or null for a shelf item.
+({Gradient gradient, Color border, double width})? offerSkinFor(
+  String productId,
+  KitTheme kit,
+) {
+  final skin = _offerSkin[productId];
+  if (skin == null) return null;
+  return (
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: skin.colors,
+      // VIP is a three-stop with the middle at 60%; the other two are even.
+      stops: skin.colors.length == 3 ? const [0, 0.6, 1] : null,
+    ),
+    border: skin.border ?? kit.accent,
+    width: skin.width,
+  );
+}
 
 class _PaidShelf extends ConsumerWidget {
   const _PaidShelf({
@@ -617,7 +668,7 @@ const List<Color> _coinTierInk = [
 /// tells the bundles apart — the drawn pile, the tier wash, the crown on the
 /// popular one, and a badge that is either the computed coins-per-pound
 /// improvement or the "most popular" tag.
-class CoinPackTile extends StatelessWidget {
+class CoinPackTile extends ConsumerWidget {
   const CoinPackTile({
     super.key,
     required this.product,
@@ -648,11 +699,17 @@ class CoinPackTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final ink = _coinTierInk[rank.clamp(0, _coinTierInk.length - 1)];
     final badge = _badge;
     final coins = (product.coins ?? 0) * coinMult;
+    final blocked = paidDisabledReason();
+    final price = priceFor(
+      product.sku,
+      product.price,
+      ref.watch(storeCatalogueProvider).valueOrNull,
+    );
 
     return Stack(
       // The badge sits ON the tile's top edge, half outside it.
@@ -757,19 +814,29 @@ class CoinPackTile extends StatelessWidget {
               ),
               const Spacer(),
               const SizedBox(height: 10),
-              ElevatedButton(
+              // **IT BUYS.** `onPressed: null` on a plain `ElevatedButton` — the
+              // one real-money control in this file the bridge landing never
+              // reached, so the coin shelf was four dead grey buttons beside a
+              // gem shelf that charges. The JS's own markup is
+              // `store-btn store-btn--cash` wired to `_showPurchaseConfirm`,
+              // which is `buyProduct` here: green, because green is real money.
+              // Live even while `blocked` has something to say, which is what
+              // every other real-money tile on this shelf does: the note
+              // explains, the store gives the real refusal, and a pre-dead
+              // button would take the price off the screen with it.
+              StoreButton(
                 key: ValueKey('shop-buy-${product.id}'),
-                onPressed: null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-                child: Text(
-                  product.price,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                tone: StoreTone.cash,
+                label: price,
+                onTap: () => buyProduct(
+                  context,
+                  ref,
+                  product,
+                  productName(product),
+                  price,
                 ),
               ),
-              if (paidDisabledReason() case final why?)
+              if (blocked case final why?)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(

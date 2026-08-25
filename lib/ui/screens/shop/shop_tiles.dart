@@ -11,12 +11,10 @@
 /// long one sets the height of the whole row.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show inkOn, readableInk;
+    show readableInk;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
@@ -35,11 +33,13 @@ class ShopTile extends StatelessWidget {
     this.subtitle,
     this.onBuy,
     this.disabledReason,
+    this.warnReason = false,
     this.badge,
     this.glyph,
     this.featured = false,
     this.ribbon,
     this.accent,
+    this.skin,
   });
 
   final String tileKey;
@@ -56,6 +56,12 @@ class ShopTile extends StatelessWidget {
 
   /// Why the button is dead. Rendered under it, never instead of the price.
   final String? disabledReason;
+
+  /// Whether [disabledReason] is a precondition the player can act on rather
+  /// than a state they are already in. Owned and Active are good news and stay
+  /// muted; "No injured players!" is the tile explaining why the thing would do
+  /// nothing, and in muted grey it read as a second line of description.
+  final bool warnReason;
 
   /// "Most popular", "Owned", a tier name.
   final String? badge;
@@ -77,14 +83,16 @@ class ShopTile extends StatelessWidget {
   /// shopfront does to the thing in the window, and nothing that needs new copy.
   final bool featured;
 
-  /// The corner banner a featured tile wears — `.shop-hero__ribbon` in the
-  /// spec, and the loudest thing on the card there.
+  /// The badge a featured tile wears — "ONE-TIME", "REACTIVATE", a bonus line.
   ///
-  /// **The badge was a line of grey text under the description.** The spec
-  /// carries the same words diagonally across the corner, which is what a
-  /// shopfront does and what the offers shelf was reported as missing. Only
-  /// drawn on a [featured] tile: on a consumable it would be a sale sign on a
-  /// tin of beans.
+  /// **A CHIP BESIDE THE TITLE, not a corner ribbon.** It was drawn diagonally
+  /// across the top-right corner, which on a full-width hero is exactly where
+  /// the buy button is — reported as the badge sitting on top of the button.
+  /// The corner ribbon was the port's own: `.shop-hero__ribbon` exists in the
+  /// stylesheet but none of the three heroes carries it, and `_renderPremium`
+  /// puts this text inline next to the name in a gold-on-gold chip. That is
+  /// also the version with somewhere to go — the hero is a row with room beside
+  /// the title and none over the button.
   final String? ribbon;
 
   /// This product's own colour, for the rim, the glow and the title. Null is
@@ -94,10 +102,33 @@ class ShopTile extends StatelessWidget {
   /// three offers in a column are three things rather than one repeated.
   final Color? accent;
 
+  /// This hero's own background and rim — `.premium-vip`, `.premium-starter`,
+  /// `.premium-director`.
+  ///
+  /// **The three offers were the shelf's grey surface, three times.** Each has
+  /// its own deep gradient in the spec — purple into black, green into purple,
+  /// blue into green — and that is the whole reason the shop's best slot looks
+  /// like a shopfront rather than a list. Dark in both themes, as the spec's
+  /// are: the light-mode overrides in `screens.css` cover the energy cards and
+  /// deliberately leave these alone.
+  final ({Gradient gradient, Color border, double width})? skin;
+
+  /// Reads on [skin]'s gradient. The heroes are dark whatever the theme, so
+  /// their text cannot come from the kit.
+  static const Color _skinInk = Color(0xFFE8EAF0);
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final ink = readableInk(context, accent ?? _featureInk);
+    // **`readableInk` DARKENS FOR A LIGHT GROUND, and a skinned hero has not
+    // got one.** The three offers are the spec's own deep gradients in both
+    // themes, so taking VIP's purple down to 34% lightness for "light mode" put
+    // it on near-black. These colours were chosen against near-black in the
+    // first place, which is exactly the case `readableInk` exists to leave
+    // alone.
+    final ink = skin != null
+        ? (accent ?? _featureInk)
+        : readableInk(context, accent ?? _featureInk);
     final lines = <Widget>[
       if (subtitle != null)
         Text(
@@ -108,7 +139,11 @@ class ShopTile extends StatelessWidget {
           // whole row.
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: kit.textMuted, fontSize: 11, height: 1.3),
+          style: TextStyle(
+            color: skin == null ? kit.textMuted : _skinInk,
+            fontSize: 11,
+            height: 1.3,
+          ),
         ),
       if (badge != null)
         Text(
@@ -120,56 +155,45 @@ class ShopTile extends StatelessWidget {
         Text(
           disabledReason!,
           textAlign: TextAlign.center,
-          style: TextStyle(color: kit.textMuted, fontSize: 11),
+          style: TextStyle(
+            color: warnReason ? dangerInk : kit.textMuted,
+            fontSize: 11,
+            fontWeight: warnReason ? FontWeight.w700 : null,
+          ),
         ),
     ];
 
-    final banner = featured ? ribbon : null;
     return Opacity(
       // An owned tile stays on the shelf, knocked back — taking it away loses
       // the answer to "did I buy that already".
       opacity: onBuy == null && disabledReason == null ? 0.62 : 1,
-      child: banner == null
-          ? _pane(context, kit, ink, lines)
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Stack(
-                children: [
-                  _pane(context, kit, ink, lines),
-                  // Across the corner at 45 degrees, running off both edges so
-                  // the clip is what ends it — which is what makes it a ribbon
-                  // rather than a chip that happens to be diagonal.
-                  Positioned(
-                    top: 16,
-                    right: -34,
-                    child: Transform.rotate(
-                      angle: math.pi / 4,
-                      child: Container(
-                        key: ValueKey('shop-ribbon-$tileKey'),
-                        width: 130,
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        color: ink,
-                        child: Text(
-                          banner.toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.6,
-                            // Measured, not guessed — see [inkOn].
-                            color: inkOn(ink),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      child: _pane(context, kit, ink, lines),
     );
   }
+
+  /// `product.starter_pack.badge_onetime` and its siblings, as the spec draws
+  /// them: gold on a translucent gold field, inside a gold hairline, sitting on
+  /// the title's own line.
+  Widget _chip(String text, Color ink) => Container(
+    key: ValueKey('shop-ribbon-$tileKey'),
+    padding: const EdgeInsets.fromLTRB(6, 1, 6, 1),
+    decoration: BoxDecoration(
+      color: ink.withValues(alpha: 0.15),
+      border: Border.all(color: ink.withValues(alpha: 0.33)),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(
+      text.toUpperCase(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.6,
+        color: ink,
+      ),
+    ),
+  );
 
   Widget _pane(
     BuildContext context,
@@ -194,15 +218,19 @@ class ShopTile extends StatelessWidget {
         // per tile, and the spec turns the sweep off under reduced motion
         // anyway — so the static highlight is the version that is always right.
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [kit.surface2, kit.surface],
-          ),
+          gradient:
+              skin?.gradient ??
+              LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [kit.surface2, kit.surface],
+              ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: featured ? ink.withValues(alpha: 0.65) : kit.border,
-            width: featured ? 1.5 : 1,
+            color:
+                skin?.border ??
+                (featured ? ink.withValues(alpha: 0.65) : kit.border),
+            width: skin?.width ?? (featured ? 1.5 : 1),
           ),
           boxShadow: [
             BoxShadow(
@@ -248,14 +276,24 @@ class ShopTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w900,
-                            height: 1.2,
-                            color: ink,
-                          ),
+                        // Name and badge on one line, wrapping rather than
+                        // truncating — the spec's own `flex-wrap:wrap`.
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 6,
+                          runSpacing: 3,
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w900,
+                                height: 1.2,
+                                color: ink,
+                              ),
+                            ),
+                            if (ribbon case final banner?) _chip(banner, ink),
+                          ],
                         ),
                         for (final line in lines)
                           Padding(

@@ -22,7 +22,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
-import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/club_name.dart';
 
@@ -74,14 +73,26 @@ class ClubNameCard extends ConsumerStatefulWidget {
 }
 
 class ClubNameCardState extends ConsumerState<ClubNameCard> {
-  late final TextEditingController _field = TextEditingController(
-    text: ref.read(clubNameProvider),
-  );
-
-  /// The suggestion in the placeholder. Rerolled by the dice, and used as the
-  /// answer when the field is left empty — so the dice is a way of ACCEPTING a
-  /// name rather than only of seeing one.
+  /// The suggestion. Rerolled by the dice, and used as the answer when the
+  /// field is left empty — so the dice is a way of ACCEPTING a name rather than
+  /// only of seeing one.
   String _suggested = generateClubName();
+
+  /// **A NEW CLUB ARRIVES ALREADY NAMED.**
+  ///
+  /// The field started empty on a fresh save with the suggestion only in the
+  /// placeholder, so the card asked a player who has not seen the game yet to
+  /// invent a football club before they could get past it — and the dice beside
+  /// it reads as decoration rather than as the answer. Filled in, the card is a
+  /// name to keep or to change, which is the same bargain the dice already
+  /// makes: "a suggestion you then have to retype is not a suggestion".
+  ///
+  /// A save that HAS a name keeps it — this card is also how a club is renamed.
+  late final TextEditingController _field = TextEditingController(
+    text: ref.read(clubNameProvider).isEmpty
+        ? _suggested
+        : ref.read(clubNameProvider),
+  );
   String? _error;
 
   @override
@@ -112,7 +123,11 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
       title: t(widget.titleKey ?? 'club_name.title'),
       body: t('club_name.subtitle'),
       actions: [
-        CoachAction(labelKey: 'common.cancel', onTap: () {}),
+        CoachAction(
+          labelKey: 'common.cancel',
+          tone: CoachTone.decline,
+          onTap: () {},
+        ),
         CoachAction(
           labelKey: widget.confirmKey ?? 'club_name.confirm',
           tone: CoachTone.confirm,
@@ -178,7 +193,7 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
               child: Text(
                 _error!,
                 key: const ValueKey('club-name-error'),
-                style: const TextStyle(fontSize: 11, color: settingsDanger),
+                style: const TextStyle(fontSize: 11, color: dangerInk),
               ),
             ),
         ],

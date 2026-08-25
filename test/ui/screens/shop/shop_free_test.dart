@@ -91,15 +91,19 @@ void main() {
     expect(find.byKey(const ValueKey('shop-tile-ad-lucky-boot')), findsOneWidget);
   });
 
-  testWidgets('"ALREADY READY" IS TRUE AGAIN, and it is on its own', (
+  testWidgets('AN OPEN GATE SAYS NOTHING, and neither does the SDK', (
     tester,
   ) async {
-    // It went while there was no ad, because the gate really was open and there
-    // was still nothing to watch — the tile read "Already ready" with "Coming
-    // soon" directly under it. There is something to watch now.
+    // "Already ready" sat on BOTH free tiles and reads as a claim about the
+    // reward rather than the gate: the player has not got the thing. The JS
+    // prints no badge in this state — `_renderLuckyBoot` has `✓ Active` and the
+    // Claim button and nothing else, and `shop.already_ready` is an orphan key
+    // there too. "Coming soon" is separately gone, because there IS an ad now.
     await _pump(tester, _Ads(AdOutcome.rewarded));
-    expect(find.text(t('shop.already_ready')), findsWidgets);
+    expect(find.text(t('shop.already_ready')), findsNothing);
     expect(find.text(t('settings.comingSoon')), findsNothing);
+    // And the thing that says you may take it is still there.
+    expect(find.text(t('shop.claim_cta')), findsWidgets);
   });
 
   group('a watched video GRANTS', () {

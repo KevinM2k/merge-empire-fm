@@ -1426,6 +1426,19 @@ class _StandSegment extends StatelessWidget {
             // own. Clipping it lifts the trees to fill the band and makes them
             // nearly three times the size, which is also three times fewer
             // copies across the segment.
+            //
+            // **AND THE FIFTH REPORT WAS THE SKY THAT WAS LEFT.** Cropping to
+            // the treeline still leaves the plate's own near-white sky BEHIND
+            // the trees and a hard edge along the top of the strip, so the
+            // backdrop read as a pale rectangle pasted over the scene's darker
+            // sky — "it only goes up about fifty points and then is fully cut
+            // off", which is a fair description of a rectangle.
+            //
+            // The plate is `parkTreeline.png` now: the same drawing with its
+            // sky and cloud knocked out (`tool/gen_park_backdrop.py`), so the
+            // scene's own sky shows through and there is no edge left to see.
+            // Asked for as a shadow backdrop or none at all; this is the first
+            // of those, and it keeps the trees.
             builder: (context, box) {
               const band = _kenneyGroundLine - _kenneyTreeLine;
               final side = box.maxHeight <= 0 ? 0.0 : box.maxHeight / band;
@@ -1449,7 +1462,7 @@ class _StandSegment extends StatelessWidget {
                       height: side,
                       child: ArtImage(
                         key: ValueKey('pitch-park-backdrop-$i'),
-                        path: 'assets/bg/kenney/backgroundColorGrass.png',
+                        path: 'assets/bg/kenney/parkTreeline.png',
                         fit: BoxFit.fill,
                         dimmed: night,
                         dimBrightness: 0.55,

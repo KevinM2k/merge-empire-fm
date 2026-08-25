@@ -133,6 +133,7 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
       ],
       CoachAction(
         labelKey: 'common.cancel',
+        tone: CoachTone.decline,
         onTap: () {},
         result: _Route.cancel,
       ),
@@ -176,7 +177,12 @@ Future<int?> confirmAndPrestige(
         (key: 'prestige.pro_note', params: const {}, strong: true),
     ],
     actions: [
-      CoachAction(labelKey: 'common.cancel', onTap: () {}, result: false),
+      CoachAction(
+        labelKey: 'common.cancel',
+        tone: CoachTone.decline,
+        onTap: () {},
+        result: false,
+      ),
       CoachAction(
         labelKey: 'prestige.lets_go',
         tone: CoachTone.confirm,

@@ -116,6 +116,7 @@ class MergeBurst extends StatefulWidget {
     this.duration = mergeBurstDuration,
     this.coins = false,
     this.pop = true,
+    this.particles,
   });
 
   final Widget child;
@@ -135,6 +136,14 @@ class MergeBurst extends StatefulWidget {
   /// The squash-stretch-settle on the card itself. Off for a card that is coming
   /// apart — popping something on its way out is two stories at once.
   final bool pop;
+
+  /// How many pieces, where the tier's own count is the wrong answer. Null takes
+  /// [particlesForTier].
+  ///
+  /// The cash-in is the case: the JS spends a flat twenty-two on it whatever the
+  /// card was, because the burst is about the MONEY and a legend being sold
+  /// should not throw more coins than a bronze one fetched.
+  final int? particles;
 
   @override
   State<MergeBurst> createState() => MergeBurstState();
@@ -252,6 +261,7 @@ class MergeBurstState extends State<MergeBurst>
                       widget.tier,
                       coins: widget.coins,
                     ),
+                    count: widget.particles ?? particlesForTier(widget.tier),
                   ),
                 ),
               ),
@@ -317,12 +327,29 @@ List<double> _blowOut(double k, double s) {
 /// which is what makes a piece read as thrown rather than as drifting.
 const Curve _thrown = Cubic(0, 0.9, 0.57, 1);
 
+/// A stable value in `[0, 1)` for piece [i] on stream [stream] of burst [seed].
+/// A hash, not a die: see the note at the top of the file.
+///
+/// Shared, because the card shatter has the same problem and the same reason
+/// for it — a piece whose flight is re-rolled every frame flickers instead of
+/// flying.
+double burstHash(int seed, int i, int stream) {
+  var h =
+      (seed * 0x27D4EB2D) ^ ((i + 1) * 0x9E3779B1) ^ ((stream + 1) * 0x85EBCA6B);
+  h &= 0xFFFFFFFF;
+  h ^= h >> 15;
+  h = (h * 0x2545F491) & 0xFFFFFFFF;
+  h ^= h >> 13;
+  return (h & 0xFFFFFF) / 0x1000000;
+}
+
 class _BurstPainter extends CustomPainter {
   const _BurstPainter({
     required this.ms,
     required this.tier,
     required this.seed,
     required this.colours,
+    required this.count,
   });
 
   final double ms;
@@ -330,19 +357,10 @@ class _BurstPainter extends CustomPainter {
   final int seed;
   final List<Color> colours;
 
-  /// A stable value in `[0, 1)` for piece [i] on stream [stream] of this burst.
-  /// A hash, not a die: see the note at the top of the file.
-  double _at(int i, int stream) {
-    var h =
-        (seed * 0x27D4EB2D) ^
-        ((i + 1) * 0x9E3779B1) ^
-        ((stream + 1) * 0x85EBCA6B);
-    h &= 0xFFFFFFFF;
-    h ^= h >> 15;
-    h = (h * 0x2545F491) & 0xFFFFFFFF;
-    h ^= h >> 13;
-    return (h & 0xFFFFFF) / 0x1000000;
-  }
+  /// How many pieces. Off the tier unless the caller says otherwise.
+  final int count;
+
+  double _at(int i, int stream) => burstHash(seed, i, stream);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -385,7 +403,6 @@ class _BurstPainter extends CustomPainter {
   }
 
   void _particles(Canvas canvas, Offset centre, double unit) {
-    final count = particlesForTier(tier);
     for (var i = 0; i < count; i++) {
       final t = (ms / (800 + _at(i, 0) * 500)).clamp(0.0, 1.0);
       if (t >= 1) continue;

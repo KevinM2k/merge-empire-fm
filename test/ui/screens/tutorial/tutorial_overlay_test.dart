@@ -12,11 +12,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/util/popup_queue.dart';
+import 'package:merge_empire_fc/ui/screens/match/play_button.dart' show matchPopupBlocker;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -88,6 +92,14 @@ Future<void> tapAction(WidgetTester tester, String labelKey) async {
   await tester.pumpAndSettle();
 }
 
+/// **SKIP IS A LINK UNDER THE BUTTON, not a button beside it.** Leaving and
+/// getting on with it are not two answers of equal weight, and as a pair of
+/// halves "Let's go" was half a card wide.
+Future<void> tapFooter(WidgetTester tester, String labelKey) async {
+  await tester.tap(find.byKey(ValueKey('coach-footer-$labelKey')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   tearDown(resetLocale);
 
@@ -116,7 +128,7 @@ void main() {
       find.byKey(const ValueKey('coach-action-tut.welcome.btn')),
       findsNothing,
     );
-    await tapAction(tester, 'tut.skip');
+    await tapFooter(tester, 'tut.skip');
     await settleSave(tester);
   });
 
@@ -128,11 +140,30 @@ void main() {
     final cells =
         (c.read(gameProvider).state!['grid'] as Map<String, dynamic>)['cells']
             as List;
-    expect(
-      cells.where((x) => (x as Map?)?['borrowed'] == true),
-      isNotEmpty,
-      reason: 'nobody was lent',
-    );
+    final lent = cells.where((x) => (x as Map?)?['borrowed'] == true).length;
+    expect(lent, isNot(0), reason: 'nobody was lent');
+    await tester.pump(loanArrivalWindow(lent));
+    await tester.pump(const Duration(milliseconds: saveDebounceMs + 1));
+  });
+
+  testWidgets('AND WAITS FOR THEM TO LAND before saying anything else', (
+    tester,
+  ) async {
+    // The JS holds its script until the last card has dropped in. Advancing on
+    // the same frame put the next card up over eight players arriving behind it
+    // — and the arrival is the point of the step.
+    final c = await pumpHost(tester, save(step: 3, cards: 3));
+    await tapAction(tester, 'tut.loan_boost.btn');
+    expect((c.read(gameProvider).state!['tutorial'] as Map)['step'], 3);
+    expect(find.text(t('tut.play_match.title')), findsNothing);
+
+    final cells =
+        (c.read(gameProvider).state!['grid'] as Map<String, dynamic>)['cells']
+            as List;
+    final lent = cells.where((x) => (x as Map?)?['borrowed'] == true).length;
+    await tester.pump(loanArrivalWindow(lent));
+    await tester.pumpAndSettle();
+    expect((c.read(gameProvider).state!['tutorial'] as Map)['step'], 4);
     await tester.pump(const Duration(milliseconds: saveDebounceMs + 1));
   });
 
@@ -167,7 +198,7 @@ void main() {
     lendTutorialPlayers(state);
     (state['tutorial'] as Map<String, dynamic>)['step'] = 4;
     final c = await pumpHost(tester, state);
-    await tapAction(tester, 'tut.skip');
+    await tapFooter(tester, 'tut.skip');
 
     final after = c.read(gameProvider).state!;
     expect((after['tutorial'] as Map)['done'], isTrue);
@@ -193,7 +224,7 @@ void main() {
     await pumpHost(tester, state);
     expect(find.text(t('tut.match_reaction.win_title')), findsOneWidget);
     expect(find.textContaining('2-0'), findsOneWidget);
-    await tapAction(tester, 'tut.skip');
+    await tapFooter(tester, 'tut.skip');
     await settleSave(tester);
   });
 
@@ -201,7 +232,32 @@ void main() {
     setLocale('de');
     await pumpHost(tester, save());
     expect(find.textContaining('tut.'), findsNothing);
-    await tapAction(tester, 'tut.skip');
+    await tapFooter(tester, 'tut.skip');
+    await settleSave(tester);
+  });
+
+  testWidgets('NOTHING OPENS WHILE THE MATCH OWNS THE SCREEN', (tester) async {
+    // `seasonAwardedPlayed` moves the instant the result settles — while the
+    // player is still watching full time — so the reaction card went up over
+    // the match screen, before the summary and before the money. The tutorial's
+    // own popup block does not cover it, because a coach card is a `showDialog`
+    // rather than a queued popup. Reported as being stuck on the game screen.
+    blockPopups(matchPopupBlocker);
+    addTearDown(() => unblockPopups(matchPopupBlocker));
+
+    await pumpHost(tester, save(step: 6));
+    expect(
+      find.byKey(const ValueKey('coach-card')),
+      findsNothing,
+      reason: 'the reaction card opened over the match',
+    );
+
+    // And it arrives the moment the match lets go.
+    unblockPopups(matchPopupBlocker);
+    emit('match:close');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('coach-card')), findsOneWidget);
+    await tapFooter(tester, 'tut.skip');
     await settleSave(tester);
   });
 }

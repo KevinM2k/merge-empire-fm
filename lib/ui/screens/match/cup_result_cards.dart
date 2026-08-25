@@ -22,10 +22,11 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// Green for a round won, red for a run ended, gold for the trophy.
 const Color cupWonInk = Color(0xFF4ADE80);
-const Color cupOutInk = Color(0xFFF44336);
+const Color cupOutInk = dangerInk;
 const Color cupTrophyInk = Color(0xFFFFD700);
 
 /// Which of the three closing lines a round earns, by what comes NEXT.

@@ -150,6 +150,23 @@ final gridCellsProvider = Provider<List<GridCell>>((ref) {
   ];
 });
 
+/// The players the tutorial has lent the club, in grid order.
+///
+/// **The flag is on the stored instance, not on [GridCell].** A borrowed player
+/// is a tutorial fact rather than a card fact — nothing else on the grid asks
+/// and the view already carries `onLoan` for the pill — so it stays out of the
+/// record every square in the game is built from and is asked for here instead.
+final loanCardIdsProvider = Provider<List<String>>((ref) {
+  ref.watch(saveRevisionProvider);
+  final s = ref.watch(gameProvider).state;
+  return [
+    for (final raw in gridCells(s))
+      if (_map(raw) case final cell?)
+        if (cell['borrowed'] == true)
+          if (cell['instanceId'] case final String id) id,
+  ];
+});
+
 /// The instance ids a batch of signings landed in, for [gridPendingProvider].
 ///
 /// Read off the CELLS rather than the signings, because a `Signing` carries the

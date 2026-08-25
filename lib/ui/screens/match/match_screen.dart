@@ -12,6 +12,8 @@ library;
 
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +32,7 @@ import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/services/sound_service.dart';
 import 'package:merge_empire_fc/state/card_instance.dart' show CardInstance;
 import 'package:merge_empire_fc/state/game_tick.dart';
+import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
@@ -91,6 +94,51 @@ const double matchInset = 13;
 /// what give the room: the pitch takes only what the tilted pitch needs and the
 /// commentary is `Expanded`.
 const double matchGap = 12;
+
+/// Below this a move on the 2D pitch stops being readable. `STAGE_MIN_HEIGHT`.
+const double stageMinHeight = 132;
+
+/// Below this the commentary stops being a feed. `BODY_MIN_HEIGHT`, and sized
+/// in the spec to hold one whole goal card rather than one line of text.
+const double feedMinHeight = 168;
+
+/// What the tactic strip takes out of the pool when it is up. Measured, and
+/// only ever spent defending [feedMinHeight], so a point or two either way
+/// changes nothing.
+const double tacticStripHeight = 44;
+
+/// How tall the pitch band gets — `_syncShellHeight` in `MatchPopup.js`.
+///
+/// **THE BAND HOLDS THE PITCH'S ASPECT.** It was 16% of screen height, which on
+/// a 402x874 phone is 140 points against the spec's 226 — the pitch drawn at 62%
+/// of the size it is designed for. At that scale a player is about four points
+/// across, so a chance cutting in is a few dots twitching in a letterboxed
+/// strip: reported as the 2D pitch being cut off, and separately as nothing
+/// happening on it while the commentary and the sounds reported shots.
+///
+/// The two floors are the spec's own and they are what stops the aspect eating
+/// the commentary — [stageMinHeight] and [feedMinHeight]. [pool] is what the
+/// stage and the feed have to share, measured rather than summed from the fixed
+/// bands, which is the mistake the spec records itself making.
+///
+/// [width] is the INSET width. The clip mounts inside the same padding, so
+/// measuring the aspect off the full width would overshoot by the inset every
+/// time — the spec's own note.
+double stageBandHeight({
+  required double width,
+  required double pool,
+  required bool hasTacticStrip,
+}) {
+  if (!width.isFinite || width <= 0) return stageMinHeight;
+  final ideal = width / pitchAspect;
+  if (!pool.isFinite) return ideal;
+  final forTheFeed =
+      feedMinHeight + (hasTacticStrip ? tacticStripHeight : 0) + matchGap * 2;
+  return math.max(
+    stageMinHeight,
+    math.min(ideal, math.max(0, pool - forTheFeed)),
+  );
+}
 
 /// The commentary's own side inset.
 ///
@@ -1221,280 +1269,275 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // pitch only for a chance and took it away after, so the band itself
                   // appeared and vanished — which is what made the pitch look like it
                   // was flickering and jumping about.
-                  // **FLEXIBLE, so a short screen can take it back.** The old
-                  // `AspectRatio` shrank the WIDTH to whatever height was left,
-                  // which is what kept the column from overflowing; a fixed
-                  // height cannot, and on a short phone it pushed the
-                  // commentary off the bottom. Loose, so it never takes MORE
-                  // than the cap below.
-                  // **FLEX ZERO, so the COMMENTARY gets everything else.** A
-                  // `Flexible` at flex 1 beside the feed's `Expanded` split the
-                  // free space in half and then took only its cap out of that
-                  // half — the surplus is not redistributed, so a third of the
-                  // screen was simply dead between the pitch and the feed.
-                  // Reported as the commentary not using the room it has.
+                  // **THE POOL, MEASURED — `_syncShellHeight`'s own invariant.**
                   //
-                  // At flex 0 it is laid out in the inflexible pass: the cap
-                  // below decides its height and nothing else, and the feed's
-                  // `Expanded` takes the whole remainder.
-                  Flexible(
-                    flex: 0,
-                    child: Padding(
-                    // **THE SAME GAP AS EVERY OTHER BAND.** This one was on
-                    // `matchGap / 2` to buy back height, which made it the one
-                    // seam on the page that did not match the others — read
-                    // straight off the screen as the spacing being uneven. The
-                    // height it was buying came out of `matchGap` itself
-                    // instead, so the column is no taller and the seams agree.
-                    padding: const EdgeInsets.fromLTRB(
-                      matchInset,
-                      matchGap,
-                      matchInset,
-                      matchGap,
-                    ),
-                    // **AS WIDE AS EVERY OTHER BOX, and shorter than it was.**
-                    // It was an `AspectRatio` inside a height cap, so the CAP
-                    // decided the width — the pitch came out narrower than the
-                    // cards above and below it with air down both sides, on the
-                    // one band that wants the room. The width is the page's now
-                    // and the height is capped independently; a shallower box
-                    // is a shallower pitch, which `fittedTilt` handles by
-                    // construction.
-                    // **LOOSE, so a short screen can still take it back.** The
-                    // old `AspectRatio` shrank the WIDTH to fit whatever height
-                    // was left, which is what kept the column from overflowing;
-                    // a fixed height cannot, and on a short phone it pushed the
-                    // commentary off the bottom by 35 pixels.
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        // **SHORTER AGAIN, and the aspect no longer caps it.**
-                        // The stage used to hold the pitch's own aspect, so a
-                        // box shorter than that made the pitch narrower than
-                        // the box — dead green down both sides. It fills what
-                        // it is given now, so the only cap is how much screen
-                        // this band is worth, and a shallow box is a shallow
-                        // pitch rather than a small one.
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.16,
-                        minWidth: double.infinity,
+                  // The stage and the feed are the two bands that flex and
+                  // everything else on the column is fixed, so what they share is
+                  // a number worth reading off the layout rather than summing the
+                  // fixed bands and hoping. The spec says so in as many words, and
+                  // says the first version got it wrong by doing the sum.
+                  //
+                  // They could not share a pool before because the stage sat at
+                  // `Flexible(flex: 0)` in the OUTER column, which `RenderFlex`
+                  // lays out with an unbounded main axis — so a `LayoutBuilder`
+                  // there measured infinity and the cap had to come from
+                  // `MediaQuery` instead. One Expanded around the three of them is
+                  // what makes the height askable.
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, pool) {
+                        final stageHeight = stageBandHeight(
+                          width: pool.maxWidth - matchInset * 2,
+                          pool: pool.maxHeight,
+                          hasTacticStrip: !f.finished,
+                        );
+                        return Column(
+                          children: [
+                    SizedBox(
+                      // The band, plus the gaps either side of it — those are
+                      // inside this box, and `stageBandHeight` measures the
+                      // pitch.
+                      height: stageHeight + matchGap * 2,
+                      child: Padding(
+                      // **THE SAME GAP AS EVERY OTHER BAND.** This one was on
+                      // `matchGap / 2` to buy back height, which made it the one
+                      // seam on the page that did not match the others — read
+                      // straight off the screen as the spacing being uneven. The
+                      // height it was buying came out of `matchGap` itself
+                      // instead, so the column is no taller and the seams agree.
+                      padding: const EdgeInsets.fromLTRB(
+                        matchInset,
+                        matchGap,
+                        matchInset,
+                        matchGap,
                       ),
-                      child: Stack(
-                        key: const ValueKey('match-stage'),
-                        fit: StackFit.expand,
-                        children: [
-                            // **THE PITCH IS ALWAYS THERE.** The band never
-                            // moved, but what was IN it flipped between a
-                            // football pitch and a table of numbers every few
-                            // minutes, which is the jarring bit: the stage was
-                            // the statistics at rest and the pitch only for a
-                            // chance. It is one pitch for the whole match now,
-                            // a clip cuts in on the same grass, and the
-                            // statistics have a tab of their own. `CutawayStage`
-                            // has drawn the idle markings all along — nothing
-                            // was mounting it.
-                            CutawayStage(
-                              clip: _clip,
-                              // **The match, between the chances.** The stage
-                              // keeps twenty-two bodies on the grass and slides
-                              // their shape with the same figure the arrow
-                              // reads, so the two cannot disagree and a clip
-                              // arrives out of a game rather than out of an
-                              // empty field.
-                              momentum: _momentum,
-                              attackingRight: home,
-                              // **THE SCORER, ON HIS OWN TOUCHLINE.** He arrives
-                              // with the VERDICT, not with the clip — shown from
-                              // the first beat he would give away that the ball
-                              // was going in.
-                              scorer: _scorerBadge(),
-                              scorerFromLeft: home,
-                              onDone: (_) {
-                                if (!mounted) return;
-                                final told = _clippedMinute;
-                                setState(() => _clip = null);
-                                // Now it has been told, he can react to it.
-                                _dugoutCamFor(told);
-                              },
-                            ),
-                            // Between chances: which way the game is going, on
-                            // the pitch it is going on. Off while a clip runs —
-                            // there is a real move on the grass to watch.
-                            if (_clip == null)
-                              MomentumArrow(
-                                bias: momentumBias(
-                                  dangerHome: stats.dangerHome,
-                                  isHome: home,
-                                ),
+                      // As wide as every other box on the page; the height is
+                      // [stageBandHeight]'s, decided against the pool above.
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: Stack(
+                          key: const ValueKey('match-stage'),
+                          fit: StackFit.expand,
+                          children: [
+                              // **THE PITCH IS ALWAYS THERE.** The band never
+                              // moved, but what was IN it flipped between a
+                              // football pitch and a table of numbers every few
+                              // minutes, which is the jarring bit: the stage was
+                              // the statistics at rest and the pitch only for a
+                              // chance. It is one pitch for the whole match now,
+                              // a clip cuts in on the same grass, and the
+                              // statistics have a tab of their own. `CutawayStage`
+                              // has drawn the idle markings all along — nothing
+                              // was mounting it.
+                              CutawayStage(
+                                clip: _clip,
+                                // **The match, between the chances.** The stage
+                                // keeps twenty-two bodies on the grass and slides
+                                // their shape with the same figure the arrow
+                                // reads, so the two cannot disagree and a clip
+                                // arrives out of a game rather than out of an
+                                // empty field.
+                                momentum: _momentum,
                                 attackingRight: home,
-                                // Shades of the TURF, not of the kit: a solid
-                                // mark on the grass rather than a tint over it.
-                                ours: momentumOurs,
-                                theirs: momentumTheirs,
+                                // **THE SCORER, ON HIS OWN TOUCHLINE.** He arrives
+                                // with the VERDICT, not with the clip — shown from
+                                // the first beat he would give away that the ball
+                                // was going in.
+                                scorer: _scorerBadge(),
+                                scorerFromLeft: home,
+                                onDone: (_) {
+                                  if (!mounted) return;
+                                  final told = _clippedMinute;
+                                  setState(() => _clip = null);
+                                  // Now it has been told, he can react to it.
+                                  _dugoutCamFor(told);
+                                },
                               ),
-                            // **OVER THE PITCH, bottom right**, which is where a
-                            // broadcast puts a cut-in and the one corner of this
-                            // band that carries no statistic. A cutaway owns the
-                            // stage while it plays and the rules above keep the
-                            // two off it at once.
-                            if (_cam case final shot?
-                                when shot.variant == CamVariant.float)
-                              Positioned.fill(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Align(
-                                    alignment: Alignment.bottomRight,
-                                    child: LayoutBuilder(
-                                      // **CAPPED BY THE HEIGHT TOO.** The
-                                      // float sized itself off the WIDTH alone,
-                                      // and the band got shorter when the pitch
-                                      // gave its vertical space back — so the
-                                      // cam's own column ran 35 pixels out of
-                                      // the bottom of the stage. `FittedBox`
-                                      // shrinks it to whatever is actually
-                                      // there rather than clipping a man in
-                                      // half.
-                                      builder: (context, box) => FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.bottomRight,
-                                        child: SizedBox(
-                                          width:
-                                              (box.maxWidth * camFloatFraction)
-                                                  .clamp(
-                                                    camFloatMinWidth,
-                                                    camFloatMaxWidth,
-                                                  )
-                                                  .clamp(0.0, box.maxWidth),
-                                          child: _dugoutCam(shot),
+                              // Between chances: which way the game is going, on
+                              // the pitch it is going on. Off while a clip runs —
+                              // there is a real move on the grass to watch.
+                              if (_clip == null)
+                                MomentumArrow(
+                                  bias: momentumBias(
+                                    dangerHome: stats.dangerHome,
+                                    isHome: home,
+                                  ),
+                                  attackingRight: home,
+                                  // Shades of the TURF, not of the kit: a solid
+                                  // mark on the grass rather than a tint over it.
+                                  ours: momentumOurs,
+                                  theirs: momentumTheirs,
+                                ),
+                              // **OVER THE PITCH, bottom right**, which is where a
+                              // broadcast puts a cut-in and the one corner of this
+                              // band that carries no statistic. A cutaway owns the
+                              // stage while it plays and the rules above keep the
+                              // two off it at once.
+                              if (_cam case final shot?
+                                  when shot.variant == CamVariant.float)
+                                Positioned.fill(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Align(
+                                      alignment: Alignment.bottomRight,
+                                      child: LayoutBuilder(
+                                        // **CAPPED BY THE HEIGHT TOO.** The
+                                        // float sized itself off the WIDTH alone,
+                                        // and the band got shorter when the pitch
+                                        // gave its vertical space back — so the
+                                        // cam's own column ran 35 pixels out of
+                                        // the bottom of the stage. `FittedBox`
+                                        // shrinks it to whatever is actually
+                                        // there rather than clipping a man in
+                                        // half.
+                                        builder: (context, box) => FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.bottomRight,
+                                          child: SizedBox(
+                                            width:
+                                                (box.maxWidth * camFloatFraction)
+                                                    .clamp(
+                                                      camFloatMinWidth,
+                                                      camFloatMaxWidth,
+                                                    )
+                                                    .clamp(0.0, box.maxWidth),
+                                            child: _dugoutCam(shot),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  ),
-                  // **DIRECTLY UNDER THE PITCH IT ACTS ON** — the JS's own band
-                  // order, and the reason for it: a control for the thing above it
-                  // reads as belonging to it.
-                  if (!f.finished)
-                    _TacticStrip(
-                      active: _strategy,
-                      onPick: applyStrategy,
-                      cooldown: _tacticCooldown,
                     ),
-                  // **THE COMMENTARY IS IN A BOX.** The tabs and the feed sat
-                  // loose on the sky gradient — the one band on the screen with no
-                  // surface under it, on a page where the scoreboard, the stage and
-                  // the tactic strip are all panels. It read as the background
-                  // having text on it rather than as a thing being read.
-                  // **THE TAB BAR HAS GONE, and the commentary is what it
-                  // paid for.** It was a full row of chrome serving two panels
-                  // nobody watches during a match: the QUESTS auto-pay at the
-                  // whistle and are reported on the summary, which is where the
-                  // money is, and the STATISTICS are behind the board's own
-                  // chart button now. What is left in this box is the one thing
-                  // on the screen a player actually reads, in the whole box.
-                  //
-                  // **And it is a `GlassPanel`**, which is what every other
-                  // surface on this screen and on the summary is. It was a
-                  // hand-rolled `DecoratedBox` with its own colour, radius and
-                  // border — one pane of glass and one painted box, side by
-                  // side, on a page whose backdrop is a sky.
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        matchInset,
-                        0,
-                        matchInset,
-                        matchGap,
+                    // **DIRECTLY UNDER THE PITCH IT ACTS ON** — the JS's own band
+                    // order, and the reason for it: a control for the thing above it
+                    // reads as belonging to it.
+                    if (!f.finished)
+                      _TacticStrip(
+                        active: _strategy,
+                        onPick: applyStrategy,
+                        cooldown: _tacticCooldown,
                       ),
-                      child: GlassPanel(
-                                                density: GlassDensity.deep,
-                        // **NO SHEEN ON THIS ONE.** It fills the rest of the
-                        // screen, so the pane's highlight — a lit top edge on a
-                        // card — stretched into a band across the middle of the
-                        // feed and sat behind the minute down the left. See
-                        // [GlassPanel.sheen].
-                        sheen: false,
-                        padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
-                        child: Column(
-                            children: [
-                              Expanded(
-                                  child: ListView.builder(
-                                    key: const ValueKey('match-feed'),
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      0,
-                                      12,
-                                      12,
-                                    ),
-                                    // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
-                                    // newest line arrived at the foot of the list and everything
-                                    // worth reading was off the bottom of a long match. A line should
-                                    // arrive from ABOVE and push the rest down, which is the
-                                    // direction the feed actually grows.
-                                    // **THE FULL-TIME SHOT IS THE HEAD OF THE FEED**, above
-                                    // the newest line, which is where a broadcast cuts to the
-                                    // bench before the graphic. It goes here rather than in
-                                    // the corner of the pitch for two reasons: at the whistle
-                                    // the band above is the final statistics, which is the one
-                                    // thing on the page a manager actually reads; and this is
-                                    // the better shot anyway — a reaction still printed beside
-                                    // the result. It also SCROLLS, so it costs the feed no
-                                    // permanent height on a short screen.
-                                    itemCount:
-                                        lines.length +
-                                        (_inlineCam == null ? 0 : 1),
-                                    itemBuilder: (context, i) {
-                                      final shot = _inlineCam;
-                                      if (shot != null) {
-                                        if (i == 0) {
-                                          return Padding(
-                                            // Air above it: the shot sat flush
-                                            // against the top of the feed with
-                                            // the tab strip's rule cutting into
-                                            // its frame.
-                                            padding: const EdgeInsets.only(
-                                              top: 12,
-                                              bottom: 10,
-                                            ),
-                                            child: Center(
-                                              child: LayoutBuilder(
-                                                builder: (context, box) => SizedBox(
-                                                  width:
-                                                      (box.maxWidth *
-                                                              camInlineFraction)
-                                                          .clamp(
-                                                            camInlineMinWidth,
-                                                            camInlineMaxWidth,
-                                                          )
-                                                          .clamp(
-                                                            0.0,
-                                                            box.maxWidth,
-                                                          ),
-                                                  child: _dugoutCam(shot),
+                    // **THE COMMENTARY IS IN A BOX.** The tabs and the feed sat
+                    // loose on the sky gradient — the one band on the screen with no
+                    // surface under it, on a page where the scoreboard, the stage and
+                    // the tactic strip are all panels. It read as the background
+                    // having text on it rather than as a thing being read.
+                    // **THE TAB BAR HAS GONE, and the commentary is what it
+                    // paid for.** It was a full row of chrome serving two panels
+                    // nobody watches during a match: the QUESTS auto-pay at the
+                    // whistle and are reported on the summary, which is where the
+                    // money is, and the STATISTICS are behind the board's own
+                    // chart button now. What is left in this box is the one thing
+                    // on the screen a player actually reads, in the whole box.
+                    //
+                    // **And it is a `GlassPanel`**, which is what every other
+                    // surface on this screen and on the summary is. It was a
+                    // hand-rolled `DecoratedBox` with its own colour, radius and
+                    // border — one pane of glass and one painted box, side by
+                    // side, on a page whose backdrop is a sky.
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          matchInset,
+                          0,
+                          matchInset,
+                          matchGap,
+                        ),
+                        child: GlassPanel(
+                                                  density: GlassDensity.deep,
+                          // **NO SHEEN ON THIS ONE.** It fills the rest of the
+                          // screen, so the pane's highlight — a lit top edge on a
+                          // card — stretched into a band across the middle of the
+                          // feed and sat behind the minute down the left. See
+                          // [GlassPanel.sheen].
+                          sheen: false,
+                          padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+                          child: Column(
+                              children: [
+                                Expanded(
+                                    child: ListView.builder(
+                                      key: const ValueKey('match-feed'),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        0,
+                                        12,
+                                        12,
+                                      ),
+                                      // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
+                                      // newest line arrived at the foot of the list and everything
+                                      // worth reading was off the bottom of a long match. A line should
+                                      // arrive from ABOVE and push the rest down, which is the
+                                      // direction the feed actually grows.
+                                      // **THE FULL-TIME SHOT IS THE HEAD OF THE FEED**, above
+                                      // the newest line, which is where a broadcast cuts to the
+                                      // bench before the graphic. It goes here rather than in
+                                      // the corner of the pitch for two reasons: at the whistle
+                                      // the band above is the final statistics, which is the one
+                                      // thing on the page a manager actually reads; and this is
+                                      // the better shot anyway — a reaction still printed beside
+                                      // the result. It also SCROLLS, so it costs the feed no
+                                      // permanent height on a short screen.
+                                      itemCount:
+                                          lines.length +
+                                          (_inlineCam == null ? 0 : 1),
+                                      itemBuilder: (context, i) {
+                                        final shot = _inlineCam;
+                                        if (shot != null) {
+                                          if (i == 0) {
+                                            return Padding(
+                                              // Air above it: the shot sat flush
+                                              // against the top of the feed with
+                                              // the tab strip's rule cutting into
+                                              // its frame.
+                                              padding: const EdgeInsets.only(
+                                                top: 12,
+                                                bottom: 10,
+                                              ),
+                                              child: Center(
+                                                child: LayoutBuilder(
+                                                  builder: (context, box) => SizedBox(
+                                                    width:
+                                                        (box.maxWidth *
+                                                                camInlineFraction)
+                                                            .clamp(
+                                                              camInlineMinWidth,
+                                                              camInlineMaxWidth,
+                                                            )
+                                                            .clamp(
+                                                              0.0,
+                                                              box.maxWidth,
+                                                            ),
+                                                    child: _dugoutCam(shot),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
+                                            );
+                                          }
+                                          return _feedLine(
+                                            lines[lines.length - i],
+                                            them,
                                           );
                                         }
                                         return _feedLine(
-                                          lines[lines.length - i],
+                                          lines[lines.length - 1 - i],
                                           them,
                                         );
-                                      }
-                                      return _feedLine(
-                                        lines[lines.length - 1 - i],
-                                        them,
-                                      );
-                                    },
-                                  ),
-                              ),
-                            ],
+                                      },
+                                    ),
+                                ),
+                              ],
+                          ),
                         ),
                       ),
+                    ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                   Padding(

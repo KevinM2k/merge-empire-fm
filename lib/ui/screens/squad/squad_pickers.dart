@@ -344,8 +344,8 @@ class _TacticRow extends StatelessWidget {
                         if (strategy.injMod > 1.05)
                           _RiskPill(
                             label: t('squad.tactic.injury_up', {'n': injPct}),
-                            ink: const Color(0xFFF44336),
-                            edge: const Color(0xFFF44336),
+                            ink: dangerInk,
+                            edge: dangerInk,
                           )
                         else if (strategy.injMod < 1.0)
                           _RiskPill(

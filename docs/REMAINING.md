@@ -1588,6 +1588,80 @@ JS number or object did.
 
 ---
 
+## Found while shipping — 24 Aug
+
+Not from playing and not from the source diff: from trying to put the app on a
+phone. Neither queue had a row for any of it, which is the point — **both queues
+read `lib/`, and nothing reads the native shells.**
+
+- [x] **The port shipped the FLUTTER DEFAULT ICON on both stores' worth of
+      artwork.** `flutter create`'s blue F, untouched since 17 Aug, on iOS and on
+      all five Android densities, plus the template's white launch screen in
+      front of a game that is dark green. The shipped app's own icon has been
+      sitting in `../merge-empire-fc` the whole time.
+
+      `tool/gen_app_icons.py` now generates all of it from
+      `tool/art/app_icon_master.png` — the shipped `app-icon-source.jpeg`,
+      centre-cropped, **vendored because the spec repo is not cloned in a cloud
+      container** and this had to stay regenerable without it. Fifteen iOS sizes
+      flattened to RGB (the App Store rejects a marketing icon with alpha), five
+      Android densities, the adaptive pair, and `splash_logo` for the launch
+      screen. The launch background is `#0A1A0F`, sampled from the master's own
+      corner, so the logo sits on it with no seam; `values/styles.xml`'s
+      `LaunchTheme` went `Theme.Light` → `Theme.Black` to match.
+
+      **One deliberate divergence from `generate-icon.py`.** The JS writes the
+      full-bleed master as the Android adaptive FOREGROUND, and Android 8+ crops
+      the outer sixth off that layer — the shield loses its border. Here the
+      shield is inset into the 66/108 safe zone over a background of the field
+      colour. Same artwork, nothing clipped.
+
+- [x] **iOS could not build at all.** `firebase_analytics` wants a deployment
+      target of 15.0 and the Runner was still on the template's 13.0, so
+      `pod install` refused and `flutter run` died with it. Bumped in the
+      Podfile, all three `IPHONEOS_DEPLOYMENT_TARGET` entries and
+      `AppFrameworkInfo.plist`. The Podfile's `platform` line had never been
+      uncommented.
+
+- [x] **And the Android build failed outright, for a different reason.**
+      `flutter_local_notifications` needs core library desugaring — it wants
+      `java.time` below API 26 — and Gradle stops at `checkDebugAarMetadata`
+      rather than degrading. `isCoreLibraryDesugaringEnabled` plus the
+      `desugar_jdk_libs` dependency in `android/app/build.gradle.kts`. Both
+      shells now build: `Runner.app` on the simulator, `app-debug.apk` with the
+      real icon in every mipmap.
+
+- [ ] **There is no boot splash.** `setupSplash` in `main.js:147` paints logo,
+      title, `LOADING` and a progress bar from inline CSS before any JS runs,
+      holds a minimum window so a fast gate does not flash, and fades out when
+      the cloud-save restore completes **or times out** — `main.js:189` is
+      explicit that a slow network must never trap a player there. The port has
+      nothing: `game_host.dart` boots and draws. The native launch screen added
+      above covers the flash and is not the same feature — the gate is what is
+      missing. The logo the JS actually uses is `src/assets/logo-raw.png`, set at
+      runtime (`main.js:23`), **not** `splash-logo.png`.
+
+- [ ] **The loan players' DEPARTURE is still a cut.** Their ARRIVAL is ported —
+      `loan-card-enter` at the JS's own 500ms stagger, with the script holding
+      until the last one has landed — and the exit is the other half of the same
+      feature: `loan_depart`'s `onEnterAsync` flies every borrowed card off
+      (`loan-card-exit`, 0.35s, 40ms apart) and only THEN writes the save and
+      opens its card. The port answers the card first and applies the save on the
+      way out, so by the time anything could animate the cards are gone. The fix
+      is an order change in `applyStepEffects` rather than a new animation:
+      `returnTutorialPlayers` has to run AFTER the flight, which means the
+      departure moves off the step's answer and onto its entrance.
+
+- [ ] **`mergeempirefc://event/<eventId>` is not handled.** `main.js:657` routes
+      it to EventScreen; the port has no URL scheme in `Info.plist` and no
+      handler, and `deepLinkShop` in `shell_controller.dart` is internal
+      navigation with no relation to it. The spec's ANDROID manifest has no
+      intent-filter for it either, so this was iOS-only — check it is reachable
+      there before building for it.
+
+---
+
+
 ## From playtesting — 19 Aug
 
 Found by playing, not by reading the source, and all of it was in `src/ui/` where

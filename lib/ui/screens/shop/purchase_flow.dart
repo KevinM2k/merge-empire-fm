@@ -205,6 +205,7 @@ class _PaidConfirmCard extends StatelessWidget {
               child: OutlinedButton(
                 key: ValueKey('paid-cancel-$productId'),
                 onPressed: () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(foregroundColor: dangerInk),
                 child: Text(t('common.cancel')),
               ),
             ),
@@ -276,26 +277,6 @@ class _ConfirmCard extends StatelessWidget {
             const SizedBox(height: 12),
             body,
           ],
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GameIcon(
-                offer.currency.icon,
-                size: 22,
-                color: const Color(0xFFFFD700),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                formatCoins(offer.cost),
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFFFFD700),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
       // In a LINE, both the same width: the two answers to one question should
@@ -307,11 +288,19 @@ class _ConfirmCard extends StatelessWidget {
               child: OutlinedButton(
                 key: ValueKey('spend-cancel-${offer.key}'),
                 onPressed: () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(foregroundColor: dangerInk),
                 child: Text(t('common.cancel')),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
+              // **THE PRICE IS ON THE BUTTON**, with its own currency's mark,
+              // which is what every priced control in this shop already does.
+              // It was a 24pt figure in COIN GOLD floating above the buttons —
+              // gold for a gem price too — and the button under it said only
+              // "Buy now". Reported as the gem and the number wanting to be on
+              // the buy button.
+              //
               // Coloured for the WALLET it is about to take from, so the
               // confirmation and the tile it came from agree — see
               // [StoreButton].
@@ -320,7 +309,8 @@ class _ConfirmCard extends StatelessWidget {
                 tone: offer.currency == SpendCurrency.gems
                     ? StoreTone.gem
                     : StoreTone.coin,
-                label: t('shop.buy_now'),
+                label: formatCoins(offer.cost),
+                leading: GameIcon(offer.currency.icon, size: 14),
                 onTap: () => Navigator.of(context).pop(true),
               ),
             ),

@@ -253,7 +253,7 @@ class _QuickNavTile extends StatelessWidget {
                         height: 8,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFFF44336),
+                          color: dangerInk,
                           border: Border.all(color: kit.surface2, width: 1.5),
                         ),
                       ),

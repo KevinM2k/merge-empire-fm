@@ -12,6 +12,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/state/state_schema.dart';
 
 import 'home_screen_test.dart' show pumpHome, settleSave;
 
@@ -108,15 +110,21 @@ void main() {
     final chip = find.byKey(const ValueKey('customise-chip-beard-stubble'));
     expect(chip, findsOneWidget, reason: 'a locked look was hidden, not gated');
 
+    // **ON THE BUS, not a `SnackBar`.** `ScaffoldMessenger.of` walks up to the
+    // Scaffold BEHIND this modal sheet, so the explanation was posted
+    // underneath the sheet the player was looking at — reported as a locked
+    // item doing nothing at all when tapped.
+    final said = <String>[];
+    void listen(Object? line) => said.add('$line');
+    on('toast:info', listen);
+    addTearDown(() => off('toast:info', listen));
+
     await tester.ensureVisible(chip);
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pump();
     await tester.pump();
-    expect(
-      find.textContaining(t('customise.locked.fanzone', {'tier': 1})),
-      findsOneWidget,
-    );
+    expect(said, [t('customise.locked.fanzone', {'tier': 1})]);
     // And it did NOT get worn — the save is untouched, not written-and-reverted.
     final club =
         container.read(gameProvider).state?['club'] as Map<String, dynamic>;
@@ -346,5 +354,68 @@ void main() {
     // One frame later, they are there.
     await tester.pumpAndSettle();
     expect(grid, findsOneWidget);
+  });
+
+  group('WHAT THE CHIPS ARE CALLED', () {
+    test('skin tones are NUMBERED, not printed as hex', () {
+      // The grid asked for `customise.skin.<id>` where the id is the tone's
+      // BASE COLOUR, so every chip fell through to the tidied id and the label
+      // under the swatch read `#Eebb8c`. The catalogue has a key made for this
+      // and nothing was calling it.
+      expect(lookItemLabel('skin', skinTones.first.$1), t('customise.item.skin.tone', {'n': 1}));
+      expect(lookItemLabel('skin', skinTones[2].$1), t('customise.item.skin.tone', {'n': 3}));
+      expect(lookItemLabel('skin', skinTones.first.$1), isNot(contains('#')));
+    });
+
+    test('and the item axes find their own key prefix', () {
+      // Not one scheme: build/outfit/emote live at `customise.<kind>.<id>` and
+      // the rest at `customise.item.<kind>.<id>`. The port only tried the first,
+      // so five of the eight axes showed a tidied id — "Sunhat" for "Sun Hat".
+      expect(lookItemLabel('hat', 'sunhat'), t('customise.item.hat.sunhat'));
+      expect(lookItemLabel('color', 'ginger'), t('customise.item.color.ginger'));
+      expect(lookItemLabel('build', 'lean'), t('customise.build.lean'));
+      expect(lookItemLabel('emote', 'fistpump'), t('customise.emote.fistpump'));
+    });
+
+    test('an id with no string still comes back readable', () {
+      expect(lookItemLabel('hat', 'nosuchhat'), 'Nosuchhat');
+    });
+  });
+
+  group('CELEBRATIONS ARE REACHABLE', () {
+    test('the wardrobe has an emote axis, and it equips nothing', () {
+      // Nine gestures translated in ten catalogues with `lookAxes` stopping at
+      // `face`, so none of it could be reached. `pickGesture` has always gated
+      // the idle rota on owning them.
+      final emote = lookAxes.where((a) => a.kind == 'emote');
+      expect(emote, hasLength(1), reason: 'the Celebrations tab is missing');
+      expect(emote.first.field, isEmpty, reason: 'an emote is not worn');
+      expect(emote.first.labelKey, 'customise.tab.emote');
+    });
+
+    testWidgets('and its chips are the gestures', (tester) async {
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'emote');
+      expect(
+        find.byKey(const ValueKey('customise-chip-emote-fistpump')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('A LOCKED CHIP THAT A VIDEO CAN OPEN', () {
+    test('is told apart from one nothing can', () {
+      final state = createDefaultState();
+      // A Fan Zone tier is a refusal: there is nothing to offer for it.
+      expect(isLookUnlocked(state, 'beard', 'stubble'), isFalse);
+      expect(isPackLocked(state, 'beard', 'stubble'), isFalse);
+      // A pack item is an offer, and every one of them is one video away.
+      final packItem = lookPacks.first.items.first;
+      final parts = packItem.split(':');
+      expect(isLookUnlocked(state, parts[0], parts[1]), isFalse);
+      expect(isPackLocked(state, parts[0], parts[1]), isTrue);
+    });
   });
 }

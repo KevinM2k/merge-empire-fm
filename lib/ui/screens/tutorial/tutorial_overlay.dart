@@ -36,6 +36,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/ui/screens/match/play_button.dart' show matchPopupBlocker;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'dart:async';
 
@@ -122,8 +125,21 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
   TutorialAnchor? _anchorFor;
   bool _tracking = false;
 
+  /// The match closing is what lets a held card go up. Nothing else on the bus
+  /// changes what this widget draws — the save does, and that is watched.
+  void _matchClosed(Object? _) {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    on('match:close', _matchClosed);
+  }
+
   @override
   void dispose() {
+    off('match:close', _matchClosed);
     _tracking = false;
     // A host that goes away holding the block would strand the queue for the
     // rest of the process — and the welcome-back card in it holds coins that
@@ -231,6 +247,19 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
     }
 
     _stopTracking();
+    // **NOT WHILE THE MATCH OWNS THE SCREEN.**
+    //
+    // `seasonAwardedPlayed` moves the instant the result settles, which is
+    // while the player is still watching full time — so the reaction card went
+    // up over the match screen, before the summary, before the money, and the
+    // tutorial's own popup block did not cover it because a coach card is a
+    // `showDialog` rather than a queued popup. Reported as being stuck on the
+    // game screen.
+    //
+    // `matchPopupBlocker` is held for the whole round trip — the tie, the
+    // summary, and the bids and offers on the way out — and `match:close`
+    // brings us back here when it is finally let go.
+    if (isPopupBlockedBy(matchPopupBlocker)) return const SizedBox.shrink();
     // **Deferred off the frame.** Opening a route inside `build` is navigation
     // during a build, and it is the same fault this port already documents for
     // a Riverpod write inside a widget lifecycle.
@@ -270,7 +299,8 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
         case TutorialAnswer.skipped:
           ref.read(gameProvider).update(skipTutorial);
         case TutorialAnswer.next:
-          applyStepEffects(ref, step);
+          await applyStepEffects(ref, step);
+          if (!mounted) return;
           ref.read(gameProvider).update(advanceTutorial);
         case null:
           // Dismissed without answering — the step stands, and the next build
@@ -305,9 +335,9 @@ class _Tooltip extends ConsumerWidget {
       // something, and the card has no button to say so for it.
       (key: 'tut.complete_above', params: <String, Object?>{}, strong: false),
     ],
-    actions: [
-      CoachAction(labelKey: 'tut.skip', onTap: onSkip),
-    ],
+    // **A LINK, NOT A BUTTON.** Leaving the tutorial and getting on with it are
+    // not two answers of equal weight — see [CoachCardFrame.footer].
+    footer: CoachAction(labelKey: 'tut.skip', onTap: onSkip),
   );
 }
 
@@ -328,10 +358,19 @@ Map<String, Object?> tutorialParams(WidgetRef ref) => {
 ///
 /// Both are guarded inside the engine on their own save flags, so a card
 /// answered twice — a double tap, a rebuild — lends and takes back once.
-void applyStepEffects(WidgetRef ref, TutorialStep step) {
+///
+/// **AND THE LOAN IS WATCHED, not just applied.** "See My Squad" was a button
+/// that rewrote the grid and put the next card up on the same frame, so eight
+/// players appeared behind a coach card nobody had asked for yet. The JS drops
+/// them in one at a time and holds the script until the last one has landed —
+/// see [LoanArrival], and [loanArrivalWindow] for how long that is.
+Future<void> applyStepEffects(WidgetRef ref, TutorialStep step) async {
   switch (step.id) {
     case 'loan_boost':
-      ref.read(gameProvider).update(lendTutorialPlayers);
+      final lent = ref.read(gameProvider).update(lendTutorialPlayers);
+      // Reduce-motion has nothing to wait for: the cards are simply there.
+      if (lent == 0 || MediaQuery.disableAnimationsOf(ref.context)) return;
+      await Future<void>.delayed(loanArrivalWindow(lent));
     case 'loan_depart':
       ref.read(gameProvider).update(returnTutorialPlayers);
   }
@@ -362,13 +401,9 @@ Future<TutorialAnswer?> showTutorialCard(
         (key: 'tut.complete_above', params: const {}, strong: false),
     ],
     actions: [
-      // **Skippable at every step.** A tutorial you cannot leave is a trap, and
-      // the JS puts this in the corner of every one of them.
-      CoachAction(
-        labelKey: 'tut.skip',
-        onTap: () {},
-        result: TutorialAnswer.skipped,
-      ),
+      // **THE ONE THING TO DO, FULL WIDTH.** Skip sat beside it as an equal
+      // half, so "Let's go" was half a card wide and leaving looked like the
+      // other half of a choice.
       if (step.buttonKey case final key?)
         CoachAction(
           labelKey: key,
@@ -377,5 +412,13 @@ Future<TutorialAnswer?> showTutorialCard(
           result: TutorialAnswer.next,
         ),
     ],
+    // **Skippable at every step.** A tutorial you cannot leave is a trap, and
+    // the JS puts this in the CORNER of every one of them — a way out, not an
+    // answer.
+    footer: CoachAction(
+      labelKey: 'tut.skip',
+      onTap: () {},
+      result: TutorialAnswer.skipped,
+    ),
   );
 }

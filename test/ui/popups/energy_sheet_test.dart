@@ -139,7 +139,7 @@ void main() {
     // same reason — there is nothing to add.
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('energy-next'))).data,
-      t('shop.already_ready'),
+      t('hud.energy_full'),
     );
   });
 

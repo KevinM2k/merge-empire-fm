@@ -32,6 +32,8 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart' show coinGold;
+import 'package:merge_empire_fc/ui/widgets/store_button.dart' show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 
@@ -294,6 +296,7 @@ class CoachAction {
     this.dismisses = true,
     this.result,
     this.labelParams = const {},
+    this.coins,
   });
 
   final String labelKey;
@@ -313,6 +316,15 @@ class CoachAction {
 
   /// Yes, no, or neither.
   final CoachTone tone;
+
+  /// A figure this button is agreeing to, shown after the label with the coin
+  /// mark and in the coin's own gold.
+  ///
+  /// **Money on a button should look like money**, which is the same argument
+  /// [CoachCardFrame.coins] already makes for the card. "Accept 12,500" put the
+  /// price inside a run of white text on a green face, where the one number the
+  /// player is actually weighing looked like part of the verb.
+  final int? coins;
 
   /// Whether pressing it closes the card.
   ///
@@ -342,6 +354,8 @@ Future<T?> showCoachCard<T>(
   List<String> extraTexts = const [],
   int? coins,
   String? badge,
+  bool minimisable = false,
+  CoachAction? footer,
 
   /// Already-resolved body text, for a caller whose line comes out of a pool or
   /// carries a name the catalogue cannot know.
@@ -360,6 +374,8 @@ Future<T?> showCoachCard<T>(
       coins: coins,
       actions: actions,
       badge: badge,
+      minimisable: minimisable,
+      footer: footer,
     ),
   );
 }
@@ -376,7 +392,12 @@ class _CoachCard<T> extends StatelessWidget {
     required this.coins,
     required this.actions,
     required this.badge,
+    this.minimisable = false,
+    this.footer,
   });
+
+  final bool minimisable;
+  final CoachAction? footer;
 
   final String titleKey;
 
@@ -401,6 +422,8 @@ class _CoachCard<T> extends StatelessWidget {
     coins: coins,
     actions: actions,
     badge: badge,
+    minimisable: minimisable,
+    footer: footer,
   );
 }
 
@@ -411,6 +434,36 @@ class _CoachCard<T> extends StatelessWidget {
 /// is asking, so none of them should invent its own frame. The sponsor offer had
 /// a company logo where his head goes and a pair of uncoloured buttons at the
 /// bottom, which read as the app talking rather than the coach.
+/// The `−` that parks a card. See [CoachCardFrame.minimisable].
+class _MinimiseButton extends StatelessWidget {
+  const _MinimiseButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Semantics(
+      button: true,
+      label: t('transfer.minimize'),
+      child: InkWell(
+        key: const ValueKey('coach-card-minimise'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => Navigator.of(context).pop(),
+        child: Container(
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: kit.surface2,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: kit.border),
+          ),
+          child: Icon(Icons.remove, size: 16, color: kit.textMuted),
+        ),
+      ),
+    );
+  }
+}
+
 class CoachCardFrame extends StatelessWidget {
   const CoachCardFrame({
     super.key,
@@ -422,7 +475,27 @@ class CoachCardFrame extends StatelessWidget {
     this.coins,
     this.actions = const [],
     this.badge,
+    this.minimisable = false,
+    this.footer,
   });
+
+  /// A `−` in the top corner that closes the card without answering it.
+  ///
+  /// **Parking is not an answer, so it is not a button in the row.** It was a
+  /// third full-width action beside Accept and Decline, which made the one
+  /// control that decides nothing the same size and shape as the two that
+  /// decide everything. Tapping the barrier has always done the same thing;
+  /// this is the visible version of it, where a close control is expected.
+  final bool minimisable;
+
+  /// A way out, under the buttons, as a line of text rather than a control of
+  /// its own.
+  ///
+  /// **Not everything a card offers is an ANSWER.** Skipping the tutorial is the
+  /// case: it was a full-width button beside "Let's go", so leaving and starting
+  /// had the same weight and the primary action was half the card wide. A link
+  /// under the button is what it is.
+  final CoachAction? footer;
 
   final String title;
 
@@ -617,9 +690,34 @@ class CoachCardFrame extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (actions.isNotEmpty) ...[
+                  // A card with a footer and no answers is still a card with
+                  // something to press — the tutorial's spotlight steps are
+                  // exactly that: perform the thing, or leave.
+                  if (actions.isNotEmpty || footer != null) ...[
                     const SizedBox(height: 16),
-                    _Actions(actions: actions),
+                    if (actions.isNotEmpty) _Actions(actions: actions),
+                    if (footer case final link?)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: TextButton(
+                          key: ValueKey('coach-footer-${link.labelKey}'),
+                          onPressed: () {
+                            if (link.dismisses) {
+                              Navigator.of(context).pop(link.result);
+                            }
+                            link.onTap();
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: kit.textMuted,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                          child: Text(t(link.labelKey, link.labelParams)),
+                        ),
+                      ),
                   ],
                 ],
               ),
@@ -667,6 +765,12 @@ class CoachCardFrame extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          if (minimisable)
+            const Positioned(
+              top: _portrait / 2 + 8,
+              right: 10,
+              child: _MinimiseButton(),
             ),
         ],
       ),
@@ -721,28 +825,72 @@ class _CoachButton extends StatelessWidget {
       CoachTone.neutral => (kit.surface2, kit.textMuted),
     };
 
+    // **THE APP'S OWN MOULDING, not `styleFrom`'s.**
+    //
+    // Every button in the game is moulded from the BOTTOM — a hard edge
+    // underneath, a bright inner line along the top, a press that drops the face
+    // onto its own edge — and it is applied through the theme, by
+    // `mouldedButtonStyle`'s `backgroundBuilder`. Passing `backgroundColor` to
+    // `styleFrom` does not reach that builder: it colours the Material
+    // UNDERNEATH the face the builder then paints over the top, so a coach
+    // card's buttons wore the theme's default face and lost their own colour,
+    // and the neutral one came out a pale slab whose lit top edge was the only
+    // shaping left on it. Reported as the cancel buttons being three-dimensional
+    // the wrong way up.
+    //
+    // Asking the shared helper for the tone's own face is the fix, and it is the
+    // same three colours the shop's buttons are built from.
     return ElevatedButton(
       key: ValueKey('coach-action-${action.labelKey}'),
       onPressed: () {
         if (action.dismisses) Navigator.of(context).pop(action.result);
         action.onTap();
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: fill,
-        foregroundColor: ink,
-        elevation: action.tone == CoachTone.neutral ? 0 : 2,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        side: action.tone == CoachTone.neutral
-            ? BorderSide(color: kit.border)
-            : null,
-        textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
+      style: mouldedButtonStyle(
+        face: fill,
+        edge: Color.lerp(fill, Colors.black, 0.34)!,
+        ink: ink,
+        dead: kit.surface2,
+        deadInk: kit.textMuted,
+        border: kit.border,
+      ).copyWith(
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        ),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
+        ),
       ),
-      child: Text(
-        t(action.labelKey, action.labelParams),
-        maxLines: 1,
-        softWrap: false,
-        overflow: TextOverflow.fade,
-      ),
+      child: action.coins == null
+          ? Text(
+              t(action.labelKey, action.labelParams),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    t(action.labelKey, action.labelParams),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.fade,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const CoinIcon(size: 13, solid: true),
+                const SizedBox(width: 3),
+                Text(
+                  formatCoins(action.coins!),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(color: coinGold),
+                ),
+              ],
+            ),
     );
   }
 }

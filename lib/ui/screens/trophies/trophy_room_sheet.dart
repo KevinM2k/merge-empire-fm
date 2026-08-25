@@ -27,6 +27,7 @@ import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/achievement_engine.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show readableInk;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
@@ -40,6 +41,17 @@ import 'package:merge_empire_fc/util/format.dart';
 /// a trophy is gold whoever won it, and tinting it team colours would make an
 /// achievement look like a kit item.
 const Color trophyGold = Color(0xFFFFD700);
+
+/// The separation a caption needs over artwork, and only where it needs it.
+///
+/// A 3px black blur under every letter is what lifts gold off a dark scrim. On
+/// the light theme the same caption sits on a near-white band, where the blur is
+/// not separation at all — it is a dark rim around each glyph, which is what
+/// "yellow with a border" describes.
+List<Shadow>? captionShadow(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? const [Shadow(color: Color(0x99000000), blurRadius: 3)]
+    : null;
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
@@ -393,13 +405,19 @@ class _TrophyCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
+                        // **THE CAPTION BAND IS THE PAGE'S SURFACE**, which in
+                        // light mode is near-white — so gold on it is 1.26:1 and
+                        // the black separation shadow under every letter reads
+                        // as an outline round unreadable text. Reported exactly
+                        // that way. `readableInk` is the same fix the shop's
+                        // feature colours took; the shadow goes with it, because
+                        // the band is opaque here and there is nothing to
+                        // separate from.
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
-                          color: colour,
-                          shadows: const [
-                            Shadow(color: Color(0x99000000), blurRadius: 3),
-                          ],
+                          color: readableInk(context, colour),
+                          shadows: captionShadow(context),
                         ),
                       ),
                       if (subtitle.isNotEmpty)
@@ -555,13 +573,13 @@ class _AchievementTile extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
-                            color: unlocked ? trophyGold : kit.textMuted,
-                            shadows: const [
-                              // On artwork rather than on a surface now, so the
-                              // title needs its own separation where the scrim is
-                              // thinnest.
-                              Shadow(color: Color(0x99000000), blurRadius: 3),
-                            ],
+                            color: unlocked
+                                ? readableInk(context, trophyGold)
+                                : kit.textMuted,
+                            // On artwork rather than on a surface, so the title
+                            // needs its own separation where the scrim is
+                            // thinnest — in DARK mode. See [captionShadow].
+                            shadows: captionShadow(context),
                           ),
                         ),
                         if (progress != null) ...[

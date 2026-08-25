@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merged_float.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
@@ -137,6 +138,40 @@ class MergeGridState extends ConsumerState<MergeGrid>
   /// what a player needs to see mid-drag is which squares will take it.
   int? _dragging;
   Set<int> _targets = const {};
+
+  /// Loan players already on the grid, so a card drops in ONCE.
+  ///
+  /// Null until the first build, and that is the whole trick: the first build
+  /// takes whatever is already there as seen, so a save reopened mid-tutorial
+  /// does not replay the arrival every time the tab is visited. Only cards that
+  /// turn up while the grid is watching are new.
+  Set<String>? _loansSeen;
+
+  /// When each newly-arrived loan card starts falling, by instance id.
+  ///
+  /// **The stagger is the point** — see [LoanArrival]. Eight cards appearing on
+  /// one frame is the save being rewritten; half a second apart it is players
+  /// walking in.
+  ///
+  /// Marked seen on the same build rather than after the frame: a card only
+  /// reads its delay in `initState`, so the record can be closed the moment it
+  /// has been handed out.
+  Map<String, Duration> _loanArrivals(List<String> loans) {
+    final seen = _loansSeen;
+    if (seen == null) {
+      _loansSeen = loans.toSet();
+      return const {};
+    }
+    final fresh = [
+      for (final id in loans)
+        if (!seen.contains(id)) id,
+    ];
+    if (fresh.isEmpty) return const {};
+    seen.addAll(fresh);
+    return {
+      for (var i = 0; i < fresh.length; i++) fresh[i]: loanArrivalStagger * i,
+    };
+  }
 
   /// Driven by the drag, so a card can be carried off the visible rows.
   final ScrollController _scroll = ScrollController();
@@ -421,6 +456,7 @@ class MergeGridState extends ConsumerState<MergeGrid>
     // The gold ring goes on at REST only: mid-drag the dimming is the message,
     // and a pulsing card under a lifted one is two cues fighting.
     final mergeable = ref.watch(mergeableCellsProvider);
+    final arriving = _loanArrivals(ref.watch(loanCardIdsProvider));
 
     return GridPulse(
       clock: _pulse,
@@ -512,46 +548,49 @@ class MergeGridState extends ConsumerState<MergeGrid>
                                       top: at(cell.index).dy,
                                       width: cellW,
                                       height: cellH,
-                                      child: _CardSlot(
-                                        cell: cell,
-                                        onDrop: _drop,
-                                        mergeable:
-                                            _dragging == null &&
-                                            mergeable.contains(cell.index),
-                                        onDragUpdate: _autoScroll,
-                                        width: cellW,
-                                        height: cellH,
-                                        // Bright if it is the card in hand or a
-                                        // square that can take it; dimmed if not.
-                                        dimmed:
-                                            _dragging != null &&
-                                            _dragging != cell.index &&
-                                            !_targets.contains(cell.index),
-                                        bursting: _burstAt.contains(cell.index),
-                                        burstTier: _burstTier,
-                                        onDragStart: () => setState(() {
-                                          _dragging = cell.index;
-                                          _targets = mergeTargetsFor(
-                                            ref.read(gameProvider).state,
-                                            cell.index,
-                                          );
-                                        }),
-                                        onDragEnd: () => setState(() {
-                                          _dragging = null;
-                                          _targets = const {};
-                                        }),
-                                        onBurstDone: () {
-                                          // Each square clears its OWN mark, so
-                                          // a sweep's dozen do not have to
-                                          // finish in step to stop.
-                                          if (mounted &&
-                                              _burstAt.contains(cell.index)) {
-                                            setState(
-                                              () => _burstAt = {..._burstAt}
-                                                ..remove(cell.index),
+                                      child: LoanArrival(
+                                        delay: arriving[cell.instanceId],
+                                        child: _CardSlot(
+                                          cell: cell,
+                                          onDrop: _drop,
+                                          mergeable:
+                                              _dragging == null &&
+                                              mergeable.contains(cell.index),
+                                          onDragUpdate: _autoScroll,
+                                          width: cellW,
+                                          height: cellH,
+                                          // Bright if it is the card in hand or a
+                                          // square that can take it; dimmed if not.
+                                          dimmed:
+                                              _dragging != null &&
+                                              _dragging != cell.index &&
+                                              !_targets.contains(cell.index),
+                                          bursting: _burstAt.contains(cell.index),
+                                          burstTier: _burstTier,
+                                          onDragStart: () => setState(() {
+                                            _dragging = cell.index;
+                                            _targets = mergeTargetsFor(
+                                              ref.read(gameProvider).state,
+                                              cell.index,
                                             );
-                                          }
-                                        },
+                                          }),
+                                          onDragEnd: () => setState(() {
+                                            _dragging = null;
+                                            _targets = const {};
+                                          }),
+                                          onBurstDone: () {
+                                            // Each square clears its OWN mark, so
+                                            // a sweep's dozen do not have to
+                                            // finish in step to stop.
+                                            if (mounted &&
+                                                _burstAt.contains(cell.index)) {
+                                              setState(
+                                                () => _burstAt = {..._burstAt}
+                                                  ..remove(cell.index),
+                                              );
+                                            }
+                                          },
+                                        ),
                                       ),
                                     ),
                               ],

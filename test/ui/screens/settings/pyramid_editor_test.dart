@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/league_pyramid.dart';
 import 'package:merge_empire_fc/engine/pyramid_names_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -25,7 +26,14 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/settings/pyramid_editor_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
-Future<ProviderContainer> pumpEditor(WidgetTester tester) async {
+Future<ProviderContainer> pumpEditor(
+  WidgetTester tester, {
+  // **THE SEEDING IS THE THING UNDER TEST in one case.** A fresh save has no
+  // pyramid at all — nothing fills `progression.leaguePyramid` until a season
+  // needs opponents — and this harness was calling `ensureLeaguePyramid` for
+  // the editor, which is exactly the call the editor was missing.
+  bool seeded = true,
+}) async {
   // **A TALL SURFACE, because the list is lazy.** The sheet is a division of
   // clubs, the preset shelf and two mode buttons; on the 800x600 default the
   // presets are never built at all, and a finder cannot reach what the list has
@@ -37,7 +45,7 @@ Future<ProviderContainer> pumpEditor(WidgetTester tester) async {
   final state = createDefaultState();
   // The pyramid is a boot sweep, and an editor with no clubs in it edits
   // nothing.
-  ensureLeaguePyramid(state);
+  if (seeded) ensureLeaguePyramid(state);
 
   final container = ProviderContainer(
     overrides: [
@@ -143,10 +151,17 @@ void main() {
       ),
       taken,
     );
+    // **ON THE BUS.** It was a `SnackBar`, which `ScaffoldMessenger.of` posts
+    // to the Scaffold BEHIND this sheet — under the thing being refused.
+    final said = <String>[];
+    void listen(Object? line) => said.add('$line');
+    on('toast:info', listen);
+    addTearDown(() => off('toast:info', listen));
+
     await tester.tap(find.byKey(const ValueKey('pyramid-rename-ok')));
     await tester.pumpAndSettle();
 
-    expect(find.text(t('pyramid.err_duplicate')), findsOneWidget);
+    expect(said, contains(t('pyramid.err_duplicate')));
     expect(
       pyramidTeams(
         container.read(gameProvider).state,
@@ -210,10 +225,31 @@ void main() {
   ) async {
     final container = await pumpEditor(tester);
     addTearDown(container.dispose);
+    final said = <String>[];
+    void listen(Object? line) => said.add('$line');
+    on('toast:info', listen);
+    addTearDown(() => off('toast:info', listen));
+
     await tester.tap(find.byKey(const ValueKey('pyramid-preset-save')));
     await tester.pumpAndSettle();
-    expect(find.text(t('pyramid.err_label')), findsOneWidget);
+    expect(said, contains(t('pyramid.err_label')));
     expect(listPresets(container.read(gameProvider).state!), isEmpty);
+    await settleSave(tester);
+  });
+
+  testWidgets('AND A FRESH SAVE HAS CLUBS IN IT', (tester) async {
+    // `progression.leaguePyramid` is null until something asks for opponents,
+    // and the editor read it raw — so a player who opened Team Names before
+    // their first season saw fourteen empty divisions and concluded the pyramid
+    // was empty. It is not; nobody had asked for it yet.
+    final container = await pumpEditor(tester, seeded: false);
+    addTearDown(container.dispose);
+    expect(
+      pyramidTeams(container.read(gameProvider).state, divisions.first.id),
+      isNotEmpty,
+      reason: 'the editor opened onto an empty pyramid',
+    );
+    expect(find.byKey(const ValueKey('pyramid-row-0')), findsOneWidget);
     await settleSave(tester);
   });
 }

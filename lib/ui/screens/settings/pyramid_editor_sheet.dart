@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/engine/league_pyramid.dart';
 import 'package:merge_empire_fc/engine/pyramid_names_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -78,6 +79,29 @@ class _PyramidEditorState extends ConsumerState<PyramidEditor> {
   bool _changed = false;
 
   @override
+  void initState() {
+    super.initState();
+    // **THE PYRAMID IS BUILT LAZILY, and this screen was reading it raw.**
+    // `progression.leaguePyramid` is null in a fresh save — nothing fills it
+    // until a season needs opponents — so a player who opened the team names
+    // editor before their first season saw fourteen empty divisions and
+    // concluded there were no teams in the pyramid. There are; nobody had asked
+    // for them yet. `ensureLeaguePyramid` is the one thing that knows how to
+    // make them, and it is idempotent, so asking on open costs a save that
+    // already has one nothing.
+    //
+    // After the frame, because Riverpod refuses a write from `initState` — and
+    // rightly: two listeners of one provider would see different states inside
+    // the same build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (pyramidTeams(_state, divisions.first.id).isNotEmpty) return;
+      ref.read(gameProvider).update(ensureLeaguePyramid);
+      setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _rename.dispose();
     _list.dispose();
@@ -96,16 +120,13 @@ class _PyramidEditorState extends ConsumerState<PyramidEditor> {
 
   List<Map<String, dynamic>> get _teams => pyramidTeams(_state, _div.id);
 
+  /// **ON THE BUS, not a `SnackBar`.** `ScaffoldMessenger.of` walks up to the
+  /// Scaffold BEHIND this sheet, so every refusal this screen has to give — a
+  /// name too short, a duplicate, a preset limit — was posted underneath the
+  /// sheet that provoked it.
   void _say(String key, {Map<String, Object?> params = const {}}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(t(key, params)),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    emit('toast:info', t(key, params));
   }
 
   void _step(int delta) {

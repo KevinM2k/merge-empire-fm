@@ -25,6 +25,8 @@
 /// lie.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/cups.dart';
@@ -41,6 +43,11 @@ import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
+import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart' show adOfferInk, adOfferOnInk;
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 Future<void> showManagerCustomiser(BuildContext context) =>
     showBottomSheetPopup<void>(
@@ -68,6 +75,17 @@ const List<LookAxis> lookAxes = [
   (kind: 'beard', field: 'beard', labelKey: 'customise.tab.beard'),
   (kind: 'hat', field: 'hat', labelKey: 'customise.tab.hat'),
   (kind: 'face', field: 'face', labelKey: 'customise.tab.face'),
+  // **CELEBRATIONS, which the port had dropped entirely.** Nine gestures, named
+  // in ten catalogues under `customise.emote.*` with a tab title of their own,
+  // and no way to reach any of it: `lookAxes` stopped at `face`. The unlock
+  // gate was already live — `pickGesture` filters the idle rota on
+  // `isLookUnlocked(state, 'emote', …)` — so the reward existed and the shelf
+  // that shows it did not.
+  //
+  // **It has no FIELD**, because an emote is not worn: owning one is what puts
+  // it in the rota. Its chips equip nothing and play the gesture on the preview
+  // instead, which is the only way to show what one actually is.
+  (kind: 'emote', field: '', labelKey: 'customise.tab.emote'),
 ];
 
 List<String> _idsFor(String kind) => switch (kind) {
@@ -79,8 +97,36 @@ List<String> _idsFor(String kind) => switch (kind) {
   'beard' => facialHairIds,
   'hat' => hatIds,
   'face' => faceIds,
+  'emote' => [for (final g in gestures) g.id],
   _ => const [],
 };
+
+/// What a chip is CALLED.
+///
+/// **The catalogue's own key scheme, which is not one scheme.** The port asked
+/// for `customise.<kind>.<id>` everywhere and only `build`, `outfit` and
+/// `emote` live there — hair, beard, face, hat and colour are under
+/// `customise.item.<kind>.<id>`, and skin is numbered rather than named. So
+/// five of the eight axes fell through to the tidied id and the grid showed
+/// "Sunhat" where the catalogue says "Sun Hat", in English and in nothing else.
+///
+/// Skin tones are NUMBERED, which is the spec's decision and its reasoning: the
+/// swatch already carries the information, and a set of invented names for eight
+/// shades of human skin is a worse label than "Tone 3" in any language. The port
+/// printed the raw hex — `#Eebb8c` — under every one of them.
+String lookItemLabel(String kind, String id) {
+  if (kind == 'skin') {
+    final n = skinTones.indexWhere((tone) => tone.$1 == id);
+    return t('customise.item.skin.tone', {'n': n < 0 ? 1 : n + 1});
+  }
+  final key = switch (kind) {
+    'build' || 'outfit' || 'emote' => 'customise.$kind.$id',
+    _ => 'customise.item.$kind.$id',
+  };
+  final named = t(key);
+  if (named != key) return named;
+  return id.isEmpty ? id : id[0].toUpperCase() + id.substring(1);
+}
 
 /// What a locked item is waiting on, in words.
 String? lockedReason(Map<String, dynamic>? state, String kind, String id) {
@@ -99,6 +145,18 @@ String? lockedReason(Map<String, dynamic>? state, String kind, String id) {
   return t('customise.locked.pack', {
     'pack': t('customise.pack.${req.packId}'),
   });
+}
+
+/// The placement a look-pack video spends. A key from `ad_units.dart`, and it
+/// had no caller: the unit was declared, the grant was written and nothing in
+/// `lib/` ever asked for the video.
+const String lookPackPlacement = 'cosmetic_pack';
+
+/// Whether this item is locked behind a look PACK — the only lock a video can
+/// open. A Fan Zone tier or a cup is a refusal with nothing to offer.
+bool isPackLocked(Map<String, dynamic>? state, String kind, String id) {
+  if (isLookUnlocked(state, kind, id)) return false;
+  return lookRequirement(kind, id)?.packId != null;
 }
 
 class ManagerCustomiser extends ConsumerStatefulWidget {
@@ -205,6 +263,68 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     setState(() {});
   }
 
+  /// A gesture to play once on the preview, or null when he is just walking.
+  GestureCue? _preview;
+
+  /// One video in flight at a time — a double tap is two videos and one grant.
+  bool _adInFlight = false;
+
+  /// A locked chip: watch for it, or be told why not.
+  ///
+  /// **Every pack-locked item is one video away**, and the tap does exactly
+  /// that with no sheet in between. Routing it through a pack popup would make
+  /// the player read and dismiss an offer for nine other items to get the one
+  /// they had already pointed at — the spec's own argument, and the reason the
+  /// pack sheet stays in the Shop where the gem price is sold.
+  Future<void> _watchForItem(String kind, String id) async {
+    if (_adInFlight) return;
+    final why = lockedReason(_save, kind, id);
+    if (!isPackLocked(_save, kind, id)) {
+      if (why != null) emit('toast:info', why);
+      return;
+    }
+    if (!canWatchPackAd(_save)) {
+      emit('toast:info', t('customise.pack.wait', {
+        'time': formatAdWait(msUntilPackAd(_save)),
+      }));
+      return;
+    }
+    _adInFlight = true;
+    final outcome = await ref.read(rewardedAdsProvider).show(lookPackPlacement);
+    _adInFlight = false;
+    if (outcome != AdOutcome.rewarded) {
+      if (outcome == AdOutcome.unavailable) {
+        emit('toast:error', t('customise.pack.ad_failed'));
+      }
+      return;
+    }
+    var got = false;
+    ref.read(gameProvider).update((s) {
+      got = grantLookItem(s, '$kind:$id');
+      if (got) recordPackAd(s);
+    });
+    if (!got) return;
+    // Bought it, so wear it — except an emote, which is not worn at all.
+    final axis = lookAxes.firstWhere((a) => a.kind == kind);
+    if (axis.field.isNotEmpty) {
+      _set(axis.field, kind == 'color' ? hairColorValue(id) : id);
+    } else {
+      _play(id);
+    }
+    emit('toast:success', t('customise.pack.item_unlocked', {
+      'item': lookItemLabel(kind, id),
+    }));
+    if (mounted) setState(() {});
+  }
+
+  /// Play a celebration on the preview figure. Tapping the same one twice is
+  /// two plays — see [GestureCue], whose identity is what restarts the rig.
+  void _play(String id) {
+    final gesture = gestures.where((g) => g.id == id).firstOrNull;
+    if (gesture == null) return;
+    setState(() => _preview = GestureCue(gesture));
+  }
+
   void _randomise() {
     ref.read(gameProvider).update((s) {
       final club = s.putIfAbsent('club', () => <String, dynamic>{});
@@ -265,6 +385,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
             hair: const Color(0xFF3A2A1C),
             look: look,
             mood: Mood.pleased,
+            gesture: _preview,
           ),
         ),
         // **ONE CONTROL, NOT EIGHT.**
@@ -310,6 +431,15 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
                   look: look,
                   ready: _chipsReady,
                   state: _save,
+                  onLocked: (id, watchable) {
+                    if (watchable) {
+                      unawaited(_watchForItem(axis.kind, id));
+                      return;
+                    }
+                    final why = lockedReason(_save, axis.kind, id);
+                    if (why != null) emit('toast:info', why);
+                  },
+                  onPlay: _play,
                   onPick: (id) => _set(
                     axis.field,
                     // Hair colour is stored as the VALUE, not the id — that is what
@@ -556,6 +686,8 @@ class _Grid extends StatelessWidget {
     required this.ready,
     required this.state,
     required this.onPick,
+    required this.onLocked,
+    required this.onPlay,
   });
 
   final LookAxis axis;
@@ -567,6 +699,12 @@ class _Grid extends StatelessWidget {
   final int ready;
   final Map<String, dynamic>? state;
   final void Function(String id) onPick;
+
+  /// A locked chip: either an offer to watch for it, or a refusal to explain.
+  final void Function(String id, bool adUnlockable) onLocked;
+
+  /// An emote chip, which equips nothing and plays on the preview instead.
+  final void Function(String id) onPlay;
 
   /// What is selected on THIS axis, as the gate's own id.
   String? get _current {
@@ -595,22 +733,28 @@ class _Grid extends StatelessWidget {
         if (i >= ready) return const SizedBox.shrink();
         final id = ids[i];
         final locked = lockedReason(state, axis.kind, id);
+        final watchable = isPackLocked(state, axis.kind, id);
         return _Chip(
           axis: axis,
           id: id,
           look: look,
-          selected: id == current,
+          // An emote is never "worn", so nothing on that tab is current.
+          selected: axis.field.isNotEmpty && id == current,
           lockedReason: locked,
+          adUnlockable: watchable,
           onTap: () {
+            // **THROUGH THE APP'S OWN TOAST, not a `SnackBar`.**
+            // `ScaffoldMessenger.of` walks up to the Scaffold BEHIND this
+            // modal sheet, so the explanation was posted underneath the thing
+            // the player was looking at — reported as tapping a locked item
+            // doing nothing at all. Every other message in the game goes on
+            // the bus and `toast_host` draws it over the top.
             if (locked != null) {
-              ScaffoldMessenger.of(context)
-                ..clearSnackBars()
-                ..showSnackBar(
-                  SnackBar(
-                    content: Text(locked),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+              onLocked(id, watchable);
+              return;
+            }
+            if (axis.field.isEmpty) {
+              onPlay(id);
               return;
             }
             onPick(id);
@@ -710,6 +854,7 @@ class _Chip extends StatelessWidget {
     required this.look,
     required this.selected,
     required this.lockedReason,
+    required this.adUnlockable,
     required this.onTap,
   });
 
@@ -720,6 +865,11 @@ class _Chip extends StatelessWidget {
   final ManagerLook? look;
   final bool selected;
   final String? lockedReason;
+
+  /// Whether this lock is one a video can open — a look PACK — as against a Fan
+  /// Zone tier or a cup, which patience cannot reach.
+  final bool adUnlockable;
+
   final VoidCallback onTap;
 
   /// The colour axes show the colour; everything else shows its name.
@@ -739,15 +889,9 @@ class _Chip extends StatelessWidget {
 
   /// **STILL THE NAME, for anyone who cannot see the picture.** The chips draw
   /// themselves now, and a control whose entire content is a drawing has no
-  /// accessible name at all unless one is said out loud.
-  String get _label {
-    final named = t('customise.${axis.kind}.$id');
-    // The wardrobe is ids-first and only the axes with real names carry
-    // strings; the rest are the id, tidied, which is what the JS falls back to
-    // as well.
-    if (!named.startsWith('customise.')) return named;
-    return id[0].toUpperCase() + id.substring(1);
-  }
+  /// accessible name at all unless one is said out loud. See [lookItemLabel]
+  /// for why one key pattern was not enough.
+  String get _label => lookItemLabel(axis.kind, id);
 
   @override
   Widget build(BuildContext context) {
@@ -801,21 +945,39 @@ class _Chip extends StatelessWidget {
                                 : id,
                           },
                         ),
+                      // **A PADLOCK IS THE WRONG MARK ON AN OFFER.** Every
+                      // pack-locked item is one rewarded video away and the
+                      // port drew all of them shut — reported as the
+                      // customisations being watchable with nothing to say so.
+                      // The spec's own rule: a corner badge in the watch-ad
+                      // yellow carrying the same play-in-a-frame glyph as every
+                      // other rewarded-video button in the game, so this reads
+                      // as an offer rather than a refusal. A Fan Zone tier or a
+                      // cup keeps the padlock, because there is nothing to
+                      // offer for those.
                       if (locked)
                         Align(
                           alignment: Alignment.topRight,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              color: kit.bg.withValues(alpha: 0.8),
+                              color: adUnlockable
+                                  ? adOfferInk
+                                  : kit.bg.withValues(alpha: 0.8),
                               shape: BoxShape.circle,
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(2),
-                              child: Icon(
-                                Icons.lock,
-                                size: 12,
-                                color: kit.textMuted,
-                              ),
+                              child: adUnlockable
+                                  ? const GameIcon(
+                                      'video',
+                                      size: 12,
+                                      color: adOfferOnInk,
+                                    )
+                                  : Icon(
+                                      Icons.lock,
+                                      size: 12,
+                                      color: kit.textMuted,
+                                    ),
                             ),
                           ),
                         ),

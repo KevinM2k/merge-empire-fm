@@ -22,8 +22,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
-import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart'
-    show LookPreview, lookAxes;
+import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show defaultManagerLook;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,7 +217,6 @@ class _PackContents extends ConsumerWidget {
             final axis = item.split(':').first;
             final id = item.split(':').last;
             final has = all || owned.contains(item);
-            final named = t('customise.$axis.$id');
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
@@ -231,25 +229,40 @@ class _PackContents extends ConsumerWidget {
                   // item before unlocking it. Same [LookPreview], on the
                   // player's OWN figure with this one choice swapped in, so a
                   // hat is previewed over their hair in their colours.
-                  SizedBox(
-                    width: 30,
-                    height: 30,
+                  // **BIG ENOUGH TO SEE, AND IN A BOX.** Thirty points square
+                  // with nothing round it is a thumbnail of a thumbnail — the
+                  // whole reason the preview is here is so the item can be
+                  // judged before it is paid for. The customiser's chips are
+                  // the reference: a bordered, tinted square with the drawing
+                  // filling it, which is what a player has already learned to
+                  // read these as.
+                  Container(
+                    width: 54,
+                    height: 54,
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: kit.bg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: has ? kit.accentBright : kit.border,
+                      ),
+                    ),
                     child: _previewOf(axis, id, ref) ??
                         GameIcon(
                           lookAxisIcon[axis] ?? 'shirt',
-                          size: 14,
+                          size: 22,
                           color: has ? kit.accentBright : kit.textMuted,
                         ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      // The wardrobe is ids-first and only the axes with real
-                      // names carry strings; the rest are the id tidied, which
-                      // is the fallback the customiser's chips use too.
-                      named.startsWith('customise.')
-                          ? id[0].toUpperCase() + id.substring(1)
-                          : named,
+                      // The catalogue's key scheme is not one scheme — see
+                      // [lookItemLabel]. Asking for `customise.<axis>.<id>` and
+                      // tidying the id when it missed meant "Sunhat" where the
+                      // catalogue says "Sun Hat", in English and in nothing
+                      // else.
+                      lookItemLabel(axis, id),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

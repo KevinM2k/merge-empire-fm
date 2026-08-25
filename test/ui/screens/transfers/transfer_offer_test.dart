@@ -301,7 +301,7 @@ void main() {
       final coinsBefore = container.read(coinsProvider);
 
       await tester.tap(
-        find.byKey(const ValueKey('coach-action-transfer.accept_amount')),
+        find.byKey(const ValueKey('coach-action-transfer.accept')),
       );
       await tester.pumpAndSettle();
       await _settleSave(tester);
@@ -338,9 +338,10 @@ void main() {
       // squad can be looked over before answering.
       final container = await _pump(tester, _saveWithOffer());
 
-      await tester.tap(
-        find.byKey(const ValueKey('coach-action-transfer.minimize')),
-      );
+      // **A `−` IN THE CORNER, not a third full-width button.** Parking decides
+      // nothing, and it had the same size and shape as the two controls that
+      // decide everything.
+      await tester.tap(find.byKey(const ValueKey('coach-card-minimise')));
       await tester.pumpAndSettle();
       await _settleSave(tester);
 

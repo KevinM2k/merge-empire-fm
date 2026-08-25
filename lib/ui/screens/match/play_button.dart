@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart' show minSquadPlayers;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/data/cups.dart';
@@ -71,6 +72,16 @@ final cupRoundProvider = savePick<String?>((s) => nextCupRound(s)?.roundName);
 /// still the takeover it should be, and the summary's own entrance covers the
 /// single frame this leaves behind. A cup tie keeps the normal exit, because
 /// there is no summary behind it to cover anything.
+/// Held for as long as a match owns the screen — the tie itself, the summary,
+/// and the bids and offers that land on the way out.
+///
+/// **Public because the tutorial has to wait for it.** Its cards go up through
+/// `showDialog` rather than through the popup queue, so the queue's block does
+/// not cover them: the first match's reaction card opened on top of the match
+/// screen the moment the result settled, which is a card about a match arriving
+/// before the player has seen it. Reported as being stuck on the game screen.
+const String matchPopupBlocker = 'match';
+
 class MatchRoute<T> extends MaterialPageRoute<T> {
   MatchRoute({required super.builder}) : super(fullscreenDialog: true);
 
@@ -125,7 +136,7 @@ class PlayMatchButton extends ConsumerWidget {
   final bool fast;
 
   /// What holds the popup queue shut for the length of a match.
-  static const String _matchBlocker = 'match';
+
 
   Future<void> _play(BuildContext context, WidgetRef ref) async {
     final game = ref.read(gameProvider);
@@ -142,7 +153,7 @@ class PlayMatchButton extends ConsumerWidget {
     // **Nothing pops over a match.** The JS suppresses coach tips on
     // `match:open`; blocking the QUEUE covers every popup rather than only that
     // one — the welcome-back card could land on the pitch too.
-    blockPopups(_matchBlocker);
+    blockPopups(matchPopupBlocker);
     await Navigator.of(context).push<void>(
       MatchRoute(
         builder: (_) => MatchScreen(
@@ -164,13 +175,13 @@ class PlayMatchButton extends ConsumerWidget {
     game.update((s) => payMatch(s, result));
 
     if (!context.mounted) {
-      unblockPopups(_matchBlocker);
+      unblockPopups(matchPopupBlocker);
       return;
     }
     await _afterMatch(context, ref, result);
     // The screen is gone and any bid or sponsor has been answered. **CLOSE, not
     // complete**: a coach tip fired on the whistle would land over the result.
-    unblockPopups(_matchBlocker);
+    unblockPopups(matchPopupBlocker);
     emit('match:close');
   }
 
@@ -190,7 +201,7 @@ class PlayMatchButton extends ConsumerWidget {
     final playedRound = tie.prepared.round;
 
     CupSponsorDrop? drop;
-    blockPopups(_matchBlocker);
+    blockPopups(matchPopupBlocker);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -219,7 +230,7 @@ class PlayMatchButton extends ConsumerWidget {
 
     final sponsor = drop;
     if (sponsor != null) await showCupSponsorOffer(context, ref, sponsor);
-    unblockPopups(_matchBlocker);
+    unblockPopups(matchPopupBlocker);
     emit('match:close');
   }
 
@@ -702,7 +713,15 @@ class _Label extends ConsumerWidget {
     // on the screen into a shop door.
     final blocked = ref.watch(matchBlockedProvider);
     if (widget.pro && blocked == 'no_energy') return t('play.squad_tired');
-    if (blocked == 'squad_too_small') return t('squad.no_players');
+    // **THE BUTTON'S OWN LABEL, not the tab's sentence.** It was
+    // `squad.no_players` — "No players on pitch. Scout players on the Merge
+    // tab!" — a full instruction on a control with room for two words, so it
+    // arrived ellipsised to "No players on pitch. Scout play…". The JS has a
+    // key made for exactly this slot and the port had no caller for it:
+    // `play.need_players_short`, which is the loudest kind of gap there is.
+    if (blocked == 'squad_too_small') {
+      return t('play.need_players_short', {'min': minSquadPlayers});
+    }
     return t('play.playMatch');
   }
 }

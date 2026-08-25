@@ -25,7 +25,6 @@ import 'package:merge_empire_fc/engine/leaderboard_view.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/leaderboard_service.dart';
-import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -84,62 +83,76 @@ class _LeaderboardBoardState extends ConsumerState<LeaderboardBoard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Selector(
-          key: const ValueKey('leaderboard-metric'),
-          label: t('leaderboard.metric'),
-          options: [
-            for (final metric in leaderboardMetrics)
-              (
-                label: t('leaderboard.metric_$metric'),
-                on: _query.metric == metric,
-                onTap: () => _pick((
+        // **ONE ROW, THREE DROPDOWNS.**
+        //
+        // It was three labelled segment strips stacked down the page, each one
+        // scrolling sideways because four metrics in ten languages will not fit
+        // across a phone. Three rows of chrome above the thing they filter, on a
+        // sheet whose whole subject is a ranked list — reported as wanting one
+        // row with select dropdowns instead.
+        //
+        // A dropdown says where you are without being read left to right and
+        // cannot run out of room however many metrics the board grows, which is
+        // the same argument the manager customiser's axis picker already makes.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _Picker(
+                pickerKey: const ValueKey('leaderboard-metric'),
+                label: t('leaderboard.metric'),
+                value: _query.metric,
+                options: [
+                  for (final metric in leaderboardMetrics)
+                    (value: metric, label: t('leaderboard.metric_$metric')),
+                ],
+                onPick: (metric) => _pick((
                   scope: _query.scope,
                   period: _query.period,
                   metric: metric,
                 )),
-                locked: false,
               ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _Selector(
-          key: const ValueKey('leaderboard-period'),
-          label: t('leaderboard.period'),
-          note: prestige ? t('leaderboard.prestige_hint') : null,
-          options: [
-            for (final period in leaderboardPeriods)
-              (
-                label: t('leaderboard.period_$period'),
-                on: prestige ? period == 'alltime' : _query.period == period,
-                // Dead rather than hidden while prestige is picked: a control
-                // that vanishes reads as a missing feature.
-                onTap: prestige
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _Picker(
+                pickerKey: const ValueKey('leaderboard-period'),
+                label: t('leaderboard.period'),
+                // Prestige forces all-time, so the control has nothing to say —
+                // dead rather than hidden, because a control that vanishes reads
+                // as a missing feature.
+                value: prestige ? 'alltime' : _query.period,
+                note: prestige ? t('leaderboard.prestige_hint') : null,
+                options: [
+                  for (final period in leaderboardPeriods)
+                    (value: period, label: t('leaderboard.period_$period')),
+                ],
+                onPick: prestige
                     ? null
-                    : () => _pick((
+                    : (period) => _pick((
                         scope: _query.scope,
                         period: period,
                         metric: _query.metric,
                       )),
-                locked: false,
               ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _Selector(
-          key: const ValueKey('leaderboard-scope'),
-          label: t('leaderboard.reach_label'),
-          options: [
-            for (final scope in leaderboardViewScopes)
-              (
-                label: _scopeLabel(scope),
-                on: _query.scope == scope,
-                onTap: () => _pick((
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _Picker(
+                pickerKey: const ValueKey('leaderboard-scope'),
+                label: t('leaderboard.reach_label'),
+                value: _query.scope,
+                options: [
+                  for (final scope in leaderboardViewScopes)
+                    (value: scope, label: _scopeLabel(scope)),
+                ],
+                onPick: (scope) => _pick((
                   scope: scope,
                   period: _query.period,
                   metric: _query.metric,
                 )),
-                locked: false,
               ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -199,26 +212,40 @@ class _LeaderboardBoardState extends ConsumerState<LeaderboardBoard> {
   }
 }
 
-class _Selector extends StatelessWidget {
-  const _Selector({
-    super.key,
+/// One of the board's three questions, as a dropdown.
+///
+/// A `null` [onPick] is a control that has nothing to choose right now — it
+/// keeps its current answer and greys, rather than disappearing.
+typedef PickerOption = ({String value, String label});
+
+class _Picker extends StatelessWidget {
+  const _Picker({
+    required this.pickerKey,
     required this.label,
+    required this.value,
     required this.options,
+    required this.onPick,
     this.note,
   });
 
+  final Key pickerKey;
   final String label;
-  final List<SettingsChoice> options;
+  final String value;
+  final List<PickerOption> options;
+  final void Function(String)? onPick;
   final String? note;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final live = onPick != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: kit.textMuted,
             fontSize: 10,
@@ -227,11 +254,50 @@ class _Selector extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        // Scrolls, because four metrics in ten languages will not fit across a
-        // phone and a wrapped segment stops reading as one control.
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SettingsSegment(choices: options),
+        Container(
+          key: pickerKey,
+          // Vertical padding as well as horizontal: `isDense` shrink-wraps a
+          // dropdown to its text, which is a tap target the height of a word.
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: kit.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: kit.border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isDense: true,
+              isExpanded: true,
+              dropdownColor: kit.surface,
+              iconEnabledColor: kit.textMuted,
+              borderRadius: BorderRadius.circular(10),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: live
+                    ? DefaultTextStyle.of(context).style.color
+                    : kit.textMuted,
+              ),
+              items: [
+                for (final option in options)
+                  DropdownMenuItem<String>(
+                    value: option.value,
+                    key: ValueKey('leaderboard-option-${option.value}'),
+                    child: Text(
+                      option.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: live
+                  ? (next) {
+                      if (next != null) onPick!(next);
+                    }
+                  : null,
+            ),
+          ),
         ),
         if (note != null)
           Padding(
@@ -245,6 +311,7 @@ class _Selector extends StatelessWidget {
     );
   }
 }
+
 
 class _Message extends StatelessWidget {
   const _Message({

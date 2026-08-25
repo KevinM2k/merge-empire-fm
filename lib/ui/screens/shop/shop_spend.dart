@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
@@ -33,6 +34,13 @@ import 'package:merge_empire_fc/util/format.dart';
 /// live and ends at the coin or gem packs instead — see `purchase_flow.dart`. A
 /// player who wants the thing needs a way to afford it, not a sentence telling
 /// them they cannot.
+/// Whether a refusal is a PRECONDITION the player can act on.
+///
+/// Owned and Active are states they are already in and read fine in grey; "No
+/// injured players!" is the tile saying the Magic Sponge would heal nobody, and
+/// it was the same muted grey as the description under it.
+bool isPreconditionBlock(String? reason) => reason == 'no_injured';
+
 bool isAffordabilityBlock(String? reason) =>
     reason == 'insufficient_gems' ||
     reason == 'insufficientGems' ||
@@ -80,6 +88,9 @@ class BoostsSection extends ConsumerWidget {
     final coins = ref.watch(consumableTilesProvider);
     final gems = ref.watch(gemItemTilesProvider);
     final game = ref.read(gameProvider);
+    final settings = game.state?['settings'];
+    final hardMode =
+        settings is Map<String, dynamic> && settings['hardMode'] == true;
 
     return ShopSectionFrame(
       id: ShopSectionId.boosts,
@@ -94,6 +105,7 @@ class BoostsSection extends ConsumerWidget {
               price: formatCoins(row.cost),
               tone: StoreTone.coin,
               disabledReason: blockedCopy(row.blocked),
+              warnReason: isPreconditionBlock(row.blocked),
               onBuy: blockedCopy(row.blocked) != null
                   ? null
                   : () => offerToBuy(context, ref, (
@@ -119,7 +131,11 @@ class BoostsSection extends ConsumerWidget {
             ShopTile(
               tileKey: 'gem-${tile.item.id}',
               title: t('gem.${tile.item.id}.name'),
-              subtitle: t('gem.${tile.item.id}.desc'),
+              subtitle: gemItemDesc(
+                tile.item.id,
+                state: game.state,
+                hardMode: hardMode,
+              ),
               glyph: _icon(gemItemIcons[tile.item.id] ?? 'gem', hudGemInk),
               price: formatCoins(tile.item.cost),
               tone: StoreTone.gem,
@@ -129,7 +145,11 @@ class BoostsSection extends ConsumerWidget {
                   : () => offerToBuy(context, ref, (
                       key: 'gem-${tile.item.id}',
                       title: t('gem.${tile.item.id}.name'),
-                      subtitle: t('gem.${tile.item.id}.desc'),
+                      subtitle: gemItemDesc(
+                        tile.item.id,
+                        state: game.state,
+                        hardMode: hardMode,
+                      ),
                       body: null,
                       glyph: gemItemIcons[tile.item.id] ?? 'gem',
                       currency: SpendCurrency.gems,

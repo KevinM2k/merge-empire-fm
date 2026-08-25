@@ -106,9 +106,11 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
             Center(
               child: Text(
                 // A full tank has no next pip to wait for, and a countdown to
-                // nothing is worse than no countdown.
+                // nothing is worse than no countdown. FULL is the HUD's own word
+                // for this; "already ready" is the ad gate's and said nothing
+                // about the tank.
                 status.full
-                    ? t('shop.already_ready')
+                    ? t('hud.energy_full')
                     : formatDuration(status.nextPipMs),
                 key: const ValueKey('energy-next'),
                 style: TextStyle(color: kit.textMuted, fontSize: 12),
@@ -136,7 +138,7 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
                       }),
                       // A full tank has nothing to add to; everything else is
                       // the SDK's business and answers honestly when asked.
-                      note: status.full ? t('shop.already_ready') : null,
+                      note: status.full ? t('hud.energy_full') : null,
                       tint: kit.accentBright,
                       tone: StoreTone.ad,
                       cta: t('shop.claim_cta'),
@@ -226,6 +228,7 @@ class _RefillButton extends ConsumerWidget {
       // was tacked onto the title, which is the one place a price does not go.
       tone: StoreTone.gem,
       cta: '${item.cost}',
+      leading: const GameIcon('gem', size: 13),
       onTap: blocked != null
           ? null
           : () {
@@ -295,6 +298,7 @@ class _EnergyOption extends StatelessWidget {
     required this.tone,
     required this.cta,
     required this.onTap,
+    this.leading,
   });
 
   final Key optionKey;
@@ -306,6 +310,9 @@ class _EnergyOption extends StatelessWidget {
 
   /// The verb, or the price.
   final String cta;
+
+  /// A glyph before [cta] — the currency it is priced in.
+  final Widget? leading;
 
   /// Why it cannot be taken, or null when it can.
   final String? note;
@@ -334,7 +341,6 @@ class _EnergyOption extends StatelessWidget {
             ),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               Opacity(
                 opacity: live ? 1 : 0.45,
@@ -367,15 +373,18 @@ class _EnergyOption extends StatelessWidget {
               // this" — the shop's rule is one button, four colours, and the
               // colour always answers "what does this cost me?". Yellow is a
               // rewarded video and blue is gems, here as everywhere else.
+              const Spacer(),
               const SizedBox(height: 10),
               StoreButton(
                 key: ValueKey('${(optionKey as ValueKey).value}-btn'),
                 tone: tone,
                 label: cta,
                 small: true,
-                leading: tone == StoreTone.ad
-                    ? const GameIcon('video', size: 13)
-                    : null,
+                leading:
+                    leading ??
+                    (tone == StoreTone.ad
+                        ? const GameIcon('video', size: 13)
+                        : null),
                 onTap: onTap,
               ),
             ],

@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/state/game_state.dart' show saveDebounceMs;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/engine/notification_plan.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
@@ -843,6 +844,9 @@ void main() {
       findsOneWidget,
       reason: 'Team Names still leads nowhere',
     );
+    // Opening it BUILDS the pyramid when the save has none — see the editor's
+    // `initState` — and that write arms the debounced save.
+    await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
   });
 
   testWidgets('THE ACCOUNT ROW READS THE SAVE, not a fixed string', (

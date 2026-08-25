@@ -7,6 +7,19 @@ library;
 
 import 'package:flutter/material.dart';
 
+/// The JS's `--color-danger`: something is wrong, or something is about to be
+/// destroyed.
+///
+/// **Promoted from `settings_controls.dart`**, whose own comment asked for
+/// exactly this when a third caller turned up. There were four copies of the
+/// literal by then — the two Start Over rows, the relegation zone, the cup exit
+/// ink — and the shop's refusals and every decline button wanted a fifth.
+///
+/// Not on [KitTheme] because it is NOT derived from the kit: danger has to mean
+/// danger in a club that plays in red, which is the one thing a kit-derived red
+/// cannot promise.
+const Color dangerInk = Color(0xFFF44336);
+
 class KitTheme extends ThemeExtension<KitTheme> {
   const KitTheme({
     required this.bg,

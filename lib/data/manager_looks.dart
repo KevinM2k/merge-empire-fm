@@ -110,6 +110,15 @@ const Map<String, double?> hatCrownY = {
   'diamond': 36,
 };
 
+/// Back hair that sits at CROWN level rather than hanging below the hat line.
+///
+/// The bun is the case, and the only one: it is a ball of hair on TOP of the
+/// head, well inside a beanie's dome, so it is under the wool rather than behind
+/// it and goes with the front. Everything else back there — a ponytail, dreads,
+/// braids, the long drapes, a mullet's curtain — emerges from under the brim,
+/// which is what hair does under a hat. The JS's `BACK_HAIR_AT_CROWN`.
+const Set<String> hairAtCrown = {'bun'};
+
 /// Above this, the hair is not drawn. Null leaves it alone.
 ///
 /// An unknown id hides nothing: a look off a newer save naming a hat this build

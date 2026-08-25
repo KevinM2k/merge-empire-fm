@@ -30,6 +30,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 
 /// The app never settles — the diorama, the coach's ring and the pitch are all
@@ -142,7 +143,11 @@ void main() {
       await tester.tap(finder);
     }
 
-    Future<void> answer(String labelKey, int expectedStep) async {
+    Future<void> answer(
+      String labelKey,
+      int expectedStep, {
+      int frames = 60,
+    }) async {
       await press(
         find.byKey(ValueKey('coach-action-$labelKey')),
         reason: 'no $labelKey to press',
@@ -150,6 +155,7 @@ void main() {
       await until(
         tester,
         () => stepOf(container) == expectedStep,
+        frames: frames,
         reason: '$labelKey did not move the script on',
       );
     }
@@ -232,7 +238,14 @@ void main() {
     await until(tester, () => stepOf(container) == 3);
 
     // ── 3 · the loan ───────────────────────────────────────────────────────
-    await answer('tut.loan_boost.btn', 4);
+    // **LONGER, because the loan is WATCHED.** Each borrowed player drops into
+    // the grid half a second behind the last and the script waits for the lot
+    // — see `loanArrivalWindow`, which is what this budget has to cover.
+    await answer(
+      'tut.loan_boost.btn',
+      4,
+      frames: loanArrivalWindow(11).inMilliseconds ~/ 100 + 20,
+    );
     expect(tutorialOf(container)['borrowedPlayersAdded'], isTrue);
 
     // ── 4 · go and play ────────────────────────────────────────────────────

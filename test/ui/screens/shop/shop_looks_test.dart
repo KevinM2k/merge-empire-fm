@@ -4,7 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart'
-    show LookPreview;
+    show LookPreview, lookItemLabel;
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/engine/look_pack_engine.dart';
@@ -266,13 +266,12 @@ void main() {
       for (final item in pack.items) {
         final axis = item.split(':').first;
         final id = item.split(':').last;
-        final named = t('customise.$axis.$id');
+        // **THE CATALOGUE'S OWN KEY SCHEME, which is not one scheme** — see
+        // `lookItemLabel`. Asking for `customise.<axis>.<id>` and tidying the
+        // id when it missed printed "Sunhat" where the catalogue says "Sun
+        // Hat", here and on the customiser's chips.
         expect(
-          find.text(
-            named.startsWith('customise.')
-                ? id[0].toUpperCase() + id.substring(1)
-                : named,
-          ),
+          find.text(lookItemLabel(axis, id)),
           findsOneWidget,
           reason: item,
         );

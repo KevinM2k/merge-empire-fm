@@ -171,7 +171,11 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
       title: t('rename.title'),
       body: t('rename.subtitle'),
       actions: [
-        CoachAction(labelKey: 'common.cancel', onTap: () {}),
+        CoachAction(
+          labelKey: 'common.cancel',
+          tone: CoachTone.decline,
+          onTap: () {},
+        ),
         // Only when there is one to clear — a Reset on a card that has never
         // been renamed does nothing and says nothing.
         if (_hasCustom)

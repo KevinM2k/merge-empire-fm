@@ -26,14 +26,6 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
-/// The JS's `--color-danger`.
-///
-/// Local to this file on purpose: the only danger surfaces in the port are the
-/// two Start Over rows and Coach Colin's decline button, and his is a filled
-/// button that needs a darker red than a line of text does. Promote it to the
-/// kit when a third caller turns up.
-const Color settingsDanger = Color(0xFFF44336);
-
 /// One button in a [SettingsSegment]: what it says, whether it is live, and
 /// what pressing it does. A null [onTap] is a state the player cannot set.
 typedef SettingsChoice = ({
@@ -164,7 +156,7 @@ class SettingsGroup extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.6,
-                color: danger ? settingsDanger : kit.textMuted,
+                color: danger ? dangerInk : kit.textMuted,
               ),
             ),
           ),
@@ -585,7 +577,7 @@ class DangerRow extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: critical
-                    ? settingsDanger.withValues(alpha: 0.16)
+                    ? dangerInk.withValues(alpha: 0.16)
                     : kit.surface2,
                 borderRadius: BorderRadius.circular(9),
               ),
@@ -602,7 +594,7 @@ class DangerRow extends StatelessWidget {
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
-                      color: critical ? settingsDanger : null,
+                      color: critical ? dangerInk : null,
                     ),
                   ),
                   const SizedBox(height: 2),

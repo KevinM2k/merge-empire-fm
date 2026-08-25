@@ -37,6 +37,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/card_shatter.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -685,6 +686,19 @@ class _RevealCard extends StatelessWidget {
                   _settle.inMilliseconds)
               .clamp(0.0, 1.0);
 
+    // How far the break is through its own window, which is the FIRST part of
+    // the exit rather than all of it. Deliberately not capped at 1: the pieces
+    // run to slightly different lengths (see [cardShatterFrayMs]) and a capped
+    // figure freezes the slow ones in mid-air.
+    final shatter = card.vanish && leaving != null
+        ? out * (_vanish + _settle).inMilliseconds / _vanish.inMilliseconds
+        : 0.0;
+    // **THE WRAPPER GOES WITH THE CARD.** The glow, the discovery halo and the
+    // pill all belong to the whole card, and keeping them up around a card that
+    // has come apart leaves a rectangle of light with nothing in it — the JS
+    // hides the wrapper for the same reason and shatters the FACE.
+    final breaking = shatter > 0;
+
     Widget body = SizedBox(
       width: size,
       height: size * aspect,
@@ -707,28 +721,31 @@ class _RevealCard extends StatelessWidget {
 
     // Every card is rimmed in its own tier's glow, face up or face down — the
     // JS puts this on the wrapper so it survives the rotation.
-    body = DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: revealGlowFor(card.view.tier).withValues(alpha: 0.6),
-            blurRadius: card.view.tier >= 7
-                ? size * 0.28
-                : card.view.tier >= 5
-                ? size * 0.2
-                : size * 0.12,
-          ),
-        ],
-      ),
-      child: body,
-    );
+    if (!breaking) {
+      body = DecoratedBox(
+        key: const ValueKey('scout-reveal-glow'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: revealGlowFor(card.view.tier).withValues(alpha: 0.6),
+              blurRadius: card.view.tier >= 7
+                  ? size * 0.28
+                  : card.view.tier >= 5
+                  ? size * 0.2
+                  : size * 0.12,
+            ),
+          ],
+        ),
+        child: body,
+      );
+    }
 
     // A first sighting is haloed rather than confettied. The JS rains pieces
     // over the whole overlay, which is a per-card effect drawn app-wide: at ×4
     // it would be four rains on top of each other with no telling which card
     // earned them, where a glow belongs to the card it is around.
-    if (card.isNewDiscovery && faceUp) {
+    if (card.isNewDiscovery && faceUp && !breaking) {
       body = DecoratedBox(
         key: const ValueKey('scout-reveal-discovery'),
         decoration: BoxDecoration(
@@ -745,7 +762,7 @@ class _RevealCard extends StatelessWidget {
       );
     }
 
-    if (card.badge != null && faceUp) {
+    if (card.badge != null && faceUp && !breaking) {
       body = Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -767,7 +784,19 @@ class _RevealCard extends StatelessWidget {
         // being cashed in is on its way out and popping it says the opposite.
         coins: true,
         pop: false,
-        child: Opacity(opacity: (1 - (out * 2)).clamp(0.0, 1.0), child: body),
+        // Flat twenty-two, the JS's own count for a cash-in: the burst is about
+        // the money, so a legend being sold does not throw more coins than the
+        // bronze one did.
+        particles: cardShatterParticles,
+        // **AND IT COMES APART.** It used to fade out over a quarter of a second
+        // behind the coins, which is a card being deleted with sparks over it —
+        // reported as the auto-sold animation being poor beside the JS's. See
+        // [CardShatter].
+        child: CardShatter(
+          progress: shatter,
+          seed: card.idx ?? card.view.tier,
+          child: body,
+        ),
       );
     }
 

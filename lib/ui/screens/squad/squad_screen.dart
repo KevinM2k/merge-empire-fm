@@ -143,7 +143,7 @@ class SquadHeader extends ConsumerWidget {
     // losing"; above it is "you are ready to go up"; inside it is neither, and
     // painting that green told a mid-table side it was fine.
     final band = ratings.belowPar
-        ? const Color(0xFFF44336)
+        ? dangerInk
         : ratings.aboveRange
         ? kit.accentBright
         : const Color(0xFFFF9800);

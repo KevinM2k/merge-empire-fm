@@ -290,7 +290,7 @@ class _DivisionTable extends ConsumerWidget {
           if (!isBottom && relegStart >= 2 && i == relegStart)
             _ZoneLabel(
               text: _stripArrows(t('play.zone_relegation')),
-              colour: const Color(0xFFF44336),
+              colour: dangerInk,
             ),
           _TableRow(
             position: i + 1,
@@ -461,7 +461,7 @@ class _TableRow extends StatelessWidget {
     final zoneWash = switch (zone) {
       LeagueZone.promotion ||
       LeagueZone.champion => kit.accent.withValues(alpha: 0.08),
-      LeagueZone.relegation => const Color(0xFFF44336).withValues(alpha: 0.08),
+      LeagueZone.relegation => dangerInk.withValues(alpha: 0.08),
       LeagueZone.midtable => null,
     };
     final posColour = switch (zone) {

@@ -259,10 +259,13 @@ class _TransferOfferCard extends ConsumerWidget {
       // Park, no, yes. Three answers stack rather than sharing a row, which is
       // the frame's own rule: at three, a row makes every label too narrow.
       actions: [
+        // **THE PRICE IS THE THING BEING WEIGHED**, so it wears the coin and
+        // the coin's gold rather than sitting inside a run of white text on the
+        // green face — see [CoachAction.coins].
         CoachAction(
-          labelKey: 'transfer.accept_amount',
-          labelParams: <String, Object?>{'amount': formatCoins(price)},
+          labelKey: 'transfer.accept',
           tone: CoachTone.confirm,
+          coins: price.round(),
           onTap: () {},
           result: TransferAnswer.accepted,
         ),
@@ -272,10 +275,11 @@ class _TransferOfferCard extends ConsumerWidget {
           onTap: () {},
           result: TransferAnswer.declined,
         ),
-        // **Parking is not an answer**, so it does not take a colour. Tapping
-        // outside does the same thing, and nothing is lost by it.
-        CoachAction(labelKey: 'transfer.minimize', onTap: () {}),
       ],
+      // **Parking is not an answer**, so it is not a third button the width of
+      // the two that are. It is a `−` in the corner, and tapping outside has
+      // always done the same thing.
+      minimisable: true,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

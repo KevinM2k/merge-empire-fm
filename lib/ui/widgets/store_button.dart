@@ -52,6 +52,13 @@ enum StoreTone {
   neutral,
 }
 
+/// The rewarded-video yellow, and the dark ink that is the only thing readable
+/// on it. Shared because a video is offered in two places now — the shop's
+/// buttons and the customiser's locked chips — and an offer has to look the
+/// same in both or it stops reading as one.
+const Color adOfferInk = Color(0xFFFFD54A);
+const Color adOfferOnInk = Color(0xFF171717);
+
 /// Face, edge and ink per tone. The JS's own values.
 ({Color face, Color edge, Color ink})? _paletteFor(StoreTone tone) =>
     switch (tone) {
@@ -71,9 +78,9 @@ enum StoreTone {
         ink: Colors.white,
       ),
       StoreTone.ad => (
-        face: const Color(0xFFFFD54A),
+        face: adOfferInk,
         edge: const Color(0xFFA37F10),
-        ink: const Color(0xFF171717),
+        ink: adOfferOnInk,
       ),
       // Resolved from the kit at build time — there is no fixed value for it.
       StoreTone.neutral => null,
