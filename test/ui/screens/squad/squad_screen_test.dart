@@ -868,7 +868,23 @@ void main() {
       // The band flashes its answer first — green for a hit, red for a loss —
       // and the splash comes after it, so the pump has to clear the flash.
       await tester.pump(TraitBlockState.flash + const Duration(milliseconds: 400));
-      expect(find.byKey(const ValueKey('feature-unlock')), findsOneWidget);
+      // **A ROLL CAN LOSE, and a loss is not celebrated** — the red band is
+      // all it gets. The draw comes off the shared stream, so which way it
+      // went depends on every test before this one; asserting a win made this
+      // flake about one run in five. Read what the save says he got.
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      final trait = cardById(
+        container.read(gameProvider).state,
+        slot.cardInstanceId!,
+      )?.raw['trait'];
+      final won = trait is Map && trait['id'] != 'none';
+      expect(
+        find.byKey(const ValueKey('feature-unlock')),
+        won ? findsOneWidget : findsNothing,
+        reason: won ? 'a won trait was not announced' : 'a lost roll was celebrated',
+      );
       await tester.pump(featureUnlockHold);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('feature-unlock')), findsNothing);
