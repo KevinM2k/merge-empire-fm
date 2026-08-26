@@ -98,6 +98,17 @@ const Duration camRecBlink = Duration(milliseconds: 1100);
 /// this must not eat into them.
 const Duration camHandheld = Duration(seconds: 11);
 
+/// The backdrop's own clock: the crowd bouncing, the bench high-fiving or
+/// shaking heads, one beat of it.
+///
+/// **THE PEOPLE BEHIND HIM MOVE NOW.** The crowd was five still discs and the
+/// bench four painted men who changed pose only when the tone did, so the one
+/// living thing in the shot was the manager — reported as the cam needing to be
+/// much more animated, with people happy in the background, high-fiving,
+/// shaking heads. A period no other loop shares, for the same reason the four
+/// idle clocks do not.
+const Duration camLife = Duration(milliseconds: 2300);
+
 /// How wide the floating window is, against the pitch it hangs over — and the
 /// bounds either side of that, because a fraction of a tablet is a portrait and
 /// the same fraction of a small phone is a stamp.
@@ -201,6 +212,7 @@ class _DugoutCamState extends State<DugoutCam> with TickerProviderStateMixin {
   late final AnimationController _scan = _loop(camIdle[widget.mood]!.scan);
   late final AnimationController _rec = _loop(camRecBlink);
   late final AnimationController _drift = _loop(camHandheld);
+  late final AnimationController _life = _loop(camLife);
 
   AnimationController _loop(Duration period) =>
       AnimationController(vsync: this, duration: period);
@@ -231,14 +243,30 @@ class _DugoutCamState extends State<DugoutCam> with TickerProviderStateMixin {
     final still = MediaQuery.of(context).disableAnimations;
     if (still) {
       _entry.value = 1;
-      for (final c in [_breath, _weight, _swayArms, _scan, _rec, _drift]) {
+      for (final c in [
+        _breath,
+        _weight,
+        _swayArms,
+        _scan,
+        _rec,
+        _drift,
+        _life,
+      ]) {
         c.stop();
         c.value = 0;
       }
       return;
     }
     if (_entry.status == AnimationStatus.dismissed) _entry.forward();
-    for (final c in [_breath, _weight, _swayArms, _scan, _rec, _drift]) {
+    for (final c in [
+      _breath,
+      _weight,
+      _swayArms,
+      _scan,
+      _rec,
+      _drift,
+      _life,
+    ]) {
       if (!c.isAnimating) c.repeat();
     }
   }
@@ -311,6 +339,7 @@ class _DugoutCamState extends State<DugoutCam> with TickerProviderStateMixin {
       _scan,
       _rec,
       _drift,
+      _life,
     ]) {
       c.dispose();
     }
@@ -351,14 +380,20 @@ class _DugoutCamState extends State<DugoutCam> with TickerProviderStateMixin {
             fit: StackFit.expand,
             children: [
               AnimatedBuilder(
-                animation: _drift,
-                builder: (context, child) => FractionalTranslation(
+                animation: Listenable.merge([_drift, _life]),
+                builder: (context, _) => FractionalTranslation(
                   translation: _driftBy(far: true),
                   // Scaled so the drift never pulls the backdrop's own edge
                   // into frame.
-                  child: Transform.scale(scale: 1.03, child: child),
+                  child: Transform.scale(
+                    scale: 1.03,
+                    child: _CamBackdrop(
+                      tone: widget.tone,
+                      kit: widget.kit,
+                      phase: _life.value,
+                    ),
+                  ),
                 ),
-                child: _CamBackdrop(tone: widget.tone, kit: widget.kit),
               ),
               AnimatedBuilder(
                 animation: Listenable.merge([
@@ -486,10 +521,17 @@ class _CamFigure extends StatelessWidget {
 /// **Fixed dark colours in both themes**, because it is a camera feed and a
 /// light-mode dugout is just a mistake.
 class _CamBackdrop extends StatelessWidget {
-  const _CamBackdrop({required this.tone, required this.kit});
+  const _CamBackdrop({
+    required this.tone,
+    required this.kit,
+    required this.phase,
+  });
 
   final CamTone tone;
   final Color kit;
+
+  /// Where in [camLife] the backdrop is, 0–1.
+  final double phase;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -503,12 +545,12 @@ class _CamBackdrop extends StatelessWidget {
     child: Stack(
       fit: StackFit.expand,
       children: [
-        const Align(
+        Align(
           alignment: Alignment.topCenter,
           child: FractionallySizedBox(
             heightFactor: 0.38,
             widthFactor: 1,
-            child: _CamCrowd(),
+            child: _CamCrowd(tone: tone, phase: phase),
           ),
         ),
         // The roof's lip, starting where the crowd is still behind it.
@@ -533,7 +575,7 @@ class _CamBackdrop extends StatelessWidget {
           child: FractionallySizedBox(
             heightFactor: 0.27,
             widthFactor: 1,
-            child: _CamBench(tone: tone, kit: kit),
+            child: _CamBench(tone: tone, kit: kit, phase: phase),
           ),
         ),
       ],
@@ -544,7 +586,10 @@ class _CamBackdrop extends StatelessWidget {
 /// Five blurred heads in the stand behind the roof. Not a crowd simulation —
 /// five discs and a blur, which at this size is what a crowd looks like.
 class _CamCrowd extends StatelessWidget {
-  const _CamCrowd();
+  const _CamCrowd({required this.tone, required this.phase});
+
+  final CamTone tone;
+  final double phase;
 
   static const List<(double x, double y, Color colour)> heads = [
     (0.12, 0.60, Color(0xFF47506A)),
@@ -559,16 +604,22 @@ class _CamCrowd extends StatelessWidget {
     opacity: 0.75,
     child: ImageFiltered(
       imageFilter: ImageFilter.blur(sigmaX: 1.6, sigmaY: 1.6),
-      child: const CustomPaint(
-        painter: _CrowdPainter(),
-        child: SizedBox.expand(),
+      child: CustomPaint(
+        painter: CrowdPainter(tone: tone, phase: phase),
+        child: const SizedBox.expand(),
       ),
     ),
   );
 }
 
-class _CrowdPainter extends CustomPainter {
-  const _CrowdPainter();
+/// **THE STAND REACTS.** On a goal for us the heads jump — each on its own
+/// beat, so it is a crowd rather than a chorus line; on one against they sink
+/// and sway; between, they shift the way people do when nothing is happening.
+class CrowdPainter extends CustomPainter {
+  const CrowdPainter({required this.tone, required this.phase});
+
+  final CamTone tone;
+  final double phase;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -576,9 +627,20 @@ class _CrowdPainter extends CustomPainter {
       Offset.zero & size,
       Paint()..color = const Color(0xFF1B2430),
     );
-    for (final (x, y, colour) in _CamCrowd.heads) {
+    for (final (i, (x, y, colour)) in _CamCrowd.heads.indexed) {
+      // Every head on its own offset into the beat.
+      final t = (phase + i * 0.19) % 1.0;
+      final wave = math.sin(t * 2 * math.pi);
+      final (dx, dy) = switch (tone) {
+        // Up off the seat and back down; only the top half of the sine, so
+        // nobody sinks through the row in front.
+        CamTone.good => (wave * 0.4, -math.max(0.0, wave) * size.height * 0.22),
+        // Slumped, and rocking.
+        CamTone.bad => (wave * 0.9, size.height * 0.06),
+        CamTone.flat => (wave * 0.6, wave * size.height * 0.02),
+      };
       canvas.drawCircle(
-        Offset(x * size.width, y * size.height),
+        Offset(x * size.width + dx, y * size.height + dy),
         3,
         Paint()..color = colour,
       );
@@ -586,19 +648,21 @@ class _CrowdPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CrowdPainter old) => false;
+  bool shouldRepaint(CrowdPainter old) =>
+      old.phase != phase || old.tone != tone;
 }
 
 /// The seat backs, and the substitutes sitting on them.
 class _CamBench extends StatelessWidget {
-  const _CamBench({required this.tone, required this.kit});
+  const _CamBench({required this.tone, required this.kit, required this.phase});
 
   final CamTone tone;
   final Color kit;
+  final double phase;
 
   @override
   Widget build(BuildContext context) => CustomPaint(
-    painter: _BenchPainter(tone: tone, kit: kit),
+    painter: BenchPainter(tone: tone, kit: kit, phase: phase),
     child: const SizedBox.expand(),
   );
 }
@@ -616,11 +680,26 @@ class _CamBench extends StatelessWidget {
 /// and a shoulder line at this size, behind a manager who is the subject. A
 /// second `ManagerWalker` back there would be four more rigs to keep in step
 /// with him for something nobody looks straight at.
-class _BenchPainter extends CustomPainter {
-  const _BenchPainter({required this.tone, required this.kit});
+///
+/// **AND THEY KEEP MOVING.** A goal for us is not four men frozen with their
+/// arms up: the two pairs turn to each other and HIGH-FIVE on the beat, and
+/// bounce between. One against and the heads hang and shake, slowly, the way
+/// a bench does when it has just watched one go in. Between, they look about.
+class BenchPainter extends CustomPainter {
+  const BenchPainter({
+    required this.tone,
+    required this.kit,
+    required this.phase,
+  });
 
   final CamTone tone;
   final Color kit;
+
+  /// Where in [camLife] the bench is, 0–1.
+  final double phase;
+
+  /// Who high-fives whom: the man at each index and his neighbour.
+  static const List<(int, int)> _pairs = [(0, 1), (2, 3)];
 
   /// One seat back and the gap after it, in pixels — the stylesheet's own 11
   /// and 2.
@@ -657,12 +736,20 @@ class _BenchPainter extends CustomPainter {
     final shirt = Paint()..color = kit;
     final trim = Paint()..color = Color.lerp(kit, Colors.black, 0.45)!;
     final skin = Paint()..color = const Color(0xFFD9A473);
-    for (final (at, scale) in _subs) {
+    // The slap lands at the top of the beat and the hands part again.
+    final slap = math.max(0.0, math.sin(phase * 2 * math.pi));
+    for (final (i, (at, scale)) in _subs.indexed) {
       final unit = size.height * 0.34 * scale;
+      // A goal for us has them bouncing on the seat, each a little out of step.
+      final bounce = tone == CamTone.good
+          ? -math.max(0.0, math.sin((phase + i * 0.23) * 2 * math.pi)) *
+                unit *
+                0.14
+          : 0.0;
       final cx = size.width * at;
       // The seat line they sit ON, so a slumped man drops toward it rather than
       // through it.
-      final base = size.height * (0.98 + lift * 0.35);
+      final base = size.height * (0.98 + lift * 0.35) + bounce;
       // Shoulders: a rounded bar, wider than the head, sitting on the seat.
       canvas.drawRRect(
         RRect.fromRectAndRadius(
@@ -689,27 +776,49 @@ class _BenchPainter extends CustomPainter {
         ),
         trim,
       );
+      // The head: hanging and SHAKING on a goal against, looking about the
+      // rest of the time, still only while celebrating — the arms carry that.
+      final headSway = switch (tone) {
+        CamTone.bad => math.sin((phase * 2 + i * 0.31) * 2 * math.pi) * 0.10,
+        CamTone.flat => math.sin((phase + i * 0.37) * 2 * math.pi) * 0.07,
+        CamTone.good => 0.0,
+      };
       canvas.drawCircle(
-        Offset(cx, base - unit * (1.05 + 0.34 * (1 + lift))),
+        Offset(cx + headSway * unit, base - unit * (1.05 + 0.34 * (1 + lift))),
         unit * 0.34,
         skin,
       );
-      // Arms up on a goal for us — two bars either side of the head, which at
-      // this size is the whole of a celebration.
       if (tone == CamTone.good) {
+        // Which neighbour he is turned to.
+        final partner = _pairs
+            .where((p) => p.$1 == i || p.$2 == i)
+            .map((p) => p.$1 == i ? p.$2 : p.$1)
+            .firstOrNull;
+        final toward = partner == null ? 0.0 : (_subs[partner].$1 - at).sign;
+        final arm = Paint()
+          ..color = kit
+          ..strokeWidth = unit * 0.22
+          ..strokeCap = StrokeCap.round;
         for (final side in const [-1.0, 1.0]) {
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              Rect.fromLTWH(
-                cx + side * unit * 0.62 - unit * 0.11,
-                base - unit * 1.95,
-                unit * 0.22,
-                unit * 0.95,
-              ),
-              Radius.circular(unit * 0.11),
-            ),
-            shirt,
-          );
+          final shoulderX = cx + side * unit * 0.55;
+          final shoulder = Offset(shoulderX, base - unit * 0.95);
+          if (side == toward && partner != null) {
+            // **THE HIGH-FIVE.** The inner arm swings toward the partner and
+            // the two hands meet at the top of the beat, halfway between them.
+            final meetX = (cx + size.width * _subs[partner].$1) / 2;
+            final hand = Offset(
+              shoulderX + (meetX - shoulderX) * slap,
+              base - unit * (1.55 + 0.45 * slap),
+            );
+            canvas.drawLine(shoulder, hand, arm);
+          } else {
+            // The outer arm is up, and punches with the beat.
+            canvas.drawLine(
+              shoulder,
+              Offset(cx + side * unit * 0.62, base - unit * (1.75 + 0.20 * slap)),
+              arm,
+            );
+          }
         }
       }
     }
@@ -721,8 +830,8 @@ class _BenchPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_BenchPainter old) =>
-      old.tone != tone || old.kit != kit;
+  bool shouldRepaint(BenchPainter old) =>
+      old.tone != tone || old.kit != kit || old.phase != phase;
 }
 
 /// The caption bar — the thing that makes it read as a camera rather than as a

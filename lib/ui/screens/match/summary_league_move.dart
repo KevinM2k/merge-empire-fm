@@ -22,7 +22,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/widgets/game_icon.dart' show coinFigureInk;
+import 'dart:ui' show lerpDouble;
+
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +37,26 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 const Duration leagueMoveHold = Duration(milliseconds: 900);
 
 /// How long a club takes to slide to its new place.
-const Duration leagueMoveSlide = Duration(milliseconds: 800);
+const Duration leagueMoveSlide = Duration(milliseconds: 1000);
+
+/// **THE MOVE IS THREE BEATS, and the slide is only the middle one.** It was
+/// one 800ms glide with the lift and the slide on top of each other, and it
+/// read as a list reordering itself — reported as too fast, and as needing to
+/// look like OUR card being pulled out, moved, and put back. So: the row is
+/// lifted off the page first (up in scale, into the accent, a shadow under
+/// it), THEN carried, THEN set back down — and only once it is down do the
+/// arrows say what happened.
+const Duration leagueMoveLift = Duration(milliseconds: 520);
+const Duration leagueMoveSetDown = Duration(milliseconds: 460);
+
+/// The whole sequence after the hold, as the one clock it runs on.
+final Duration leagueMoveTotal =
+    leagueMoveLift + leagueMoveSlide + leagueMoveSetDown;
+
+/// Where each beat sits on that clock, 0–1.
+double _share(Duration d) => d.inMilliseconds / leagueMoveTotal.inMilliseconds;
+final double _liftEnd = _share(leagueMoveLift);
+final double _slideEnd = _liftEnd + _share(leagueMoveSlide);
 
 /// One row's height, and the whole block's height is a multiple of it — the
 /// rows are POSITIONED rather than laid out in a column, which is what lets two
@@ -50,24 +70,51 @@ class LeagueMove extends ConsumerStatefulWidget {
   ConsumerState<LeagueMove> createState() => LeagueMoveState();
 }
 
-class LeagueMoveState extends ConsumerState<LeagueMove> {
-  /// False while the old table is on screen. **A test seam**, and the whole
-  /// state this widget has.
+class LeagueMoveState extends ConsumerState<LeagueMove>
+    with SingleTickerProviderStateMixin {
+  /// False while the old table is on screen. **A test seam.**
   bool moved = false;
 
   Timer? _hold;
 
+  /// The lift, the slide and the set-down, in that order, on one clock.
+  late final AnimationController _move;
+
+  /// How far off the page our row is, 0–1: up during the lift, held through
+  /// the slide, back down at the end.
+  double get lift {
+    final t = _move.value;
+    if (t <= _liftEnd) return Curves.easeOutBack.transform(t / _liftEnd);
+    if (t <= _slideEnd) return 1;
+    return 1 -
+        Curves.easeInOutCubic.transform((t - _slideEnd) / (1 - _slideEnd));
+  }
+
+  /// How far along the slide the rows are, 0–1.
+  double get travel {
+    final t = _move.value;
+    if (t <= _liftEnd) return 0;
+    if (t >= _slideEnd) return 1;
+    return Curves.easeInOutCubic.transform(
+      (t - _liftEnd) / (_slideEnd - _liftEnd),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _move = AnimationController(vsync: this, duration: leagueMoveTotal);
     _hold = Timer(leagueMoveHold, () {
-      if (mounted) setState(() => moved = true);
+      if (!mounted) return;
+      setState(() => moved = true);
+      _move.forward();
     });
   }
 
   @override
   void dispose() {
     _hold?.cancel();
+    _move.dispose();
     super.dispose();
   }
 
@@ -79,7 +126,6 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
     // Reduced motion gets the answer without the movement: the deltas still
     // say who climbed, which is information rather than decoration.
     final still = MediaQuery.of(context).disableAnimations;
-    final settled = moved || still;
     final from = _previousOrder(rows);
 
     // **THE TEAM ABOVE AND THE TEAM BELOW, and nobody else.** Twenty rows of a
@@ -115,52 +161,71 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
           ),
           SizedBox(
             height: window.length * leagueMoveRowHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                for (final i in window)
-                  AnimatedPositioned(
-                    key: ValueKey('summary-table-${rows[i].name}'),
-                    duration: still ? Duration.zero : leagueMoveSlide,
-                    curve: Curves.easeInOutCubic,
-                    left: 0,
-                    right: 0,
-                    height: leagueMoveRowHeight,
-                    // Where it WAS until the hold is up, then where the result
-                    // put it — as a slot in the WINDOW rather than a rank in
-                    // the division, so the two or three rows on screen are the
-                    // ones that moved past each other.
-                    top:
-                        ((settled ? afterSlot[i]! : beforeSlot[i]!) *
-                                leagueMoveRowHeight)
-                            .toDouble(),
-                    // **OUR ROW IS PICKED UP, CARRIED, AND SET DOWN.** A table
-                    // where every row slides the same way is a list reordering
-                    // itself; what the player did is move THEIR club, and the
-                    // way to say that is to lift it off the page while the rest
-                    // of the division shuffles underneath. Asked for in those
-                    // words.
-                    child: _Lift(
-                      // Only ours, and only while it is travelling.
-                      lifted: rows[i].isPlayer && !settled && !still,
-                      still: still,
-                      child: _MoveRow(
-                        row: rows[i],
-                        // The number counts with the movement rather than after
-                        // it: a club sliding up the block while still printing
-                        // the position it is leaving reads as a rendering
-                        // fault. It is the DIVISION's rank, not the window's —
-                        // the window is a viewport, not a league.
-                        position: (settled ? i : from?[i] ?? i) + 1,
-                        delta: from == null ? null : (from[i] - i),
-                        // No arrow before the table has moved — it would give
-                        // away the rearrangement it is meant to explain.
-                        showDelta: settled,
-                        still: still,
+            child: AnimatedBuilder(
+              animation: _move,
+              builder: (context, _) {
+                // Reduced motion, or the clock has run: the settled table.
+                final travel = still ? 1.0 : this.travel;
+                final lift = still ? 0.0 : this.lift;
+                final settled = still || _move.isCompleted;
+                // The position counts over as the row crosses the halfway
+                // point of its slide.
+                final rankNow = travel >= 0.5;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // **OUR ROW IS DRAWN LAST**, so while it is lifted it is
+                    // over the rows it passes rather than under them.
+                    for (final i in [
+                      for (final i in window)
+                        if (!rows[i].isPlayer) i,
+                      for (final i in window)
+                        if (rows[i].isPlayer) i,
+                    ])
+                      Positioned(
+                        key: ValueKey('summary-table-${rows[i].name}'),
+                        left: 0,
+                        right: 0,
+                        height: leagueMoveRowHeight,
+                        // From where it WAS to where the result put it — as a
+                        // slot in the WINDOW rather than a rank in the
+                        // division, so the two or three rows on screen are the
+                        // ones that moved past each other.
+                        top: lerpDouble(
+                          beforeSlot[i]! * leagueMoveRowHeight,
+                          afterSlot[i]! * leagueMoveRowHeight,
+                          travel,
+                        )!,
+                        // **OUR ROW IS PICKED UP, CARRIED, AND SET DOWN.** A
+                        // table where every row slides the same way is a list
+                        // reordering itself; what the player did is move THEIR
+                        // club, and the way to say that is to lift it off the
+                        // page while the rest of the division shuffles
+                        // underneath. Asked for in those words, twice.
+                        child: _Lift(
+                          lift: rows[i].isPlayer ? lift : 0,
+                          child: _MoveRow(
+                            row: rows[i],
+                            lift: rows[i].isPlayer ? lift : 0,
+                            // The number counts with the movement rather than
+                            // after it: a club sliding up the block while still
+                            // printing the position it is leaving reads as a
+                            // rendering fault. It is the DIVISION's rank, not
+                            // the window's — the window is a viewport, not a
+                            // league.
+                            position: (rankNow ? i : from?[i] ?? i) + 1,
+                            delta: from == null ? null : (from[i] - i),
+                            // No arrow before the row is back down — it would
+                            // give away the rearrangement it is meant to
+                            // explain.
+                            showDelta: settled,
+                            still: still,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -181,31 +246,25 @@ class LeagueMoveState extends ConsumerState<LeagueMove> {
 /// The scale is small and the shadow does most of it. A row at 1.3 is a row
 /// covering its neighbours, which is the opposite of showing what it passed.
 class _Lift extends StatelessWidget {
-  const _Lift({required this.lifted, required this.still, required this.child});
+  const _Lift({required this.lift, required this.child});
 
-  final bool lifted;
-
-  /// Reduced motion gets the answer without the movement: the deltas still say
-  /// who climbed, so there is nothing to lift.
-  final bool still;
+  /// 0 flat on the page, 1 fully lifted. Driven, not animated here: the
+  /// block's one clock decides where in the sequence this is.
+  final double lift;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    if (still) return child;
-    return AnimatedScale(
-      scale: lifted ? 1.06 : 1,
-      duration: leagueMoveSlide,
-      curve: Curves.easeInOutCubic,
-      child: AnimatedPhysicalModel(
-        duration: leagueMoveSlide,
-        curve: Curves.easeInOutCubic,
+    if (lift <= 0) return child;
+    return Transform.scale(
+      scale: 1 + 0.10 * lift,
+      child: PhysicalModel(
         // The row draws its own surface; this is only the shadow under it, so
         // the model itself is transparent.
         color: Colors.transparent,
         shadowColor: Colors.black,
-        elevation: lifted ? 12 : 0,
-        borderRadius: BorderRadius.circular(8),
+        elevation: 14 * lift,
+        borderRadius: BorderRadius.circular(9),
         child: child,
       ),
     );
@@ -277,10 +336,16 @@ class _MoveRow extends StatelessWidget {
     required this.delta,
     required this.showDelta,
     required this.still,
+    this.lift = 0,
   });
 
   final LeagueRow row;
   final int position;
+
+  /// How far off the page this row is — see `_Lift`. **The colour changes with
+  /// it**: a lifted card goes into the club's accent, so what is being carried
+  /// is unmistakably the card and not a highlight bar.
+  final double lift;
 
   /// Positive means climbed — a smaller position number is a better one, which
   /// is `LeagueRow.posDelta`'s own sign.
@@ -292,21 +357,22 @@ class _MoveRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final ink = glassText(context);
+    // At rest the mark is neutral, the way the full table marks your row: a
+    // hue here would compete with the arrow that is the point of the block.
+    // LIFTED, it goes into the accent — that is the card being pulled out.
+    // And LIGHTER on a daylight pane at rest: the text ink there is dark, and a
+    // dark wash under the gold points took them to 2.9:1 once the table
+    // stopped sitting on a second pane.
+    final rest = nightSceneOf(context)
+        ? ink.withValues(alpha: 0.11)
+        : Colors.white.withValues(alpha: 0.45);
+    final carried = kit.accent.withValues(alpha: 0.92);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(9),
-          // The lift is neutral, the way the full table marks your row: a hue
-          // here would compete with the arrow that is the point of the block.
-          // And LIGHTER on a daylight pane: the text ink there is dark, and a
-          // dark wash under the gold points took them to 2.9:1 once the table
-          // stopped sitting on a second pane.
-          color: !row.isPlayer
-              ? null
-              : nightSceneOf(context)
-              ? ink.withValues(alpha: 0.11)
-              : Colors.white.withValues(alpha: 0.45),
+          color: !row.isPlayer ? null : Color.lerp(rest, carried, lift),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -357,10 +423,11 @@ class _MoveRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
-                  // The same gold every money figure takes — see
-                  // [coinFigureInk]. It was the literal, which is 1.1:1 on a
-                  // light pane.
-                  color: glassAccent(context, coinFigureInk(context)),
+                  // **THE PANE'S OWN INK, not the coin gold.** Points are not
+                  // money, and the gold went bronze on a light pane — reported
+                  // as not liking the bronze. Bold is what makes them the
+                  // figure that matters on the row.
+                  color: ink,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),

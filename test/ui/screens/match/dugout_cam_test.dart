@@ -32,6 +32,10 @@ import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 
 const Color _kit = Color(0xFF4CAF50);
 
+extension<T> on T {
+  R let<R>(R Function(T) f) => f(this);
+}
+
 Future<void> pumpCam(
   WidgetTester tester, {
   Mood mood = Mood.neutral,
@@ -78,6 +82,42 @@ Gesture gestureById(String id) => gestures.firstWhere((g) => g.id == id);
 
 void main() {
   tearDown(resetLocale);
+
+  testWidgets('THE BENCH AND THE STAND MOVE ON THEIR OWN CLOCK', (tester) async {
+    // They were painted once per tone: four men frozen with their arms up
+    // behind a manager who was the only living thing in the shot. Reported as
+    // the cam needing to be much more animated.
+    await pumpCam(tester, tone: CamTone.good);
+    double benchPhase() => tester
+        .widget<CustomPaint>(
+          find.byWidgetPredicate(
+            (w) => w is CustomPaint && w.painter is BenchPainter,
+          ),
+        )
+        .painter!
+        .let((p) => (p as BenchPainter).phase);
+    double crowdPhase() => tester
+        .widget<CustomPaint>(
+          find.byWidgetPredicate(
+            (w) => w is CustomPaint && w.painter is CrowdPainter,
+          ),
+        )
+        .painter!
+        .let((p) => (p as CrowdPainter).phase);
+    final bench0 = benchPhase();
+    final crowd0 = crowdPhase();
+    await tester.pump(camLife ~/ 4);
+    expect(benchPhase(), isNot(bench0));
+    expect(crowdPhase(), isNot(crowd0));
+    // And it repaints for it, or the clock is running to nobody.
+    expect(
+      const BenchPainter(tone: CamTone.good, kit: _kit, phase: 0.2)
+          .shouldRepaint(
+            const BenchPainter(tone: CamTone.good, kit: _kit, phase: 0.7),
+          ),
+      isTrue,
+    );
+  });
 
   group('the figure', () {
     testWidgets('is the SAME rig, with its legs planted', (tester) async {

@@ -92,12 +92,19 @@ Future<void> settleSave(WidgetTester tester) =>
 
 /// Where each row sits in the block right now, top first.
 List<String> orderOnScreen(WidgetTester tester) {
-  final rows = tester.widgetList<AnimatedPositioned>(
-    find.byType(AnimatedPositioned),
+  // The rows are driven off one clock now rather than implicitly animated,
+  // so they are plain `Positioned`s under the block.
+  final rows = tester.widgetList<Positioned>(
+    find.descendant(
+      of: find.byType(LeagueMove),
+      matching: find.byType(Positioned),
+    ),
   );
   final placed = [
     for (final row in rows)
-      (top: row.top ?? 0, name: (row.key! as ValueKey<String>).value),
+      if (row.key case ValueKey<String>(value: final name)
+          when name.startsWith('summary-table-'))
+        (top: row.top ?? 0, name: name),
   ]..sort((a, b) => a.top.compareTo(b.top));
   return [
     for (final row in placed) row.name.replaceFirst('summary-table-', ''),
@@ -163,6 +170,46 @@ void main() {
       tester.state<LeagueMoveState>(find.byType(LeagueMove)).moved,
       isTrue,
     );
+    await settleSave(tester);
+  });
+
+  testWidgets('THE CARD IS PULLED OUT, CARRIED, AND PUT BACK — in that order', (
+    tester,
+  ) async {
+    // One 800ms glide with the lift on top of it read as a list reordering
+    // itself, and too fast to follow. Three beats now: our row comes up off the
+    // page first, THEN the rows move, THEN it goes back down — and only then do
+    // the arrows appear.
+    final container = await pumpMove(tester);
+    playRounds(container, upTo: 1);
+    container.read(gameProvider).update((s) {
+      final prog = s['progression'] as Map<String, dynamic>;
+      prog['seasonAwardedPlayed'] = 2;
+      prog['seasonWins'] = 2;
+    });
+    await tester.pump();
+    final before = orderOnScreen(tester);
+    final lifted = find.descendant(
+      of: find.byType(LeagueMove),
+      matching: find.byType(PhysicalModel),
+    );
+    expect(lifted, findsNothing, reason: 'lifted before the hold was up');
+
+    await tester.pump(leagueMoveHold);
+    // Halfway through the lift: up off the page, and NOT yet moved.
+    await tester.pump(leagueMoveLift ~/ 2);
+    expect(lifted, findsOneWidget);
+    expect(orderOnScreen(tester), before, reason: 'it moved before it was lifted');
+
+    // Halfway through the slide: still lifted, being carried.
+    await tester.pump(leagueMoveLift ~/ 2 + leagueMoveSlide ~/ 2);
+    expect(lifted, findsOneWidget);
+    expect(tester.state<LeagueMoveState>(find.byType(LeagueMove)).moved, isTrue);
+
+    // Set down, and the arrows are up.
+    await tester.pumpAndSettle();
+    expect(lifted, findsNothing, reason: 'never put back down');
+    expect(orderOnScreen(tester), isNot(before));
     await settleSave(tester);
   });
 

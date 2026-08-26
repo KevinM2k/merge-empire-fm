@@ -149,6 +149,56 @@ Future<MatchSummaryScreenState> pumpSummary(
 void main() {
   tearDown(resetLocale);
 
+  testWidgets('A REPLAY ROLLS DOWN UNDER THE GOALS, not up in a popup', (
+    tester,
+  ) async {
+    // It opened a dialog over the report — a window on top of a page that
+    // already had the goal on it. Asked for as a projector screen: it comes
+    // down under the scorers, plays, and goes back up.
+    await pumpSummary(
+      tester,
+      result(
+        events: [
+          {
+            'minute': 22,
+            'type': 'goal',
+            'team': 'home',
+            'scorer': 'Bobby',
+            'scorerInstanceId': 'gone',
+          },
+        ],
+      ),
+    );
+    final button = find.byKey(const ValueKey('summary-replay-22'));
+    expect(button, findsOneWidget);
+    expect(find.byKey(const ValueKey('summary-replay-screen')), findsNothing);
+
+    await tester.tap(button);
+    await tester.pump();
+    final screen = find.byKey(const ValueKey('summary-replay-screen'));
+    expect(screen, findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byKey(const ValueKey('goal-replay')), findsNothing);
+    // UNDER the goal it belongs to, inside the same card.
+    expect(
+      tester.getRect(screen).top,
+      greaterThanOrEqualTo(tester.getRect(button).bottom - 1),
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('summary-scorers')),
+        matching: screen,
+      ),
+      findsOneWidget,
+    );
+
+    // The same button is the way to stop it, and the screen goes back up.
+    await tester.tap(button);
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('summary-replay-screen')), findsNothing);
+  });
+
   testWidgets('it says what happened, in one screen', (tester) async {
     await pumpSummary(
       tester,
@@ -448,7 +498,9 @@ void main() {
         find.byKey(const ValueKey('match-quest-match_clean_sheet')),
         findsOneWidget,
       );
-      expect(find.text(t('quests.missed')), findsOneWidget);
+      // Prefixed with its mark — a miss is red with a cross, a win green with
+      // a tick — so the word is inside the row's text rather than all of it.
+      expect(find.textContaining(t('quests.missed')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('match-quests-total')),
         findsOneWidget,

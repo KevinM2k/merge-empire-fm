@@ -15,6 +15,8 @@
 /// what the result now says.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsAmberOn, vsGreenOn, vsRedOn;
@@ -28,8 +30,7 @@ import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
-    show clipFor, lineupNames, cardDisplayName;
-import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart';
+    show CutawayClip, CutawayStage, clipFor, lineupNames, cardDisplayName;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart'
     show timelineOf;
 import 'package:merge_empire_fc/ui/screens/match/summary_league_move.dart';
@@ -366,7 +367,11 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                           ],
                         ),
                       ),
-                    const SizedBox(height: 8),
+                    // **TWO, not eight.** The card already ends in fourteen of
+                    // its own padding and the text button brings its own; eight
+                    // more here was the widest seam on the page, under the one
+                    // control the eye is meant to fall straight onto.
+                    const SizedBox(height: 2),
                     canDouble
                     ? Column(
                         mainAxisSize: MainAxisSize.min,
@@ -382,6 +387,12 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                                 : () => Navigator.of(context).pop(),
                             style: TextButton.styleFrom(
                               foregroundColor: kit.textMuted,
+                              visualDensity: VisualDensity.compact,
+                              minimumSize: const Size(0, 32),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
                             ),
                             // **BOTH FIGURES ARE WHAT YOU WALK AWAY WITH**,
                             // and the quest money is part of both. The link
@@ -697,19 +708,62 @@ class _Manager extends ConsumerWidget {
 /// is a second card telling the story the number above it already told, and the
 /// number is the part that has to be found first. Ours only — a goal against is
 /// on the opposition's teamsheet, not on ours.
-class _ScorersCard extends ConsumerWidget {
+class _ScorersCard extends ConsumerStatefulWidget {
   const _ScorersCard({required this.result});
 
   final Map<String, dynamic> result;
 
+  @override
+  ConsumerState<_ScorersCard> createState() => _ScorersCardState();
+}
+
+/// How long the screen takes to come down, and to go back up.
+const Duration replayScreenDrop = Duration(milliseconds: 520);
+const Duration replayScreenRise = Duration(milliseconds: 420);
+
+/// How long the last frame holds before the screen goes back up — long enough
+/// to see the ball in the net, short enough not to be a freeze.
+const Duration replayScreenHold = Duration(milliseconds: 900);
+
+class _ScorersCardState extends ConsumerState<_ScorersCard>
+    with SingleTickerProviderStateMixin {
+  /// The goal being replayed, or null when the screen is up.
+  int? _minute;
+  CutawayClip? _clip;
+  Timer? _hold;
+
+  /// **A PROJECTOR SCREEN, not a popup.** The replay opened a dialog over the
+  /// report — a window on top of a page that already had the goals on it. It
+  /// now unrolls from under the goal it belongs to, plays, and rolls back up:
+  /// forward is the screen coming down, reverse is it going back.
+  late final AnimationController _screen;
+
+  @override
+  void initState() {
+    super.initState();
+    _screen = AnimationController(
+      vsync: this,
+      duration: replayScreenDrop,
+      reverseDuration: replayScreenRise,
+    );
+  }
+
+  @override
+  void dispose() {
+    _hold?.cancel();
+    _screen.dispose();
+    super.dispose();
+  }
+
   /// Replay one of our goals: the same clip the match drew, rebuilt from the
   /// result the way `MatchScreen._replayClip` does.
-  Future<void> _replay(
-    BuildContext context,
-    WidgetRef ref,
-    int minute,
-    String scorerName,
-  ) async {
+  void _replay(int minute, String scorerName) {
+    // The same button again while it is down is the way to stop it.
+    if (_minute == minute) {
+      _rollUp();
+      return;
+    }
+    final result = widget.result;
     final event = timelineOf(result)
         .where(
           (e) => e.type == 'goal' && e.team == 'home' && e.minute == minute,
@@ -726,19 +780,43 @@ class _ScorersCard extends ConsumerWidget {
       scorerName: scorerName,
     );
     if (clip == null) return;
-    await showGoalReplay(
-      context,
-      clip: clip,
-      minute: minute,
-      title: '',
-      ours: true,
-      scorerFromLeft: result['isHome'] == true,
-    );
+    _hold?.cancel();
+    setState(() {
+      _minute = minute;
+      _clip = clip;
+    });
+    if (MediaQuery.of(context).disableAnimations) {
+      _screen.value = 1;
+    } else {
+      _screen.forward();
+    }
+  }
+
+  /// The clip has ended: hold the last frame, then take the screen back up.
+  void _onDone() {
+    _hold?.cancel();
+    _hold = Timer(replayScreenHold, _rollUp);
+  }
+
+  Future<void> _rollUp() async {
+    _hold?.cancel();
+    if (!mounted) return;
+    if (MediaQuery.of(context).disableAnimations) {
+      _screen.value = 0;
+    } else {
+      await _screen.reverse();
+    }
+    if (!mounted) return;
+    setState(() {
+      _minute = null;
+      _clip = null;
+    });
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final result = widget.result;
     final raw = result['events'];
     if (raw is! List) return const SizedBox.shrink();
     final save = ref.read(gameProvider).state;
@@ -758,6 +836,7 @@ class _ScorersCard extends ConsumerWidget {
     if (goals.isEmpty) return const SizedBox.shrink();
 
     final ink = glassAccent(context, kit.accentBright);
+    final clip = _clip;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassPanel(
@@ -784,10 +863,40 @@ class _ScorersCard extends ConsumerWidget {
                   IconButton(
                     key: ValueKey('summary-replay-${g.minute}'),
                     visualDensity: VisualDensity.compact,
-                    icon: Icon(Icons.replay, size: 18, color: ink),
-                    onPressed: () => _replay(context, ref, g.minute, g.name),
+                    icon: Icon(
+                      _minute == g.minute ? Icons.stop : Icons.replay,
+                      size: 18,
+                      color: ink,
+                    ),
+                    onPressed: () => _replay(g.minute, g.name),
                   ),
                 ],
+              ),
+            // **THE SCREEN.** Clipped and measured off the top, so it unrolls
+            // downward — the top edge stays put and the bottom edge descends,
+            // which is what a screen coming down looks like. It is in the
+            // column, so the report below it moves out of the way rather than
+            // being covered.
+            if (clip != null)
+              AnimatedBuilder(
+                animation: _screen,
+                builder: (context, child) => ClipRect(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    heightFactor: Curves.easeOutCubic.transform(_screen.value),
+                    child: child,
+                  ),
+                ),
+                child: Padding(
+                  key: const ValueKey('summary-replay-screen'),
+                  padding: const EdgeInsets.fromLTRB(0, 6, 8, 4),
+                  child: CutawayStage(
+                    key: ValueKey('summary-replay-stage-$_minute'),
+                    clip: clip,
+                    scorerFromLeft: result['isHome'] == true,
+                    onDone: (_) => _onDone(),
+                  ),
+                ),
               ),
           ],
         ),
@@ -831,15 +940,35 @@ class _Payout extends StatelessWidget {
               Text('➜', style: TextStyle(color: kit.textMuted)),
               const SizedBox(width: 8),
             ],
-            CoinIcon(size: 20, solid: true, color: glassAccent(context, coinFigureInk(context))),
-            const SizedBox(width: 6),
-            Text(
-              '+${formatCoins(doubled ? base * 2 + quests : total)}',
-              key: const ValueKey('summary-coins'),
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                color: glassAccent(context, coinFigureInk(context)),
+            // **GOLD in both themes, on a plate.** `coinFigureInk` answers a
+            // deep bronze for a light page — reported as not liking the coins
+            // in bronze — and the fix the quests sheet already made is the one
+            // here: the hue is the currency and does not change, so the
+            // contrast is bought with the surface. A dark plate under the
+            // figure in light mode, a faint gold wash in dark.
+            Container(
+              padding: const EdgeInsets.fromLTRB(10, 2, 12, 2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                color: Theme.of(context).brightness == Brightness.light
+                    ? const Color(0xFF1A1F26).withValues(alpha: 0.88)
+                    : gameGold.withValues(alpha: 0.12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CoinIcon(size: 20, solid: true, color: gameGold),
+                  const SizedBox(width: 6),
+                  Text(
+                    '+${formatCoins(doubled ? base * 2 + quests : total)}',
+                    key: const ValueKey('summary-coins'),
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: gameGold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -879,7 +1008,6 @@ class QuestOutcomes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final raw = result['questResults'];
     if (raw is! List || raw.isEmpty) return const SizedBox.shrink();
 
@@ -893,6 +1021,13 @@ class QuestOutcomes extends StatelessWidget {
       (sum, r) => sum + ((r['coins'] as num?) ?? 0),
     );
 
+    // **A MISS IS RED, and the line stays readable.** Both the quest and its
+    // "Missed" were the kit's muted ink, which on deep glass is grey on grey —
+    // reported as the misses being hard to read. The quest keeps the pane's own
+    // text and only the verdict takes a colour, the same green-or-red every
+    // stat row on the report uses.
+    final passedInk = vsGreenOn(context);
+    final missedInk = vsRedOn(context);
     return Padding(
       key: const ValueKey('match-quests'),
       padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -900,6 +1035,19 @@ class QuestOutcomes extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (rule case final ink?) _Rule(ink: ink),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              t('quests.match').toUpperCase(),
+              key: const ValueKey('match-quests-title'),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: glassMuted(context),
+              ),
+            ),
+          ),
           for (final row in rows)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
@@ -913,8 +1061,8 @@ class QuestOutcomes extends StatelessWidget {
                       t('quest.${row['id']}', {'n': row['target'] ?? 0}),
                       style: TextStyle(
                         color: row['passed'] == true
-                            ? glassAccent(context, kit.accentBright)
-                            : kit.textMuted,
+                            ? glassText(context)
+                            : glassText(context).withValues(alpha: 0.8),
                         fontSize: 12,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -923,13 +1071,11 @@ class QuestOutcomes extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     row['passed'] == true
-                        ? t('quests.reward_coins', {'n': row['coins'] ?? 0})
-                        : t('quests.missed'),
+                        ? '✓ ${t('quests.reward_coins', {'n': row['coins'] ?? 0})}'
+                        : '✕ ${t('quests.missed')}',
                     key: ValueKey('match-quest-${row['id']}'),
                     style: TextStyle(
-                      color: row['passed'] == true
-                          ? glassAccent(context, kit.accentBright)
-                          : kit.textMuted,
+                      color: row['passed'] == true ? passedInk : missedInk,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -946,7 +1092,7 @@ class QuestOutcomes extends StatelessWidget {
                 key: const ValueKey('match-quests-total'),
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: glassAccent(context, kit.accentBright),
+                  color: passedInk,
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
                 ),
