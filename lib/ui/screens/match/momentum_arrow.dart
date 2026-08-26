@@ -5,7 +5,8 @@
 /// so the band flipped between a football pitch and a table of numbers every few
 /// minutes. The pitch stays now, and this is what it shows when nothing is
 /// happening on it: one arrow, pointing at the goal the run of play is heading
-/// for, drifting toward that goal as the pressure builds.
+/// for, sliding toward that goal as the pressure builds and turning round when
+/// the game does.
 ///
 /// It is a READING, not a simulation. Nothing here decides anything — the match
 /// was over before the screen opened — and the only input is the same possession
@@ -97,13 +98,15 @@ class _ArrowPainter extends CustomPainter {
   final Color ours;
   final Color theirs;
 
+  /// How far off the halfway line the arrow gets at full pressure, as a share
+  /// of the pitch. Kept short of the box, so at its furthest it is still a
+  /// reading of territory rather than a marker on the goal.
+  static const double travel = 0.26;
+
   @override
   void paint(Canvas canvas, Size size) {
     final right = bias >= 0;
     final strength = bias.abs();
-    // Never nothing. A dead-level game is still a game being played, and an
-    // empty pitch reads as a screen that has stopped working — which is why the
-    // wedge's own span below has a floor rather than starting at zero.
     // **OPAQUE, and ONE colour.** It was the kit at 30–75% alpha, so the mown
     // stripes ran straight through it and the arrow read as a smear rather than
     // as a mark on the grass. A solid shade of the turf itself is what a pitch
@@ -112,40 +115,50 @@ class _ArrowPainter extends CustomPainter {
     // direction is.
     final colour = right ? ours : theirs;
 
-    // **A SHADED HALF OF THE PITCH WITH A POINT ON IT, not a drawn arrow.**
-    // Asked for with a screenshot of how a broadcast does it: the territory
-    // being pressed is darkened and the shading itself comes to a point at the
-    // end being attacked. An arrow ON the grass is a symbol laid over a picture;
-    // shading the grass IS the picture saying it.
-    //
-    // Full height, because it is a region rather than a mark, and the region is
-    // the half of the pitch the play is in.
-    final from = right ? 0.0 : size.width;
-    final span = size.width * (0.34 + 0.30 * strength);
-    final tip = right ? from + span : from - span;
-    // Where the point starts closing in: the last third of the wedge.
-    final shoulder = right ? tip - span * 0.34 : tip + span * 0.34;
+    // **AN ARROW THAT MOVES, not a half of the pitch shaded in.** The old
+    // wedge was anchored on the attacking side's own goal-line and reached
+    // toward the other end — so with us on top it darkened OUR half, and the
+    // more we pressed the more of our own end it covered. Read from the couch
+    // as pointing the wrong way, which in effect it was. This one sits on the
+    // halfway line when the game is level, points at the goal under pressure,
+    // and SLIDES toward it as the pressure builds: their spell is an arrow
+    // coming at our goal, and when we take over it turns round and goes back
+    // up the pitch at theirs.
+    final dir = right ? 1.0 : -1.0;
+    final cx = size.width / 2 + dir * size.width * travel * strength;
+    // Never nothing. A dead-level game is still a game being played, and an
+    // empty pitch reads as a screen that has stopped working — so the arrow
+    // has a floor length and grows with the swing.
+    final span = size.width * (0.16 + 0.20 * strength);
+    final head = span * 0.36;
+    final top = size.height * 0.16;
+    final bottom = size.height - top;
+    final mid = size.height / 2;
+    final tail = cx - dir * span / 2;
+    final tip = cx + dir * span / 2;
+    final shoulder = tip - dir * head;
 
-    final wedge = Path()
-      ..moveTo(from, 0)
-      ..lineTo(shoulder, 0)
-      ..lineTo(tip, size.height / 2)
-      ..lineTo(shoulder, size.height)
-      ..lineTo(from, size.height)
+    final arrow = Path()
+      ..moveTo(tail, top)
+      ..lineTo(shoulder, top)
+      ..lineTo(tip, mid)
+      ..lineTo(shoulder, bottom)
+      ..lineTo(tail, bottom)
+      // The notch that makes it an arrow rather than a house on its side.
+      ..lineTo(tail + dir * head * 0.45, mid)
       ..close();
 
-    // It FADES toward the point rather than ending on an edge: a hard vertical
-    // boundary across a pitch reads as a seam between two textures, and the
-    // whole thing is meant to read as pressure rather than as a shape.
+    // Solid at the point, fading back along the shaft: the tip is the reading
+    // and the shaft is where it came from.
     canvas.drawPath(
-      wedge,
+      arrow,
       Paint()
         ..shader = ui.Gradient.linear(
-          Offset(from, 0),
+          Offset(tail, 0),
           Offset(tip, 0),
           [
-            colour.withValues(alpha: 0.34 + 0.22 * strength),
-            colour.withValues(alpha: 0.10 + 0.14 * strength),
+            colour.withValues(alpha: 0.22 + 0.18 * strength),
+            colour.withValues(alpha: 0.62 + 0.30 * strength),
           ],
         ),
     );

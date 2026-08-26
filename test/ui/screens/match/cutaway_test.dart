@@ -250,6 +250,35 @@ void main() {
       );
     });
 
+    test('AND THE POST GETS HIT — on the JS\'s own odds', () {
+      // `_resolveOutcome` in `ChanceCutaway.js`: on target, 58% saved, 18%
+      // over, the rest woodwork. Off target it is wide, over, woodwork, and a
+      // block the port folds into wide. It used to be a save or wide and
+      // nothing else, so `woodwork` never had a picture to play under.
+      final on = _event('chance', shotResult: 'on_target');
+      expect(outcomeForEvent(on, roll: 0.5), CutawayOutcome.saved);
+      expect(outcomeForEvent(on, roll: 0.6), CutawayOutcome.over);
+      expect(outcomeForEvent(on, roll: 0.8), CutawayOutcome.post);
+      final off = _event('chance', shotResult: 'off');
+      expect(outcomeForEvent(off, roll: 0.1), CutawayOutcome.wide);
+      expect(outcomeForEvent(off, roll: 0.4), CutawayOutcome.over);
+      expect(outcomeForEvent(off, roll: 0.7), CutawayOutcome.post);
+      expect(outcomeForEvent(off, roll: 0.9), CutawayOutcome.wide);
+      // A goal is a goal whatever the roll.
+      expect(outcomeForEvent(_event('goal'), roll: 0.99), CutawayOutcome.goal);
+    });
+
+    test('and the feed line follows the ending', () {
+      expect(commentaryKeyFor(CutawayOutcome.post), 'commentary.hit_post');
+      expect(commentaryKeyFor(CutawayOutcome.over), 'commentary.shot_over');
+      expect(commentaryKeyFor(CutawayOutcome.wide), 'commentary.shot_wide');
+      expect(
+        commentaryKeyFor(CutawayOutcome.tackled),
+        'commentary.dispossessed',
+      );
+      expect(commentaryKeyFor(CutawayOutcome.saved), 'commentary.forces_save');
+    });
+
     test('a whistle is not something you watch', () {
       // Half time and full time have no passage of play, and a clip for one
       // would be a chance the match never had.

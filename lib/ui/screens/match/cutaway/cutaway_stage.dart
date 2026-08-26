@@ -26,14 +26,41 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_sequences.dart'
 
 /// What a feed event should look like on the pitch, or null when it is not a
 /// thing you watch — a half-time whistle has no passage of play.
-CutawayOutcome? outcomeForEvent(TimelineEvent event) => switch (event.type) {
-  'goal' => CutawayOutcome.goal,
-  // A chance the keeper got to, or one that never troubled him. The engine
-  // records only those two, so the post and the crossbar stay out of this
-  // mapping rather than being invented here.
-  'chance' when event.shotResult == 'on_target' => CutawayOutcome.saved,
-  'chance' => CutawayOutcome.wide,
-  _ => null,
+///
+/// **The odds are `_resolveOutcome` in `ChanceCutaway.js`.** The engine records
+/// only on target or off, and this used to map those straight to a save and a
+/// miss — so the post was never hit, while `woodwork` played for every save
+/// and `commentary.hit_post` shipped in ten languages with no caller. The JS
+/// rolls the ending on the clip, and so does this; [roll] is the clip's own
+/// seeded draw. Its `bar` is folded into [CutawayOutcome.post] (the same
+/// commentary covers both) and `blocked` into `wide` — there is no defender's
+/// block on this pitch.
+CutawayOutcome? outcomeForEvent(TimelineEvent event, {double roll = 0}) =>
+    switch (event.type) {
+      'goal' => CutawayOutcome.goal,
+      'chance' when event.shotResult == 'on_target' => roll < 0.58
+          ? CutawayOutcome.saved
+          : roll < 0.76
+          ? CutawayOutcome.over
+          : CutawayOutcome.post,
+      'chance' => roll < 0.30
+          ? CutawayOutcome.wide
+          : roll < 0.54
+          ? CutawayOutcome.over
+          : roll < 0.84
+          ? CutawayOutcome.post
+          : CutawayOutcome.wide,
+      _ => null,
+    };
+
+/// The feed line for a chance the pitch has just retold — `_endCutaway`'s
+/// table in `MatchPopup.js`, so the commentary says what was shown.
+String commentaryKeyFor(CutawayOutcome outcome) => switch (outcome) {
+  CutawayOutcome.post => 'commentary.hit_post',
+  CutawayOutcome.over => 'commentary.shot_over',
+  CutawayOutcome.wide => 'commentary.shot_wide',
+  CutawayOutcome.tackled => 'commentary.dispossessed',
+  CutawayOutcome.saved || CutawayOutcome.goal => 'commentary.forces_save',
 };
 
 /// One clip: which passage, which way, and how it ends.
@@ -128,9 +155,14 @@ CutawayClip? clipFor(
       return null;
     }
   }
-  final outcome = outcomeForEvent(event);
-  if (outcome == null) return null;
   final roll = ((seed * 2654435761) % 100000) / 100000;
+  // A second draw off the same seed, so the passage and its ending are picked
+  // independently and a replay gets both back.
+  final outcome = outcomeForEvent(
+    event,
+    roll: (((seed + 1) * 2654435761) % 100000) / 100000,
+  );
+  if (outcome == null) return null;
   return (
     sequence: pickSequence(roll),
     // Attacking away from the end you defend.

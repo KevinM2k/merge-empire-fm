@@ -154,6 +154,13 @@ class PlayMatchButton extends ConsumerWidget {
     // `match:open`; blocking the QUEUE covers every popup rather than only that
     // one — the welcome-back card could land on the pitch too.
     blockPopups(matchPopupBlocker);
+    // **THE SUMMARY REPLACES THE MATCH.** Popping the match and then pushing
+    // the summary put the Play page on screen for a frame between the two —
+    // reported three times as a page flashing up before the end-of-match
+    // page. `MatchScreen.onLeave` was written for exactly this and nothing
+    // passed it. Null until the whistle; a match closed any other way falls
+    // through to the push below.
+    Future<void>? summary;
     await Navigator.of(context).push<void>(
       MatchRoute(
         builder: (_) => MatchScreen(
@@ -162,6 +169,9 @@ class PlayMatchButton extends ConsumerWidget {
           // Full time, with the screen still up: commit the outcome so the
           // table and the season move on.
           onFinished: (r) => game.update((s) => settleMatch(s, r)),
+          onLeave: (ctx) => summary = Navigator.of(
+            ctx,
+          ).pushReplacement<void, void>(matchSummaryRoute(result)),
         ),
       ),
     );
@@ -171,7 +181,11 @@ class PlayMatchButton extends ConsumerWidget {
     // screen — and until the summary existed there was no offer to defer for.
     // It doubles `coinsEarned` on the result in place when the video is
     // watched, so what lands is what the screen last said.
-    if (context.mounted) await showMatchSummary(context, result);
+    if (summary != null) {
+      await summary;
+    } else if (context.mounted) {
+      await showMatchSummary(context, result);
+    }
     game.update((s) => payMatch(s, result));
 
     if (!context.mounted) {

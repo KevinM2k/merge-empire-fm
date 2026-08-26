@@ -211,6 +211,13 @@ List<FeedLine> feedOf(
   required String ourName,
   required String theirName,
   required bool isHome,
+  /// The commentary key for each chance the 2D pitch has retold, by minute.
+  ///
+  /// **A retold chance ALWAYS gets a line, and the line says what was shown**
+  /// — `_endCutaway` in `MatchPopup.js`. Every chance printed "forces a save"
+  /// whatever the clip had just drawn, so the ball went over the bar and the
+  /// feed said the keeper had it.
+  Map<int, String> clippedChanceKeys = const {},
 }) {
   final out = <FeedLine>[];
   int? lastChance;
@@ -316,16 +323,20 @@ List<FeedLine> feedOf(
           ));
         }
       case 'chance':
+        final shown = clippedChanceKeys[e.minute];
         final big = e.big || e.xg >= chanceFeedBigXg;
         final enoughGap =
             lastChance == null || e.minute - lastChance >= chanceFeedGap;
-        if (!big || e.shotResult != 'on_target' || !enoughGap) continue;
+        if (shown == null &&
+            (!big || e.shotResult != 'on_target' || !enoughGap)) {
+          continue;
+        }
         lastChance = e.minute;
         final mine = (e.team == 'home') == isHome;
         out.add((
           minute: e.minute,
           type: e.type,
-          key: 'commentary.forces_save',
+          key: shown ?? 'commentary.forces_save',
           params: {'who': mine ? ourName : theirName},
           seed: '${e.minute}-ch',
           goal: null,

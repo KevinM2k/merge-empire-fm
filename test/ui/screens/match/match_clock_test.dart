@@ -211,6 +211,26 @@ void main() {
       expect(one.single.params['who'], 'Us');
     });
 
+    test('A CHANCE THE PITCH RETOLD SAYS WHAT WAS SHOWN', () {
+      // Every chance printed "forces a save" whatever the clip had drawn, so
+      // the ball went over the bar and the feed said the keeper had it. A
+      // retold chance always earns its line — it was watched — and the line is
+      // the clip's ending. `_endCutaway` in `MatchPopup.js`.
+      final lines = feedOf(
+        [
+          ev('chance', xg: 0.1, shotResult: 'off', minute: 20),
+          ev('chance', xg: 0.1, shotResult: 'off', minute: 24),
+        ],
+        ourName: 'Us',
+        theirName: 'Them',
+        isHome: true,
+        clippedChanceKeys: {24: 'commentary.hit_post'},
+      );
+      expect(lines, hasLength(1));
+      expect(lines.single.minute, 24);
+      expect(lines.single.key, 'commentary.hit_post');
+    });
+
     test('and the second one inside ten minutes is held back', () {
       final lines = feed([
         ev('chance', minute: 10, big: true, shotResult: 'on_target'),

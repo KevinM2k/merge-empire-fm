@@ -210,6 +210,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// minute — see [_soundFor] and [_clipStruck].
   TimelineEvent? _clippedEvent;
 
+  /// How each retold chance ENDED, as a commentary key by minute — what the
+  /// feed prints for it. See `feedOf`'s `clippedChanceKeys`.
+  final Map<int, String> _clippedChanceKeys = {};
+
   /// What Colin is saying, and when he last said anything.
   ///
   /// **He had NOTHING to say for the whole match.** Twenty-four pooled
@@ -482,11 +486,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         case 'chance':
           unawaited(sound.play('kick'));
           // A chance that hit the target and stayed out is the one the crowd
-          // reacts to; a wild one off target is not worth a sound.
+          // reacts to; a wild one off target is not worth a sound. **The crowd,
+          // not the post**: nothing on this path was shown hitting anything,
+          // and `woodwork` played for every one of their saves.
           if (event.shotResult == 'on_target') {
             _cue(
               const Duration(milliseconds: 200),
-              () => unawaited(sound.play(ours ? 'crowdOoh' : 'woodwork')),
+              () => unawaited(sound.play('crowdOoh')),
             );
           }
         case 'injury':
@@ -533,21 +539,28 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// complaint was a reaction that did not land with the thing it was reacting
   /// to. The outcome the clip reports is the one the event gave it, so this
   /// still reads the event.
-  void _clipVerdict(CutawayOutcome _) {
+  ///
+  /// **And the sound is the OUTCOME's**, which is the whole point of waiting
+  /// for it: `woodwork` is the post being hit, so it plays when the clip has
+  /// drawn the ball hitting the post and at no other time. It used to play for
+  /// every save of theirs, so a match rattled the frame a dozen times without
+  /// a shot ever touching it. A save draws the crowd's reaction whoever made
+  /// it; a shot that misses everything gets nothing.
+  void _clipVerdict(CutawayOutcome outcome) {
     final event = _clippedEvent;
     if (event == null || !mounted) return;
     final ours = event.team != 'away';
     final sound = ref.read(soundServiceProvider);
-    switch (event.type) {
-      case 'goal':
+    switch (outcome) {
+      case CutawayOutcome.goal:
         unawaited(sound.play(ours ? 'goal' : 'goalAgainst'));
-      case 'chance':
-        // A chance that hit the target and stayed out is the one the crowd
-        // reacts to; a wild one off target is not worth a sound.
-        if (event.shotResult == 'on_target') {
-          unawaited(sound.play(ours ? 'crowdOoh' : 'woodwork'));
-        }
-      default:
+      case CutawayOutcome.post:
+        unawaited(sound.play('woodwork'));
+      case CutawayOutcome.saved:
+        unawaited(sound.play('crowdOoh'));
+      case CutawayOutcome.over:
+      case CutawayOutcome.wide:
+      case CutawayOutcome.tackled:
         break;
     }
   }
@@ -634,7 +647,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // minute — a chance and an injury — and only the one the pitch is
       // retelling has its sounds moved onto the clip's beats. See [_soundFor].
       _clippedEvent = event;
-      if (event.type == 'chance') _lastChanceCutMinute = event.minute;
+      if (event.type == 'chance') {
+        _lastChanceCutMinute = event.minute;
+        _clippedChanceKeys[event.minute] = commentaryKeyFor(clip.outcome);
+      }
       // **THE GRASS BELONGS TO THE CHANCE.** The float shot sits bottom-right
       // OVER the pitch, which is fine while nothing is happening on it and is
       // exactly wrong the moment something is — a goal's cut-in was still up
@@ -1254,7 +1270,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // than watched.
       strategyId: '${widget.result['strategyId'] ?? 'balanced'}',
     );
-    final events = feedOf(f.shown, ourName: us, theirName: them, isHome: home);
+    final events = feedOf(
+      f.shown,
+      ourName: us,
+      theirName: them,
+      isHome: home,
+      clippedChanceKeys: _clippedChanceKeys,
+    );
     // **ONE reading, two things drawing it.** The arrow and the idle pitch's
     // shape are the same figure; handed over rather than computed twice, so
     // they cannot drift apart.
@@ -1455,49 +1477,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                   _dugoutCamFor(told);
                                 },
                               ),
-                              // Between chances: which way the game is going, on
-                              // the pitch it is going on. Off while a clip runs —
-                              // there is a real move on the grass to watch.
-                              // **OVER THE PITCH, bottom right**, which is where a
-                              // broadcast puts a cut-in and the one corner of this
-                              // band that carries no statistic. A cutaway owns the
-                              // stage while it plays and the rules above keep the
-                              // two off it at once.
-                              if (_cam case final shot?
-                                  when shot.variant == CamVariant.float)
-                                Positioned.fill(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: Align(
-                                      alignment: Alignment.bottomRight,
-                                      child: LayoutBuilder(
-                                        // **CAPPED BY THE HEIGHT TOO.** The
-                                        // float sized itself off the WIDTH alone,
-                                        // and the band got shorter when the pitch
-                                        // gave its vertical space back — so the
-                                        // cam's own column ran 35 pixels out of
-                                        // the bottom of the stage. `FittedBox`
-                                        // shrinks it to whatever is actually
-                                        // there rather than clipping a man in
-                                        // half.
-                                        builder: (context, box) => FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          alignment: Alignment.bottomRight,
-                                          child: SizedBox(
-                                            width:
-                                                (box.maxWidth * camFloatFraction)
-                                                    .clamp(
-                                                      camFloatMinWidth,
-                                                      camFloatMaxWidth,
-                                                    )
-                                                    .clamp(0.0, box.maxWidth),
-                                            child: _dugoutCam(shot),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
                           ],
                         ),
                       ),
@@ -1547,7 +1526,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                           // [GlassPanel.sheen].
                           sheen: false,
                           padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
-                          child: Column(
+                          child: Stack(
+                            children: [
+                          Column(
                               children: [
                                 Expanded(
                                     child: ListView.builder(
@@ -1622,6 +1603,31 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 ),
                               ],
                           ),
+                              // **THE CUT-IN IS OFF THE GRASS.** It floated
+                              // bottom-right over the pitch, which is where a
+                              // broadcast puts one — over a stat board. This
+                              // stage is a live pitch for the whole match, so
+                              // the goal he was reacting to was followed by a
+                              // move he was standing in front of. The corner of
+                              // the commentary is the one place on the page
+                              // nothing is happening: the feed is newest-first,
+                              // so what he covers is the oldest lines.
+                              if (_cam case final shot?
+                                  when shot.variant == CamVariant.float)
+                                Positioned(
+                                  right: 8,
+                                  bottom: 8,
+                                  child: LayoutBuilder(
+                                    builder: (context, box) => SizedBox(
+                                      width: (box.maxWidth * camFloatFraction)
+                                          .clamp(camFloatMinWidth, camFloatMaxWidth)
+                                          .clamp(0.0, box.maxWidth),
+                                      child: _dugoutCam(shot),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1631,7 +1637,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(12),
+                    // **NO AIR OF ITS OWN ABOVE IT.** The commentary panel
+                    // already ends in `matchGap`, and twelve more here made the
+                    // one seam on the page that was twice the others — read
+                    // straight off the screen as too much space between the
+                    // feed and the buttons.
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     // **NO BUTTON AT FULL TIME.** The whistle already leaves
                     // this page on its own — see `_leaveFullTime`, 1.4s after
                     // the sting — so a full-width "VICTORY" button was a
@@ -2367,13 +2378,25 @@ class _Scoreboard extends StatelessWidget {
               top: 6,
               right: 8,
               child: Container(
+                // **SAYS "STATS".** It was a bare chart glyph in a dark
+                // circle, and the report from the couch was that the stats
+                // were missing — a door nobody can read is not a door.
                 key: const ValueKey('match-stats-glyph'),
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.fromLTRB(6, 3, 8, 3),
+                // A plate dark enough to carry white in BOTH themes: the
+                // accent on a 28% wash was 1.04:1 on the light sky.
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.28),
-                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: GameIcon('bars', size: 13, color: glassAccent(context, kit.accentBright)),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GameIcon('bars', size: 12, color: Colors.white),
+                    SizedBox(width: 4),
+                    _StatsWord(),
+                  ],
+                ),
               ),
             ),
           ],
@@ -2381,6 +2404,22 @@ class _Scoreboard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "STATS", on the board's door. Its own widget only so the row can be const.
+class _StatsWord extends StatelessWidget {
+  const _StatsWord();
+
+  @override
+  Widget build(BuildContext context) => Text(
+    t('match.tab.stats').toUpperCase(),
+    style: const TextStyle(
+      fontSize: 9.5,
+      fontWeight: FontWeight.w900,
+      letterSpacing: 0.5,
+      color: Colors.white,
+    ),
+  );
 }
 
 class _FeedLine extends StatelessWidget {

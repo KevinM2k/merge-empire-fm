@@ -2,10 +2,14 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/sound_defs.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
+import 'package:merge_empire_fc/services/sound_service.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -90,6 +94,7 @@ Future<ProviderContainer> pumpMatch(
   // Every test below settles, and none of them is about the camera; the ones
   // that are pass `reduceMotion: false` and pump by hand.
   bool reduceMotion = true,
+  List<Override> overrides = const [],
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -98,6 +103,7 @@ Future<ProviderContainer> pumpMatch(
           saveKeyPrimary: jsonEncode(save ?? createDefaultState()),
         }),
       ),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);
@@ -131,6 +137,49 @@ Future<ProviderContainer> pumpMatch(
   );
   await tester.pump();
   return container;
+}
+
+/// A backend that only remembers what it was asked to play.
+class _EarBackend implements SoundBackend {
+  final List<String> played = [];
+
+  @override
+  Future<void> playSfx(
+    String name,
+    Uint8List wav, {
+    required double volume,
+    required bool overlap,
+    required Duration length,
+  }) async => played.add(name);
+
+  @override
+  Future<void> playAsset(String asset, {required double volume}) async {}
+  @override
+  Future<void> setMusic(
+    String? asset, {
+    required double volume,
+    required bool fade,
+  }) async {}
+  @override
+  Future<void> setMusicVolume(double volume) async {}
+  @override
+  Future<void> pauseMusic() async {}
+  @override
+  Future<void> resumeMusic() async {}
+  @override
+  Future<void> stopAllSfx() async {}
+}
+
+/// A sound engine with every match cue loaded and an ear on the back of it.
+({SoundService service, _EarBackend ear}) earOn() {
+  final ear = _EarBackend();
+  final service = SoundService(
+    backend: ear,
+    render: () => {
+      for (final name in soundDefs.keys) name: Uint8List(1),
+    },
+  )..warmUpNow();
+  return (service: service, ear: ear);
 }
 
 MatchScreenState stateOf(WidgetTester tester) =>
@@ -173,6 +222,64 @@ void main() {
     );
     await tester.pump();
   }
+
+  group('THE SOUND IS THE ENDING THE PITCH SHOWED', () {
+    // `woodwork` played for every on-target chance of theirs — a save, on the
+    // pitch, and the frame rattling in the speakers. Reported as the post
+    // sounding when nothing was going on and saves playing a post sound.
+    Map<String, dynamic> theirBigChance() => matchResult(
+      events: [
+        {
+          'minute': 22,
+          'type': 'chance',
+          'team': 'away',
+          'xg': 0.5,
+          'shotResult': 'on_target',
+          'big': true,
+        },
+      ],
+    );
+
+    Future<_EarBackend> verdict(
+      WidgetTester tester,
+      CutawayOutcome outcome,
+    ) async {
+      final sound = earOn();
+      await pumpMatch(
+        tester,
+        theirBigChance(),
+        reduceMotion: false,
+        overrides: [soundServiceProvider.overrideWithValue(sound.service)],
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(22));
+      await tester.pump();
+      expect(state.clipPlaying, isTrue);
+      sound.ear.played.clear();
+      tester.widget<CutawayStage>(find.byType(CutawayStage)).onVerdict!(
+        outcome,
+      );
+      await tester.pump();
+      return sound.ear;
+    }
+
+    testWidgets('a SAVE is the crowd, not the post', (tester) async {
+      final ear = await verdict(tester, CutawayOutcome.saved);
+      expect(ear.played, contains('crowdOoh'));
+      expect(ear.played, isNot(contains('woodwork')));
+    });
+
+    testWidgets('and the post is the post', (tester) async {
+      final ear = await verdict(tester, CutawayOutcome.post);
+      expect(ear.played, contains('woodwork'));
+    });
+
+    testWidgets('and a shot that misses everything is nothing', (tester) async {
+      final ear = await verdict(tester, CutawayOutcome.over);
+      expect(ear.played, isNot(contains('woodwork')));
+      expect(ear.played, isNot(contains('crowdOoh')));
+    });
+  });
 
   group('THE DUGOUT CAM', () {
     testWidgets('THE GRASS BELONGS TO THE CHANCE — a clip closes him', (
@@ -247,10 +354,14 @@ void main() {
       await endClip(tester);
       expect(state.camUp, isTrue);
       expect(find.byType(DugoutCam), findsOneWidget);
-      // Over the pitch, which is where a broadcast puts a cut-in.
+      // **OFF THE GRASS.** He floated over the pitch, and the pitch is live for
+      // the whole match — so the move after the goal was played behind him.
+      // The corner of the commentary is where nothing is happening.
       final cam = tester.getRect(find.byType(DugoutCam));
       final stage = tester.getRect(find.byKey(const ValueKey('match-stage')));
-      expect(stage.contains(cam.center), isTrue);
+      final feed = tester.getRect(find.byKey(const ValueKey('match-feed')));
+      expect(stage.overlaps(cam), isFalse, reason: 'the cut-in covers the pitch');
+      expect(feed.contains(cam.center), isTrue);
     });
 
     testWidgets('and he is gone again on his own', (tester) async {
