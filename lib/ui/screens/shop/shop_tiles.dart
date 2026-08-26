@@ -445,11 +445,14 @@ class CornerBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Black on gold, white on a dark hue — the same question the ad yellow
-    // answers with `adOfferOnInk`, asked of whatever colour this offer is.
-    final onInk = ThemeData.estimateBrightnessForColor(ink) == Brightness.light
-        ? const Color(0xFF171717)
-        : Colors.white;
+    // Whichever of the two inks reads better, MEASURED. A brightness guess
+    // put white on VIP purple at 2.88:1; the better of white and near-black is
+    // never under 4.5:1 on any colour, which is what "high-contrast" has to
+    // mean on nine-point type.
+    final l = ink.computeLuminance();
+    final onInk = 1.05 / (l + 0.05) >= (l + 0.05) / 0.0575
+        ? Colors.white
+        : adOfferOnInk;
     return IgnorePointer(
       child: SizedBox(
         width: _box,
