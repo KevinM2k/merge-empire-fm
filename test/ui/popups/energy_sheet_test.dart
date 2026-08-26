@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart' show gemItemDesc;
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -175,11 +176,41 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
     await tester.pumpAndSettle();
 
+    // The gem option carries its description now, so the sheet is taller than
+    // an 800x600 test viewport — it is a `ListView` and scrolls.
+    await tester.ensureVisible(find.byKey(const ValueKey('energy-to-shop')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('energy-to-shop')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('energy-sheet')), findsNothing);
     expect(find.byKey(const ValueKey('shop-scroll')), findsOneWidget);
+  });
+
+  /// **THE GEM ROUTE SAYS WHAT IT GIVES YOU.** The video option has always said
+  /// so in its own title — "up to N energy" — and the gem one said "Energy
+  /// Refill" and a price, so the only route a player PAYS for was the one that
+  /// would not tell them what they were buying. Reported from the couch.
+  testWidgets('the gem refill says what it gives, not just what it costs', (
+    tester,
+  ) async {
+    final container = await pumpShell(tester, energy: 1);
+    await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('energy-buy-refill')),
+        // `{n}` comes from the tank the player actually HAS — an Energy
+        // Director owner gets fifteen, so a literal would be a lie to them.
+        matching: find.text(
+          gemItemDesc(
+            'energy_refill',
+            state: container.read(gameProvider).state,
+          ),
+        ),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('THE TANK IS PIPS, not a fraction on its own', (tester) async {

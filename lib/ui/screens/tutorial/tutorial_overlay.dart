@@ -36,6 +36,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart' show matchPopupBlocker;
@@ -46,6 +47,7 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_anchor.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_spotlight.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
@@ -104,6 +106,9 @@ class TutorialHost extends ConsumerStatefulWidget {
 /// The blocker tag, and the JS's own string.
 const String tutorialPopupBlocker = 'tutorial';
 
+/// The transparent input-eater's key — the JS's `_animBlockerEl`.
+const String tutorialInputSeal = 'tutorial-input-seal';
+
 class TutorialHostState extends ConsumerState<TutorialHost> {
   /// The step a card is currently up for, so one is not opened twice.
   String? _showing;
@@ -111,6 +116,12 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
 
   /// Whether this host is holding the popup queue.
   bool _blocking = false;
+
+  /// The loan is flying off the grid and NOTHING may be pressed.
+  ///
+  /// The JS's `_animBlockerEl`: transparent rather than dimmed, because the
+  /// player is meant to be watching the grid, not told to look away from it.
+  bool _sealing = false;
 
   /// Test seam: which step has a card up, or null.
   String? get showing => _showing;
@@ -215,6 +226,14 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
   Widget build(BuildContext context) {
     final step = ref.watch(tutorialStepProvider);
     _setBlocking(step != null);
+    // Checked before the null-step return: `skipTutorial` can land mid-flight.
+    if (_sealing) {
+      return const ModalBarrier(
+        key: ValueKey(tutorialInputSeal),
+        dismissible: false,
+        color: null,
+      );
+    }
     if (step == null) {
       _showing = null;
       _stopTracking();
@@ -293,6 +312,22 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
     try {
       _openTab(step);
       if (!mounted) return;
+      if (step.id == 'loan_depart') {
+        // **Nothing is pressable while they fly.** The JS lays a transparent
+        // input-eater over the app for exactly this window — the tutorial's
+        // own chrome is down, there is no card to absorb taps, and Add Player
+        // is sitting right there under the emptying grid.
+        setState(() => _sealing = true);
+        // **The tab has to have ARRIVED first.** The step is on the grid and
+        // the player was on the league screen a frame ago; without this the
+        // cards spend their whole flight sliding in from off-screen, and the
+        // report was that the loan vanished on the wrong page entirely.
+        await Future<void>.delayed(tabSlideDuration);
+        if (!mounted) return;
+        await departLoan(ref);
+        if (!mounted) return;
+        setState(() => _sealing = false);
+      }
       final answered = await showTutorialCard(context, ref, step);
       if (!mounted) return;
       switch (answered) {
@@ -354,10 +389,10 @@ Map<String, Object?> tutorialParams(WidgetRef ref) => {
   'score': ref.read(tutorialScoreProvider),
 };
 
-/// The two steps that DO something as they are answered.
+/// The step that DOES something as it is answered.
 ///
-/// Both are guarded inside the engine on their own save flags, so a card
-/// answered twice — a double tap, a rebuild — lends and takes back once.
+/// Guarded inside the engine on its own save flag, so a card answered twice — a
+/// double tap, a rebuild — lends once.
 ///
 /// **AND THE LOAN IS WATCHED, not just applied.** "See My Squad" was a button
 /// that rewrote the grid and put the next card up on the same frame, so eight
@@ -371,8 +406,37 @@ Future<void> applyStepEffects(WidgetRef ref, TutorialStep step) async {
       // Reduce-motion has nothing to wait for: the cards are simply there.
       if (lent == 0 || MediaQuery.disableAnimationsOf(ref.context)) return;
       await Future<void>.delayed(loanArrivalWindow(lent));
-    case 'loan_depart':
-      ref.read(gameProvider).update(returnTutorialPlayers);
+  }
+}
+
+/// **The loan leaves BEFORE the card that says it has, not after.**
+///
+/// The port ran `returnTutorialPlayers` when the player answered
+/// `tut.loan_depart` — so Colin announced the squad was gone over a grid still
+/// full of them, and they vanished a tap later on whatever screen the player
+/// happened to be looking at. The JS has always had this the other way round:
+/// `loan_depart.onEnterAsync` flies the borrowed cards off the grid, removes
+/// them from the save, and only THEN opens the dialog.
+///
+/// So this is the step's entrance, and it is three things in order — show the
+/// grid, empty it, take the loan out of the save. The card follows in [run].
+/// Returns once the grid is actually empty.
+Future<void> departLoan(WidgetRef ref) async {
+  final leaving = ref.read(loanCardIdsProvider).length;
+  if (leaving == 0) return;
+  if (MediaQuery.disableAnimationsOf(ref.context)) {
+    ref.read(gameProvider).update(returnTutorialPlayers);
+    return;
+  }
+  ref.read(loanDepartingProvider.notifier).state = true;
+  try {
+    await Future<void>.delayed(loanDepartureWindow(leaving));
+  } finally {
+    // **The save is rewritten and the flag dropped in that order**, and never
+    // one without the other: a flag left set would spend the rest of the
+    // session flying every future loan card off the grid.
+    ref.read(gameProvider).update(returnTutorialPlayers);
+    ref.read(loanDepartingProvider.notifier).state = false;
   }
 }
 

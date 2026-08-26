@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// One quest, as a row.
 typedef QuestRow = ({
@@ -125,13 +126,13 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
           key: const ValueKey('quests-sheet'),
           padding: const EdgeInsets.all(16),
           children: [
-            SheetHeader(title: t('quests.title'), padding: EdgeInsets.zero),
+            // **THE HEADER IS THE TRACK'S NAME.** `quests.title` is the bare
+            // word "Quests" and `quests.season` sat under it as a subtitle
+            // saying "Season Quests" — two headings for one list, on a sheet
+            // that only ever shows the season track since the match one moved
+            // to the next-match card. The subtitle wins and the label goes.
+            SheetHeader(title: t('quests.season'), padding: EdgeInsets.zero),
             const SizedBox(height: 12),
-            Text(
-              t('quests.season'),
-              style: TextStyle(color: kit.textMuted, fontSize: 13),
-            ),
-            const SizedBox(height: 4),
             if (season.isEmpty)
               Text(
                 t('quests.none_season'),
@@ -226,7 +227,7 @@ class _TrackPrize extends ConsumerWidget {
             _RewardChip(
               key: const ValueKey('quests-track-coins'),
               icon: 'coin',
-              ink: coinFigureInk(context),
+              ink: gameGold,
               label: t('quests.reward_coins', {'n': prize.coins}),
             ),
           // The gem only while it is still there to be earned: a division that
@@ -257,6 +258,9 @@ class _RewardChip extends StatelessWidget {
   });
 
   final String icon;
+
+  /// **THE BRIGHT ink, in both themes**, because this chip's surface is dark in
+  /// both — see the decoration below.
   final Color ink;
   final String label;
 
@@ -269,6 +273,13 @@ class _RewardChip extends StatelessWidget {
     // and they are not the problem, so the contrast is bought with the SURFACE:
     // a dark plate, the way a scoreboard does it, which is the same move the
     // coin figure's halo already makes on this theme.
+    //
+    // **AND THE PLATE IS WHY THE INK IS THE DARK THEME'S.** Callers used to
+    // pass `coinFigureInk`, which answers `gameGoldLight` — a deep bronze — on
+    // a light page. That shade exists for gold on WHITE; put it on the plate
+    // this chip paints for itself and it is brown on charcoal, which is what
+    // the playtest reported. A chip that supplies its own dark surface wants
+    // the gold that was made for dark surfaces.
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(999),
       color: Theme.of(context).brightness == Brightness.light
@@ -309,15 +320,24 @@ class _RerollRow extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          OutlinedButton(
+          // **THE COLOUR ANSWERS "WHAT DOES THIS COST ME?"** — see [StoreButton].
+          // This was an `OutlinedButton`, which the theme moulds with an empty
+          // face and a grey edge bar, so the one control on the sheet a player
+          // might press looked like the disabled state of something. Free is
+          // the club's accent; gems are blue and wear the gem, the same as
+          // every other gem price in the game.
+          StoreButton(
             key: const ValueKey('quests-reroll'),
-            onPressed: reroll.can
+            tone: reroll.cost == 0 ? StoreTone.neutral : StoreTone.gem,
+            leading: reroll.cost == 0
+                ? null
+                : const GameIcon('gem', size: 15),
+            label:
+                '${t('quests.reroll_all')} · '
+                '${reroll.cost == 0 ? t('quests.reroll_free') : t('quests.reroll_cost', {'n': reroll.cost})}',
+            onTap: reroll.can
                 ? () => game.update((s) => rerollQuests(s))
                 : null,
-            child: Text(
-              '${t('quests.reroll_all')} · '
-              '${reroll.cost == 0 ? t('quests.reroll_free') : t('quests.reroll_cost', {'n': reroll.cost})}',
-            ),
           ),
           if (reroll.free > 0)
             Padding(
@@ -429,7 +449,7 @@ class _QuestTile extends StatelessWidget {
                           child: _RewardChip(
                             key: ValueKey('quest-reward-$track-${quest.id}'),
                             icon: 'coin',
-                            ink: coinFigureInk(context),
+                            ink: gameGold,
                             label: t('quests.reward_coins', {'n': quest.coins}),
                           ),
                         ),

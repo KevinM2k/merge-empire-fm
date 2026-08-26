@@ -368,6 +368,7 @@ class KeeperPose {
     required this.dive,
     required this.side,
     this.land = 0,
+    this.settle = 0,
   });
 
   final Vec3 hand;
@@ -384,6 +385,15 @@ class KeeperPose {
   /// floor as a posed figure. A body that has stopped flying goes slack, and
   /// gravity takes the arms and legs with it.
   final double land;
+
+  /// **0 the instant he hits the turf, 1 once his limbs have stopped.**
+  ///
+  /// [land] saturates the moment his shoulders reach the ground, so on its own
+  /// it can only ever ease a limb to a rest and leave it there. Reported from
+  /// the couch as the arms and legs having no physics on them: the dive looked
+  /// right in the air and he landed like a mannequin being set down. This is
+  /// the clock the settle rings on — see `_limbRing`.
+  final double settle;
 }
 
 /// Everything the painter needs, so the widget can be rebuilt without it.
@@ -453,7 +463,13 @@ const double _legSplitDive = 30 * math.pi / 180;
 /// bent backwards. Steep enough that both bones point downward, the same kink
 /// reads as a relaxed arm — a set keeper's gloves are at his hips, not at his
 /// shoulders.
-const double _armRest = 132 * math.pi / 180;
+///
+/// **AND 132 WAS STILL HALFWAY TO HORIZONTAL.** The chord it gives is 48
+/// degrees off vertical, which put each glove better than half a metre out from
+/// his centreline — a wingspan, and reported as the arms sitting at right
+/// angles. 158 leaves them a hand's width proud of the hips: down, slightly
+/// out, and ready, which is what the constant was always trying to say.
+const double _armRest = 158 * math.pi / 180;
 const double _armLead = 96 * math.pi / 180;
 const double _armTrail = 22 * math.pi / 180;
 
@@ -684,6 +700,37 @@ typedef KeeperRig = ({
   double lean,
 });
 
+/// How far the limbs swing past the pose gravity leaves them in, how many
+/// half-swings it takes to die out, and how fast it dies.
+///
+/// 1.5 turns is deliberate and not a taste: `sin` is zero at both ends of it,
+/// so the ring adds nothing before he lands and nothing once he has stopped.
+/// The pose he finishes in is exactly the pose he finished in before.
+const double _limbRingAmp = 0.30;
+const double _limbRingTurns = 1.5;
+const double _limbRingDecay = 2.4;
+
+/// How much of the ring the whole body takes, in radians of lean.
+const double _keeperRock = 0.5;
+
+/// **A DAMPED SPRING, on the blend rather than on twelve separate joints.**
+///
+/// He hit the turf as a posed figure: every limb eased to its hanging rest on
+/// the same curve his body fell on, and then simply stopped. A body that lands
+/// does not stop — it overshoots, comes back under, and rings down.
+///
+/// One oscillator, shared by every limb, which is what makes it read as ONE
+/// body settling rather than as four independent wobbles. And because all the
+/// two-bone solves are downstream of it, no bone changes length while it rings:
+/// that invariant is the rig's own and this does not spend it.
+double _limbRing(double settle) {
+  final t = settle.clamp(0.0, 1.0);
+  if (t <= 0 || t >= 1) return 0;
+  return _limbRingAmp *
+      math.sin(_limbRingTurns * 2 * math.pi * t) *
+      math.exp(-_limbRingDecay * t);
+}
+
 KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   final hand = project(pose.hand, view);
   if (hand == null) return null;
@@ -694,7 +741,12 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   if (unit <= 0) return null;
 
   final dive = pose.dive.clamp(0.0, 1.0);
-  final lean = dive * 1.15 * (pose.side.isNegative ? -1 : 1);
+  // The limbs' settle after the body has stopped — see [_limbRing]. The whole
+  // figure takes a share of it as a ROCK about the chest, which is most of what
+  // makes a landing read as a landing rather than as a figure being placed.
+  final ring = _limbRing(pose.settle);
+  final way0 = pose.side.isNegative ? -1 : 1;
+  final lean = (dive * 1.15 + ring * _keeperRock * dive) * way0;
   // No lead arm until he has actually gone: at `side == 0` picking one made him
   // look like he was holding something.
   final way = pose.side.abs() < 0.05 ? 0.0 : (pose.side < 0 ? -1.0 : 1.0);
@@ -726,7 +778,10 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
   // underneath: reported as diving stiff, sticking, and then falling. One
   // curve, and the pose comes apart as he picks up speed.
   final falling = pose.land.clamp(0.0, 1.0);
-  final land = falling * falling;
+  // **PAST the hang and back under it.** `land` is a blend, so a value over 1
+  // extrapolates: the limb swings beyond the pose gravity left it in and comes
+  // back, which is a settle rather than an ease.
+  final land = falling * falling + ring;
   final slack = 1 - land;
   // Straight DOWN in the world, which in his own frame is back through the
   // lean: a man lying on his side has arms that hang toward the turf, not
@@ -924,6 +979,36 @@ const double _takerArmFold = 0.85;
 const double _takerThigh = 0.47;
 const double _takerShin = _takerLeg - _takerThigh;
 
+/// How far a running leg swings SIDEWAYS, in radians off vertical, and how much
+/// of the leg a lifted knee takes back.
+///
+/// **THE RUN-UP IS SEEN FROM DIRECTLY BEHIND, so the stride runs in DEPTH and
+/// almost none of it is across the frame.** The legs swept ±0.36 and ±0.34 —
+/// better than three times the half-pelvis — so on every stride each boot
+/// crossed the centreline and finished under the other hip. Reported from the
+/// couch as the legs crossing over in a weird way, and that is precisely what
+/// it was: a stride drawn sideways is a scissor.
+///
+/// Both are kept UNDER [_takerHip], so a boot stays on its own side of the
+/// body no matter where in the cycle it is caught.
+///
+/// The stride reads off the KNEE now — the swinging leg folds and its boot
+/// leaves the turf — which is what a run looks like from behind. That is why
+/// the lift grew as the sweep shrank: it is carrying the whole cycle.
+const double _takerStrideOut = 0.075;
+const double _takerPlantOut = 0.065;
+const double _takerStrideStand = 0.96;
+const double _takerStrideLift = 0.30;
+const double _takerPlantLift = 0.22;
+
+/// When the run-up hands over to the strike, as a fraction of [takerRigFor]'s
+/// own clock, and the stride's phase at that instant.
+///
+/// Derived rather than written down: the backlift starts from wherever the run
+/// left the leg, so the two cannot drift apart and pop.
+const double _takerPlantAt = 0.82;
+final double _takerHandoff = math.sin(_takerPlantAt * 3.4 * math.pi);
+
 /// How far through the strike he cocks it before it comes through.
 ///
 /// He had no backlift at all: the leg ran from 0.36 radians to 1.14 and that was
@@ -1052,15 +1137,31 @@ TakerRig? takerRigFor(double t, Size view) {
   // which from the front is a scissor rather than a stride, and was reported as
   // the run-up crossing its own legs. A leg swinging forward bends; a leg
   // taking weight does not.
+  // The swinging leg folds and lifts; the sideways sweep is small enough that
+  // neither boot ever reaches the other hip. See [_takerStrideOut].
+  double strideReach(double phase, double lift) =>
+      _takerStrideStand - lift * math.max(0.0, phase);
   final (kickAngle, kickReach) = striking <= 0
-      ? (cycle * 0.36, 0.96 - 0.22 * math.max(0.0, cycle))
+      ? (
+          cycle * _takerStrideOut,
+          strideReach(cycle, _takerStrideLift),
+        )
       : swing <= 0
-      ? (_mix(0.36, -0.5, cock), _mix(0.96, 0.7, cock))
+      ? (
+          _mix(_takerHandoff * _takerStrideOut, -0.5, cock),
+          _mix(strideReach(_takerHandoff, _takerStrideLift), 0.7, cock),
+        )
       : (_mix(-0.5, 1.12, through), _mix(0.7, 1.0, math.min(1, swing / 0.7)));
   // The plant leg takes his weight, so it is nearly straight and stays there.
   final (plantAngle, plantReach) = striking > 0
-      ? (-0.16, 0.98)
-      : (-cycle * 0.34, 0.96 - 0.22 * math.max(0.0, -cycle));
+      ? (
+          _mix(-_takerHandoff * _takerPlantOut, -0.16, cock),
+          _mix(strideReach(-_takerHandoff, _takerPlantLift), 0.98, cock),
+        )
+      : (
+          -cycle * _takerPlantOut,
+          strideReach(-cycle, _takerPlantLift),
+        );
 
   // The hip is wherever it has to be for the PLANT boot to be on the turf —
   // and the plant boot hangs off the pelvis, not off the centreline, so the
@@ -2258,6 +2359,8 @@ class PenaltyViewState extends State<PenaltyView>
                     side: kick?.plan.side ?? 0,
                     // The half the rig never read. See [KeeperPose.land].
                     land: kick?.keeperLand ?? 0,
+                    // And the half that starts where that one stops.
+                    settle: kick?.keeperLimbSettle ?? 0,
                   ),
                   net: _net,
                   taker: taker,

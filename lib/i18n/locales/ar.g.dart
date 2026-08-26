@@ -416,7 +416,7 @@ const Map<String, String> arCatalog = <String, String>{
   'tut.loan_depart.body': 'They\'ve gone back to their clubs — but they left us <strong>500 coins</strong> as a thank-you! Now it\'s time to build your own permanent squad. Scout, merge, and keep climbing!',
   'tut.loan_depart.btn': 'Keep Building! →',
   'tut.done.title': '🏆 أنت جاهز!',
-  'tut.done.body': 'وقّع. ادمج. ابنِ. افز. احتفظ بالمخضرمين حتى اعتزالهم — أو بعهم ما داموا يساوون شيئاً! إمبراطوريتك الكروية بانتظارك. اسم النادي لا يعجبك؟ يمكنك إعادة تسميته في أي وقت من الإعدادات.',
+  'tut.done.body': 'وقّع. ادمج. ابنِ. افز. احتفظ بالمخضرمين حتى اعتزالهم — أو بعهم ما داموا يساوون شيئاً! إمبراطوريتك الكروية بانتظارك.',
   'tut.done.btn': 'لنلعب! 🚀',
   'shop.title': 'المتجر',
   'shop.section.premium': 'بريميوم',

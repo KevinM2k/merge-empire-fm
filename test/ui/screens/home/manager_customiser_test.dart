@@ -466,5 +466,115 @@ void main() {
       expect(isLookUnlocked(state, parts[0], parts[1]), isFalse);
       expect(isPackLocked(state, parts[0], parts[1]), isTrue);
     });
+
+    /// **IT IS SHOWN, AND THEN OFFERED.** A tap used to fire a rewarded video
+    /// on the spot: nothing said what was about to happen, and nothing showed
+    /// the item. Reported from the couch twice — once as a locked item doing
+    /// nothing, and once as an ad item never saying it was an ad item.
+    testWidgets('TRIES THE ITEM ON and offers both routes', (tester) async {
+      phone(tester);
+      final container = await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      // A hat that is in a pack, which is the only lock a video can open.
+      final locked = lookPacks
+          .expand((p) => p.items)
+          .map((i) => i.split(':'))
+          .firstWhere((parts) => parts[0] == 'hat');
+
+      await tapChip(tester, 'hat', locked[1]);
+      final bar = find.byKey(const ValueKey('locked-look-offer'));
+      expect(bar, findsOneWidget);
+      // Both routes, in the shop's own colour language.
+      expect(find.byKey(const ValueKey('locked-look-watch')), findsOneWidget);
+      expect(find.byKey(const ValueKey('locked-look-buy')), findsOneWidget);
+      // And it names the item and the pack it is in — the chip behind it
+      // carries the same label, hence `descendant`.
+      expect(
+        find.descendant(of: bar, matching: find.text(lookItemLabel('hat', locked[1]))),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('locked-look-progress')), findsOneWidget);
+      // **ON THE STAGE HE WALKS ACROSS**, not in a sheet over it — asked for
+      // directly, and the reason is that the thing being sold is on the figure
+      // the sheet would have covered.
+      final stage = tester.getRect(find.byKey(const ValueKey('customise-stage')));
+      final offer = tester.getRect(bar);
+      expect(offer.left, greaterThanOrEqualTo(stage.left - 1));
+      expect(offer.right, lessThanOrEqualTo(stage.right + 1));
+      expect(offer.bottom, closeTo(stage.bottom, 1));
+
+      // **WORN ON THE PREVIEW, and nowhere else.** Nothing reaches the save
+      // until it is paid for, and the chip must not read as selected.
+      final preview = tester.widget<ManagerWalker>(
+        find.byKey(const ValueKey('customise-preview')),
+      );
+      expect(preview.look?['hat'], locked[1]);
+      expect(
+        isLookUnlocked(container.read(gameProvider).state, 'hat', locked[1]),
+        isFalse,
+        reason: 'a locked item was given away by looking at it',
+      );
+
+      // Taken off again when the offer closes.
+      await tester.tap(find.byKey(const ValueKey('locked-look-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsNothing);
+      final after = tester.widget<ManagerWalker>(
+        find.byKey(const ValueKey('customise-preview')),
+      );
+      expect(after.look?['hat'], isNot(locked[1]));
+      await settleSave(tester);
+    });
+
+    testWidgets('AND A LOCKED CELEBRATION PLAYS while it is offered', (
+      tester,
+    ) async {
+      // An emote is not worn — owning one is what puts it in the touchline
+      // rota — so there is nothing to try on. It plays on the figure instead,
+      // which is the only way to show what one actually is, and the same bar
+      // rises under him.
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'emote');
+      final locked = lookPacks
+          .expand((p) => p.items)
+          .map((i) => i.split(':'))
+          .firstWhere((parts) => parts[0] == 'emote');
+
+      await tapChip(tester, 'emote', locked[1]);
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsOneWidget);
+      expect(
+        tester
+            .widget<ManagerWalker>(
+              find.byKey(const ValueKey('customise-preview')),
+            )
+            .gesture,
+        isNotNull,
+        reason: 'nothing showed what the celebration is',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('and a lock nothing can open stays a line, not a sheet', (
+      tester,
+    ) async {
+      // A Fan Zone tier has nothing to sell and nothing to watch, so a sheet
+      // with two dead buttons on it would be worse than the sentence.
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'beard');
+      final said = <String>[];
+      void listen(Object? args) => said.add('$args');
+      on('toast:info', listen);
+      addTearDown(() => off('toast:info', listen));
+
+      await tapChip(tester, 'beard', 'stubble');
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsNothing);
+      expect(said, [t('customise.locked.fanzone', {'tier': 1})]);
+      await settleSave(tester);
+    });
   });
 }

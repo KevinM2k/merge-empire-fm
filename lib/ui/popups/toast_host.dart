@@ -276,6 +276,9 @@ class ToastHostState extends ConsumerState<ToastHost> {
   Toast? _current;
   Timer? _clear;
 
+  /// The line's own overlay entry, or null when nothing is being said.
+  OverlayEntry? _entry;
+
   /// Test seam.
   Toast? get current => _current;
 
@@ -300,18 +303,64 @@ class ToastHostState extends ConsumerState<ToastHost> {
     // and the cue is the one already reserved for finding something rather than
     // for taking a coin — `coin` is the sound of every idle tick's income.
     if (toast.gem) playSoundFrom(ref, 'newDiscovery');
-    setState(() => _current = toast);
+    _current = toast;
+    _raise();
     _clear?.cancel();
     // Long enough to read, short enough that two in a row both land — and
     // longer for gems, which turn up a handful of times in a whole run.
     _clear = Timer(toast.gem ? _gemHold : _hold, () {
-      if (mounted) setState(() => _current = null);
+      if (!mounted) return;
+      _current = null;
+      _drop();
     });
+  }
+
+  /// **THE TOAST GOES IN THE OVERLAY, over whatever is on screen.**
+  ///
+  /// It used to be a `Stack` around this host's child, and this host lives
+  /// inside `MaterialApp.home` — so every modal route in the game drew on top
+  /// of it. A bottom sheet, a coach card, a dialog: all of them are Navigator
+  /// routes, all of them are above `home`, and a line raised while one was open
+  /// was painted underneath the thing the player was looking at.
+  ///
+  /// That is not a theoretical hole. The customiser's locked chips were fixed
+  /// once already by routing their refusal through this bus instead of a
+  /// `SnackBar`, and the very next playtest reported the same thing again:
+  /// tapping a locked item does nothing. It was saying so the whole time,
+  /// behind the sheet.
+  ///
+  /// Inserted fresh on each line rather than kept in place, because `insert`
+  /// appends: a new entry goes above whatever routes are open NOW.
+  void _raise() {
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      // No Navigator above us — a widget test pumping this host bare. Fall
+      // back to drawing in place so it is still findable.
+      setState(() {});
+      return;
+    }
+    if (_entry != null) {
+      _entry!.markNeedsBuild();
+      return;
+    }
+    _entry = OverlayEntry(builder: (context) => _toastFace(context));
+    overlay.insert(_entry!);
+  }
+
+  void _drop() {
+    if (_entry == null) {
+      if (mounted) setState(() {});
+      return;
+    }
+    _entry!.remove();
+    _entry = null;
   }
 
   @override
   void dispose() {
     _clear?.cancel();
+    _entry?.remove();
+    _entry = null;
     for (var i = 0; i < toastEvents.length; i++) {
       off(toastEvents[i], _handlers[i]);
     }
@@ -320,67 +369,61 @@ class ToastHostState extends ConsumerState<ToastHost> {
 
   @override
   Widget build(BuildContext context) {
+    // The line itself lives in the overlay — see [_raise]. The in-place Stack
+    // is only ever used by a test pumping this host with no Navigator above it.
+    if (_entry != null || _current == null) return widget.child;
+    return Stack(children: [widget.child, _toastFace(context)]);
+  }
+  Widget _toastFace(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final toast = _current;
-
-    return Stack(
-      children: [
-        widget.child,
-        if (toast != null)
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 96,
-            child: IgnorePointer(
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  key: const ValueKey('toast'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kit.surface,
-                    borderRadius: BorderRadius.circular(10),
-                    // **Gold, literally, and not the club's accent.** The same
-                    // argument the achievement banner makes: this is a
-                    // celebration rather than a notice, and a green-kitted club
-                    // would otherwise make a gem payout look like every other
-                    // line the layer prints.
-                    border: Border.all(
-                      color: toast.gem
-                          ? _gemGold
-                          : toast.good
-                          ? kit.accent
-                          : Colors.redAccent,
-                      width: toast.gem ? 1.5 : 1,
-                    ),
-                    boxShadow: toast.gem
-                        ? [
-                            BoxShadow(
-                              color: _gemGold.withValues(alpha: 0.28),
-                              blurRadius: 16,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    toast.text,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: toast.gem ? _gemGold : kit.accentBright,
-                      fontSize: toast.gem ? 15 : 13,
-                      fontWeight: toast.gem
-                          ? FontWeight.w800
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ),
+    if (toast == null) return const SizedBox.shrink();
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 96,
+      child: IgnorePointer(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            key: const ValueKey('toast'),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: kit.surface,
+              borderRadius: BorderRadius.circular(10),
+              // **Gold, literally, and not the club's accent.** The same
+              // argument the achievement banner makes: this is a celebration
+              // rather than a notice, and a green-kitted club would otherwise
+              // make a gem payout look like every other line the layer prints.
+              border: Border.all(
+                color: toast.gem
+                    ? _gemGold
+                    : toast.good
+                    ? kit.accent
+                    : Colors.redAccent,
+                width: toast.gem ? 1.5 : 1,
+              ),
+              boxShadow: toast.gem
+                  ? [
+                      BoxShadow(
+                        color: _gemGold.withValues(alpha: 0.28),
+                        blurRadius: 16,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              toast.text,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: toast.gem ? _gemGold : kit.accentBright,
+                fontSize: toast.gem ? 15 : 13,
+                fontWeight: toast.gem ? FontWeight.w800 : FontWeight.normal,
               ),
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 }

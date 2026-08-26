@@ -257,10 +257,15 @@ void main() {
       }
     });
 
-    test('a keeper at rest has his arms OUT, not up in a V', () {
+    test('a keeper at rest has his gloves at his HIPS, not out at 90', () {
       // Fifty-two degrees from straight up is a man signalling a touchdown, and
       // two full-reach limbs held above the shoulders is most of what read as
       // huge: the length was reasonable, the pose was not.
+      //
+      // **AND 132 WAS STILL HALFWAY TO HORIZONTAL** — a chord 48 degrees off
+      // vertical, putting each glove better than half a metre out from his
+      // centreline. Reported from the couch as the arms sitting at right
+      // angles. They hang now: down, and a hand's width proud of the hips.
       final rig = keeperRigFor(
         KeeperPose(hand: Vec3(0, 0, keeperStandZ), dive: 0, side: 0),
         view,
@@ -271,9 +276,17 @@ void main() {
           greaterThan(rig.shoulder.dy),
           reason: 'a set keeper does not hold his gloves above his chest',
         );
-        // And out to the side of him — less than before, because a set
-        // keeper's arms are BENT; the full span belongs to the dive.
-        expect((glove.dx - rig.shoulder.dx).abs(), greaterThan(rig.unit * 0.5));
+        // At the hip, give or take a hand: down the body rather than across it.
+        expect(
+          glove.dy,
+          closeTo(rig.hip.dy, rig.unit * 0.2),
+          reason: 'not at his hips',
+        );
+        // Clear of the girdle, so the arm is an arm and not a stroke down the
+        // side of the torso — but nowhere near a wingspan. The full span
+        // belongs to the dive.
+        expect((glove.dx - rig.shoulder.dx).abs(), greaterThan(rig.unit * 0.2));
+        expect((glove.dx - rig.shoulder.dx).abs(), lessThan(rig.unit * 0.45));
       }
     });
 
@@ -625,6 +638,46 @@ void main() {
         planted.unit,
         lessThan(first.unit),
         reason: 'he did not shrink as he ran away from the lens',
+      );
+    });
+
+    /// **HIS LEGS NEVER CROSS**, which they did on every stride.
+    ///
+    /// The run-up is seen from directly behind, so the stride runs in DEPTH —
+    /// and it was drawn ACROSS instead, ±0.36 and ±0.34 radians off vertical.
+    /// That is better than three times the half-pelvis, so each boot swung past
+    /// the centreline and finished under the other hip. Reported from the couch
+    /// as the legs crossing over in a weird way.
+    test('HIS LEGS NEVER CROSS on the way in', () {
+      // Every frame of the run-up, right up to the plant. The strike itself is
+      // excluded on purpose: a right-footed kick DOES swing across the body,
+      // and that one is a kick rather than a stride.
+      for (var t = 0.02; t < 0.82; t += 0.01) {
+        final rig = takerRigFor(t, view);
+        if (rig == null) continue;
+        expect(
+          rig.kickBoot.dx,
+          greaterThan(rig.plantBoot.dx),
+          reason: 'the boots swapped sides at t=$t',
+        );
+        // And each stays on its own side of the pelvis it hangs from.
+        expect(rig.kickBoot.dx, greaterThan(rig.hip.dx - rig.unit * 0.1));
+        expect(rig.plantBoot.dx, lessThan(rig.hip.dx + rig.unit * 0.1));
+      }
+    });
+
+    test('and the stride reads off the KNEE instead', () {
+      // What carries a run seen from behind is the swinging leg folding and its
+      // boot leaving the turf, so the lift grew as the sweep shrank.
+      final lift = <double>[];
+      for (var t = 0.02; t < 0.82; t += 0.01) {
+        final rig = takerRigFor(t, view)!;
+        lift.add((rig.kickBoot - rig.kickHip).distance / rig.unit);
+      }
+      expect(
+        lift.reduce(math.max) - lift.reduce(math.min),
+        greaterThan(0.2),
+        reason: 'the leg never folds, so nothing says he is running',
       );
     });
 
@@ -1048,6 +1101,96 @@ void main() {
         view,
       )!;
       expect((a.glove - b.glove).distance, lessThan(0.001));
+    });
+
+    /// **AND THEN HE SETTLES**, which he did not.
+    ///
+    /// `keeperLand` saturates the instant his shoulders reach the turf, so on
+    /// its own it can only ease a limb to a rest and leave it there: he landed
+    /// like a mannequin being set down. Reported from the couch as the arms and
+    /// legs having no physics on them. `keeperLimbSettle` is the clock that
+    /// starts where that one stops, and the limbs ring on it.
+    KeeperRig at(double settle) => keeperRigFor(
+      KeeperPose(
+        hand: Vec3(1.6, -0.2, 0.9),
+        dive: 1,
+        side: 1,
+        land: 1,
+        settle: settle,
+      ),
+      view,
+    )!;
+
+    test('THE LIMBS OVERSHOOT THE HANG and come back under it', () {
+      final rest = (at(1).trailGlove - at(1).trailJoint);
+      double angle(double settle) {
+        final rig = at(settle);
+        return math.atan2(
+          rig.trailGlove.dy - rig.trailJoint.dy,
+          rig.trailGlove.dx - rig.trailJoint.dx,
+        );
+      }
+
+      expect(rest.distance, greaterThan(0), reason: 'no arm to measure');
+      final settled = angle(1);
+      // A sixth of the way in the spring is at full stretch past the hang; at
+      // half it has come back through it the other side.
+      expect(angle(1 / 6), isNot(closeTo(settled, 0.02)));
+      expect(
+        (angle(1 / 6) - settled).sign,
+        isNot((angle(0.5) - settled).sign),
+        reason: 'it eased to a stop rather than ringing',
+      );
+    });
+
+    test('and it dies out — where he finishes is where he finished', () {
+      // Zero at both ends of the ring, so the settled pose is untouched.
+      final before = at(0);
+      final after = at(1);
+      for (final (a, b) in [
+        (before.glove, after.glove),
+        (before.trailGlove, after.trailGlove),
+        (before.leftBoot, after.leftBoot),
+        (before.rightBoot, after.rightBoot),
+        (before.head, after.head),
+      ]) {
+        expect((a - b).distance, lessThan(0.001));
+      }
+      // And it is DAMPED: the second swing is smaller than the first.
+      final settled = at(1).trailGlove;
+      expect(
+        (at(5 / 6).trailGlove - settled).distance,
+        lessThan((at(1 / 6).trailGlove - settled).distance),
+      );
+    });
+
+    test('AND THE WHOLE BODY ROCKS WITH THEM, rather than four wobbles', () {
+      // One oscillator, shared — which is what makes it read as a body
+      // settling instead of as independent limbs.
+      expect(at(1 / 6).lean, isNot(closeTo(at(1).lean, 0.001)));
+      expect(
+        (at(1 / 6).head - at(1).head).distance,
+        greaterThan(0.5),
+        reason: 'he landed and nothing moved',
+      );
+    });
+
+    test('and NO BONE CHANGES LENGTH while it rings', () {
+      final bones = <String, Set<double>>{};
+      for (final settle in [0.0, 1 / 6, 0.4, 0.5, 5 / 6, 1.0]) {
+        final rig = at(settle);
+        void bone(String name, Offset a, Offset b) => (bones[name] ??= {})
+            .add(double.parse((a - b).distance.toStringAsFixed(4)));
+        bone('lead upper', rig.leadJoint, rig.leadElbow);
+        bone('lead fore', rig.leadElbow, rig.glove);
+        bone('trail upper', rig.trailJoint, rig.trailElbow);
+        bone('trail fore', rig.trailElbow, rig.trailGlove);
+        bone('left leg', rig.leftHip, rig.leftBoot);
+        bone('right leg', rig.rightHip, rig.rightBoot);
+      }
+      for (final entry in bones.entries) {
+        expect(entry.value, hasLength(1), reason: '${entry.key}: ${entry.value}');
+      }
     });
   });
 

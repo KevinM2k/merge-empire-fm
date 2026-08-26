@@ -18,6 +18,8 @@ import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
+import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart' show isProMode;
+import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart' show gemItemDesc;
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -136,6 +138,8 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
                         'amount': Energy.adReward,
                         'coin': t('shop.section.energy'),
                       }),
+                      // The title already says what it gives.
+                      body: null,
                       // A full tank has nothing to add to; everything else is
                       // the SDK's business and answers honestly when asked.
                       note: status.full ? t('hud.energy_full') : null,
@@ -218,6 +222,10 @@ class _RefillButton extends ConsumerWidget {
       optionKey: const ValueKey('energy-buy-refill'),
       glyph: '💎',
       title: t('gem.$_itemId.name'),
+      // `gemItemDesc` fills `{n}` from the tank the player actually has — an
+      // Energy Director owner gets fifteen, so a literal would be a lie to
+      // them — and it takes the pro-mode line where there is no pip pool.
+      body: gemItemDesc(_itemId, state: state, hardMode: isProMode(state)),
       note: blocked == null
           ? null
           : blocked == 'insufficient_gems'
@@ -293,6 +301,7 @@ class _EnergyOption extends StatelessWidget {
     required this.optionKey,
     required this.glyph,
     required this.title,
+    required this.body,
     required this.note,
     required this.tint,
     required this.tone,
@@ -304,6 +313,12 @@ class _EnergyOption extends StatelessWidget {
   final Key optionKey;
   final String glyph;
   final String title;
+
+  /// **WHAT IT ACTUALLY GIVES YOU.** The video option has always said so in its
+  /// own title — "up to N energy" — and the gem one said "Energy Refill" and a
+  /// price, so the only route a player pays for was the one that would not tell
+  /// them what they were buying. Reported from the couch.
+  final String? body;
 
   /// What it costs, which is what colours the button — see [StoreButton].
   final StoreTone tone;
@@ -358,6 +373,16 @@ class _EnergyOption extends StatelessWidget {
                   color: live ? kit.accentBright : kit.textMuted,
                 ),
               ),
+              if (body != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  body!,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: kit.textMuted, fontSize: 10, height: 1.3),
+                ),
+              ],
               if (note != null) ...[
                 const SizedBox(height: 4),
                 Text(

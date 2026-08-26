@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/providers/low_end_device.dart';
 import 'package:merge_empire_fc/services/prefs_save_store.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/ui/boot_splash.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,7 +56,9 @@ Future<void> main() async {
         saveStoreProvider.overrideWithValue(store),
         rewardedAdsProvider.overrideWithValue(ads),
       ],
-      child: const MergeEmpireApp(),
+      // The splash wraps the app rather than living inside it, exactly as the
+      // JS's `#splash` is a sibling of `#app` — see `ui/boot_splash.dart`.
+      child: const BootSplash(child: MergeEmpireApp()),
     ),
   );
 }

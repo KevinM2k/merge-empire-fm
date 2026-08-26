@@ -143,6 +143,70 @@ void main() {
     }
   });
 
+  /// **AND THE POPULAR ONE WEARS A CORNER FLASH.** `.shop-hero__ribbon` in the
+  /// stylesheet, which the port had never drawn: "MOST POPULAR" was a line of
+  /// ordinary grey text in the middle of the card, on the shelf the shop opens
+  /// on. Asked for by name from the couch.
+  testWidgets('THE POPULAR OFFER WEARS A CORNER BANNER, not a grey line', (
+    tester,
+  ) async {
+    await pumpShopWidget(tester, (_) {}, () => const OffersSection());
+    final banner = find.byType(CornerBanner);
+    expect(banner, findsOneWidget);
+    expect(
+      find.descendant(of: banner, matching: find.text(t('shop.most_popular'))),
+      findsOneWidget,
+    );
+    // Diagonal, and in the TOP-RIGHT corner of the tile it belongs to.
+    final popular = getShopProducts().firstWhere(
+      (p) => p.popular && (p.category == 'bundle' || p.category == 'vip'),
+    );
+    final tile = tester.getRect(
+      find.byKey(ValueKey('shop-tile-${popular.id}'), skipOffstage: false),
+    );
+    final flash = tester.getRect(banner);
+    expect(flash.right, closeTo(tile.right, 1));
+    expect(flash.top, closeTo(tile.top, 1));
+    expect(
+      tester.widget<Transform>(
+        find.descendant(of: banner, matching: find.byType(Transform)),
+      ),
+      isNotNull,
+    );
+  });
+
+  /// **AND THE HERO USES THE ROOM IT HAS.** One row of art, words and price
+  /// fitted the shelf into three short bands with most of the page empty under
+  /// them — the highest-converting slot in the game was the smallest thing on
+  /// the screen. Reported from the couch.
+  testWidgets('an offer is taller than a consumable, not the same height', (
+    tester,
+  ) async {
+    await pumpShopWidget(tester, (_) {}, () => const OffersSection());
+    final offers = getShopProducts().where(
+      (p) => p.category == 'bundle' || p.category == 'vip',
+    );
+    for (final offer in offers) {
+      final tile = tester.getSize(
+        find.byKey(ValueKey('shop-tile-${offer.id}'), skipOffstage: false),
+      );
+      expect(tile.height, greaterThan(110), reason: offer.id);
+      // And the price is on its own line at the bottom rather than parked in
+      // the corner the flash needs.
+      final button = tester.getRect(
+        find.byKey(ValueKey('shop-buy-${offer.id}'), skipOffstage: false),
+      );
+      final rect = tester.getRect(
+        find.byKey(ValueKey('shop-tile-${offer.id}'), skipOffstage: false),
+      );
+      expect(
+        button.center.dy,
+        greaterThan(rect.center.dy),
+        reason: '${offer.id}: the price is still in the top half',
+      );
+    }
+  });
+
   testWidgets('Restore Purchases is present and RUNS', (tester) async {
     await pumpPaid(tester);
     expect(find.text(t('shop.restore_purchases')), findsOneWidget);

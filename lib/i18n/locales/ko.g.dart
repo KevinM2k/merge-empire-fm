@@ -416,7 +416,7 @@ const Map<String, String> koCatalog = <String, String>{
   'tut.loan_depart.body': 'They\'ve gone back to their clubs — but they left us <strong>500 coins</strong> as a thank-you! Now it\'s time to build your own permanent squad. Scout, merge, and keep climbing!',
   'tut.loan_depart.btn': 'Keep Building! →',
   'tut.done.title': '🏆 준비 완료!',
-  'tut.done.body': '영입. 합성. 건설. 승리. 베테랑은 은퇴까지 보유하거나 — 아직 가치가 있을 때 판매하세요! 당신의 축구 제국이 기다립니다. 구단 이름이 마음에 안 드나요? 설정에서 언제든 바꿀 수 있어요.',
+  'tut.done.body': '영입. 합성. 건설. 승리. 베테랑은 은퇴까지 보유하거나 — 아직 가치가 있을 때 판매하세요! 당신의 축구 제국이 기다립니다.',
   'tut.done.btn': '플레이하기! 🚀',
   'shop.title': '상점',
   'shop.section.premium': '프리미엄',

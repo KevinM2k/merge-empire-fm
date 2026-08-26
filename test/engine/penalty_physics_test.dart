@@ -435,6 +435,38 @@ void main() {
       expect(k.keeperLand, 1);
     });
 
+    /// **AND THE LIMBS GO ON MOVING AFTER HE HAS STOPPED.**
+    ///
+    /// [PenaltyKick.keeperLand] saturates the instant his shoulders reach the
+    /// turf, so the renderer had nothing after it: every limb eased to its
+    /// hanging rest on the body's own fall curve and then simply stopped —
+    /// reported from the couch as him landing like a mannequin being set down.
+    /// This is the clock the settle rings on.
+    test('AND THE LIMBS HAVE THEIR OWN CLOCK AFTERWARDS', () {
+      // Stepped by hand from the whistle: `kick` runs to `done`, which is
+      // already past the landing, and this is about the order the two clocks
+      // start in.
+      final k = PenaltyKick(
+        aim: (across: 0, lift: 0.25, power: 1, curl: 0),
+        plan: (side: 0.0, height: 0.5, commitAt: 0.14),
+      );
+      final marks = <double>[];
+      for (var i = 0; i < 400; i++) {
+        k.advance(1 / 120);
+        // Nothing until his shoulders are down.
+        if (k.keeperLand < 1) {
+          expect(k.keeperLimbSettle, 0, reason: 'they settled in mid-air');
+        }
+        marks.add(k.keeperLimbSettle);
+      }
+      // It runs, in order, and it finishes.
+      expect(marks.where((m) => m > 0), isNotEmpty);
+      expect(marks.last, 1);
+      for (var i = 1; i < marks.length; i++) {
+        expect(marks[i], greaterThanOrEqualTo(marks[i - 1]));
+      }
+    });
+
     test('and a GATHERED ball comes down with him', () {
       // Measured from the couch: catch at t=1.15, and ball and hand both sat at
       // exactly (0, 0, 1.00) until the clip ended — which is the same "ball

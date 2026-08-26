@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/popups/daily_reward_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 const int _dayMs = 24 * 60 * 60 * 1000;
@@ -330,8 +331,28 @@ void main() {
       final sheet = tester.getSize(find.byType(DailyRewardSheet));
       expect(
         right.dx - left.dx,
-        closeTo(sheet.width - 32, 1),
+        // The sheet's own horizontal padding, both sides.
+        closeTo(sheet.width - 36, 1),
         reason: 'the strip is narrower than the room it has',
+      );
+    });
+
+    /// **THE COINS WERE THE ONLY THING WITH NO MARK ON THEM.** Energy has its
+    /// bolt and gems have their stone, so a day paying 500 coins and 2 gems
+    /// read as "500 · 2💎" — a bare number beside a labelled one. Reported
+    /// from the couch as no coins next to the coins.
+    testWidgets('and the coins wear their mark, like everything else', (
+      tester,
+    ) async {
+      await pumpSheet(tester, save());
+      final reward = getDailyRewardPreview(save(), 1)!;
+      expect(dayRewardLine(reward), contains('💰'));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('daily-day-1')),
+          matching: find.textContaining('💰'),
+        ),
+        findsOneWidget,
       );
     });
 
@@ -409,6 +430,34 @@ void main() {
           as Map<String, dynamic>)['fanCoins'] as num;
       expect(doubled, greaterThan(before));
       await settleSave(tester);
+    });
+
+    /// **AND IT LOOKS LIKE THE AD IT IS.** An `OutlinedButton` is the theme's
+    /// moulded face with an empty middle and a grey edge bar, so the one button
+    /// on the sheet that pays DOUBLE looked like the disabled state of
+    /// something. Reported from the couch with the fix named.
+    testWidgets('THE DOUBLE BUTTON IS THE AD COLOUR, and says AD', (
+      tester,
+    ) async {
+      await pumpSheet(tester, save());
+      final button = tester.widget<StoreButton>(
+        find.byKey(const ValueKey('daily-claim-double')),
+      );
+      expect(button.tone, StoreTone.ad);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('daily-claim-double')),
+          matching: find.text('AD'),
+        ),
+        findsOneWidget,
+      );
+      // And the plain claim is coloured for what it pays, not left grey.
+      expect(
+        tester
+            .widget<StoreButton>(find.byKey(const ValueKey('daily-claim')))
+            .tone,
+        StoreTone.coin,
+      );
     });
 
     testWidgets('AN UNAVAILABLE AD CLAIMS NOTHING AT ALL', (tester) async {

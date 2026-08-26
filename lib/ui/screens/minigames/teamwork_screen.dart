@@ -371,33 +371,38 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
                   for (var row = 0; row * cols < _tiles.length; row++)
                     Padding(
                       padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
+                      // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
+                      // them.** It was `Padding(left: 6)` INSIDE each
+                      // `Expanded`, which divides the row evenly and then takes
+                      // the gutter out of every share but the first — so the
+                      // left column's card was six points wider than the rest,
+                      // and because the card is an `AspectRatio` it was six
+                      // points taller too. Reported from the couch, and it is
+                      // the same fault Pitch Invaders had.
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (var col = 0; col < cols; col++)
+                          for (var col = 0; col < cols; col++) ...[
+                            if (col > 0) const SizedBox(width: 6),
                             Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  left: col == 0 ? 0 : 6,
-                                ),
-                                child: row * cols + col < _tiles.length
-                                    ? _Tile(
-                                        index: row * cols + col,
-                                        def: _tiles[row * cols + col],
-                                        faceUp: _faceUp.contains(
-                                          row * cols + col,
-                                        ),
-                                        matched: _matched.contains(
-                                          row * cols + col,
-                                        ),
-                                        onTap: _tapTile,
-                                      )
-                                    : const AspectRatio(
-                                        aspectRatio: 3 / 4,
-                                        child: SizedBox.shrink(),
+                              child: row * cols + col < _tiles.length
+                                  ? _Tile(
+                                      index: row * cols + col,
+                                      def: _tiles[row * cols + col],
+                                      faceUp: _faceUp.contains(
+                                        row * cols + col,
                                       ),
-                              ),
+                                      matched: _matched.contains(
+                                        row * cols + col,
+                                      ),
+                                      onTap: _tapTile,
+                                    )
+                                  : const AspectRatio(
+                                      aspectRatio: 3 / 4,
+                                      child: SizedBox.shrink(),
+                                    ),
                             ),
+                          ],
                         ],
                       ),
                     ),
@@ -421,7 +426,7 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _Stat(
+                    MiniGameStat(
                       kit: kit,
                       label: t('game.teamwork.pairs'),
                       value: '$_matchedPairs/$_totalPairs',
@@ -429,7 +434,7 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
                       colour: kit.accentBright,
                     ),
                     const SizedBox(width: 18),
-                    _Stat(
+                    MiniGameStat(
                       kit: kit,
                       label: t('mg.reward'),
                       value: '+${formatCoins(_preview)} 💰',
@@ -589,33 +594,3 @@ class _Face extends StatelessWidget {
   );
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.kit,
-    required this.label,
-    required this.value,
-    required this.valueKey,
-    required this.colour,
-  });
-
-  final KitTheme kit;
-  final String label, value;
-  final Key valueKey;
-  final Color colour;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
-      Text(
-        value,
-        key: valueKey,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
-          color: colour,
-        ),
-      ),
-    ],
-  );
-}

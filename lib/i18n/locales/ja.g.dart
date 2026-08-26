@@ -416,7 +416,7 @@ const Map<String, String> jaCatalog = <String, String>{
   'tut.loan_depart.body': 'They\'ve gone back to their clubs — but they left us <strong>500 coins</strong> as a thank-you! Now it\'s time to build your own permanent squad. Scout, merge, and keep climbing!',
   'tut.loan_depart.btn': 'Keep Building! →',
   'tut.done.title': '🏆 準備完了!',
-  'tut.done.body': '獲得、合成、構築、勝利。ベテラン選手は引退まで保持 — または価値があるうちに売却! フットボール帝国が待っています。クラブ名が気に入らない？設定でいつでも変更できます。',
+  'tut.done.body': '獲得、合成、構築、勝利。ベテラン選手は引退まで保持 — または価値があるうちに売却! フットボール帝国が待っています。',
   'tut.done.btn': 'プレイしよう! 🚀',
   'shop.title': 'ショップ',
   'shop.section.premium': 'プレミアム',

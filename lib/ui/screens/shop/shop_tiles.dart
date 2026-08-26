@@ -11,6 +11,8 @@
 /// long one sets the height of the whole row.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
@@ -38,6 +40,7 @@ class ShopTile extends StatelessWidget {
     this.glyph,
     this.featured = false,
     this.ribbon,
+    this.corner,
     this.accent,
     this.skin,
   });
@@ -95,6 +98,21 @@ class ShopTile extends StatelessWidget {
   /// the title and none over the button.
   final String? ribbon;
 
+  /// **THE CORNER FLASH — "MOST POPULAR", drawn diagonally across the top
+  /// right.** `.shop-hero__ribbon` in the stylesheet, which the port had left
+  /// unused.
+  ///
+  /// It was tried in this corner once and taken out again, because on a
+  /// full-width hero laid out as one row that corner is exactly where the buy
+  /// button sits. What changed is the hero: the price is on its own line at the
+  /// bottom now, so the corner is empty and the flash goes where a shopfront
+  /// puts one. Asked for by name from the couch.
+  ///
+  /// [ribbon] is a different thing and they can both be on: that is the chip
+  /// beside the title — "ONE-TIME", "REACTIVATE", a bonus line — and this is
+  /// the shelf saying which one everybody buys.
+  final String? corner;
+
   /// This product's own colour, for the rim, the glow and the title. Null is
   /// the shelf's gold.
   ///
@@ -134,15 +152,16 @@ class ShopTile extends StatelessWidget {
         Text(
           subtitle!,
           textAlign: TextAlign.center,
-          // Two lines then ellipsis: descriptions run from three words to a
-          // sentence, and without the clamp one long one sets the height of its
-          // whole row.
-          maxLines: 2,
+          // Clamped, or one long description sets the height of its whole
+          // row. A featured hero gets a line more and a size up: it is one
+          // tile to a row, so nothing is measured against it, and the offers
+          // are the descriptions actually worth reading.
+          maxLines: featured ? 3 : 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: skin == null ? kit.textMuted : _skinInk,
-            fontSize: 11,
-            height: 1.3,
+            fontSize: featured ? 12.5 : 11,
+            height: 1.35,
           ),
         ),
       if (badge != null)
@@ -167,7 +186,23 @@ class ShopTile extends StatelessWidget {
       // An owned tile stays on the shelf, knocked back — taking it away loses
       // the answer to "did I buy that already".
       opacity: onBuy == null && disabledReason == null ? 0.62 : 1,
-      child: _pane(context, kit, ink, lines),
+      // **CLIPPED, because the corner flash runs off the corner.** It is a bar
+      // laid across the top-right at 45 degrees and the tile's rounded rect is
+      // what makes it a triangle rather than a stray rectangle.
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            _pane(context, kit, ink, lines),
+            if (corner case final flash?)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: CornerBanner(text: flash, ink: ink),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -203,7 +238,9 @@ class ShopTile extends StatelessWidget {
   ) {
     return Container(
         key: ValueKey('shop-tile-$tileKey'),
-        padding: const EdgeInsets.fromLTRB(9, 12, 9, 10),
+        padding: featured
+            ? const EdgeInsets.fromLTRB(14, 16, 14, 14)
+            : const EdgeInsets.fromLTRB(9, 12, 9, 10),
         // **THE YELLOW TOP HAS GONE.** A featured tile was a three-stop
         // VERTICAL gradient starting on the feature colour, so the top half
         // faded out of a yellow band that stopped dead in the middle of the
@@ -259,60 +296,76 @@ class ShopTile extends StatelessWidget {
               )
             : null,
         child: featured
-            // **A ROW, NOT A COLUMN, once it is full width.** Stacked, an offer
-            // is a 62px glyph over a title over two lines over a badge over a
-            // full-width button — a card half the height of the shelf, three
-            // times over. Reported as still too big after the ribbon landed.
-            // The spec lays every hero out exactly this way: art, words, price,
-            // left to right (`justify-content:space-between`).
-            ? Row(
+            // **ART AND WORDS ACROSS, PRICE UNDERNEATH.** The hero was one row
+            // — art, words, price, left to right — which fitted the shelf into
+            // three short bands and then reported back as a shopfront with a
+            // lot of empty page under it. It is the highest-converting slot in
+            // the game and it was the smallest thing on the screen.
+            //
+            // So the art is half again as big, the description gets its third
+            // line back, and the price moves to its own line at the bottom
+            // right. That last part is not only room: a price parked in the
+            // top-right corner is what stopped this tile carrying a corner
+            // flash the last time one was tried. See [corner].
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (glyph != null) ...[
-                    SizedBox(width: 46, child: Center(child: glyph)),
-                    const SizedBox(width: 10),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Name and badge on one line, wrapping rather than
-                        // truncating — the spec's own `flex-wrap:wrap`.
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 6,
-                          runSpacing: 3,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (glyph != null) ...[
+                        SizedBox(width: 64, child: Center(child: glyph)),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w900,
-                                height: 1.2,
-                                color: ink,
-                              ),
+                            // Name and badge on one line, wrapping rather than
+                            // truncating — the spec's own `flex-wrap:wrap`.
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 3,
+                              children: [
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.2,
+                                    color: ink,
+                                  ),
+                                ),
+                                if (ribbon case final banner?)
+                                  _chip(banner, ink),
+                              ],
                             ),
-                            if (ribbon case final banner?) _chip(banner, ink),
+                            for (final line in lines)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: DefaultTextStyle.merge(
+                                  textAlign: TextAlign.left,
+                                  child: line,
+                                ),
+                              ),
                           ],
                         ),
-                        for (final line in lines)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: DefaultTextStyle.merge(
-                              textAlign: TextAlign.left,
-                              child: line,
-                            ),
-                          ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  StoreButton(
-                    key: ValueKey('shop-buy-$tileKey'),
-                    tone: tone,
-                    label: price,
-                    stretch: false,
-                    onTap: onBuy,
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: StoreButton(
+                      key: ValueKey('shop-buy-$tileKey'),
+                      tone: tone,
+                      label: price,
+                      stretch: false,
+                      onTap: onBuy,
+                    ),
                   ),
                 ],
               )
@@ -360,6 +413,78 @@ class ShopTile extends StatelessWidget {
             ),
           ],
         ),
+    );
+  }
+}
+
+
+/// **THE DIAGONAL FLASH ACROSS A TILE'S TOP-RIGHT CORNER.**
+///
+/// `.shop-hero__ribbon` in `styles/screens.css`, which the port had never
+/// drawn: "MOST POPULAR" was a line of ordinary text in the middle of the card,
+/// where it read as one more thing to skim rather than as the shelf pointing.
+///
+/// Asked for by name from the couch, and it is the one shopfront device the
+/// tile had no equivalent of — a banner is not a label, it is a mark ON the
+/// window. The parent clips it: a bar rotated 45 degrees inside a square is a
+/// triangle only because the corner is cut off.
+class CornerBanner extends StatelessWidget {
+  const CornerBanner({super.key, required this.text, required this.ink});
+
+  final String text;
+
+  /// The tile's own colour, so three offers in a column are three shopfronts
+  /// rather than one repeated. The ink ON it is worked out here — a banner is
+  /// small and high-contrast or it is not a banner.
+  final Color ink;
+
+  /// How far down the corner the bar sits, and how long it is. The bar has to
+  /// be longer than the diagonal of the square it is cut out of.
+  static const double _box = 96;
+  static const double _drop = 22;
+
+  @override
+  Widget build(BuildContext context) {
+    // Black on gold, white on a dark hue — the same question the ad yellow
+    // answers with `adOfferOnInk`, asked of whatever colour this offer is.
+    final onInk = ThemeData.estimateBrightnessForColor(ink) == Brightness.light
+        ? const Color(0xFF171717)
+        : Colors.white;
+    return IgnorePointer(
+      child: SizedBox(
+        width: _box,
+        height: _box,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              top: _drop,
+              left: -_box * 0.32,
+              right: -_box * 0.32,
+              child: Transform.rotate(
+                angle: math.pi / 4,
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  color: ink,
+                  child: Text(
+                    text.toUpperCase(),
+                    key: const ValueKey('shop-corner-banner'),
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
+                      color: onInk,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

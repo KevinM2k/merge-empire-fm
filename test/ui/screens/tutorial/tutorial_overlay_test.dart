@@ -20,7 +20,9 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
+import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -42,8 +44,13 @@ Map<String, dynamic> save({int step = 0, int cards = 0}) {
 
 Future<ProviderContainer> pumpHost(
   WidgetTester tester,
-  Map<String, dynamic> state,
-) async {
+  Map<String, dynamic> state, {
+  /// **A step that ANIMATES cannot be settled into.** `loan_depart` flies the
+  /// loan off the grid before it says a word, and `pumpAndSettle` walks the
+  /// clock straight past it — so the one test about that window asks for the
+  /// frames by hand.
+  bool settle = true,
+}) async {
   final container = ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(
@@ -78,7 +85,7 @@ Future<ProviderContainer> pumpHost(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) await tester.pumpAndSettle();
   return container;
 }
 
@@ -167,25 +174,52 @@ void main() {
     await tester.pump(const Duration(milliseconds: saveDebounceMs + 1));
   });
 
+  /// **THE GRID EMPTIES FIRST AND THE CARD FOLLOWS**, which is the JS's
+  /// `loan_depart.onEnterAsync` and was the reported break: Colin announced the
+  /// loan had gone home over a grid still full of them, and they vanished a tap
+  /// later on whatever screen the player was on by then.
   testWidgets('AND THE DEPARTURE TAKES THEM BACK AND PAYS', (tester) async {
     final state = save(step: 3, cards: 3);
     lendTutorialPlayers(state);
     (state['tutorial'] as Map<String, dynamic>)['step'] = 7;
-    final c = await pumpHost(tester, state);
+    final c = await pumpHost(tester, state, settle: false);
     final before =
         ((c.read(gameProvider).state!['resources'] as Map)['fanCoins'] as num)
             .toInt();
+    final leaving = c.read(loanCardIdsProvider).length;
+    expect(leaving, greaterThan(0));
 
-    expect(find.text(t('tut.loan_depart.title')), findsOneWidget);
-    await tapAction(tester, 'tut.loan_depart.btn');
+    // Past the tab slide and one card into the flight.
+    await tester.pump();
+    await tester.pump(tabSlideDuration);
+    await tester.pump(loanDepartureDuration);
 
+    // Mid-flight: nothing said yet, nothing taken yet, and nothing pressable.
+    expect(find.text(t('tut.loan_depart.title')), findsNothing);
+    expect(
+      (c.read(gameProvider).state!['grid'] as Map)['cells'],
+      contains(predicate((c) => (c as Map?)?['borrowed'] == true)),
+    );
+    expect(c.read(loanDepartingProvider), isTrue);
+    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsOneWidget);
+
+    await tester.pump(tabSlideDuration + loanDepartureWindow(leaving));
+    await tester.pumpAndSettle();
+
+    // Only now does he say it, and the grid he says it over is empty.
     final after = c.read(gameProvider).state!;
     final cells = (after['grid'] as Map<String, dynamic>)['cells'] as List;
     expect(cells.where((x) => (x as Map?)?['borrowed'] == true), isEmpty);
+    expect(c.read(loanDepartingProvider), isFalse);
+    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsNothing);
+    expect(find.text(t('tut.loan_depart.title')), findsOneWidget);
     expect(
       ((after['resources'] as Map)['fanCoins'] as num).toInt() - before,
       tutorialFarewellCoins,
     );
+
+    await tapAction(tester, 'tut.loan_depart.btn');
+    expect((c.read(gameProvider).state!['tutorial'] as Map)['step'], 8);
     await tester.pump(const Duration(milliseconds: saveDebounceMs + 1));
   });
 

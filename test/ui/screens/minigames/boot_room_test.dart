@@ -147,9 +147,24 @@ void main() {
     await settleSave(tester);
 
     expect(stateOf(tester).finished, isTrue);
-    expect(find.byKey(const ValueKey('boot-room-reward')), findsOneWidget);
     expect(find.byKey(const ValueKey('boot-room-outcome')), findsOneWidget);
+    expect(find.byKey(const ValueKey('boot-room-cleared')), findsOneWidget);
+    // `game.boot_room.best_chain` sat translated in all ten catalogues with
+    // nothing counting a chain to print in it — so `bootRoomBestCascade` was
+    // zero in every save ever written.
+    expect(find.byKey(const ValueKey('boot-room-chain')), findsOneWidget);
+    expect(find.byKey(const ValueKey('boot-room-reward')), findsOneWidget);
+
+    // Banked on Collect, like every other drill.
+    await tester.tap(find.byKey(const ValueKey('boot-room-done')));
+    await tester.pumpAndSettle();
+    await settleSave(tester);
     expect(container.read(coinsProvider), greaterThanOrEqualTo(coinsBefore));
+    expect(
+      (container.read(gameProvider).state!['stats']
+          as Map<String, dynamic>)['bootRoomRounds'],
+      1,
+    );
   });
 
   testWidgets('the climb makes it harder, not just richer', (tester) async {
@@ -162,6 +177,127 @@ void main() {
 
     await pumpBootRoom(tester, saveWith(division: divisions.last.id));
     expect(stateOf(tester).movesLeft, top.moves);
+  });
+
+  /// **THE BOARD HAS FACES ON IT.** Six flat colour blocks is a board you
+  /// decode rather than read, and the JS has always used six kit emoji whose
+  /// silhouettes are as distinct as their tints.
+  testWidgets('every tile wears its kit, not just a colour', (tester) async {
+    await pumpBootRoom(tester, saveWith());
+    final board = stateOf(tester).board;
+    final faces = <String>{};
+    for (var i = 0; i < board.length; i++) {
+      final face = kitTiles[board[i]! % kitTiles.length].emoji;
+      faces.add(face);
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('tile-$i')),
+          matching: find.text(face),
+        ),
+        findsOneWidget,
+        reason: 'cell $i has no face on it',
+      );
+    }
+    expect(faces.length, greaterThan(2), reason: 'one kind of tile is no board');
+    // And no two of the six share a face or a tint.
+    expect(kitTiles.map((k) => k.emoji).toSet(), hasLength(kitTiles.length));
+    expect(kitTiles.map((k) => k.tint).toSet(), hasLength(kitTiles.length));
+  });
+
+  /// **A NON-NEIGHBOUR IS A NEW PICK, not a miss.** The port played the error
+  /// cue and dropped the tap, so reaching across the board to change your mind
+  /// buzzed at you and left nothing selected.
+  testWidgets('tapping a far tile changes the selection', (tester) async {
+    await pumpBootRoom(tester, saveWith());
+    final before = stateOf(tester).movesLeft;
+    await tester.tap(find.byKey(const ValueKey('tile-0')));
+    await tester.pumpAndSettle();
+    expect(stateOf(tester).selected, 0);
+    // Two cells in the same row with one between them: never adjacent, so the
+    // swap is illegal however the board fell.
+    await tester.tap(find.byKey(const ValueKey('tile-2')));
+    await tester.pumpAndSettle();
+    expect(stateOf(tester).selected, 2, reason: 'the tap was thrown away');
+    expect(stateOf(tester).movesLeft, before);
+  });
+
+  /// **AND A SWIPE SWAPS**, which the shipped instructions have promised in ten
+  /// languages since the drill landed while the port supported only the tap.
+  testWidgets('A SWIPE SWAPS IN THE DIRECTION OF TRAVEL', (tester) async {
+    await pumpBootRoom(tester, saveWith());
+    final move = findMove(
+      stateOf(tester).board,
+      BootRoom.cols,
+      BootRoom.rows,
+    )!;
+    final before = stateOf(tester).movesLeft;
+    final from = tester.getCenter(find.byKey(ValueKey('tile-${move.a}')));
+    final to = tester.getCenter(find.byKey(ValueKey('tile-${move.b}')));
+
+    final gesture = await tester.startGesture(from);
+    // Past the slop, in the direction of the neighbour.
+    await gesture.moveTo(to + (to - from));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(stateOf(tester).movesLeft, before - 1);
+    expect(stateOf(tester).tilesCleared, greaterThan(0));
+  });
+
+  /// **THE CASCADES ARE PLAYED, not applied.** The engine returns them as
+  /// separate steps for exactly that reason and the port threw them away: a
+  /// three-deep cascade was one silent jump on the next frame.
+  testWidgets('a cascade takes TIME, rather than landing on one frame', (
+    tester,
+  ) async {
+    await pumpBootRoom(tester, saveWith());
+    final move = findMove(
+      stateOf(tester).board,
+      BootRoom.cols,
+      BootRoom.rows,
+    )!;
+    await tester.tap(find.byKey(ValueKey('tile-${move.a}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('tile-${move.b}')));
+
+    // One frame in: the swap has not even finished sliding, so nothing is
+    // cleared and no move has been spent.
+    await tester.pump();
+    expect(stateOf(tester).tilesCleared, 0);
+    await tester.pumpAndSettle();
+    expect(stateOf(tester).tilesCleared, greaterThan(0));
+    // And the chain is counted, which is what `bootRoomBestCascade` was for.
+    expect(stateOf(tester).bestCascade, greaterThan(0));
+  });
+
+  /// **A DEAD BOARD IS RESHUFFLED, NOT A LOSS.** The port ended the session the
+  /// moment no legal swap was left, so a player with moves in hand was stopped
+  /// on a technicality the engine already has the answer to.
+  testWidgets('a board with no move left is restacked, not lost', (
+    tester,
+  ) async {
+    await pumpBootRoom(tester, saveWith());
+    for (var i = 0; i < 40 && !stateOf(tester).finished; i++) {
+      final screen = stateOf(tester);
+      // The screen must never be sitting on a dead board with moves in hand.
+      expect(
+        hasAnyMove(screen.board, BootRoom.cols, BootRoom.rows),
+        isTrue,
+        reason: 'it stopped on a board it could have restacked',
+      );
+      final move = findMove(screen.board, BootRoom.cols, BootRoom.rows)!;
+      await tester.tap(find.byKey(ValueKey('tile-${move.a}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('tile-${move.b}')));
+      await tester.pumpAndSettle();
+    }
+    // It ends on the MOVES running out, which is the only way it should.
+    expect(stateOf(tester).finished, isTrue);
+    expect(stateOf(tester).movesLeft, lessThanOrEqualTo(0));
+    await tester.tap(find.byKey(const ValueKey('boot-room-done')));
+    await tester.pumpAndSettle();
+    await settleSave(tester);
   });
 
   testWidgets('it is listed as playable now, and locked without the facility', (

@@ -48,7 +48,9 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
-import 'package:merge_empire_fc/ui/widgets/store_button.dart' show adOfferInk, adOfferOnInk;
+import 'package:merge_empire_fc/engine/look_pack_engine.dart';
+import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 Future<void> showManagerCustomiser(BuildContext context) =>
@@ -298,6 +300,21 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// One video in flight at a time — a double tap is two videos and one grant.
   bool _adInFlight = false;
 
+  /// **A LOCKED ITEM BEING TRIED ON, and the offer standing beside it.**
+  ///
+  /// A player who taps a locked hat wants to see the hat. Writing it would be
+  /// giving it away, so `field`/`value` are laid over the saved look for the
+  /// PREVIEW figure only, and the rest of the record is what the bar on the
+  /// stage needs to sell it.
+  ({
+    String kind,
+    String id,
+    String packId,
+    String field,
+    Object? value,
+  })?
+  _offer;
+
   /// A locked chip: watch for it, or be told why not.
   ///
   /// **Every pack-locked item is one video away**, and the tap does exactly
@@ -346,6 +363,77 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     if (mounted) setState(() {});
   }
 
+  /// **A LOCKED ITEM IS SHOWN, AND THEN OFFERED** — in that order, and both on
+  /// the same screen.
+  ///
+  /// Tapping one used to fire a rewarded video on the spot, on the argument
+  /// that a pack popup makes the player read and dismiss an offer for nine
+  /// other items to get the one they had already pointed at. The playtest asked
+  /// for the other half of that: nothing said what a tap was about to do, and
+  /// nothing showed the item.
+  ///
+  /// So he WEARS it — on the preview only, because nothing reaches the save
+  /// until it is paid for — and the two routes appear as buttons ON THE STAGE
+  /// he is walking across. That placement is the point and it was asked for
+  /// directly: the touchline box is the biggest and emptiest thing on the
+  /// sheet, the item being sold is standing in the middle of it, and a sheet
+  /// rising over the bottom half would cover the very thing the tap was for.
+  ///
+  /// A lock a video cannot open — a Fan Zone tier, a cup — has nothing to sell
+  /// and nothing to watch, so it stays a line rather than becoming a bar.
+  void _offerLockedItem(LookAxis axis, String id) {
+    final why = lockedReason(_save, axis.kind, id);
+    if (why == null) return;
+    if (!isPackLocked(_save, axis.kind, id)) {
+      emit('toast:info', why);
+      return;
+    }
+    final packId = lookRequirement(axis.kind, id)?.packId;
+    if (packId == null) return;
+    // A celebration is not worn at all; it is played.
+    if (axis.field.isEmpty) _play(id);
+    setState(
+      () => _offer = (
+        kind: axis.kind,
+        id: id,
+        packId: packId,
+        field: axis.field,
+        value: axis.kind == 'color' ? hairColorValue(id) : id,
+      ),
+    );
+  }
+
+  /// Take it off again. Anything the player does that is not answering the
+  /// offer ends it — picking something else, changing axis, or the ✕ on the
+  /// bar itself.
+  void _clearOffer() {
+    if (_offer != null) setState(() => _offer = null);
+  }
+
+  /// **THE WHOLE PACK, for gems** — the Shop's own three beats, run from here.
+  ///
+  /// The Shop has sold these for as long as they have existed and the
+  /// customiser — the one screen where a player is looking at what is IN one —
+  /// never mentioned it. `offerToBuy` asks, charges and receipts; if the
+  /// balance will not cover it, it opens the gem packs rather than printing a
+  /// sentence about not being able to.
+  Future<void> _buyPackFor(String packId) async {
+    final tile = lookTileState(_save, packId);
+    if (tile == null || tile.status == 'owned') return;
+    await offerToBuy(context, ref, (
+      key: 'pack-$packId',
+      title: t('customise.pack.$packId'),
+      subtitle: t('customise.pack.count', {'n': tile.total}),
+      body: null,
+      glyph: 'shirt',
+      currency: SpendCurrency.gems,
+      cost: tile.cost,
+      buy: () =>
+          ref.read(gameProvider).update((s) => buyLookPack(s, packId)).reason,
+    ));
+    if (mounted) setState(() {});
+  }
+
   /// Play a celebration on the preview figure. Tapping the same one twice is
   /// two plays — see [GestureCue], whose identity is what restarts the rig.
   void _play(String id) {
@@ -368,6 +456,16 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final look = ref.watch(managerLookProvider);
     final axis = lookAxes[_axis];
+    // What the PREVIEW figure wears: the saved look, plus whatever locked item
+    // is currently being tried on. The grid below still reads `look`, so a
+    // try-on cannot make a chip look selected.
+    // What the PREVIEW figure wears: the saved look, plus whatever locked item
+    // is currently being tried on. The grid below still reads `look`, so a
+    // try-on cannot make a chip read as selected.
+    final offer = _offer;
+    final worn = offer == null || offer.field.isEmpty
+        ? look
+        : <String, dynamic>{...?look, offer.field: offer.value};
 
     return Column(
       key: const ValueKey('manager-customiser'),
@@ -407,6 +505,22 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
         // scene's own sky and turf (`theme/sky.dart`), so what you are dressing
         // him for is the ground he will be standing on.
         _PreviewStage(
+          overlay: offer == null
+              ? null
+              : _LockedOfferBar(
+                  kind: offer.kind,
+                  id: offer.id,
+                  packId: offer.packId,
+                  onWatch: () {
+                    _clearOffer();
+                    unawaited(_watchForItem(offer.kind, offer.id));
+                  },
+                  onBuy: () {
+                    _clearOffer();
+                    unawaited(_buyPackFor(offer.packId));
+                  },
+                  onClose: _clearOffer,
+                ),
           child: ValueListenableBuilder<GestureCue?>(
             valueListenable: _preview,
             builder: (context, cue, _) => ManagerWalker(
@@ -414,7 +528,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
               kit: kit.accent,
               skin: const Color(0xFFEEBB8C),
               hair: const Color(0xFF3A2A1C),
-              look: look,
+              look: worn,
               mood: Mood.pleased,
               gesture: cue,
             ),
@@ -446,7 +560,13 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
             // different door.
             onPick: (i) {
               _ready.value = 0;
-              setState(() => _axis = i);
+              setState(() {
+                _axis = i;
+                // Whatever was being tried on belongs to the axis it came
+                // from; a hat left on the rig while the player picks a beard
+                // is a hat they were never given.
+                _offer = null;
+              });
               _fillNextChip();
             },
           ),
@@ -465,14 +585,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
               look: look,
               ready: _ready,
               state: _save,
-              onLocked: (id, watchable) {
-                if (watchable) {
-                  unawaited(_watchForItem(axis.kind, id));
-                  return;
-                }
-                final why = lockedReason(_save, axis.kind, id);
-                if (why != null) emit('toast:info', why);
-              },
+              onLocked: (id, watchable) => _offerLockedItem(axis, id),
               onPlay: _play,
               onPick: (id) => _set(
                 axis.field,
@@ -499,9 +612,15 @@ const double _stageHeight = 190;
 /// them — one source for the two means a look chosen in here is judged against
 /// the light it will actually be seen in.
 class _PreviewStage extends StatelessWidget {
-  const _PreviewStage({required this.child});
+  const _PreviewStage({required this.child, this.overlay});
 
   final Widget child;
+
+  /// **THE OFFER FOR A LOCKED ITEM, drawn ON the stage.** Asked for directly:
+  /// the touchline box is the biggest thing on the sheet and the emptiest, the
+  /// item being sold is standing in the middle of it, and two full CTA buttons
+  /// have somewhere obvious to go. See `_LockedOfferBar`.
+  final Widget? overlay;
 
   @override
   Widget build(BuildContext context) {
@@ -590,6 +709,8 @@ class _PreviewStage extends StatelessWidget {
                     child: child,
                   ),
                 ),
+                if (overlay case final bar?)
+                  Positioned(left: 0, right: 0, bottom: 0, child: bar),
               ],
             ),
           ),
@@ -1209,6 +1330,140 @@ class _Chip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// **THE OFFER FOR A LOCKED ITEM, standing on the touchline with him.**
+///
+/// Asked for directly from the couch, and the placement is the whole idea: the
+/// stage is the biggest and emptiest thing on the sheet, the item being sold is
+/// on the figure in the middle of it, and two full-width CTAs have somewhere
+/// obvious to go. A sheet rising over the bottom half — which is what this
+/// replaced — covers the very thing the tap was for.
+///
+/// Both routes, in the shop's own colour language: yellow is a rewarded video
+/// and blue is gems. The pack line is what makes the gem price an offer for ten
+/// items rather than a bigger number than the free one beside it.
+class _LockedOfferBar extends ConsumerWidget {
+  const _LockedOfferBar({
+    required this.kind,
+    required this.id,
+    required this.packId,
+    required this.onWatch,
+    required this.onBuy,
+    required this.onClose,
+  });
+
+  final String kind;
+  final String id;
+  final String packId;
+  final VoidCallback onWatch;
+  final VoidCallback onBuy;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(saveRevisionProvider);
+    final save = ref.read(gameProvider).state;
+    final tile = lookTileState(save, packId);
+    final waiting = !canWatchPackAd(save);
+    return Container(
+      key: const ValueKey('locked-look-offer'),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: const BoxDecoration(
+        // A scrim rather than a panel: he is still walking behind it, and the
+        // whole point of the bar being here is that you can see him.
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x00000000), Color(0xCC000000)],
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      lookItemLabel(kind, id),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      tile == null
+                          ? t('customise.locked.pack', {
+                              'pack': t('customise.pack.$packId'),
+                            })
+                          : '${t('customise.locked.pack', {'pack': t('customise.pack.$packId')})}'
+                                ' · '
+                                '${t('customise.pack.progress', {'n': tile.owned, 'total': tile.total})}',
+                      key: const ValueKey('locked-look-progress'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xCCFFFFFF),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // A way out that is not "tap something else": the bar sits over
+              // the picture, and a player who only wanted a look needs it back.
+              IconButton(
+                key: const ValueKey('locked-look-close'),
+                onPressed: onClose,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, size: 18, color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: StoreButton(
+                  key: const ValueKey('locked-look-watch'),
+                  tone: StoreTone.ad,
+                  small: true,
+                  label: waiting
+                      ? t('customise.pack.wait', {
+                          'time': formatAdWait(msUntilPackAd(save)),
+                        })
+                      : t('customise.pack.watch'),
+                  onTap: waiting ? null : onWatch,
+                ),
+              ),
+              if (tile != null && tile.status != 'owned') ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StoreButton(
+                    key: const ValueKey('locked-look-buy'),
+                    tone: StoreTone.gem,
+                    small: true,
+                    label: '${t('customise.pack.unlock_all')} · ${tile.cost}',
+                    leading: const GameIcon('gem', size: 12),
+                    onTap: onBuy,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

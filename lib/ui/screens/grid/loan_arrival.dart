@@ -127,3 +127,102 @@ class _LoanArrivalState extends State<LoanArrival>
     );
   }
 }
+
+/// The gap between one card leaving and the next. The JS's own 40ms — a tenth
+/// of the arrival's stagger, because they LEAVE together and arrive one by one.
+const Duration loanDepartureStagger = Duration(milliseconds: 40);
+
+/// How long one card takes to go. `loan-card-exit` is `0.35s ease-in`.
+const Duration loanDepartureDuration = Duration(milliseconds: 350);
+
+/// The JS's `animDuration`: how long to hold the save still for.
+///
+/// **Nothing is removed until this has elapsed**, which is the whole shape of
+/// the step — a card cannot animate itself out of a grid it has already been
+/// deleted from.
+Duration loanDepartureWindow(int cards) =>
+    cards <= 0 ? Duration.zero : loanDepartureDuration + loanDepartureStagger * cards;
+
+/// Where `loan-card-exit` hands over from its first keyframe to its second.
+const double _liftAt = 0.4;
+
+/// One card flying away, [delay] after the ones before it.
+///
+/// A null [delay] is a card that is staying — every card on the grid that is
+/// not part of the loan going home.
+class LoanDeparture extends StatefulWidget {
+  const LoanDeparture({super.key, required this.delay, required this.child});
+
+  final Duration? delay;
+  final Widget child;
+
+  @override
+  State<LoanDeparture> createState() => _LoanDepartureState();
+}
+
+class _LoanDepartureState extends State<LoanDeparture>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _leave;
+  Timer? _waiting;
+
+  @override
+  void initState() {
+    super.initState();
+    final delay = widget.delay;
+    if (delay == null) return;
+    final leave = _leave = AnimationController(
+      vsync: this,
+      duration: loanDepartureDuration,
+    );
+    if (delay == Duration.zero) {
+      leave.forward();
+      return;
+    }
+    _waiting = Timer(delay, () {
+      if (mounted) leave.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _waiting?.cancel();
+    _leave?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final leave = _leave;
+    if (leave == null) return widget.child;
+    // Reduce-motion takes the flight and keeps the fact: the cards are gone,
+    // and the card that follows says so.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return const SizedBox.shrink();
+    }
+
+    return AnimatedBuilder(
+      animation: leave,
+      // `pointer-events: none` on the class — a card on its way out must not
+      // answer a drag.
+      child: IgnorePointer(child: widget.child),
+      builder: (context, child) {
+        final t = leave.value;
+        final lifting = t <= _liftAt;
+        final e = Curves.easeIn.transform(
+          lifting ? t / _liftAt : (t - _liftAt) / (1 - _liftAt),
+        );
+        final opacity = lifting ? 1.0 : (1 - e).clamp(0.0, 1.0);
+        final dy = lifting ? -6 * e : -6 + 46 * e;
+        final scale = lifting ? 1 + 0.08 * e : 1.08 - 0.68 * e;
+
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, dy),
+            child: Transform.scale(scale: scale, child: child),
+          ),
+        );
+      },
+    );
+  }
+}

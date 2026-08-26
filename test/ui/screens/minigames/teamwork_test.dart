@@ -319,4 +319,24 @@ void main() {
     await closeGame(tester);
     expect(jsonEncode(container.read(gameProvider).state!['stats']), before);
   });
+
+  testWidgets('EVERY CARD IS THE SAME SIZE', (tester) async {
+    // The gutter was `Padding(left: 6)` INSIDE each `Expanded`, which divides
+    // the row evenly and then takes the gutter out of every share but the
+    // first — so the left column's card was six points wider than the rest,
+    // and because the card is an `AspectRatio` it was six points taller too.
+    // Reported from the couch, and the same fault Pitch Invaders had.
+    await pumpGame(tester);
+    final cards = <Size>[];
+    for (var i = 0; ; i++) {
+      final found = find.byKey(ValueKey('pairs-tile-$i'));
+      if (found.evaluate().isEmpty) break;
+      cards.add(tester.getSize(found));
+    }
+    expect(cards, isNotEmpty, reason: 'no board to measure');
+    for (final size in cards) {
+      expect(size.width, closeTo(cards.first.width, 0.5));
+      expect(size.height, closeTo(cards.first.height, 0.5));
+    }
+  });
 }

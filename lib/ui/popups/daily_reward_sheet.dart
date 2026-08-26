@@ -27,6 +27,8 @@ import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// What one day of the cycle offers, in one line.
@@ -36,7 +38,11 @@ import 'package:merge_empire_fc/util/format.dart';
 /// zeroes.
 String dayRewardLine(DailyRewardPreview reward) {
   final parts = <String>[
-    formatCoins(reward.coins),
+    // **THE COINS WERE THE ONLY THING ON THE LINE WITH NO MARK ON IT.** Energy
+    // has its bolt and gems have their stone, so a day paying 500 coins and 2
+    // gems read as "500 · 2💎" — a bare number beside a labelled one. Reported
+    // from the couch as no coins next to the coins.
+    '${formatCoins(reward.coins)} 💰',
     if (reward.energy > 0) '${reward.energy}⚡',
     if (reward.gems > 0) '${reward.gems}💎',
     if (reward.freeScout) t('daily.reward_scout_short'),
@@ -54,7 +60,10 @@ Future<void> showDailyRewardSheet(
   required GameState game,
 }) => showBottomSheetPopup<void>(
   context,
-  heightFraction: 0.62,
+  // **IT WAS TWO THIRDS OF THE SCREEN AND USING HALF OF THAT.** Reported from
+  // the couch: a week of 76px tiles in 10px type with the page empty under it.
+  // The strip is the whole reason the sheet exists, so it gets the room.
+  heightFraction: 0.85,
   child: const DailyRewardSheet(),
 );
 
@@ -138,7 +147,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
 
     return ListView(
       key: const ValueKey('daily-reward-sheet'),
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
       children: [
         SheetHeader(
           title: claim == null ? t('daily.title') : t('daily.congrats'),
@@ -201,19 +210,18 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
           else
             Column(
               children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    key: const ValueKey('daily-claim'),
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() {
-                            _claimed = game.update((s) => claimDailyReward(s));
-                          }),
-                    child: Text(t('daily.claim')),
-                  ),
+                StoreButton(
+                  key: const ValueKey('daily-claim'),
+                  tone: StoreTone.coin,
+                  label: t('daily.claim'),
+                  leading: const CoinIcon(size: 14, solid: true),
+                  onTap: _busy
+                      ? null
+                      : () => setState(() {
+                          _claimed = game.update((s) => claimDailyReward(s));
+                        }),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 // **THE AD DOUBLE IS LIVE.** The grant has always been the
                 // engine's own `doubled` flag; what was missing was the video,
                 // and `daily_double` has been a real unit id in `ad_units.dart`
@@ -224,25 +232,36 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
                 // single rate — the player asked for the doubled one, and
                 // quietly giving them half of it spends their day's reward on a
                 // choice they did not make.
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    key: const ValueKey('daily-claim-double'),
-                    onPressed: _busy ? null : _claimDoubled,
-                    child: Text(t('daily.claim_double')),
-                  ),
+                // **AND IT LOOKS LIKE THE AD IT IS.** An `OutlinedButton` is
+                // the theme's moulded face with an empty middle and a grey edge
+                // bar, so the one button on the sheet that pays DOUBLE looked
+                // like the disabled state of something — reported from the
+                // couch, with the fix named: ads are the yellow-orange in this
+                // game, here as in the shop, and the button carries the AD
+                // chip and the video glyph so the price is on it.
+                StoreButton(
+                  key: const ValueKey('daily-claim-double'),
+                  tone: StoreTone.ad,
+                  label: t('daily.claim_double'),
+                  leading: const GameIcon('video', size: 14),
+                  onTap: _busy ? null : _claimDoubled,
                 ),
               ],
             ),
         ],
 
-        const SizedBox(height: 10),
-        TextButton(
+        // **NO CLOSE BUTTON.** Tapping outside closes the sheet and so does
+        // the handle at the top, so a full-width button doing the same thing
+        // was a third control competing with the two that pay — and after a
+        // claim it was the ONLY thing left, which made a reward screen look
+        // like a dialog. Asked for directly. The line stays as a line: it is
+        // the sheet saying it is finished, not something to press.
+        const SizedBox(height: 12),
+        Text(
+          claim == null ? t('daily.close') : t('daily.tap_to_close'),
           key: const ValueKey('daily-close'),
-          onPressed: () => Navigator.of(context).maybePop(),
-          child: Text(
-            claim == null ? t('daily.close') : t('daily.tap_to_close'),
-          ),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: kit.textMuted, fontSize: 11),
         ),
       ],
     );
@@ -313,8 +332,8 @@ class _CycleStrip extends StatelessWidget {
       key: ValueKey('daily-day-$day'),
       // One height for all seven: a strip whose tiles are as tall as their own
       // reward line is a strip that steps up and down across the week.
-      height: 76,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      height: 92,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
       decoration: BoxDecoration(
         color: now
             ? kit.surface2
@@ -343,7 +362,7 @@ class _CycleStrip extends StatelessWidget {
                     : t('daily.day', {'n': day}),
                 style: TextStyle(
                   color: now || banked ? kit.accentBright : kit.textMuted,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -357,8 +376,8 @@ class _CycleStrip extends StatelessWidget {
                   dayRewardLine(reward),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 10,
-                    height: 1.25,
+                    fontSize: 11.5,
+                    height: 1.3,
                     fontWeight: now ? FontWeight.w900 : FontWeight.w400,
                   ),
                 ),

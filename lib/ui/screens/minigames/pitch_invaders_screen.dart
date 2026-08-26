@@ -479,7 +479,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _Stat(
+                    MiniGameStat(
                       kit: kit,
                       label: t('game.whack.caught_label'),
                       value: '$_catches',
@@ -487,7 +487,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                       colour: kit.accentBright,
                     ),
                     const SizedBox(width: 18),
-                    _Stat(
+                    MiniGameStat(
                       kit: kit,
                       label: t('game.whack.fouls'),
                       value: '$_fouls',
@@ -495,7 +495,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                       colour: _fouls > 0 ? Colors.red : kit.textMuted,
                     ),
                     const SizedBox(width: 18),
-                    _Stat(
+                    MiniGameStat(
                       kit: kit,
                       label: t('mg.reward'),
                       value: '+${formatCoins(_preview)} 💰',
@@ -649,33 +649,3 @@ class _Hole extends StatelessWidget {
   );
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.kit,
-    required this.label,
-    required this.value,
-    required this.valueKey,
-    required this.colour,
-  });
-
-  final KitTheme kit;
-  final String label, value;
-  final Key valueKey;
-  final Color colour;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
-      Text(
-        value,
-        key: valueKey,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
-          color: colour,
-        ),
-      ),
-    ],
-  );
-}

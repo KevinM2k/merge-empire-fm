@@ -416,7 +416,7 @@ const Map<String, String> zhCatalog = <String, String>{
   'tut.loan_depart.body': 'They\'ve gone back to their clubs — but they left us <strong>500 coins</strong> as a thank-you! Now it\'s time to build your own permanent squad. Scout, merge, and keep climbing!',
   'tut.loan_depart.btn': 'Keep Building! →',
   'tut.done.title': '🏆 准备就绪！',
-  'tut.done.body': '签约。合并。建设。获胜。老将保留到退役 —— 或者在还有价值时出售！你的足球帝国在等你。不喜欢球队名字？随时可以在设置中重命名。',
+  'tut.done.body': '签约。合并。建设。获胜。老将保留到退役 —— 或者在还有价值时出售！你的足球帝国在等你。',
   'tut.done.btn': '开始游戏！🚀',
   'shop.title': '商店',
   'shop.section.premium': '高级',

@@ -15,6 +15,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class MiniGameHeader extends StatelessWidget implements PreferredSizeWidget {
   const MiniGameHeader({super.key, required this.titleKey});
@@ -41,5 +42,45 @@ class MiniGameHeader extends StatelessWidget implements PreferredSizeWidget {
         onPressed: () => Navigator.of(context).maybePop(),
       ),
     ),
+  );
+}
+
+/// One figure off a drill's full-time card: a muted label with a big number
+/// under it.
+///
+/// **One of these, not one per drill.** Pairs and Pitch Invaders each carried a
+/// byte-identical private `_Stat`, and the Boot Room was about to be given a
+/// third. They live here for the same reason the header does: a drill's
+/// full-time card is a shape the set of them shares, and three copies of it is
+/// three places for it to drift.
+class MiniGameStat extends StatelessWidget {
+  const MiniGameStat({
+    super.key,
+    required this.kit,
+    required this.label,
+    required this.value,
+    required this.valueKey,
+    required this.colour,
+  });
+
+  final KitTheme kit;
+  final String label, value;
+  final Key valueKey;
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
+      Text(
+        value,
+        key: valueKey,
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+          color: colour,
+        ),
+      ),
+    ],
   );
 }

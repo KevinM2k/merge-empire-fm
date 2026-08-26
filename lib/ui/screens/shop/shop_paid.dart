@@ -184,7 +184,15 @@ List<Widget> paidTilesFor(
           : priceFor(tile.product.sku, tile.product.price, known),
       // Real money, and the only tone that leaves the game to be paid.
       tone: StoreTone.cash,
-      badge: tile.product.popular ? t('shop.most_popular') : null,
+      // **A CORNER FLASH ON A HERO, a line of text on a small tile.** The
+      // popular tag was a grey sentence in the middle of the card wherever it
+      // appeared — which on the shelf the shop OPENS on is the one place it is
+      // worth shouting. See [ShopTile.corner]; the hero's price is on its own
+      // line at the bottom now, so the corner is free for it.
+      badge: tile.product.popular && !featured ? t('shop.most_popular') : null,
+      corner: tile.product.popular && featured
+          ? t('shop.most_popular')
+          : null,
       disabledReason: owned.noteKey != null
           ? t(owned.noteKey!, {'days': owned.days})
           : paidDisabledReason(),

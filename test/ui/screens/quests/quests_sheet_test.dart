@@ -21,6 +21,8 @@ import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -195,6 +197,30 @@ void main() {
       expect(find.text(t('quests.capstone_reward', {'n': 1})), findsOneWidget);
     });
 
+    /// **THE CHIP PAINTS ITS OWN DARK PLATE, so it takes the DARK theme's
+    /// gold.** It used to ask `coinFigureInk`, which answers the deep bronze
+    /// `gameGoldLight` on a light page — a shade that exists for gold on WHITE.
+    /// On the charcoal plate this chip draws for itself that is brown on
+    /// near-black, which is what the playtest reported.
+    testWidgets('and the figure is GOLD on the plate, not bronze', (
+      tester,
+    ) async {
+      await pumpShell(tester, saveWithQuests());
+      await openQuests(tester);
+      final ink = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('quests-track-coins')),
+              matching: find.byType(Text),
+            ),
+          )
+          .single
+          .style!
+          .color;
+      expect(ink, gameGold);
+      expect(ink, isNot(gameGoldLight));
+    });
+
     testWidgets('and a division that has already paid its gem stops offering '
         'it', (tester) async {
       final state = saveWithQuests();
@@ -285,7 +311,13 @@ void main() {
       await pumpShell(tester, saveWithQuests());
       await openQuests(tester);
       expect(find.byKey(const ValueKey('quests-match-auto')), findsNothing);
-      expect(find.text(t('quests.season')), findsOneWidget);
+      // **AND THE HEADER IS THE TRACK'S NAME.** `quests.title` — the bare word
+      // "Quests" — used to head the sheet with `quests.season` repeated as a
+      // subtitle under it: two headings for one list, on a sheet that has only
+      // shown the season track since the match one moved to the next-match
+      // card.
+      expect(find.text(t('quests.season').toUpperCase()), findsOneWidget);
+      expect(find.text(t('quests.title')), findsNothing);
     });
 
     testWidgets('opening it twice does not redraw the set just read', (
@@ -350,8 +382,8 @@ void main() {
       await openQuests(tester);
       expect(
         tester
-            .widget<OutlinedButton>(find.byKey(const ValueKey('quests-reroll')))
-            .onPressed,
+            .widget<StoreButton>(find.byKey(const ValueKey('quests-reroll')))
+            .onTap,
         isNull,
       );
     });

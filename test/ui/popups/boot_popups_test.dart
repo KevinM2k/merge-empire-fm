@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/popups/welcome_back_card.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -133,7 +134,9 @@ void main() {
     // is one the player never saw.
     expect(find.byKey(const ValueKey('daily-items')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('daily-close')));
+    // **NO CLOSE BUTTON ANY MORE** — the sheet is dismissed by tapping outside
+    // it, which is what the line at the bottom now says rather than offers.
+    await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('daily-reward-sheet')), findsNothing);
     expect(hasPopupWork(), isFalse);
@@ -146,10 +149,8 @@ void main() {
     await boot(tester, saveWith());
     expect(
       tester
-          .widget<OutlinedButton>(
-            find.byKey(const ValueKey('daily-claim-double')),
-          )
-          .onPressed,
+          .widget<StoreButton>(find.byKey(const ValueKey('daily-claim-double')))
+          .onTap,
       isNotNull,
     );
   });
@@ -176,7 +177,7 @@ void main() {
     expect(find.byKey(const ValueKey('daily-reward-sheet')), findsOneWidget);
 
     // Closed WITHOUT claiming, which is the case the gate is about.
-    await tester.tap(find.byKey(const ValueKey('daily-close')));
+    await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
     expect(hasPopupWork(), isFalse);
 

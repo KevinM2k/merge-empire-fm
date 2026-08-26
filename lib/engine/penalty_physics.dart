@@ -201,6 +201,15 @@ const double keeperHangTime = 0.10;
 /// How long the landing takes.
 const double keeperLandTime = 0.34;
 
+/// How long his limbs go on moving after the rest of him has stopped.
+///
+/// **A body does not land in the shape it was flying in.** [keeperLand]
+/// saturates the instant his shoulders reach the turf and the renderer had
+/// nothing after it, so every limb eased to its hanging rest on the body's own
+/// fall curve and then simply stopped — a posed figure being set down. This is
+/// the clock the settle rings on; see `_limbRing` in `penalty_view.dart`.
+const double keeperLimbSettleTime = 0.55;
+
 /// Where his shoulders finish, in metres — the two ends of a landing.
 ///
 /// [keeperGroundZ] is a keeper lying on the turf; [keeperStandZ] is one who
@@ -281,6 +290,11 @@ class PenaltyKick {
 
   /// How far through the LANDING, 0 still up to 1 down.
   double keeperLand = 0;
+
+  /// **The limbs' own clock, which starts where the body's stops.** 0 at the
+  /// moment he hits the turf, 1 once everything has stopped moving. See
+  /// [keeperLimbSettleTime].
+  double keeperLimbSettle = 0;
 
   /// When the kick was decided — the ball's story is over at this instant, and
   /// it is what the landing is timed from. Null while it is still live.
@@ -642,6 +656,7 @@ class PenaltyKick {
     if (since <= 0) {
       keeperDive = 0;
       keeperLand = 0;
+      keeperLimbSettle = 0;
       keeperHand
         ..x = 0
         ..z = keeperStandZ;
@@ -676,6 +691,10 @@ class PenaltyKick {
     final at = decidedAt;
     final falling = at == null ? 0.0 : elapsed - at - keeperHangTime;
     keeperLand = falling <= 0 ? 0 : math.min(1.0, falling / keeperLandTime);
+    final settling = falling - keeperLandTime;
+    keeperLimbSettle = settling <= 0
+        ? 0
+        : math.min(1.0, settling / keeperLimbSettleTime);
     // Gravity: the distance goes with the square of the time.
     final drop = keeperLand * keeperLand;
     keeperHand.z = peak + (_restZ - peak) * drop;

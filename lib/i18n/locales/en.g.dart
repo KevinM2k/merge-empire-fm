@@ -419,7 +419,7 @@ const Map<String, String> enCatalog = <String, String>{
   'tut.loan_depart.body': 'The loan stars are gone — but they proved we can compete. Now we build something that\'s <strong>ours</strong>. Here\'s <strong>500 coins</strong> to get started. I\'ll be in the bottom left whenever I\'ve got advice.',
   'tut.loan_depart.btn': 'Let\'s Build! →',
   'tut.done.title': 'You\'re Ready!',
-  'tut.done.body': 'Scout. Merge. Build. Win. And don\'t worry — I\'m always on hand: I\'ll pop up from the bottom-left whenever I\'ve got a tip worth knowing. Swing by the Trophy Room anytime to set an unlocked achievement as your badge — it\'ll show next to your club on the leaderboard. Not keen on your club name? Rename it anytime in Settings. Now head to the Players tab and recruit yourself a squad!',
+  'tut.done.body': 'Scout. Merge. Build. Win. And don\'t worry — I\'m always on hand: I\'ll pop up from the bottom-left whenever I\'ve got a tip worth knowing. Now head to the Players tab and recruit yourself a squad!',
   'tut.done.btn': 'Let\'s Play! 🚀',
   'shop.title': 'Shop',
   'shop.section.premium': 'Premium',

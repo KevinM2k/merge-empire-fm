@@ -416,7 +416,7 @@ const Map<String, String> frCatalog = <String, String>{
   'tut.loan_depart.body': 'They\'ve gone back to their clubs — but they left us <strong>500 coins</strong> as a thank-you! Now it\'s time to build your own permanent squad. Scout, merge, and keep climbing!',
   'tut.loan_depart.btn': 'Keep Building! →',
   'tut.done.title': '🏆 Tu es prêt !',
-  'tut.done.body': 'Signer. Fusionner. Construire. Gagner. Garde les vétérans jusqu\'à leur retraite — ou vends-les tant qu\'ils valent encore quelque chose ! Ton empire footballistique t\'attend. Le nom du club ne te plaît pas ? Renomme-le quand tu veux dans les Réglages.',
+  'tut.done.body': 'Signer. Fusionner. Construire. Gagner. Garde les vétérans jusqu\'à leur retraite — ou vends-les tant qu\'ils valent encore quelque chose ! Ton empire footballistique t\'attend.',
   'tut.done.btn': 'À jouer ! 🚀',
   'shop.title': 'Boutique',
   'shop.section.premium': 'Premium',

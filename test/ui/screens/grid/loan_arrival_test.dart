@@ -29,6 +29,30 @@ Future<void> pumpArrival(
   ),
 );
 
+Future<void> pumpDeparture(
+  WidgetTester tester,
+  Duration? delay, {
+  bool reduceMotion = false,
+}) => tester.pumpWidget(
+  MediaQuery(
+    data: MediaQueryData(disableAnimations: reduceMotion),
+    child: Directionality(
+      textDirection: TextDirection.ltr,
+      child: Center(
+        child: LoanDeparture(
+          delay: delay,
+          child: const SizedBox(
+            key: ValueKey('card'),
+            width: 90,
+            height: 120,
+            child: ColoredBox(color: Color(0xFF00FF00)),
+          ),
+        ),
+      ),
+    ),
+  ),
+);
+
 double _opacity(WidgetTester tester) =>
     tester.widget<Opacity>(find.byType(Opacity)).opacity;
 
@@ -96,6 +120,63 @@ void main() {
       expect(
         loanArrivalWindow(8),
         greaterThan(loanArrivalStagger * 7 + loanArrivalDuration),
+      );
+    });
+  });
+
+  /// **The loan going home, which the port used to do by deleting it.**
+  /// `loan-card-exit` in `Tutorial.js`: up a little, then away and down.
+  group('and the departure', () {
+    testWidgets('leaves a card that is staying alone', (tester) async {
+      await pumpDeparture(tester, null);
+      expect(find.byType(Opacity), findsNothing);
+    });
+
+    testWidgets('holds a card at full until its turn', (tester) async {
+      await pumpDeparture(tester, loanDepartureStagger * 3);
+      expect(_opacity(tester), 1);
+      await tester.pump(loanDepartureStagger);
+      expect(_opacity(tester), 1, reason: 'not its turn yet');
+      // The timer fires the controller; the first tick is the frame after.
+      await tester.pump(loanDepartureStagger * 3);
+      await tester.pump(loanDepartureDuration);
+      expect(_opacity(tester), 0);
+    });
+
+    testWidgets('lifts before it drops away', (tester) async {
+      await pumpDeparture(tester, Duration.zero);
+      final resting = tester.getCenter(find.byKey(const ValueKey('card')));
+      await tester.pump(loanDepartureDuration * 0.3);
+      expect(
+        tester.getCenter(find.byKey(const ValueKey('card'))).dy,
+        lessThan(resting.dy),
+        reason: 'the 40% keyframe lifts it',
+      );
+      await tester.pump(loanDepartureDuration);
+      expect(_opacity(tester), 0);
+    });
+
+    testWidgets('and answers no drag on the way out', (tester) async {
+      await pumpDeparture(tester, Duration.zero);
+      expect(find.byType(IgnorePointer), findsOneWidget);
+      await tester.pump(loanDepartureDuration);
+    });
+
+    testWidgets('reduce-motion takes them without the flight', (tester) async {
+      await pumpDeparture(tester, Duration.zero, reduceMotion: true);
+      expect(find.byKey(const ValueKey('card')), findsNothing);
+    });
+
+    test('and the window is nothing when nothing was lent', () {
+      expect(loanDepartureWindow(0), Duration.zero);
+      expect(
+        loanDepartureWindow(8) - loanDepartureWindow(7),
+        loanDepartureStagger,
+      );
+      // Long enough for the LAST card to have gone.
+      expect(
+        loanDepartureWindow(8),
+        greaterThanOrEqualTo(loanDepartureStagger * 7 + loanDepartureDuration),
       );
     });
   });

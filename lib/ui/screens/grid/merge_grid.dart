@@ -456,7 +456,16 @@ class MergeGridState extends ConsumerState<MergeGrid>
     // The gold ring goes on at REST only: mid-drag the dimming is the message,
     // and a pulsing card under a lifted one is two cues fighting.
     final mergeable = ref.watch(mergeableCellsProvider);
-    final arriving = _loanArrivals(ref.watch(loanCardIdsProvider));
+    final loans = ref.watch(loanCardIdsProvider);
+    final arriving = _loanArrivals(loans);
+    // The tutorial's loan going home. Staggered in grid order, so the row
+    // empties left to right rather than blinking out.
+    final departing = ref.watch(loanDepartingProvider)
+        ? {
+            for (var i = 0; i < loans.length; i++)
+              loans[i]: loanDepartureStagger * i,
+          }
+        : const <String, Duration>{};
 
     return GridPulse(
       clock: _pulse,
@@ -548,48 +557,51 @@ class MergeGridState extends ConsumerState<MergeGrid>
                                       top: at(cell.index).dy,
                                       width: cellW,
                                       height: cellH,
-                                      child: LoanArrival(
-                                        delay: arriving[cell.instanceId],
-                                        child: _CardSlot(
-                                          cell: cell,
-                                          onDrop: _drop,
-                                          mergeable:
-                                              _dragging == null &&
-                                              mergeable.contains(cell.index),
-                                          onDragUpdate: _autoScroll,
-                                          width: cellW,
-                                          height: cellH,
-                                          // Bright if it is the card in hand or a
-                                          // square that can take it; dimmed if not.
-                                          dimmed:
-                                              _dragging != null &&
-                                              _dragging != cell.index &&
-                                              !_targets.contains(cell.index),
-                                          bursting: _burstAt.contains(cell.index),
-                                          burstTier: _burstTier,
-                                          onDragStart: () => setState(() {
-                                            _dragging = cell.index;
-                                            _targets = mergeTargetsFor(
-                                              ref.read(gameProvider).state,
-                                              cell.index,
-                                            );
-                                          }),
-                                          onDragEnd: () => setState(() {
-                                            _dragging = null;
-                                            _targets = const {};
-                                          }),
-                                          onBurstDone: () {
-                                            // Each square clears its OWN mark, so
-                                            // a sweep's dozen do not have to
-                                            // finish in step to stop.
-                                            if (mounted &&
-                                                _burstAt.contains(cell.index)) {
-                                              setState(
-                                                () => _burstAt = {..._burstAt}
-                                                  ..remove(cell.index),
+                                      child: LoanDeparture(
+                                        delay: departing[cell.instanceId],
+                                        child: LoanArrival(
+                                          delay: arriving[cell.instanceId],
+                                          child: _CardSlot(
+                                            cell: cell,
+                                            onDrop: _drop,
+                                            mergeable:
+                                                _dragging == null &&
+                                                mergeable.contains(cell.index),
+                                            onDragUpdate: _autoScroll,
+                                            width: cellW,
+                                            height: cellH,
+                                            // Bright if it is the card in hand or a
+                                            // square that can take it; dimmed if not.
+                                            dimmed:
+                                                _dragging != null &&
+                                                _dragging != cell.index &&
+                                                !_targets.contains(cell.index),
+                                            bursting: _burstAt.contains(cell.index),
+                                            burstTier: _burstTier,
+                                            onDragStart: () => setState(() {
+                                              _dragging = cell.index;
+                                              _targets = mergeTargetsFor(
+                                                ref.read(gameProvider).state,
+                                                cell.index,
                                               );
-                                            }
-                                          },
+                                            }),
+                                            onDragEnd: () => setState(() {
+                                              _dragging = null;
+                                              _targets = const {};
+                                            }),
+                                            onBurstDone: () {
+                                              // Each square clears its OWN mark, so
+                                              // a sweep's dozen do not have to
+                                              // finish in step to stop.
+                                              if (mounted &&
+                                                  _burstAt.contains(cell.index)) {
+                                                setState(
+                                                  () => _burstAt = {..._burstAt}
+                                                    ..remove(cell.index),
+                                                );
+                                              }
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ),

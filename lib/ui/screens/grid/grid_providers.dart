@@ -113,6 +113,15 @@ bool isProMode(Map<String, dynamic>? s) =>
 /// card arrives in it.
 final gridPendingProvider = StateProvider<Set<String>>((_) => const {});
 
+/// The tutorial's loan is going home, and the grid is showing it leave.
+///
+/// **Set BEFORE the save loses them and cleared after**, which is the only way
+/// round the obvious problem: a card cannot fly out of a square it has already
+/// been deleted from. The tutorial holds the removal for
+/// [loanDepartureWindow], and this is what tells the grid to spend that window
+/// animating rather than sitting still — see `tutorial_overlay.dart`.
+final loanDepartingProvider = StateProvider<bool>((_) => false);
+
 final gridCellsProvider = Provider<List<GridCell>>((ref) {
   ref.watch(saveRevisionProvider);
   final s = ref.watch(gameProvider).state ?? const <String, dynamic>{};
