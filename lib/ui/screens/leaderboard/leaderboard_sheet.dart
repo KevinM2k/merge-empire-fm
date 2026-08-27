@@ -7,7 +7,9 @@
 ///
 /// - **Signed out.** The JS renders the whole screen with a guest footer
 ///   inviting you to sign in to be listed. Your own standing still shows,
-///   because it is computed locally.
+///   because the club, the division and the badge are computed locally — only
+///   the RANK on it needs the board, and it comes from there. See
+///   `myBoardRankProvider`.
 /// - **Offline.** One line, `leaderboard.offline`.
 ///
 /// It is reachable rather than absent BECAUSE those states exist. Leaving the
@@ -31,14 +33,11 @@ import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
-num _num(Object? v) => v is num ? v : 0;
 
 /// What we can say about the player without the service.
 typedef LocalStanding = ({
   String club,
   String division,
-  int trophies,
-  int seasons,
   String badgeId,
 });
 
@@ -49,8 +48,6 @@ final localStandingProvider = savePick<LocalStanding>((s) {
         ? s['clubName'] as String
         : t('common.your_club'),
     division: tName('division', '${prog?['currentDivision'] ?? ''}'),
-    trophies: _num(_map(s['resources'])?['trophies']).toInt(),
-    seasons: _num(prog?['seasonCount']).toInt(),
     badgeId: '${prog?['equippedBadgeId'] ?? 'default'}',
   );
 });
@@ -65,6 +62,7 @@ class LeaderboardView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final me = ref.watch(localStandingProvider);
+    final rank = ref.watch(myBoardRankProvider);
     final signedIn = isSignedInLocal(ref.watch(gameProvider).state);
 
     return Padding(
@@ -123,8 +121,17 @@ class LeaderboardView extends ConsumerWidget {
                       style: TextStyle(fontSize: 10, color: kit.textMuted),
                     ),
                     Text(
-                      // Unranked, and honestly so: a rank needs the service.
-                      t('leaderboard.rank_unranked'),
+                      // **THE BOARD'S ANSWER, not a dash.** This printed
+                      // `rank_unranked` for everybody, which was honest while
+                      // there was no service and stopped being honest the day
+                      // there was one — the fetch two widgets below has carried
+                      // `playerRank` all along. A dash still stands for the two
+                      // cases that really have no rank: a board that has not
+                      // come back yet, and a player the board has never seen.
+                      // See [myBoardRankProvider].
+                      rank == null
+                          ? t('leaderboard.rank_unranked')
+                          : '#${formatCoins(rank)}',
                       key: const ValueKey('leaderboard-rank'),
                       style: const TextStyle(
                         fontSize: 20,
@@ -136,25 +143,12 @@ class LeaderboardView extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _Stat(
-                  label: t('scene.dock.trophies'),
-                  value: formatCoins(me.trophies),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _Stat(
-                  label: t('season.end.stat_record'),
-                  value: '${me.seasons}',
-                ),
-              ),
-            ],
-          ),
-
+          // **THE TWO STAT TILES ARE GONE.** "Trophies" and "Record" sat under
+          // the standing card as a pair of big figures, and neither of them is
+          // about the leaderboard: the trophy count is the trophy room's and the
+          // season count is the season report's. Reported as two readings the
+          // player could not tell the meaning of, on the one sheet whose whole
+          // job is a ranked list — so the room goes to the list.
           const SizedBox(height: 20),
           // **THE BOARD ITSELF.** It was one line saying the service was not
           // here; `services/leaderboard_service.dart` is, so this is the ranked
@@ -171,38 +165,6 @@ class LeaderboardView extends ConsumerWidget {
               style: TextStyle(fontSize: 11, color: kit.textMuted),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: kit.surface2,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: kit.border),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          Text(
-            label.toUpperCase(),
-            style: TextStyle(fontSize: 9, color: kit.textMuted),
-          ),
         ],
       ),
     );

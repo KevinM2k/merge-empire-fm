@@ -11,6 +11,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 import 'shop_helpers.dart';
@@ -254,6 +255,47 @@ void main() {
         find.byKey(ValueKey('shop-tile-${tiles.first.tile.product.id}')),
       );
       expect(wide.width, greaterThan(narrow.width * 1.5));
+    }
+  });
+
+  testWidgets('EVERY TAB HAS A BACKGROUND, so the strip reads on a backdrop', (
+    tester,
+  ) async {
+    // The unselected tabs were `Colors.transparent` with a muted label on them,
+    // which is fine over a plain page and unreadable over the ones this game
+    // draws: the club backdrops put turf and black-and-white stripes directly
+    // behind the strip. Reported as the top of the Shop being impossible to
+    // read on them.
+    await pumpShop(tester, (_) {});
+    final kit = Theme.of(
+      tester.element(find.byType(ShopScreen)),
+    ).extension<KitTheme>()!;
+
+    for (final (i, tab) in shopTabs.indexed) {
+      final fill =
+          (tester
+                      .widget<DecoratedBox>(
+                        find
+                            .descendant(
+                              of: find.byKey(
+                                ValueKey('shop-tab-${shopTabSlug(tab)}'),
+                              ),
+                              matching: find.byType(DecoratedBox),
+                            )
+                            .first,
+                      )
+                      .decoration
+                  as BoxDecoration)
+              .color!;
+      expect(fill.a, 1, reason: '${shopTabSlug(tab)} still shows the page');
+      // The selected tab keeps its own tint — BLENDED onto the fill rather than
+      // laid over the page, so the shelf colours that tell the tabs apart
+      // survive going opaque.
+      if (i == 0) {
+        expect(fill, isNot(kit.surface));
+      } else {
+        expect(fill, kit.surface);
+      }
     }
   });
 }

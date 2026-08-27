@@ -11,12 +11,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 Future<ProviderContainer> pumpCard(
   WidgetTester tester, {
@@ -209,6 +211,59 @@ void main() {
       // are about to press Play on.
       await pumpCard(tester);
       expect(find.byKey(const ValueKey('match-quests')), findsOneWidget);
+    });
+  });
+
+  group('THE MATCH QUESTS HEADER, IN THE THEME THAT SHIPS', () {
+    // `lightModeProvider` defaults TRUE, so this whole file already runs in the
+    // theme a player sees — which is why both of these were reported off it.
+
+    testWidgets('THE HEADING IS NOT CUT OFF', (tester) async {
+      // It flexed with an ellipsis, which was the least-bad answer while the
+      // words "TOTAL REWARD" were also in the row. The label is gone and the
+      // heading wraps instead: this is a column that can grow a line.
+      await pumpCard(tester);
+      final heading = tester.widget<Text>(
+        find.text(t('quests.match').toUpperCase()),
+      );
+      expect(heading.overflow, isNot(TextOverflow.ellipsis));
+      expect(heading.softWrap, isTrue);
+      expect(heading.maxLines, isNull);
+      // And the label it made room for is nowhere on the card.
+      expect(find.text(t('quests.total_reward').toUpperCase()), findsNothing);
+    });
+
+    testWidgets('AND THE COIN FIGURES ARE GOLD, not the bronze', (
+      tester,
+    ) async {
+      // `coinFigureInk` answers `gameGoldLight` — a deep bronze — because
+      // `#FFD700` is 1.1:1 on a near-white CARD. This card is not paper: it is
+      // glass over the pitch, so the hue stays and the contrast comes from a
+      // dark backing instead. Reported as "the coins on the home page are a
+      // horrible bronze colour".
+      await pumpCard(tester, mutate: (s) {
+        (s['quests'] as Map<String, dynamic>)['match'] = <String, dynamic>{
+          'fixtureKey': null,
+          'active': <dynamic>[],
+        };
+      });
+      final figures = tester
+          .widgetList<Text>(find.byType(Text))
+          .where((t) => t.style?.color == gameGold);
+      expect(
+        figures,
+        isNotEmpty,
+        reason: 'no money figure on the card is actually gold',
+      );
+      expect(
+        tester
+            .widgetList<Text>(find.byType(Text))
+            .where((t) => t.style?.color == gameGoldLight),
+        isEmpty,
+        reason: 'the bronze is for gold on paper, and this card is glass',
+      );
+      // The backing is what buys the contrast the hue no longer pays for.
+      expect(figures.first.style!.shadows, isNotEmpty);
     });
   });
 }

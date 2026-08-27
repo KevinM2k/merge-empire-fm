@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/data/events.dart';
 import 'package:merge_empire_fc/engine/event_cup_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -471,11 +472,8 @@ class _CoachRead extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 21,
-            backgroundColor: kit.bg,
-            child: const Text('🧑‍🏫', style: TextStyle(fontSize: 20)),
-          ),
+          // His face rather than the teacher emoji — see [CoachFace].
+          const CircleAvatar(radius: 21, child: CoachFace(fallbackSize: 20)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

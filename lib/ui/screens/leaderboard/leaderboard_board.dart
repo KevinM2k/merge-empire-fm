@@ -18,6 +18,8 @@
 /// period control says so and goes quiet.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/leaderboard_policy.dart';
@@ -38,6 +40,22 @@ const BoardQuery defaultBoardQuery = (
   metric: 'points',
 );
 
+/// **Where the player actually stands, once the board knows.**
+///
+/// The standing card above the board printed `leaderboard.rank_unranked` — a
+/// dash — for every player on every board, and it was honest when there was no
+/// service and stopped being honest when there was: the fetch has come back with
+/// `playerRank` on it the whole time, two widgets below the card that needed it.
+///
+/// It lives here rather than in the sheet because the RANK IS A PROPERTY OF THE
+/// BOARD, not of the save. Change the metric from points to prestige and the
+/// number changes; the card reads whatever the three dropdowns are currently
+/// asking about, which is the only reading of "my rank" that means anything.
+///
+/// Written when a fetch RESOLVES and nulled when one starts, so the card shows a
+/// dash while a board is loading rather than the last board's answer.
+final myBoardRankProvider = StateProvider<int?>((_) => null);
+
 class LeaderboardBoard extends ConsumerStatefulWidget {
   const LeaderboardBoard({super.key});
 
@@ -57,14 +75,35 @@ class _LeaderboardBoardState extends ConsumerState<LeaderboardBoard> {
 
   void _load({bool force = false}) {
     final state = ref.read(gameProvider).state;
+    final pending = fetchLeaderboard(
+      state,
+      scope: _query.scope,
+      period: _query.period,
+      metric: _query.metric,
+      force: force,
+    );
+    // The card goes back to a dash for as long as this is in flight — see
+    // [myBoardRankProvider].
+    ref.read(myBoardRankProvider.notifier).state = null;
+    // **On the RESOLUTION, never inside the `FutureBuilder`.** The builder runs
+    // during a build and Riverpod refuses a write from there; and the `mounted`
+    // guard is what stops a board the player has navigated away from writing a
+    // rank into a scope that has gone.
+    unawaited(
+      pending
+          .then((view) {
+            if (!mounted || _pending != pending) return;
+            ref.read(myBoardRankProvider.notifier).state = view.playerRank;
+          })
+          // A board that will not load has no rank to report, and
+          // `fetchLeaderboard` already answers an `error` view rather than
+          // throwing — this is the belt on top of that.
+          .catchError((_) {}),
+    );
+    // A BLOCK, not an arrow: `_pending = pending` evaluates to the future, and
+    // `setState` asserts on a callback that returns one.
     setState(() {
-      _pending = fetchLeaderboard(
-        state,
-        scope: _query.scope,
-        period: _query.period,
-        metric: _query.metric,
-        force: force,
-      );
+      _pending = pending;
     });
   }
 

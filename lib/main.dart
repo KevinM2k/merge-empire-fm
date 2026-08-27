@@ -41,15 +41,12 @@ Future<void> main() async {
   // build with no Firebase leaves the default sink, which drops.
   unawaited(startAnalytics());
   final store = await PrefsSaveStore.open();
-  // **The ad SDK, after consent and before the first frame.** `startAds` asks
-  // for consent first — serving before that answer exists is what the gate is
-  // there to stop — and hands back `NoRewardedAds` on any platform without the
-  // SDK, so a desktop or test host is unchanged.
-  //
-  // Awaited rather than backgrounded because the OVERRIDE is what the whole
-  // chain reads: a provider that starts as the null adapter and swaps later
-  // would leave the first screen's rewarded buttons saying "coming soon".
-  final ads = await startAds();
+  // **The ad SDK starts AFTER the splash, and nothing waits for it.**
+  // `startAds` asks for consent first, and the UMP form's future does not
+  // complete until the player dismisses it — awaited here, it held the app on
+  // the launch splash for as long as the form was up. The override is the
+  // pending adapter, which a tap waits on; see `services/rewarded_ads.dart`.
+  final ads = PendingRewardedAds(_adsAfterTheSplash());
   runApp(
     ProviderScope(
       overrides: [
@@ -61,6 +58,18 @@ Future<void> main() async {
       child: const BootSplash(child: MergeEmpireApp()),
     ),
   );
+}
+
+/// The ad stack, started once the splash has lifted — the consent form is a
+/// dialog over the game, and one over a loading screen is indistinguishable
+/// from a hang. `startAds` never throws, so this only completes with an adapter.
+Future<RewardedAds> _adsAfterTheSplash() {
+  final ready = Completer<RewardedAds>();
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    await Future<void>.delayed(splashWindow);
+    ready.complete(await startAds());
+  });
+  return ready.future;
 }
 
 class MergeEmpireApp extends ConsumerWidget {

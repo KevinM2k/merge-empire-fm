@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/data/events.dart';
 import 'package:merge_empire_fc/engine/event_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_day_view.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_deal_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_challenges_view.dart';
@@ -185,11 +186,8 @@ class _ClosedViewState extends ConsumerState<_ClosedView> {
           ),
           child: Column(
             children: [
-              CircleAvatar(
-                radius: 66,
-                backgroundColor: kit.bg,
-                child: const Text('🧑‍🏫', style: TextStyle(fontSize: 56)),
-              ),
+              // His face rather than the teacher emoji — see [CoachFace].
+              const CircleAvatar(radius: 66, child: CoachFace(fallbackSize: 56)),
               const SizedBox(height: 14),
               Text(
                 t('event.banner.coming_up').toUpperCase(),

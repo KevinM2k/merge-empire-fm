@@ -247,11 +247,21 @@ class MergeGridState extends ConsumerState<MergeGrid>
   /// Handed back when the grid leaves the tree — in `deactivate` rather than
   /// `dispose`, because `ref` is already gone by then. A resolver left behind
   /// would fly a card into a grid that is no longer on screen.
+  ///
+  /// **Deferred off the frame**, the way the match screen's is: `deactivate`
+  /// runs inside whatever build is re-parenting the grid, and Riverpod refuses
+  /// a provider write from inside a build. Guarded, because the scope can go
+  /// first at app teardown.
   @override
   void deactivate() {
-    if (ref.read(scoutLandingProvider) == _landingRects) {
-      ref.read(scoutLandingProvider.notifier).state = null;
-    }
+    final landing = ref.read(scoutLandingProvider.notifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        if (landing.state == _landingRects) landing.state = null;
+      } on StateError {
+        // The scope has gone, and with it anything that could have read this.
+      }
+    });
     super.deactivate();
   }
 
@@ -706,8 +716,9 @@ class _GridStatusStrip extends ConsumerWidget {
             }),
             // A red WASH, not red text on the standard plate: at capacity the
             // pill is the answer to "why can I not sign anyone", and it has to
-            // carry from the corner of the eye.
-            fill: full ? const Color(0x40E53935) : kit.surface2,
+            // carry from the corner of the eye. BLENDED onto the plate — see
+            // [pillGround].
+            fill: pillGround(kit, full ? const Color(0x40E53935) : null),
             ink: full ? const Color(0xFFE57373) : kit.accentBright,
             border: full ? const Color(0x80E53935) : kit.accent,
           ),
@@ -719,9 +730,12 @@ class _GridStatusStrip extends ConsumerWidget {
               label:
                   '${t('settings.autoTier')}: '
                   '${ref.watch(autoTierSummaryProvider)}',
-              fill: ref.watch(autoTierActiveProvider)
-                  ? kit.accent.withValues(alpha: 0.16)
-                  : kit.surface2,
+              fill: pillGround(
+                kit,
+                ref.watch(autoTierActiveProvider)
+                    ? kit.accent.withValues(alpha: 0.16)
+                    : null,
+              ),
               ink: ref.watch(autoTierActiveProvider)
                   ? kit.accentBright
                   : kit.textMuted,
@@ -737,6 +751,21 @@ class _GridStatusStrip extends ConsumerWidget {
     );
   }
 }
+
+/// **A STATUS PILL'S GROUND, with its tint blended INTO it.**
+///
+/// Both pills painted a translucent wash and nothing underneath it: 16% of the
+/// accent when auto-sell is on, 25% of a red at the roster limit. Over a plain
+/// page that reads as a tint; over the ones this game actually draws — turf, the
+/// humbug stripes — it is a see-through label with a pattern running through the
+/// words. Reported as the auto-sell tier being transparent and hard to read on
+/// exactly those two.
+///
+/// So the plate goes back underneath and the tint composites onto it. The
+/// colours are the ones that were already chosen; what changes is that there is
+/// now something behind them.
+Color pillGround(KitTheme kit, Color? tint) =>
+    tint == null ? kit.surface2 : Color.alphaBlend(tint, kit.surface2);
 
 class _Pill extends StatelessWidget {
   const _Pill({
@@ -800,6 +829,26 @@ class _Pill extends StatelessWidget {
   }
 }
 
+/// **A LOCKED SQUARE IS TRANSLUCENT**, and the other two are not.
+///
+/// Every square used to take `kit.surface` at full opacity, which on a light
+/// theme is a solid near-white tile — so the row of locked ones across the
+/// bottom of the grid was the loudest thing on the page, and it is the part you
+/// cannot use. Reported as wanting them visible but not opaque.
+///
+/// A WASH rather than a lighter grey, because the page behind the grid is a
+/// BACKDROP — turf, humbug, the club's own pattern — and a solid fill picked to
+/// look quiet on one of them is wrong on the next. The pattern shows through and
+/// the square still reads as a square.
+///
+/// The glyph comes down with the fill: it is what says "locked" and it does not
+/// need to be read, only seen.
+({Color fill, Color border, Color ink}) lockedSlotSkin(KitTheme kit) => (
+  fill: kit.surface.withValues(alpha: 0.4),
+  border: kit.border.withValues(alpha: 0.5),
+  ink: kit.textMuted.withValues(alpha: 0.65),
+);
+
 /// The empty slot, and the drop target over it.
 ///
 /// The target lives on the SLOT rather than the card so a drop onto an empty
@@ -815,11 +864,14 @@ class _SlotTarget extends StatelessWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
 
     if (cell.locked) {
+      // See [lockedSlotSkin] — a wash, not the opaque surface the other two
+      // take.
+      final skin = lockedSlotSkin(kit);
       return _Slot(
         slotKey: 'grid-locked-${cell.index}',
-        border: kit.border,
-        fill: kit.surface,
-        child: Icon(Icons.lock_outline, size: 16, color: kit.textMuted),
+        border: skin.border,
+        fill: skin.fill,
+        child: Icon(Icons.lock_outline, size: 16, color: skin.ink),
       );
     }
 

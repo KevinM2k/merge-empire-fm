@@ -48,8 +48,8 @@ Color goldFor(BuildContext context) =>
 ///
 /// Pass `color: coinFigureInk(context)` to a [CoinIcon] sitting beside a figure
 /// so the pair can never split into two currencies.
-Color coinFigureInk(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
+Color coinFigureInk(BuildContext context, {bool onGlass = false}) =>
+    Theme.of(context).brightness == Brightness.dark || onGlass
     ? gameGold
     // **A DEEP gold on a light pane.** `#FFD700` is 1.1:1 on a near-white card,
     // which is the coin figure — the biggest number on the full-time report —
@@ -59,9 +59,29 @@ Color coinFigureInk(BuildContext context) =>
     // shipped value rather than a second one invented here.
     : gameGoldLight;
 
-/// Nothing, in either theme. Kept as the seam every money figure already calls
-/// through, so the halo cannot creep back one caller at a time.
-List<Shadow> coinFigureShadows(BuildContext context) => const [];
+/// **THE HALO IS BACK, and only on GLASS.**
+///
+/// Nothing, on the app's own surfaces, in either theme: a halo behind a figure
+/// printed on a card reads as an outline at any size worth putting money in, and
+/// that is why this seam went quiet in the first place.
+///
+/// A pane over the pitch is not a card. In light mode the home page's glass is
+/// the brightest thing the app draws and the bronze above is what kept the figure
+/// readable on it — which is how the coins on the home page came to be reported
+/// as "a horrible bronze colour", on the one screen where the backdrop is grass
+/// and sky rather than paper. So [onGlass] keeps the gold and buys the contrast
+/// from a dark BACKING instead, which is the answer `hud_chip.dart` already
+/// reached for the coin, bolt and gem glyphs beside it: you cannot fix a bright
+/// hue by darkening it, so darken what is behind it.
+///
+/// The pair is the HUD's own, so the two clusters cannot drift apart.
+List<Shadow> coinFigureShadows(BuildContext context, {bool onGlass = false}) =>
+    onGlass && Theme.of(context).brightness == Brightness.light
+    ? const [
+        Shadow(color: Color(0x59102030), blurRadius: 3),
+        Shadow(color: Color(0x33102030), blurRadius: 6),
+      ]
+    : const [];
 
 /// The set. Keys are the JS's own names so a screen can be diffed against it.
 const Map<String, String> gameIcons = {
@@ -402,12 +422,17 @@ class CoinIcon extends StatelessWidget {
     // GLASS the stroked one goes yellow too — the figure beside it is
     // [coinFigureInk] and a bronze ring next to a yellow number is two
     // currencies in one pair.
+    //
+    // **The glyph takes no halo where the figure does.** That is the HUD's own
+    // split and not an oversight: a coin is a coin at whatever luminance,
+    // because what identifies it is its SHAPE, and the number beside it is the
+    // part that has to be READ. See [coinFigureShadows].
     ink:
         color ??
         (solid
             ? gameGold
             : onGlass
-            ? coinFigureInk(context)
+            ? coinFigureInk(context, onGlass: true)
             : goldFor(context)),
   );
 }

@@ -226,22 +226,33 @@ typedef StatSide = ({int atk, int def});
 /// no `BuildContext` and so no idea which pane they are about to be drawn on — so
 /// every one of them was a fixed light hue for dark glass and disappeared in
 /// daylight. The tone travels; the colour is resolved where it is painted.
+///
+/// **AND THE SIDE OF THE CARD IS NOT A TONE.** This was `good` / `bad` / `warn`,
+/// where `good` meant "in our favour" — so the away side's `+4` for home
+/// advantage came out RED while ours came out green, and both of them are the
+/// same fact: four rating points added to the figure above. Reported directly —
+/// "regardless if that's home or away, it's a plus so it should be green" — and
+/// it is the right rule: the modifiers hang off a rating each, so what they
+/// colour is the arithmetic on THAT rating, not who benefits.
 enum StatTone {
-  /// In our favour.
-  good,
+  /// The number itself decides: a plus is green and a minus is red, on either
+  /// side of the card. See [_Mod].
+  delta,
 
-  /// Against us.
-  bad,
-
-  /// Neither, but worth noticing — a relegation scrap.
+  /// Nobody's gain. A relegation scrap lifts whoever is in it, so it is the one
+  /// modifier that is not a verdict on the fixture — amber on both sides.
   warn,
 }
 
-Color statToneColor(BuildContext context, StatTone tone) =>
+/// The colour a modifier's glyph and figure take.
+///
+/// [amount] is what picks green from red for [StatTone.delta]; a zero would be a
+/// modifier not worth drawing, so it falls on the green side with the pluses.
+Color statToneColor(BuildContext context, StatTone tone, int amount) =>
     glassAccent(context, switch (tone) {
-      StatTone.good => vsGreenOn(context),
-      StatTone.bad => vsRedOn(context),
       StatTone.warn => vsAmberOn(context),
+      StatTone.delta when amount < 0 => vsRedOn(context),
+      StatTone.delta => vsGreenOn(context),
     });
 
 /// One modifier hanging off a rating: a glyph, a signed number, what it means,
@@ -640,21 +651,29 @@ class _Mod extends StatelessWidget {
       // explanation nobody could reach without knowing to hold it down. It says
       // where the number comes from, which is the Stadium's Fan Zone tier.
       triggerMode: TooltipTriggerMode.tap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GameIcon(mod.icon, size: 9, color: statToneColor(context, mod.tone)),
-          Text(
-            '+${mod.amount}',
-            style: TextStyle(
-              fontSize: 9.5,
-              height: 1,
-              fontWeight: FontWeight.w900,
-              color: statToneColor(context, mod.tone),
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
+      child: Builder(
+        builder: (context) {
+          // **THE SIGN IS PRINTED FROM THE NUMBER**, not hardcoded. It was a
+          // literal `+`, which is why nothing here could ever have been a
+          // subtraction and why the colour had to come from somewhere else.
+          final ink = statToneColor(context, mod.tone, mod.amount);
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GameIcon(mod.icon, size: 9, color: ink),
+              Text(
+                '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/util/format.dart';
 
 /// One quest, as a row.
 typedef QuestRow = ({
@@ -228,7 +229,13 @@ class _TrackPrize extends ConsumerWidget {
               key: const ValueKey('quests-track-coins'),
               icon: 'coin',
               ink: gameGold,
-              label: t('quests.reward_coins', {'n': prize.coins}),
+              // **FORMATTED, not printed.** `{n}` was the raw integer, so a
+              // capstone read "52000 coins" — a figure the eye has to count
+              // digits on, on a chip 40px wide. Trimmed, because a reward that
+              // lands on a whole thousand has nothing to say after the dot.
+              label: t('quests.reward_coins', {
+                'n': formatCoins(prize.coins, trim: true),
+              }),
             ),
           // The gem only while it is still there to be earned: a division that
           // has already paid it would be advertising a prize that cannot come
@@ -450,7 +457,9 @@ class _QuestTile extends StatelessWidget {
                             key: ValueKey('quest-reward-$track-${quest.id}'),
                             icon: 'coin',
                             ink: gameGold,
-                            label: t('quests.reward_coins', {'n': quest.coins}),
+                            label: t('quests.reward_coins', {
+                              'n': formatCoins(quest.coins, trim: true),
+                            }),
                           ),
                         ),
                       ],

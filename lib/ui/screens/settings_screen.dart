@@ -620,16 +620,17 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     ),
-    SettingsCard(
-      children: [
-        PendingControl(
-          controlKey: 'feedback-btn',
-          icon: 'megaphone',
-          label: t('settings.sendFeedback'),
-          reason: t('settings.comingSoon'),
-        ),
-      ],
-    ),
+    // **NO "SEND FEEDBACK" ROW, and that is the port catching up with the
+    // spec.** It was a `PendingControl` saying "coming soon" — but the JS
+    // HIDES its own button rather than disabling it, because the feature is
+    // whole on the client and waiting on `submitFeedback` being deployed and
+    // made publicly callable. See `services/feedback_service.dart`. So the port
+    // was advertising a control the shipped game does not show; reported as
+    // wanting it gone, which is what the JS already does.
+    //
+    // `flushFeedbackQueue` stays wired at boot either way — a queue drained
+    // only by the release that unhides the button strands whatever the last one
+    // put in it.
     ];
   }
 }
@@ -651,32 +652,42 @@ class _TabStrip extends StatelessWidget {
           border: Border.all(color: kit.border),
           borderRadius: BorderRadius.circular(10),
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          children: [
-            for (final tab in SettingsTab.values)
-              Expanded(
-                child: InkWell(
-                  key: ValueKey('settings-tab-${tab.name}'),
-                  onTap: () => onTap(tab),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    color: tab == active ? kit.accent : Colors.transparent,
-                    child: Text(
-                      t('settings.tab.${tab.name}'),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: tab == active ? kit.accentInk : kit.textMuted,
+        // **THE CLIP IS INSIDE THE RIM, not on the box.** `clipBehavior` on the
+        // `Container` clips to the OUTSIDE of its own border, so the active
+        // tab's full-bleed accent fill painted straight over the 1px rim at both
+        // ends of the strip — invisible in dark mode and, against a white
+        // border, reported as the selected button eating the corner. A
+        // `ClipRRect` one radius in cuts the fill at the rim instead; the
+        // `Container` already insets its child by the border's width, so the
+        // two line up.
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(9),
+          child: Row(
+            children: [
+              for (final tab in SettingsTab.values)
+                Expanded(
+                  child: InkWell(
+                    key: ValueKey('settings-tab-${tab.name}'),
+                    onTap: () => onTap(tab),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      color: tab == active ? kit.accent : Colors.transparent,
+                      child: Text(
+                        t('settings.tab.${tab.name}'),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: tab == active ? kit.accentInk : kit.textMuted,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

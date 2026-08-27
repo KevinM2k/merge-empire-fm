@@ -29,6 +29,7 @@ import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -541,6 +542,40 @@ void main() {
       await tester.pumpAndSettle();
       await settleSave(tester);
       expect(activeAutoTiers(container.read(gameProvider).state), contains(1));
+    });
+
+    testWidgets('BOTH PILLS HAVE A GROUND, whatever they are saying', (
+      tester,
+    ) async {
+      // They painted a translucent wash and nothing underneath it — 16% of the
+      // accent when auto-sell is on, 25% of a red at the roster limit. That
+      // reads as a tint over a plain page and as a see-through label over the
+      // ones this game draws, with the humbug stripes running through the words.
+      // Reported off exactly those two backdrops.
+      await pumpGrid(tester, tutorialDone: true);
+      final kit = Theme.of(
+        tester.element(find.byType(MergeGrid)),
+      ).extension<KitTheme>()!;
+      for (final key in ['grid-count', 'grid-autosell']) {
+        final fill =
+            (tester
+                        .widget<Container>(
+                          find
+                              .descendant(
+                                of: find.byKey(ValueKey(key)),
+                                matching: find.byType(Container),
+                              )
+                              .first,
+                        )
+                        .decoration
+                    as BoxDecoration)
+                .color!;
+        expect(fill.a, 1, reason: '$key still shows the backdrop through it');
+      }
+      // And the tint is BLENDED rather than dropped: an accent wash on the
+      // plate is not the plate.
+      expect(pillGround(kit, const Color(0x40E53935)), isNot(kit.surface2));
+      expect(pillGround(kit, null), kit.surface2);
     });
 
     testWidgets('a fresh save is offered it, because it is not mid-tutorial', (
@@ -1519,4 +1554,41 @@ void main() {
     });
   });
 
+  group('A LOCKED SQUARE IS VISIBLE, NOT OPAQUE', () {
+    // Every square used to take `kit.surface` flat, so on the theme that ships
+    // — light — the row of locked ones across the foot of the grid was a set of
+    // solid near-white tiles, and the loudest thing on the page was the part of
+    // it you cannot use. Reported directly.
+    testWidgets('the fill, the rim and the padlock are all a wash', (
+      tester,
+    ) async {
+      await pumpGrid(tester);
+      final kit = Theme.of(
+        tester.element(find.byType(MergeGrid)),
+      ).extension<KitTheme>()!;
+      final skin = lockedSlotSkin(kit);
+      expect(skin.fill.a, lessThan(1));
+      expect(skin.border.a, lessThan(1));
+      expect(skin.ink.a, lessThan(1));
+      // A wash OF THE SURFACE, not a second grey — the backdrop behind the grid
+      // is turf or humbug, and any fixed fill that looks quiet on one is wrong
+      // on the other.
+      expect(skin.fill.withValues(alpha: 1), kit.surface);
+    });
+
+    testWidgets('AND THE PADLOCK IS STILL THERE TO SEE', (tester) async {
+      // Subtle is not absent: the square has to read as a square that is
+      // locked, which is the half of the report the alphas could have lost.
+      await pumpGrid(tester);
+      const last = Grid.totalCells - 1;
+      expect(
+        find.byKey(const ValueKey('grid-locked-$last'), skipOffstage: false),
+        findsOneWidget,
+      );
+      expect(
+        find.byIcon(Icons.lock_outline, skipOffstage: false),
+        findsWidgets,
+      );
+    });
+  });
 }

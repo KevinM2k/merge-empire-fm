@@ -37,6 +37,47 @@ void main() {
     });
   });
 
+  // **`trim` IS THE PORT'S, NOT THE JS'S**, which is why it is off by default:
+  // several fixtures compare a `formatCoins` output field for field and a
+  // rolled-over decimal there would be a parity failure rather than a
+  // preference. It exists because "52000 coins" on a quest reward chip was
+  // reported as a figure the eye has to count digits on, and "52.0k" as reading
+  // like a measurement rather than a prize.
+  group('formatCoins(trim: true)', () {
+    const cases = <num, String>{
+      // Under the abbreviation threshold there is no decimal to trim.
+      9999: '9,999',
+      10000: '10k',
+      12345: '12.3k',
+      52000: '52k',
+      52500: '52.5k',
+      1000000: '1M',
+      1234567: '1.23M',
+      1200000: '1.2M',
+      1000000000: '1B',
+      1234567890: '1.23B',
+    };
+
+    cases.forEach((input, expected) {
+      test('$input -> $expected', () {
+        expect(formatCoins(input, trim: true), expected);
+      });
+    });
+
+    test('the untrimmed form is untouched, which is what the fixtures see', () {
+      expect(formatCoins(52000), '52.0k');
+      expect(formatCoins(1000000), '1.00M');
+    });
+
+    test('THE SEPARATOR IS STILL THE LOCALE\'S', () {
+      // A `.0` strip would leave German's `52,0k` standing, so the trim is a
+      // `NumberFormat` pattern rather than string surgery.
+      setFormatLocale('de');
+      expect(formatCoins(52000, trim: true), '52k');
+      expect(formatCoins(52500, trim: true), '52,5k');
+    });
+  });
+
   group('formatCoinsCompact', () {
     const cases = <num, String>{
       0: '0',

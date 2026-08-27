@@ -20,17 +20,29 @@ void resetFormatLocale() => _locale = 'en';
 
 /// Mirrors JS `toLocaleString(locale, {min/maxFractionDigits: digits})` —
 /// locale-aware grouping with a fixed number of decimals.
-String _fmt(num v, [int digits = 0]) {
-  final pattern = digits == 0 ? '#,##0' : '#,##0.${'0' * digits}';
+///
+/// [trim] makes those decimals OPTIONAL — `#,##0.#` rather than `#,##0.0` — so a
+/// figure that lands on a whole unit loses the `.0`. It stays inside
+/// `NumberFormat` rather than stripping characters afterwards because the
+/// separator is the locale's: German writes `52,0k`, and a `.0` trim would
+/// leave it standing.
+String _fmt(num v, [int digits = 0, bool trim = false]) {
+  final decimals = trim ? '#' * digits : '0' * digits;
+  final pattern = digits == 0 ? '#,##0' : '#,##0.$decimals';
   return NumberFormat(pattern, _locale).format(v);
 }
 
 /// Full number with locale-aware grouping under 10k, then 10.2k, then 1.23M.
-String formatCoins(num n) {
+///
+/// [trim] drops a decimal that is only zeroes — `52k` rather than `52.0k`.
+/// Off by default because the JS never does it and several fixtures compare
+/// this output field for field; on where a screen is showing a REWARD, where
+/// "52.0k coins" was reported as reading like a measurement.
+String formatCoins(num n, {bool trim = false}) {
   final v = n.floor();
-  if (v >= 1000000000) return '${_fmt(v / 1000000000, 2)}B';
-  if (v >= 1000000) return '${_fmt(v / 1000000, 2)}M';
-  if (v >= 10000) return '${_fmt(v / 1000, 1)}k';
+  if (v >= 1000000000) return '${_fmt(v / 1000000000, 2, trim)}B';
+  if (v >= 1000000) return '${_fmt(v / 1000000, 2, trim)}M';
+  if (v >= 10000) return '${_fmt(v / 1000, 1, trim)}k';
   return _fmt(v);
 }
 

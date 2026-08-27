@@ -116,12 +116,18 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
   // chosen for what is NOT already spoken for on this card: a house for home
   // advantage, a flame for a grudge, a bolt for a relegation scrap. A shield
   // would have read as the DEF row one line above, and a sword as ATK.
+  //
+  // **AND THE TONE IS THE SAME ON BOTH SIDES.** Every one of these is an
+  // addition to the rating it hangs off, so every one of them is a plus and
+  // every one of them is green — the away side's home advantage included. It
+  // used to be red there, which said "bad for us" on a number that means
+  // exactly what our own `+4` means. See [StatTone].
   final ourMods = <StatMod>[
     if (preview.isHome && preview.ourHomeAdv > 0)
       (
         icon: 'home',
         amount: preview.ourHomeAdv,
-        tone: StatTone.good,
+        tone: StatTone.delta,
         tip: t('play.mod.home_ours'),
       ),
     if (preview.playerInRelegationZone)
@@ -137,21 +143,23 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
       (
         icon: 'home',
         amount: preview.theirHomeAdv,
-        tone: StatTone.bad,
+        tone: StatTone.delta,
         tip: t('play.mod.home_theirs'),
       ),
     if (preview.grudgeBoost > 0)
       (
         icon: 'flame',
         amount: preview.grudgeBoost.round(),
-        tone: StatTone.bad,
+        tone: StatTone.delta,
         tip: t('play.mod.grudge'),
       ),
+    // A relegation scrap is amber on OUR side, so it is amber here too: it is
+    // the same situation seen from the other bench, not a threat.
     if (preview.oppInRelegationZone)
       (
         icon: 'bolt',
         amount: _relegationBoost,
-        tone: StatTone.bad,
+        tone: StatTone.warn,
         tip: t('play.mod.battle_theirs'),
       ),
   ];

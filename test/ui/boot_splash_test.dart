@@ -48,6 +48,29 @@ void main() {
     expect(find.byKey(const Key('app')), findsOneWidget);
   });
 
+  testWidgets('AND THE APP UNDER IT IS NOT RE-PARENTED WHEN IT GOES', (
+    tester,
+  ) async {
+    // Returning the bare child once the splash had gone swapped the Stack out
+    // from over the whole app — every widget in it deactivated and re-mounted
+    // INSIDE that build, the grid's `deactivate` wrote a provider mid-build,
+    // and 2,600 "setState() called during build" errors followed on every
+    // launch. The Element under the splash has to be the same one throughout.
+    await tester.pumpWidget(
+      const BootSplash(child: SizedBox(key: Key('app'))),
+    );
+    final before = tester.element(find.byKey(const Key('app')));
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(FractionallySizedBox), findsNothing);
+    expect(
+      identical(tester.element(find.byKey(const Key('app'))), before),
+      isTrue,
+      reason: 'the app was rebuilt from scratch when the splash left',
+    );
+  });
+
   testWidgets('a zero window never shows it at all', (tester) async {
     await tester.pumpWidget(
       const BootSplash(window: Duration.zero, child: SizedBox(key: Key('app'))),

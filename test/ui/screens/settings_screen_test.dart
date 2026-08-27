@@ -164,6 +164,35 @@ void main() {
       expect(find.byKey(const ValueKey('setting-matchSpeedFast')), findsOne);
     });
 
+    testWidgets('THE ACTIVE TAB STOPS AT THE STRIP\'S RIM', (tester) async {
+      // `clipBehavior` on the `Container` clips to the OUTSIDE of its own
+      // border, so the selected tab's full-bleed accent fill painted straight
+      // over the 1px rim at both ends of the strip — invisible in dark mode and,
+      // against a white border, reported as the selected button eating the
+      // corner. The clip has to be INSIDE the rim, one radius in.
+      await pumpSettings(tester, SettingsTab.general);
+      final strip = find.ancestor(
+        of: find.byKey(const ValueKey('settings-tab-general')),
+        matching: find.byType(ClipRRect),
+      );
+      expect(strip, findsOneWidget, reason: 'the fill is clipped by the box');
+      final inner = tester.widget<ClipRRect>(strip.first).borderRadius
+          as BorderRadius;
+      final outer = find.ancestor(
+        of: strip.first,
+        matching: find.byType(Container),
+      );
+      final box =
+          tester.widget<Container>(outer.first).decoration as BoxDecoration;
+      final rim = (box.borderRadius! as BorderRadius).topLeft.x;
+      expect(
+        inner.topLeft.x,
+        lessThan(rim),
+        reason: 'the clip has to sit inside the rim, not on it',
+      );
+      expect(box.border!.top.width, greaterThan(0), reason: 'no rim to protect');
+    });
+
     testWidgets('a swipe past the last tab does nothing', (tester) async {
       await pumpSettings(tester, SettingsTab.account);
       await tester.fling(
@@ -709,17 +738,19 @@ void main() {
     });
   });
 
-  testWidgets('an M4 control is visible but disabled, not hidden', (
+  testWidgets('SEND FEEDBACK IS NOT ON THE ACCOUNT TAB AT ALL', (
     tester,
   ) async {
-    // A control that vanishes reads as a missing feature; one that explains
-    // itself reads as a feature that is coming. Sign-in used to be on this
-    // list and has come off it — see the account rows below.
+    // The rule here is "a control that vanishes reads as a missing feature", and
+    // it holds — for a feature that is coming. Feedback is not coming: the JS
+    // HIDES its own button, because the client half is finished and what it is
+    // waiting for is `submitFeedback` being deployed and made publicly callable.
+    // So the port's "coming soon" row was advertising a control the shipped game
+    // does not show, and it was reported off the screen.
     await pumpSettings(tester, SettingsTab.account);
-    final found = find.byKey(const ValueKey('feedback-btn'));
-    expect(found, findsOne);
-    expect(tester.widget<SettingsAction>(found).onTap, isNull);
-    // The rankings toggle, which the JS disables whenever nobody is signed in.
+    expect(find.byKey(const ValueKey('feedback-btn')), findsNothing);
+    // The rankings toggle, which the JS disables whenever nobody is signed in,
+    // is the row that DOES follow the rule — it explains itself and stays.
     expect(
       tester
           .widget<SettingsToggle>(

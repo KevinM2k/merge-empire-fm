@@ -262,11 +262,27 @@ void main() {
       // everywhere else in this game, the card this pill opens included.
       final c = await _pumpShell(tester, _saveWithOffer());
       final kit = _kitOf(tester);
-      final pill = tester.widget<Material>(
-        find.byKey(const ValueKey('transfer-pill')),
-      );
-      expect(pill.color, gameGold);
-      expect(pill.color, isNot(kit.accentBright));
+      final face =
+          tester
+                  .widget<AnimatedContainer>(
+                    find.descendant(
+                      of: find.byKey(const ValueKey('transfer-pill')),
+                      matching: find.byType(AnimatedContainer),
+                    ),
+                  )
+                  .decoration
+              as BoxDecoration;
+      // **A GRADIENT, and gold is the middle of it.** Flat gold read as a
+      // banner rather than a button, so the face is lit from above and dropped
+      // onto a hard edge — see `_PillFace`. What the gradient may not do is
+      // stop being gold, which is what this pins.
+      final ramp = face.gradient! as LinearGradient;
+      expect(ramp.colors, contains(gameGold));
+      expect(ramp.colors, isNot(contains(kit.accentBright)));
+      // The edge is the pressable-ness: a hard offset with no blur, which is a
+      // thickness under the face rather than a drop shadow beside it.
+      expect(face.boxShadow!.single.blurRadius, 0);
+      expect(face.boxShadow!.single.offset.dy, greaterThan(0));
       final ink = tester
           .widget<Text>(find.text(t('transfer.pill_label')))
           .style
@@ -301,7 +317,7 @@ void main() {
       final coinsBefore = container.read(coinsProvider);
 
       await tester.tap(
-        find.byKey(const ValueKey('coach-action-transfer.accept')),
+        find.byKey(const ValueKey('coach-action-common.accept')),
       );
       await tester.pumpAndSettle();
       await _settleSave(tester);

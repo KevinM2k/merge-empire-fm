@@ -263,7 +263,13 @@ class _TransferOfferCard extends ConsumerWidget {
         // the coin's gold rather than sitting inside a run of white text on the
         // green face — see [CoachAction.coins].
         CoachAction(
-          labelKey: 'transfer.accept',
+          // **`common.accept`, not `transfer.accept`.** English's own entry is
+          // "Accept Offer" and every other catalogue already reads just
+          // "Accept" — so the one language with two words was the outlier, on a
+          // button that also carries the price. The copy cannot be edited here
+          // (the catalogues are generated), so the fix is to ask for the key
+          // that already says the shorter thing.
+          labelKey: 'common.accept',
           tone: CoachTone.confirm,
           coins: price.round(),
           onTap: () {},
@@ -627,41 +633,120 @@ class _TransferPillState extends ConsumerState<TransferPill>
           // reads as a bug rather than as an overlay. Reported as needing to
           // stand out. Gold is what money wears everywhere else in this game,
           // including the card this pill opens.
-          child: Material(
-            key: const ValueKey('transfer-pill'),
-            color: gameGold,
-            shape: const StadiumBorder(
-              side: BorderSide(color: Color(0xCC1A1206), width: 1.5),
-            ),
-            elevation: 6,
-            child: InkWell(
-              customBorder: const StadiumBorder(),
-              onTap: () => unawaited(showTransferOffer(context, ref)),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 9,
+          // **MOULDED, because flat gold read as a banner.** The pill was a
+          // single solid fill with one hairline round it — which is a label,
+          // and a label is a thing you read rather than a thing you press. The
+          // copy has said "tap to review" the whole time and it was still
+          // reported as not obviously tappable, so the affordance has to be in
+          // the SHAPE.
+          //
+          // Three parts, and they are the same three every [StoreButton] has:
+          // a gradient down the face so it is lit from above, a hard edge
+          // underneath giving it a thickness, and a chevron saying there is
+          // somewhere to go. The face DROPS onto that edge on a press — see
+          // `_pressed` — which is the one gesture Material's ripple cannot
+          // express and the reason the ink splash is turned off.
+          child: _PillFace(
+            onTap: () => unawaited(showTransferOffer(context, ref)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('💸', style: TextStyle(fontSize: 15)),
+                const SizedBox(width: 8),
+                Text(
+                  t('transfer.pill_label'),
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w900,
+                    // The pill's own ink: gold is a fixed colour in both
+                    // themes, so what reads on it is too.
+                    color: _pillInk,
+                  ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('💸', style: TextStyle(fontSize: 15)),
-                    const SizedBox(width: 8),
-                    Text(
-                      t('transfer.pill_label'),
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w900,
-                        // The pill's own ink: gold is a fixed colour in both
-                        // themes, so what reads on it is too.
-                        color: Color(0xFF20160A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 16, color: _pillInk),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The pill's ink and its two golds.
+///
+/// A gradient needs a lighter and a darker end and [gameGold] is one literal, so
+/// the pair is derived from it rather than invented: the highlight is gold lifted
+/// toward white, the shade is gold toward black, and the hard edge under the
+/// face is the same shade again taken further. That way a change to `gameGold`
+/// moves all four together.
+const Color _pillInk = Color(0xFF20160A);
+const Color _pillTop = Color(0xFFFFE985);
+const Color _pillBottom = Color(0xFFE8B400);
+const Color _pillEdge = Color(0xFF8A6100);
+
+/// The moulded face of [TransferPill]. Pressed, it drops onto its own edge.
+class _PillFace extends StatefulWidget {
+  const _PillFace({required this.child, required this.onTap});
+
+  final Widget child;
+  final VoidCallback onTap;
+
+  @override
+  State<_PillFace> createState() => _PillFaceState();
+}
+
+class _PillFaceState extends State<_PillFace> {
+  bool _down = false;
+
+  /// The thickness of the edge, and therefore how far the face travels.
+  static const double _lift = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        key: const ValueKey('transfer-pill'),
+        // **OPAQUE, because the face is a decoration and decorations do not hit
+        // test.** The `Material` this replaced registered a hit anywhere inside
+        // itself; a `Container` only does where its child happens to be, so a
+        // tap that landed in the gap between the emoji and the label fell
+        // straight through the one control standing between a player and a bid
+        // they parked.
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => setState(() => _down = true),
+        onTapCancel: () => setState(() => _down = false),
+        onTapUp: (_) {
+          setState(() => _down = false);
+          widget.onTap();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 80),
+          // DOWN onto the edge, and the edge shortens by the same amount, so
+          // the pill's outside stays where it is — this sits in the shell above
+          // the tab bar, where nothing may move.
+          transform: Matrix4.translationValues(0, _down ? _lift - 1 : 0, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(40),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_pillTop, gameGold, _pillBottom],
+              stops: [0, 0.45, 1],
+            ),
+            border: Border.all(color: _pillEdge, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: _pillEdge,
+                offset: Offset(0, _down ? 1 : _lift),
+                blurRadius: 0,
+              ),
+            ],
+          ),
+          child: widget.child,
         ),
       ),
     );

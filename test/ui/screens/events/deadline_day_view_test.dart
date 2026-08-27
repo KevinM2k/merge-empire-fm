@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/state/game_state.dart' show saveDebounceMs;
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_day_view.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_deal_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_screen.dart';
@@ -77,6 +78,13 @@ void main() {
       findsOneWidget,
       reason: 'the window was open and the screen did not let us in',
     );
+
+    // **AND THE HEAD IS COLIN, not the teacher emoji.** `🧑‍🏫` was a stand-in
+    // from before there was any art of him, and it survived here — and on the
+    // cup view and the event banner — while the dock, the floating head and his
+    // own card all drew the real portrait. Reported off this screen.
+    expect(find.byType(CoachFace), findsWidgets);
+    expect(find.text('🧑‍🏫'), findsNothing);
 
     // The screen owns a 1Hz ticker for the whole hour, and opening the session
     // armed the save debounce; both have to go before the binding checks for

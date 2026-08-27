@@ -94,18 +94,24 @@ class _BootSplashState extends State<BootSplash>
 
   @override
   Widget build(BuildContext context) {
-    if (_gone) return widget.child;
+    // **THE APP KEEPS ITS PLACE IN THE TREE.** Returning the bare child once the
+    // splash had gone swapped the Stack out from over the whole app, which
+    // re-parents every widget in it — and does so INSIDE this build, so the
+    // grid's `deactivate` wrote a provider mid-build and two and a half
+    // thousand "setState() called during build" errors followed it on every
+    // launch. The Stack stays; only the face is dropped.
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Stack(
         children: [
           widget.child,
-          Positioned.fill(
-            child: FadeTransition(
-              opacity: Tween<double>(begin: 1, end: 0).animate(_fade),
-              child: _SplashFace(fill: _fill, pulse: _pulse),
+          if (!_gone)
+            Positioned.fill(
+              child: FadeTransition(
+                opacity: Tween<double>(begin: 1, end: 0).animate(_fade),
+                child: _SplashFace(fill: _fill, pulse: _pulse),
+              ),
             ),
-          ),
         ],
       ),
     );

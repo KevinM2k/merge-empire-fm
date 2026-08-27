@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -35,8 +36,15 @@ Map<String, dynamic> saveWithQuests({
   bool completed = false,
   bool claimed = false,
   bool none = false,
+  String? division,
 }) {
   final s = createDefaultState();
+  // A quest's payout is a percentage of one league win, so the DIVISION is what
+  // decides whether the figure is big enough to abbreviate — see
+  // `questRewardCoins`.
+  if (division != null) {
+    (s['progression'] as Map<String, dynamic>)['currentDivision'] = division;
+  }
   // No boot popup competing for the screen.
   s['dailyReward'] = <String, dynamic>{
     'cycleDay': 1,
@@ -195,6 +203,36 @@ void main() {
       // purchase, and nothing on screen mentioned it.
       expect(find.byKey(const ValueKey('quests-track-gem')), findsOneWidget);
       expect(find.text(t('quests.capstone_reward', {'n': 1})), findsOneWidget);
+    });
+
+    testWidgets('AND THE FIGURE IS FORMATTED, not printed digit by digit', (
+      tester,
+    ) async {
+      // `{n}` was the raw integer, so a season reward read "52000 coins" — a
+      // number the eye has to count the digits on, on a chip 40px wide.
+      // Reported straight off the screen, along with wanting the `.0` gone when
+      // the figure lands on a whole thousand.
+      final container = await pumpShell(
+        tester,
+        saveWithQuests(division: 'champions_cup'),
+      );
+      await openQuests(tester);
+      final coins = container.read(seasonQuestsProvider).single.coins;
+      expect(
+        coins,
+        greaterThanOrEqualTo(10000),
+        reason: 'below 10k nothing abbreviates and the test proves nothing',
+      );
+      // Twice, not once: a single-quest track pays exactly what its one quest
+      // does, so the row chip and the track chip carry the same figure.
+      expect(
+        find.text(
+          t('quests.reward_coins', {'n': formatCoins(coins, trim: true)}),
+        ),
+        findsWidgets,
+      );
+      // And the long way round is nowhere on the sheet.
+      expect(find.textContaining('$coins'), findsNothing);
     });
 
     /// **THE CHIP PAINTS ITS OWN DARK PLATE, so it takes the DARK theme's

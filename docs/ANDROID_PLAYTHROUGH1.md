@@ -1,0 +1,87 @@
+Dark Mode
+---------
+Home
+- The manager is too low, he should be about 12px above the customise button at all times.
+- The energy popup has 'Not enough Gems' for energy refill, it should not say that and it should show the blue gem button, it should do the same CTA as the energy fill in the shop - it does NOT need a link to 'Shop'
+- The gem popup does not need a link to the 'Shop'
+- The popups should only take as much room as they need 
+- season quests popup is too big, too much room at the bottom
+[x] season quests have 52000 as rewards, should be 52.0k or just 52k if its 0 after the 52. (`formatCoins(trim: true)` — a `#,##0.#` pattern, so German keeps its comma and loses the zero too)
+- goalkeeper practice is good, but its meant to look like the ball is coming towards you, so i wonder if it could look like  aview from the goalkeeper out, the ball doesnt have to be kicked towards them and you dont need to see the goalier, maybe just see the posts, and the pitch in front of us, and then we just do exactly whawt we do now.
+- throughball, we have 5 of them, we have loads of room, why dont we have each of them under each other, the top one goes first, then the second one and so on until all done, then you can see them all from the start (they dont start until the last one is finisheD)
+- cant see the money on the training sessions, put them all in the ooin yellow. and make the little arrows white in dark mode
+- on pitch invaders, the whole doesnt really look like a hole, but everything else looks good, make the whole better.
+
+Players
+- When clicking on a player, the cancel button looks almost greyed out, and has the weird top 3d on it
+- A loan player says is not yours to lend on... if our player is loaned out this should just a recall button or should say you cant sell a player who is loaned out, similar to a player we have on loan, it should be send back or cant sell a player who is not ours
+
+Squad
+- the picture of the cards is bigger than the text and border, it means the image is kinda cut off at the top too
+- When clicking on a player we dont need the pull bar on the right of the trait roller, just the button is fine, but we should make the text on the top and bottom item in the roller either slightly transparent or more screwed, this should kinda like it spins around on a circular roller
+- when clicking a roller it should roll them properly, both of them, for maybe 3 seconds or so before it lands
+- When clicking on swap, the players are listed in a list view, we should just list them in a 3 on a row - like we do for subs, ordered by post in teh position chosen (should put that filter on the top of the subs bench too and auto select the position someone is being swapped from unelss none, then it would go to all)
+
+Club
+- each asset blends too much in to the background, maybe we should make them a slightly different colour so they stand out, id like them to almost look like thely popout the screen
+- the humbug design has far too many black and white stripes, makes it hard to see, we should make the stripes wider and the colour should be a bit more transparent so we can read things on it.
+
+General
+[x] Tarnsfer offers seem to come in to fast, sometimes dont show (just the bar at the bottom) and im not a fan of the yellow thing at the bottom, i dont mind where it is but we need to make more obvoius that you click on it to open, maybe 3d maybe gradient etc (the BAR is done — gradient face, hard edge under it, chevron, drops on a press. Pacing and the sometimes-doesn't-show half are still open and are a different bug)
+[x] On the bid popup, 'Accept Offer' is too much text, we can use 'Accept'  (swapped to `common.accept`; every non-English catalogue already said just "Accept")
+- Daily reward popup has so much more room, use it
+- we use an emoji for coins on the dailyi reward, it should be the coin and it should be using the coin yellow.
+- Each one needs to highlight eaceh of the rewards in seperate boxes inside each day, we have a lot of room. 
+[x] global leaderboard, it doesn't show my rank just has - (the fetch has carried `playerRank` all along — the card now reads it. The dash is kept for a board still loading and a board that has never seen you)
+[x] we have a place for 'trophies and record' im not even sure what they are, lets drop them. (both tiles gone — one was the trophy room's reading, the other the season report's)
+
+Customise Manager Popup
+- the body needs to be slightly more zoomed out
+- the manager walking seems to pause every second or so for a brief second 
+- the suit/coat dont look like suits or coats, they need more work.
+- the front arm should be in front of the coat/suit ont behind it
+- the toast that pops up is ok, but it needs to be more visible righw its just a clear box with a red border, make it stand out more
+- when clicking on an item with an advert, i love the way it comes up at the top however the user doenst need to click the x for it to go away, they can just tap on another 'celebration' or item for it to change to that one. The buttons however do need a little more height to match others
+- be careful of teh facial hairs, each needs measuring against th eface, some of them dont stay on teh face or are slightly wrong position
+- headband doesnt look right, please check it out. 
+- even ones that you can only go via a cup unlock or something it should show you what it looks like with the same kinda popup we have on the advert ones but this time it should say 'Unlocks at xxxx' 
+- Laurel doesnt look right, have another go
+- fist pump a little laggy on android and goes a little too close to the face
+- arms folded need to try again, doesnt really look like arms folded
+- wave - the arm goes behind the head for some reason
+- kiss the badge should touch chest then kiss the hand 
+- lots of animations a little laggy on android - need work
+- on cigar animation there should be little bits of smoke coming out of it
+- the merge empire football manager text on the hoardings in the background need to move down slightly to be vertically centered.
+- Occassional lag when playing on android and going through screens/popups
+
+Game Popup
+sounds are not matching up with whats going on, seems to be like miss noises happening but with no action, if no action... no noise... 
+- the arrow should be pointing towards me if they are on top and pointing towards them if im on top and the location of the arrow should show the dominance, i.e. closer to them  (pointing at them) if im dominating and vice versa
+- the ball still sometimes moving with no player near them.
+- the players scored is cool, however i think the time they scored the goal should go on the left of the name so names are always in same place
+
+Light mode specific
+[x] THe border around the tabs in settings are missing the top radius on the selected button so it overwrites the white borders a little  (the clip was on the box, which clips to the OUTSIDE of its border; it is a `ClipRRect` one radius in now)
+[x] it has 'Send Feedback' coming soon in account, get rid fo this option (and the JS hides its own button for the same reason, so this was a divergence rather than a missing feature — see `feedback_service.dart`)
+- Difficulty, we need somethign to show that its unlocked and they need to prestige to unlock
+[x] the coins on the home page are a horrible bronze colour, i prefer the yellow and i think itll still work here. (right — the bronze is for gold on PAPER and this card is glass over the pitch. Gold on glass, with the dark backing the HUD glyphs already use in daylight)
+[x] we have +4 for home .. regardless if thats home or away, its a plus so it should be green only minus should be red on both sides (the sign decides the colour now, not the side; the `+` is printed off the number rather than hardcoded)
+[x] we shoudl be asble to tap the +4 to get a small popup that tells us what it means, it should go away on its own. ALREADY DOES — a `Tooltip` on `triggerMode: tap`, which dismisses itself. Now pinned by a test so it cannot quietly go back to a long press
+- the red and green, should match the same red and green used in dark mode, looks better in dark mode. **LEFT OPEN, and it needs a decision rather than an edit.** This has now been asked four times and `match_stat_rows.dart` carries the arithmetic: `#4ADE80` is 1.9:1 as ink on the light theme's own surfaces, so the dark pair cannot be printed on a white page. The light pair is already the brightest member of each hue that clears 3:1, and `glass.dart` measures the rest against `paneLuminance`. The honest options are a dark PLATE under the figures in light mode — which `semanticPlate` already does for chips — or accepting the shade. Wants a screenshot of the exact spot before anything moves.
+[x] the locked spaces on players tab are bright white, they should be subtle so you can see they are there but not opaque. (a wash of the surface rather than a second grey — the backdrop behind the grid is turf or humbug) 
+[x] The auto sell tier needs a background, its transparent right now and its hard to see esepcial on humbug and turf backgrounds (both grid pills — the roster count's red at capacity had the same 25% wash. The tint composites onto the plate now instead of onto the page: `pillGround`)
+- the dd player and mege buttons when can te clicked on too light, they should look disabled
+[x] in deadline day, we should be showing the coach colin picture at the top, its an emoji atm (and the same emoji was on the cup view and the event banner, so all three now use `CoachFace` — the one crop of him the dock and his own card already draw)
+- the buttons in play screen are grey with a weird 3d effect.
+[x] Match quests have ellipsis - no need for that.  (two changes: the redundant "TOTAL REWARD" label goes, and the heading wraps instead of being cut — "MISIONES DEL PARTIDO" still ran 23px over without it)
+
+
+Shop
+[x] THe top bar in is transparent - needs a background of some sort if only on the tabs as otherwise on things like turf and humbug they are hard to read (every tab is opaque; the selected one's shelf tint is blended onto the fill so the colour coding survives)
+- the 3 premium ones have an icon on left then the text is like centered on the right hand side which looks odd, the icon needs to be either vertically centered on the left and same with text, or icon at top, followed by the title and then text then button (but needs to fit on the screen
+- the coin packs should have a border, the most popular one should have a diff one of course
+- in fact all of these boosts & items also need a subtle border so they can be seen
+- the gem buttons manager customisations are too small, they should be same size as rest of the buttons.
+- All of the buttons in the manager customisations are see through which means the background shows. I dont want that, each should have a background, and look like they are on top of the screenl, like the rest.
+

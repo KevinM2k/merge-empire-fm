@@ -22,9 +22,11 @@
 /// purpose — its `SettingsScreen` comment says the whole feature is intact and
 /// what it is waiting for is the function itself: "deploy submitFeedback and
 /// make it publicly callable". A sheet built here would post player text at an
-/// endpoint that may not answer, and queue it forever when it did not. So the
-/// Settings row stays a `PendingControl` and the thirteen `feedback.*` strings
-/// stay unreachable, in both codebases, until that deploy happens.
+/// endpoint that may not answer, and queue it forever when it did not. So there
+/// is no Settings row at all — the JS hides its button rather than disabling it,
+/// and a "coming soon" row here was the port advertising a control the shipped
+/// game does not show — and the thirteen `feedback.*` strings stay unreachable,
+/// in both codebases, until that deploy happens.
 ///
 /// [flushFeedbackQueue] IS wired — at boot and on resume, the JS's own two call
 /// sites — because a queue that is only drained by the release that unhides the

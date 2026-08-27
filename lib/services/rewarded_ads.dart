@@ -13,6 +13,8 @@
 /// [rewardedAdsProvider] turns the whole chain on.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// What came of asking for one.
@@ -46,6 +48,42 @@ class NoRewardedAds implements RewardedAds {
 
   @override
   void prepare(String placement) {}
+}
+
+/// The adapter to hold while the SDK behind it is still starting.
+///
+/// **Boot must not wait on ads.** Starting them shows the UMP consent form, and
+/// that future only completes when the player DISMISSES it — awaited before
+/// `runApp`, it held the app on the launch splash for as long as the form was
+/// up, which on a device where the form never rendered was forever.
+///
+/// A tap that lands first waits [settle] for the real adapter rather than being
+/// told "coming soon"; a start that never answers is not cached, so the next
+/// tap asks again.
+class PendingRewardedAds implements RewardedAds {
+  PendingRewardedAds(this._ready, {this.settle = const Duration(seconds: 8)});
+
+  final Future<RewardedAds> _ready;
+  final Duration settle;
+  RewardedAds? _live;
+
+  Future<RewardedAds> _adapter() async {
+    final live = _live;
+    if (live != null) return live;
+    try {
+      return _live = await _ready.timeout(settle);
+    } catch (_) {
+      return const NoRewardedAds();
+    }
+  }
+
+  @override
+  Future<AdOutcome> show(String placement) async =>
+      (await _adapter()).show(placement);
+
+  @override
+  void prepare(String placement) =>
+      unawaited(_adapter().then((ads) => ads.prepare(placement)));
 }
 
 final rewardedAdsProvider = Provider<RewardedAds>(

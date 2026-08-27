@@ -181,12 +181,25 @@ class _ShopTabs extends StatelessWidget {
                     // `BoxDecoration` once there is a radius, so the top
                     // accent and the baseline are drawn as their own strips
                     // over it rather than as sides of this one.
+                    //
+                    // **AND EVERY TAB IS OPAQUE.** The unselected ones were
+                    // `Colors.transparent` with a muted label on them, which is
+                    // fine over a plain page and unreadable over the ones this
+                    // game actually draws: the club backdrops put turf and
+                    // black-and-white stripes directly behind the strip, and the
+                    // top of the Shop was reported as impossible to read on
+                    // them. The tint the selected tab carries is now BLENDED
+                    // onto that fill rather than laid over the page, so its
+                    // colour is the same colour it was.
                     DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: radius,
                         color: i == selected
-                            ? tab.ink.withValues(alpha: 0.16)
-                            : Colors.transparent,
+                            ? Color.alphaBlend(
+                                tab.ink.withValues(alpha: 0.16),
+                                kit.surface,
+                              )
+                            : kit.surface,
                         border: Border.all(
                           color: i == selected
                               ? tab.ink.withValues(alpha: 0.45)

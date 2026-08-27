@@ -45,6 +45,7 @@ import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_deal_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -567,10 +568,16 @@ class _LiveHead extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
             child: Row(
               children: [
-                CircleAvatar(
+                // **COLIN'S FACE, not the teacher emoji.** `🧑‍🏫` was a
+                // stand-in from before there was any art of him and it survived
+                // into three screens, while the dock, the floating head and his
+                // own card all drew the real portrait — so the same coach was a
+                // photograph on one screen and a glyph on the next. Reported off
+                // this one. [CoachFace] is the single crop; see
+                // `coach_card.dart`.
+                const CircleAvatar(
                   radius: 23,
-                  backgroundColor: kit.bg,
-                  child: const Text('🧑‍🏫', style: TextStyle(fontSize: 22)),
+                  child: CoachFace(fallbackSize: 22),
                 ),
                 const SizedBox(width: 11),
                 Expanded(

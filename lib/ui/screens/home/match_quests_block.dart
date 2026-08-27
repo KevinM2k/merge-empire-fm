@@ -129,17 +129,31 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
               children: [
                 GameIcon('target', size: 11, color: kit.accentBright),
                 const SizedBox(width: 5),
-                // The heading FLEXES and the figure does not. On a 320px phone
-                // "MATCH QUESTS" plus "TOTAL REWARD" plus the coins overflowed
-                // the row by 34px — and the half worth keeping when there is no
-                // room is the money, which is the reason to open the block at all.
+                // **NOTHING IN THIS ROW ELLIPSISES ANY MORE**, and it took two
+                // changes rather than one.
+                //
+                // The heading used to flex and be cut to "MATCH QUEST…", which
+                // was the least-bad answer while three things were competing for
+                // a 320px row: a heading, the words "TOTAL REWARD", and the
+                // figure. Reported straight off the screen.
+                //
+                // First, the LABEL goes. Every quest row below shows its own
+                // payout as a coin and a number with no words on it, so a coin
+                // and a number at the end of the header needs none either.
+                //
+                // Second, what room is left is not enough on its own: "MISIONES
+                // DEL PARTIDO" still runs 23px over at 260, so the heading has to
+                // give somewhere. It WRAPS. That is the same call `_QuestTile`
+                // already makes about the quest text — this is a column that can
+                // grow a line, so there is nothing to protect by clipping it, and
+                // a wrapped title beats a cut one.
                 Flexible(
                   child: Text(
                     t('quests.match').toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                     style: TextStyle(
                       fontSize: 9.5,
+                      height: 1.2,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.8,
                       color: glassMuted(context),
@@ -148,21 +162,6 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                 ),
                 const Spacer(),
                 if (total > 0) ...[
-                  // RIGID, and in caps like the heading opposite it. Flexing it
-                  // let "Total Reward" end in an ellipsis, which is the half of
-                  // this row worth keeping — the money is the reason to open the
-                  // block at all, so the HEADING is the part that gives way.
-                  Text(
-                    t('quests.total_reward').toUpperCase(),
-                    softWrap: false,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                      color: glassMuted(context),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
                   const CoinIcon(size: 11, onGlass: true),
                   const SizedBox(width: 2),
                   Text(
@@ -173,11 +172,15 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                       // GOLD, not the kit accent. A coin figure in green asks
                       // the player to work out which currency it is, and the
                       // glyph beside it is already gold — so the number was the
-                      // one part of the pair that did not say "coins". Yellow
-                      // rather than the bronze a legible-on-white gold would
-                      // have to be: see [coinFigureInk].
-                      color: coinFigureInk(context),
-                      shadows: coinFigureShadows(context),
+                      // one part of the pair that did not say "coins".
+                      //
+                      // **ON GLASS**, which in light mode is the difference
+                      // between actual yellow and the bronze this read as: the
+                      // backdrop here is grass and sky, not paper, and the
+                      // contrast comes from a dark backing instead of from the
+                      // hue. See [coinFigureShadows].
+                      color: coinFigureInk(context, onGlass: true),
+                      shadows: coinFigureShadows(context, onGlass: true),
                     ),
                   ),
                 ],
@@ -281,8 +284,8 @@ class _QuestTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
-                color: coinFigureInk(context),
-                shadows: coinFigureShadows(context),
+                color: coinFigureInk(context, onGlass: true),
+                shadows: coinFigureShadows(context, onGlass: true),
               ),
             ),
           ],
