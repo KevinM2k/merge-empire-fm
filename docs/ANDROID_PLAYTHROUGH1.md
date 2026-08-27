@@ -27,6 +27,7 @@ Club
 [] the humbug design has far too many black and white stripes, makes it hard to see, we should make the stripes wider and the colour should be a bit more transparent so we can read things on it.
 
 General
+[] The income popupu when you tap coins at top doesnt need to be a coach colin popup, it should just be one fo those bottom popups instead, want to reserve coach colin popups for when its him telling us something, this one is like looking at the books
 [] No prestige badge top left next to the trophy, the multiplier looksl ike it works, but it needs to show prestige count in the top left as well.
 [] Prestige should add 0.1 for each prestige, so i've prestiged twice, so my multiplier should be 1.2x, right now its 10% increment, which means its totally broken if someone has 50 prestige.
 [x] Tarnsfer offers seem to come in to fast, sometimes dont show (just the bar at the bottom) and im not a fan of the yellow thing at the bottom, i dont mind where it is but we need to make more obvoius that you click on it to open, maybe 3d maybe gradient etc (the BAR is done — gradient face, hard edge under it, chevron, drops on a press. Pacing and the sometimes-doesn't-show half are still open and are a different bug)
