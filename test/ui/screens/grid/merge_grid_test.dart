@@ -898,6 +898,52 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('sell-blocked')), findsOneWidget);
       expect(find.byKey(const ValueKey('sell-confirm')), findsNothing);
+
+      // **THE SENTENCE IS ABOUT SELLING, and about a player who is THEIRS.**
+      // It used to be `event.deadline.blocked_loan_card` — 'A borrowed player
+      // is not yours to lend on.' — which is about lending, was written for the
+      // Deadline Day board, and was the same sentence a player of OURS out on
+      // loan got. `squad.detail.cannot_sell_loan` has shipped in all ten
+      // catalogues with no caller in `lib/` the whole time.
+      expect(
+        find.text(t('squad.detail.cannot_sell_loan', {'matches': '3'})),
+        findsOneWidget,
+      );
+      expect(find.text(t('event.deadline.blocked_loan_card')), findsNothing);
+    });
+
+    testWidgets('and one of OURS out on loan is told the other thing', (
+      tester,
+    ) async {
+      // The two directions are not the same rule and were the same sentence.
+      // This one is ours — the way out is a recall, so the copy names it.
+      await pumpGrid(
+        tester,
+        cards: {
+          0: {
+            ..._card(_baseDefId, 'a'),
+            'loanedOut': {'toTeam': 'Rovers', 'matchesLeft': 2},
+          },
+        },
+      );
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('sell-confirm')), findsNothing);
+      final blocked = tester.widget<Text>(
+        find.byKey(const ValueKey('sell-blocked')),
+      );
+      expect(
+        blocked.data,
+        contains('Rovers'),
+        reason: 'the club he is AT is the thing the recall needs naming',
+      );
+      expect(
+        blocked.data,
+        isNot(t('squad.detail.cannot_sell_loan', {'matches': '0'})),
+        reason: 'that is the sentence for a player who is not ours',
+      );
+      expect(find.text(t('event.deadline.blocked_loan_card')), findsNothing);
     });
   });
 

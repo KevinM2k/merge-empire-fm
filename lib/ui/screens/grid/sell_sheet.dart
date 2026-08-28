@@ -12,10 +12,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/negotiation_engine.dart'
+    show findOurCard;
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/engine/sell_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
@@ -33,13 +36,43 @@ const Color _plate = Color(0xFF14171B);
 const Color _plateInk = Color(0xFFB6BCC4);
 
 /// Why a card cannot be sold, in copy that already ships.
-String sellBlockedCopy(String reason) => switch (reason) {
-  // 'A borrowed player is not yours to lend on.' — the same rule, and the
-  // shipped sentence for it.
-  'on_loan' || 'loaned_out' => t('event.deadline.blocked_loan_card'),
-  'listed' => t('shop.already_active'),
-  _ => t('settings.comingSoon'),
-};
+///
+/// **THE TWO LOAN DIRECTIONS ARE NOT THE SAME SENTENCE**, and they were: both
+/// collapsed to `event.deadline.blocked_loan_card` — 'A borrowed player is not
+/// yours to lend on.' — which is about LENDING, is the wrong way round for a
+/// player of ours who is away, and was written for the Deadline Day board
+/// rather than for a sale. `sellBlocked` has always told them apart, so the
+/// engine knew and only the copy did not.
+///
+/// Both replacements were already shipped and translated in all ten catalogues
+/// with **no caller anywhere in `lib/`** — the loudest tell there is. They are
+/// sale-specific where the old one was not, and they name the way out: recall
+/// him, or wait for the spell to end. The JS prints
+/// `cannot_sell_out_on_loan` on the squad detail sheet, whose Sell button has
+/// since gone; this is the only sell path left, so it is where both belong.
+///
+/// [card] is the instance the reason came from — the sentences take a team, a
+/// name and a count of games, and a reason string alone cannot supply them.
+String sellBlockedCopy(String reason, {CardInstance? card, String? name}) {
+  final loanedOut = card?.loanedOut;
+  final loanTeam = loanedOut is Map
+      ? (loanedOut['toTeam'] as String? ?? '')
+      : '';
+  return switch (reason) {
+    // Ours, but at another club. Selling from here would sell a player we do
+    // not currently hold, so the sentence names the recall instead.
+    'loaned_out' => t('squad.detail.cannot_sell_out_on_loan', {
+      'team': loanTeam,
+      'name': name ?? '',
+    }),
+    // Theirs, here for a few games. Not ours to sell at any price.
+    'on_loan' => t('squad.detail.cannot_sell_loan', {
+      'matches': '${card?.raw['loanMatchesLeft'] ?? 0}',
+    }),
+    'listed' => t('shop.already_active'),
+    _ => t('settings.comingSoon'),
+  };
+}
 
 Future<void> showSellSheet(
   BuildContext context,
@@ -320,7 +353,11 @@ Future<void> showSellSheet(
             else ...[
               Center(
                 child: Text(
-                  sellBlockedCopy(blocked),
+                  sellBlockedCopy(
+                    blocked,
+                    card: findOurCard(state, instanceId),
+                    name: view.name,
+                  ),
                   key: const ValueKey('sell-blocked'),
                   style: TextStyle(color: kit.textMuted),
                 ),
