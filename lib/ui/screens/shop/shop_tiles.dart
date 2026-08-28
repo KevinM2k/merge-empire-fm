@@ -147,11 +147,20 @@ class ShopTile extends StatelessWidget {
     final ink = skin != null
         ? (accent ?? _featureInk)
         : readableInk(context, accent ?? _featureInk);
+    // **EVERY LINE CARRIES ITS OWN ALIGNMENT, because an inherited one loses.**
+    // A grid tile is centred and a hero is a left-aligned column beside its art;
+    // the hero branch used to say so by wrapping each line in a
+    // `DefaultTextStyle.merge(textAlign: left)`, which does nothing at all here
+    // — `Text.textAlign`, when it is set, beats the inherited default outright.
+    // So the offers ran a centred description under a left-aligned title inside
+    // a left-aligned block, which is what "the text is like centered on the
+    // right hand side" was.
+    final align = featured ? TextAlign.left : TextAlign.center;
     final lines = <Widget>[
       if (subtitle != null)
         Text(
           subtitle!,
-          textAlign: TextAlign.center,
+          textAlign: align,
           // Clamped, or one long description sets the height of its whole
           // row. A featured hero gets a line more and a size up: it is one
           // tile to a row, so nothing is measured against it, and the offers
@@ -167,13 +176,13 @@ class ShopTile extends StatelessWidget {
       if (badge != null)
         Text(
           badge!,
-          textAlign: TextAlign.center,
+          textAlign: align,
           style: TextStyle(color: kit.accentBright, fontSize: 11),
         ),
       if (disabledReason != null)
         Text(
           disabledReason!,
-          textAlign: TextAlign.center,
+          textAlign: align,
           style: TextStyle(
             color: warnReason ? dangerInk : kit.textMuted,
             fontSize: 11,
@@ -312,7 +321,12 @@ class ShopTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    // **THE ART IS CENTRED AGAINST THE WORDS, not hung off the
+                    // top of them.** The spec's hero is one `align-items:center`
+                    // flex row; the port started it, so a 64pt picture sat level
+                    // with the title with the whole description falling away
+                    // below it.
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       if (glyph != null) ...[
                         SizedBox(width: 64, child: Center(child: glyph)),
@@ -346,10 +360,7 @@ class ShopTile extends StatelessWidget {
                             for (final line in lines)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
-                                child: DefaultTextStyle.merge(
-                                  textAlign: TextAlign.left,
-                                  child: line,
-                                ),
+                                child: line,
                               ),
                           ],
                         ),

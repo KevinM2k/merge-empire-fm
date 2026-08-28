@@ -321,4 +321,53 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LookPreview), findsWidgets);
   });
+
+  group('A PACK TILE IS AN OBJECT ON THE PAGE', () {
+    testWidgets('its pane is OPAQUE, whatever is behind the shop', (
+      tester,
+    ) async {
+      // It was the pack's colour at 10% alpha over nothing at all, so on the
+      // turf and humbug backdrops the page showed straight through all ten —
+      // reported as the customisation buttons being see-through. `.look-tile`
+      // is that tint wash over an opaque `surface-2 -> surface`, the base the
+      // rest of the shelf is built on, plus the shadow that lifts it off.
+      await pumpShopWidget(tester, (_) {}, LooksSection.new);
+      for (final pack in lookPacks) {
+        final pane =
+            tester
+                    .widget<Container>(
+                      find.byKey(
+                        ValueKey('shop-tile-pack-${pack.id}'),
+                        skipOffstage: false,
+                      ),
+                    )
+                    .decoration!
+                as BoxDecoration;
+        expect(pane.color, isNull, reason: '${pack.id}: back to a flat wash');
+        for (final colour in (pane.gradient! as LinearGradient).colors) {
+          expect(colour.a, 1.0, reason: '${pack.id}: $colour lets the page in');
+        }
+        expect(
+          pane.boxShadow,
+          isNotNull,
+          reason: '${pack.id}: nothing sitting it on top of the page',
+        );
+      }
+    });
+
+    testWidgets('AND ITS PRICE IS A FULL-SIZE BUTTON', (tester) async {
+      // It was the `--sm` variant, which is the ROW button — for a list line,
+      // not for a tile this wide, where 11pt type read as a caption.
+      await pumpShopWidget(tester, (_) {}, LooksSection.new);
+      final button = tester.widget<StoreButton>(
+        find.byKey(const ValueKey('pack-pill-buy'), skipOffstage: false).first,
+      );
+      expect(button.small, isFalse, reason: 'the small one is for a list line');
+      expect(
+        button.stretch,
+        isFalse,
+        reason: 'stretched it is the tile footer rather than a button',
+      );
+    });
+  });
 }

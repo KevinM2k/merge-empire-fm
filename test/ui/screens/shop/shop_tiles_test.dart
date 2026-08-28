@@ -172,4 +172,74 @@ void main() {
     );
     expect(find.text('AD'), findsNothing);
   });
+
+  group('A HERO IS A ROW, and it reads down its left edge', () {
+    // The description under a hero's title came out CENTRED inside a
+    // left-aligned block — reported as the text looking centred on the right
+    // hand side of the icon. The branch already asked for left, through a
+    // `DefaultTextStyle.merge`; an inherited `textAlign` loses to the one the
+    // `Text` sets for itself, and every line here sets `center` for the grid.
+    const long =
+        'A long description that has to wrap onto more than one line before '
+        'the alignment of the lines under it can be seen at all.';
+
+    testWidgets('the description is left-aligned on a hero', (tester) async {
+      await pump(
+        tester,
+        const ShopTile(
+          tileKey: 'thing',
+          title: 'Thing',
+          price: '£4.99',
+          tone: StoreTone.cash,
+          subtitle: long,
+          featured: true,
+          glyph: SizedBox(key: ValueKey('glyph'), width: 48, height: 48),
+        ),
+      );
+      expect(tester.widget<Text>(find.text(long)).textAlign, TextAlign.left);
+    });
+
+    testWidgets('and centred on a grid tile, which is unchanged', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const ShopTile(
+          tileKey: 'thing',
+          title: 'Thing',
+          price: '£4.99',
+          tone: StoreTone.cash,
+          subtitle: long,
+        ),
+      );
+      expect(tester.widget<Text>(find.text(long)).textAlign, TextAlign.center);
+    });
+
+    testWidgets('and the art sits level with the middle of the words', (
+      tester,
+    ) async {
+      // `align-items: center` in the spec's own flex row. The port started the
+      // row, so the picture hung off the top of a block three lines deep.
+      await pump(
+        tester,
+        const ShopTile(
+          tileKey: 'thing',
+          title: 'Thing',
+          price: '£4.99',
+          tone: StoreTone.cash,
+          subtitle: long,
+          featured: true,
+          glyph: SizedBox(key: ValueKey('glyph'), width: 48, height: 48),
+        ),
+      );
+      final words =
+          (tester.getTopLeft(find.text('Thing')).dy +
+              tester.getBottomLeft(find.text(long)).dy) /
+          2;
+      expect(
+        tester.getCenter(find.byKey(const ValueKey('glyph'))).dy,
+        closeTo(words, 1.5),
+      );
+    });
+  });
 }

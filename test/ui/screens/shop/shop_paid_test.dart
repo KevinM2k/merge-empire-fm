@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -631,6 +632,52 @@ void main() {
         isNotNull,
         reason: 'a lapsed pass is buyable again',
       );
+    });
+  });
+
+  group('EVERY TILE HAS AN EDGE, so a shelf reads on any backdrop', () {
+    // Asked for twice from the couch — the coin packs, then "in fact all of
+    // these boosts & items". Both already had one; what they did not have was
+    // anything stopping the next pass taking it away, which on the turf and
+    // humbug backgrounds is a shelf of floating text.
+    Border edgeOf(WidgetTester tester, Key key) =>
+        ((tester.widget<Container>(find.byKey(key, skipOffstage: false)).decoration!
+                as BoxDecoration)
+            .border! as Border);
+
+    testWidgets('a coin pack, and the popular one wears a different one', (
+      tester,
+    ) async {
+      await pumpShopWidget(tester, (_) {}, CoinPacksSection.new);
+      final packs = getShopProducts()
+          .where((p) => p.category == 'coins')
+          .toList();
+      expect(packs, isNotEmpty);
+      final popular = packs.where((p) => p.popular).toList();
+      expect(popular, hasLength(1), reason: 'one shelf, one flagship');
+      final flagship = edgeOf(
+        tester,
+        ValueKey('shop-tile-${popular.single.id}'),
+      );
+      for (final pack in packs.where((p) => !p.popular)) {
+        final edge = edgeOf(tester, ValueKey('shop-tile-${pack.id}'));
+        expect(edge.top.width, greaterThan(0), reason: pack.id);
+        expect(
+          edge.top.color,
+          isNot(flagship.top.color),
+          reason: '${pack.id} is edged like the flagship',
+        );
+      }
+    });
+
+    testWidgets('and every boost and item on the shelf below', (tester) async {
+      await pumpShopWidget(tester, (_) {}, BoostsSection.new);
+      final tiles = tester.widgetList<ShopTile>(find.byType(ShopTile));
+      expect(tiles, isNotEmpty);
+      for (final tile in tiles) {
+        final edge = edgeOf(tester, ValueKey('shop-tile-${tile.tileKey}'));
+        expect(edge.top.width, greaterThan(0), reason: tile.tileKey);
+      }
     });
   });
 }

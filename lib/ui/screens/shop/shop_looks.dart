@@ -518,10 +518,45 @@ class _LookTile extends StatelessWidget {
       onTap: onBuy,
       child: Container(
         key: ValueKey('shop-tile-pack-$packId'),
-        padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+        padding: const EdgeInsets.fromLTRB(6, 10, 6, 9),
+        // **A SURFACE UNDER THE TINT, which is what the tile never had.** The
+        // pane was the pack's colour at 10% alpha and nothing else, so on the
+        // turf and humbug backgrounds the page showed straight through ten
+        // tiles — reported as the customisation buttons being see-through and
+        // not looking like they sit on top of the screen. `.look-tile` in the
+        // spec is TWO stacked gradients: the faint tint wash over an opaque
+        // `surface-2 → surface`, the same base every other tile in the shop is
+        // built on. One `BoxDecoration` takes one gradient, so the wash is
+        // composited onto the surface here instead — same result, and the tint
+        // stays faint on purpose, because ten saturated tiles is a fruit
+        // machine.
+        //
+        // The drop shadow is the other half of "on top of the screen": it is in
+        // the spec (`0 2px 6px`) and was the one thing lifting these off the
+        // page.
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: tint.withValues(alpha: owned ? 0.20 : 0.10),
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            // 160deg — down, leaning right.
+            begin: const Alignment(-0.35, -1),
+            end: const Alignment(0.35, 1),
+            colors: [
+              Color.alphaBlend(
+                tint.withValues(alpha: owned ? 0.28 : 0.16),
+                kit.surface2,
+              ),
+              Color.lerp(kit.surface2, kit.surface, 0.65)!,
+              kit.surface,
+            ],
+            stops: const [0, 0.65, 1],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x38000000),
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
           border: Border.all(
             // A pack the Vault has already opened is edged in the VAULT's
             // colour rather than its own, so the ten tiles read as one purchase
@@ -616,37 +651,56 @@ class _PackPill extends StatelessWidget {
     // no press. `StoreTone.gem` is the same blue every other gem price in the
     // shop wears, and the glyph comes with it.
     if (owned) {
-      return Container(
-        key: const ValueKey('pack-pill-owned'),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          color: kit.accent.withValues(alpha: 0.22),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check, size: 12, color: kit.accentBright),
-            const SizedBox(width: 4),
-            Text(
-              t('shop.owned'),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                color: kit.accentBright,
+      return Center(
+        child: Container(
+          key: const ValueKey('pack-pill-owned'),
+          padding: const EdgeInsets.fromLTRB(11, 6, 11, 7),
+          decoration: BoxDecoration(
+            // The buy button's radius, not a 999 lozenge — the spec's two pills
+            // are one shape saying two things, and a capsule beside a moulded
+            // 10pt button reads as a different kind of control.
+            borderRadius: BorderRadius.circular(10),
+            color: kit.accent.withValues(alpha: 0.22),
+            border: Border.all(color: kit.accentBright.withValues(alpha: 0.55)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check, size: 13, color: kit.accentBright),
+              const SizedBox(width: 4),
+              Text(
+                t('shop.owned'),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: kit.accentBright,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
-    return StoreButton(
-      key: const ValueKey('pack-pill-buy'),
-      tone: StoreTone.gem,
-      small: true,
-      label: '$cost',
-      leading: const GameIcon('gem', size: 12),
-      onTap: onBuy,
+    // **FULL SIZE, and sized to the price rather than to the tile.** It was the
+    // `--sm` variant — 11pt type in a 9pt radius — which is the ROW button, for
+    // a list line; every other buy control in the shop is the full one, and on
+    // a tile as wide as this one the small variant read as a caption. Asked for
+    // directly: the same size as the rest of the buttons.
+    //
+    // `stretch` off with it, or the extra size arrives as a bar across the
+    // bottom of the tile: the spec's own note is that a full-width pill reads
+    // as the tile's footer instead of as a button, and "5" in a 150pt button is
+    // mostly empty.
+    return Center(
+      child: StoreButton(
+        key: const ValueKey('pack-pill-buy'),
+        tone: StoreTone.gem,
+        stretch: false,
+        label: '$cost',
+        leading: const GameIcon('gem', size: 14),
+        onTap: onBuy,
+      ),
     );
   }
 }
