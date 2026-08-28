@@ -28,6 +28,16 @@ Future<ProviderContainer> pumpCard(
   final state = createDefaultState();
   mutate?.call(state);
 
+  // **The VIEWPORT tracks the card width**, because on the page it is the other
+  // way round: the card is the viewport less 13 of page inset and 8 of card
+  // padding a side. The mirrored stat block now takes its bars off below a
+  // 380pt viewport (the spec's media query), so a 320pt card at the harness's
+  // default 800pt viewport is a configuration the app cannot produce — bars
+  // drawn at a width that has no room for them.
+  tester.view.physicalSize = Size(width + 42, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+
   final container = ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(

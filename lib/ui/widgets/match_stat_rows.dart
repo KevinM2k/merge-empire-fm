@@ -42,6 +42,11 @@ const double nmGap = 4;
 const double _ratingHalf = 22;
 const double _statClear = 8;
 
+/// Viewport width at which the stat bars start being drawn — the spec's
+/// `@media (max-width: 379px)` rule, from the other side. See the note in
+/// [MatchStatRows.build] for why the bars and not the figures are what goes.
+const double _barsFrom = 380;
+
 /// One row of the card's `[1fr | gutter | 1fr]` shape.
 ///
 /// **ONE ROW, because there were two.** The next-match card and the live
@@ -295,6 +300,31 @@ class MatchStatRows extends StatelessWidget {
         final rowsWidth =
             (w / 2 + nmGutter / 2 + nmGap - 2 * _ratingHalf - 2 * _statClear)
                 .clamp(80.0, w);
+        // **Narrow phones: the bars come off, and the figures stay.** MEASURED
+        // in the spec rather than picked (`@media (max-width: 379px)`): the bar
+        // width is derived from the card's, and at 375px and under every one of
+        // them bottoms out on its 12px floor whatever figure it is drawing —
+        // four identical stubs claiming to compare four different numbers,
+        // which is worse than no bar. 390px is the first common width where they
+        // differ, so the line falls between. It is also what stops the block
+        // spilling its own well, since a bar at the floor overflows the row
+        // rather than shrinking further.
+        //
+        // The VIEWPORT, not this card: the spec's rule is a media query, and
+        // `rowsWidth` above is already the widest the rows can be without
+        // running into a rating, so the card cannot buy the room back.
+        //
+        // Decided ONCE here and passed down, rather than looked up in each of
+        // the four sides: it is one property of the block, and the four have to
+        // agree or the mirror breaks.
+        //
+        // The arithmetic checks out against the real card, which is the viewport
+        // less 13 of page inset and 8 of card padding a side. At 390 the rows
+        // get 135, the bars 15 each — the spec's own figure. At 375 they get
+        // 11.25 and bottom out. And with the bars gone a 320pt phone leaves 86
+        // inside the well against 30 + 12 + two 19pt floors, so the figures fit
+        // there without the furniture having to give anything up.
+        final bars = MediaQuery.sizeOf(context).width >= _barsFrom;
 
         return Padding(
           padding: const EdgeInsets.only(top: 10, bottom: 9),
@@ -311,7 +341,7 @@ class MatchStatRows extends StatelessWidget {
               children: [
                 SizedBox(
                   width: rowsWidth,
-                  child: _StatWell(left: left, right: right),
+                  child: _StatWell(left: left, right: right, bars: bars),
                 ),
                 Positioned(
                   left: 0,
@@ -351,10 +381,15 @@ class MatchStatRows extends StatelessWidget {
 /// one comparison; wrapped round the ratings too it just looked like a second
 /// panel.
 class _StatWell extends StatelessWidget {
-  const _StatWell({required this.left, required this.right});
+  const _StatWell({
+    required this.left,
+    required this.right,
+    required this.bars,
+  });
 
   final StatSide left;
   final StatSide right;
+  final bool bars;
 
   @override
   Widget build(BuildContext context) {
@@ -378,6 +413,7 @@ class _StatWell extends StatelessWidget {
             label: 'ATK',
             leftValue: left.atk,
             rightValue: right.atk,
+            bars: bars,
             // Cross-stat: attack is judged against the defence it faces.
             leftColour: vsColorOnGlass(context, left.atk, right.def),
             rightColour: vsColorOnGlass(context, right.atk, left.def),
@@ -387,6 +423,7 @@ class _StatWell extends StatelessWidget {
             label: 'DEF',
             leftValue: left.def,
             rightValue: right.def,
+            bars: bars,
             leftColour: vsColorOnGlass(context, left.def, right.atk),
             rightColour: vsColorOnGlass(context, right.def, left.atk),
           ),
@@ -403,6 +440,7 @@ class _StatRow extends StatelessWidget {
     required this.rightValue,
     required this.leftColour,
     required this.rightColour,
+    required this.bars,
   });
 
   final String label;
@@ -410,6 +448,7 @@ class _StatRow extends StatelessWidget {
   final int rightValue;
   final Color leftColour;
   final Color rightColour;
+  final bool bars;
 
   @override
   Widget build(BuildContext context) {
@@ -420,6 +459,7 @@ class _StatRow extends StatelessWidget {
             value: leftValue,
             colour: leftColour,
             mirrored: false,
+            bars: bars,
             statKey: '${label.toLowerCase()}-l',
           ),
         ),
@@ -447,6 +487,7 @@ class _StatRow extends StatelessWidget {
             value: rightValue,
             colour: rightColour,
             mirrored: true,
+            bars: bars,
             statKey: '${label.toLowerCase()}-r',
           ),
         ),
@@ -462,6 +503,7 @@ class _Side extends StatelessWidget {
     required this.colour,
     required this.mirrored,
     required this.statKey,
+    required this.bars,
   });
 
   final int value;
@@ -469,33 +511,59 @@ class _Side extends StatelessWidget {
   final bool mirrored;
   final String statKey;
 
+  /// Whether this side draws its bar at all — decided once for the whole block
+  /// in [MatchStatRows.build], where the reasoning lives.
+  final bool bars;
+
   @override
   Widget build(BuildContext context) {
-    // **Flexible, not fixed.** 19 + the gap is wider than the half a stat row
-    // gets on a 320pt phone, so the pair overflowed its own side — found by the
-    // long-language sweep, in every language including English. Loose fit, so
-    // it is 19 wherever there is room and only gives when there is not; the bar
-    // keeps the lion's share either way.
-    final figure = Flexible(
-      flex: 2,
-      child: SizedBox(
-        width: 19,
-        child: Text(
-          '$value',
-          key: ValueKey('nm-stat-$statKey'),
-          maxLines: 1,
-          textAlign: mirrored ? TextAlign.left : TextAlign.right,
-          style: TextStyle(
-            fontSize: 12,
-            height: 1,
-            fontWeight: FontWeight.w900,
-            color: colour,
-          ),
+    // **THE FIGURE DOES NOT SHRINK. The BAR does.** The spec is
+    // `.nm-stat-val { flex: 0 0 auto; min-width: 19px }` against
+    // `.nm-stat-bar { flex: 1 }`, and this had them the other way round: the
+    // figure took a 2/7 proportional share of the side and the bar took 5/7.
+    // A share is not a leftover — there was never "room" for the 19 to apply,
+    // so the box measured 9.3px on a 340pt card, NARROWER THAN ONE DIGIT, and
+    // every two-figure stat was clipped to its first digit at every width. 91
+    // against 81 read as 9 against 8.
+    final figure = ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 19),
+      child: Text(
+        '$value',
+        key: ValueKey('nm-stat-$statKey'),
+        maxLines: 1,
+        textAlign: mirrored ? TextAlign.left : TextAlign.right,
+        style: TextStyle(
+          fontSize: 12,
+          height: 1,
+          fontWeight: FontWeight.w900,
+          color: colour,
+          // Tabular, so the four figures line up down the block instead of
+          // jittering by digit width — as the ratings above them already do.
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
     );
+
+    if (!bars) {
+      return Row(
+        // Both sides lay out TOWARD the centre label, which keeps the four
+        // figures reading as one mirrored comparison instead of drifting to the
+        // card's edges.
+        mainAxisAlignment: mirrored
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.end,
+        // Loose, and the ONLY child — so it is handed the whole side rather than
+        // a share of it, and takes its intrinsic width whenever that fits. Which
+        // is the opposite of what starved it before: a lone flexible child
+        // competes with nothing. The floor still applies; this only decides what
+        // happens in the corner where even the trimmed row cannot hold two
+        // three-digit figures, and there the spec spills into the empty margin
+        // beside the ratings while a Flutter Row would put a banner on the card.
+        children: [Flexible(child: figure)],
+      );
+    }
+
     final bar = Expanded(
-      flex: 5,
       child: _Bar(
         // 10% floor: the track is short, so a single-figure stat would round to
         // a sub-pixel sliver and read as an empty bar rather than a low one.

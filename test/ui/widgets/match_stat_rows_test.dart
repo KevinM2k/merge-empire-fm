@@ -35,6 +35,53 @@ Future<void> pumpRows(
   ),
 );
 
+/// The block at a real phone width, through the real card's inset — 13 of page
+/// padding and 8 of card padding a side. The bars' breakpoint is a MEDIA query,
+/// so the viewport is the thing that has to be set, not the box.
+Future<void> pumpAtViewport(
+  WidgetTester tester,
+  double viewport, {
+  int value = 91,
+}) async {
+  tester.view.physicalSize = Size(viewport, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: buildAppTheme(kitId: '#4caf50', light: false),
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 21),
+            child: MatchStatRows(
+              left: (atk: value, def: value),
+              right: (atk: value, def: value),
+              leftRating: value,
+              rightRating: value,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// What the figure's own text needs, in whatever font the test is running in —
+/// so the comparison against its box holds without a bundled font.
+double intrinsicFigure(String text) => (TextPainter(
+  text: TextSpan(
+    text: text,
+    style: const TextStyle(
+      fontSize: 12,
+      height: 1,
+      fontWeight: FontWeight.w900,
+      fontFeatures: [FontFeature.tabularFigures()],
+    ),
+  ),
+  textDirection: TextDirection.ltr,
+)..layout()).width;
+
 StatMod mod(int amount, {StatTone tone = StatTone.delta}) =>
     (icon: 'home', amount: amount, tone: tone, tip: 'why');
 
@@ -147,4 +194,60 @@ void main() {
       );
     });
   });
+
+  group('the stat figures', () {
+    testWidgets('are not clipped by the bar beside them', (tester) async {
+      // **The figure did not shrink in the spec; the bar did.**
+      // `.nm-stat-val` is `flex: 0 0 auto; min-width: 19px` against a
+      // `.nm-stat-bar` of `flex: 1`, and this had them the other way round —
+      // the figure took a 2/7 proportional share of its side. A share is not a
+      // leftover, so the 19 never applied: the box measured 9.3pt on a 340pt
+      // card, narrower than ONE digit, and every two-figure stat was clipped to
+      // its first digit at every width. 91 against 81 read as 9 against 8.
+      await pumpAtViewport(tester, 390);
+      final box = tester.getSize(find.byKey(const ValueKey('nm-stat-atk-l')));
+      expect(
+        box.width,
+        greaterThanOrEqualTo(intrinsicFigure('91')),
+        reason: 'the whole number, not its first digit',
+      );
+    });
+
+    testWidgets('and keep the 19pt floor at every phone width', (tester) async {
+      // The floor is what lines the four figures up with each other; it is also
+      // the number that proves the figure is not back on a proportional share,
+      // whatever the running font makes of two digits.
+      for (final viewport in [320.0, 360.0, 375.0, 390.0, 430.0]) {
+        await pumpAtViewport(tester, viewport);
+        for (final key in ['atk-l', 'atk-r', 'def-l', 'def-r']) {
+          expect(
+            tester.getSize(find.byKey(ValueKey('nm-stat-$key'))).width,
+            greaterThanOrEqualTo(19),
+            reason: 'at $viewport, $key',
+          );
+        }
+      }
+    });
+  });
+
+  group('on a narrow phone the bars come off', () {
+    // MEASURED in the spec rather than picked (`@media (max-width: 379px)`):
+    // the bar width is derived from the card's, and at 375 and under every one
+    // of them bottoms out on its 12pt floor whatever figure it is drawing —
+    // four identical stubs claiming to compare four different numbers. The
+    // figures stay; they are the data, and the bars were only the shape of it.
+    testWidgets('at 375, and the four figures stay', (tester) async {
+      await pumpAtViewport(tester, 375);
+      expect(find.byType(FractionallySizedBox), findsNothing);
+      for (final key in ['atk-l', 'atk-r', 'def-l', 'def-r']) {
+        expect(find.byKey(ValueKey('nm-stat-$key')), findsOneWidget);
+      }
+    });
+
+    testWidgets('and are back at 390', (tester) async {
+      await pumpAtViewport(tester, 390);
+      expect(find.byType(FractionallySizedBox), findsNWidgets(4));
+    });
+  });
+
 }
