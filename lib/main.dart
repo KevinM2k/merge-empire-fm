@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/popups/toast_host.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
+import 'package:merge_empire_fc/ui/shell/orientation_lock.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
 import 'package:merge_empire_fc/services/analytics_service.dart';
@@ -95,35 +96,40 @@ class MergeEmpireApp extends ConsumerWidget {
       // **NOT `const` any more**, because the tree now reads a provider: the
       // low-end answer decides whether the glass blurs, and a const subtree
       // cannot watch anything.
-      home: SoundHost(
-        child: GameHost(
-          // PopupHost sits above the shell: it releases the queue's no-host
-          // blocker, so anything queued during boot has waited rather than been
-          // dropped for want of somewhere to open.
-          // ToastHost inside PopupHost: a toast never blocks and never waits, so
-          // it sits under whatever the queue has put up rather than over it. The
-          // achievement banner is inside both for the same reason, and it is the
-          // innermost of the three: it is the one that is purely a celebration.
-          // **THE ONE PLACE THE LOW-END ANSWER IS SUPPLIED.** `util/device.dart`
-          // was ported, fixture-tested against the JS and called by NOTHING:
-          // every threshold matched, the one-way promotion was implemented, and
-          // no widget ever asked. `glass.css` names the backdrop blur as the
-          // thing that most wants the opt-out, so the glass is what reads it.
-          child: GlassQuality(
-            blurAllowed: !ref.watch(lowEndDeviceProvider),
-            child: const PopupHost(
-              // **THE TUTORIAL IS THE APP'S, not the shell's.** It draws nothing
-            // itself — it opens Colin's card and switches tabs — and it hangs
-            // here rather than inside `AppShell` for a reason worth keeping:
-            // a shell built for a test is a save that has never been played,
-            // which IS a save the tutorial should run for. Seventy-nine tests
-            // about the HUD, the tabs and the popups are not about that, and a
-            // widget that opens a card over all of them belongs at the app's
-            // own root where they never reach it.
-              child: ToastHost(
-                child: AchievementUnlockHost(
-                  child: Stack(
-                    children: [AppShell(), TutorialHost()],
+      // Sideways is blocked on a phone and allowed on a tablet — see
+      // [OrientationLock]. Inside `home` because it measures the device through
+      // `MediaQuery`, which `MaterialApp` supplies here and not above it.
+      home: OrientationLock(
+        child: SoundHost(
+          child: GameHost(
+            // PopupHost sits above the shell: it releases the queue's no-host
+            // blocker, so anything queued during boot has waited rather than been
+            // dropped for want of somewhere to open.
+            // ToastHost inside PopupHost: a toast never blocks and never waits, so
+            // it sits under whatever the queue has put up rather than over it. The
+            // achievement banner is inside both for the same reason, and it is the
+            // innermost of the three: it is the one that is purely a celebration.
+            // **THE ONE PLACE THE LOW-END ANSWER IS SUPPLIED.** `util/device.dart`
+            // was ported, fixture-tested against the JS and called by NOTHING:
+            // every threshold matched, the one-way promotion was implemented, and
+            // no widget ever asked. `glass.css` names the backdrop blur as the
+            // thing that most wants the opt-out, so the glass is what reads it.
+            child: GlassQuality(
+              blurAllowed: !ref.watch(lowEndDeviceProvider),
+              child: const PopupHost(
+                // **THE TUTORIAL IS THE APP'S, not the shell's.** It draws nothing
+              // itself — it opens Colin's card and switches tabs — and it hangs
+              // here rather than inside `AppShell` for a reason worth keeping:
+              // a shell built for a test is a save that has never been played,
+              // which IS a save the tutorial should run for. Seventy-nine tests
+              // about the HUD, the tabs and the popups are not about that, and a
+              // widget that opens a card over all of them belongs at the app's
+              // own root where they never reach it.
+                child: ToastHost(
+                  child: AchievementUnlockHost(
+                    child: Stack(
+                      children: [AppShell(), TutorialHost()],
+                    ),
                   ),
                 ),
               ),

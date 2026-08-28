@@ -567,7 +567,11 @@ void checkDivisionUnlock(Map<String, dynamic>? state) {}
 
 // ── Prestige ────────────────────────────────────────────────────────────────
 
-const double _prestigeIncomeBonus = 1.1;
+/// **ADDED per prestige, not COMPOUNDED.** The JS raises 1.1 to the level
+/// (`LeagueScreen.js`), which is 117x at fifty prestiges — a curve that stops
+/// being a bonus and becomes the whole economy. A flat tenth per adventure is
+/// the divergence: two prestiges reads 1.2x, fifty reads 6x.
+const double _prestigeIncomeBonus = 0.1;
 
 /// Winning the Champions League unlocks prestige PERMANENTLY for that run — the
 /// option stays available even if the club is later relegated.
@@ -603,11 +607,11 @@ bool proModeUnlocked(Map<String, dynamic>? state) =>
 /// exposed rather than restated.
 ///
 /// A screen offering the NEXT adventure has to name the number it will pay, and
-/// a card that computed `1.1 ^ (level + 1)` for itself would sooner or later
-/// promise a multiplier the reset did not hand over. [performPrestige] reads
-/// this too, so there is one power in the game.
+/// a card that computed the curve for itself would sooner or later promise a
+/// multiplier the reset did not hand over. [performPrestige] reads this too, so
+/// there is one sum in the game.
 double prestigeMultiplierFor(int level) =>
-    math.pow(_prestigeIncomeBonus, level).toDouble();
+    1 + _prestigeIncomeBonus * (level < 0 ? 0 : level);
 
 /// What a prestige did.
 typedef PrestigeResult = ({

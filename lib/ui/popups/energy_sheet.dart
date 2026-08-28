@@ -19,13 +19,16 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart' show isProMode;
+import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart'
+    show SpendCurrency, offerToBuy;
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart' show gemItemDesc;
+import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart'
+    show blockedCopy, gemItemIcons, isAffordabilityBlock;
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
-import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -170,25 +173,18 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
                   Expanded(
                     child: _RefillButton(
                       sheetContext: sheetContext,
-                      sheetRef: sheetRef,
+                      callerContext: context,
+                      callerRef: ref,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
-            OutlinedButton(
-              key: const ValueKey('energy-to-shop'),
-              onPressed: () {
-                Navigator.of(sheetContext).pop();
-                // Where the gems themselves come from, for the case the button
-                // above is short of them.
-                sheetRef
-                    .read(shellControllerProvider.notifier)
-                    .deepLinkShop(ShopSection.gems);
-              },
-              child: Text(t('nav.shop')),
-            ),
+            // **NO SHOP LINK.** It was here for the case the refill could
+            // not be paid for, and that case now ends at the gem packs by
+            // itself — see [_RefillButton]. A third full-width control that
+            // takes the player off a sheet they opened to solve one thing was
+            // asked to go.
           ],
         );
       },
@@ -202,10 +198,20 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
 /// the same bargain every other purchase in the game makes, rather than a
 /// button that fails on the tap.
 class _RefillButton extends ConsumerWidget {
-  const _RefillButton({required this.sheetContext, required this.sheetRef});
+  const _RefillButton({
+    required this.sheetContext,
+    required this.callerContext,
+    required this.callerRef,
+  });
 
   final BuildContext sheetContext;
-  final WidgetRef sheetRef;
+
+  /// **THE CALLER'S CONTEXT AND `ref`, NOT THIS WIDGET'S** — the same rule the
+  /// ad option beside it already follows, and for the same reason. The purchase
+  /// flow is three dialogs opened AFTER this sheet is popped, and both this
+  /// element and the `Consumer` above it belong to the route being popped.
+  final BuildContext callerContext;
+  final WidgetRef callerRef;
 
   static const String _itemId = 'energy_refill';
 
@@ -217,31 +223,55 @@ class _RefillButton extends ConsumerWidget {
     final state = ref.watch(gameProvider).state;
     ref.watch(saveRevisionProvider);
     final blocked = gemItemBlocked(state, _itemId);
+    final title = t('gem.$_itemId.name');
+    final body = gemItemDesc(_itemId, state: state, hardMode: isProMode(state));
 
     return _EnergyOption(
       optionKey: const ValueKey('energy-buy-refill'),
       glyph: '💎',
-      title: t('gem.$_itemId.name'),
+      title: title,
       // `gemItemDesc` fills `{n}` from the tank the player actually has — an
       // Energy Director owner gets fifteen, so a literal would be a lie to
       // them — and it takes the pro-mode line where there is no pip pool.
-      body: gemItemDesc(_itemId, state: state, hardMode: isProMode(state)),
-      note: blocked == null
+      body: body,
+      // **"NOT ENOUGH GEMS" IS NEVER SAID, and it is the Shop's own rule** —
+      // see `purchase_flow.dart`: a dead button with a refusal printed under it
+      // is a dead end, and the answer to wanting the thing is a way to afford
+      // it. This sheet was the one place in the game that still greyed the
+      // button out and said it. Only a refusal that is NOT about money — a
+      // product not wired up yet — stops the button now.
+      note: blocked == null || isAffordabilityBlock(blocked)
           ? null
-          : blocked == 'insufficient_gems'
-          ? t('shop.toast.not_enough_gems')
-          : t('settings.comingSoon'),
+          : blockedCopy(blocked),
       tint: kit.accent,
       // Gems, so the button is the gem BLUE and the price is on it — the cost
       // was tacked onto the title, which is the one place a price does not go.
       tone: StoreTone.gem,
       cta: '${item.cost}',
       leading: const GameIcon('gem', size: 13),
-      onTap: blocked != null
+      // **THE SAME THREE BEATS THE SHOP'S OWN TILE RUNS**: confirm, then spend
+      // — or open the gem packs when the balance will not cover it. The sheet
+      // closes first either way, so the flow is not stacked on a route that is
+      // about to be popped.
+      onTap: blocked != null && !isAffordabilityBlock(blocked)
           ? null
           : () {
-              ref.read(gameProvider).update((s) => buyGemItem(s, _itemId));
               Navigator.of(sheetContext).pop();
+              unawaited(
+                offerToBuy(callerContext, callerRef, (
+                  key: 'gem-$_itemId',
+                  title: title,
+                  subtitle: body,
+                  body: null,
+                  glyph: gemItemIcons[_itemId] ?? 'gem',
+                  currency: SpendCurrency.gems,
+                  cost: item.cost,
+                  buy: () => callerRef
+                      .read(gameProvider)
+                      .update((s) => buyGemItem(s, _itemId))
+                      .reason,
+                )),
+              );
             },
     );
   }

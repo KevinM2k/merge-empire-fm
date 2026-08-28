@@ -126,6 +126,42 @@ void main() {
     expect(game.attackers[game.carrier].label, 'Hopper');
   });
 
+  /// **WE ARE GREEN AND THEY ARE RED, WHICHEVER SIDE HAS THE BALL.**
+  ///
+  /// The attackers were always the green shirts and the defenders always the
+  /// red ones, so an opponent's goal replayed with THEM in green attacking our
+  /// reds — the coding inverted on the one passage where it matters. Reported
+  /// from an Android handset: "the user should always be the green team, the
+  /// opponent should always be red, atm the scoring team is always the green
+  /// regardless of home or away".
+  testWidgets('THE KIT FOLLOWS THE CLUB, NOT THE DIRECTION OF PLAY', (
+    tester,
+  ) async {
+    final ourChance = await loaded(tester, ours: true);
+    expect(
+      ourChance.attackers.first.sprite.image,
+      same(cutawayImages.fromCache('green_1.png')),
+    );
+    expect(
+      ourChance.defenders.first.sprite.image,
+      same(cutawayImages.fromCache('red_1.png')),
+    );
+
+    final theirChance = await loaded(tester, ours: false);
+    expect(
+      theirChance.attackers.first.sprite.image,
+      same(cutawayImages.fromCache('red_1.png')),
+      reason: 'their attack was drawn in our green',
+    );
+    expect(
+      theirChance.defenders.first.sprite.image,
+      same(cutawayImages.fromCache('green_1.png')),
+      reason: 'and our back line in their red',
+    );
+    // The labels were already right and stay so: our names, their numbers.
+    expect(theirChance.defenders.first.label, isNotNull);
+  });
+
   test('shortName is the JS _short', () {
     expect(shortName('John Smith'), 'Smith');
     expect(shortName('Solo'), 'Solo');

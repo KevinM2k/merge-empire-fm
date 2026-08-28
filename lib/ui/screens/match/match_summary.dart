@@ -117,6 +117,29 @@ Route<void> matchSummaryRoute(Map<String, dynamic> result) => MaterialPageRoute(
   _num(result['awayGoals'] ?? result['theirGoals']).toInt(),
 );
 
+/// The score to PRINT, which is the ninety minutes.
+///
+/// **A shootout's winning goal is folded into the engine's scoreline** so `won`
+/// and the recorded score agree — `cup_launcher` and `match_orchestration` both
+/// do it, and a parity fixture reads those fields. On the SCREEN that number is
+/// a lie: a tie drawn 1–1 and lost on penalties printed `1–2`, with the pens
+/// reported further down the page under the fold. Read from the couch as "it
+/// should have gone to pens, instead it came up defeat and said they won 1–2" —
+/// which is the JS's own warning about this field, word for word. So the
+/// divergence lives on the screen and the field is left to the harness.
+///
+/// [_score] is unchanged and still the engine's: the manager's reaction is
+/// about who went through, and a shootout win is not a draw to him.
+(int, int) regulationScore(Map<String, dynamic> result) {
+  final (ours, theirs) = _score(result);
+  if (shootoutFrom(result) case final penalties?) {
+    final ourReg = penalties.won ? ours - 1 : ours;
+    final theirReg = penalties.won ? theirs : theirs - 1;
+    return (ourReg < 0 ? 0 : ourReg, theirReg < 0 ? 0 : theirReg);
+  }
+  return (ours, theirs);
+}
+
 class MatchSummaryScreen extends ConsumerStatefulWidget {
   const MatchSummaryScreen({required this.result, super.key});
 
@@ -178,7 +201,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
     final won = result['won'] == true;
     final drawn = result['drawn'] == true;
     final isHome = result['isHome'] == true;
-    final (ourGoals, theirGoals) = _score(result);
+    final (shownOurs, shownTheirs) = regulationScore(result);
     final trophies = _num(result['trophiesEarned']).toInt();
     final canDouble = _base > 0;
     final questRows = result['questResults'];
@@ -217,11 +240,25 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                           '${isHome ? result['clubName'] : result['opponentName'] ?? ''}',
                       right:
                           '${isHome ? result['opponentName'] : result['clubName'] ?? ''}',
-                      leftGoals: isHome ? ourGoals : theirGoals,
-                      rightGoals: isHome ? theirGoals : ourGoals,
+                      leftGoals: isHome ? shownOurs : shownTheirs,
+                      rightGoals: isHome ? shownTheirs : shownOurs,
                       trophies: trophies,
                       result: result,
                     ),
+                    // **A TIE DECIDED ON PENALTIES SAYS SO, DIRECTLY UNDER THE
+                    // SCORE IT COMPLETES.** It used to sit below the league
+                    // table and the scorers, which on any phone is below the
+                    // fold — so the one thing that explains a level scoreline
+                    // was the one thing the player never reached. It is not a
+                    // footnote to the result; it is the rest of it.
+                    if (shootoutFrom(result) case final penalties?) ...[
+                      const SizedBox(height: 10),
+                      ShootoutRow(
+                        ours: penalties.ours,
+                        theirs: penalties.theirs,
+                        won: penalties.won,
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     // **THEIR OWN CARD, so each goal can carry its replay.**
                     // The scorers were a line inside the result card, which
@@ -258,18 +295,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // whatever height each happened to want and the pair read
                     // as two things dropped next to each other. Reported as the
                     // dugout cam and the quests wanting to match. `stretch`
-                    // **A TIE DECIDED ON PENALTIES SAYS SO.** Above the
-                    // reaction, because it is not a reaction — it is the rest
-                    // of the result, and without it the scoreline above is a
-                    // one-goal defeat the player never saw decided.
-                    if (shootoutFrom(result) case final penalties?) ...[
-                      ShootoutRow(
-                        ours: penalties.ours,
-                        theirs: penalties.theirs,
-                        won: penalties.won,
-                      ),
-                      const SizedBox(height: 10),
-                    ],
                     // inside an `IntrinsicHeight`: the taller of the two sets
                     // the row and the other fills it.
                     IntrinsicHeight(
@@ -850,9 +875,28 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
             for (final g in goals)
               Row(
                 children: [
+                  // **THE MINUTE IS A COLUMN, on the left.** It trailed the
+                  // name, so with three scorers the names started in three
+                  // different places and the list had no left edge to read
+                  // down. Fixed width and tabular figures, which is what makes
+                  // it a column rather than a prefix.
+                  SizedBox(
+                    width: 28,
+                    child: Text(
+                      "${g.minute}'",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: ink.withValues(alpha: 0.75),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
                   Expanded(
                     child: Text(
-                      "${g.name} ${g.minute}'",
+                      g.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,

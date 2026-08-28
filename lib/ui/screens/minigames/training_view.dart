@@ -223,13 +223,21 @@ class _GameRow extends ConsumerWidget {
             ? null
             : Row(
                 children: [
+                  // **MONEY IS GOLD, not the drill's own hue.** The figure and
+                  // the coin beside it wore `tint` — the kit's accent walked up
+                  // to 252° round the wheel — so seven drills quoted their
+                  // money in seven colours and the ones that landed near the
+                  // card's own surface could not be read at all. Reported as
+                  // not being able to see the money on the training sessions.
+                  // `coinFigureInk` is the pair the rest of the game uses and
+                  // carries its own light-theme shade.
                   if (best != null) ...[
-                    GameIcon('coin', size: 11, color: tint),
+                    GameIcon('coin', size: 11, color: coinFigureInk(context)),
                     const SizedBox(width: 3),
                     Text(
                       formatCoins(best),
                       style: TextStyle(
-                        color: tint,
+                        color: coinFigureInk(context),
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -259,7 +267,16 @@ class _GameRow extends ConsumerWidget {
         // it starts working is a surprise, and one that explains itself is a
         // feature that is coming.
         trailing: reason == null
-            ? Icon(Icons.play_arrow, color: tint)
+            // **WHITE IN DARK MODE.** The little arrow took the drill's own
+            // hue, and a hue that reads on a light card is a hue that sinks
+            // into a dark one — asked for directly. In light mode the tint is
+            // what tells the seven rows apart and it stays.
+            ? Icon(
+                Icons.play_arrow,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : tint,
+              )
             : _resting
             ? StoreButton(
                 key: ValueKey('training-skip-${game.kind}'),

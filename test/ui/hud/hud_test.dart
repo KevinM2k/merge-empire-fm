@@ -155,22 +155,17 @@ void main() {
     expect(find.byKey(const ValueKey('currency-sheet-gems')), findsOneWidget);
   });
 
-  testWidgets('and the rest of the shop is one tap from the sheet', (
+  /// **AND THERE IS NO "SHOP" BUTTON UNDER THE PACKS.** The sheet IS the
+  /// shelf — every pack on the tab is already on it — so a control offering to
+  /// take the player somewhere to see what they were looking at was asked to go.
+  testWidgets('and the sheet does not offer to take you to the shop', (
     tester,
   ) async {
     final container = await pumpHud(tester, (_) {});
     await tester.tap(find.byKey(const ValueKey('hud-coins-plus')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('currency-sheet-shop')));
-    await tester.pumpAndSettle();
-    final shell = container.read(shellControllerProvider);
-    expect(shell.tab, ShellTab.shop);
-    expect(
-      shell.pendingShopSection,
-      ShopSection.coins,
-      reason: 'and it lands on the shelf the sheet was showing',
-    );
-    expect(shell.noSlide, isTrue);
+    expect(find.byKey(const ValueKey('currency-sheet-shop')), findsNothing);
+    expect(container.read(shellControllerProvider).tab, isNot(ShellTab.shop));
   });
 
   testWidgets('the energy + asks for the energy popup', (tester) async {
@@ -373,6 +368,35 @@ void main() {
         greaterThanOrEqualTo(47),
         reason: 'and the chips still clear it',
       );
+    });
+  });
+
+  /// **THE MULTIPLIER WAS ON THE BOOKS AND THE COUNT WAS NOWHERE.** The income
+  /// breakdown names the level in its own row, so a player could read `×1.2`
+  /// with no way to see they had prestiged twice. `.hud-prestige` in
+  /// `hud.css` is a star, a `×` and the figure beside the crest, and
+  /// `:empty { display: none }` is why a save that has never prestiged shows
+  /// nothing at all.
+  group('the prestige count', () {
+    testWidgets('is beside the crest once there is one', (tester) async {
+      await pumpHud(tester, (s) {
+        (s['prestige'] as Map<String, dynamic>)['level'] = 2;
+      });
+      expect(find.byKey(const ValueKey('hud-prestige')), findsOneWidget);
+      expect(find.text('×2'), findsOneWidget);
+    });
+
+    testWidgets('and is not drawn at all on a save that has never '
+        'prestiged', (tester) async {
+      await pumpHud(tester, (_) {});
+      expect(find.byKey(const ValueKey('hud-prestige')), findsNothing);
+    });
+
+    testWidgets('it reads the SAVE, so it holds on every tab', (tester) async {
+      await pumpHud(tester, (s) {
+        (s['prestige'] as Map<String, dynamic>)['level'] = 7;
+      }, tab: ShellTab.shop);
+      expect(find.text('×7'), findsOneWidget);
     });
   });
 }

@@ -32,6 +32,52 @@ void main() {
       }
     });
 
+  /// **RECORDED BEFORE THE SCREEN THAT SHOWS THEM.** There is no News screen
+  /// yet and nothing in `lib/` reads this table — the ids are here so they live
+  /// with the other twenty-eight rather than in a message, and this is what
+  /// stops one of them being quietly mistyped in the meantime.
+  group('the native table', () {
+    test('both platforms carry the news banner, and neither borrows the '
+        "other's id", () {
+      expect(nativeByPlacementIos.keys.toSet(), nativeByPlacementAndroid.keys.toSet());
+      expect(nativeUnitFor('android', 'news'), isNotNull);
+      expect(nativeUnitFor('ios', 'news'), isNotNull);
+      expect(nativeUnitFor('ios', 'news'), isNot(nativeUnitFor('android', 'news')));
+      // The web build takes the Android ids, as everything else here does.
+      expect(nativeUnitFor('web', 'news'), nativeUnitFor('android', 'news'));
+    });
+
+    test('the ids are ours, and are not any other placement\'s', () {
+      final native = {
+        for (final table in [nativeByPlacementAndroid, nativeByPlacementIos])
+          for (final v in table.values) ?v,
+      };
+      expect(native, hasLength(2));
+      for (final id in native) {
+        expect(id, startsWith('ca-app-pub-0386196346828968/'));
+      }
+      final other = {
+        for (final table in [
+          rewardedByPlacementAndroid,
+          rewardedByPlacementIos,
+          interstitialByDivisionAndroid,
+          interstitialByDivisionIos,
+        ])
+          for (final v in table.values) ?v,
+      };
+      expect(native.intersection(other), isEmpty);
+    });
+
+    /// **NO FALLBACK, and that is the point of a separate function.** The
+    /// rewarded and interstitial tables fall back so a tap still pays out; a
+    /// native banner has nothing to pay out and a rewarded unit rendered as a
+    /// banner is a policy problem rather than a mislabelled revenue line.
+    test('an unknown native placement gets nothing, not a borrowed unit', () {
+      expect(nativeUnitFor('android', 'match_feed'), isNull);
+      expect(nativeUnitFor('ios', 'match_feed'), isNull);
+    });
+  });
+
     test('a platform never borrows the other one\'s ids', () {
       // AdMob rejects cross-platform traffic outright.
       final android = {for (final v in rewardedByPlacementAndroid.values) ?v};

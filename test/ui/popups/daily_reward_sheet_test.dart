@@ -18,8 +18,10 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/popups/daily_reward_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -115,12 +117,15 @@ void main() {
     });
 
     test('and only mentions the extras a day actually has', () {
-      // Day one is coins alone; day seven is the gem day.
+      // Day one is coins alone; day seven is the gem day. The rewards are typed
+      // now rather than joined into a string, so the day is asked which WALLETS
+      // it pays into — the emoji were what the icons replaced.
       final plain = getDailyRewardPreview(save(), 1)!;
       final seventh = getDailyRewardPreview(save(), 7)!;
-      expect(dayRewardLine(plain), isNot(contains('💎')));
-      expect(dayRewardLine(seventh), contains('💎'));
-      expect(dayRewardLine(seventh), contains('⚡'));
+      List<String?> icons(DailyRewardPreview r) =>
+          [for (final p in dayRewardParts(r)) p.icon];
+      expect(icons(plain), ['coin']);
+      expect(icons(seventh), containsAll(<String>['coin', 'bolt', 'gem']));
     });
   });
 
@@ -341,18 +346,43 @@ void main() {
     /// bolt and gems have their stone, so a day paying 500 coins and 2 gems
     /// read as "500 · 2💎" — a bare number beside a labelled one. Reported
     /// from the couch as no coins next to the coins.
-    testWidgets('and the coins wear their mark, like everything else', (
+    ///
+    /// **AND THEN AS AN EMOJI MONEY-BAG.** The mark it got was 💰, which is the
+    /// one money glyph in the game not drawn in the set everything else is drawn
+    /// in — so it is the app's own coin now, in the coin gold, and each reward
+    /// sits in a box of its own.
+    testWidgets('and the coins wear the app\'s own coin, in the coin gold', (
       tester,
     ) async {
       await pumpSheet(tester, save());
-      final reward = getDailyRewardPreview(save(), 1)!;
-      expect(dayRewardLine(reward), contains('💰'));
+      final day = find.byKey(const ValueKey('daily-day-1'));
+      expect(
+        find.descendant(of: day, matching: find.textContaining('💰')),
+        findsNothing,
+      );
+      final coin = tester.widget<GameIcon>(
+        find.descendant(of: day, matching: find.byType(GameIcon)),
+      );
+      expect(coin.name, 'coin');
+      expect(coin.color, hudCoinInk);
+    });
+
+    /// **ONE BOX PER REWARD.** The three figures were a single run of text
+    /// joined with middots; the tile has the width for a pill each.
+    testWidgets('and the gem day draws a box for every one of them', (
+      tester,
+    ) async {
+      await pumpSheet(tester, save());
+      final seventh = getDailyRewardPreview(save(), 7)!;
+      expect(dayRewardParts(seventh).length, greaterThan(2));
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('daily-day-1')),
-          matching: find.textContaining('💰'),
+          of: find.byKey(const ValueKey('daily-day-7')),
+          matching: find.byType(GameIcon),
         ),
-        findsOneWidget,
+        findsNWidgets(
+          dayRewardParts(seventh).where((p) => p.icon != null).length,
+        ),
       );
     });
 

@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/season_end.dart'
+    show prestigeMultiplierFor;
 import 'package:merge_empire_fc/state/migration.dart';
 import 'package:merge_empire_fc/state/save_codec.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
@@ -535,11 +536,15 @@ void main() {
 
   group('prestige and economy', () {
     test('recomputes the income multiplier at the current rate', () {
+      // 3.375 is `1.5 ^ 3`, and 1.331 is the compounded `1.1 ^ 3` that
+      // replaced it — the rate is a tenth ADDED per level now, so both are
+      // recomputed to 1.3.
       final s = migrate(_legacy({'prestige': {'level': 3, 'incomeMultiplier': 3.375}}))!;
       expect(
         (s['prestige'] as Map)['incomeMultiplier'],
-        closeTo(math.pow(1.1, 3).toDouble(), 1e-9),
+        closeTo(prestigeMultiplierFor(3), 1e-9),
       );
+      expect((s['prestige'] as Map)['incomeMultiplier'], closeTo(1.3, 1e-9));
     });
 
     test('clamps an absurd prestige level so income cannot go non-finite', () {

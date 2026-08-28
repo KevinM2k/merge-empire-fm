@@ -171,20 +171,69 @@ void main() {
     expect(adRow(tester).onTap, isNull);
   });
 
-  testWidgets('the Shop route works today', (tester) async {
+  /// **THE SHOP LINK IS GONE, and the refill is what replaced it.** It was
+  /// here for the case the player could not afford the refill; that case now
+  /// ends at the gem packs on its own, so a third full-width control taking
+  /// them off the sheet was asked to go.
+  testWidgets('there is no Shop link any more', (tester) async {
     await pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('energy-to-shop')), findsNothing);
+    // Scoped to the SHEET: the shell's own tab strip behind it is labelled
+    // "Shop" too, and that one is meant to be there.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('energy-sheet')),
+        matching: find.text(t('nav.shop')),
+      ),
+      findsNothing,
+    );
+  });
 
-    // The gem option carries its description now, so the sheet is taller than
-    // an 800x600 test viewport — it is a `ListView` and scrolls.
-    await tester.ensureVisible(find.byKey(const ValueKey('energy-to-shop')));
+  /// **"NOT ENOUGH GEMS" IS NEVER SAID — the Shop's own rule, which this sheet
+  /// was the last place in the game to break.** A dead button with a refusal
+  /// under it is a dead end; the answer to wanting the thing is a way to afford
+  /// it. So the blue gem button stays live on an empty wallet and the flow ends
+  /// at the gem packs.
+  testWidgets('a wallet that cannot cover the refill still gets the gem '
+      'button, and it leads to the packs', (tester) async {
+    await pumpShell(tester, energy: 1);
+    await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('energy-to-shop')));
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('energy-buy-refill')),
+        matching: find.text(t('shop.toast.not_enough_gems')),
+      ),
+      findsNothing,
+      reason: 'the refusal was printed under a greyed-out button',
+    );
+
+    final refill = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const ValueKey('energy-buy-refill')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(refill.onTap, isNotNull);
+
+    await tester.tap(find.byKey(const ValueKey('energy-buy-refill')));
+    await tester.pumpAndSettle();
+    // Beat one is the confirm card; saying yes with an empty wallet opens the
+    // gem shelf rather than failing on the tap.
+    await tester.tap(
+      find.byKey(const ValueKey('spend-confirm-yes-gem-energy_refill')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('energy-sheet')), findsNothing);
-    expect(find.byKey(const ValueKey('shop-scroll')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('currency-sheet-gems')),
+      findsOneWidget,
+      reason: 'a purchase the balance will not cover ends at the packs',
+    );
   });
 
   /// **THE GEM ROUTE SAYS WHAT IT GIVES YOU.** The video option has always said

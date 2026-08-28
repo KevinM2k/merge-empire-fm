@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
+import 'package:merge_empire_fc/engine/season_end.dart' show prestigeLevel;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud_boosts.dart';
@@ -28,6 +29,7 @@ import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// The pip cap, which the Energy Director upgrade raises from 10 to 15. Reading
@@ -79,6 +81,11 @@ Color energyInk(BuildContext context, num current, int max, Color full) {
       ? vsAmberOn(context)
       : vsRedOn(context);
 }
+
+/// How many adventures this save has finished — the figure the crest's chip
+/// shows. Zero on a save that has never prestiged, and the chip is then not
+/// drawn at all.
+final prestigeLevelProvider = savePick<int>(prestigeLevel);
 
 /// The badge the player is wearing. The JS hangs it off the manager avatar in
 /// the top-left; that avatar is not drawn yet, so the badge stands on its own
@@ -199,19 +206,28 @@ class Hud extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            key: const ValueKey('hud-badge'),
-            tooltip: t('trophy.title'),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            // BIG. It is the club's own crest and the way into the trophy
-            // room, and at 26 it was the smallest thing on a bar of 16px icons
-            // sitting in chips — a badge that reads as a bullet point.
-            icon: BadgeIcon(
-              badgeId: ref.watch(equippedBadgeProvider),
-              size: 38,
-            ),
-            onPressed: () => showTrophyRoomSheet(context),
+          // The crest and the prestige count are ONE group at the left edge —
+          // `.hud-cluster` in `hud.css`, which holds exactly these two.
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                key: const ValueKey('hud-badge'),
+                tooltip: t('trophy.title'),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                // BIG. It is the club's own crest and the way into the trophy
+                // room, and at 26 it was the smallest thing on a bar of 16px
+                // icons sitting in chips — a badge that reads as a bullet
+                // point.
+                icon: BadgeIcon(
+                  badgeId: ref.watch(equippedBadgeProvider),
+                  size: 38,
+                ),
+                onPressed: () => showTrophyRoomSheet(context),
+              ),
+              const HudPrestige(),
+            ],
           ),
           // **BETWEEN THE CREST AND THE CLUSTER, which is where the JS puts
           // them** — beside the income rate, because what belongs next to a
@@ -427,6 +443,52 @@ class _FrostedBar extends StatelessWidget {
             padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
             child: child,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The prestige count, beside the crest.
+///
+/// A straight port of `.hud-prestige` / `[data-prestige]` in
+/// `../merge-empire-fc/src/ui/components/HUD.js`: a star, a `×`, the level, on
+/// the same dark trough the resource pill uses — and NOTHING at level zero,
+/// which is `.hud-prestige:empty { display: none }`.
+///
+/// **The multiplier was already on the books and the count was nowhere.** The
+/// income breakdown names the level in its own row, so a player could read
+/// `×1.2` and had no way to see they had prestiged twice. No new copy: a glyph
+/// and a figure say it in every language, which is what the JS does too.
+class HudPrestige extends ConsumerWidget {
+  const HudPrestige({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final level = ref.watch(prestigeLevelProvider);
+    if (level <= 0) return const SizedBox.shrink();
+    final ink = glassInk(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: GlassPanel(
+        key: const ValueKey('hud-prestige'),
+        radius: 999,
+        blur: false,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GameIcon('star', size: 11, color: ink),
+            const SizedBox(width: 2),
+            Text(
+              '×$level',
+              style: TextStyle(
+                color: ink,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
         ),
       ),
     );

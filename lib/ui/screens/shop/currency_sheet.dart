@@ -24,7 +24,6 @@ import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// Open the packs for [which] directly, over whatever screen asked.
 Future<void> showCurrencySheet(
@@ -46,7 +45,6 @@ class CurrencySheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final shelf = currencyShelves[which]!;
 
     return Column(
@@ -67,21 +65,10 @@ class CurrencySheet extends ConsumerWidget {
             child: ShopGrid(children: paidTilesFor(ref, shelf.categories)),
           ),
         ),
-        Divider(height: 1, color: kit.border),
-        // The rest of the shop is one tap away, and the deep link still points
-        // at the shelf this sheet is showing — so backing out of here into the
-        // tab lands in the same place rather than at the top.
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-          child: TextButton(
-            key: const ValueKey('currency-sheet-shop'),
-            onPressed: () {
-              Navigator.of(context).maybePop();
-              ref.read(shellControllerProvider.notifier).deepLinkShop(which);
-            },
-            child: Text(t('nav.shop')),
-          ),
-        ),
+        // **NO SHOP LINK.** This sheet IS the shelf — every pack on the tab is
+        // already on it — so a button labelled "Shop" under them offered to
+        // take the player somewhere to see what they were looking at. Asked to
+        // go; a tap outside and the handle both close it.
       ],
     );
   }

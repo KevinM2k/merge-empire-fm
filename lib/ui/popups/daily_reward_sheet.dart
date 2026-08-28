@@ -25,31 +25,52 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart'
+    show hudCoinInk, hudEnergyInk, hudGemInk;
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
-/// What one day of the cycle offers, in one line.
+/// One thing a day of the cycle pays: its figure, and the icon that says which
+/// wallet it lands in.
+///
+/// [icon] is a name from `game_icon.dart` — the app's own line art — or null for
+/// the two rewards that are not a currency and have no glyph in the set.
+typedef DayReward = ({String text, String? icon, Color? ink});
+
+/// What one day of the cycle offers, one entry per reward.
 ///
 /// Coins first because every day has them; the extras follow only when a day
 /// actually carries one, so a plain day reads as plain rather than as a list of
 /// zeroes.
-String dayRewardLine(DailyRewardPreview reward) {
-  final parts = <String>[
-    // **THE COINS WERE THE ONLY THING ON THE LINE WITH NO MARK ON IT.** Energy
-    // has its bolt and gems have their stone, so a day paying 500 coins and 2
-    // gems read as "500 · 2💎" — a bare number beside a labelled one. Reported
-    // from the couch as no coins next to the coins.
-    '${formatCoins(reward.coins)} 💰',
-    if (reward.energy > 0) '${reward.energy}⚡',
-    if (reward.gems > 0) '${reward.gems}💎',
-    if (reward.freeScout) t('daily.reward_scout_short'),
-    if (reward.healOne) '➕',
-  ];
-  return parts.join(' · ');
-}
+///
+/// **EACH ONE IS ITS OWN BOX ON THE TILE**, which is what [_RewardChips] draws.
+/// They were one string joined with middots, so a day paying coins, energy and
+/// gems was a single 11px run of three figures the eye had to split up — and
+/// the strip has the room for three chips. Asked for from the couch, along with
+/// the coin: money is the app's own coin in the coin gold everywhere else, and
+/// here it was an emoji money-bag.
+List<DayReward> dayRewardParts(DailyRewardPreview reward) => [
+  (text: formatCoins(reward.coins), icon: 'coin', ink: hudCoinInk),
+  if (reward.energy > 0)
+    (text: '${reward.energy}', icon: 'bolt', ink: hudEnergyInk),
+  if (reward.gems > 0) (text: '${reward.gems}', icon: 'gem', ink: hudGemInk),
+  // Neither of these is a currency, so neither has a glyph in the icon set —
+  // the scout day carries its own shipped word and the heal day a plus.
+  if (reward.freeScout)
+    (text: t('daily.reward_scout_short'), icon: null, ink: null),
+  if (reward.healOne) (text: '➕', icon: null, ink: null),
+];
+
+/// The same day as ONE LINE, for a screen reader.
+///
+/// The chips are icons and figures, which say nothing out loud — so the tile
+/// keeps the sentence it used to print and hands it to `Semantics` instead.
+String dayRewardLine(DailyRewardPreview reward) => [
+  for (final part in dayRewardParts(reward)) part.text,
+].join(' · ');
 
 /// Show it, and report back once it is gone.
 ///
@@ -331,8 +352,10 @@ class _CycleStrip extends StatelessWidget {
     return Container(
       key: ValueKey('daily-day-$day'),
       // One height for all seven: a strip whose tiles are as tall as their own
-      // reward line is a strip that steps up and down across the week.
-      height: 92,
+      // reward line is a strip that steps up and down across the week. Taller
+      // since the rewards became chips — three of them stacked is what the
+      // seventh day needs, and the sheet has the room.
+      height: 118,
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
       decoration: BoxDecoration(
         color: now
@@ -372,13 +395,12 @@ class _CycleStrip extends StatelessWidget {
               // blanks its own history teaches nothing.
               Opacity(
                 opacity: banked && !now ? 0.5 : 1,
-                child: Text(
-                  dayRewardLine(reward),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.3,
-                    fontWeight: now ? FontWeight.w900 : FontWeight.w400,
+                // The chips are glyphs and figures and say nothing out loud, so
+                // the line they replaced is what a screen reader gets.
+                child: Semantics(
+                  label: dayRewardLine(reward),
+                  child: ExcludeSemantics(
+                    child: _RewardChips(reward: reward, today: now),
                   ),
                 ),
               ),
@@ -402,6 +424,70 @@ class _CycleStrip extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// One box per reward, inside a day of the strip.
+///
+/// **A BOX EACH, not one run of text.** The rewards were joined with middots
+/// into a single 11px line, so a day paying coins, energy and gems asked the
+/// eye to split three figures apart — and the tile has the width for three
+/// small pills. Each one is its wallet's own colour, which is the same coding
+/// the HUD uses: gold is money, violet is energy, cyan is gems.
+class _RewardChips extends StatelessWidget {
+  const _RewardChips({required this.reward, required this.today});
+
+  final DailyRewardPreview reward;
+
+  /// Today's tile draws its figures heavier — it is the one being claimed.
+  final bool today;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final part in dayRewardParts(reward))
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                // A wash of the wallet's own hue rather than a second grey: the
+                // tile behind it is already a surface, and a box that is only a
+                // border reads as an empty field.
+                color: (part.ink ?? kit.textMuted).withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: (part.ink ?? kit.border).withValues(alpha: 0.45),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (part.icon case final name?) ...[
+                    // The app's own coin, bolt and gem — the money was an emoji
+                    // money-bag, which is the one glyph in the game that was not
+                    // drawn in the set everything else is drawn in.
+                    GameIcon(name, size: 10, color: part.ink),
+                    const SizedBox(width: 3),
+                  ],
+                  Text(
+                    part.text,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      height: 1.1,
+                      color: part.ink,
+                      fontWeight: today ? FontWeight.w900 : FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

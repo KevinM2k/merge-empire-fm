@@ -17,6 +17,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/season_end.dart'
+    show prestigeMultiplierFor;
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -44,11 +46,31 @@ final int _seed = _ref['seed'] as int;
 /// randomisation of each card's ATK/DEF split, not a value the port has to
 /// reproduce. What IS asserted about it is the property: a reset regenerates it,
 /// with one entry per definition.
-Map<String, dynamic> _withoutRatios(Map<String, dynamic> state) =>
-    <String, dynamic>{
-      for (final e in state.entries)
-        if (e.key != 'definitionRatios') e.key: e.value,
+///
+/// **And it takes the prestige multiplier off the port's own sum on both sides.**
+/// The JS compounds — `Math.pow(1.1, level)` in `LeagueScreen.js`, which the
+/// fixture was dumped from — and this port ADDS a tenth per adventure. That is a
+/// deliberate mechanic divergence, asked for from an Android handset: 1.1 to the
+/// fiftieth is 117x, which stops being a bonus and becomes the whole economy.
+/// The field is still COMPARED, just against [prestigeMultiplierFor] rather than
+/// the JS's power — so a structural change to it still fails here, and the
+/// divergence is stated once instead of the whole reset going unchecked.
+Map<String, dynamic> _withoutRatios(Map<String, dynamic> state) {
+  final out = <String, dynamic>{
+    for (final e in state.entries)
+      if (e.key != 'definitionRatios') e.key: e.value,
+  };
+  if (out['prestige'] case final Map<String, dynamic> prestige) {
+    final level = prestige['level'];
+    out['prestige'] = <String, dynamic>{
+      ...prestige,
+      'incomeMultiplier': prestigeMultiplierFor(
+        level is num ? level.toInt() : 0,
+      ),
     };
+  }
+  return out;
+}
 
 /// A save exactly as the reference had it before the reset ran.
 Map<String, dynamic> _before(String label) {
@@ -95,7 +117,10 @@ void main() {
           ),
           _ => throw ArgumentError(label),
         };
-        expect(_withoutRatios(after), row['after']);
+        expect(
+          _withoutRatios(after),
+          _withoutRatios(row['after'] as Map<String, dynamic>),
+        );
         // And what landed in the store, which is what the next boot reads.
         expect(
           loaded.store.values.keys.toSet(),
@@ -123,8 +148,14 @@ void main() {
       // undo what the first preserved.
       final want = _section('softThenFull');
       final loaded = _loaded(_before('softRich'));
-      expect(_withoutRatios(loaded.game.resetState()), want['soft']);
-      expect(_withoutRatios(loaded.game.fullResetState()), want['full']);
+      expect(
+        _withoutRatios(loaded.game.resetState()),
+        _withoutRatios(want['soft'] as Map<String, dynamic>),
+      );
+      expect(
+        _withoutRatios(loaded.game.fullResetState()),
+        _withoutRatios(want['full'] as Map<String, dynamic>),
+      );
     });
   });
 

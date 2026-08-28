@@ -69,6 +69,21 @@ flutter test test/engine/foo_test.dart          # one file
 flutter test test/engine/foo_test.dart --name X # one test
 ```
 
+**A stale `build/unit_test_assets` fails widget tests that have nothing wrong
+with them.** The symptom is
+
+```
+Exception: Asset 'shaders/ink_sparkle.frag' manifest could not be decoded:
+INVALID_ARGUMENT: Unsupported runtime stages format version. Expected 2, got 0.
+```
+
+thrown from `FragmentProgram.fromAsset` — Material's ink splash, so it hits any
+test that taps something, and it comes and goes with how long a `pumpAndSettle`
+runs. It is a bundle left behind by an OLDER engine, not a fault in the change
+under test: eleven tests in `test/ui/popups/` failed this way with the working
+tree stashed and the same eleven passed in a fresh worktree. `rm -rf
+build/unit_test_assets` and re-run.
+
 **Never run `dart format lib/ test/`.** It reformats ~186 files and trips
 `curly_braces_in_flow_control_structures` in about ten pre-existing ones, turning
 a clean analyze into eleven issues.

@@ -2,14 +2,14 @@ Dark Mode
 ---------
 Home
 [] The manager is too low, he should be about 12px above the customise button at all times.
-[] The energy popup has 'Not enough Gems' for energy refill, it should not say that and it should show the blue gem button, it should do the same CTA as the energy fill in the shop - it does NOT need a link to 'Shop'
-[] The gem popup does not need a link to the 'Shop'
+[x] The energy popup has 'Not enough Gems' for energy refill, it should not say that and it should show the blue gem button, it should do the same CTA as the energy fill in the shop - it does NOT need a link to 'Shop'  (the Shop's own rule — `purchase_flow.dart`: "Not enough gems is never said" — and this sheet was the last place in the game still breaking it. The gem button runs `offerToBuy` now, so a wallet that cannot cover it ends at the gem packs instead of at a greyed-out button, which is also what the Shop link was there for)
+[x] The gem popup does not need a link to the 'Shop'  (both currency sheets — the sheet IS the shelf, so the button offered to take you somewhere to look at what you were looking at)
 [] The popups should only take as much room as they need 
 [] season quests popup is too big, too much room at the bottom
 [x] season quests have 52000 as rewards, should be 52.0k or just 52k if its 0 after the 52. (`formatCoins(trim: true)` — a `#,##0.#` pattern, so German keeps its comma and loses the zero too)
 [] goalkeeper practice is good, but its meant to look like the ball is coming towards you, so i wonder if it could look like  aview from the goalkeeper out, the ball doesnt have to be kicked towards them and you dont need to see the goalier, maybe just see the posts, and the pitch in front of us, and then we just do exactly whawt we do now.
 [] throughball, we have 5 of them, we have loads of room, why dont we have each of them under each other, the top one goes first, then the second one and so on until all done, then you can see them all from the start (they dont start until the last one is finisheD)
-[] cant see the money on the training sessions, put them all in the ooin yellow. and make the little arrows white in dark mode
+[x] cant see the money on the training sessions, put them all in the ooin yellow. and make the little arrows white in dark mode  (both wore `drillTint` — the kit's accent walked up to 252° round the wheel, so seven rows quoted their money in seven colours. `coinFigureInk` for the money, which carries its own light-theme shade; the arrow keeps the tint in light mode, where it is what tells the rows apart)
 [] on pitch invaders, the whole doesnt really look like a hole, but everything else looks good, make the whole better.
 
 Players
@@ -27,14 +27,18 @@ Club
 [] the humbug design has far too many black and white stripes, makes it hard to see, we should make the stripes wider and the colour should be a bit more transparent so we can read things on it.
 
 General
-[] The income popupu when you tap coins at top doesnt need to be a coach colin popup, it should just be one fo those bottom popups instead, want to reserve coach colin popups for when its him telling us something, this one is like looking at the books
-[] No prestige badge top left next to the trophy, the multiplier looksl ike it works, but it needs to show prestige count in the top left as well.
-[] Prestige should add 0.1 for each prestige, so i've prestiged twice, so my multiplier should be 1.2x, right now its 10% increment, which means its totally broken if someone has 50 prestige.
+[] End season page has everything on background, everything sholud be in cards, seperate tehm in to lgoical groups.
+[] the rating in the next match card only shows one decimal, so if a team is 91 vs 81, all we see is 8 vs 9
+[x] We should block horizontal play on phones, there isn't enough room, on tablets/folds its ok, but on normal phones it is not.  (`ui/shell/orientation_lock.dart` — 600dp of SHORTEST side, which is Android's own tablet threshold and does not move when the device is turned. A fold opening is re-measured; the keyboard is not)
+[x] I drew 1-1 in a cup game, it should have went to pens, but instead it didnt, it came up defeat and siad they won 1-2  (the pens DID happen — the engine folds the winning kick into the scoreline so `won` and the score agree, and a parity fixture reads those fields, so it printed 1-2 with the shootout reported below the league table and the scorers, i.e. below the fold. The divergence is on the screen: the card prints the ninety minutes and the pens sit directly under it)
+[x] The income popupu when you tap coins at top doesnt need to be a coach colin popup, it should just be one fo those bottom popups instead, want to reserve coach colin popups for when its him telling us something, this one is like looking at the books  (a `fitContent` sheet, so a short ledger is a short sheet)
+[x] No prestige badge top left next to the trophy, the multiplier looksl ike it works, but it needs to show prestige count in the top left as well.  (`.hud-prestige` was never ported — a star, a `×` and the figure, on the resource pill's own trough, and nothing at all at level zero)
+[x] Prestige should add 0.1 for each prestige, so i've prestiged twice, so my multiplier should be 1.2x, right now its 10% increment, which means its totally broken if someone has 50 prestige.  (the JS compounds — `Math.pow(1.1, level)` in `LeagueScreen.js` — which is 117x at fifty. A tenth ADDED: 1.2 at two, 6 at fifty. The migration recomputes an old save through the same sum, and `game_state_test`'s whole-save parity now normalises that one field on both sides rather than going unchecked)
 [x] Tarnsfer offers seem to come in to fast, sometimes dont show (just the bar at the bottom) and im not a fan of the yellow thing at the bottom, i dont mind where it is but we need to make more obvoius that you click on it to open, maybe 3d maybe gradient etc (the BAR is done — gradient face, hard edge under it, chevron, drops on a press. Pacing and the sometimes-doesn't-show half are still open and are a different bug)
 [x] On the bid popup, 'Accept Offer' is too much text, we can use 'Accept'  (swapped to `common.accept`; every non-English catalogue already said just "Accept")
-[] Daily reward popup has so much more room, use it
-[] we use an emoji for coins on the dailyi reward, it should be the coin and it should be using the coin yellow.
-[] Each one needs to highlight eaceh of the rewards in seperate boxes inside each day, we have a lot of room. 
+[] Daily reward popup has so much more room, use it  (partly: the tiles are 118 rather than 92 to hold the reward chips. The page under the strip is still the room being asked about)
+[x] we use an emoji for coins on the dailyi reward, it should be the coin and it should be using the coin yellow.  (💰 was the one money glyph in the game not drawn in the app's own icon set)
+[x] Each one needs to highlight eaceh of the rewards in seperate boxes inside each day, we have a lot of room.  (a pill each, in the wallet's own colour — the HUD's coding: gold money, violet energy, cyan gems. The joined-with-middots line survives as the tile's `Semantics` label, since chips say nothing out loud)
 [x] global leaderboard, it doesn't show my rank just has - (the fetch has carried `playerRank` all along — the card now reads it. The dash is kept for a board still loading and a board that has never seen you)
 [x] we have a place for 'trophies and record' im not even sure what they are, lets drop them. (both tiles gone — one was the trophy room's reading, the other the season report's)
 [] I get the following when trying to do meta ads on ios: Your app can't use Aggregated Event Measurement because conversion data is missing or partial. Usually, the easiest solution is to set up the Facebook SDK for iOS.
@@ -60,10 +64,13 @@ Customise Manager Popup
 [] Occassional lag when playing on android and going through screens/popups
 
 Game Popup
+[x] the user should always be the green team, the opponent should always be red, atm the scoring team is always the green regardless of home or away, thats not right  (`cutaway_game.dart` gave the ATTACKERS green and the DEFENDERS red, so an opponent's goal replayed with them in green attacking our reds. The kit follows the club now, which is what the labels — our names, their numbers — already did and what the idle pitch has always done)
+[] the player name needs to match in the commentary who scored it and when viewing replay it needs to be identical, same play, same player, same goal
 [] sounds are not matching up with whats going on, seems to be like miss noises happening but with no action, if no action... no noise... 
-[] the arrow should be pointing towards me if they are on top and pointing towards them if im on top and the location of the arrow should show the dominance, i.e. closer to them  (pointing at them) if im dominating and vice versa
+[] I feel as if the commentary is to quiet, especially when a game starts and nothing happens for 15/20m.. it should start always with something as if its a commentary team something like 'excitement around the stadium is high', or 'the fans expect some fireworks' etc etc.. more life, more action.
+[] the arrow should be pointing towards me if they are on top and pointing towards them if im on top and the location of the arrow should show the dominance, i.e. closer to them  (pointing at them) if im dominating and vice versa **READ THE CODE AND IT ALREADY DOES THIS**, both halves: `momentum_arrow.dart` points at the goal under pressure and slides `travel * strength` toward it, and `momentum_bias` is chance attribution rather than possession. So either the reading is right and looked wrong, or `attackingRight` is being handed the wrong venue somewhere — wants a screenshot of a spell where it looked backwards before anything moves.
 [] the ball still sometimes moving with no player near them.
-[] the players scored is cool, however i think the time they scored the goal should go on the left of the name so names are always in same place
+[x] the players scored is cool, however i think the time they scored the goal should go on the left of the name so names are always in same place  (**the fix is on the FULL-TIME REPORT, not this popup** — `_ScorersCard` in `match_summary.dart` was the only `name minute'` in the app. This popup was already right: the feed's goal card leads with the minute in its head row and the scorer row under it carries the name and the career tally, no minute. A 28px column of tabular figures, so the list has a left edge to read down)
 
 Light mode specific
 [x] THe border around the tabs in settings are missing the top radius on the selected button so it overwrites the white borders a little  (the clip was on the box, which clips to the OUTSIDE of its border; it is a `ClipRRect` one radius in now)

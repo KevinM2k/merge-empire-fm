@@ -576,11 +576,22 @@ class CutawayGame extends FlameGame {
     String nameOr(String number) =>
         pool.isEmpty ? number : pool.removeAt(0);
 
+    // **WE ARE GREEN AND THEY ARE RED, WHICHEVER SIDE HAS THE BALL.** The
+    // attackers were always the green shirts and the defenders always the red
+    // ones, so an opponent's goal was replayed with THEM in green attacking OUR
+    // reds — the colour coding inverted on exactly the passage where it matters
+    // most. Reported as "the scoring team is always green regardless of home or
+    // away". The kit follows the club, not the direction of play; the idle pitch
+    // has always done it this way (`idle_pitch_game.dart`), and the labels here
+    // already did — our names, their numbers.
+    final attackKit = ours ? 'green' : 'red';
+    final defenceKit = ours ? 'red' : 'green';
+
     final starts = _attackerStarts();
     for (var i = 0; i < starts.length; i++) {
       final number = '${attackerNumbers[i % attackerNumbers.length]}';
       final mover = Mover(
-        sprite: sprites['green_${(i % 10) + 1}.png']!,
+        sprite: sprites['${attackKit}_${(i % 10) + 1}.png']!,
         start: _at(starts[i]),
         paceScale: 0.9 + _rng.nextDouble() * 0.35,
         label: ours ? nameOr(number) : number,
@@ -593,7 +604,7 @@ class CutawayGame extends FlameGame {
     for (var i = 0; i < defensiveBlock.length; i++) {
       final number = '${defenderNumbers[i % defenderNumbers.length]}';
       final mover = Mover(
-        sprite: sprites['red_${(i % 10) + 1}.png']!,
+        sprite: sprites['${defenceKit}_${(i % 10) + 1}.png']!,
         start: _at(defensiveBlock[i]),
         paceScale: 0.82 + _rng.nextDouble() * 0.3,
         label: ours ? number : nameOr(number),

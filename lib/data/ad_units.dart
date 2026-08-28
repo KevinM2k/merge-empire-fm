@@ -68,6 +68,38 @@ const Map<String, String> interstitialByDivisionIos = {
   'champions_cup': 'ca-app-pub-0386196346828968/9541485698',
 };
 
+/// NATIVE units, by placement.
+///
+/// **Recorded ahead of the screen that will show them.** There is no News screen
+/// yet and nothing reads this table; it is here so the id lives with the other
+/// twenty-eight rather than in a message, and so the placement is named at the
+/// point the unit was created rather than reconstructed later from the AdMob
+/// dashboard.
+///
+/// `news` is a native BANNER in the news feed — not a rewarded unit and not an
+/// interstitial, so it does not belong in either table above and must not fall
+/// back to one: the fallbacks there exist to keep a rewarded tap paying out, and
+/// a rewarded unit rendered as a banner is a policy problem rather than a
+/// mislabelled row.
+const Map<String, String?> nativeByPlacementAndroid = {
+  'news': 'ca-app-pub-0386196346828968/7393998147',
+};
+
+/// The iOS half. Separate ids because AdMob requires it — an Android unit
+/// rejects iOS traffic — and there is deliberately NO fallback for a placement
+/// with no unit: see the note above.
+const Map<String, String?> nativeByPlacementIos = {
+  'news': 'ca-app-pub-0386196346828968/2141671467',
+};
+
+Map<String, String?> nativeByPlacement(String platform) =>
+    platform == 'ios' ? nativeByPlacementIos : nativeByPlacementAndroid;
+
+/// The native unit for [placement], or null when there is not one for this
+/// platform yet. **No fallback** — a caller with no unit shows no ad.
+String? nativeUnitFor(String platform, String placement) =>
+    nativeByPlacement(platform)[placement];
+
 /// The rewarded table for a platform. Anything that isn't iOS takes the Android
 /// ids, matching the JS — the web build has no ad inventory either way.
 Map<String, String?> rewardedByPlacement(String platform) =>

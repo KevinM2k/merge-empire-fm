@@ -130,14 +130,19 @@ void main() {
   group('THE MULTIPLIER ON THE CARD IS THE ONE THE RESET PAYS', () {
     test('the offer names the NEXT level, not the current one', () {
       expect(nextPrestigeMultiplier(saveWith(level: 0)), closeTo(1.1, 1e-9));
-      expect(nextPrestigeMultiplier(saveWith(level: 1)), closeTo(1.21, 1e-9));
+      // A TENTH ADDED, not compounded: the second adventure pays 1.2, not the
+      // 1.21 the old power gave — and the fiftieth pays 6 rather than 117.
+      expect(nextPrestigeMultiplier(saveWith(level: 1)), closeTo(1.2, 1e-9));
+      expect(nextPrestigeMultiplier(saveWith(level: 49)), closeTo(6.0, 1e-9));
       expect(nextPrestigeMultiplier(null), closeTo(1.1, 1e-9));
     });
 
     test('and a run deep enough to float is still readable', () {
-      // `1.1 ^ 7` is 1.9487171000000004, and a bare interpolation would have
-      // put every digit of that on the card.
-      expect(formatPrestigeMultiplier(prestigeMultiplierFor(7)), '1.95');
+      // A tenth added seven times is 1.7000000000000002 in binary floating
+      // point, and a bare interpolation would have put every digit of that on
+      // the card — the same reason this formatter existed for `1.1 ^ 7`.
+      expect(formatPrestigeMultiplier(prestigeMultiplierFor(7)), '1.7');
+      expect(formatPrestigeMultiplier(1.9487171000000004), '1.95');
       expect(formatPrestigeMultiplier(1.1), '1.1');
       expect(formatPrestigeMultiplier(2), '2');
       expect(formatPrestigeMultiplier(1.21), '1.21');

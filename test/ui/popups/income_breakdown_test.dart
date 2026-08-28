@@ -159,7 +159,10 @@ void main() {
         findsOneWidget,
         reason: 'the coin chip explains nothing',
       );
-      expect(find.text(t('hud.income.title')), findsOneWidget);
+      // A bottom sheet now, not a Coach Colin card — so the title is
+      // `SheetHeader`'s caps rather than his plate. See the file's own header.
+      expect(find.byKey(const ValueKey('bottom-sheet-popup')), findsOneWidget);
+      expect(find.text(t('hud.income.title').toUpperCase()), findsOneWidget);
       expect(find.byKey(const ValueKey('income-net')), findsOneWidget);
     });
   });

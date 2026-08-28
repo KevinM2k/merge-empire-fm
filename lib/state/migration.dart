@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
+import 'package:merge_empire_fc/engine/season_end.dart' show prestigeMultiplierFor;
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/migration_progression.dart';
@@ -507,10 +508,12 @@ void _migrateEconomy(Map<String, dynamic> data) {
     // against the JS save — the main tool for proving the port faithful.
     prestige['level'] = lvl == lvl.roundToDouble() ? lvl.toInt() : lvl;
 
-    // Recompute after the income bonus changed from 1.5 to 1.1 per level.
+    // Recompute after the income bonus changed from 1.5 to 1.1 per level, and
+    // again when it stopped compounding — see [prestigeMultiplierFor]. A save
+    // written under the old power carries a multiplier this one never issues.
     final level = lvl;
     if (level > 0) {
-      final m = math.pow(1.1, level).toDouble();
+      final m = prestigeMultiplierFor(level.toInt());
       prestige['incomeMultiplier'] = m.isFinite ? m : 1.0;
     } else {
       final mult = _num(prestige['incomeMultiplier'])?.toDouble();

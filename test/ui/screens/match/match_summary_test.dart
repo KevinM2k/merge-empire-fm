@@ -651,4 +651,73 @@ void main() {
       reason: 'the two boxes finish at different heights',
     );
   });
+
+/// **A CUP TIE THAT WENT TO PENALTIES PRINTS THE NINETY MINUTES.**
+///
+/// The engine folds the shootout's winning goal into `homeGoals`/`awayGoals` so
+/// `won` and the recorded score agree, and a parity fixture reads those fields —
+/// so the divergence lives on the screen. Reported from an Android handset: "I
+/// drew 1-1 in a cup game, it should have went to pens, but instead it didnt, it
+/// came up defeat and said they won 1-2".
+group('a tie decided on penalties', () {
+  Map<String, dynamic> tie({required bool playerWins}) => {
+    ...result(won: playerWins),
+    'isCup': true,
+    'homeGoals': playerWins ? 2 : 1,
+    'awayGoals': playerWins ? 1 : 2,
+    'penaltyShootout': <String, dynamic>{
+      'playerWins': playerWins,
+      'homeScore': playerWins ? 4 : 3,
+      'awayScore': playerWins ? 3 : 4,
+      'kicks': [
+        {'team': 'home', 'scored': true},
+        {'team': 'away', 'scored': false},
+      ],
+    },
+  };
+
+  test('the printed score has the shootout goal taken back out', () {
+    expect(regulationScore(tie(playerWins: false)), (1, 1));
+    expect(regulationScore(tie(playerWins: true)), (1, 1));
+    // A tie that was NOT level is left exactly alone.
+    expect(regulationScore(result(won: true)), (2, 0));
+  });
+
+  testWidgets('so a shootout defeat reads 1-1 and says how it was lost', (
+    tester,
+  ) async {
+    await pumpSummary(tester, tie(playerWins: false));
+    expect(find.text(t('match.defeat').toUpperCase()), findsOneWidget);
+    // The scoreline the player complained about read `1–2`.
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('summary-score'))).data,
+      '1–1',
+    );
+  });
+
+  testWidgets('AND THE PENS ARE UNDER THE SCORE, not below the fold', (
+    tester,
+  ) async {
+    await pumpSummary(tester, tie(playerWins: false));
+    final row = find.byKey(const ValueKey('shootout-row'));
+    expect(row, findsOneWidget, reason: 'nothing said it went to pens');
+    expect(
+      tester.getTopLeft(row).dy,
+      lessThan(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('summary-reaction-row')))
+            .dy,
+      ),
+      reason: 'the table, the scorers and the dugout came first, which put '
+          'the pens under the fold',
+    );
+    // Directly under the card it completes, with nothing between them.
+    expect(
+      tester.getTopLeft(row).dy,
+      greaterThan(tester.getBottomLeft(find.byKey(const ValueKey('summary-score'))).dy),
+    );
+    expect(find.text('3 – 4'), findsOneWidget);
+  });
+});
+
 }
