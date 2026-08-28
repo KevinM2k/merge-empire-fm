@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
 const CardView _view = (
@@ -372,6 +373,46 @@ void main() {
       }
     });
   });
+  group('THE PICTURE SITS IN A WELL, not across the whole card', () {
+    testWidgets('inset from the border, under the strip, above the footer', (
+      tester,
+    ) async {
+      // `.card-artwrap` is `flex: 1; margin: 2px 3px 0` under a 4px
+      // `.card-strip`, with `.card-footer` below it. The port had the portrait
+      // as a `Positioned.fill` across the whole card with everything floating
+      // over it, so the drawing ran under the border and under the rating chip.
+      await pumpCard(tester, _view);
+      final card = tester.getRect(find.byType(PlayerCard));
+      final art = tester.getRect(find.byType(ArtImage));
+
+      expect(art.left, greaterThan(card.left));
+      expect(art.right, lessThan(card.right));
+      // The 2pt border, the 4pt strip and the 2pt margin.
+      expect(art.top, greaterThanOrEqualTo(card.top + 8));
+      // And it stops at the footer rather than running behind it.
+      expect(
+        art.bottom,
+        lessThanOrEqualTo(tester.getRect(find.text(_view.name)).top),
+      );
+    });
+
+    testWidgets('and the WHOLE figure fits — contain, not a crop', (
+      tester,
+    ) async {
+      // `object-fit: contain`. The port used `fitWidth`, which scales a square
+      // drawing to the card's full width and pins it to the top: bigger than
+      // the well the spec gives it, and cropped. A pass before that had tried
+      // `contain` across the whole CARD and backed it out for the band of
+      // nothing it left above his head — that is a 3:4 box, and the well is
+      // near enough square.
+      await pumpCard(tester, _view);
+      expect(
+        tester.widget<ArtImage>(find.byType(ArtImage)).fit,
+        BoxFit.contain,
+      );
+    });
+  });
+
   group('THE TRAIT IS ON THE CARD', () {
     // It was visible only on the sheet a tap opens, so picking an eleven — or
     // choosing who comes on — was done blind to half of what a player is

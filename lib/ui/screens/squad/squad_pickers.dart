@@ -620,43 +620,40 @@ class _SlotPicker extends ConsumerStatefulWidget {
 }
 
 class _SlotPickerState extends ConsumerState<_SlotPicker> {
-  late String _filter = widget.slotPosition;
+  late String _filter;
 
-  static const _lines = ['ALL', 'GK', 'DEF', 'MID', 'FWD'];
+  @override
+  void initState() {
+    super.initState();
+    // **The slot's own line, unless nobody plays it.** The JS defaults the
+    // filter to `slotPos` and stops there, which on a squad with no reserve
+    // keeper opens the picker on an empty sheet and a chip the manager has to
+    // work out to un-press. If the default line offers nobody, it opens on ALL.
+    final line = widget.slotPosition;
+    final any = ref
+        .read(slotCandidatesProvider(widget.slotPosition))
+        .any((entry) => entry.card.position == line);
+    _filter = any ? line : 'ALL';
+  }
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final pro = ref.watch(proModeProvider);
     final candidates = [
       for (final entry in ref.watch(
         slotCandidatesProvider(widget.slotPosition),
       ))
         if (_filter == 'ALL' || entry.card.position == _filter) entry,
     ];
+    final light = Theme.of(context).brightness == Brightness.light;
 
     return Column(
       key: const ValueKey('slot-picker'),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-          child: Row(
-            children: [
-              for (final line in _lines)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    key: ValueKey('slot-filter-$line'),
-                    label: Text(
-                      line == 'ALL' ? t('pi.filter.all') : t('pos.$line'),
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    selected: _filter == line,
-                    onSelected: (_) => setState(() => _filter = line),
-                  ),
-                ),
-            ],
-          ),
+        PositionFilterBar(
+          keyPrefix: 'slot-filter',
+          value: _filter,
+          onChanged: (line) => setState(() => _filter = line),
         ),
         Expanded(
           child: candidates.isEmpty
@@ -671,110 +668,148 @@ class _SlotPickerState extends ConsumerState<_SlotPicker> {
                     ),
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+              // **CARDS, THREE ACROSS — the bench's own grid.** The JS lists
+              // them as rows and the port followed it, so the one sheet in the
+              // game where a manager compares players against each other showed
+              // each of them as a 40px thumbnail on a line of text, while the
+              // bench two taps away showed the same men as cards. Asked for
+              // directly, and it is the same [benchColumns] count so the two
+              // sheets do not disagree about how wide a player is.
+              : GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: benchColumns(
+                      MediaQuery.sizeOf(context).width,
+                    ),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    // The card keeps the bench's 0.78; the cell is taller by
+                    // the pill under it, which is the one thing this sheet
+                    // knows that the bench does not.
+                    childAspectRatio: 0.66,
+                  ),
                   itemCount: candidates.length,
                   itemBuilder: (context, i) {
                     final entry = candidates[i];
-                    final pColor = penaltyColor(entry.penalty);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Material(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: kit.border),
-                        ),
-                        child: InkWell(
-                          key: ValueKey('slot-pick-${entry.instanceId}'),
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            swapIntoSlot(
-                              ref,
-                              slotId: widget.slotId,
-                              instanceId: entry.instanceId,
-                            );
-                            Navigator.of(context).pop();
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Row(
-                              children: [
-                                // A MINI CARD of the player in their tier's
-                                // colours, not a circular avatar — a player
-                                // reads as a card everywhere else in the game.
-                                SizedBox(
-                                  width: 40,
-                                  height: 52,
-                                  child: PlayerCard(
-                                    view: entry.card,
-                                    light:
-                                        Theme.of(context).brightness ==
-                                        Brightness.light,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        entry.card.name,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 1),
-                                      Text(
-                                        [
-                                          t('pos.${entry.card.position}'),
-                                          if (entry.seasons > 0)
-                                            'S${entry.seasons}',
-                                          if (pro && entry.card.fitness != null)
-                                            '${(entry.card.fitness! * 100).round()}%',
-                                        ].join(' · '),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: kit.textMuted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // What he is worth IN THIS SLOT.
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: penaltyBg(entry.penalty),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: pColor),
-                                  ),
-                                  child: Text(
-                                    '${entry.effRating}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w900,
-                                      color: pColor,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                    return GestureDetector(
+                      key: ValueKey('slot-pick-${entry.instanceId}'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        swapIntoSlot(
+                          ref,
+                          slotId: widget.slotId,
+                          instanceId: entry.instanceId,
+                        );
+                        Navigator.of(context).pop();
+                      },
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: PlayerCard(view: entry.card, light: light),
                           ),
-                        ),
+                          const SizedBox(height: 4),
+                          // What he is worth IN THIS SLOT, and what the slot
+                          // costs him. The whole reason this sheet is not just
+                          // the bench again, so it stays on every candidate.
+                          _EffPill(
+                            rating: entry.effRating,
+                            penalty: entry.penalty,
+                          ),
+                        ],
                       ),
                     );
                   },
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// A candidate's rating FOR THE SLOT, coloured by what playing out of position
+/// costs him.
+class _EffPill extends StatelessWidget {
+  const _EffPill({required this.rating, required this.penalty});
+
+  final int rating;
+  final double penalty;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = penaltyColor(penalty);
+    return Container(
+      height: 20,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: penaltyBg(penalty),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: ink),
+      ),
+      child: Text(
+        '$rating',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          color: ink,
+        ),
+      ),
+    );
+  }
+}
+
+/// The line filter — All, GK, DEF, MID, FWD.
+///
+/// **The spec hangs this bar on TWO sheets** and the port had it on one.
+/// `_benchFilterDefs()` in `SquadScreen.js` is built once and passed to both
+/// `_openSlotPicker` and the bench sheet, so the bench had a way to narrow
+/// twenty-odd cards down to the four centre backs; the port's bench had none,
+/// which is the half of this that was asked for. One bar, both sheets — two
+/// copies would drift the moment either gained a line.
+///
+/// It scrolls, because five chips of translated position names do not fit
+/// across a 320pt phone in every language.
+class PositionFilterBar extends StatelessWidget {
+  const PositionFilterBar({
+    required this.value,
+    required this.onChanged,
+    required this.keyPrefix,
+    super.key,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  /// What the chips' keys are prefixed with, so two bars on two sheets are two
+  /// findable things.
+  final String keyPrefix;
+
+  static const List<String> lines = ['ALL', 'GK', 'DEF', 'MID', 'FWD'];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+        children: [
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Center(
+                child: ChoiceChip(
+                  key: ValueKey('$keyPrefix-$line'),
+                  label: Text(
+                    line == 'ALL' ? t('pi.filter.all') : t('pos.$line'),
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  selected: value == line,
+                  onSelected: (_) => onChanged(line),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

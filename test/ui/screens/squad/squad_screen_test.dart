@@ -805,29 +805,35 @@ void main() {
       );
     });
 
-    testWidgets('THE LEVER PULLS, and it is the machine\'s own handle', (
-      tester,
-    ) async {
-      // The JS spins from a rod-and-ball lever beside the face; the port had
-      // replaced it with a rectangular button, which is most of why the thing
-      // stopped reading as a slot machine.
+    testWidgets('THE WINDOW HAS NO HANDLE BESIDE IT', (tester) async {
+      // The JS spins from a rod-and-ball lever and the port had ported it.
+      // Asked to be taken off: the gold pill is the only control a roll needs,
+      // and it is the one that says what one costs.
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
       await scrollSheetTo(tester, 'detail-trait-roll');
       await tester.pumpAndSettle();
 
-      final lever = find.byKey(const ValueKey('detail-trait-lever'));
-      expect(lever, findsOneWidget);
-      await tester.tap(lever);
-      await tester.pump();
-      final block = tester.state<TraitBlockState>(find.byType(TraitBlock));
-      expect(block.spinning, isTrue, reason: 'the handle did not spin it');
-      await tester.pump(
-        TraitBlockState.spin +
-            TraitBlockState.flash +
-            const Duration(milliseconds: 800),
-      );
+      expect(find.byKey(const ValueKey('detail-trait-lever')), findsNothing);
+      await settleSave(tester);
+    });
+
+    testWidgets('AND THE ROWS EITHER SIDE ARE TURNED AWAY', (tester) async {
+      // Asked for as "slightly transparent or more skewed", and it is both
+      // halves: the reel is a drum rather than three stacked labels, and the
+      // window carries the edge fade `TraitRoulette.js` has always ended with
+      // and the port had never drawn.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'trait-reel-name');
       await tester.pumpAndSettle();
+
+      final reel = tester.widget<ListWheelScrollView>(
+        find.byKey(const ValueKey('trait-reel-name')),
+      );
+      expect(reel.overAndUnderCenterOpacity, lessThan(1));
+      expect(reel.diameterRatio, lessThan(1.6));
+      expect(find.byKey(const ValueKey('trait-reel-fade')), findsOneWidget);
       await settleSave(tester);
     });
 
@@ -974,9 +980,16 @@ void main() {
       await settleSave(tester);
     });
 
-    test('and the spin is long enough to be worth watching', () {
-      // 900ms was a flick. A reel the player has just paid for should turn.
-      expect(TraitBlockState.spin.inMilliseconds, greaterThanOrEqualTo(1600));
+    test('and the spin runs for the SPEC\'s five seconds', () {
+      // `ANIM_MS = 5000` in `TraitRoulette.js`, with the name reel stopping at
+      // 58% of it — so the answer lands at 2.9s, which is the ~3s of roll that
+      // was asked for. 900ms was a flick and 1900 was a guess.
+      expect(TraitBlockState.spin.inMilliseconds, 5000);
+      expect(
+        (TraitBlockState.spin * 0.58).inMilliseconds,
+        greaterThanOrEqualTo(2500),
+        reason: 'the name reel lands too early to read as a spin',
+      );
     });
 
     testWidgets('rolling charges, spins, and lands a trait', (tester) async {
@@ -1206,6 +1219,98 @@ void main() {
       await tester.tap(find.byKey(ValueKey('squad-slot-$slotId')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('slot-picker')), findsOneWidget);
+      await settleSave(tester);
+    });
+
+    testWidgets('and the picker offers CARDS, three across, not list rows', (
+      tester,
+    ) async {
+      // The JS lists candidates as 40px thumbnails on rows of text and the port
+      // followed it, so the one sheet where a manager compares players showed
+      // them smaller than the bench two taps away does. Asked for directly.
+      final container = await pumpSquad(tester, cards: 16);
+      final slotId = container.read(pitchSlotsProvider).first.slotId;
+      container.read(gameProvider).update((s) {
+        for (final row in ((s['squad'] as Map)['lineup'] as List)) {
+          if ((row as Map)['slotId'] == slotId) row['cardInstanceId'] = null;
+        }
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-slot-$slotId')));
+      await tester.pumpAndSettle();
+
+      final grid = tester.widget<GridView>(
+        find.descendant(
+          of: find.byKey(const ValueKey('slot-picker')),
+          matching: find.byType(GridView),
+        ),
+      );
+      final delegate =
+          grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+      // The bench's own count, so the two sheets do not disagree about how wide
+      // a player is.
+      expect(delegate.crossAxisCount, greaterThanOrEqualTo(3));
+      expect(find.byType(PlayerCard), findsWidgets);
+      await settleSave(tester);
+    });
+
+    testWidgets('and it never opens on an empty sheet when anyone is free', (
+      tester,
+    ) async {
+      // The JS defaults the filter to the slot's own line and stops there, so a
+      // squad with no reserve keeper opened the GK picker on nothing at all and
+      // a chip the manager had to work out to un-press.
+      final container = await pumpSquad(tester, cards: 13);
+      final gkSlot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotPosition == 'GK');
+      container.read(gameProvider).update((s) {
+        for (final row in ((s['squad'] as Map)['lineup'] as List)) {
+          if ((row as Map)['slotId'] == gkSlot.slotId) {
+            row['cardInstanceId'] = null;
+          }
+        }
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-slot-${gkSlot.slotId}')));
+      await tester.pumpAndSettle();
+
+      final free = container.read(slotCandidatesProvider('GK'));
+      expect(free, isNotEmpty, reason: 'nobody is free, so this proves nothing');
+      final keeper = free.any((entry) => entry.card.position == 'GK');
+      final chip = tester.widget<ChoiceChip>(
+        find.byKey(ValueKey('slot-filter-${keeper ? 'GK' : 'ALL'}')),
+      );
+      expect(chip.selected, isTrue);
+      expect(find.byKey(const ValueKey('slot-picker-empty')), findsNothing);
+      await settleSave(tester);
+    });
+
+    testWidgets('THE BENCH FILTERS BY LINE, and the spec always did', (
+      tester,
+    ) async {
+      // `_benchFilterDefs()` is built once in `SquadScreen.js` and hung on both
+      // the picker and the bench; the port had it on the picker only, so the
+      // one sheet that runs to twenty-odd cards was the one with no way to
+      // narrow it.
+      final container = await pumpSquad(tester, cards: 16);
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+
+      final bench = container.read(benchProvider);
+      expect(bench.length, greaterThan(1));
+      final line = bench.first.card.position;
+      await tester.tap(find.byKey(ValueKey('bench-filter-$line')));
+      await tester.pumpAndSettle();
+
+      for (final entry in bench) {
+        final card = find.byKey(ValueKey('squad-bench-${entry.instanceId}'));
+        expect(
+          card,
+          entry.card.position == line ? findsOneWidget : findsNothing,
+          reason: '${entry.card.name} is a ${entry.card.position}',
+        );
+      }
       await settleSave(tester);
     });
 

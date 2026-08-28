@@ -618,60 +618,108 @@ Future<void> showBenchSheet(BuildContext context, WidgetRef ref) {
   return showBottomSheetPopup<void>(
     context,
     heightFraction: 0.72,
-    child: Consumer(
-      builder: (sheetContext, sheetRef, _) {
-        final kit = Theme.of(sheetContext).extension<KitTheme>()!;
-        final bench = sheetRef.watch(benchProvider);
-        if (bench.isEmpty) {
-          // Not a `Center`: it fills, so an empty bench was 72% of the
-          // screen holding one sentence.
-          return Padding(
-            key: const ValueKey('squad-bench-empty'),
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+    child: const _BenchSheet(),
+  );
+}
+
+/// **The bench filters by line, which the spec has and the port did not.**
+/// `SquadScreen.js` builds one `_benchFilterDefs()` and hangs the bar on both
+/// the bench sheet and the slot picker; the port ported it onto the picker
+/// only, so the one sheet in the game that can run to twenty-odd cards was the
+/// one with no way to narrow it. Same bar, so the two cannot disagree.
+class _BenchSheet extends ConsumerStatefulWidget {
+  const _BenchSheet();
+
+  @override
+  ConsumerState<_BenchSheet> createState() => _BenchSheetState();
+}
+
+class _BenchSheetState extends ConsumerState<_BenchSheet> {
+  /// Opens on the whole bench. The picker defaults to a line because it is
+  /// filling one slot; this sheet is the squad, and a manager who opened it to
+  /// look at their squad should see it.
+  String _filter = 'ALL';
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final all = ref.watch(benchProvider);
+    if (all.isEmpty) {
+      // Not a `Center`: it fills, so an empty bench was 72% of the
+      // screen holding one sentence.
+      return Padding(
+        key: const ValueKey('squad-bench-empty'),
+        padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+        child: Text(
+          t('squad.bench.empty'),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: kit.textMuted),
+        ),
+      );
+    }
+    final bench = [
+      for (final entry in all)
+        if (_filter == 'ALL' || entry.card.position == _filter) entry,
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PositionFilterBar(
+          keyPrefix: 'bench-filter',
+          value: _filter,
+          onChanged: (line) => setState(() => _filter = line),
+        ),
+        if (bench.isEmpty)
+          // A line nobody plays. The bench itself is not empty, so it does not
+          // get the sentence about dragging players onto it.
+          Padding(
+            key: const ValueKey('squad-bench-filtered-empty'),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
             child: Text(
-              t('squad.bench.empty'),
+              t('squad.picker.empty'),
               textAlign: TextAlign.center,
               style: TextStyle(color: kit.textMuted),
             ),
-          );
-        }
-        return GridView.builder(
-          key: const ValueKey('squad-bench'),
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(12),
-          // Three across on a phone, wider on a tablet — the same count the
-          // match's bench uses, because it is the same bench and two different
-          // answers would read as a bug.
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: benchColumns(
-              MediaQuery.sizeOf(sheetContext).width,
+          )
+        else
+          Flexible(
+            child: GridView.builder(
+              key: const ValueKey('squad-bench'),
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              // Three across on a phone, wider on a tablet — the same count the
+              // match's bench uses, because it is the same bench and two
+              // different answers would read as a bug.
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: benchColumns(MediaQuery.sizeOf(context).width),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 0.78,
+              ),
+              itemCount: bench.length,
+              itemBuilder: (context, i) {
+                final entry = bench[i];
+                return GestureDetector(
+                  onTap: () => _openDetail(
+                    context,
+                    ref,
+                    instanceId: entry.instanceId,
+                    slotId: null,
+                  ),
+                  child: BidTargetMark(
+                    instanceId: entry.instanceId,
+                    child: PlayerCard(
+                      key: ValueKey('squad-bench-${entry.instanceId}'),
+                      view: entry.card,
+                      light: Theme.of(context).brightness == Brightness.light,
+                    ),
+                  ),
+                );
+              },
             ),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 0.78,
           ),
-          itemCount: bench.length,
-          itemBuilder: (context, i) {
-            final entry = bench[i];
-            return GestureDetector(
-              onTap: () => _openDetail(
-                sheetContext,
-                sheetRef,
-                instanceId: entry.instanceId,
-                slotId: null,
-              ),
-              child: BidTargetMark(
-                instanceId: entry.instanceId,
-                child: PlayerCard(
-                  key: ValueKey('squad-bench-${entry.instanceId}'),
-                  view: entry.card,
-                  light: Theme.of(context).brightness == Brightness.light,
-                ),
-              ),
-            );
-          },
-        );
-      },
-    ),
-  );
+      ],
+    );
+  }
 }

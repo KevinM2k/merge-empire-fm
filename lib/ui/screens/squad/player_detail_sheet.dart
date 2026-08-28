@@ -30,6 +30,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1276,18 +1277,26 @@ class TraitBlock extends ConsumerStatefulWidget {
 
 class TraitBlockState extends ConsumerState<TraitBlock>
     with SingleTickerProviderStateMixin {
-  /// How long the reels run.
-  ///
-  /// **Nine hundred milliseconds was a flick, not a spin.** A roll is bought
-  /// with coins and it is the only gamble on the screen; the wheel has to turn
-  /// long enough to be worth having watched. The ease-out does the rest — most
-  /// of the travel goes early, so a longer spin reads as slowing down rather
-  /// than as waiting.
-  static const Duration spin = Duration(milliseconds: 1900);
+  /// How long the reels run. **The spec's own `ANIM_MS`, which is 5000** —
+  /// 900ms was a flick, 1900 was a guess, and neither is what the JS does. The
+  /// name reel stops at 58% of it, so the answer lands at 2.9s and the level
+  /// follows it two seconds later, which is the ~3s that was asked for.
+  static const Duration spin = Duration(milliseconds: 5000);
 
-  /// How many times round before it lands. Enough to read as a spin rather than
-  /// a jump, and the looping delegate is what makes it free.
-  static const int _revolutions = 5;
+  /// How many times round before it lands — `BASE_NAME = 3 * nameItems.length`
+  /// in `TraitRoulette.js`, which then searches FORWARD for the outcome, so a
+  /// spin is three laps plus wherever it comes up. The looping delegate is what
+  /// makes the laps free.
+  static const int _revolutions = 3;
+
+  /// The spec's easing: `easeOut = (t) => 1 - Math.pow(1 - t, 2.5)`.
+  ///
+  /// **`Curves.easeOutCubic` is pow 3 and it is why the reel crept.** At the
+  /// halfway mark a cubic is 87.5% of the way home, so seven eighths of the
+  /// travel happened in the first second and the remaining four were a reel
+  /// inching onto its stop. Pow 2.5 is 82% at the half — still a decelerating
+  /// reel, but one that is visibly turning for most of the spin.
+  static const Curve _ease = _EaseOutPow(2.5);
 
   /// Row height, and the reel shows three rows: the one either side is what
   /// makes it a wheel rather than a label.
@@ -1431,7 +1440,7 @@ class TraitBlockState extends ConsumerState<TraitBlock>
       _names.animateToItem(
         pool.length * _revolutions + landing,
         duration: spin * 0.58,
-        curve: Curves.easeOutCubic,
+        curve: _ease,
       ),
       _levels.animateToItem(
         // **THE SAME DISTANCE, not the same number of revolutions.** The level
@@ -1442,7 +1451,7 @@ class TraitBlockState extends ConsumerState<TraitBlock>
         _levelRows.length * _revolutions * (pool.length / _levelRows.length).ceil() +
             (isNone ? _noneRow : (roll.level - 1).clamp(0, 2)),
         duration: spin,
-        curve: Curves.easeOutCubic,
+        curve: _ease,
       ),
     ]);
     for (final stop in stopRatchets) {
@@ -1603,17 +1612,14 @@ class TraitBlockState extends ConsumerState<TraitBlock>
           // them so the numeral has its own cell, and a lit band across the
           // middle marking the row that counts. The reference shot draws it the
           // same way, and it needed no new copy at all.
-          // **AND THE MACHINE HAS ITS HANDLE BACK.** The JS puts a lever beside
-          // the face — a rod and a weighted ball you pull — and the port
-          // replaced it with a rectangular button, which is most of why a slot
-          // machine stopped reading as one. The cost stays on the gold pill
-          // below, because a gamble has to say what it takes; this is the part
-          // you pull.
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
+          //
+          // **THE HANDLE IS GONE, and that is a divergence from the spec.**
+          // `TraitRoulette.js` puts a rod-and-ball lever beside the face and
+          // the port had ported it. Asked for directly: the gold pill under the
+          // window is the only control a roll needs, and it is the one that
+          // says what one costs. Nothing else on this sheet has two ways to
+          // press it.
+          Container(
             height: _rowHeight * 3,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -1657,60 +1663,85 @@ class TraitBlockState extends ConsumerState<TraitBlock>
                   ),
                 ),
                 Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: _Reel(
-                    reelKey: 'trait-reel-name',
-                    controller: _names,
-                    rowHeight: _rowHeight,
-                    children: [
-                      for (final trait in pool)
-                        Text(
-                          '${trait.icon} ${traitName(trait)}',
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                    ],
-                  ),
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: _Reel(
+                        reelKey: 'trait-reel-name',
+                        controller: _names,
+                        rowHeight: _rowHeight,
+                        children: [
+                          for (final trait in pool)
+                            Text(
+                              '${trait.icon} ${traitName(trait)}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // The rule that gives the numeral its own cell.
+                    Container(width: 1, color: kit.border),
+                    Expanded(
+                      child: _Reel(
+                        reelKey: 'trait-reel-level',
+                        controller: _levels,
+                        rowHeight: _rowHeight,
+                        children: [
+                          for (final row in _levelRows)
+                            Text(
+                              row.label,
+                              textAlign: TextAlign.center,
+                              // Its own metal, which beats the reel's default
+                              // ink — an explicit colour wins over
+                              // `DefaultTextStyle`.
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: row.ink,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                // The rule that gives the numeral its own cell.
-                Container(width: 1, color: kit.border),
-                Expanded(
-                  child: _Reel(
-                    reelKey: 'trait-reel-level',
-                    controller: _levels,
-                    rowHeight: _rowHeight,
-                    children: [
-                      for (final row in _levelRows)
-                        Text(
-                          row.label,
-                          textAlign: TextAlign.center,
-                          // Its own metal, which beats the reel's default ink —
-                          // an explicit colour wins over `DefaultTextStyle`.
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: row.ink,
-                          ),
+                // **THE EDGE FADE, and the spec has always had one.** `.tr2`
+                // ends with a `linear-gradient(180deg, surface 0%, transparent
+                // 10%, transparent 90%, surface 100%)` laid over the whole
+                // face, and the port drew neither it nor anything in its place:
+                // the rows above and below the answer were as solid as the
+                // answer, so three equally-lit lines read as a list with a
+                // stripe on it rather than as a drum with a face. Asked for as
+                // "slightly transparent or more skewed" — this is both halves,
+                // the fade here and the curve on the reel itself.
+                //
+                // Last in the stack, which is the JS's order too: it dissolves
+                // the lit band's own top and bottom edges into the frame.
+                Positioned.fill(
+                  key: const ValueKey('trait-reel-fade'),
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            kit.surface2,
+                            kit.surface2.withValues(alpha: 0),
+                            kit.surface2.withValues(alpha: 0),
+                            kit.surface2,
+                          ],
+                          stops: const [0, 0.1, 0.9, 1],
                         ),
-                    ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-              ],
-            ),
-          ),
-              ),
-              const SizedBox(width: 8),
-              _PullLever(
-                height: _rowHeight * 3,
-                onPull: _spinning || coins < cost ? null : () => _roll(pool),
-              ),
-            ],
           ),
           const SizedBox(height: 12),
           // **A GOLD BAR ACROSS THE CARD.** The cost rides on the button with
@@ -2011,151 +2042,13 @@ class _TraitBadge extends StatelessWidget {
 /// Looping, so a spin can run several times round a pool of fifteen without the
 /// JS's trick of repeating the strip seven times in the markup. The middle row is
 /// the one that counts, which is what the highlight marks.
-/// The slot machine's handle — a rod and a weighted ball you pull.
 ///
-/// Ported from the `handleWrap` block of `TraitRoulette.js`, which the port had
-/// dropped entirely in favour of a rectangular button. A lever is the one
-/// control that says "this is a gamble" without a word of copy, which is why
-/// the JS has one and why it needed no new `t()` key to bring back.
-///
-/// **It springs rather than sliding back.** The JS drops the ball in 100ms and
-/// returns it over 400ms on `cubic-bezier(0.22,1.5,0.36,1)` — an overshoot, so
-/// the handle bounces off its stop the way a sprung one does. `easeOutBack` is
-/// that curve; a plain ease would read as the ball being lifted by hand.
-class _PullLever extends StatefulWidget {
-  const _PullLever({required this.height, required this.onPull});
-
-  final double height;
-
-  /// Null while a spin is running or the bank is short — the lever still draws,
-  /// because a slot machine with no handle is not a slot machine, but it dims
-  /// and does not move.
-  final VoidCallback? onPull;
-
-  @override
-  State<_PullLever> createState() => _PullLeverState();
-}
-
-class _PullLeverState extends State<_PullLever>
-    with SingleTickerProviderStateMixin {
-  static const double _ball = 26;
-  static const double _rodWidth = 5;
-
-  late final AnimationController _pull = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 500),
-  );
-
-  /// Down fast on the first fifth, sprung back over the rest.
-  late final Animation<double> _dip = TweenSequence<double>([
-    TweenSequenceItem(
-      tween: Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeIn)),
-      weight: 20,
-    ),
-    TweenSequenceItem(
-      tween: Tween(
-        begin: 1.0,
-        end: 0.0,
-      ).chain(CurveTween(curve: Curves.easeOutBack)),
-      weight: 80,
-    ),
-  ]).animate(_pull);
-
-  @override
-  void dispose() {
-    _pull.dispose();
-    super.dispose();
-  }
-
-  void _onTap() {
-    final pull = widget.onPull;
-    if (pull == null) return;
-    _pull.forward(from: 0);
-    pull();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final dead = widget.onPull == null;
-    // How far the ball travels: down its own lane, stopping short of the base.
-    final travel = widget.height - _ball - 8;
-    return GestureDetector(
-      key: const ValueKey('detail-trait-lever'),
-      onTap: _onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Opacity(
-        opacity: dead ? 0.45 : 1,
-        child: SizedBox(
-          width: 32,
-          height: widget.height,
-          child: Stack(
-            alignment: Alignment.topCenter,
-            children: [
-              // The rod is fixed and the ball slides down it, which is the JS's
-              // arrangement — a rod that stretched would read as elastic.
-              Positioned(
-                top: _ball - 4,
-                bottom: 4,
-                child: Container(
-                  width: _rodWidth,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [kit.accentBright, kit.accent],
-                    ),
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(3),
-                    ),
-                  ),
-                ),
-              ),
-              AnimatedBuilder(
-                animation: _dip,
-                builder: (context, child) =>
-                    Padding(
-                      padding: EdgeInsets.only(top: travel * _dip.value),
-                      child: child,
-                    ),
-                child: Container(
-                  width: _ball,
-                  height: _ball,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    // Lit from the top left, like the medal and everything else
-                    // struck out of metal on this sheet.
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.3, -0.4),
-                      colors: [kit.accentBright, kit.accent],
-                    ),
-                    border: Border.all(color: kit.accent, width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x99000000),
-                        blurRadius: 10,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    '▼',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0x99000000),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+/// **AND IT IS A DRUM, not a list.** The rows either side of the answer are
+/// dimmed and turned away from the reader — `overAndUnderCenterOpacity` and a
+/// tighter `diameterRatio` — which is the half of the roller a CSS strip
+/// cannot do at all and is why the JS settles for a gradient over the top of
+/// one. Flutter has the cylinder, so it gets both: the curve here and the
+/// window's own edge fade over it.
 
 class _Reel extends StatelessWidget {
   const _Reel({
@@ -2173,43 +2066,53 @@ class _Reel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: kit.surface2,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: kit.border),
-      ),
-      // **THE BAND BELONGS TO THE WINDOW, NOT TO THE REEL.** There were two of
-      // them: one drawn here per reel and one drawn across the pair, stacked,
-      // so the accent was laid down twice and the rule between the columns cut
-      // the lit row in half. The JS has a single `hl` spanning the whole face —
-      // and it is the one that has to flash the answer, which a per-reel copy
-      // could not do.
-      child: Stack(
-        alignment: Alignment.center,
+    // **NO FRAME OF ITS OWN.** This drew a second `surface2` box with a second
+    // border inside the window's, so the machine had a box round it and two
+    // more inside it. The window is the frame; the reel is only the strip
+    // turning behind it. The lit band belongs to the window too — one `hl`
+    // spanning the whole face, as the JS has it, because it is the band that
+    // has to flash the answer and a per-reel copy could not.
+    return ListWheelScrollView.useDelegate(
+      key: ValueKey(reelKey),
+      controller: controller,
+      itemExtent: rowHeight,
+      // A reel the player cannot flick: the roll is bought, not spun by hand.
+      physics: const NeverScrollableScrollPhysics(),
+      // The drum. `diameterRatio` is the cylinder's width against the viewport
+      // — smaller is a tighter barrel — and 1.6 was near enough flat to read as
+      // three stacked labels. 1.1 turns the rows either side visibly away from
+      // the reader, and the perspective is what stops that being a plain scale.
+      perspective: 0.006,
+      diameterRatio: 1.1,
+      // And they dim. The answer is the only row at full strength, so the eye
+      // has somewhere to land the moment the reel stops.
+      overAndUnderCenterOpacity: 0.42,
+      childDelegate: ListWheelChildLoopingListDelegate(
         children: [
-          ListWheelScrollView.useDelegate(
-            key: ValueKey(reelKey),
-            controller: controller,
-            itemExtent: rowHeight,
-            // A reel the player cannot flick: the roll is bought, not spun by hand.
-            physics: const NeverScrollableScrollPhysics(),
-            perspective: 0.004,
-            diameterRatio: 1.6,
-            childDelegate: ListWheelChildLoopingListDelegate(
-              children: [
-                for (final child in children)
-                  Center(
-                    child: DefaultTextStyle.merge(
-                      style: TextStyle(color: kit.accentBright),
-                      child: child,
-                    ),
-                  ),
-              ],
+          for (final child in children)
+            Center(
+              child: DefaultTextStyle.merge(
+                style: TextStyle(color: kit.accentBright),
+                child: child,
+              ),
             ),
-          ),
         ],
       ),
     );
   }
+}
+
+/// The spec's spin easing, which `Curves` has no member for.
+///
+/// `TraitRoulette.js` runs the whole spin through `1 - Math.pow(1 - t, 2.5)`;
+/// the nearest built-in either side is `easeOutQuad` (2) or `easeOutCubic` (3),
+/// and the difference between 2.5 and 3 is the difference between a reel that
+/// is still turning at three seconds and one that is not.
+class _EaseOutPow extends Curve {
+  const _EaseOutPow(this.power);
+
+  final double power;
+
+  @override
+  double transformInternal(double t) => 1 - math.pow(1 - t, power).toDouble();
 }
