@@ -27,6 +27,7 @@ Club
 [] the humbug design has far too many black and white stripes, makes it hard to see, we should make the stripes wider and the colour should be a bit more transparent so we can read things on it.
 
 General
+[x] There is a new app icon called 'e08bdf35-5ae9-4a01-bb2f-115b5f44d89b.jpeg' in the Personal folder on desktop, please use this for the app icon and for the splash screen stuff.  (the master under `tool/gen_app_icons.py`, so it stays regenerable. The new art is FULL BLEED and the shield it replaces was not, which is three separate assumptions in that generator: the adaptive background can no longer be a corner sample of a flat field — it is the perimeter average now, so a mask showing more than the 72dp safe zone reveals a band that belongs to the picture; the splash logo can no longer be a cut-out, so it takes iOS's corner radius and reads as an icon rather than a stray square of scenery; and the launch background stays #0A1A0F because `LaunchScreen.storyboard` and `boot_splash.dart` both hardcode it and the game it hands over to is dark. The foreground still inlays at 72/108 — full-bleeding it to 108 hands a circle mask the middle two thirds and cuts the manager in half. The source is 512, so the App Store's 1024 is upscaled)
 [] End season page has everything on background, everything sholud be in cards, seperate tehm in to lgoical groups.
 [] the rating in the next match card only shows one decimal, so if a team is 91 vs 81, all we see is 8 vs 9
 [x] We should block horizontal play on phones, there isn't enough room, on tablets/folds its ok, but on normal phones it is not.  (`ui/shell/orientation_lock.dart` — 600dp of SHORTEST side, which is Android's own tablet threshold and does not move when the device is turned. A fold opening is re-measured; the keyboard is not)
@@ -58,7 +59,7 @@ Customise Manager Popup
 [] arms folded need to try again, doesnt really look like arms folded
 [] wave - the arm goes behind the head for some reason
 [] kiss the badge should touch chest then kiss the hand 
-[] lots of animations a little laggy on android - need work
+[] lots of animations a little laggy on android - need work - please check that there aren't multiple things redrawing multiple times on pages that would cause this type of lag. we had this for the manager customise rig initially
 [] on cigar animation there should be little bits of smoke coming out of it
 [] the merge empire football manager text on the hoardings in the background need to move down slightly to be vertically centered.
 [] Occassional lag when playing on android and going through screens/popups
