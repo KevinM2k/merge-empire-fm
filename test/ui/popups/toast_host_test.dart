@@ -8,6 +8,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart' show proLockedAnswer;
 import 'package:merge_empire_fc/ui/popups/toast_host.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 Future<void> pumpToasts(WidgetTester tester) => tester.pumpWidget(
@@ -376,6 +377,52 @@ void main() {
           matching: find.byType(IgnorePointer),
         ),
         findsWidgets,
+      );
+      await tester.pump(const Duration(seconds: 3));
+    });
+
+    /// **IT WAS A HAIRLINE ROUND NOTHING** — reported as "just a clear box
+    /// with a red border". `kit.surface` is the value the page behind it is
+    /// built from, so the box had no edge of its own, and the ink was the kit's
+    /// accent whatever had happened: a refusal was a GREEN sentence inside a
+    /// red outline.
+    testWidgets('A LINE IS A PLATE, and it is the tone all the way through', (
+      tester,
+    ) async {
+      await pumpToasts(tester);
+      emit('merge:refused', {'reason': 'division_locked', 'tier': 3});
+      await tester.pump();
+
+      final box = tester
+          .widget<Container>(find.byKey(const ValueKey('toast')))
+          .decoration as BoxDecoration;
+      final kit = buildAppTheme(
+        kitId: '#4caf50',
+        light: false,
+      ).extension<KitTheme>()!;
+
+      // Opaque, and not the page's own ground.
+      expect(box.color!.a, 1);
+      expect(box.color, isNot(kit.surface));
+      // Something under it, so it reads as being on top of the screen.
+      expect(box.boxShadow, isNotNull);
+      expect(box.boxShadow!, isNotEmpty);
+
+      // And the sentence wears the same colour the border does.
+      expect(box.border, isA<Border>());
+      final edge = (box.border! as Border).top.color;
+      expect(edge, dangerInk);
+      final text = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('toast')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(text.style?.color, dangerInk);
+      expect(
+        text.style?.color,
+        isNot(kit.accentBright),
+        reason: 'a refusal was printed in the kit accent',
       );
       await tester.pump(const Duration(seconds: 3));
     });

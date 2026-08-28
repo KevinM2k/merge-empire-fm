@@ -192,6 +192,26 @@ void main() {
       expect(hoardingText, hoardingText.toUpperCase());
     });
 
+    /// **THE LINE BOX WAS BEING CENTRED, and the ink is not the line box.**
+    /// Every letter on a board is a capital, so the ink runs from the baseline
+    /// up to the cap line and the room a box reserves for descenders is empty
+    /// — which hangs the lettering high. Reported as the hoarding text needing
+    /// to move down slightly.
+    test('and the lettering is centred by its CAPS, not by its line box', () {
+      // Roboto at 5.5 with `height: 1`: a baseline about 4.35 down a 5.5 line.
+      const band = 13.0, baseline = 4.35;
+      final top = hoardingTextTop(band, baseline);
+      // The cap band's own centre lands on the board's.
+      final capTop = top + baseline - hoardingFontSize * 0.72;
+      final capBottom = top + baseline;
+      expect((capTop + capBottom) / 2, closeTo(band / 2, 0.001));
+      // Which is BELOW where centring the box put it.
+      expect(top, greaterThan((band - hoardingFontSize) / 2));
+      // And it stays on the board.
+      expect(capTop, greaterThan(0));
+      expect(capBottom, lessThan(band));
+    });
+
     test('AND THE PITCH IS A FIELD AT THE BOTTOM', () {
       // The port drew the same kept turf at every rank. The spec scales it hard
       // and says why — nobody mows a Sunday League pitch — so the bottom of the

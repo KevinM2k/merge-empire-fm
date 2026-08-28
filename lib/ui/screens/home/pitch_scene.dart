@@ -1833,11 +1833,32 @@ class _StandPainter extends CustomPainter {
 /// key can be added from this repo.
 const String hoardingText = 'MERGE EMPIRE FOOTBALL MANAGER';
 
+/// **SMALL, and that is the point — it is in the DISTANCE.** Big enough to read
+/// as lettering on a board, too small to read as a sentence, which is exactly
+/// how advertising behind a pitch looks from the touchline.
+const double hoardingFontSize = 5.5;
+
 /// **The lowest tier with advertising.** A park has a fence and a hedge; nobody
 /// sells perimeter space at a ground with no stand. Same boundary as
 /// [firstStandTier] and deliberately so — the two arrive together, which is what
 /// makes tier 2 read as the first real GROUND.
 const int firstHoardingTier = firstStandTier;
+
+/// The cap band, as a fraction of the font size. Every letter on a board is a
+/// capital, so this IS the ink: there is nothing below the baseline and nothing
+/// above the cap line.
+const double _hoardingCap = 0.72;
+
+/// Where the lettering's top edge goes on a board [height] tall, given the
+/// paragraph's [baseline].
+///
+/// **The LINE BOX was being centred, and the ink is not the line box.** A box
+/// reserves room under the baseline for descenders that a line of capitals
+/// never uses, so centring it hangs the lettering high on the board — reported
+/// as the text needing to move down slightly to be vertically centred. This
+/// centres the cap band instead, which is the part anyone can see.
+double hoardingTextTop(double height, double baseline) =>
+    height / 2 + hoardingFontSize * _hoardingCap / 2 - baseline;
 
 class _HoardingSegment extends StatelessWidget {
   const _HoardingSegment({required this.kitColor});
@@ -1862,15 +1883,12 @@ class _HoardingPainter extends CustomPainter {
   static final Map<double, ui.Paragraph> _cache = {};
 
   ui.Paragraph _lettering(double width) => _cache.putIfAbsent(width, () {
-    // **SMALL, and that is the point — it is in the DISTANCE.** Big enough to
-    // read as lettering on a board, too small to read as a sentence, which is
-    // exactly how an advertising hoarding behind a pitch looks from the
-    // touchline. Letter-spaced, because a squashed word at this size is a
-    // smudge and a spaced one is type.
+    // Letter-spaced, because a squashed word at this size is a smudge and a
+    // spaced one is type. See [hoardingFontSize] for why it is this small.
     final builder = ui.ParagraphBuilder(
       ui.ParagraphStyle(
         textAlign: TextAlign.center,
-        fontSize: 5.5,
+        fontSize: hoardingFontSize,
         fontWeight: FontWeight.w900,
       ),
     )
@@ -1904,7 +1922,7 @@ class _HoardingPainter extends CustomPainter {
     canvas.clipRect(Rect.fromLTWH(half, 0, size.width - half, size.height));
     canvas.drawParagraph(
       text,
-      Offset(half, (size.height - text.height) / 2),
+      Offset(half, hoardingTextTop(size.height, text.alphabeticBaseline)),
     );
     canvas.restore();
     final all = Rect.fromLTWH(0, 0, size.width, size.height);

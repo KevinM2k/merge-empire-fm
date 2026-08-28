@@ -284,7 +284,11 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
       }
       club['managerAvatar'] = sanitizeAvatar(s, look);
     });
-    setState(() {});
+    // **AND PICKING SOMETHING ELSE ANSWERS THE OFFER.** A try-on is a locked
+    // item laid over the save for the preview only, so a player who taps a
+    // hat they DO own while one is up would otherwise still be looking at the
+    // locked one, under a bar selling it, with no way out but the ✕.
+    setState(() => _offer = null);
   }
 
   /// A gesture to play once on the preview, or null when he is just walking.
@@ -442,6 +446,14 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     _preview.value = GestureCue(gesture);
   }
 
+  /// The same for a celebration, which equips nothing: playing another one is
+  /// the player moving on from the offer. Called from the chip rather than from
+  /// [_play], because [_offerLockedItem] plays the locked one itself.
+  void _playOwned(String id) {
+    _clearOffer();
+    _play(id);
+  }
+
   void _randomise() {
     ref.read(gameProvider).update((s) {
       final club = s.putIfAbsent('club', () => <String, dynamic>{});
@@ -586,7 +598,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
               ready: _ready,
               state: _save,
               onLocked: (id, watchable) => _offerLockedItem(axis, id),
-              onPlay: _play,
+              onPlay: _playOwned,
               onPick: (id) => _set(
                 axis.field,
                 // Hair colour is stored as the VALUE, not the id — that is
@@ -607,6 +619,33 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
 /// How tall the preview box is. Named because the grass strip is a fraction of
 /// it and the two must not be able to disagree.
 const double _stageHeight = 190;
+
+/// How big he is drawn on it, against the art's own 120×170.
+///
+/// **Asked for — "the body needs to be slightly more zoomed out".** At full
+/// size he was 170 of the box's 190, so the world he is being dressed for was
+/// a strip either side of his shoulders and the top of his hat was a few
+/// pixels off the sky. The camera steps back rather than the figure shrinking:
+/// he keeps the ground under him, and there is now air above his head and turf
+/// in front of his boots.
+const double _previewScale = 0.86;
+
+/// Where his soles meet the turf, from the top of the stage.
+///
+/// A fixed line, so scaling him moves the CAMERA rather than lifting him off
+/// the ground: it is where he already stood at full size, a little under
+/// halfway into the grass strip.
+const double _soleLine = _stageHeight * 0.883;
+
+/// The alignment that lands his soles on [_soleLine] at [_previewScale].
+///
+/// `Align` centres the BOX, so a figure scaled down under a fixed alignment
+/// rises by half of what came off his height — his feet leave the grass and
+/// the shadow goes with them. Derived, so neither number can go stale.
+final double _standAlignment =
+    2 * (_soleLine - walkerFootline * _previewScale) /
+        (_stageHeight - walkerHeight * _previewScale) -
+    1;
 
 /// The diorama's own sky and turf rather than a colour picked to look like
 /// them — one source for the two means a look chosen in here is judged against
@@ -702,10 +741,10 @@ class _PreviewStage extends StatelessWidget {
                 ),
                 // Standing ON the grass line, not in the middle of the box.
                 Align(
-                  alignment: const Alignment(0, 0.52),
+                  alignment: Alignment(0, _standAlignment),
                   child: SizedBox(
-                    width: walkerWidth,
-                    height: walkerHeight,
+                    width: walkerWidth * _previewScale,
+                    height: walkerHeight * _previewScale,
                     child: child,
                   ),
                 ),
@@ -1433,13 +1472,17 @@ class _LockedOfferBar extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 6),
+          // **FULL-SIZE BUTTONS, not the row variant.** `small` is the list
+          // line's — 11pt type in a 9pt radius — and these are the only two
+          // controls on the stage: asked for as "the buttons need a little
+          // more height to match others", which is the same call the shop's
+          // pack pill got for the same reason.
           Row(
             children: [
               Expanded(
                 child: StoreButton(
                   key: const ValueKey('locked-look-watch'),
                   tone: StoreTone.ad,
-                  small: true,
                   label: waiting
                       ? t('customise.pack.wait', {
                           'time': formatAdWait(msUntilPackAd(save)),
@@ -1454,9 +1497,8 @@ class _LockedOfferBar extends ConsumerWidget {
                   child: StoreButton(
                     key: const ValueKey('locked-look-buy'),
                     tone: StoreTone.gem,
-                    small: true,
                     label: '${t('customise.pack.unlock_all')} · ${tile.cost}',
-                    leading: const GameIcon('gem', size: 12),
+                    leading: const GameIcon('gem', size: 14),
                     onTap: onBuy,
                   ),
                 ),

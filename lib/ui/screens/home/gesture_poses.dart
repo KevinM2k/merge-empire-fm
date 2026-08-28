@@ -158,15 +158,27 @@ const GestureTrack _chinUp = [(0, 0), (0.2, -6), (0.8, -6), (1, 0)];
 ///
 /// Named rather than derived. A rule like "the hand is above the chin" would
 /// have to re-solve the two-bone chain for every frame of every gesture to
-/// answer a question that is fixed the moment the pose is written down, and it
-/// would guess wrong at the edges — a salute's hand is level with the brow and
-/// a wave's is not, at angles a few degrees apart.
+/// answer a question that is fixed the moment the pose is written down.
+///
+/// **AND IT IS THE WHOLE ARM, not the hand.** The wave was left out on the
+/// reading that its hand clears the head — it does, at (68, 26), a good ten
+/// units above the skull. Its ELBOW does not: the shoulder is at x56 and the
+/// skull's centre at x62, so an arm raised to -150° folds through the middle
+/// of his face at (65, 46) and the raised limb simply disappeared. Reported as
+/// the wave's arm going behind his head.
+///
+/// Any raised near arm crosses the skull in this rig, and in profile the near
+/// arm is the one closest to the camera — so in front is where it belongs.
 const Set<String> gestureHandsOverHead = {
   'handsonhead',
   'facepalm',
   'shush',
   'salute',
   'blowkiss',
+  'wave',
+  // The badge kiss ENDS at the mouth — see its own note. Without this, the
+  // half of the gesture that is a kiss was painted behind his face.
+  'badgekiss',
 };
 
 final Map<String, GestureAnimation> _animations = {
@@ -326,19 +338,41 @@ final Map<String, GestureAnimation> _animations = {
       (1, foreRest),
     ],
   ),
+  // ── KISS THE BADGE. **TOUCH, THEN KISS**, in that order and once each.
+  //
+  // A DIVERGENCE from `psvGestBadgeArm`, and the report is the reason: "kiss
+  // the badge should touch chest then kiss the hand". The JS's own angles put
+  // the hand nowhere near either. Solved against the rig rather than eyeballed
+  // — the arm is 18 units to the elbow and 20.6 to the hand, off a shoulder at
+  // (56, 62):
+  //
+  //   arm -30, fore -118  → hand (75.9, 60.1), a hand held out in FRONT of
+  //                         his chest, six units clear of the shirt
+  //   arm -52, fore -146  → hand (63.8, 53.5), the middle of his own face
+  //                         rather than his mouth — and behind it, until
+  //                         `gestureHandsOverHead` took the gesture
+  //
+  // So it went out, in, out: a man patting the air twice with a pause at his
+  // nose. It touches the badge at (68.8, 68.5) — the front of the chest at
+  // badge height, the forearm laid across it — holds, and then takes the hand
+  // to the mouth at (72.3, 51.0), which is the blow-kiss's own hold and is
+  // annotated as "on the mouth" in the spec's stylesheet. One beat each, and
+  // it does not come back to the chest: the kiss is the end of the gesture.
   'badgekiss': const GestureAnimation(
     armNear: [
       (0, armNearRest),
-      (0.20, -30),
-      (0.48, -52),
-      (0.80, -30),
+      (0.18, 15),
+      (0.40, 15),
+      (0.60, -58),
+      (0.82, -58),
       (1, armNearRest),
     ],
     foreNear: [
       (0, foreRest),
-      (0.20, -118),
-      (0.48, -146),
-      (0.80, -118),
+      (0.18, -137),
+      (0.40, -137),
+      (0.60, -119),
+      (0.82, -119),
       (1, foreRest),
     ],
   ),

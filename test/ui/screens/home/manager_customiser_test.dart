@@ -8,9 +8,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
@@ -62,6 +64,35 @@ void main() {
     // source of truth means a look can never preview differently from how it
     // walks out.
     expect(find.byKey(const ValueKey('customise-preview')), findsOneWidget);
+  });
+
+  /// **THE CAMERA STEPS BACK.** He was 170 of the stage's 190, so the ground he
+  /// is being dressed for was a strip either side of his shoulders — asked for
+  /// as "the body needs to be slightly more zoomed out". The half that is easy
+  /// to get wrong is the other one: `Align` centres the BOX, so a figure scaled
+  /// down under a fixed alignment lifts off the grass by half of what came off
+  /// his height.
+  testWidgets('THE PREVIEW STANDS BACK, and stays on the grass', (
+    tester,
+  ) async {
+    phone(tester);
+    await pumpHome(tester);
+    await openCustomiser(tester);
+    final stage = tester.getRect(find.byKey(const ValueKey('customise-stage')));
+    final grass = tester.getRect(find.byKey(const ValueKey('customise-grass')));
+    final him = tester.getRect(find.byKey(const ValueKey('customise-preview')));
+
+    // Air above his hat and turf in front of his boots.
+    expect(him.height, lessThan(stage.height * 0.85));
+    expect(him.top, greaterThan(stage.top + 12));
+
+    // And his soles are on the ground rather than over it. The art carries
+    // empty units under the figure — see [walkerFootOffset] — so the box's
+    // bottom edge is not where he is standing.
+    final soles = him.bottom - walkerFootOffset * (him.height / walkerHeight);
+    expect(soles, greaterThan(grass.top));
+    expect(soles, lessThan(grass.bottom));
+    await settleSave(tester);
   });
 
   testWidgets('picking a part writes it to the save', (tester) async {
@@ -554,6 +585,79 @@ void main() {
         isNotNull,
         reason: 'nothing showed what the celebration is',
       );
+      await settleSave(tester);
+    });
+
+    /// **TAPPING SOMETHING ELSE ANSWERS THE OFFER.** Asked for from the couch:
+    /// the ✕ was the only way out, so a player who moved on was left looking at
+    /// an item they do not own under a bar selling it.
+    testWidgets('picking an owned item takes the try-on off', (tester) async {
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      final locked = lookPacks
+          .expand((p) => p.items)
+          .map((i) => i.split(':'))
+          .firstWhere((parts) => parts[0] == 'hat');
+
+      await tapChip(tester, 'hat', locked[1]);
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsOneWidget);
+
+      // Bare-headed is the one hat every save owns.
+      await tapChip(tester, 'hat', 'none');
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsNothing);
+      expect(
+        tester
+            .widget<ManagerWalker>(
+              find.byKey(const ValueKey('customise-preview')),
+            )
+            .look?['hat'],
+        isNot(locked[1]),
+        reason: 'the locked hat stayed on after the player moved on',
+      );
+      await settleSave(tester);
+    });
+
+    /// The same for a celebration, which equips nothing — so the offer has to
+    /// be cleared by the PLAY rather than by a write to the save.
+    testWidgets('and so does playing another celebration', (tester) async {
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'emote');
+      final locked = lookPacks
+          .expand((p) => p.items)
+          .map((i) => i.split(':'))
+          .firstWhere((parts) => parts[0] == 'emote');
+
+      await tapChip(tester, 'emote', locked[1]);
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsOneWidget);
+
+      await tapChip(tester, 'emote', gestures.first.id);
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsNothing);
+      await settleSave(tester);
+    });
+
+    /// The row variant is for a list line. These two are the only controls on
+    /// the stage — "the buttons need a little more height to match others".
+    testWidgets('the offer wears full-size buttons', (tester) async {
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+      await openAxis(tester, 'hat');
+      final locked = lookPacks
+          .expand((p) => p.items)
+          .map((i) => i.split(':'))
+          .firstWhere((parts) => parts[0] == 'hat');
+
+      await tapChip(tester, 'hat', locked[1]);
+      for (final key in ['locked-look-watch', 'locked-look-buy']) {
+        final button = find.byKey(ValueKey(key));
+        if (button.evaluate().isEmpty) continue;
+        expect(tester.widget<StoreButton>(button).small, isFalse);
+        expect(tester.getSize(button).height, greaterThan(30));
+      }
       await settleSave(tester);
     });
 

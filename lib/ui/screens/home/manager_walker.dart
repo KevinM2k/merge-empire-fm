@@ -1083,6 +1083,17 @@ class _ManagerWalkerState extends State<ManagerWalker>
         final handsOverHead =
             pose != null &&
             gestureHandsOverHead.contains(_playing?.id);
+        // **AND THE NEAR ARM GOES OVER THE COAT.** The spec says so in the
+        // slot's own comment — the outfit overlay is "drawn over the torso,
+        // hips and near thigh, under the head and the near arm, so the arm
+        // still swings in front of the coat" — and the port had the overlay
+        // over the whole rig, so a coat or a suit was a slab with the arm
+        // buried in it and only the far one swinging.
+        //
+        // Only when there IS an overlay: `kit` and the tracksuit's collar line
+        // aside, an empty `overTorso` means a second arm pass for nothing. And
+        // not while [handsOverHead], which already draws it later still.
+        final armOverTorso = !handsOverHead && parts.overTorso.isNotEmpty;
         // **ONE angle for every head layer.** Hair, skull and hat are three
         // widgets and one head; give them separate numbers and the face slides
         // out from under its own hat.
@@ -1180,7 +1191,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                         standing: standing,
                         // A hand that belongs in front of the face is drawn in
                         // a second pass, after the head — see [WalkerArms].
-                        arms: handsOverHead
+                        arms: handsOverHead || armOverTorso
                             ? WalkerArms.skipNear
                             : WalkerArms.both,
                         pose: pose,
@@ -1191,6 +1202,27 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // with the skull between them, which is what stops a mohawk's
                     // fin coming out of the face.
                     for (final svg in parts.overTorso) SvgArt(svg: svg),
+                    // **THE NEAR ARM, back on top of the garment it wears.**
+                    // See [armOverTorso]: the overlay is drawn over the torso
+                    // and the near thigh, and the arm swings in front of both.
+                    if (armOverTorso)
+                      CustomPaint(
+                        key: const ValueKey('manager-walker-coat-arm'),
+                        painter: _WalkerPainter(
+                          soft: widget.soft,
+                          t: t,
+                          kit: widget.kit,
+                          skin: parts.skin,
+                          build: buildScales(look['build'] as String?),
+                          outfit: outfitPalette(look['outfit'] as String?),
+                          sleevesAreKit: outfitSleevesAreKit(
+                            look['outfit'] as String?,
+                          ),
+                          standing: standing,
+                          pose: pose,
+                          arms: WalkerArms.nearOnly,
+                        ),
+                      ),
                     // The head and everything it wears, as ONE group — see
                     // [_headSetBack]. `FractionalTranslation` shifts by a
                     // fraction of the CHILD's size, and each child fills the

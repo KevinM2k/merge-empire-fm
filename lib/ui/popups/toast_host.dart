@@ -18,6 +18,8 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show readableInk, semanticPlate;
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -385,6 +387,19 @@ class ToastHostState extends ConsumerState<ToastHost> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final toast = _current;
     if (toast == null) return const SizedBox.shrink();
+    // **ONE tone decides the whole line**, and it used to decide only the
+    // border: the ink was `accentBright` whatever had happened, so a refusal
+    // was a green sentence inside a red outline.
+    //
+    // **Gold, literally, and not the club's accent.** The same argument the
+    // achievement banner makes: this is a celebration rather than a notice, and
+    // a green-kitted club would otherwise make a gem payout look like every
+    // other line the layer prints.
+    final tone = toast.gem
+        ? _gemGold
+        : toast.good
+        ? kit.accentBright
+        : dangerInk;
     return Positioned(
       left: 16,
       right: 16,
@@ -394,38 +409,45 @@ class ToastHostState extends ConsumerState<ToastHost> {
           color: Colors.transparent,
           child: Container(
             key: const ValueKey('toast'),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: kit.surface,
-              borderRadius: BorderRadius.circular(10),
-              // **Gold, literally, and not the club's accent.** The same
-              // argument the achievement banner makes: this is a celebration
-              // rather than a notice, and a green-kitted club would otherwise
-              // make a gem payout look like every other line the layer prints.
-              border: Border.all(
-                color: toast.gem
-                    ? _gemGold
-                    : toast.good
-                    ? kit.accent
-                    : Colors.redAccent,
-                width: toast.gem ? 1.5 : 1,
-              ),
-              boxShadow: toast.gem
-                  ? [
-                      BoxShadow(
-                        color: _gemGold.withValues(alpha: 0.28),
-                        blurRadius: 16,
-                      ),
-                    ]
-                  : null,
+              // **IT WAS A HAIRLINE ROUND NOTHING.** `kit.surface` is the dark
+              // theme's 12%-lightness ground — the same value the page behind
+              // it is built from — so the box had no edge of its own and what
+              // was on screen was a red outline floating over the scene.
+              // Reported as "just a clear box with a red border".
+              //
+              // The chips' own plate instead, tinted by the tone: near-black in
+              // the dark, a wash of the tone's hue in daylight, composited onto
+              // the surface so it is opaque either way and the pitch cannot
+              // come through it.
+              color: Color.alphaBlend(semanticPlate(context, tone), kit.surface),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: tone, width: 1.5),
+              boxShadow: [
+                // What actually lifts it off the page. The gem line keeps its
+                // glow on top of it.
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+                if (toast.gem)
+                  BoxShadow(
+                    color: _gemGold.withValues(alpha: 0.28),
+                    blurRadius: 16,
+                  ),
+              ],
             ),
             child: Text(
               toast.text,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: toast.gem ? _gemGold : kit.accentBright,
-                fontSize: toast.gem ? 15 : 13,
-                fontWeight: toast.gem ? FontWeight.w800 : FontWeight.normal,
+                // Taken down to read on the light plate; the dark one keeps the
+                // colour it was chosen at.
+                color: readableInk(context, tone),
+                fontSize: toast.gem ? 15 : 14,
+                fontWeight: toast.gem ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ),
