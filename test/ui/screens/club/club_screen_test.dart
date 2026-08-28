@@ -84,6 +84,67 @@ void main() {
     }
   });
 
+  testWidgets('AN ASSET CARD LIFTS OFF THE PAGE, face and all', (tester) async {
+    // Fourth report of these blending in. Every pass before this added contrast
+    // around the outside of a FLAT `surface` fill, and a flat fill is the thing
+    // that reads as page — on humbug and turf the card is literally one of the
+    // two band colours. The app's own answer to this exact complaint is the
+    // shop's `.look-tile`: `surface2 → surface` raked down and right with a
+    // shadow under it.
+    await pumpClub(tester);
+    final box = tester
+        .widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(const ValueKey('club-asset-$_key')),
+                matching: find.byType(Container),
+              )
+              .first,
+        )
+        .decoration!
+        as BoxDecoration;
+
+    expect(box.gradient, isNotNull, reason: 'a flat fill IS the page');
+    expect(box.color, isNull);
+    expect(box.boxShadow, isNotNull);
+    expect(box.boxShadow!.length, greaterThan(1));
+    final colors = (box.gradient! as LinearGradient).colors;
+    // The lit corner and the shaded one are different values, or it is a flat
+    // fill written the long way.
+    expect(colors.first, isNot(colors.last));
+  });
+
+  testWidgets('and an owned one is edged in its own tier metal', (tester) async {
+    // "A slightly different colour so they stand out" — the tier is already on
+    // the badge and the glyph, so the card takes it too rather than seven grey
+    // cards being told apart only by their photographs.
+    final container = await pumpClub(tester, coins: 100000);
+    await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+
+    final box = tester
+        .widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(const ValueKey('club-asset-$_key')),
+                matching: find.byType(Container),
+              )
+              .first,
+        )
+        .decoration!
+        as BoxDecoration;
+    final tier = container.read(gameProvider).state!['clubAssets']
+        as Map<String, dynamic>;
+    final ink = assetTierColour(
+      ((tier[_key] as Map<String, dynamic>)['tier'] as num).toInt(),
+    );
+    expect(
+      (box.border! as Border).top.color.toARGB32() & 0x00FFFFFF,
+      ink.toARGB32() & 0x00FFFFFF,
+    );
+  });
+
   testWidgets('counts what is owned', (tester) async {
     final container = await pumpClub(tester, coins: 100000);
     expect(container.read(ownedAssetCountProvider), 0);

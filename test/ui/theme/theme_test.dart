@@ -95,6 +95,42 @@ void main() {
       }
     });
 
+    test('AND THE PAGE BANDS ARE NOT THE SHIRT\'S', () {
+      // `kitPatterns` carries humbug as true black and true white and says in
+      // its own comment that the app chrome cannot use them, because body text
+      // sits on it. The theme reached for that pair anyway, so every screen was
+      // fourteen bands of #111 and #f0f0f0 with copy over them.
+      // `HUMBUG_BACKGROUND` in `kitTheme.js` is #0e0e0e against #3a3a3a.
+      final dark =
+          buildAppTheme(kitId: 'humbug', light: false).extension<KitTheme>()!.background
+              as StripeDecoration;
+      expect(dark.dark, const Color(0xFF0E0E0E));
+      expect(dark.light, const Color(0xFF3A3A3A));
+      // Near-black on dark slate, so the bands whisper. True black on true
+      // white is a luminance gap of the whole scale.
+      expect(
+        (dark.light.computeLuminance() - dark.dark.computeLuminance()).abs(),
+        lessThan(0.1),
+      );
+    });
+
+    test('and light mode has its own pair, which the port had not', () {
+      // There was no light branch at all, so a light-mode humbug drew dark body
+      // text over true-black bands. `HUMBUG_BACKGROUND_LIGHT` pales both.
+      for (final id in ['turf', 'humbug']) {
+        final light =
+            buildAppTheme(kitId: id, light: true).extension<KitTheme>()!.background
+                as StripeDecoration;
+        final dark =
+            buildAppTheme(kitId: id, light: false).extension<KitTheme>()!.background
+                as StripeDecoration;
+        expect(light.dark, isNot(dark.dark), reason: id);
+        // Pale enough to carry near-black ink.
+        expect(light.dark.computeLuminance(), greaterThan(0.3), reason: id);
+        expect(light.light.computeLuminance(), greaterThan(0.3), reason: id);
+      }
+    });
+
     test('lerp returns a KitTheme rather than throwing', () {
       // ThemeData animates between themes on a kit change; an extension that
       // cannot lerp throws mid-animation rather than at build time.

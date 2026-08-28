@@ -5,7 +5,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
-import 'package:merge_empire_fc/data/kit_palette.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/stripe_painter.dart';
 import 'package:merge_empire_fc/util/kit_theme.dart';
@@ -56,16 +55,52 @@ Color cssColor(String value) {
   return const Color(0xFF000000);
 }
 
-Decoration _backgroundFor(String kitId, KitSurfaces s) {
+/// The two striped kits' PAGE background — `TURF_BACKGROUND` and
+/// `HUMBUG_BACKGROUND` in `kitTheme.js`, as a band pair and a band width.
+///
+/// **This is NOT the shirt's pair, and the port was using the shirt's.**
+/// `kitPatterns` carries humbug as `#111111` / `#f0f0f0` and says in its own
+/// comment why: "the app CHROME cannot use true black and white — white body
+/// text sits directly on it, which is why the theme pairs near-black with a mid
+/// slate — but a shirt carries no text, so the kit itself gets the real
+/// humbug". This function reached for that pair anyway, so every screen in the
+/// game stood on fourteen bands of true black and true white with body copy
+/// over them. Reported as too many stripes, too hard to see and needing to be
+/// softer, which is three readings of the one fault.
+///
+/// The WIDTHS were already the spec's and stay: at `#0e0e0e` against `#3a3a3a`
+/// the count stops being something the eye has to fight, so widening the bands
+/// as well would be treating the symptom twice.
+const Map<String, ({String a, String b, double width})> _stripesDark = {
+  'turf': (a: '#1f4f21', b: '#2a6d2d', width: 24),
+  'humbug': (a: '#0e0e0e', b: '#3a3a3a', width: 28),
+};
+
+/// `TURF_BACKGROUND_LIGHT` / `HUMBUG_BACKGROUND_LIGHT` — the same geometry
+/// paled up so the texture still reads on a light page.
+///
+/// **The port had no light variant at all**, so a light-mode humbug drew dark
+/// body text over true-black bands and a light-mode turf drew it over forest
+/// green. Both are one lookup, and both were unreadable.
+const Map<String, ({String a, String b, double width})> _stripesLight = {
+  'turf': (a: '#9fcda1', b: '#b6dfb8', width: 24),
+  'humbug': (a: '#e4e4e4', b: '#b4b4b4', width: 28),
+};
+
+Decoration _backgroundFor(String kitId, KitSurfaces s, bool light) {
   // Only two of the six kits are stripes; the rest are smooth gradients.
-  final stripes = kitPatterns[kitId]?.stripes;
+  //
+  // Turf's second layer — a 45° hatch of `rgba(255,255,255,0.03)` every 8px,
+  // the mow lines — is NOT ported. `StripeDecoration` paints one axis, and at
+  // 3% on a dark green it is below what the screenshots resolve; it is here as
+  // a known gap rather than a forgotten one.
+  final stripes = (light ? _stripesLight : _stripesDark)[kitId];
   if (stripes != null) {
-    final width = kitId == 'humbug' ? 28.0 : 24.0;
     return StripeDecoration(
-      dark: cssColor(stripes.$1),
-      light: cssColor(stripes.$2),
-      darkWidth: width,
-      lightWidth: width,
+      dark: cssColor(stripes.a),
+      light: cssColor(stripes.b),
+      darkWidth: stripes.width,
+      lightWidth: stripes.width,
     );
   }
   return BoxDecoration(
@@ -89,7 +124,7 @@ ThemeData buildAppTheme({required String kitId, required bool light}) {
     accentBright: cssColor(s.accentBright),
     accentBrightInk: cssColor(s.accentBrightInk),
     accentInk: cssColor(s.accentInk),
-    background: _backgroundFor(kitId, s),
+    background: _backgroundFor(kitId, s, light),
   );
   final brightness = light ? Brightness.light : Brightness.dark;
   return ThemeData(

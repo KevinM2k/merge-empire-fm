@@ -378,15 +378,46 @@ class _AssetPanel extends ConsumerWidget {
       // firms up with it. Same treatment `SettingsCard` uses, and for the same
       // reason — on a dark page a drop shadow is invisible and the border does
       // the work, on a light one the border alone is a wireframe.
+      //
+      // **AND A FOURTH REPORT, so the FACE changes rather than the edge again.**
+      // Every pass so far has added contrast around the outside of a flat
+      // `surface` fill, and a flat fill is the thing that reads as page: on
+      // humbug and turf the card is literally one of the two band colours, and
+      // on the derived kits `surface` is two steps off `bg`. The app already
+      // has a vocabulary for "sits on top of the screen" and it is not a
+      // border — it is the shop's look tiles, `surface2 → surface` raked down
+      // and right with a drop shadow under it, which is what the spec's
+      // `.look-tile` is and what fixed the same complaint there.
+      //
+      // The tier's own metal goes in as a wash at the lit corner, so a gold
+      // Stadium and a bronze Academy are not the same grey card twice — asked
+      // for as wanting them a slightly different colour. Faint on purpose:
+      // seven saturated cards is a paint chart, and the tier is already stated
+      // by the badge, the glyph and the border.
       child: Container(
         padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
-          color: kit.surface,
+          gradient: LinearGradient(
+            // 160deg — down, leaning right, the same rake as the shop's.
+            begin: const Alignment(-0.35, -1),
+            end: const Alignment(0.35, 1),
+            colors: [
+              Color.alphaBlend(
+                ink.withValues(alpha: light ? 0.10 : 0.16),
+                kit.surface2,
+              ),
+              Color.lerp(kit.surface2, kit.surface, 0.65)!,
+              kit.surface,
+            ],
+            stops: const [0, 0.65, 1],
+          ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: light
-                ? kit.border
-                : kit.border.withValues(alpha: 0.9),
+            // Owned takes its tier's edge; a plot with nothing on it keeps the
+            // page's own border, because there is no tier to state.
+            color: tile.owned
+                ? ink.withValues(alpha: light ? 0.55 : 0.5)
+                : (light ? kit.border : kit.border.withValues(alpha: 0.9)),
             width: light ? 1.2 : 1,
           ),
           boxShadow: light
@@ -402,11 +433,20 @@ class _AssetPanel extends ConsumerWidget {
                     offset: const Offset(0, 5),
                   ),
                 ]
+              // Two on the dark page as well as the light one: a soft cast
+              // that says how far off the page it is, and a tight contact
+              // shadow that says it is a solid thing rather than a glow. One
+              // blurred shadow on a dark ground reads as neither.
               : const [
                   BoxShadow(
-                    color: Color(0x4D000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 3),
+                    color: Color(0x66000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Color(0x40000000),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
                   ),
                 ],
         ),
