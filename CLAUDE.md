@@ -175,6 +175,21 @@ layer run under plain `dart test` with no widget binding.
   `overlap: true`.
 - **Colours come from `Theme.of(context).extension<KitTheme>()!`.** The whole
   palette is derived from the club's kit; a hardcoded colour is a bug.
+- **A button's face cannot be coloured through `styleFrom`, and it fails
+  silently.** Every Elevated/Filled/Outlined button wears `mouldedButtonStyle`
+  from the theme, which paints the face in a `backgroundBuilder` over a
+  transparent Material. So `backgroundColor:` colours the layer UNDERNEATH the
+  face — invisible, except that it fills the full button rect while the face
+  sits 4pt inside it, so it buries the hard bottom edge and the button reads as
+  a flat slab; and `side:` is drawn by that same Material on that same full
+  rect, putting a second outline 4pt ABOVE the moulded one, which is a ridge
+  along the top edge. Neither throws and neither analyses. Ask
+  `mouldedButtonStyle(face:, edge:, ...)` for the face instead — the coach
+  card, Deadline Day and the pyramid editor all do. `foregroundColor:` is fine,
+  but do not reach for `kit.textMuted`: that is the helper's own `deadInk`, so
+  it makes a live button look disabled. `architecture_test.dart` checks all of
+  this, and it earned its keep on the first run: five buttons across three
+  files had shipped with it wrong, and the test is what found the fifth.
 - Seeded gameplay randomness goes through `util/random.dart`; anything mirroring
   JS `Math.random()` uses `dart:math`. Mixing them shifts every later draw, and
   **draw order matters as much as the formula**.
