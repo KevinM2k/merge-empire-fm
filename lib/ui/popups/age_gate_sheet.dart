@@ -51,6 +51,7 @@ class _AgeGateBody extends ConsumerWidget {
 
     return ListView(
       key: const ValueKey('age-gate-sheet'),
+      shrinkWrap: true,
       padding: const EdgeInsets.all(16),
       children: [
         SheetHeader(title: t('agegate.title'), padding: EdgeInsets.zero),

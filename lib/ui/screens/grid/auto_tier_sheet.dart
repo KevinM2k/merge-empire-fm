@@ -90,6 +90,8 @@ class _AutoTierSheet extends ConsumerWidget {
 
     return ListView(
       key: const ValueKey('auto-tier-sheet'),
+      // A fixed handful of rows: the sheet is as tall as they are.
+      shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
       children: [
         SheetHeader(

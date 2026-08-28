@@ -168,6 +168,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
 
     return ListView(
       key: const ValueKey('daily-reward-sheet'),
+      shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
       children: [
         SheetHeader(

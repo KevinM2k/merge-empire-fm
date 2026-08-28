@@ -125,6 +125,12 @@ Future<void> showQuestsSheet(BuildContext context, WidgetRef ref) {
 
         return ListView(
           key: const ValueKey('quests-sheet'),
+          // **THE SHEET IS AS TALL AS THE TRACK, and a track is three quests.**
+          // A `ListView` fills what it is given, so this one was 80% of the
+          // phone with three tiles at the top of it — reported as the season
+          // quests popup being too big with too much room at the bottom.
+          // `showBottomSheetPopup` caps it; what it needs from here is a height.
+          shrinkWrap: true,
           padding: const EdgeInsets.all(16),
           children: [
             // **THE HEADER IS THE TRACK'S NAME.** `quests.title` is the bare

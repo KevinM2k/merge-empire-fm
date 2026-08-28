@@ -82,6 +82,8 @@ class TrainingView extends ConsumerWidget {
       which: CoachLineFor.minigames,
       child: ListView(
       key: const ValueKey('training-view'),
+      // The spec's own example of a sheet that must not leave a void under it.
+      shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       children: [
         // `mg.drills` is the in-game counter — "Drills: {hit} / {total}" — and

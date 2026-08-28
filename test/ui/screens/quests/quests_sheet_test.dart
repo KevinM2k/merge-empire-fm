@@ -493,4 +493,33 @@ void main() {
       );
     });
   });
+
+  testWidgets('THE SHEET IS AS TALL AS THE TRACK, not 80% of the phone', (
+    tester,
+  ) async {
+    // Reported from the couch: too big, too much room at the bottom. A
+    // `ListView` fills what it is given, so three quests sat at the top of a
+    // sheet sized to the screen. `heightFraction` is a ceiling now — see
+    // `bottom_sheet_popup.dart` and the spec's `height: auto` on `.ps-sheet`.
+    await pumpShell(tester, saveWithQuests());
+    await openQuests(tester);
+    final sheet = tester
+        .getSize(find.byKey(const ValueKey('bottom-sheet-popup')))
+        .height;
+    final screen =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
+    expect(
+      sheet,
+      lessThan(screen * 0.8),
+      reason: 'back to filling the ceiling',
+    );
+    expect(
+      sheet,
+      closeTo(
+        tester.getSize(find.byKey(const ValueKey('quests-sheet'))).height,
+        24,
+      ),
+      reason: 'the sheet is the list plus its own chrome, and nothing else',
+    );
+  });
 }

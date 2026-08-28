@@ -34,7 +34,6 @@ Future<void> showCurrencySheet(
   // A CEILING. Four coin packs is four coin packs tall; taking two thirds of
   // the screen to show them read as a screen that had failed to load.
   heightFraction: 0.8,
-  fitContent: true,
   child: CurrencySheet(which: which),
 );
 

@@ -4,19 +4,34 @@
 /// Leaderboard; this is the general form for anything else that rises.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
-/// [heightFraction] is a CEILING, not a height, when [fitContent] is set: a
-/// sheet with four tiles in it should be four tiles tall, and one that takes
-/// two thirds of the screen to show them reads as a screen that failed to load.
+/// **[heightFraction] IS A CEILING, NOT A HEIGHT.** Every sheet hugs what is in
+/// it and stops at the cap, which is the spec's own rule and its own words:
+/// `.ps-sheet .ps-panel` is `height: auto; max-height: min(85vh, 780px)`, over
+/// "tall sections (table, fixtures) all clamp to the same height, short ones
+/// (training) don't leave a void below their content."
+///
+/// The port had it as a fixed `FractionallySizedBox` with a per-sheet fraction,
+/// so a sheet holding three quests was 80% of the phone whatever was in it —
+/// reported as popups taking more room than they need, and as the season quests
+/// sheet being mostly empty at the bottom. Fitting is not an opt-in any more;
+/// what a call site chooses is how far its sheet may GROW.
+///
+/// **A body has to be able to say how tall it is, or nothing changes.** A
+/// `ListView` fills whatever it is given, so a sheet built on one wants
+/// `shrinkWrap: true`, and a `Column` wants `MainAxisSize.min` with `Flexible`
+/// rather than `Expanded` round its scrolling part. The cap is what makes that
+/// safe: the list is measured against a bounded box and scrolls past it.
 Future<T?> showBottomSheetPopup<T>(
   BuildContext context, {
   required Widget child,
   double heightFraction = 0.75,
-  bool fitContent = false,
 }) {
   final kit = Theme.of(context).extension<KitTheme>()!;
   // **THE SCREEN UNDERNEATH STOPS ANIMATING while this is up.** A modal bottom
@@ -53,7 +68,6 @@ Future<T?> showBottomSheetPopup<T>(
     builder: (_) => _Frame(
       key: const ValueKey('bottom-sheet-popup'),
       heightFraction: heightFraction,
-      fitContent: fitContent,
       child: Container(
         decoration: BoxDecoration(
           color: kit.surface,
@@ -113,32 +127,32 @@ class _DragHandle extends StatelessWidget {
   );
 }
 
-/// The sheet's box: a fraction of the screen, or as tall as its content needs up
-/// to that fraction.
+/// The sheet's box: as tall as its content needs, up to the cap.
 class _Frame extends StatelessWidget {
   const _Frame({
     super.key,
     required this.heightFraction,
-    required this.fitContent,
     required this.child,
   });
 
   final double heightFraction;
-  final bool fitContent;
   final Widget child;
 
+  /// The absolute ceiling, on top of the fraction — `min(85vh, 780px)` in the
+  /// spec. On a tall phone a fraction alone keeps growing, and past this a sheet
+  /// is a screen that arrived from the wrong direction.
+  static const double maxSheetHeight = 780;
+
   @override
-  Widget build(BuildContext context) {
-    if (!fitContent) {
-      return FractionallySizedBox(heightFactor: heightFraction, child: child);
-    }
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * heightFraction,
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: BoxConstraints(
+      maxHeight: math.min(
+        MediaQuery.sizeOf(context).height * heightFraction,
+        maxSheetHeight,
       ),
-      // Bottom-anchored and only as tall as it needs, which is what a sheet
-      // showing four tiles should be.
-      child: child,
-    );
-  }
+    ),
+    // Bottom-anchored and only as tall as it needs, which is what a sheet
+    // showing four tiles should be.
+    child: child,
+  );
 }

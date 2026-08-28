@@ -84,6 +84,7 @@ Future<void> showFormationPicker(BuildContext context, WidgetRef ref) {
         final current = ref.watch(formationIdProvider);
         return GridView.count(
           key: const ValueKey('formation-picker'),
+          shrinkWrap: true,
           padding: const EdgeInsets.all(12),
           crossAxisCount: 2,
           crossAxisSpacing: 10,
@@ -222,6 +223,7 @@ Future<void> showTacticPicker(BuildContext context, WidgetRef ref) {
         final current = ref.watch(strategyIdProvider);
         return ListView(
           key: const ValueKey('tactic-picker'),
+          shrinkWrap: true,
           padding: const EdgeInsets.all(12),
           children: [
             for (final strategy in strategies.values)

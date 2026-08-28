@@ -94,6 +94,8 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
 
         return ListView(
           key: const ValueKey('energy-sheet'),
+          // The meter, the countdown and two routes — never more.
+          shrinkWrap: true,
           padding: const EdgeInsets.all(16),
           children: [
             SheetHeader(

@@ -34,7 +34,6 @@ Future<void> showIncomeBreakdown(
   // short ledger, and a sheet that takes three quarters of the screen to show
   // six lines reads as one that failed to load.
   heightFraction: 0.8,
-  fitContent: true,
   child: _IncomeCard(books: incomeBreakdown(state)),
 );
 

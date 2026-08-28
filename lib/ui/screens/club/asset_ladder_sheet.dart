@@ -75,6 +75,8 @@ class AssetLadderSheetState extends ConsumerState<AssetLadderSheet> {
 
     return Column(
       key: ValueKey('asset-ladder-${widget.assetKey}'),
+      // Eight tiers is the whole ladder, so the sheet is that tall and no more.
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
@@ -121,9 +123,10 @@ class AssetLadderSheetState extends ConsumerState<AssetLadderSheet> {
             ),
           ),
         ),
-        Expanded(
+        Flexible(
           child: ListView.builder(
             controller: _scroll,
+            shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 16),
             itemCount: ladder.length,
             itemBuilder: (context, i) =>

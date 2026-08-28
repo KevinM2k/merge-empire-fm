@@ -375,6 +375,7 @@ class _BenchSheet extends ConsumerWidget {
 
     return Column(
       key: const ValueKey('subs-bench-sheet'),
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SheetHeader(
@@ -394,8 +395,9 @@ class _BenchSheet extends ConsumerWidget {
             ),
           )
         else
-          Expanded(
+          Flexible(
             child: GridView.builder(
+              shrinkWrap: true,
               padding: const EdgeInsets.all(12),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 // **THREE ACROSS on a phone, and it counts rather than

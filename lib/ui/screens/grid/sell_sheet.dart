@@ -95,6 +95,7 @@ Future<void> showSellSheet(
         final kit = Theme.of(sheetContext).extension<KitTheme>()!;
         return ListView(
           key: const ValueKey('sell-sheet'),
+          shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
             // The PLAYER's name is the sheet's title — this sheet is about one

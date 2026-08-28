@@ -623,20 +623,21 @@ Future<void> showBenchSheet(BuildContext context, WidgetRef ref) {
         final kit = Theme.of(sheetContext).extension<KitTheme>()!;
         final bench = sheetRef.watch(benchProvider);
         if (bench.isEmpty) {
-          return Center(
+          // Not a `Center`: it fills, so an empty bench was 72% of the
+          // screen holding one sentence.
+          return Padding(
             key: const ValueKey('squad-bench-empty'),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                t('squad.bench.empty'),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: kit.textMuted),
-              ),
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            child: Text(
+              t('squad.bench.empty'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: kit.textMuted),
             ),
           );
         }
         return GridView.builder(
           key: const ValueKey('squad-bench'),
+          shrinkWrap: true,
           padding: const EdgeInsets.all(12),
           // Three across on a phone, wider on a tablet — the same count the
           // match's bench uses, because it is the same bench and two different

@@ -108,6 +108,7 @@ class _ConnectBodyState extends ConsumerState<_ConnectBody> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return ListView(
       key: const ValueKey('connect-account-sheet'),
+      shrinkWrap: true,
       padding: const EdgeInsets.all(16),
       children: [
         SheetHeader(title: t('auth.connect_account'), padding: EdgeInsets.zero),
