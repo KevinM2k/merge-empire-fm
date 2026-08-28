@@ -192,6 +192,89 @@ void main() {
     expect(find.byKey(const ValueKey('season-end-payout')), findsOneWidget);
   });
 
+  testWidgets('THE PAGE IS GROUPS, not one column on the background', (
+    tester,
+  ) async {
+    // Every line of this screen used to sit loose on `kit.bg` at the same
+    // distance from the page and from everything else, so nothing said which
+    // of them belonged together — reported exactly that way. `screens.css`
+    // carries `.se-hero`, `.se-line` and `.se-card` and the port had ported
+    // the contents of all three and none of the containers.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 3),
+          seasonNumber: 2,
+          record: const (
+            wins: 7,
+            draws: 3,
+            losses: 4,
+            goalsFor: 21,
+            goalsAgainst: 14,
+          ),
+          winnerName: 'Ayton',
+          finalTable: [
+            LeagueRow(
+              name: 'Ayton',
+              isPlayer: false,
+              played: 14,
+              won: 10,
+              drawn: 2,
+              lost: 2,
+              pts: 32,
+              gd: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The place, the verdict and the three figures are ONE box.
+    final hero = find.ancestor(
+      of: find.byKey(const ValueKey('season-end-position')),
+      matching: find.byType(DecoratedBox),
+    );
+    expect(hero, findsWidgets);
+    expect(
+      find.descendant(
+        of: hero.first,
+        matching: find.byKey(const ValueKey('season-end-stats')),
+      ),
+      findsOneWidget,
+      reason: 'the figures are not in the same box as the result',
+    );
+    expect(
+      find.descendant(
+        of: hero.first,
+        matching: find.byKey(const ValueKey('season-end-outcome')),
+      ),
+      findsOneWidget,
+    );
+    // And the payout is NOT: it rides in the pinned foot with the way out,
+    // which is what the button is collecting. `.se-cta` in the spec.
+    expect(
+      find.descendant(
+        of: hero.first,
+        matching: find.byKey(const ValueKey('season-end-payout')),
+      ),
+      findsNothing,
+    );
+    final payout = tester.getRect(
+      find.byKey(const ValueKey('season-end-payout')),
+    );
+    final button = tester.getRect(
+      find.byKey(const ValueKey('season-end-continue')),
+    );
+    expect(payout.bottom, lessThanOrEqualTo(button.top));
+    expect(
+      button.bottom,
+      greaterThan(tester.getRect(hero.first).bottom),
+      reason: 'the way out is pinned under the summary, not inside it',
+    );
+  });
+
   testWidgets('THE SEASON IN THREE FIGURES, not a position mislabelled', (
     tester,
   ) async {

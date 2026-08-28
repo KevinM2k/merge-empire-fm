@@ -376,28 +376,42 @@ class SettingsSegment extends StatelessWidget {
                     vertical: 7,
                   ),
                   color: choices[i].on ? kit.accentBright : Colors.transparent,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (choices[i].locked) ...[
-                        Icon(
-                          Icons.lock_rounded,
-                          size: 12,
-                          color: kit.textMuted,
+                  // **A LOCKED CHOICE HAS TO LOOK LOCKED, and one 12px padlock
+                  // beside a label the same weight and colour as the live one
+                  // does not do it.** Reported against the difficulty row: the
+                  // only difference between Pro-is-locked and Pro-is-simply-not-
+                  // selected was a glyph most of the width of a full stop.
+                  //
+                  // The whole choice steps back rather than the group — the
+                  // group's own `_readOnly` dim is for a segment nothing can
+                  // change, and here Casual is perfectly live beside it — and
+                  // the padlock comes up to the label's own size so the two
+                  // read as one mark.
+                  child: Opacity(
+                    opacity: choices[i].locked ? 0.55 : 1,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (choices[i].locked) ...[
+                          Icon(
+                            Icons.lock_rounded,
+                            size: 14,
+                            color: kit.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          choices[i].label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: choices[i].on
+                                ? kit.accentBrightInk
+                                : kit.textMuted,
+                          ),
                         ),
-                        const SizedBox(width: 4),
                       ],
-                      Text(
-                        choices[i].label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: choices[i].on
-                              ? kit.accentBrightInk
-                              : kit.textMuted,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

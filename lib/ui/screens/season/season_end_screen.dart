@@ -139,230 +139,475 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
     }),
   };
 
+  /// The page's one colour, from the outcome — the spec's `--se-tone`.
+  ///
+  /// "Set once on the root from the outcome and every accent below inherits
+  /// from it, so a title, a promotion, survival and the drop are four
+  /// different-coloured pages rather than four copies of the same one with a
+  /// different sentence in the middle."
+  ///
+  /// Mid-table has no colour of its own, and the spec says what to do about it:
+  /// the big number goes gold, because `--se-tone` there is the body ink and a
+  /// 54pt figure in plain text is not a headline. The SENTENCE stays plain.
+  ({Color tone, Color sentence}) _tone(KitTheme kit, bool champion) {
+    const gold = Color(0xFFFFD700);
+    if (champion) return (tone: gold, sentence: gold);
+    return switch (widget.outcome.outcome) {
+      'promoted' => (tone: kit.accentBright, sentence: kit.accentBright),
+      'relegated' => (tone: Colors.redAccent, sentence: Colors.redAccent),
+      _ => (tone: gold, sentence: Theme.of(context).colorScheme.onSurface),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     // First place is worth saying out loud even when it did not move you: the
     // top division has nowhere to be promoted to.
     final champion = widget.outcome.position == 1;
+    final tone = _tone(kit, champion);
 
     return Scaffold(
       key: const ValueKey('season-end'),
       backgroundColor: kit.bg,
+      // **THE PAGE IS FOUR GROUPS, NOT ONE COLUMN, and the spec has been the
+      // whole time.** Every line of this screen sat loose on the background —
+      // a title, a number, three figures, two sentences, a payout, a quest
+      // count and a table toggle, all at the same distance from the page and
+      // from each other, so nothing said which of them belonged together.
+      // Reported exactly that way.
+      //
+      // `screens.css` carries the structure under `.season-end`: an
+      // `.se-eyebrow`, then `.se-hero` (the division, the place, the verdict
+      // and three `.se-stat` tiles), `.se-line` rows for the one-line facts,
+      // `.se-card` for the blocks that hold rows, and a PINNED `.se-cta` at the
+      // foot so "the way out of this screen is never more than a thumb away,
+      // however long the summary above it runs". The port had ported the
+      // contents of all of it and none of the containers.
+      //
+      // **The material is the app's own, not the spec's glass.** `.se-*` is
+      // takeover glass because the JS's season end sits on the sky; this one is
+      // a flat `kit.bg` page, and the club screen already settled what happens
+      // when glass is put on a page with no sky — "rejected on sight, twice".
+      // These are the same lifted surface the club's asset cards wear.
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                t('season.end.title', {'n': widget.seasonNumber}),
-                key: const ValueKey('season-end-title'),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: kit.textMuted,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (champion)
-                Text(
-                  t('season.end.champion'),
-                  key: const ValueKey('season-end-champion'),
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: kit.accentBright,
-                  ),
-                ),
-              const SizedBox(height: 8),
-              Text(
-                _headline,
-                key: const ValueKey('season-end-outcome'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: widget.outcome.outcome == 'relegated'
-                      ? Colors.redAccent
-                      : kit.accent,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // **WHERE HE FINISHED, as the figure the page is about.** It was
-              // a row labelled `season.end.stat_record` — which is "Record",
-              // the W-D-L line — with the POSITION as its value, so the one
-              // number a season comes down to was mislabelled and the size of
-              // a caption. The spec makes it the hero: the division over it,
-              // the place with its ordinal, the outcome under it.
-              Text(
-                tName('division', {
-                  'id': widget.outcome.oldDivision,
-                  'name': getDivision(widget.outcome.oldDivision).name,
-                }).toUpperCase(),
-                key: const ValueKey('season-end-division'),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                  color: kit.textMuted,
-                ),
-              ),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(text: '${widget.outcome.position}'),
-                    TextSpan(
-                      text: ordinalSuffix(widget.outcome.position),
-                      style: const TextStyle(fontSize: 22),
-                    ),
-                  ],
-                ),
-                key: const ValueKey('season-end-position'),
-                style: TextStyle(
-                  fontSize: 54,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  color: kit.accentBright,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // **THE SEASON IN THREE FIGURES.** `season.end.stat_record` and
-              // `season.end.stat_goals` have sat translated in ten catalogues
-              // with nothing able to print either — the whole band is the
-              // spec's `.se-stats`, and it is what makes this a season
-              // OVERVIEW rather than a verdict with a payout under it.
-              if (widget.record case final r?)
-                Row(
-                  key: const ValueKey('season-end-stats'),
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _Stat(
-                      value: '${seasonPoints(r)}',
-                      label: t('table.col_pts'),
-                    ),
-                    _Stat(
-                      value: '${r.wins}-${r.draws}-${r.losses}',
-                      label: t('season.end.stat_record'),
-                    ),
-                    _Stat(
-                      value: '${r.goalsFor}:${r.goalsAgainst}',
-                      label: t('season.end.stat_goals'),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 16),
-              // **WHO ACTUALLY WON IT.** `season.end.won_by` and its
-              // `won_by_you` twin have sat translated in ten catalogues with
-              // nothing able to print either, and it is the one fact this page
-              // can give that the player's own row cannot.
-              if (widget.winnerName case final name?)
-                _SeasonLine(
-                  lineKey: 'season-end-winner',
-                  icon: 'trophy',
-                  ink: widget.winnerIsUs ? kit.accentBright : kit.textMuted,
-                  text: widget.winnerIsUs
-                      ? t('season.end.won_by_you', {'div': _divisionName})
-                      : t('season.end.won_by', {
-                          'team': name,
-                          'div': _divisionName,
-                        }),
-                ),
-              // **AND HOW THE CUP WENT.** `cup_won` and `cup_out` are two more
-              // of them, and a season with a cup run in it is not summarised by
-              // its league finish alone.
-              if (_cupLine case final line?)
-                _SeasonLine(
-                  lineKey: 'season-end-cup',
-                  icon: widget.cup!.outcome == 'won' ? 'trophy' : 'cross',
-                  ink: widget.cup!.outcome == 'won'
-                      ? kit.accentBright
-                      : kit.textMuted,
-                  text: line,
-                ),
-              const SizedBox(height: 16),
-              _Line(
-                label: t('season.end.prize_label'),
-                value: formatCoins(widget.outcome.payout),
-                valueKey: 'season-end-payout',
-              ),
-              if (widget.outcome.gemsAwarded > 0)
-                _Line(
-                  label: t('shop.section.gems'),
-                  value: '${widget.outcome.gemsAwarded}',
-                  valueKey: 'season-end-gems',
-                ),
-              // **AND WHAT THE SEASON'S QUESTS CAME TO.** `quests_done` and
-              // `quests_autopay` are the last two keys off this page's shelf.
-              // Read-only by construction: `endSeason` has already swept the
-              // track by the time this is on screen, and the autopay line is
-              // the copy that says so.
-              if (widget.quests.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Text(
-                  t('season.end.quests_done', {
-                    'n': widget.quests.where((q) => q.completed).length,
-                    'total': widget.quests.length,
-                  }),
-                  key: const ValueKey('season-end-quests'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: kit.accentBright,
-                  ),
-                ),
-                Text(
-                  t('season.end.quests_autopay'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 10.5, color: kit.textMuted),
-                ),
-              ],
-              // **THE FINAL TABLE, FOLDED.** Twenty rows of a division the
-              // player has just spent a season in is not what they came to
-              // this page for — the verdict is — but the one who wants to
-              // check the club below them should not have to leave to do it.
-              // `season.end.view_table` and `hide_table` are two more keys
-              // that shipped in ten languages with nothing able to print
-              // either. The JS folds it exactly this way.
-              if (widget.finalTable.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                TextButton(
-                  key: const ValueKey('season-end-table-toggle'),
-                  onPressed: () => setState(() => _tableOpen = !_tableOpen),
-                  child: Text(
-                    t(
-                      _tableOpen
-                          ? 'season.end.hide_table'
-                          : 'season.end.view_table',
-                    ),
-                  ),
-                ),
-                if (_tableOpen)
-                  Flexible(
-                    child: SingleChildScrollView(
-                      key: const ValueKey('season-end-table'),
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < widget.finalTable.length; i++)
-                            _TableRow(row: widget.finalTable[i], place: i + 1),
-                        ],
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(13, 10, 13, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // `.se-eyebrow` — small, spaced and muted. It was 20pt
+                      // and the loudest thing above the result.
+                      Text(
+                        t('season.end.title', {'n': widget.seasonNumber}),
+                        key: const ValueKey('season-end-title'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.3,
+                          color: kit.textMuted,
+                        ),
                       ),
-                    ),
-                  ),
-              ],
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  key: const ValueKey('season-end-continue'),
-                  onPressed: widget.onContinue,
-                  child: Text(
-                    t('season.end.continue', {'n': widget.seasonNumber + 1}),
+                      const SizedBox(height: 10),
+                      _SeasonCard(
+                        tone: tone.tone,
+                        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+                        child: Column(
+                          children: [
+                            // **WHERE HE FINISHED, as the figure the page is
+                            // about.** It was a row labelled
+                            // `season.end.stat_record` — which is "Record", the
+                            // W-D-L line — with the POSITION as its value, so
+                            // the one number a season comes down to was
+                            // mislabelled and the size of a caption.
+                            Text(
+                              tName('division', {
+                                'id': widget.outcome.oldDivision,
+                                'name': getDivision(
+                                  widget.outcome.oldDivision,
+                                ).name,
+                              }).toUpperCase(),
+                              key: const ValueKey('season-end-division'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1,
+                                color: kit.textMuted,
+                              ),
+                            ),
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(text: '${widget.outcome.position}'),
+                                  TextSpan(
+                                    text: ordinalSuffix(
+                                      widget.outcome.position,
+                                    ),
+                                    style: const TextStyle(fontSize: 22),
+                                  ),
+                                ],
+                              ),
+                              key: const ValueKey('season-end-position'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 54,
+                                height: 1.05,
+                                fontWeight: FontWeight.w900,
+                                color: tone.tone,
+                              ),
+                            ),
+                            if (champion)
+                              Text(
+                                t('season.end.champion'),
+                                key: const ValueKey('season-end-champion'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  color: tone.tone,
+                                ),
+                              ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _headline,
+                              key: const ValueKey('season-end-outcome'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                height: 1.25,
+                                fontWeight: FontWeight.w900,
+                                color: tone.sentence,
+                              ),
+                            ),
+                            // **THE SEASON IN THREE FIGURES.**
+                            // `season.end.stat_record` and
+                            // `season.end.stat_goals` sat translated in ten
+                            // catalogues with nothing able to print either —
+                            // the band is the spec's `.se-stats`, and it is
+                            // what makes this a season OVERVIEW rather than a
+                            // verdict with a payout under it. Three tiles
+                            // INSIDE the hero, on a wash: the spec's own rule
+                            // is that a panel is the surface and the rows on it
+                            // are a wash, or the two compound.
+                            if (widget.record case final r?) ...[
+                              const SizedBox(height: 13),
+                              Row(
+                                key: const ValueKey('season-end-stats'),
+                                children: [
+                                  Expanded(
+                                    child: _Stat(
+                                      value: '${seasonPoints(r)}',
+                                      label: t('table.col_pts'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _Stat(
+                                      value:
+                                          '${r.wins}-${r.draws}-${r.losses}',
+                                      label: t('season.end.stat_record'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _Stat(
+                                      value:
+                                          '${r.goalsFor}:${r.goalsAgainst}',
+                                      label: t('season.end.stat_goals'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // **WHO ACTUALLY WON IT.** `season.end.won_by` and its
+                      // `won_by_you` twin sat translated in ten catalogues with
+                      // nothing able to print either, and it is the one fact
+                      // this page can give that the player's own row cannot.
+                      // `.se-line`, and the spec is explicit that these are
+                      // deliberately NOT cards: "they're single sentences, and
+                      // boxing each one would have the page read as four
+                      // competing panels".
+                      if (widget.winnerName case final name?) ...[
+                        const SizedBox(height: 10),
+                        _SeasonLine(
+                          lineKey: 'season-end-winner',
+                          icon: 'trophy',
+                          ink: widget.winnerIsUs
+                              ? kit.accentBright
+                              : kit.textMuted,
+                          gold: widget.winnerIsUs,
+                          text: widget.winnerIsUs
+                              ? t('season.end.won_by_you', {
+                                  'div': _divisionName,
+                                })
+                              : t('season.end.won_by', {
+                                  'team': name,
+                                  'div': _divisionName,
+                                }),
+                        ),
+                      ],
+                      // **AND HOW THE CUP WENT.** `cup_won` and `cup_out` are
+                      // two more of them, and a season with a cup run in it is
+                      // not summarised by its league finish alone.
+                      if (_cupLine case final line?) ...[
+                        const SizedBox(height: 10),
+                        _SeasonLine(
+                          lineKey: 'season-end-cup',
+                          icon: widget.cup!.outcome == 'won'
+                              ? 'trophy'
+                              : 'cross',
+                          ink: widget.cup!.outcome == 'won'
+                              ? kit.accentBright
+                              : kit.textMuted,
+                          gold: widget.cup!.outcome == 'won',
+                          text: line,
+                        ),
+                      ],
+                      // **AND WHAT THE SEASON'S QUESTS CAME TO.**
+                      // `quests_done` and `quests_autopay` are the last two
+                      // keys off this page's shelf. Read-only by construction:
+                      // `endSeason` has already swept the track by the time
+                      // this is on screen, and the autopay line is the copy
+                      // that says so. The spec's `.se-quests` is a `.se-card`
+                      // with a head that carries the count — the rows it folds
+                      // open are a separate port, and this card is the shape
+                      // they will land in.
+                      if (widget.quests.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _SeasonCard(
+                          title: t('quests.season'),
+                          count: Text(
+                            t('season.end.quests_done', {
+                              'n': widget.quests
+                                  .where((q) => q.completed)
+                                  .length,
+                              'total': widget.quests.length,
+                            }),
+                            key: const ValueKey('season-end-quests'),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: kit.accentBright,
+                            ),
+                          ),
+                          child: Text(
+                            t('season.end.quests_autopay'),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              height: 1.35,
+                              color: kit.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                      // **THE FINAL TABLE, FOLDED.** Twenty rows of a division
+                      // the player has just spent a season in is not what they
+                      // came to this page for — the verdict is — but the one
+                      // who wants to check the club below them should not have
+                      // to leave to do it. `season.end.view_table` and
+                      // `hide_table` are two more keys that shipped in ten
+                      // languages with nothing able to print either. The JS
+                      // folds it exactly this way: the toggle is its own
+                      // control ABOVE the card, and the card is what appears.
+                      if (widget.finalTable.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        TextButton(
+                          key: const ValueKey('season-end-table-toggle'),
+                          onPressed: () =>
+                              setState(() => _tableOpen = !_tableOpen),
+                          child: Text(
+                            t(
+                              _tableOpen
+                                  ? 'season.end.hide_table'
+                                  : 'season.end.view_table',
+                            ),
+                          ),
+                        ),
+                        if (_tableOpen)
+                          _SeasonCard(
+                            child: Column(
+                              key: const ValueKey('season-end-table'),
+                              children: [
+                                for (
+                                  var i = 0;
+                                  i < widget.finalTable.length;
+                                  i++
+                                )
+                                  _TableRow(
+                                    row: widget.finalTable[i],
+                                    place: i + 1,
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ],
                   ),
                 ),
               ),
-            ],
+            ),
+            // **`.se-cta` — WHAT IT PAID AND THE WAY OUT, pinned together.**
+            // The spec's own comment: "the way out of this screen is never more
+            // than a thumb away, however long the summary above it runs". The
+            // payout belongs to it rather than to the scroll — it is what the
+            // button is collecting, and the JS puts the prize block inside the
+            // same pinned foot.
+            Container(
+              padding: const EdgeInsets.fromLTRB(13, 10, 13, 12),
+              decoration: BoxDecoration(
+                color: kit.surface,
+                border: Border(top: BorderSide(color: kit.border)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _Line(
+                    label: t('season.end.prize_label'),
+                    value: formatCoins(widget.outcome.payout),
+                    valueKey: 'season-end-payout',
+                  ),
+                  if (widget.outcome.gemsAwarded > 0)
+                    _Line(
+                      label: t('shop.section.gems'),
+                      value: '${widget.outcome.gemsAwarded}',
+                      valueKey: 'season-end-gems',
+                    ),
+                  const SizedBox(height: 6),
+                  ElevatedButton(
+                    key: const ValueKey('season-end-continue'),
+                    onPressed: widget.onContinue,
+                    child: Text(
+                      t('season.end.continue', {
+                        'n': widget.seasonNumber + 1,
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One group on the season-end page — the spec's `.se-hero` and `.se-card`.
+///
+/// A [tone] paints the hairline the spec draws across the hero's top edge: "the
+/// same trick the division colour plays on your row in the table". A [title]
+/// and [count] make the `.se-card-head` the quests block wants; both off, it is
+/// a plain box for rows.
+class _SeasonCard extends StatelessWidget {
+  const _SeasonCard({
+    required this.child,
+    this.tone,
+    this.title,
+    this.count,
+    this.padding = const EdgeInsets.all(12),
+  });
+
+  final Widget child;
+  final Color? tone;
+  final String? title;
+  final Widget? count;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final light = Theme.of(context).brightness == Brightness.light;
+    final head = title;
+    return DecoratedBox(
+      // The club screen's asset cards, which is where this page's material
+      // question was settled: a flat fill reads as page, and the app's answer
+      // to "on top of the screen" is `surface2 → surface` with a shadow.
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: const Alignment(-0.35, -1),
+          end: const Alignment(0.35, 1),
+          colors: [kit.surface2, Color.lerp(kit.surface2, kit.surface, 0.65)!],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: tone == null
+              ? kit.border
+              : Color.lerp(kit.border, tone, 0.34)!,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: light ? 0.08 : 0.4),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Stack(
+          children: [
+            Padding(
+              padding: padding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (head != null) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            head.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                              color: kit.textMuted,
+                            ),
+                          ),
+                        ),
+                        ?count,
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  child,
+                ],
+              ),
+            ),
+            // `.se-hero::before` — a 3px band of the tone, fading out at both
+            // ends, so the page's verdict is legible before a word of it is.
+            if (tone case final t?)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 3,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        t.withValues(alpha: 0),
+                        t.withValues(alpha: 0.85),
+                        t.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -413,27 +658,52 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 19,
-            height: 1.1,
-            fontWeight: FontWeight.w900,
-          ),
+    final light = Theme.of(context).brightness == Brightness.light;
+    // **A WASH, not a second card.** These tiles sit INSIDE the hero, which is
+    // already a surface, and the spec's own note says why: "the panel is the
+    // surface, the rows on it are a wash" — a card on a card compounds into
+    // something visibly denser than the panels beside it.
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+      decoration: BoxDecoration(
+        color: light
+            ? Colors.black.withValues(alpha: 0.04)
+            : Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: light
+              ? Colors.black.withValues(alpha: 0.07)
+              : Colors.white.withValues(alpha: 0.11),
         ),
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-            color: kit.textMuted,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FittedBox(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 19,
+                height: 1.1,
+                fontWeight: FontWeight.w900,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 3),
+          Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+              color: kit.textMuted,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -445,6 +715,7 @@ class _SeasonLine extends StatelessWidget {
     required this.icon,
     required this.ink,
     required this.text,
+    this.gold = false,
   });
 
   final String lineKey;
@@ -452,29 +723,42 @@ class _SeasonLine extends StatelessWidget {
   final Color ink;
   final String text;
 
+  /// `.se-line.is-win` — a trophy earns the row a gold edge. A cup exit does
+  /// not, and neither does a division somebody else won.
+  final bool gold;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    key: ValueKey(lineKey),
-    padding: const EdgeInsets.only(top: 6),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GameIcon(icon, size: 15, color: ink),
-        const SizedBox(width: 7),
-        Flexible(
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: ink,
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    const goldInk = Color(0xFFFFD700);
+    return Container(
+      key: ValueKey(lineKey),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: kit.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: gold ? Color.lerp(kit.border, goldInk, 0.42)! : kit.border,
+        ),
+      ),
+      child: Row(
+        children: [
+          GameIcon(icon, size: 16, color: gold ? goldInk : ink),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: ink,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 /// One club in the folded final table.

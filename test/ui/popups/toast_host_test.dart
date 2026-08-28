@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/prestige_card.dart' show proLockedAnswer;
 import 'package:merge_empire_fc/ui/popups/toast_host.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -55,6 +56,17 @@ void main() {
 
     test('a prestige event with no multiplier stays quiet', () {
       expect(toastFor('prestige:complete', {'level': 1}), isNull);
+    });
+
+    test('AND A LOCKED PRO SAYS WHAT WOULD OPEN IT', () {
+      // This used to be `prestige.body_pro_hint` alone — a fragment of the
+      // prestige card's offer, which describes Pro and never says how it opens.
+      // The condition leads it now, in the game's own shipped words.
+      final toast = toastFor('prestige:locked', null)!;
+      expect(toast.text, startsWith(proLockedAnswer()));
+      expect(toast.text, contains(t('ach.desc.prestige_level_1')));
+      expect(toast.text, contains(t('prestige.body_pro_hint')));
+      expect(toast.good, isFalse);
     });
 
     /// **Gems arrive from four faucets and none of them said so.**

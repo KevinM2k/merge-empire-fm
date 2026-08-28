@@ -34,6 +34,7 @@ import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/services/leaderboard_service.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
+import 'package:merge_empire_fc/ui/popups/prestige_card.dart' show proLockedAnswer;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/connect_account_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
@@ -448,16 +449,22 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsRow(
             icon: 'swords',
             label: t('settings.difficulty'),
-            // **The hint says what it costs; the LOCK says where it comes
-            // from.** `prestige.body_pro_hint` is the shipped line — "Or
-            // prestige into Pro Mode — fatigue, squad rotation and live subs
-            // make it a real test" — and it is the same string the prestige
-            // card prints when it offers the route. The two places that talk
-            // about Pro now say the same sentence, which is what makes the
-            // lock legible rather than arbitrary.
+            // **THE NOTE HAS TO SAY THE WORD LOCKED, and it did not.** This
+            // printed `prestige.body_pro_hint` — "Or prestige into Pro Mode —
+            // fatigue, squad rotation and live subs make it a real test" — on
+            // the reasoning that saying the same sentence as the prestige card
+            // makes the lock legible. It does not: that line describes what Pro
+            // IS, its leading "Or" belongs to the offer it was cut from, and a
+            // player reading it under a dead segment learns what they are
+            // missing and nothing about how to get it. Reported as the
+            // difficulty needing to show that it is locked and that prestige is
+            // what opens it.
+            //
+            // [proLockedAnswer] is the condition in the game's own shipped
+            // words, and the tap adds the description on top of it.
             note: proUnlocked
                 ? t('settings.difficulty.hint')
-                : t('prestige.body_pro_hint'),
+                : proLockedAnswer(),
             trailing: SettingsSegment(
               key: const ValueKey('setting-hardMode'),
               choices: [

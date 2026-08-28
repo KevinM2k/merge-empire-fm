@@ -108,10 +108,17 @@ Toast? toastFor(String event, Object? args) {
     // dead until the first prestige and the row's own note says why — but a
     // note under a control is small print, and a player who has just pressed
     // the thing and had nothing happen is not reading small print. Reported as
-    // there being no information about why Pro is locked. Same shipped line the
-    // prestige card offers the route with, said at the moment it is asked for.
+    // there being no information about why Pro is locked.
+    //
+    // **The CONDITION leads it now.** This used to be `prestige.body_pro_hint`
+    // alone, which describes Pro and never says how it opens — see
+    // [proLockedAnswer]. Condition first, then what it buys, which is the order
+    // the question was asked in.
     case 'prestige:locked':
-      return _say(t('prestige.body_pro_hint'), good: false);
+      return _say(
+        '${proLockedAnswer()} ${t('prestige.body_pro_hint')}',
+        good: false,
+      );
 
     // **CONSENT IS NOT REQUIRED WHERE YOU ARE, which is not the same as
     // "coming soon".** The privacy row is always live — the JS shows it

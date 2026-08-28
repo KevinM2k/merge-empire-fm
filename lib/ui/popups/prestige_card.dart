@@ -36,6 +36,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/club_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -47,6 +48,25 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 /// number the reset did not pay.
 double nextPrestigeMultiplier(Map<String, dynamic>? state) =>
     prestigeMultiplierFor(prestigeLevel(state) + 1);
+
+/// Why the Pro difficulty is dead, in the words the game already ships.
+///
+/// **Nothing in the app ever said "locked", which is the whole of the report.**
+/// The difficulty row's note printed `prestige.body_pro_hint` — "Or prestige
+/// into Pro Mode — fatigue, squad rotation and live subs make it a real test" —
+/// a fragment lifted from this card's own OFFER. It describes what Pro is; it
+/// never says the control is unavailable, and its leading "Or" belongs to the
+/// sentence it was cut out of. A player reading it under a greyed segment
+/// learns what they are missing and not one word about how to get it.
+///
+/// The condition already ships, exactly and in ten languages, as
+/// `ach.desc.prestige_level_1`: "Prestige for the first time." The padlock in
+/// front of it is what marks the sentence as the reason rather than a boast.
+///
+/// **No new key, and there could not be one** — the catalogues are generated
+/// from the JS's `en.js`, so a glyph and an existing string is the whole of the
+/// budget. See CLAUDE.md.
+String proLockedAnswer() => '🔒 ${t('ach.desc.prestige_level_1')}';
 
 /// The multiplier as the copy wants it.
 ///

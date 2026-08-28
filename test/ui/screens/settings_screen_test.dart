@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/prestige_card.dart' show proLockedAnswer;
 import 'package:merge_empire_fc/state/game_state.dart' show saveDebounceMs;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/engine/notification_plan.dart';
@@ -488,7 +489,14 @@ void main() {
       // is how "there is no info on why pro is locked" happens on a row that
       // prints exactly that information underneath it.
       expect(segment.choices.last.onTap, isNotNull);
-      expect(find.text(t('prestige.body_pro_hint')), findsOne);
+      // **AND THE NOTE NAMES THE CONDITION.** It used to print
+      // `prestige.body_pro_hint`, which describes what Pro IS and never says
+      // the control is unavailable or what opens it — reported as the row
+      // needing to show that it is locked and that prestige is the key.
+      // `ach.desc.prestige_level_1` is that condition in shipped words.
+      expect(find.text(proLockedAnswer()), findsOne);
+      expect(find.text(t('prestige.body_pro_hint')), findsNothing);
+      expect(proLockedAnswer(), contains(t('ach.desc.prestige_level_1')));
       // **AND IT WEARS A PADLOCK.** A dead segment does not say it is locked,
       // and the note underneath is a sentence nobody reads until they have
       // worked out there is something to read about. Asked for directly.
