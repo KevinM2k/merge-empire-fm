@@ -803,6 +803,89 @@ void main() {
       expect(container.read(coinsProvider), before);
     });
 
+    testWidgets('the LIVE cancel does not look disabled', (tester) async {
+      // **An enabled Cancel wore a disabled button's clothes.** The sheet asked
+      // `styleFrom` for `foregroundColor: kit.textMuted` — the very colour
+      // `mouldedButtonStyle` uses for `deadInk` — over `side: kit.border`,
+      // which is its disabled border. So the one live way out of an
+      // irreversible sale read as greyed out.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('sell-cancel')),
+        240,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
+
+      final label = find.descendant(
+        of: find.byKey(const ValueKey('sell-cancel')),
+        matching: find.byType(Text),
+      );
+      final ink = DefaultTextStyle.of(tester.element(label.first)).style.color;
+      final kit = Theme.of(
+        tester.element(find.byKey(const ValueKey('sell-cancel'))),
+      ).extension<KitTheme>()!;
+      expect(
+        ink,
+        isNot(kit.textMuted),
+        reason: 'that is the colour a DISABLED moulded button uses',
+      );
+      expect(ink, kit.accent, reason: "the theme's own outline ink");
+
+      // The sheet's market offer owns a 1Hz countdown, so it has to be shut
+      // before the binding checks for pending timers.
+      await tester.tap(find.byKey(const ValueKey('sell-cancel')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('and neither button carries a second outline', (tester) async {
+      // `side` is drawn by the button's own Material on the FULL button rect,
+      // while the moulded face sits 4pt inside it — so a `side` here put a
+      // second outline 4pt ABOVE the first, a ridge along the top edge. Both
+      // buttons' Materials have to stay bare for the moulded shape to be the
+      // only shape on them.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      await tester.tap(find.byKey(const ValueKey('grid-card-0')));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('sell-cancel')),
+        240,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
+
+      for (final key in ['sell-cancel', 'sell-confirm']) {
+        final materials = find.descendant(
+          of: find.byKey(ValueKey(key)),
+          matching: find.byType(Material),
+        );
+        expect(materials, findsWidgets, reason: '$key drew no Material at all');
+        for (final element in materials.evaluate()) {
+          final material = element.widget as Material;
+          expect(
+            material.color?.a ?? 0,
+            0,
+            reason: '$key fills behind its own face, burying the edge bar',
+          );
+          final shape = material.shape;
+          if (shape is RoundedRectangleBorder) {
+            expect(
+              shape.side.style,
+              BorderStyle.none,
+              reason: '$key draws a second outline off its Material',
+            );
+          }
+        }
+      }
+
+      await tester.tap(find.byKey(const ValueKey('sell-cancel')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
     testWidgets('a loanee cannot be sold, and is told why', (tester) async {
       // Not ours to sell: the loan engine is still tracking a contract.
       await pumpGrid(

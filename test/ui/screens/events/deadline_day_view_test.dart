@@ -280,4 +280,144 @@ void main() {
       reason: "the row is reading the JS's per-match arithmetic",
     );
   });
+
+  group('the deal wears its own colour', () {
+    /// One live listing of a given kind, drawn on its own.
+    Future<Color> facePaintedFor(
+      WidgetTester tester, {
+      required String kind,
+      bool marquee = false,
+      bool light = false,
+    }) async {
+      tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      final state = createDefaultState();
+      (state['resources'] as Map<String, dynamic>)['fanCoins'] = 500000;
+      final listing = <String, dynamic>{
+        'listingId': 'L1',
+        'kind': kind,
+        'status': 'live',
+        'definitionId': 'p1',
+        'playerName': 'Smith',
+        'fromTeam': 'Rovers',
+        'price': 3600,
+        'spawnAt': 0,
+        'expiresAt': 1 << 40,
+        if (marquee) 'marquee': true,
+      };
+      state['deadlineDay'] = <String, dynamic>{
+        'session': <String, dynamic>{'listings': <dynamic>[listing]},
+        'history': <dynamic>[],
+      };
+      (state['settings'] as Map<String, dynamic>)['theme'] = light
+          ? 'light'
+          : 'dark';
+
+      final container = ProviderContainer(
+        overrides: [
+          saveStoreProvider.overrideWithValue(
+            MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(gameProvider).load();
+      final live = container.read(gameProvider).state!;
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  child: DeadlineListingCard(
+                    listing: listing,
+                    state: live,
+                    clockRevision: 0,
+                    onPass: () {},
+                    onNegotiate: () {},
+                    onTake: () {},
+                    onCounter: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // The FACE, which is what `backgroundBuilder` paints — not the Material
+      // behind it, which is where `styleFrom` used to put the colour.
+      final face = find.descendant(
+        of: find.byKey(const ValueKey('dd-take-L1')),
+        matching: find.byType(AnimatedContainer),
+      );
+      final decoration =
+          tester.widget<AnimatedContainer>(face.first).decoration
+              as BoxDecoration;
+      return decoration.color!;
+    }
+
+    testWidgets('so two kinds do not share one accept button', (tester) async {
+      // **`ElevatedButton.styleFrom(backgroundColor:)` never reached the
+      // face.** The moulded style paints it in a `backgroundBuilder` over a
+      // transparent Material, so the colour landed underneath and every accept
+      // button on the board came out the theme's accent — four kinds of
+      // business, one green button, and the fill it did apply covered the hard
+      // bottom edge as well.
+      final bid = await facePaintedFor(tester, kind: 'bid');
+      final loan = await facePaintedFor(tester, kind: 'loan');
+      final signing = await facePaintedFor(tester, kind: 'signing');
+
+      expect(bid, const Color(0xFF43A047));
+      expect(loan, const Color(0xFF8E5BC0));
+      expect(signing, const Color(0xFF1E88C7));
+      expect({bid, loan, signing}, hasLength(3));
+    });
+
+    testWidgets('and a marquee arrives in gold, whatever kind it is', (
+      tester,
+    ) async {
+      // The spec's `marquee` branch outranks the kind and the port had no
+      // branch at all, so the one listing on the board meant to arrive in gold
+      // wore whatever its kind wears.
+      expect(
+        await facePaintedFor(tester, kind: 'bid', marquee: true),
+        const Color(0xFFD8A01A),
+      );
+    });
+
+    testWidgets('the accept button keeps its hard bottom edge', (tester) async {
+      // What the buried fill cost: the edge bar is drawn INSIDE the face's box,
+      // and a `backgroundColor` on the Material filled the full button rect
+      // over the top of it.
+      await facePaintedFor(tester, kind: 'bid');
+      final face = find.descendant(
+        of: find.byKey(const ValueKey('dd-take-L1')),
+        matching: find.byType(AnimatedContainer),
+      );
+      final decoration =
+          tester.widget<AnimatedContainer>(face.first).decoration
+              as BoxDecoration;
+      expect(decoration.boxShadow, isNotNull);
+      expect(decoration.boxShadow!.first.color, const Color(0xFF205C23));
+      expect(decoration.boxShadow!.first.blurRadius, 0, reason: 'a bar, not a glow');
+
+      // And nothing is painting over it: the Material behind the face has to
+      // stay transparent for the edge to show.
+      final materials = find.descendant(
+        of: find.byKey(const ValueKey('dd-take-L1')),
+        matching: find.byType(Material),
+      );
+      for (final m in materials.evaluate()) {
+        expect((m.widget as Material).color?.a ?? 0, 0);
+      }
+    });
+  });
+
 }

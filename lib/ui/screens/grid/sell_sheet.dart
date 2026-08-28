@@ -206,10 +206,26 @@ Future<void> showSellSheet(
                             child: OutlinedButton(
                               key: const ValueKey('sell-cancel'),
                               onPressed: () => Navigator.of(sheetContext).pop(),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: kit.textMuted,
-                                side: BorderSide(color: kit.border),
-                              ),
+                              // **NO STYLE OF ITS OWN — the theme's moulded
+                              // outline is what a cancel is supposed to look
+                              // like.** Both overrides here were fighting it,
+                              // and between them they made an ENABLED button
+                              // indistinguishable from a disabled one:
+                              // `kit.textMuted` is the very colour
+                              // `mouldedButtonStyle` uses for `deadInk`, and
+                              // `kit.border` is its disabled border, so the live
+                              // Cancel wore a disabled button's ink on a
+                              // disabled button's outline. Reported as looking
+                              // greyed out.
+                              //
+                              // `side` was the other half: it is drawn by the
+                              // button's own Material on the FULL 48pt rect
+                              // while the moulded face sits in a 40pt box 4pt
+                              // inside it, so it added a second outline 4pt
+                              // above the first — a ridge along the top edge,
+                              // reported as a weird 3D top. The theme's own
+                              // `edge` is the border the face builder draws.
+
                               child: Text(t('common.cancel')),
                             ),
                           ),
@@ -284,10 +300,14 @@ Future<void> showSellSheet(
                                   Navigator.of(sheetContext).pop();
                                 }
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: kit.accent,
-                                foregroundColor: kit.accentInk,
-                              ),
+                              // Both of these are already the theme's own
+                              // numbers, so the style said nothing — except
+                              // that `backgroundColor` fills the Material
+                              // BEHIND the moulded face, over the full button
+                              // rect, which buried the hard bottom edge the
+                              // face builder draws 4pt inside it. The accent
+                              // slab it left behind is why this button read as
+                              // flat next to every other one in the game.
                               child: Text(t('common.sell')),
                             ),
                           ),

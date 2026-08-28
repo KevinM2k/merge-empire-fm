@@ -33,6 +33,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart'
+    show mouldedButtonStyle;
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 Future<void> showPyramidEditor(BuildContext context) =>
@@ -705,10 +707,22 @@ class _WideButton extends StatelessWidget {
       height: 42,
       child: OutlinedButton.icon(
         onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: kit.accent.withValues(alpha: 0.12),
-          side: BorderSide(color: kit.accent.withValues(alpha: 0.45)),
-          foregroundColor: kit.accentBright,
+        // A washed accent FACE with a stronger accent border — through the
+        // helper, because neither colour reaches a moulded button from
+        // `styleFrom`: the face is painted in a `backgroundBuilder` over a
+        // transparent Material, so `backgroundColor` landed underneath it and
+        // `side` drew a second outline 4pt clear of the first.
+        //
+        // Not `outline: true`, which forces the face transparent — the wash IS
+        // this button's face, and it is what tells an editor's own controls
+        // apart from the sheet they sit on.
+        style: mouldedButtonStyle(
+          face: kit.accent.withValues(alpha: 0.12),
+          edge: kit.accent.withValues(alpha: 0.45),
+          ink: kit.accentBright,
+          dead: kit.surface2,
+          deadInk: kit.textMuted,
+          border: kit.border,
         ),
         icon: Text(glyph, style: const TextStyle(fontSize: 15)),
         label: Text(

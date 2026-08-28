@@ -49,6 +49,10 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/events/deadline_deal_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/events/event_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show readableInk;
+import 'package:merge_empire_fc/ui/widgets/store_button.dart'
+    show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -57,16 +61,73 @@ import 'package:merge_empire_fc/util/time.dart';
 /// Which side of the desk the feed is showing.
 enum DeskSide { buy, sell }
 
-/// The ink and fill a listing's kind wears. Four kinds of business on one board
-/// read as one undifferentiated feed without it.
-typedef KindStyle = ({Color ink, Color tint});
+/// The ink, fill and BUTTON FACE a listing's kind wears. Four kinds of business
+/// on one board read as one undifferentiated feed without it.
+///
+/// **`ink` is TEXT and `face`/`edge` are a button.** The spec keeps them apart
+/// (`_ddKindStyleRaw`) because they answer different questions: the ink prints
+/// the card's spine and its chip straight onto the page, so it has to survive a
+/// pale one; the face is a fill with white on top, which reads either way. That
+/// is why only the ink goes through [readableInk] below.
+typedef KindStyle = ({Color ink, Color tint, Color face, Color edge});
 
-KindStyle kindStyle(Listing listing) => switch (listing['kind']) {
-  'bid' => (ink: const Color(0xFF66BB6A), tint: const Color(0x2966BB6A)),
-  'loan' => (ink: const Color(0xFF42A5F5), tint: const Color(0x2942A5F5)),
-  'loanOut' => (ink: const Color(0xFFFFB74D), tint: const Color(0x29FFB74D)),
-  _ => (ink: const Color(0xFFBA68C8), tint: const Color(0x29BA68C8)),
-};
+/// The kind's colours as the spec states them, before the theme has its say.
+///
+/// **The port had only `ink` and `tint`, and three of the four hues were not the
+/// spec's** — loan was Material blue against the spec's purple, a loan OUT was
+/// amber against teal, and a plain signing was purple against light blue. The
+/// MARQUEE case was missing altogether, so the one listing on the board that is
+/// meant to arrive in gold wore whatever its kind wears.
+KindStyle _kindStyleRaw(Listing listing) {
+  // Marquee first, and it OUTRANKS the kind: a marquee bid is still a marquee.
+  if (listing['marquee'] == true) {
+    return (
+      ink: const Color(0xFFD8A01A),
+      tint: const Color(0x29D8A01A),
+      face: const Color(0xFFD8A01A),
+      edge: const Color(0xFF916709),
+    );
+  }
+  return switch (listing['kind']) {
+    'bid' => (
+      ink: const Color(0xFF66BB6A),
+      tint: const Color(0x294CAF50),
+      face: const Color(0xFF43A047),
+      edge: const Color(0xFF205C23),
+    ),
+    'loan' => (
+      ink: const Color(0xFFB07EDE),
+      tint: const Color(0x2E8E5BC0),
+      face: const Color(0xFF8E5BC0),
+      edge: const Color(0xFF573472),
+    ),
+    'loanOut' => (
+      ink: const Color(0xFF4DC3AE),
+      tint: const Color(0x2E2B9C8A),
+      face: const Color(0xFF2B9C8A),
+      edge: const Color(0xFF17594E),
+    ),
+    _ => (
+      ink: const Color(0xFF7FD4FF),
+      tint: const Color(0x297FD4FF),
+      face: const Color(0xFF1E88C7),
+      edge: const Color(0xFF12587F),
+    ),
+  };
+}
+
+/// The kind's colours with the theme's say on the INK, which is the half of
+/// them that is printed as text. Every one of these hues was picked against
+/// near-black — `#7FD4FF` on a light card is the terms line nobody can read.
+KindStyle kindStyle(BuildContext context, Listing listing) {
+  final raw = _kindStyleRaw(listing);
+  return (
+    ink: readableInk(context, raw.ink),
+    tint: raw.tint,
+    face: raw.face,
+    edge: raw.edge,
+  );
+}
 
 String _fuseClock(int ms) {
   final total = (ms / 1000).ceil();
@@ -754,7 +815,7 @@ class DeadlineListingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final style = kindStyle(listing);
+    final style = kindStyle(context, listing);
     final held = isPaused(listing);
     final kind = listing['kind'];
     final isBid = kind == 'bid';
@@ -828,25 +889,21 @@ class DeadlineListingCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _Chip(label: chip, style: style),
+                    _Chip.ofKind(label: chip, style: style),
                     if (listing['listedTarget'] == true) ...[
                       const SizedBox(width: 6),
                       _Chip(
                         label: t('event.deadline.chip_listed'),
-                        style: (
-                          ink: const Color(0xFFFFB74D),
-                          tint: const Color(0x29FFB74D),
-                        ),
+                        ink: const Color(0xFFFFB74D),
+                        tint: const Color(0x29FFB74D),
                       ),
                     ],
                     if (held) ...[
                       const SizedBox(width: 6),
                       _Chip(
                         label: t('event.deadline.chip_held'),
-                        style: (
-                          ink: const Color(0xFF90CAF9),
-                          tint: const Color(0x2E42A5F5),
-                        ),
+                        ink: const Color(0xFF90CAF9),
+                        tint: const Color(0x2E42A5F5),
                       ),
                     ],
                     const SizedBox(width: 6),
@@ -1025,9 +1082,21 @@ class DeadlineListingCard extends StatelessWidget {
                         child: OutlinedButton(
                           key: ValueKey('dd-negotiate-${listing['listingId']}'),
                           onPressed: onNegotiate,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: style.ink,
-                            side: BorderSide(color: style.ink),
+                          // **Through the moulded helper, not `styleFrom`.**
+                          // `side` is drawn by the button's own Material, on
+                          // the FULL button rect — but the moulded face sits 4pt
+                          // inside it, so a `side` here put a second outline
+                          // 4pt above the first: a ridge along the top of the
+                          // button, reported as a weird 3D edge. The helper's
+                          // `edge` is the border the builder itself draws.
+                          style: mouldedButtonStyle(
+                            face: Colors.transparent,
+                            edge: style.ink,
+                            ink: style.ink,
+                            dead: kit.surface2,
+                            deadInk: kit.textMuted,
+                            border: kit.border,
+                            outline: true,
                           ),
                           child: Text(
                             isBid
@@ -1048,8 +1117,25 @@ class DeadlineListingCard extends StatelessWidget {
                             : counter != null
                             ? onCounter
                             : onTake,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: style.ink,
+                        // **`backgroundColor` NEVER REACHED THE FACE.** The
+                        // moulded style paints the face in a
+                        // `backgroundBuilder` and leaves the Material behind it
+                        // transparent, so this coloured the layer UNDER the
+                        // face: every accept button on the board came out the
+                        // theme's accent green whatever deal it belonged to,
+                        // and the fill it did apply covered the hard bottom
+                        // edge that makes the button look pressable at all.
+                        // The spec passes `--btn-face`/`--btn-edge` to the same
+                        // shared button, which is what these two are.
+                        style: mouldedButtonStyle(
+                          face: style.face,
+                          edge: style.edge,
+                          // A fill with white on top, both themes — the spec's
+                          // note on why only the ink needs the light treatment.
+                          ink: Colors.white,
+                          dead: kit.surface2,
+                          deadInk: kit.textMuted,
+                          border: kit.border,
                         ),
                         child: Text(
                           acceptLabel,
@@ -1121,17 +1207,27 @@ CardInstance? _cardFor(Listing l, Map<String, dynamic> state) {
   return findOurCard(state, l['cardInstanceId']);
 }
 
+/// A chip takes an INK AND A TINT, not a [KindStyle]: it has no button on it, so
+/// borrowing the kind's record meant the two chips that are not a kind — LISTED
+/// and HELD — had to invent a face and an edge for a button they do not draw.
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.style});
+  const _Chip({required this.label, required this.ink, required this.tint});
+
+  /// The kind's own colours, for the chip that names the kind. [KindStyle.ink]
+  /// has already been through [readableInk] and running it twice is a no-op —
+  /// the clamp is a minimum, so a colour already at or under it does not move.
+  _Chip.ofKind({required String label, required KindStyle style})
+    : this(label: label, ink: style.ink, tint: style.tint);
 
   final String label;
-  final KindStyle style;
+  final Color ink;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
     decoration: BoxDecoration(
-      color: style.tint,
+      color: tint,
       borderRadius: BorderRadius.circular(5),
     ),
     child: Text(
@@ -1139,7 +1235,9 @@ class _Chip extends StatelessWidget {
       style: TextStyle(
         fontSize: 9.5,
         fontWeight: FontWeight.w900,
-        color: style.ink,
+        // Both of these are printed straight onto the card, so they take the
+        // same light-mode treatment the kind's ink does.
+        color: readableInk(context, ink),
       ),
     ),
   );
