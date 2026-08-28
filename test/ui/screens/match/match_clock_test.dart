@@ -192,6 +192,36 @@ void main() {
       expect(feed([ev('goal')]).single.aboutId, isNull);
     });
 
+    test('ONE NAME PER GOAL — the SAVE is asked, not the snapshot', () {
+      // `event.scorer` is a name captured when the events were generated; the
+      // 2D pitch, the replay badge and the full-time scorers card all resolve
+      // the card LIVE through `cardDisplayName`. Two readings of one question,
+      // and they part company the moment anything happens to the card between
+      // the whistle and the replay — reported as the commentary and the replay
+      // needing to name the same man.
+      final lines = feedOf(
+        [ev('goal', scorer: 'Old Name', scorerId: 'c1')],
+        ourName: 'Us',
+        theirName: 'Them',
+        isHome: true,
+        nameOf: (id) => id == 'c1' ? 'New Name' : null,
+      );
+      expect(lines.single.params['scorer'], 'New Name');
+    });
+
+    test('and the snapshot is the fallback, for a card the save has lost', () {
+      // A sold or merged scorer has no card to look up, and his goal still
+      // happened. The name the match was played with is the only one left.
+      final lines = feedOf(
+        [ev('goal', scorer: 'Gone Away', scorerId: 'c9')],
+        ourName: 'Us',
+        theirName: 'Them',
+        isHome: true,
+        nameOf: (_) => null,
+      );
+      expect(lines.single.params['scorer'], 'Gone Away');
+    });
+
     test('A CORNER SAYS NOTHING, and neither does full time', () {
       // The port fell through to printing `event.type`, so a corner read as the
       // word "corner" and full time as "fulltime" — raw, untranslated strings
@@ -292,4 +322,5 @@ void main() {
       expect(line.params['player'], 'Ada');
     });
   });
+
 }

@@ -218,6 +218,22 @@ List<FeedLine> feedOf(
   /// whatever the clip had just drawn, so the ball went over the bar and the
   /// feed said the keeper had it.
   Map<int, String> clippedChanceKeys = const {},
+
+  /// How the SAVE names a scorer, given his instance id.
+  ///
+  /// **The feed and the 2D pitch were reading two different names for one
+  /// goal.** `event.scorer` is a snapshot taken when the events were generated;
+  /// everything the pitch draws — the shooter's own dot in `cutaway_game.dart`,
+  /// the replay's badge, the full-time scorers card — resolves the card LIVE
+  /// through `cardDisplayName`. Two readings of one question, and they stop
+  /// agreeing the moment anything happens to the card between the whistle and
+  /// the replay. Reported as the commentary and the replay needing to name the
+  /// same man.
+  ///
+  /// The snapshot stays as the fallback: it is the only name left for a card
+  /// the save no longer has, which is exactly the case a live lookup cannot
+  /// answer.
+  String? Function(String instanceId)? nameOf,
 }) {
   final out = <FeedLine>[];
   int? lastChance;
@@ -255,8 +271,8 @@ List<FeedLine> feedOf(
               : ours > theirs
               ? 'lead'
               : 'pullback';
-          final scorer = e.scorer;
           final id = e.scorerId;
+          final scorer = (id == null ? null : nameOf?.call(id)) ?? e.scorer;
           if (id != null) today[id] = (today[id] ?? 0) + 1;
           out.add((
             minute: e.minute,

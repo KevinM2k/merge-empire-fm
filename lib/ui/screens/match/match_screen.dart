@@ -1276,6 +1276,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       theirName: them,
       isHome: home,
       clippedChanceKeys: _clippedChanceKeys,
+      // One source for the scorer's name, shared with the clip and the replay
+      // badge below — see [feedOf]'s own note.
+      nameOf: (id) => cardDisplayName(ref.read(gameProvider).state, id),
     );
     // **ONE reading, two things drawing it.** The arrow and the idle pitch's
     // shape are the same figure; handed over rather than computed twice, so
