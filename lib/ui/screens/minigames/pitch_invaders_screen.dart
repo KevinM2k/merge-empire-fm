@@ -71,8 +71,16 @@ Invader pickInvader(double roll, double stewardPct, double dogPct) =>
 const double mouthBottom = 0.07;
 const double mouthHeight = 0.40;
 
-/// How far in from the tile's sides the mouth starts.
-const double mouthInset = 0.05;
+/// How far in from the tile's sides the mouth starts. The spec's 12%.
+///
+/// **It had been widened to 5% and that change was never actually visible**:
+/// the mouth was drawn with `BoxShape.circle`, which sizes itself off the box's
+/// SHORTEST side, so how wide the box was made no difference at all — see
+/// [_Mouth]. With the ellipse restored the 12% is back too, because grass
+/// either side of the hole is what makes it a hole in a patch of ground rather
+/// than a trench across the tile. It is still nearly twice the area the disc
+/// covered.
+const double mouthInset = 0.12;
 
 /// Where the occluder starts: the mouth's WAIST. Above this line a figure paints
 /// over the hole — that is the pop-out; at or below it, nothing of the figure
@@ -108,6 +116,43 @@ const RadialGradient mouthFill = RadialGradient(
   radius: 0.8,
   colors: [Color(0xFF02170A), Color(0xFF041D0B), Color(0xFF062610)],
   stops: [0, 0.65, 1],
+);
+
+/// The far wall of the cavity, in shadow because the light is above it — the
+/// mouth's `box-shadow: inset 0 5px 9px rgba(0,0,0,0.9)`.
+///
+/// **This is the single thing that turns a dark ellipse into a HOLE**, and
+/// Flutter has no inset shadow, so it is a gradient clipped to the same oval.
+/// Without it the mouth is a flat dark shape lying ON the grass; with it the
+/// grass has an edge you can see over.
+const LinearGradient mouthInnerShade = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xE6000000), Color(0x00000000)],
+  stops: [0, 0.45],
+);
+
+/// The tile's own dish — `inset 0 2px 6px rgba(255,255,255,0.06)` at the top
+/// and `inset 0 -8px 12px rgba(0,0,0,0.45)` at the foot. Nine flat squares of
+/// gradient read as nine tiles; these read as nine patches of ground.
+const LinearGradient tileDish = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    Color(0x0FFFFFFF),
+    Color(0x00FFFFFF),
+    Color(0x00000000),
+    Color(0x73000000),
+  ],
+  stops: [0, 0.07, 0.7, 1],
+);
+
+/// The turf band's own `inset 0 -8px 12px rgba(0,0,0,0.45)`.
+const LinearGradient bandFoot = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0x00000000), Color(0x73000000)],
+  stops: [0.45, 1],
 );
 
 class PitchInvadersScreen extends ConsumerStatefulWidget {
@@ -520,6 +565,55 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
 }
 
 /// One gap in the hoardings.
+/// The mouth, as an ELLIPSE.
+///
+/// **`BoxShape.circle` was the whole of "it does not look like a hole".** The
+/// spec's `.pi-mouth` is `left:12%;right:12%;height:40%` with `border-radius:
+/// 50%`, and in CSS that is an ellipse filling the box — wide and flat, which
+/// is what a hole in the ground looks like from a low angle. Flutter's
+/// `BoxShape.circle` is not that: it draws a circle of the box's SHORTEST side,
+/// centred. So the mouth was a small round disc floating in the middle of a
+/// square of grass, and the inset either side — widened from the spec's 12% to
+/// 5% in a pass that reported the hole as too small — had no effect at all,
+/// because a circle does not care how wide its box is.
+///
+/// The shading is the other half. The spec's mouth carries `inset 0 5px 9px
+/// rgba(0,0,0,0.9)` for the far wall and `0 -2px 7px rgba(0,0,0,0.55)` OUTSIDE
+/// and above it for the lip of turf, and the port had drawn a flat radial fill
+/// with neither.
+class _Mouth extends StatelessWidget {
+  const _Mouth({required this.lip});
+
+  /// The shadow cast up onto the grass above the rim. The near half drawn back
+  /// over the occluder does not get one — it would darken the band it is
+  /// supposed to be cut into.
+  final bool lip;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: ShapeDecoration(
+      shape: const OvalBorder(),
+      gradient: mouthFill,
+      shadows: lip
+          ? const [
+              BoxShadow(
+                color: Color(0x8C000000),
+                blurRadius: 7,
+                offset: Offset(0, -2),
+              ),
+            ]
+          : null,
+    ),
+    child: const DecoratedBox(
+      decoration: ShapeDecoration(
+        shape: OvalBorder(),
+        gradient: mouthInnerShade,
+      ),
+      child: SizedBox.expand(),
+    ),
+  );
+}
+
 class _Hole extends StatelessWidget {
   const _Hole({
     required this.index,
@@ -563,18 +657,20 @@ class _Hole extends StatelessWidget {
                     ),
                   ),
                 ),
+                // The tile's dish — see [tileDish]. Over the grass and under
+                // everything else, which is where an inset shadow paints.
+                const Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(gradient: tileDish),
+                  ),
+                ),
                 // 1. The mouth the figure rises out of.
                 Positioned(
                   left: w * mouthInset,
                   right: w * mouthInset,
                   bottom: h * mouthBottom,
                   height: h * mouthHeight,
-                  child: const DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: mouthFill,
-                    ),
-                  ),
+                  child: const _Mouth(lip: true),
                 ),
                 // 2. The figure, unclipped — it has to be free to paint over
                 // the hole on the way up.
@@ -614,6 +710,12 @@ class _Hole extends StatelessWidget {
                   height: h * occludeTop,
                   child: DecoratedBox(
                     decoration: BoxDecoration(gradient: bandGradient()),
+                    // And its own foot shadow, which is what stops the band
+                    // reading as a lighter rectangle laid over the tile.
+                    child: const DecoratedBox(
+                      decoration: BoxDecoration(gradient: bandFoot),
+                      child: SizedBox.expand(),
+                    ),
                   ),
                 ),
                 // 3b. The near half of the mouth, drawn back over that band so
@@ -630,12 +732,7 @@ class _Hole extends StatelessWidget {
                       heightFactor: 0.5,
                       child: SizedBox(
                         height: h * mouthHeight,
-                        child: const DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: mouthFill,
-                          ),
-                        ),
+                        child: const _Mouth(lip: false),
                       ),
                     ),
                   ),

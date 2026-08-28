@@ -186,6 +186,55 @@ void main() {
     await closeGame(tester);
   });
 
+  testWidgets('ALL FIVE LANES ARE ON SCREEN FROM THE FIRST FRAME', (
+    tester,
+  ) async {
+    // One track was drawn at a time and replaced between rounds, which spends a
+    // whole screen of empty space to show a session one fifth at a time. Asked
+    // for as five lanes stacked, the top one first, and nothing below it
+    // starting until the one above is finished.
+    await pumpGame(tester, saveWith());
+    await tester.pump();
+    final s = stateOf(tester);
+
+    for (var lane = 0; lane < ThroughBall.rounds; lane++) {
+      expect(
+        find.byKey(ValueKey('tb-lane-$lane')),
+        findsOneWidget,
+        reason: 'lane $lane is not on screen',
+      );
+      expect(
+        find.byKey(ValueKey('tb-zone-$lane')),
+        findsOneWidget,
+        reason: 'lane $lane has no green to aim at yet',
+      );
+    }
+    // Only the top lane is running.
+    expect(find.byKey(const ValueKey('tb-marker-0')), findsOneWidget);
+    for (var lane = 1; lane < ThroughBall.rounds; lane++) {
+      expect(find.byKey(ValueKey('tb-marker-$lane')), findsNothing);
+    }
+
+    // And the green NARROWS down the stack, which is the difficulty curve made
+    // visible: 100% → 85% → 70% → 55% → 40% of the division's width.
+    final widths = [
+      for (var lane = 0; lane < ThroughBall.rounds; lane++)
+        tester.getRect(find.byKey(ValueKey('tb-zone-$lane'))).width,
+    ];
+    for (var lane = 1; lane < widths.length; lane++) {
+      expect(widths[lane], lessThan(widths[lane - 1]), reason: 'lane $lane');
+    }
+
+    // Playing the top lane hands the marker to the second and leaves the
+    // first's where it stopped.
+    s.placeMarker((s.zoneLo + s.zoneHi) / 2);
+    await playRound(tester);
+    expect(find.byKey(const ValueKey('tb-marker-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tb-marker-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tb-marker-2')), findsNothing);
+    await closeGame(tester);
+  });
+
   testWidgets('five rounds, then the summary and the coins', (tester) async {
     final container = await pumpGame(tester, saveWith());
     await tester.pump();

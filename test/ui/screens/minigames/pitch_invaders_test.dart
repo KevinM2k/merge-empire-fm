@@ -338,6 +338,47 @@ void main() {
     }
   });
 
+  testWidgets('THE MOUTH IS AN ELLIPSE, not a disc in a square of grass', (
+    tester,
+  ) async {
+    // **`BoxShape.circle` was the whole of "it does not look like a hole".**
+    // The spec's `.pi-mouth` is a box 76% wide and 40% tall at
+    // `border-radius: 50%`, which in CSS is an ellipse FILLING it. Flutter's
+    // circle is a disc of the box's shortest side, centred — so the mouth was a
+    // small round coin in the middle of the tile, and the earlier pass that
+    // widened the box from 12% inset to 5% changed nothing at all, because a
+    // circle does not care how wide its box is.
+    await pumpGame(tester);
+    final tile = tester.getSize(find.byKey(const ValueKey('pi-hole-0')));
+    final mouth = tester
+        .widgetList<DecoratedBox>(
+          find.descendant(
+            of: find.byKey(const ValueKey('pi-hole-0')),
+            matching: find.byType(DecoratedBox),
+          ),
+        )
+        .where((box) => box.decoration is ShapeDecoration)
+        .toList();
+    expect(mouth, isNotEmpty, reason: 'the mouth is not a shape at all');
+    for (final box in mouth) {
+      expect((box.decoration as ShapeDecoration).shape, isA<OvalBorder>());
+    }
+    // And the box it fills is wider than it is tall, or the oval is a circle
+    // again by another route.
+    final rect = tester.getRect(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('pi-hole-0')),
+            matching: find.byWidgetPredicate(
+              (w) => w is DecoratedBox && w.decoration is ShapeDecoration,
+            ),
+          )
+          .first,
+    );
+    expect(rect.width, greaterThan(rect.height * 1.5));
+    expect(rect.width, lessThan(tile.width));
+  });
+
   testWidgets('AND A TILE IS MOST OF THE WIDTH IT CAN BE', (tester) async {
     // A tile is a target you have seven hundred milliseconds to hit, and the
     // board was sharing what the instructions, the score row and the timer left

@@ -89,10 +89,22 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
   final math.Random _rng = math.Random();
 
   double _sweepMs = ThroughBall.sweepEasyMs;
-  double _zoneLo = 0;
-  double _zoneHi = 0;
-  double _zoneWidth = 0;
   Duration _sweepStart = Duration.zero;
+
+  /// **All five zones, drawn up front.** The five lanes are all on screen from
+  /// the first frame — see the note in `build` — so all five have to KNOW where
+  /// their green is before the first one runs. The draws happen in the same
+  /// order they used to, one per round, so a session's zones are the sequence
+  /// they always were; only the moment of asking moved.
+  late final List<({double lo, double hi, double width})> _zones;
+
+  /// Where the marker stopped on each round that has been played, or null for
+  /// one that has not. A settled lane keeps its own marker where it landed —
+  /// the evidence for the hit or the miss beside it.
+  final List<double?> _settled = List<double?>.filled(
+    ThroughBall.rounds,
+    null,
+  );
 
   /// The marker's position is MODEL state that the sweep writes and the tap
   /// reads, which is the whole point — see the library comment.
@@ -113,8 +125,11 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
   int get passed => _passed;
   bool get finished => _round >= ThroughBall.rounds;
   double get markerPct => _markerPct.value;
-  double get zoneLo => _zoneLo;
-  double get zoneHi => _zoneHi;
+  double get zoneLo => _zoneFor(_round).lo;
+  double get zoneHi => _zoneFor(_round).hi;
+
+  ({double lo, double hi, double width}) _zoneFor(int round) =>
+      _zones[round.clamp(0, ThroughBall.rounds - 1)];
   int get coinsWon => _coins;
   bool get over => _over;
 
@@ -136,7 +151,12 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
     super.initState();
     _gates = ref.read(tickGatesProvider.notifier);
     _game = ref.read(gameProvider);
-    _sweepMs = throughBallDifficulty(currentDivisionIndex(_game.state)).sweepMs;
+    final difficulty = throughBallDifficulty(currentDivisionIndex(_game.state));
+    _sweepMs = difficulty.sweepMs;
+    _zones = [
+      for (var round = 0; round < ThroughBall.rounds; round++)
+        throughBallZone(round, difficulty.zonePct, _rng.nextDouble()),
+    ];
     _ticker = createTicker(_onTick);
     _startRound();
 
@@ -155,11 +175,6 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
   }
 
   void _startRound() {
-    final base = throughBallDifficulty(currentDivisionIndex(_game.state)).zonePct;
-    final zone = throughBallZone(_round, base, _rng.nextDouble());
-    _zoneLo = zone.lo;
-    _zoneHi = zone.hi;
-    _zoneWidth = zone.width;
     _locked = false;
     _showFeedback = false;
     _sweepStart = Duration.zero;
@@ -184,8 +199,10 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
     _locked = true;
 
     final at = _markerPct.value;
-    final inZone = at >= _zoneLo && at <= _zoneHi;
+    final zone = _zoneFor(_round);
+    final inZone = at >= zone.lo && at <= zone.hi;
     if (inZone) _passed++;
+    _settled[_round] = at;
     unawaited(sound.play(inZone ? 'goal' : 'goalAgainst'));
 
     setState(() {
@@ -308,16 +325,49 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
                   ],
                 ),
                 const SizedBox(height: 14),
-                SizedBox(
-                  height: 72,
-                  child: _Track(
-                    kit: kit,
-                    marker: _markerPct,
-                    zoneLo: _zoneLo,
-                    zoneWidth: _zoneWidth,
-                    dimmed: _over,
+                // **ALL FIVE LANES, FROM THE FIRST FRAME.** One track was shown
+                // at a time and re-drawn between rounds, which spends a whole
+                // screen of empty space to show a session one fifth at a time
+                // and gives the player nothing to read ahead to. Asked for
+                // directly: five lanes stacked, the top one runs first, and the
+                // next does not start until the one above it is finished.
+                //
+                // It also makes the difficulty curve VISIBLE rather than felt —
+                // the green shrinks 100% → 85% → 70% → 55% → 40% down the
+                // stack, so the last lane's sliver is on screen while the first
+                // one is still being aimed at.
+                Expanded(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (
+                            var lane = 0;
+                            lane < ThroughBall.rounds;
+                            lane++
+                          ) ...[
+                            if (lane > 0) const SizedBox(height: 12),
+                            _Track(
+                              kit: kit,
+                              lane: lane,
+                              marker: lane == _round ? _markerPct : null,
+                              settledAt: _settled[lane],
+                              zoneLo: _zones[lane].lo,
+                              zoneWidth: _zones[lane].width,
+                              hit:
+                                  _settled[lane] != null &&
+                                  _settled[lane]! >= _zones[lane].lo &&
+                                  _settled[lane]! <= _zones[lane].hi,
+                              live: lane == _round && !_over,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(height: 8),
                 SizedBox(
                   height: 34,
                   child: _showFeedback
@@ -333,7 +383,6 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
                         )
                       : null,
                 ),
-                const Spacer(),
                 if (_over) ...[
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -374,23 +423,47 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
   }
 }
 
+/// One lane. Five of them are on screen at once, and which one is LIVE is the
+/// only difference between them.
+///
+/// A lane that has not had its turn draws its green and nothing else — that is
+/// the read-ahead the stack exists for. A lane that has had its turn keeps its
+/// marker frozen where it landed, which is the evidence for the hit or the miss
+/// rather than a word about it.
 class _Track extends StatelessWidget {
   const _Track({
     required this.kit,
+    required this.lane,
     required this.marker,
+    required this.settledAt,
     required this.zoneLo,
     required this.zoneWidth,
-    required this.dimmed,
+    required this.hit,
+    required this.live,
   });
 
   final KitTheme kit;
-  final ValueListenable<double> marker;
+  final int lane;
+
+  /// The running marker, and null for every lane that is not this round's.
+  final ValueListenable<double>? marker;
+
+  /// Where the marker stopped, for a lane already played.
+  final double? settledAt;
   final double zoneLo, zoneWidth;
-  final bool dimmed;
+  final bool hit;
+  final bool live;
 
   @override
   Widget build(BuildContext context) => Opacity(
-    opacity: dimmed ? 0.85 : 1,
+    // The live lane is the one at full strength. A lane still waiting is
+    // knocked back so the eye is not asked to choose between five identical
+    // tracks; a played one is knocked back further, since it is a record.
+    opacity: live
+        ? 1
+        : settledAt != null
+        ? 0.5
+        : 0.72,
     // The zone is laid out in PERCENTAGES of the track, so the width has to be
     // measured rather than assumed — a rotation mid-round changes it, and in
     // the JS a stale cached width was enough to make the two disagree about
@@ -400,6 +473,7 @@ class _Track extends StatelessWidget {
         final w = box.maxWidth;
         return Center(
           child: SizedBox(
+            key: ValueKey('tb-lane-$lane'),
             height: 34,
             child: Stack(
               clipBehavior: Clip.none,
@@ -414,7 +488,7 @@ class _Track extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  key: const ValueKey('tb-zone'),
+                  key: ValueKey('tb-zone-$lane'),
                   left: zoneLo / 100 * w,
                   width: zoneWidth / 100 * w,
                   top: 0,
@@ -441,38 +515,67 @@ class _Track extends StatelessWidget {
                 // rather than a `Positioned` with an animated `left`, because a
                 // `Stack` positions only its DIRECT children and an
                 // `AnimatedBuilder` between the two would swallow it.
-                Positioned(
-                  key: const ValueKey('tb-marker'),
-                  left: 0,
-                  right: 0,
-                  top: -4,
-                  bottom: -4,
-                  child: AnimatedBuilder(
-                    animation: marker,
-                    builder: (context, child) => Transform.translate(
-                      offset: Offset(marker.value / 100 * w - markerHalfPx, 0),
-                      child: child,
-                    ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        width: markerHalfPx * 2,
-                        height: double.infinity,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
+                if (marker case final running?)
+                  Positioned(
+                    key: ValueKey('tb-marker-$lane'),
+                    left: 0,
+                    right: 0,
+                    top: -4,
+                    bottom: -4,
+                    child: AnimatedBuilder(
+                      animation: running,
+                      builder: (context, child) => Transform.translate(
+                        offset: Offset(
+                          running.value / 100 * w - markerHalfPx,
+                          0,
                         ),
+                        child: child,
+                      ),
+                      child: const _Marker(colour: Colors.white),
+                    ),
+                  )
+                // Frozen where it stopped, in the colour of the answer.
+                else if (settledAt case final at?)
+                  Positioned(
+                    key: ValueKey('tb-marker-$lane'),
+                    left: 0,
+                    right: 0,
+                    top: -4,
+                    bottom: -4,
+                    child: Transform.translate(
+                      offset: Offset(at / 100 * w - markerHalfPx, 0),
+                      child: _Marker(
+                        colour: hit ? const Color(0xFF76E876) : Colors.red,
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
         );
       },
+    ),
+  );
+}
+
+/// The bar that says where the tap landed.
+class _Marker extends StatelessWidget {
+  const _Marker({required this.colour});
+
+  final Color colour;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: SizedBox(
+      width: markerHalfPx * 2,
+      height: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colour,
+          borderRadius: BorderRadius.circular(3),
+        ),
+      ),
     ),
   );
 }
