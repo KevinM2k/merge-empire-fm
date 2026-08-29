@@ -284,6 +284,12 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
       }
       club['managerAvatar'] = sanitizeAvatar(s, look);
     });
+    // **Pointing at something else ENDS the offer**, which is what
+    // [_clearOffer]'s own note has always said and what only two of its three
+    // routes actually did: the ✕ cleared it and changing axis cleared it, and
+    // tapping another chip left the bar standing over a figure that had moved
+    // on. Reported as having to press the ✕ to get rid of it.
+    _offer = null;
     setState(() {});
   }
 
@@ -306,10 +312,20 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// giving it away, so `field`/`value` are laid over the saved look for the
   /// PREVIEW figure only, and the rest of the record is what the bar on the
   /// stage needs to sell it.
+  /// **AND IT IS NO LONGER ONLY FOR THE ONES WITH SOMETHING TO SELL.** A lock a
+  /// video cannot open — a Fan Zone tier, a cup — used to be a toast: a
+  /// sentence about a hat, with the hat still not on him. Asked for directly,
+  /// and the copy for it already ships: `customise.locked.fanzone` is "Unlocks
+  /// at Fan Zone Tier {tier}" and `customise.locked.cup` is "Win the {cup} to
+  /// unlock", both translated in all ten catalogues and neither ever printed
+  /// anywhere but a toast. So every lock tries the item on now; [packId] null
+  /// is the one that has nothing to offer, and the bar drops its buttons and
+  /// prints [reason] instead.
   ({
     String kind,
     String id,
-    String packId,
+    String? packId,
+    String reason,
     String field,
     Object? value,
   })?
@@ -379,24 +395,26 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// sheet, the item being sold is standing in the middle of it, and a sheet
   /// rising over the bottom half would cover the very thing the tap was for.
   ///
-  /// A lock a video cannot open — a Fan Zone tier, a cup — has nothing to sell
-  /// and nothing to watch, so it stays a line rather than becoming a bar.
+  /// A locked chip: SEE it, then be told what it costs or what it waits on.
+  ///
+  /// A lock a video cannot open used to stop here with a toast — a sentence
+  /// about an item the player had just pointed at and still could not see. The
+  /// showing is the part that has nothing to do with whether there is anything
+  /// to sell, so it happens either way and the bar decides what to put under
+  /// it. See [_offer].
   void _offerLockedItem(LookAxis axis, String id) {
     final why = lockedReason(_save, axis.kind, id);
     if (why == null) return;
-    if (!isPackLocked(_save, axis.kind, id)) {
-      emit('toast:info', why);
-      return;
-    }
-    final packId = lookRequirement(axis.kind, id)?.packId;
-    if (packId == null) return;
     // A celebration is not worn at all; it is played.
     if (axis.field.isEmpty) _play(id);
     setState(
       () => _offer = (
         kind: axis.kind,
         id: id,
-        packId: packId,
+        packId: isPackLocked(_save, axis.kind, id)
+            ? lookRequirement(axis.kind, id)?.packId
+            : null,
+        reason: why,
         field: axis.field,
         value: axis.kind == 'color' ? hairColorValue(id) : id,
       ),
@@ -440,6 +458,15 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     final gesture = gestures.where((g) => g.id == id).firstOrNull;
     if (gesture == null) return;
     _preview.value = GestureCue(gesture);
+  }
+
+  /// Playing a celebration the player OWNS ends any offer standing over the
+  /// stage — the same rule as picking a garment. `_offerLockedItem` plays its
+  /// own before it sets the offer, so a locked celebration still swaps the bar
+  /// rather than clearing it.
+  void _playPicked(String id) {
+    _clearOffer();
+    _play(id);
   }
 
   void _randomise() {
@@ -511,13 +538,17 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
                   kind: offer.kind,
                   id: offer.id,
                   packId: offer.packId,
+                  reason: offer.reason,
                   onWatch: () {
                     _clearOffer();
                     unawaited(_watchForItem(offer.kind, offer.id));
                   },
                   onBuy: () {
+                    final pack = offer.packId;
                     _clearOffer();
-                    unawaited(_buyPackFor(offer.packId));
+                    // Only a bar with a pack draws a Buy, so this cannot fire
+                    // without one — the guard is the type's, not a doubt.
+                    if (pack != null) unawaited(_buyPackFor(pack));
                   },
                   onClose: _clearOffer,
                 ),
@@ -586,7 +617,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
               ready: _ready,
               state: _save,
               onLocked: (id, watchable) => _offerLockedItem(axis, id),
-              onPlay: _play,
+              onPlay: _playPicked,
               onPick: (id) => _set(
                 axis.field,
                 // Hair colour is stored as the VALUE, not the id — that is
@@ -607,6 +638,25 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
 /// How tall the preview box is. Named because the grass strip is a fraction of
 /// it and the two must not be able to disagree.
 const double _stageHeight = 190;
+
+/// **HOW BIG HE IS IN THE FRAME, and this is a framing number rather than a
+/// size one.**
+///
+/// He was drawn at the art's full 120×170 inside a 190 stage — 89% of its
+/// height, crown fifteen points off the top edge and the offer bar crossing his
+/// knees. That is a passport photo, not a shot of a man on a touchline, and the
+/// stage has a sky, a treeline and a strip of grass in it that he was standing
+/// in front of rather than in. Reported as needing to be slightly more zoomed
+/// out. Twelve percent gives fifteen more points of sky over his head and
+/// leaves the backdrop something to be.
+const double _previewScale = 0.88;
+
+/// Where his soles meet the ground, as a fraction of the stage.
+///
+/// The grass strip starts at 0.8, so he stands a little way INTO it rather than
+/// on its front edge — which is where the old `Alignment(0, 0.52)` put him and
+/// what this preserves while the scale changes underneath it.
+const double _previewFootline = 0.883;
 
 /// The diorama's own sky and turf rather than a colour picked to look like
 /// them — one source for the two means a look chosen in here is judged against
@@ -700,13 +750,23 @@ class _PreviewStage extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Standing ON the grass line, not in the middle of the box.
-                Align(
-                  alignment: const Alignment(0, 0.52),
-                  child: SizedBox(
-                    width: walkerWidth,
-                    height: walkerHeight,
-                    child: child,
+                // Standing ON the grass line, not in the middle of the box —
+                // and see [_previewScale]. Positioned by his SOLES rather than
+                // by his box: there are `walkerFootOffset` units of empty art
+                // under him and they scale with him, so an `Align` on the box
+                // would float him the moment the scale moved.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom:
+                      _stageHeight * (1 - _previewFootline) -
+                      walkerFootOffset * _previewScale,
+                  child: Center(
+                    child: SizedBox(
+                      width: walkerWidth * _previewScale,
+                      height: walkerHeight * _previewScale,
+                      child: child,
+                    ),
                   ),
                 ),
                 if (overlay case final bar?)
@@ -1352,6 +1412,7 @@ class _LockedOfferBar extends ConsumerWidget {
     required this.kind,
     required this.id,
     required this.packId,
+    required this.reason,
     required this.onWatch,
     required this.onBuy,
     required this.onClose,
@@ -1359,7 +1420,14 @@ class _LockedOfferBar extends ConsumerWidget {
 
   final String kind;
   final String id;
-  final String packId;
+
+  /// The pack this item is in, or null for a lock nothing can open on the spot
+  /// — a Fan Zone tier, a cup. See [_ManagerCustomiserState._offer].
+  final String? packId;
+
+  /// Why it is locked, from [lockedReason]. The only line under the name when
+  /// there is no pack, and the line the toast used to carry on its own.
+  final String reason;
   final VoidCallback onWatch;
   final VoidCallback onBuy;
   final VoidCallback onClose;
@@ -1368,7 +1436,8 @@ class _LockedOfferBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(saveRevisionProvider);
     final save = ref.read(gameProvider).state;
-    final tile = lookTileState(save, packId);
+    final pack = packId;
+    final tile = pack == null ? null : lookTileState(save, pack);
     final waiting = !canWatchPackAd(save);
     return Container(
       key: const ValueKey('locked-look-offer'),
@@ -1404,12 +1473,13 @@ class _LockedOfferBar extends ConsumerWidget {
                       ),
                     ),
                     Text(
+                      // `reason` IS the pack line when there is a pack —
+                      // `lockedReason` falls through to `customise.locked.pack`
+                      // — so the two cases differ only in the progress after
+                      // it, and a cup or a Fan Zone tier reads as itself.
                       tile == null
-                          ? t('customise.locked.pack', {
-                              'pack': t('customise.pack.$packId'),
-                            })
-                          : '${t('customise.locked.pack', {'pack': t('customise.pack.$packId')})}'
-                                ' · '
+                          ? reason
+                          : '$reason · '
                                 '${t('customise.pack.progress', {'n': tile.owned, 'total': tile.total})}',
                       key: const ValueKey('locked-look-progress'),
                       maxLines: 1,
@@ -1432,37 +1502,47 @@ class _LockedOfferBar extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: StoreButton(
-                  key: const ValueKey('locked-look-watch'),
-                  tone: StoreTone.ad,
-                  small: true,
-                  label: waiting
-                      ? t('customise.pack.wait', {
-                          'time': formatAdWait(msUntilPackAd(save)),
-                        })
-                      : t('customise.pack.watch'),
-                  onTap: waiting ? null : onWatch,
-                ),
-              ),
-              if (tile != null && tile.status != 'owned') ...[
-                const SizedBox(width: 8),
+          // **NOTHING TO SELL IS NOT AN EMPTY ROW.** A cup or a Fan Zone tier
+          // has no video and no price, so the bar is the item's name and the
+          // line saying what it waits on — which is the whole of what the
+          // player asked to be shown, with the item on the rig behind it.
+          if (pack != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
                 Expanded(
                   child: StoreButton(
-                    key: const ValueKey('locked-look-buy'),
-                    tone: StoreTone.gem,
-                    small: true,
-                    label: '${t('customise.pack.unlock_all')} · ${tile.cost}',
-                    leading: const GameIcon('gem', size: 12),
-                    onTap: onBuy,
+                    key: const ValueKey('locked-look-watch'),
+                    tone: StoreTone.ad,
+                    // **NOT `small`.** `--sm` is the ROW variant — 11pt type in
+                    // a 9pt radius with 6 of padding, for a list line — and
+                    // these are two full-width CTAs across the bottom of the
+                    // stage. It is the same fault the pack tiles in the Shop
+                    // had, and it left them ten points shorter than every other
+                    // buy control in the game.
+                    label: waiting
+                        ? t('customise.pack.wait', {
+                            'time': formatAdWait(msUntilPackAd(save)),
+                          })
+                        : t('customise.pack.watch'),
+                    onTap: waiting ? null : onWatch,
                   ),
                 ),
+                if (tile != null && tile.status != 'owned') ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StoreButton(
+                      key: const ValueKey('locked-look-buy'),
+                      tone: StoreTone.gem,
+                      label: '${t('customise.pack.unlock_all')} · ${tile.cost}',
+                      leading: const GameIcon('gem', size: 14),
+                      onTap: onBuy,
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );

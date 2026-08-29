@@ -18,6 +18,8 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show readableInk;
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -269,6 +271,11 @@ const Duration _gemHold = Duration(milliseconds: 3600);
 /// accent — see the border below.
 const Color _gemGold = Color(0xFFFFD700);
 
+/// Bad news. `Colors.redAccent` was doing this job as a BORDER only, with the
+/// ink still green; now that the ink is the tone too it wants naming, and it
+/// goes through `readableInk` so it survives a light page.
+const Color _badRed = Color(0xFFFF5252);
+
 class ToastHost extends ConsumerStatefulWidget {
   const ToastHost({super.key, required this.child});
 
@@ -381,10 +388,36 @@ class ToastHostState extends ConsumerState<ToastHost> {
     if (_entry != null || _current == null) return widget.child;
     return Stack(children: [widget.child, _toastFace(context)]);
   }
+  /// **A LINE THAT IS ON TOP OF THE SCREEN, not printed on it.**
+  ///
+  /// It was a flat `kit.surface` fill with a one-pixel border and no shadow at
+  /// all unless it carried gems — and a flat surface fill is exactly the thing
+  /// that reads as page, which is the fourth time that has been reported in
+  /// this app. It is worse here than anywhere: a toast is raised OVER a sheet,
+  /// and a sheet's own panel is `kit.surface` too, so the box and the thing
+  /// behind it were the same colour and all that was left of the toast was its
+  /// red outline. Reported exactly as a clear box with a red border.
+  ///
+  /// So it takes the vocabulary the club's asset cards and the shop's look
+  /// tiles already settled on: the tone's own colour washed into the lit
+  /// corner over a raked `surface2 → surface`, and BOTH shadows — a soft cast
+  /// for how far off the page it is, a tight contact one for the weight. One
+  /// blurred shadow reads as a glow, which is what the gem line had.
+  ///
+  /// **And the ink follows the tone.** Every line printed `kit.accentBright`
+  /// whatever it said, so a refusal was green type inside a red box: the two
+  /// halves of the same toast disagreeing about whether it was bad news.
+  /// `readableInk` is what keeps a red legible on a daylit surface.
   Widget _toastFace(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final toast = _current;
     if (toast == null) return const SizedBox.shrink();
+    final light = Theme.of(context).brightness == Brightness.light;
+    final tone = toast.gem
+        ? _gemGold
+        : toast.good
+        ? kit.accent
+        : _badRed;
     return Positioned(
       left: 16,
       right: 16,
@@ -394,38 +427,65 @@ class ToastHostState extends ConsumerState<ToastHost> {
           color: Colors.transparent,
           child: Container(
             key: const ValueKey('toast'),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              color: kit.surface,
+              gradient: LinearGradient(
+                // 160deg — down, leaning right. The club's rake and the shop's.
+                begin: const Alignment(-0.35, -1),
+                end: const Alignment(0.35, 1),
+                colors: [
+                  Color.alphaBlend(
+                    tone.withValues(alpha: light ? 0.10 : 0.16),
+                    kit.surface2,
+                  ),
+                  Color.lerp(kit.surface2, kit.surface, 0.65)!,
+                  kit.surface,
+                ],
+                stops: const [0, 0.65, 1],
+              ),
               borderRadius: BorderRadius.circular(10),
               // **Gold, literally, and not the club's accent.** The same
               // argument the achievement banner makes: this is a celebration
               // rather than a notice, and a green-kitted club would otherwise
               // make a gem payout look like every other line the layer prints.
               border: Border.all(
-                color: toast.gem
-                    ? _gemGold
-                    : toast.good
-                    ? kit.accent
-                    : Colors.redAccent,
-                width: toast.gem ? 1.5 : 1,
+                color: tone.withValues(alpha: light ? 0.75 : 0.9),
+                width: 1.5,
               ),
-              boxShadow: toast.gem
-                  ? [
-                      BoxShadow(
-                        color: _gemGold.withValues(alpha: 0.28),
-                        blurRadius: 16,
-                      ),
-                    ]
-                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: light
+                      ? const Color(0xFF111827).withValues(alpha: 0.14)
+                      : const Color(0x8A000000),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: light
+                      ? const Color(0xFF111827).withValues(alpha: 0.10)
+                      : const Color(0x59000000),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+                // The gem line keeps its halo on top of the two, because it is
+                // the one line that is meant to be a celebration.
+                if (toast.gem)
+                  BoxShadow(
+                    color: _gemGold.withValues(alpha: 0.28),
+                    blurRadius: 16,
+                  ),
+              ],
             ),
             child: Text(
               toast.text,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: toast.gem ? _gemGold : kit.accentBright,
-                fontSize: toast.gem ? 15 : 13,
-                fontWeight: toast.gem ? FontWeight.w800 : FontWeight.normal,
+                color: readableInk(
+                  context,
+                  toast.gem ? _gemGold : toast.good ? kit.accentBright : _badRed,
+                ),
+                fontSize: toast.gem ? 15 : 13.5,
+                fontWeight: toast.gem ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ),
