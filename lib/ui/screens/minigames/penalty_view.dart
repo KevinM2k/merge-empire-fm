@@ -209,8 +209,19 @@ const double _artHorizon = 0.62;
 /// make it narrower than the view it is scaled up to fit the width instead and
 /// the surplus goes off the top, which is sky. Either way the seam is a treeline
 /// standing on grass rather than a green edge.
-Rect backdropRect(Size view) {
-  final band = math.max(0.0, standBaseY(view));
+Rect backdropRect(Size view) => backdropRectFor(standBaseY(view), view);
+
+/// The same placement against a seam somebody else owns.
+///
+/// **Goalkeeper Practice looks the other way down the same pitch** and hits the
+/// identical problem — a square Kenney drawing whose bottom third is a field
+/// that must not be seen, laid behind a painter that draws its own ground. The
+/// arithmetic is the arithmetic; what differs is only which number the treeline
+/// has to land on. Split rather than copied, because [_artHorizon] is a fact
+/// about the ART and a second copy of it would go stale the first time the
+/// backdrops were redrawn.
+Rect backdropRectFor(double seamY, Size view) {
+  final band = math.max(0.0, seamY);
   final drawn = math.max(view.width, band / _artHorizon);
   return Rect.fromLTWH(
     (view.width - drawn) / 2,

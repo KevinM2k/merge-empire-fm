@@ -28,14 +28,13 @@ import 'package:merge_empire_fc/data/divisions.dart'
     show currentDivisionIndex;
 import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
-import 'package:merge_empire_fc/data/art_paths.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
+import 'package:merge_empire_fc/ui/screens/minigames/keeper_view.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -353,16 +352,28 @@ class GoalkeeperPracticeScreenState
                     const SizedBox(height: 10),
                     _WatchBar(kit: kit, pct: pct),
                     const SizedBox(height: 10),
+                    // **A GOAL IS WIDER THAN IT IS TALL.** The stage used to
+                    // be whatever height was left in the column, which on a
+                    // phone is a portrait box — so the frame the posts make
+                    // was a doorway rather than a goal. It is a window of its
+                    // own shape now and the height it gives up goes back to
+                    // the column, which centres it: letterboxed, which is what
+                    // football on a screen looks like anyway.
                     Expanded(
-                      child: _Stage(
-                        kit: kit,
-                        drill: _drill,
-                        flash: _flash,
-                        flashGood: _flashGood,
-                        idleText: _appeared == 0
-                            ? t('mg.warming_up')
-                            : t('mg.keep_going'),
-                        onHit: _hitDrill,
+                      child: Center(
+                        child: AspectRatio(
+                          aspectRatio: keeperStageAspect,
+                          child: _Stage(
+                            kit: kit,
+                            drill: _drill,
+                            flash: _flash,
+                            flashGood: _flashGood,
+                            idleText: _appeared == 0
+                                ? t('mg.warming_up')
+                                : t('mg.keep_going'),
+                            onHit: _hitDrill,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -485,26 +496,18 @@ class _Stage extends StatelessWidget {
           builder: (context, box) => Stack(
             key: const ValueKey('train-stage'),
             children: [
-              // **A HORIZON BEHIND THE GOAL.** `art_paths.dart` says what these
-              // are for in as many words: a goal standing against a wash of
-              // flat colour has nothing behind it. The penalty screen has had
-              // one since the backdrops were bundled and this drill — the other
-              // one with a goal in it — was still on `surface2`.
-              //
-              // FOREST rather than the penalty screen's grass, so the two
-              // drills are not the same picture with different rules on top.
-              Positioned.fill(
-                child: ArtImage(
-                  key: const ValueKey('train-backdrop'),
-                  path: backdropPath(Backdrop.forest),
-                  // The band is far wider than it is tall, so the drawing is
-                  // cropped to its top — the sky and the treeline — the same
-                  // way the diorama's strip takes only what it needs.
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                  fallback: const SizedBox.shrink(),
-                ),
-              ),
+              // **THE VIEW FROM THE GOAL, out.** It was the forest backdrop
+              // with a ball growing on it — a horizon, which was the previous
+              // pass, but nothing between the horizon and the shot. So the one
+              // thing in the frame that said where the camera stood was the
+              // growth itself. Reported from the couch in as many words: the
+              // posts and the pitch in front of us, and then exactly what we do
+              // now. [KeeperView] is that scene, and it holds the backdrop —
+              // still FOREST, so the two drills with a goal in them are not the
+              // same picture with different rules on top — because the treeline
+              // has to land on the pitch's own horizon rather than wherever a
+              // fit puts it.
+              const Positioned.fill(child: KeeperView()),
               if (current == null && flash == null)
                 Center(
                   child: Text(
@@ -525,18 +528,11 @@ class _Stage extends StatelessWidget {
                   ),
                 ),
               if (current != null)
-                Positioned(
-                  top: current.top * box.maxHeight,
-                  left: current.left * box.maxWidth,
-                  child: _Bubble(
-                    // Keyed by drill, so the ring and the pulse restart with
-                    // each one instead of carrying the last one's progress.
-                    key: ValueKey('train-bubble-${current.index}'),
-                    kit: kit,
-                    face: drillFace,
-                    windowMs: current.windowMs,
-                    onTap: onHit,
-                  ),
+                _drillBall(
+                  kit: kit,
+                  drill: current,
+                  stage: Size(box.maxWidth, box.maxHeight),
+                  onHit: onHit,
                 ),
             ],
           ),
@@ -547,6 +543,69 @@ class _Stage extends StatelessWidget {
 }
 
 const double bubbleSize = 56;
+
+/// Where a drill's ball goes, from its two rolls and the stage it is on.
+///
+/// **The bands are FRACTIONS and the ball is 56 points**, and the two only
+/// agreed by luck. On a 384-point stage a roll at the top of the left band put
+/// the ball's right edge three tenths of a point inside the right post; on a
+/// 320-point phone it put fifteen points of it BEHIND the post. Nothing said
+/// so while the stage was a photograph — a ball near the edge was just a ball
+/// near the edge — and the frame is what makes it a fault.
+///
+/// So the roll is an aim point and the mouth is what it cannot leave: placed
+/// exactly where it has always been placed, then held inside the posts and
+/// under the bar by the ball's own radius. The spread is unchanged on a stage
+/// wide enough to hold it, which is every phone the bands were tuned on.
+///
+/// Pure, so the two ends — the bands in `_spawn`, the frame in
+/// `keeper_view.dart` — can be checked against each other without a screen.
+Offset drillCentre(double top, double left, Size stage) {
+  const half = bubbleSize / 2;
+  double held(double want, double lo, double hi) =>
+      want.clamp(lo, math.max(lo, hi));
+  return Offset(
+    held(
+      left * stage.width + half,
+      keeperMouthLeft * stage.width + half,
+      keeperMouthRight * stage.width - half,
+    ),
+    held(
+      top * stage.height + half,
+      keeperBarBottom * stage.width + half,
+      stage.height - half,
+    ),
+  );
+}
+
+/// The ball on its mark.
+///
+/// A FUNCTION rather than a widget, and that is a Flutter rule rather than a
+/// preference: `Positioned` has to be the `Stack`'s own child, so a widget
+/// class whose `build` returns one is silently ignored and the ball lands in
+/// the top-left corner. A function hands the Stack the `Positioned` itself.
+Positioned _drillBall({
+  required KitTheme kit,
+  required ({int index, int expiresAt, int windowMs, double top, double left})
+  drill,
+  required Size stage,
+  required VoidCallback onHit,
+}) {
+  final centre = drillCentre(drill.top, drill.left, stage);
+  return Positioned(
+    top: centre.dy - bubbleSize / 2,
+    left: centre.dx - bubbleSize / 2,
+    child: _Bubble(
+      // Keyed by drill, so the ring and the pulse restart with each one
+      // instead of carrying the last one's progress.
+      key: ValueKey('train-bubble-${drill.index}'),
+      kit: kit,
+      face: drillFace,
+      windowMs: drill.windowMs,
+      onTap: onHit,
+    ),
+  );
+}
 
 class _Bubble extends StatefulWidget {
   const _Bubble({

@@ -37,6 +37,8 @@ import 'package:merge_empire_fc/engine/penalty_game_engine.dart'
     show keeperSmartChanceFor;
 import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/keeper_view.dart'
+    show drillTurf;
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -214,7 +216,7 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
                       ),
                       keeperSpread: keeperReachFor(division),
                       kit: keeperKitForDivision(division),
-                      turf: const Color(0xFF3A8C41),
+                      turf: drillTurf,
                       onResult: _onResult,
                     ),
                   ),
