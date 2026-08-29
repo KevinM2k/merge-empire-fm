@@ -28,6 +28,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -35,6 +36,7 @@ import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/grid/coin_tick_float.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
@@ -993,9 +995,31 @@ class _CardSlot extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final card = cell.card!;
     final light = Theme.of(context).brightness == Brightness.light;
+    // One bar cycle = one payout. Cycle rounded to 2dp BEFORE the multiply, as
+    // the JS does, so the float claims exactly what the visible cycle earns.
+    final rate = card.incomePerSec ?? 0;
+    final perCycle = rate > 0
+        ? rate * ((incomeBarCycleSec(rate) * 100).round() / 100)
+        : 0.0;
+
+    return CoinTickHost(
+      amount: perCycle,
+      enabled: !dimmed,
+      builder: (onCycle) => _target(context, ref, card, light, onCycle),
+    );
+  }
+
+  Widget _target(
+    BuildContext context,
+    WidgetRef ref,
+    CardView card,
+    bool light,
+    VoidCallback onCycle,
+  ) {
     final tile = PlayerCard(
       view: card,
       light: light,
+      onIncomeCycle: onCycle,
       // A tap opens the sell sheet; the DRAG is the merge. Two gestures, two
       // meanings, and the arena keeps them apart.
       onTap: () {
@@ -1066,12 +1090,16 @@ class _CardSlot extends ConsumerWidget {
                 key: ValueKey('grid-card-${cell.index}'),
                 width: width,
                 height: height,
-                child: _MergeRing(
-                  // Gold says "there is a pair here"; white says "let go and it
-                  // happens".
-                  on: mergeable || candidate.isNotEmpty,
-                  hot: candidate.isNotEmpty,
-                  child: tile,
+                // Its own layer: the ring's pulse scales the card, and without
+                // this that repainted every slot and card on the grid.
+                child: RepaintBoundary(
+                  child: _MergeRing(
+                    // Gold says "there is a pair here"; white says "let go and
+                    // it happens".
+                    on: mergeable || candidate.isNotEmpty,
+                    hot: candidate.isNotEmpty,
+                    child: tile,
+                  ),
                 ),
               ),
             ),
@@ -1249,19 +1277,31 @@ class _SlotPainter extends CustomPainter {
       canvas.drawRRect(rect, stroke);
       return;
     }
-    // 5-on, 4-off, walked along the rounded rect's own outline so the dashes
-    // follow the corners instead of being clipped by them.
+    canvas.drawPath(_dashes(size), stroke);
+  }
+
+  /// 5-on, 4-off, walked along the rounded rect's own outline so the dashes
+  /// follow the corners. Cached per size: extracting ~30 segments was a
+  /// measurable cost on every repaint of the grid.
+  static final Map<Size, Path> _dashCache = {};
+  static Path _dashes(Size size) => _dashCache.putIfAbsent(size, () {
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(12),
+    );
+    final out = Path();
     for (final metric in (Path()..addRRect(rect)).computeMetrics()) {
       var d = 0.0;
       while (d < metric.length) {
-        canvas.drawPath(
+        out.addPath(
           metric.extractPath(d, (d + 5).clamp(0, metric.length)),
-          stroke,
+          Offset.zero,
         );
         d += 9;
       }
     }
-  }
+    return out;
+  });
 
   @override
   bool shouldRepaint(_SlotPainter old) =>

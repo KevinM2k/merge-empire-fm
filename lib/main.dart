@@ -81,6 +81,12 @@ class MergeEmpireApp extends ConsumerWidget {
     return MaterialApp(
       title: 'Merge Empire Football Manager',
       theme: ref.watch(appThemeProvider),
+      // iOS-style bounce everywhere: Android's clamp-and-stretch read as
+      // "not native" on the squad, shop, club and settings lists.
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        physics: const BouncingScrollPhysics(),
+        overscroll: false,
+      ),
       // Arabic reads right to left. This is the whole of what the JS did by
       // setting document.dir.
       locale: Locale(ref.watch(localeProvider)),

@@ -14,7 +14,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
@@ -208,9 +207,14 @@ class PlayerCard extends StatelessWidget {
     this.onTap,
     this.selected = false,
     this.kitColor,
+    this.onIncomeCycle,
   });
 
   final CardView view;
+
+  /// Fired once per fill of the income bar — one payout. The grid floats the
+  /// coins off it; every other caller leaves it null.
+  final VoidCallback? onIncomeCycle;
 
   /// Light mode swaps the BODY for a pale tint of the same rarity. The chips
   /// stay dark so their bright rarity text stays readable on top.
@@ -490,6 +494,7 @@ class PlayerCard extends StatelessWidget {
                                 ratePerSec: view.incomePerSec!,
                                 ink: accentLight,
                                 track: captionTrack,
+                                onCycle: onIncomeCycle,
                               ),
                             ],
                           ],
@@ -711,9 +716,11 @@ class _Income extends StatefulWidget {
     required this.ratePerSec,
     required this.ink,
     required this.track,
+    this.onCycle,
   });
 
   final double ratePerSec;
+  final VoidCallback? onCycle;
   final Color ink;
   final Color track;
 
@@ -722,7 +729,17 @@ class _Income extends StatefulWidget {
 }
 
 class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
-  late final AnimationController _fill = AnimationController(vsync: this);
+  late final AnimationController _fill = AnimationController(vsync: this)
+    ..addListener(_onTick);
+
+  /// `repeat()` never reports completed, so a wrap is the cycle's end.
+  double _lastFill = 0;
+
+  void _onTick() {
+    final v = _fill.value;
+    if (v < _lastFill) widget.onCycle?.call();
+    _lastFill = v;
+  }
 
   Duration get _cycle => Duration(
     milliseconds: (incomeBarCycleSec(widget.ratePerSec) * 1000).round(),
@@ -794,25 +811,47 @@ class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
           ],
         ),
         const SizedBox(height: 2),
+        // NOT a `BarFill`: that is a layout, and a grid of these re-laid-out
+        // and repainted every card every frame. This is one rect, painted
+        // off the clock, in a layer 3pt tall.
         ClipRRect(
           borderRadius: BorderRadius.circular(2),
           child: SizedBox(
             height: 3,
-            child: Stack(
-              children: [
-                Positioned.fill(child: ColoredBox(color: widget.track)),
-                AnimatedBuilder(
-                  animation: _fill,
-                  builder: (context, _) => BarFill(
-                    fraction: _fill.value,
-                    child: ColoredBox(color: widget.ink),
-                  ),
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: _FillPainter(
+                  fill: _fill,
+                  ink: widget.ink,
+                  track: widget.track,
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ],
     );
   }
+}
+
+class _FillPainter extends CustomPainter {
+  _FillPainter({required this.fill, required this.ink, required this.track})
+    : super(repaint: fill);
+
+  final Animation<double> fill;
+  final Color ink;
+  final Color track;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = track);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width * fill.value.clamp(0.0, 1.0), size.height),
+      Paint()..color = ink,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FillPainter old) =>
+      old.fill != fill || old.ink != ink || old.track != track;
 }

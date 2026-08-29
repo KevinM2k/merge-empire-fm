@@ -770,6 +770,7 @@ class PitchScene extends StatelessWidget {
                     child: _GroundDrive(
                       builder: (worldX) => _Scroller(
                         key: const ValueKey('pitch-floodlights'),
+                        stillKey: (pylons, night),
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: farSegmentWidth,
@@ -815,6 +816,8 @@ class PitchScene extends StatelessWidget {
                     builder: (beat, excitement) => _GroundDrive(
                       builder: (worldX) => _Scroller(
                         key: const ValueKey('pitch-stand'),
+                        live: excitement > 0,
+                        stillKey: (kitColor, haze, tier),
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: farSegmentWidth,
@@ -869,6 +872,7 @@ class PitchScene extends StatelessWidget {
                       );
                       return _Scroller(
                         key: const ValueKey('pitch-hoardings'),
+                        stillKey: kitColor,
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: hoardingSegmentWidth,
@@ -1062,12 +1066,22 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
   /// rather than shared: the crowd bounces at the rate people bounce, not at the
   /// rate the ground travels. A stand that stopped dead because the manager
   /// paused to bow would be stranger than one that carried on.
+  /// **AT REST THE CROWD IS STILL.** The bounce ran every frame for the life
+  /// of the screen and was half the UI thread on a flagship phone, for a
+  /// movement nobody could see. The clock runs while a surge decays and stops.
   void _sync() {
-    if (MediaQuery.of(context).disableAnimations) {
-      if (_c.isAnimating) _c.stop();
-      return;
+    final run = _excitement > 0 && !MediaQuery.of(context).disableAnimations;
+    if (run && !_c.isAnimating) {
+      _last = Duration.zero;
+      _c.repeat();
+    } else if (!run && _c.isAnimating) {
+      _c.stop();
     }
-    if (!_c.isAnimating) _c.repeat();
+  }
+
+  void _surge() {
+    setState(() => _excitement = 1);
+    _sync();
   }
 
   @override
@@ -1086,6 +1100,7 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
     setState(() {
       _excitement = math.max(0, _excitement - dt / _surgeSeconds);
     });
+    if (_excitement <= 0) _sync();
   }
 
   @override
@@ -1106,7 +1121,7 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
     // Same surge a tap gives, and it decays the same way — a crowd that stayed up
     // would be a crowd that had stopped reacting.
     if (widget.celebration != null && widget.celebration != old.celebration) {
-      setState(() => _excitement = 1);
+      _surge();
     }
   }
 
@@ -1116,7 +1131,7 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
     // Opaque, so the terrace answers a tap that lands on a gap between two
     // supporters rather than only on a head.
     behavior: HitTestBehavior.opaque,
-    onTap: () => setState(() => _excitement = 1),
+    onTap: _surge,
     child: AnimatedBuilder(
       animation: _c,
       builder: (context, _) => widget.builder(_c.value, _excitement),
@@ -2053,6 +2068,7 @@ class _Turf extends StatelessWidget {
                           child: _Scroller(
                             offsetPx: atRow(tuftBandFraction(band)),
                             segmentWidth: groundSegmentWidth,
+                            stillKey: (band, tier),
                             child: _DecoSegment(band: band, tier: tier),
                           ),
                         ),
@@ -2061,6 +2077,7 @@ class _Turf extends StatelessWidget {
                         child: _Scroller(
                           offsetPx: atRow(tuftBandFraction(band)),
                           segmentWidth: groundSegmentWidth,
+                          stillKey: (band, tier),
                           child: _TuftSegment(band: band, tier: tier),
                         ),
                       ),
@@ -2393,6 +2410,8 @@ class _Scroller extends StatelessWidget {
     required this.offsetPx,
     required this.segmentWidth,
     required this.child,
+    this.live = false,
+    this.stillKey,
   });
 
   /// How far the world has travelled, in pixels at THIS strip's row.
@@ -2400,6 +2419,14 @@ class _Scroller extends StatelessWidget {
 
   final double segmentWidth;
   final Widget child;
+
+  /// True while the segment itself is animating (a surging crowd), which is
+  /// the one time it must be drawn rather than shown as a picture.
+  final bool live;
+
+  /// What the picture depends on. A change takes a new one — a snapshot never
+  /// notices its child repainting.
+  final Object? stillKey;
 
   @override
   Widget build(BuildContext context) => ClipRect(
@@ -2413,7 +2440,13 @@ class _Scroller extends StatelessWidget {
           child: OverflowBox(
             alignment: Alignment.centerLeft,
             maxWidth: count * segmentWidth,
-            child: Row(
+            // Its own layer. The translate above repaints every frame, and
+            // without this every tiled painter (five stands, five hoardings…)
+            // re-ran its paint each time — half the UI thread at idle.
+            child: _StillStrip(
+              key: ValueKey(stillKey),
+              live: live,
+              child: Row(
               mainAxisSize: MainAxisSize.min,
               // STRETCH, not the default centre. A centred child gets LOOSE
               // height constraints, so a segment that does not name its own
@@ -2425,10 +2458,61 @@ class _Scroller extends StatelessWidget {
               // collapsed them one level deeper than anyone was looking.
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [for (var i = 0; i < count; i++) child],
+              ),
             ),
           ),
         );
       },
     ),
   );
+}
+
+/// The tiled row as ONE PICTURE. Impeller keeps no raster cache, so a
+/// `RepaintBoundary` alone still re-rasterised five stands of ~300 fans every
+/// frame under the translate; a snapshot is drawn once and moved.
+class _StillStrip extends StatefulWidget {
+  const _StillStrip({super.key, required this.live, required this.child});
+
+  final bool live;
+  final Widget child;
+
+  @override
+  State<_StillStrip> createState() => _StillStripState();
+}
+
+class _StillStripState extends State<_StillStrip> {
+  late final SnapshotController _controller = SnapshotController(
+    allowSnapshotting: !widget.live,
+  );
+
+  @override
+  void didUpdateWidget(_StillStrip old) {
+    super.didUpdateWidget(old);
+    if (old.live != widget.live) {
+      _controller.allowSnapshotting = !widget.live;
+      if (!widget.live) _controller.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    // 2x at most, as the customiser's stills: the eye gets nothing from 3x.
+    return MediaQuery(
+      data: media.copyWith(
+        devicePixelRatio: math.min(media.devicePixelRatio, 2),
+      ),
+      child: SnapshotWidget(
+        controller: _controller,
+        mode: SnapshotMode.permissive,
+        child: RepaintBoundary(child: widget.child),
+      ),
+    );
+  }
 }
