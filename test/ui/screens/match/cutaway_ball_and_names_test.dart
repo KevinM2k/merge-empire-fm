@@ -78,6 +78,105 @@ void main() {
     }
   });
 
+  testWidgets('AND EVERY KICK COMES OFF A BOOT', (tester) async {
+    // The rule the test above cannot see. It bounds how FAR the ball moves in
+    // flight, which says a kick is a kick — but a flight starts wherever the
+    // ball is lying, so the question a ball moving on its own actually asks is
+    // whether anybody was AT it when it left.
+    for (var i = 0; i < cutawaySequences.length; i++) {
+      for (final outcome in [CutawayOutcome.goal, CutawayOutcome.saved]) {
+        final game = await loaded(
+          tester,
+          sequence: cutawaySequences[i],
+          outcome: outcome,
+          seed: 23 + i,
+        );
+        const step = 1 / 60;
+        var t = 0.0;
+        var wasFlight = false;
+        while (!game.finished && t < 30) {
+          final from = game.ball.position.clone();
+          final grounded = !game.inFlight;
+          game.update(step);
+          t += step;
+          if (game.inFlight && !wasFlight && grounded) {
+            var nearest = double.infinity;
+            for (final a in game.attackers) {
+              final d = a.position.distanceTo(from);
+              if (d < nearest) nearest = d;
+            }
+            // A figure is 5.2 units wide, so this is a boot on the ball rather
+            // than a man in the same half as it. Measured across every
+            // sequence, every outcome and four seeds, the worst is 2.9.
+            expect(
+              nearest,
+              lessThan(4),
+              reason: '${cutawaySequences[i].id} $outcome at ${t}s',
+            );
+          }
+          wasFlight = game.inFlight;
+        }
+      }
+    }
+  });
+
+  testWidgets('AND THE MAN WHO TAKES A FREE KICK IS STANDING OVER IT', (
+    tester,
+  ) async {
+    // **The last place the ball moved with nobody at it.** A foul spots the
+    // ball and holds it for a beat so the wall is seen to form — but the taker
+    // was never told to stop, so he walked on to the target his DRIBBLE beat
+    // had given him. Measured at 5.2 units before the fix, which is a figure's
+    // own width: the ball sat on the grass, the man who was about to kick it
+    // strolled past it, and then it flew.
+    //
+    // A target of its own would not have done it, and that is the part worth
+    // keeping: a `Mover` that has arrived damps its velocity at 6 per second
+    // rather than dropping it, so a man told to stand where he already is still
+    // coasts several units past it. He is FROZEN, which is what the wall beside
+    // him does and what being scythed down looks like.
+    var takersSeen = 0;
+    for (var i = 0; i < cutawaySequences.length; i++) {
+      final game = await loaded(
+        tester,
+        sequence: cutawaySequences[i],
+        seed: 41 + i,
+      );
+      const step = 1 / 60;
+      var t = 0.0;
+      var pending = false;
+      var seen = false;
+      while (!game.finished && t < 30) {
+        final was = game.freeKickPending;
+        if (was) {
+          pending = true;
+          expect(
+            game.attackers[game.carrier].position.distanceTo(
+              game.ball.position,
+            ),
+            lessThan(1),
+            reason: '${cutawaySequences[i].id}: the taker left it at ${t}s',
+          );
+        }
+        game.update(step);
+        t += step;
+        if (was && !game.freeKickPending && !seen) {
+          seen = true;
+          // And he is on his feet again the frame he has struck it: a scorer
+          // who cannot run is a celebration that does not happen.
+          expect(
+            game.attackers[game.carrier].frozen,
+            isFalse,
+            reason: '${cutawaySequences[i].id}: the taker is still planted',
+          );
+        }
+      }
+      if (pending) takersSeen++;
+    }
+    // Not vacuous: some of the scripts really do end in a foul.
+    expect(takersSeen, greaterThan(0));
+  });
+
   testWidgets('OUR ELEVEN WEAR NAMES, theirs numbers, the keeper GK', (
     tester,
   ) async {
