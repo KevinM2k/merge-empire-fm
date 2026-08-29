@@ -236,6 +236,60 @@ void main() {
         expect(lines[1].type, 'goal', reason: 'the goal lost its own minute');
       });
     });
+    group('AND A CHANCE NOBODY SEES MAKES NO NOISE', () {
+      // There are about thirteen chances in a match and the feed prints three
+      // or four. The sound was hung on the EVENT, so all thirteen played a kick
+      // and every on-target one played the crowd on top of it — nine or ten
+      // noises a match with nothing on screen. Reported as miss noises with no
+      // action.
+      test('the shown minutes are the feed\'s own, not the timeline\'s', () {
+        final events = [
+          // Big, on target: printed, so it is heard.
+          ev('chance', minute: 5, shotResult: 'on_target', big: true, xg: 0.4),
+          // Inside the gap: dropped by the feed, so silent.
+          ev('chance', minute: 9, shotResult: 'on_target', big: true, xg: 0.4),
+          // Off target: dropped, so silent.
+          ev('chance', minute: 40, shotResult: 'off', big: true, xg: 0.4),
+          // Small: dropped, so silent.
+          ev('chance', minute: 60, shotResult: 'on_target', xg: 0.1),
+          // Big, on target, clear of the last SHOWN one: printed.
+          ev('chance', minute: 70, shotResult: 'on_target', big: true, xg: 0.4),
+        ];
+        expect(feedChanceMinutes(events), {5, 70});
+        // And that is exactly the set the feed itself prints, because it is
+        // the feed that produced it.
+        expect(
+          feed(events).where((l) => l.type == 'chance').map((l) => l.minute),
+          [5, 70],
+        );
+      });
+
+      test('and a chance the pitch retold is heard, whatever its numbers', () {
+        // A clip bypasses the filters — it is on screen by definition — so the
+        // sound has to follow it there too.
+        final events = [ev('chance', minute: 12, shotResult: 'off', xg: 0.05)];
+        expect(feedChanceMinutes(events), isEmpty);
+        expect(
+          feedChanceMinutes(
+            events,
+            clippedChanceKeys: const {12: 'commentary.shot_wide'},
+          ),
+          {12},
+        );
+      });
+
+      test('and nothing else in the timeline counts as a chance', () {
+        expect(
+          feedChanceMinutes([
+            ev('goal', minute: 5),
+            ev('corner', minute: 7),
+            ev('injury', minute: 9, player: 'Smith'),
+          ]),
+          isEmpty,
+        );
+      });
+    });
+
     test('AND A GOAL KNOWS WHOSE IT WAS', () {
       // The feed printed the scorer's NAME and carried nothing else, so a row
       // that wanted his face had a string to work from. The engine has written

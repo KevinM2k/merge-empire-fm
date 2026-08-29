@@ -225,6 +225,35 @@ const List<int> openingFillMinutes = [6, 11];
 /// disagree about which pool is being emptied.
 const String openFlowPrefix = 'commentary.flow.open.';
 
+/// **WHICH CHANCES THE PLAYER ACTUALLY SEES.**
+///
+/// There are about thirteen chances in a match and the feed prints three or
+/// four of them: a chance earns a line only if it was big AND on target AND far
+/// enough from the last one. The SOUND was hung on the event instead, so every
+/// one of the thirteen played a kick and every on-target one played the crowd
+/// on top of it — nine or ten noises a match with nothing on screen to belong
+/// to. Reported as miss noises happening with no action, and the rule the
+/// report gives is the right one: if no action, no noise.
+///
+/// Derived by running the feed rather than by re-stating its rules. The gap
+/// filter is stateful across the whole list — it is measured from the last
+/// chance that was SHOWN, not the last that happened — so a second copy of that
+/// logic would drift the first time either half moved.
+Set<int> feedChanceMinutes(
+  List<TimelineEvent> events, {
+  Map<int, String> clippedChanceKeys = const {},
+}) => {
+  for (final line in feedOf(
+    events,
+    // The names only reach a line's parameters, never the filter.
+    ourName: '',
+    theirName: '',
+    isHome: true,
+    clippedChanceKeys: clippedChanceKeys,
+  ))
+    if (line.type == 'chance') line.minute,
+};
+
 /// What each event says in the feed, and which say nothing at all.
 ///
 /// **Ported from `_processEvent` in `MatchPopup.js`, and the point is what it

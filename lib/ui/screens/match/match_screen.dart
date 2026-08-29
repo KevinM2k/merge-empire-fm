@@ -465,6 +465,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// is no picture to be late for; they were never a flight time.
   void _soundFor(int minute) {
     final sound = ref.read(soundServiceProvider);
+    // The chances the feed will actually print, up to and including this
+    // minute — the same window the screen is drawing. The gap filter counts
+    // from the last SHOWN chance, so it has to be run over the run of events
+    // rather than asked about one. See [feedChanceMinutes].
+    final heard = feedChanceMinutes(
+      [
+        for (final e in _timeline)
+          if (e.minute <= minute) e,
+      ],
+      clippedChanceKeys: _clippedChanceKeys,
+    );
     for (final event in _timeline) {
       if (event.minute != minute) continue;
       // The clip will play this one's shot when it takes it.
@@ -484,6 +495,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
             () => unawaited(sound.play(ours ? 'goal' : 'goalAgainst')),
           );
         case 'chance':
+          // **AND ONLY IF THE PLAYER IS SHOWN IT.** The feed prints three or
+          // four of a match's thirteen chances — big, on target, and clear of
+          // the last one — and this fired on all thirteen, so nine or ten kicks
+          // a match landed with nothing on screen to belong to, half of them
+          // with the crowd's groan behind them. Reported as miss noises with no
+          // action, and the report states the rule: if no action, no noise.
+          // See [feedChanceMinutes], which asks the feed rather than repeating
+          // its arithmetic.
+          if (!heard.contains(event.minute)) break;
           unawaited(sound.play('kick'));
           // A chance that hit the target and stayed out is the one the crowd
           // reacts to; a wild one off target is not worth a sound. **The crowd,
