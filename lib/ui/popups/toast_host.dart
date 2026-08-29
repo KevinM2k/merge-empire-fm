@@ -19,7 +19,7 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show readableInk;
+    show readableInk, semanticPlate;
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -271,10 +271,6 @@ const Duration _gemHold = Duration(milliseconds: 3600);
 /// accent — see the border below.
 const Color _gemGold = Color(0xFFFFD700);
 
-/// Bad news. `Colors.redAccent` was doing this job as a BORDER only, with the
-/// ink still green; now that the ink is the tone too it wants naming, and it
-/// goes through `readableInk` so it survives a light page.
-const Color _badRed = Color(0xFFFF5252);
 
 class ToastHost extends ConsumerStatefulWidget {
   const ToastHost({super.key, required this.child});
@@ -412,12 +408,19 @@ class ToastHostState extends ConsumerState<ToastHost> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final toast = _current;
     if (toast == null) return const SizedBox.shrink();
-    final light = Theme.of(context).brightness == Brightness.light;
+    // **ONE tone decides the whole line**, and it used to decide only the
+    // border: the ink was `accentBright` whatever had happened, so a refusal
+    // was a green sentence inside a red outline.
+    //
+    // **Gold, literally, and not the club's accent.** The same argument the
+    // achievement banner makes: this is a celebration rather than a notice, and
+    // a green-kitted club would otherwise make a gem payout look like every
+    // other line the layer prints.
     final tone = toast.gem
         ? _gemGold
         : toast.good
-        ? kit.accent
-        : _badRed;
+        ? kit.accentBright
+        : dangerInk;
     return Positioned(
       left: 16,
       right: 16,
@@ -427,48 +430,29 @@ class ToastHostState extends ConsumerState<ToastHost> {
           color: Colors.transparent,
           child: Container(
             key: const ValueKey('toast'),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                // 160deg — down, leaning right. The club's rake and the shop's.
-                begin: const Alignment(-0.35, -1),
-                end: const Alignment(0.35, 1),
-                colors: [
-                  Color.alphaBlend(
-                    tone.withValues(alpha: light ? 0.10 : 0.16),
-                    kit.surface2,
-                  ),
-                  Color.lerp(kit.surface2, kit.surface, 0.65)!,
-                  kit.surface,
-                ],
-                stops: const [0, 0.65, 1],
-              ),
-              borderRadius: BorderRadius.circular(10),
-              // **Gold, literally, and not the club's accent.** The same
-              // argument the achievement banner makes: this is a celebration
-              // rather than a notice, and a green-kitted club would otherwise
-              // make a gem payout look like every other line the layer prints.
-              border: Border.all(
-                color: tone.withValues(alpha: light ? 0.75 : 0.9),
-                width: 1.5,
-              ),
+              // **IT WAS A HAIRLINE ROUND NOTHING.** `kit.surface` is the dark
+              // theme's 12%-lightness ground — the same value the page behind
+              // it is built from — so the box had no edge of its own and what
+              // was on screen was a red outline floating over the scene.
+              // Reported as "just a clear box with a red border".
+              //
+              // The chips' own plate instead, tinted by the tone: near-black in
+              // the dark, a wash of the tone's hue in daylight, composited onto
+              // the surface so it is opaque either way and the pitch cannot
+              // come through it.
+              color: Color.alphaBlend(semanticPlate(context, tone), kit.surface),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: tone, width: 1.5),
               boxShadow: [
+                // What actually lifts it off the page. The gem line keeps its
+                // glow on top of it.
                 BoxShadow(
-                  color: light
-                      ? const Color(0xFF111827).withValues(alpha: 0.14)
-                      : const Color(0x8A000000),
-                  blurRadius: 16,
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
-                BoxShadow(
-                  color: light
-                      ? const Color(0xFF111827).withValues(alpha: 0.10)
-                      : const Color(0x59000000),
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
-                ),
-                // The gem line keeps its halo on top of the two, because it is
-                // the one line that is meant to be a celebration.
                 if (toast.gem)
                   BoxShadow(
                     color: _gemGold.withValues(alpha: 0.28),
@@ -480,11 +464,10 @@ class ToastHostState extends ConsumerState<ToastHost> {
               toast.text,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: readableInk(
-                  context,
-                  toast.gem ? _gemGold : toast.good ? kit.accentBright : _badRed,
-                ),
-                fontSize: toast.gem ? 15 : 13.5,
+                // Taken down to read on the light plate; the dark one keeps the
+                // colour it was chosen at.
+                color: readableInk(context, tone),
+                fontSize: toast.gem ? 15 : 14,
                 fontWeight: toast.gem ? FontWeight.w800 : FontWeight.w600,
               ),
             ),

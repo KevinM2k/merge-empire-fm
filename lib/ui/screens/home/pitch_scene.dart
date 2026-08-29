@@ -770,6 +770,7 @@ class PitchScene extends StatelessWidget {
                     child: _GroundDrive(
                       builder: (worldX) => _Scroller(
                         key: const ValueKey('pitch-floodlights'),
+                        stillKey: (pylons, night),
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: farSegmentWidth,
@@ -815,6 +816,8 @@ class PitchScene extends StatelessWidget {
                     builder: (beat, excitement) => _GroundDrive(
                       builder: (worldX) => _Scroller(
                         key: const ValueKey('pitch-stand'),
+                        live: excitement > 0,
+                        stillKey: (kitColor, haze, tier),
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: farSegmentWidth,
@@ -869,6 +872,7 @@ class PitchScene extends StatelessWidget {
                       );
                       return _Scroller(
                         key: const ValueKey('pitch-hoardings'),
+                        stillKey: kitColor,
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: hoardingSegmentWidth,
@@ -1062,12 +1066,22 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
   /// rather than shared: the crowd bounces at the rate people bounce, not at the
   /// rate the ground travels. A stand that stopped dead because the manager
   /// paused to bow would be stranger than one that carried on.
+  /// **AT REST THE CROWD IS STILL.** The bounce ran every frame for the life
+  /// of the screen and was half the UI thread on a flagship phone, for a
+  /// movement nobody could see. The clock runs while a surge decays and stops.
   void _sync() {
-    if (MediaQuery.of(context).disableAnimations) {
-      if (_c.isAnimating) _c.stop();
-      return;
+    final run = _excitement > 0 && !MediaQuery.of(context).disableAnimations;
+    if (run && !_c.isAnimating) {
+      _last = Duration.zero;
+      _c.repeat();
+    } else if (!run && _c.isAnimating) {
+      _c.stop();
     }
-    if (!_c.isAnimating) _c.repeat();
+  }
+
+  void _surge() {
+    setState(() => _excitement = 1);
+    _sync();
   }
 
   @override
@@ -1086,6 +1100,7 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
     setState(() {
       _excitement = math.max(0, _excitement - dt / _surgeSeconds);
     });
+    if (_excitement <= 0) _sync();
   }
 
   @override
@@ -1106,7 +1121,7 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
     // Same surge a tap gives, and it decays the same way — a crowd that stayed up
     // would be a crowd that had stopped reacting.
     if (widget.celebration != null && widget.celebration != old.celebration) {
-      setState(() => _excitement = 1);
+      _surge();
     }
   }
 
@@ -1116,7 +1131,7 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
     // Opaque, so the terrace answers a tap that lands on a gap between two
     // supporters rather than only on a head.
     behavior: HitTestBehavior.opaque,
-    onTap: () => setState(() => _excitement = 1),
+    onTap: _surge,
     child: AnimatedBuilder(
       animation: _c,
       builder: (context, _) => widget.builder(_c.value, _excitement),
@@ -1833,11 +1848,36 @@ class _StandPainter extends CustomPainter {
 /// key can be added from this repo.
 const String hoardingText = 'MERGE EMPIRE FOOTBALL MANAGER';
 
+/// **SMALL, and that is the point — it is in the DISTANCE.** Big enough to read
+/// as lettering on a board, too small to read as a sentence, which is exactly
+/// how advertising behind a pitch looks from the touchline.
+const double hoardingFontSize = 5.5;
+
 /// **The lowest tier with advertising.** A park has a fence and a hedge; nobody
 /// sells perimeter space at a ground with no stand. Same boundary as
 /// [firstStandTier] and deliberately so — the two arrive together, which is what
 /// makes tier 2 read as the first real GROUND.
 const int firstHoardingTier = firstStandTier;
+
+/// The cap band, as a fraction of the font size. Every letter on a board is a
+/// capital, so this IS the ink: there is nothing below the baseline and nothing
+/// above the cap line.
+const double _hoardingCap = 0.72;
+
+/// Where the lettering's top edge goes on a board [height] tall, given the
+/// paragraph's [baseline].
+///
+/// **The LINE BOX was being centred, and the ink is not the line box.** A box
+/// reserves room under the baseline for descenders that a line of capitals
+/// never uses, so centring it hangs the lettering high on the board — reported
+/// as the text needing to move down slightly to be vertically centred. This
+/// centres the cap band instead, which is the part anyone can see.
+/// [fontSize] defaults to [hoardingFontSize] and is passed explicitly by the
+/// painter, because the mark is not always set at that size: it shrinks rather
+/// than wrap — see [hoardingLettering] — and a cap band computed for 5.5 on a
+/// mark set at 3.7 puts back most of the offset this is removing.
+double hoardingTextTop(double height, double baseline, {double? fontSize}) =>
+    height / 2 + (fontSize ?? hoardingFontSize) * _hoardingCap / 2 - baseline;
 
 class _HoardingSegment extends StatelessWidget {
   const _HoardingSegment({required this.kitColor});
@@ -1852,44 +1892,6 @@ class _HoardingSegment extends StatelessWidget {
   );
 }
 
-/// **THE BRAND MARK ON A PANEL, and where it sits in the board.**
-///
-/// Public because it is the whole of what `hoarding_test` can ask about a strip
-/// that is otherwise a painter inside a scrolling clip — and both halves of it
-/// were wrong in ways a screenshot at this size does not show.
-///
-/// Laid out once per panel width and reused: a `TextPainter` per repaint, on a
-/// band that repaints with the scroll, is the one cost this strip cannot take.
-({ui.Paragraph text, double top}) hoardingLettering(
-  double width,
-  double boardHeight,
-) {
-  final text = _lettering(width);
-  // **CENTRED ON THE LETTERS, not on the line box.** Reported as needing to
-  // come down slightly, and it did: the mark is ALL CAPS, so no glyph reaches
-  // below the baseline and the descent under it — a quarter of the line box —
-  // is dead space that centring the box counted as if it were ink. On a 13 unit
-  // board at this type size that pushed the lettering about 0.8 units high,
-  // which is six percent of the board.
-  //
-  // The block that is actually inked runs from the cap line down to the
-  // baseline, and the baseline is the one end of it a `LineMetrics` hands back
-  // exactly. Centring the ascent-to-baseline block leaves the residual at the
-  // difference between the ascent and the cap height — under a quarter of a
-  // unit, and low rather than high — without having to guess a cap height that
-  // no font metric states.
-  final line = text.computeLineMetrics();
-  final baseline = line.isEmpty ? text.height : line.first.baseline;
-  return (text: text, top: (boardHeight - baseline) / 2);
-}
-
-/// **SMALL, and that is the point — it is in the DISTANCE.** Big enough to read
-/// as lettering on a board, too small to read as a sentence, which is exactly
-/// how an advertising hoarding behind a pitch looks from the touchline.
-/// Letter-spaced, because a squashed word at this size is a smudge and a spaced
-/// one is type.
-const double _hoardingType = 5.5;
-
 final Map<double, ui.Paragraph> _hoardingCache = {};
 
 ui.Paragraph _buildHoardingText(double fontSize) => (ui.ParagraphBuilder(
@@ -1897,7 +1899,7 @@ ui.Paragraph _buildHoardingText(double fontSize) => (ui.ParagraphBuilder(
     textAlign: TextAlign.center,
     fontSize: fontSize,
     fontWeight: FontWeight.w900,
-    // **ONE LINE, ALWAYS** — see [_lettering].
+    // **ONE LINE, ALWAYS** — see [hoardingLettering].
     maxLines: 1,
   ),
 )
@@ -1906,7 +1908,7 @@ ui.Paragraph _buildHoardingText(double fontSize) => (ui.ParagraphBuilder(
           color: Colors.black.withValues(alpha: 0.55),
           // Kept proportional, so a mark that has to shrink to fit does not
           // shrink its letters and keep its gaps.
-          letterSpacing: fontSize * (0.7 / _hoardingType),
+          letterSpacing: fontSize * (0.7 / hoardingFontSize),
           height: 1,
         ),
       )
@@ -1923,13 +1925,19 @@ ui.Paragraph _buildHoardingText(double fontSize) => (ui.ParagraphBuilder(
 /// So it measures what the mark wants unconstrained and scales the type down if
 /// the panel cannot take it. A brand mark on a hoarding is one line by
 /// definition; a smaller one is still the mark, and two lines of it is not.
-ui.Paragraph _lettering(double width) => _hoardingCache.putIfAbsent(width, () {
-  final wanted = (_buildHoardingText(_hoardingType)
+/// Public because it is the whole of what a test can ask about a strip that is
+/// otherwise a painter inside a scrolling clip.
+///
+/// Laid out once per panel width and reused: a `TextPainter` per repaint, on a
+/// band that repaints with the scroll, is the one cost this strip cannot take.
+ui.Paragraph hoardingLettering(double width) =>
+    _hoardingCache.putIfAbsent(width, () {
+  final wanted = (_buildHoardingText(hoardingFontSize)
         ..layout(const ui.ParagraphConstraints(width: double.infinity)))
       .maxIntrinsicWidth;
   final size = wanted <= width || wanted <= 0
-      ? _hoardingType
-      : _hoardingType * width / wanted;
+      ? hoardingFontSize
+      : hoardingFontSize * width / wanted;
   return _buildHoardingText(size)
     ..layout(ui.ParagraphConstraints(width: width));
 });
@@ -1953,10 +1961,24 @@ class _HoardingPainter extends CustomPainter {
 
     // The advert, on the PALE panel only. On the club-coloured one it would be
     // a second thing competing with the colour that is the point of that board.
-    final mark = hoardingLettering(size.width - half, size.height);
+    final mark = hoardingLettering(size.width - half);
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(half, 0, size.width - half, size.height));
-    canvas.drawParagraph(mark.text, Offset(half, mark.top));
+    // The cap band follows the size the mark was actually SET at, which is not
+    // always [hoardingFontSize] — see [hoardingLettering], which shrinks it
+    // rather than let it wrap. With `height: 1` on one line the paragraph's
+    // height IS that size.
+    canvas.drawParagraph(
+      mark,
+      Offset(
+        half,
+        hoardingTextTop(
+          size.height,
+          mark.alphabeticBaseline,
+          fontSize: mark.height,
+        ),
+      ),
+    );
     canvas.restore();
     final all = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawRect(
@@ -2086,6 +2108,7 @@ class _Turf extends StatelessWidget {
                           child: _Scroller(
                             offsetPx: atRow(tuftBandFraction(band)),
                             segmentWidth: groundSegmentWidth,
+                            stillKey: (band, tier),
                             child: _DecoSegment(band: band, tier: tier),
                           ),
                         ),
@@ -2094,6 +2117,7 @@ class _Turf extends StatelessWidget {
                         child: _Scroller(
                           offsetPx: atRow(tuftBandFraction(band)),
                           segmentWidth: groundSegmentWidth,
+                          stillKey: (band, tier),
                           child: _TuftSegment(band: band, tier: tier),
                         ),
                       ),
@@ -2426,6 +2450,8 @@ class _Scroller extends StatelessWidget {
     required this.offsetPx,
     required this.segmentWidth,
     required this.child,
+    this.live = false,
+    this.stillKey,
   });
 
   /// How far the world has travelled, in pixels at THIS strip's row.
@@ -2433,6 +2459,14 @@ class _Scroller extends StatelessWidget {
 
   final double segmentWidth;
   final Widget child;
+
+  /// True while the segment itself is animating (a surging crowd), which is
+  /// the one time it must be drawn rather than shown as a picture.
+  final bool live;
+
+  /// What the picture depends on. A change takes a new one — a snapshot never
+  /// notices its child repainting.
+  final Object? stillKey;
 
   @override
   Widget build(BuildContext context) => ClipRect(
@@ -2446,7 +2480,13 @@ class _Scroller extends StatelessWidget {
           child: OverflowBox(
             alignment: Alignment.centerLeft,
             maxWidth: count * segmentWidth,
-            child: Row(
+            // Its own layer. The translate above repaints every frame, and
+            // without this every tiled painter (five stands, five hoardings…)
+            // re-ran its paint each time — half the UI thread at idle.
+            child: _StillStrip(
+              key: ValueKey(stillKey),
+              live: live,
+              child: Row(
               mainAxisSize: MainAxisSize.min,
               // STRETCH, not the default centre. A centred child gets LOOSE
               // height constraints, so a segment that does not name its own
@@ -2458,10 +2498,61 @@ class _Scroller extends StatelessWidget {
               // collapsed them one level deeper than anyone was looking.
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [for (var i = 0; i < count; i++) child],
+              ),
             ),
           ),
         );
       },
     ),
   );
+}
+
+/// The tiled row as ONE PICTURE. Impeller keeps no raster cache, so a
+/// `RepaintBoundary` alone still re-rasterised five stands of ~300 fans every
+/// frame under the translate; a snapshot is drawn once and moved.
+class _StillStrip extends StatefulWidget {
+  const _StillStrip({super.key, required this.live, required this.child});
+
+  final bool live;
+  final Widget child;
+
+  @override
+  State<_StillStrip> createState() => _StillStripState();
+}
+
+class _StillStripState extends State<_StillStrip> {
+  late final SnapshotController _controller = SnapshotController(
+    allowSnapshotting: !widget.live,
+  );
+
+  @override
+  void didUpdateWidget(_StillStrip old) {
+    super.didUpdateWidget(old);
+    if (old.live != widget.live) {
+      _controller.allowSnapshotting = !widget.live;
+      if (!widget.live) _controller.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    // 2x at most, as the customiser's stills: the eye gets nothing from 3x.
+    return MediaQuery(
+      data: media.copyWith(
+        devicePixelRatio: math.min(media.devicePixelRatio, 2),
+      ),
+      child: SnapshotWidget(
+        controller: _controller,
+        mode: SnapshotMode.permissive,
+        child: RepaintBoundary(child: widget.child),
+      ),
+    );
+  }
 }

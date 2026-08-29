@@ -196,31 +196,35 @@ void main() {
       // 29 characters at 5.5 in the pale half of a 240 panel, which is 120
       // wide. Not enough in every face — the test binding's own fallback wants
       // 179.8 and wraps it over two six-unit lines inside a 13-unit board. It
-      // scales the type down to fit rather than breaking.
+      // scales the type down to fit rather than breaking, so the cap-band
+      // centring above has one line to centre.
       const panel = hoardingSegmentWidth / 2;
-      final mark = hoardingLettering(panel, hoardingHeight);
-      expect(mark.text.computeLineMetrics(), hasLength(1));
-      expect(mark.text.longestLine, lessThanOrEqualTo(panel + 0.01));
-      // Still lettering rather than a hairline: whatever it had to give up to
-      // fit, the board is 13 tall and the mark is a real proportion of it.
-      expect(mark.text.height, greaterThan(hoardingHeight * 0.25));
+      final mark = hoardingLettering(panel);
+      expect(mark.computeLineMetrics(), hasLength(1));
+      expect(mark.longestLine, lessThanOrEqualTo(panel + 0.01));
+      // Still lettering rather than a hairline: whatever it gave up to fit,
+      // the board is 13 tall and the mark is a real proportion of it.
+      expect(mark.height, greaterThan(hoardingHeight * 0.25));
     });
 
-    test('AND THE LETTERING IS CENTRED ON THE LETTERS', () {
-      // Reported as needing to come down slightly. It was centred on the LINE
-      // BOX, whose descent no capital ever reaches into — a quarter of the box
-      // counted as ink, which pushed the mark about 0.8 units up on a 13-unit
-      // board. The inked block runs from the cap line to the baseline.
-      final mark = hoardingLettering(hoardingSegmentWidth / 2, hoardingHeight);
-      final line = mark.text.computeLineMetrics().first;
-      final baseline = mark.top + line.baseline;
-      final gapAbove = mark.top;
-      final gapBelow = hoardingHeight - baseline;
-      // The board's own centre, and the block that is drawn in it. Equal to
-      // within a rounding error rather than the descent's worth out.
-      expect((gapAbove - gapBelow).abs(), lessThan(0.01));
-      // Which is BELOW where the old arithmetic put it — the whole of the fix.
-      expect(mark.top, greaterThan((hoardingHeight - mark.text.height) / 2));
+    /// **THE LINE BOX WAS BEING CENTRED, and the ink is not the line box.**
+    /// Every letter on a board is a capital, so the ink runs from the baseline
+    /// up to the cap line and the room a box reserves for descenders is empty
+    /// — which hangs the lettering high. Reported as the hoarding text needing
+    /// to move down slightly.
+    test('and the lettering is centred by its CAPS, not by its line box', () {
+      // Roboto at 5.5 with `height: 1`: a baseline about 4.35 down a 5.5 line.
+      const band = 13.0, baseline = 4.35;
+      final top = hoardingTextTop(band, baseline);
+      // The cap band's own centre lands on the board's.
+      final capTop = top + baseline - hoardingFontSize * 0.72;
+      final capBottom = top + baseline;
+      expect((capTop + capBottom) / 2, closeTo(band / 2, 0.001));
+      // Which is BELOW where centring the box put it.
+      expect(top, greaterThan((band - hoardingFontSize) / 2));
+      // And it stays on the board.
+      expect(capTop, greaterThan(0));
+      expect(capBottom, lessThan(band));
     });
 
     test('AND THE PITCH IS A FIELD AT THE BOTTOM', () {

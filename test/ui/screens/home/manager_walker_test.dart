@@ -463,6 +463,57 @@ void main() {
       );
     });
 
+    /// **TOUCH THE BADGE, THEN KISS THE HAND**, asked for in those words. The
+    /// JS's own angles do neither: `arm -30, fore -118` holds the hand six
+    /// units clear of the shirt and `arm -52, fore -146` puts it in the middle
+    /// of his face rather than on his mouth, so the gesture was a man patting
+    /// the air twice.
+    test('KISS THE BADGE goes to the chest, and then to the mouth', () {
+      final touch = gesturePose('badgekiss', 0.3, gestureMs: 1800);
+      final onBadge = arm(touch.armNear!, touch.foreNear!);
+      // The front of the chest at badge height. The torso stops around x 69.
+      expect(onBadge.hand.dx, closeTo(68, 2), reason: 'not on the shirt');
+      expect(onBadge.hand.dy, closeTo(69.5, 2.5));
+
+      final kiss = gesturePose('badgekiss', 0.7, gestureMs: 1800);
+      final atMouth = arm(kiss.armNear!, kiss.foreNear!);
+      // The blow-kiss's own hold, which the spec annotates as on the mouth.
+      expect(atMouth.hand.dx, closeTo(73, 2));
+      expect(atMouth.hand.dy, closeTo(52, 2.5));
+      expect(
+        atMouth.hand.dy,
+        lessThan(onBadge.hand.dy),
+        reason: 'the kiss has to come after the touch, not before it',
+      );
+
+      // And it does not go back to the chest: the kiss ends the gesture.
+      final end = gesturePose('badgekiss', 1, gestureMs: 1800);
+      expect(end.armNear, closeTo(armNearRest, 0.01));
+    });
+
+    /// A hand at the mouth is in front of the face, and the head is a stack of
+    /// widgets ABOVE the rig — so without this the kiss was painted behind him.
+    test('and the kiss is drawn in front of the face', () {
+      expect(gestureHandsOverHead, contains('badgekiss'));
+    });
+
+    /// **THE WAVE IS THE ELBOW, not the hand.** Its hand clears the skull by
+    /// ten units, which is why it was left out; its elbow lands inside the
+    /// head. Any raised near arm does, in a rig whose shoulder is six units
+    /// behind the skull's centre.
+    test('A WAVE PUTS ITS ELBOW THROUGH HIS HEAD, so it is drawn in front', () {
+      final pose = gesturePose('wave', 0.5, gestureMs: 1800);
+      final near = arm(pose.armNear!, pose.foreNear!);
+      const skull = Offset(62, 48.5);
+      expect(
+        (near.elbow - skull).distance,
+        lessThan(12.5),
+        reason: 'if the elbow has moved clear, the second pass can go',
+      );
+      expect(near.hand.dy, lessThan(skull.dy - 12.5));
+      expect(gestureHandsOverHead, contains('wave'));
+    });
+
     test('POINTING shows the finger', () {
       // A point with no finger is a fist held out at the pitch.
       expect(gesturePose('point', 0.5, gestureMs: 1700).finger, 1);

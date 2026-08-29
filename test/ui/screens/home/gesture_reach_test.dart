@@ -7,11 +7,13 @@
 ///
 ///   * the WAVE raised the upper arm to -150, which sits the elbow 10.2 units
 ///     inside the skull and the forearm 9.6, so the whole limb was painted
-///     behind his face and only the hand came out above the crown;
+///     behind his face and only the hand came out above the crown — fixed by
+///     drawing it in FRONT rather than by moving it, see its own test;
 ///   * the FIST PUMP peaked 0.96 units off the face, which at this scale is
 ///     touching;
 ///   * the BADGE KISS's one held keyframe landed 3.3 units inside the skull —
-///     on his jaw, behind it — and never went near the badge;
+///     on his jaw, behind it — and never went near the badge; it holds on the
+///     chest and then at the mouth now, one beat each;
 ///   * ARMS FOLDED put the two hands ten and a half units apart, and the far
 ///     one inside the torso, which is painted over it.
 ///
@@ -128,22 +130,41 @@ void main() {
     }
   });
 
-  test('THE WAVE WAVES BESIDE HIS HEAD, not behind it', () {
-    // The pose it replaced, kept as the thing being guarded against: -150 puts
-    // the elbow deep inside the skull, and no amount of forearm fixes that.
-    final was = _clearance(-150, -22);
-    expect(was.upper, lessThan(-9));
-    expect(was.fore, lessThan(-9));
+  test('THE WAVE IS RAISED INTO HIS HEAD, so it is drawn in front', () {
+    // The report — "the arm goes behind the head" — and why the fix is
+    // LAYERING rather than a new pose.
+    //
+    // At -150 the upper arm is very nearly vertical and the elbow lands 10.2
+    // units inside the drawn skull, the forearm 9.6. Only the hand cleared,
+    // popping out above the crown with the whole limb that carried it painted
+    // behind the face.
+    final raised = _clearance(-150, -22);
+    expect(raised.upper, lessThan(-9));
+    expect(raised.fore, lessThan(-9));
+    expect(gestureHandsOverHead, contains('wave'));
 
-    // And the hand still ends up high — a wave held at chest height is a
-    // handshake. Level with the skull's centre or above it.
-    for (final frame in _nearArm('wave')) {
-      if (frame.at < 0.2 || frame.at > 0.8) continue;
-      final r = _reach(frame.arm, frame.fore);
-      expect(r.hand.dy, lessThan(skullOnScreen.dy + skullRadius));
-      // In FRONT of him, which is the only direction that clears the head.
-      expect(r.hand.dx, greaterThan(skullOnScreen.dx + skullRadius));
+    // **The elbow is the constraint, and it is worth writing down.** The
+    // shoulder sits ~15 units under the skull's centre and the upper arm is
+    // 18 long, so the elbow reaches its furthest FORWARD at -90 and every
+    // angle past that swings it back in behind the face. There IS a pose that
+    // clears — around -101, arm forward and up rather than vertical, which is
+    // what an earlier cut of this used — so the choice between them is a look
+    // at the figure and not arithmetic. It is recorded here so that stays
+    // true: if the rig ever changes such that nothing clears, this fails and
+    // the note above it is wrong.
+    bool clears(double a, double f) {
+      final c = _clearance(a, f);
+      return c.upper > 0 && c.fore > 0 && c.hand > 0;
     }
+
+    expect(clears(-101, -67), isTrue, reason: 'the alternative stopped working');
+    // And it is genuinely a raised arm, not one by his side: the hand is level
+    // with the skull's centre or above it.
+    expect(_reach(-101, -67).hand.dy, lessThan(skullOnScreen.dy));
+    // Whereas nothing clears once the upper arm goes past the vertical reach —
+    // which is the half the shipped pose is on.
+    expect(clears(-150, -22), isFalse);
+    expect(clears(-150, -2), isFalse);
   });
 
   test('AND THE FIST PUMP KEEPS ITS DISTANCE', () {
@@ -176,14 +197,17 @@ void main() {
     );
     expect(torso.contains(badge.hand), isTrue, reason: '$badge');
 
-    // Second hold: at the mouth. The art draws it at (71, 55.5) and the head
-    // group is then moved, so on screen it is that less the set-back and lift.
-    const mouth = Offset(71 - 3, 55.5 - 7);
+    // Second hold: at the mouth, which is the blow-kiss's own hold and is
+    // annotated as "on the mouth" in the spec's stylesheet.
+    const mouth = Offset(72.3, 51);
     final kiss = _reach(
-      gesturePose('badgekiss', 0.66).armNear!,
-      gesturePose('badgekiss', 0.66).foreNear!,
+      gesturePose('badgekiss', 0.70).armNear!,
+      gesturePose('badgekiss', 0.70).foreNear!,
     );
-    expect((kiss.hand - mouth).distance, lessThan(4), reason: '$kiss');
+    expect((kiss.hand - mouth).distance, lessThan(2), reason: '$kiss');
+
+    // And it does not come back to the chest: the kiss ends the gesture.
+    expect(badge.hand.dy, greaterThan(kiss.hand.dy));
 
     // Which only reads because the hand is drawn over the face.
     expect(gestureHandsOverHead, contains('badgekiss'));

@@ -158,16 +158,26 @@ const GestureTrack _chinUp = [(0, 0), (0.2, -6), (0.8, -6), (1, 0)];
 ///
 /// Named rather than derived. A rule like "the hand is above the chin" would
 /// have to re-solve the two-bone chain for every frame of every gesture to
-/// answer a question that is fixed the moment the pose is written down, and it
-/// would guess wrong at the edges — a salute's hand is level with the brow and
-/// a wave's is not, at angles a few degrees apart.
+/// answer a question that is fixed the moment the pose is written down.
+///
+/// **AND IT IS THE WHOLE ARM, not the hand.** The wave was left out on the
+/// reading that its hand clears the head — it does, at (68, 26), a good ten
+/// units above the skull. Its ELBOW does not: the shoulder is at x56 and the
+/// skull's centre at x62, so an arm raised to -150° folds through the middle
+/// of his face at (65, 46) and the raised limb simply disappeared. Reported as
+/// the wave's arm going behind his head.
+///
+/// Any raised near arm crosses the skull in this rig, and in profile the near
+/// arm is the one closest to the camera — so in front is where it belongs.
 const Set<String> gestureHandsOverHead = {
   'handsonhead',
   'facepalm',
   'shush',
   'salute',
   'blowkiss',
-  // Kissing the badge ends with the hand AT the mouth — see 'badgekiss'.
+  'wave',
+  // The badge kiss ENDS at the mouth — see its own note. Without this, the
+  // half of the gesture that is a kiss was painted behind his face.
   'badgekiss',
 };
 
@@ -326,38 +336,30 @@ final Map<String, GestureAnimation> _animations = {
   ),
   // ── WAVE. The arm goes UP and stays; the wave is in the forearm.
   //
-  // **THE ARM WENT THROUGH HIS HEAD, and the numbers say so plainly.** At the
-  // old -150 the upper arm is very nearly vertical, which on this rig puts the
-  // elbow at (65.0, 46.4) — and the skull as drawn is a circle at (59, 41.5)
-  // with r12.5, so the elbow was **10.2 units INSIDE it** and the forearm 9.6.
-  // Only the hand cleared, popping out above the crown with the whole limb
-  // that carried it painted behind the face. Reported exactly as the arm going
-  // behind the head.
+  // **AND IT IS ONE OF [gestureHandsOverHead], which is what fixes it.** The
+  // numbers are worth keeping because they say why the rule exists rather than
+  // just that it does: at -150 the upper arm is very nearly vertical, which on
+  // this rig puts the elbow at (65.0, 46.4) against a skull DRAWN at (59, 41.5)
+  // r12.5 — the art's (62, 48.5) less the head group's set-back and lift. So
+  // the elbow sat 10.2 units inside it and the forearm 9.6, and only the hand
+  // cleared, popping out above the crown with the limb that carried it painted
+  // behind the face. Reported exactly as the arm going behind the head.
   //
-  // It is not a layering fault and adding this to [gestureHandsOverHead] would
-  // be the wrong fix twice over: an arm drawn OVER the head at these angles
-  // covers his face instead of hiding behind it. The pose is what is wrong.
-  //
-  // **The shoulder is only ~15 units below the skull's centre and the upper arm
-  // is 18 long, so any raised arm puts the elbow at head height.** The way out
-  // is forward rather than up: at -101 the elbow sits at (73.6, 58.4), just
-  // clear of the jaw and in front of it, and the forearm comes up from there
-  // with a 113° elbow — which is what a wave is anyway. Solved against the
-  // skull rather than picked: every joint clears it with room, and the hand at
-  // (77.8, 38.3) is beside his head where a wave belongs.
-  //
-  // The rock then fans FORWARD from that hold rather than either side of it,
-  // because the backswing is the half that runs back into the face: at -74 the
-  // forearm is already touching it again.
+  // **The shoulder is only ~15 units under that centre and the upper arm is 18
+  // long, so ANY raised arm meets the head** — the elbow reaches its furthest
+  // forward at -90 and every angle past that swings it in behind the face. So
+  // there is no raised wave that clears; drawing it in front is the answer, and
+  // it does not cover his face: the forearm passes at x 63..69, which is past
+  // the eye (it ends at 62) and above the mouth at (68, 48.5).
   'wave': const GestureAnimation(
-    armNear: [(0, armNearRest), (0.16, -101), (0.84, -101), (1, armNearRest)],
+    armNear: [(0, armNearRest), (0.16, -150), (0.84, -150), (1, armNearRest)],
     foreNear: [
       (0, foreRest),
-      (0.16, -67),
-      (0.34, -45),
-      (0.50, -67),
-      (0.66, -45),
-      (0.84, -67),
+      (0.16, -22),
+      (0.34, -2),
+      (0.50, -22),
+      (0.66, -2),
+      (0.84, -22),
       (1, foreRest),
     ],
     head: _chinUp,
@@ -380,38 +382,41 @@ final Map<String, GestureAnimation> _animations = {
       (1, foreRest),
     ],
   ),
-  // ── BADGE KISS. **TWO PLACES, and it only ever had one.** The gesture is
-  // touch the badge, then kiss the hand — and the old track was a single
-  // in-and-out that did neither: the hand started out in front of him at
-  // (75.9, 60.1), which is thin air, and came in to (63.8, 53.5), which is
-  // 3.3 units INSIDE the skull. So the one keyframe that was meant to be the
-  // badge landed on his jaw, and was painted behind it.
+  // ── KISS THE BADGE. **TOUCH, THEN KISS**, in that order and once each.
   //
-  // Both targets are solved onto real places now. The badge is the upper chest
-  // at (66, 67) — inside the torso's own 47.9..69.9 band, so the hand is ON him
-  // rather than reaching past — held while he touches it; then the arm comes
-  // up and forward and the hand finishes at (70.1, 48.6), which is the mouth
-  // the art draws at (71, 55.5) less the head's set-back and lift.
+  // A DIVERGENCE from `psvGestBadgeArm`, and the report is the reason: "kiss
+  // the badge should touch chest then kiss the hand". The JS's own angles put
+  // the hand nowhere near either. Solved against the rig rather than eyeballed
+  // — the arm is 18 units to the elbow and 20.6 to the hand, off a shoulder at
+  // (56, 62):
   //
-  // **Which is why it joins [gestureHandsOverHead].** A hand at the mouth is in
-  // front of the face by definition, and without that pass the kiss is the
-  // second half of the gesture disappearing behind his own chin — the same
-  // fault the pose had.
+  //   arm -30, fore -118  → hand (75.9, 60.1), a hand held out in FRONT of
+  //                         his chest, six units clear of the shirt
+  //   arm -52, fore -146  → hand (63.8, 53.5), the middle of his own face
+  //                         rather than his mouth — and behind it, until
+  //                         `gestureHandsOverHead` took the gesture
+  //
+  // So it went out, in, out: a man patting the air twice with a pause at his
+  // nose. It touches the badge at (68.8, 68.5) — the front of the chest at
+  // badge height, the forearm laid across it — holds, and then takes the hand
+  // to the mouth at (72.3, 51.0), which is the blow-kiss's own hold and is
+  // annotated as "on the mouth" in the spec's stylesheet. One beat each, and
+  // it does not come back to the chest: the kiss is the end of the gesture.
   'badgekiss': const GestureAnimation(
     armNear: [
       (0, armNearRest),
-      (0.22, 21),
-      (0.38, 21),
-      (0.58, -67),
-      (0.74, -67),
+      (0.18, 15),
+      (0.40, 15),
+      (0.60, -58),
+      (0.82, -58),
       (1, armNearRest),
     ],
     foreNear: [
       (0, foreRest),
-      (0.22, -147),
-      (0.38, -147),
-      (0.58, -120),
-      (0.74, -120),
+      (0.18, -137),
+      (0.40, -137),
+      (0.60, -119),
+      (0.82, -119),
       (1, foreRest),
     ],
   ),

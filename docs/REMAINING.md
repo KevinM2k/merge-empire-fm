@@ -32,10 +32,10 @@ too late:
 
 **THE PLAYTEST QUEUE IS NOT EMPTY — see `docs/ANDROID_PLAYTHROUGH1.md`.** That
 file is the newest session, taken on an Android phone, and it is the one to
-clear first. It stands at **62 done, 16 open**, and its own header sorts the
-sixteen: five want a device, four are blocked on the spec repo not being cloned
-here, four want a screenshot, two are decisions rather than edits, and one is a
-native SDK. None of them is "not got to yet".
+clear first. It stands at **64 done, 15 open**, and its own header sorts the
+fifteen: four are blocked on the spec repo not being cloned here, four want a
+screenshot, two are decisions rather than edits, two want a device re-test, one
+is a native SDK, and two are still work. None of them is "not got to yet".
 
 The boxes still open BELOW, in this file, are all of one of five kinds, none of
 which can be closed by writing Dart in this repo:
@@ -59,7 +59,7 @@ which can be closed by writing Dart in this repo:
 Also still open, and deliberately so: the carried risks at the foot of the file
 are DECISIONS, not work.
 
-**5,577 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**5,592 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **The newest pass also ran green on 3.38.3**, which is the version that happened

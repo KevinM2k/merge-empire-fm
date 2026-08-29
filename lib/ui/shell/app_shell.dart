@@ -178,45 +178,50 @@ class AppShellState extends ConsumerState<AppShell>
                             curve: Curves.easeOutCubic,
                           ),
                         ),
-                    child: IndexedStack(
-                      index: tabOrder.indexOf(_active),
-                      children: [
-                        for (final tab in tabOrder)
-                          TickerMode(
-                            // **AND OFF WHILE SOMETHING OPAQUE IS OVER IT.** An
-                            // offscreen tab has never been given frames; the
-                            // COVERED one was, because a modal bottom sheet is
-                            // a `PopupRoute` and nothing tells the route beneath
-                            // it that it has stopped being looked at. On the
-                            // home tab that is a pitch scene, weather, a ball
-                            // and a walking manager, all animating behind a
-                            // sheet nobody can see through — which is the
-                            // "second animated screen" the customiser's lag was
-                            // reported as. See `screen_covered.dart`.
-                            enabled: tab == _active && !covered,
-                            // Exhaustive over ShellTab: every tab has a real
-                            // screen now, so there is no fallback left to write.
-                            child:
-                                widget.screenFor?.call(tab) ??
-                                switch (tab) {
-                                  ShellTab.grid => const GridScreen(
-                                    key: ValueKey('screen-grid'),
-                                  ),
-                                  ShellTab.squad => const SquadScreen(
-                                    key: ValueKey('screen-squad'),
-                                  ),
-                                  ShellTab.home => const HomeScreen(
-                                    key: ValueKey('screen-home'),
-                                  ),
-                                  ShellTab.club => const ClubScreen(
-                                    key: ValueKey('screen-club'),
-                                  ),
-                                  ShellTab.shop => const ShopScreen(
-                                    key: ValueKey('screen-shop'),
-                                  ),
-                                },
-                          ),
-                      ],
+                    // **ONE LAYER FOR THE BODY.** The coach's pulse ring and
+                    // the HUD live in the same Stack; without this every beat
+                    // of the ring repainted the whole tab under it.
+                    child: RepaintBoundary(
+                      child: IndexedStack(
+                        index: tabOrder.indexOf(_active),
+                        children: [
+                          for (final tab in tabOrder)
+                            TickerMode(
+                              // **AND OFF WHILE SOMETHING OPAQUE IS OVER IT.** An
+                              // offscreen tab has never been given frames; the
+                              // COVERED one was, because a modal bottom sheet is
+                              // a `PopupRoute` and nothing tells the route beneath
+                              // it that it has stopped being looked at. On the
+                              // home tab that is a pitch scene, weather, a ball
+                              // and a walking manager, all animating behind a
+                              // sheet nobody can see through — which is the
+                              // "second animated screen" the customiser's lag was
+                              // reported as. See `screen_covered.dart`.
+                              enabled: tab == _active && !covered,
+                              // Exhaustive over ShellTab: every tab has a real
+                              // screen now, so there is no fallback left to write.
+                              child:
+                                  widget.screenFor?.call(tab) ??
+                                  switch (tab) {
+                                    ShellTab.grid => const GridScreen(
+                                      key: ValueKey('screen-grid'),
+                                    ),
+                                    ShellTab.squad => const SquadScreen(
+                                      key: ValueKey('screen-squad'),
+                                    ),
+                                    ShellTab.home => const HomeScreen(
+                                      key: ValueKey('screen-home'),
+                                    ),
+                                    ShellTab.club => const ClubScreen(
+                                      key: ValueKey('screen-club'),
+                                    ),
+                                    ShellTab.shop => const ShopScreen(
+                                      key: ValueKey('screen-shop'),
+                                    ),
+                                  },
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -232,7 +237,7 @@ class AppShellState extends ConsumerState<AppShell>
               child: Visibility(
                 visible: !_revealActive,
                 maintainState: true,
-                child: CoachFloating(tab: _active),
+                child: RepaintBoundary(child: CoachFloating(tab: _active)),
               ),
             ),
             Positioned(

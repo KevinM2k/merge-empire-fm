@@ -1103,19 +1103,17 @@ class _ManagerWalkerState extends State<ManagerWalker>
         final handsOverHead =
             pose != null &&
             gestureHandsOverHead.contains(_playing?.id);
-        // **AND WHETHER THE NEAR ARM BELONGS IN FRONT OF THE COAT.**
-        // `overTorso` is the garment's own geometry — a coat's skirt, a suit's
-        // lapels — and it was drawn over the WHOLE rig, near arm included. The
-        // coat's body is one opaque `#2a3140` path spanning x 47.8 to 69.9 and
-        // y 57 to 112, which is the entire torso, so for the two outfits that
-        // carry geometry the arm on the camera's side of him was painted over
-        // and simply gone. It is the nearest thing to the eye on that side; it
-        // goes over the cloth, which is also what makes the sleeve read as a
-        // sleeve of the coat rather than as a stripe beside it.
+        // **AND THE NEAR ARM GOES OVER THE COAT.** The spec says so in the
+        // slot's own comment — the outfit overlay is "drawn over the torso,
+        // hips and near thigh, under the head and the near arm, so the arm
+        // still swings in front of the coat" — and the port had the overlay
+        // over the whole rig, so a coat or a suit was a slab with the arm
+        // buried in it and only the far one swinging.
         //
-        // Skipped when the hand is already coming over the HEAD: that pass is
-        // later still, and two of them is two arms.
-        final armOverTorso = parts.overTorso.isNotEmpty && !handsOverHead;
+        // Only when there IS an overlay: `kit` and the tracksuit's collar line
+        // aside, an empty `overTorso` means a second arm pass for nothing. And
+        // not while [handsOverHead], which already draws it later still.
+        final armOverTorso = !handsOverHead && parts.overTorso.isNotEmpty;
         // **ONE angle for every head layer.** Hair, skull and hat are three
         // widgets and one head; give them separate numbers and the face slides
         // out from under its own hat.
@@ -1224,6 +1222,11 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // is held back from this pass so it is drawn once.
                     CustomPaint(
                       key: const ValueKey('manager-walker'),
+                      // A hand that belongs in front of the FACE is drawn in a
+                      // second pass after the head, and an arm that belongs in
+                      // front of the COAT in one after the garment — see
+                      // [WalkerArms] and [armOverTorso]. Either way the near
+                      // arm is held back here so it is drawn once.
                       painter: walker(
                         handsOverHead || armOverTorso
                             ? WalkerArms.skipNear
@@ -1235,11 +1238,11 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // with the skull between them, which is what stops a mohawk's
                     // fin coming out of the face.
                     for (final svg in parts.overTorso) SvgArt(svg: svg),
-                    // **AND THE NEAR ARM, OVER THE COAT.** See [armOverTorso]:
-                    // the garment's own geometry is an opaque torso and it was
-                    // painted straight over the arm nearest the eye. Between
-                    // the cloth and the head, so a raised hand still goes over
-                    // the face rather than under it.
+                    // **THE NEAR ARM, back on top of the garment it wears.**
+                    // See [armOverTorso]: the overlay is drawn over the torso
+                    // and the near thigh, and the arm swings in front of both.
+                    // Between the cloth and the head, so a raised hand still
+                    // goes over the face rather than under it.
                     if (armOverTorso)
                       CustomPaint(
                         key: const ValueKey('manager-walker-coat-arm'),
