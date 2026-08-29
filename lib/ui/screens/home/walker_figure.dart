@@ -153,6 +153,26 @@ void paintLimb(
   canvas.restore();
 }
 
+/// **THE ARM, AS A CHAIN.** The three points every gesture pose is written
+/// against, in the art's own space.
+///
+/// They were five literals scattered through `_arm` — `Offset(56, 62)` twice,
+/// `Offset(56, 80)`, `Offset(56, 81)`, `Offset(56, 98.5)`, `Offset(56, 100.6)`
+/// — which is fine for a painter and no use at all to anything that has to
+/// REASON about where a hand ends up. A pose is a place a hand goes (see
+/// `handsonhips`), and three of the sixteen were putting hands inside his own
+/// skull; naming the chain is what lets a test say so instead of a playthrough.
+const Offset armShoulder = Offset(56, 62);
+
+/// The elbow, which the forearm turns about.
+const Offset armElbow = Offset(56, 80);
+
+/// The hand's centre, at rest. The arm reaches mid-thigh.
+const Offset armHand = Offset(56, 100.6);
+
+/// The hand's oval, as [paintHand] draws it.
+const Size handSize = Size(7.4, 6.4);
+
 /// **WHAT AN OUTFIT IS.** Ported from `.ps-vec[data-outfit="…"]` in
 /// `../merge-empire-fc/src/ui/styles/league-scene.css`.
 ///

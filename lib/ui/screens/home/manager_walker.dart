@@ -506,6 +506,26 @@ final double _sink = _shadowBand * walkerHeight / 3;
 /// than a number in [_HeadPainter].
 const double _headSetBack = 3;
 
+/// **THE SKULL, WHERE IT IS ACTUALLY DRAWN.**
+///
+/// The art puts it at (62, 48.5) with r 12.5 and every head layer is drawn
+/// against that — but the group is then moved by [_headSetBack] and
+/// [_headLift], so the circle a raised arm has to clear is three units back and
+/// seven up from the one in the SVGs. Getting that wrong is not theoretical:
+/// the wave's elbow was ten units inside this circle and the badge kiss ended
+/// with the hand three inside it, and both read on screen as the arm
+/// disappearing behind his face.
+// Split into their own doubles because `Offset.dx` is not a constant
+// expression, and [skullOnScreen] has to stay const to be usable in one.
+const double _skullArtX = 62;
+const double _skullArtY = 48.5;
+const Offset skullInArt = Offset(_skullArtX, _skullArtY);
+const double skullRadius = 12.5;
+const Offset skullOnScreen = Offset(
+  _skullArtX - _headSetBack,
+  _skullArtY - _headLift,
+);
+
 /// How far the whole head group is lifted, in art units.
 ///
 /// **There was nowhere for a neck to be.** The skull is a circle at (62, 48.5)
@@ -1083,6 +1103,19 @@ class _ManagerWalkerState extends State<ManagerWalker>
         final handsOverHead =
             pose != null &&
             gestureHandsOverHead.contains(_playing?.id);
+        // **AND WHETHER THE NEAR ARM BELONGS IN FRONT OF THE COAT.**
+        // `overTorso` is the garment's own geometry — a coat's skirt, a suit's
+        // lapels — and it was drawn over the WHOLE rig, near arm included. The
+        // coat's body is one opaque `#2a3140` path spanning x 47.8 to 69.9 and
+        // y 57 to 112, which is the entire torso, so for the two outfits that
+        // carry geometry the arm on the camera's side of him was painted over
+        // and simply gone. It is the nearest thing to the eye on that side; it
+        // goes over the cloth, which is also what makes the sleeve read as a
+        // sleeve of the coat rather than as a stripe beside it.
+        //
+        // Skipped when the hand is already coming over the HEAD: that pass is
+        // later still, and two of them is two arms.
+        final armOverTorso = parts.overTorso.isNotEmpty && !handsOverHead;
         // **ONE angle for every head layer.** Hair, skull and hat are three
         // widgets and one head; give them separate numbers and the face slides
         // out from under its own hat.
@@ -1102,6 +1135,28 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // one calculation and cannot drift apart.
         final rise = standing ? 0.0 : walkerHipRise(t);
         final span = standing ? _standSpan : _footSpan(t);
+
+        // **THE RIG, AS A PAINTER — and it is asked for four times.** The
+        // whole figure, then the near arm alone over the coat, over the face,
+        // and over a carried ball. Every pass reads the same clock, the same
+        // pose and the same look; they differ ONLY in [arms], so there is no
+        // window in which a copy of the arm and the real one are in different
+        // places, and nothing to crossfade.
+        _WalkerPainter walker(WalkerArms arms) => _WalkerPainter(
+          soft: widget.soft,
+          t: t,
+          kit: widget.kit,
+          skin: parts.skin,
+          // **His SHAPE.** The build axis was in the customiser, the wardrobe,
+          // the randomiser and the save, and six choices produced one figure —
+          // nothing read it.
+          build: buildScales(look['build'] as String?),
+          outfit: outfitPalette(look['outfit'] as String?),
+          sleevesAreKit: outfitSleevesAreKit(look['outfit'] as String?),
+          standing: standing,
+          pose: pose,
+          arms: arms,
+        );
 
         return Stack(
           fit: StackFit.expand,
@@ -1162,28 +1217,17 @@ class _ManagerWalkerState extends State<ManagerWalker>
                   fit: StackFit.expand,
                   children: [
                     // The rig: everything that turns.
+                    // A hand that belongs in front of the FACE is drawn in a
+                    // second pass after the head, and an arm that belongs in
+                    // front of the COAT in one after the garment — see
+                    // [WalkerArms] and [armOverTorso]. Either way the near arm
+                    // is held back from this pass so it is drawn once.
                     CustomPaint(
                       key: const ValueKey('manager-walker'),
-                      painter: _WalkerPainter(
-                        soft: widget.soft,
-                        t: t,
-                        kit: widget.kit,
-                        skin: parts.skin,
-                        // **His SHAPE.** The build axis was in the customiser,
-                        // the wardrobe, the randomiser and the save, and six
-                        // choices produced one figure — nothing read it.
-                        build: buildScales(look['build'] as String?),
-                        outfit: outfitPalette(look['outfit'] as String?),
-                        sleevesAreKit: outfitSleevesAreKit(
-                          look['outfit'] as String?,
-                        ),
-                        standing: standing,
-                        // A hand that belongs in front of the face is drawn in
-                        // a second pass, after the head — see [WalkerArms].
-                        arms: handsOverHead
+                      painter: walker(
+                        handsOverHead || armOverTorso
                             ? WalkerArms.skipNear
                             : WalkerArms.both,
-                        pose: pose,
                       ),
                     ),
                     // Then the look, in the JS's own layering: what goes over the
@@ -1191,6 +1235,16 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // with the skull between them, which is what stops a mohawk's
                     // fin coming out of the face.
                     for (final svg in parts.overTorso) SvgArt(svg: svg),
+                    // **AND THE NEAR ARM, OVER THE COAT.** See [armOverTorso]:
+                    // the garment's own geometry is an opaque torso and it was
+                    // painted straight over the arm nearest the eye. Between
+                    // the cloth and the head, so a raised hand still goes over
+                    // the face rather than under it.
+                    if (armOverTorso)
+                      CustomPaint(
+                        key: const ValueKey('manager-walker-coat-arm'),
+                        painter: walker(WalkerArms.nearOnly),
+                      ),
                     // The head and everything it wears, as ONE group — see
                     // [_headSetBack]. `FractionalTranslation` shifts by a
                     // fraction of the CHILD's size, and each child fills the
@@ -1255,20 +1309,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     if (handsOverHead)
                       CustomPaint(
                         key: const ValueKey('manager-walker-hands'),
-                        painter: _WalkerPainter(
-                          soft: widget.soft,
-                          t: t,
-                          kit: widget.kit,
-                          skin: parts.skin,
-                          build: buildScales(look['build'] as String?),
-                          outfit: outfitPalette(look['outfit'] as String?),
-                          sleevesAreKit: outfitSleevesAreKit(
-                            look['outfit'] as String?,
-                          ),
-                          standing: standing,
-                          pose: pose,
-                          arms: WalkerArms.nearOnly,
-                        ),
+                        painter: walker(WalkerArms.nearOnly),
                       ),
                     // How he is coping, over the head AND over the hat — the
                     // pallor and the flush belong on the face, and a beanie must
@@ -1294,20 +1335,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     if (widget.carrying)
                       CustomPaint(
                         key: const ValueKey('manager-walker-carry-arm'),
-                        painter: _WalkerPainter(
-                          soft: widget.soft,
-                          t: t,
-                          kit: widget.kit,
-                          skin: parts.skin,
-                          build: buildScales(look['build'] as String?),
-                          outfit: outfitPalette(look['outfit'] as String?),
-                          sleevesAreKit: outfitSleevesAreKit(
-                            look['outfit'] as String?,
-                          ),
-                          standing: standing,
-                          pose: pose,
-                          arms: WalkerArms.nearOnly,
-                        ),
+                        painter: walker(WalkerArms.nearOnly),
                       ),
                   ],
                 ),
@@ -1445,8 +1473,9 @@ class _ComfortPainter extends CustomPainter {
   final double seconds;
 
   /// Cold pallor over the whole head — the skull's own circle, from the art's
-  /// space.
-  static const Offset _skull = Offset(62, 48.5);
+  /// space. This painter is inside the head group, so it wants [skullInArt]
+  /// rather than [skullOnScreen].
+  static const Offset _skull = skullInArt;
 
   /// A puff, or a bead: drawn in its own place, moved and scaled about the point
   /// the CSS names as its transform origin.
@@ -1486,7 +1515,11 @@ class _ComfortPainter extends CustomPainter {
     if (comfort == 'cold') {
       // **The puffs are what actually read at this size** — a tint alone just
       // looks like a lighting change.
-      canvas.drawCircle(_skull, 12.5, Paint()..color = const Color(0x4D8AB9E8));
+      canvas.drawCircle(
+        _skull,
+        skullRadius,
+        Paint()..color = const Color(0x4D8AB9E8),
+      );
       // Two on the same path, offset so they overlap into a rhythm rather than
       // pulsing in lockstep.
       for (final puff in const [(0.0, 3.0, 2.1), (0.42, 2.4, 1.7)]) {
@@ -2436,7 +2469,7 @@ class _WalkerPainter extends CustomPainter {
     final posedFore = near ? pose?.foreNear : pose?.foreFar;
     _about(
       canvas,
-      const Offset(56, 62),
+      armShoulder,
       posed ?? _sample(near ? _armNear : _armFar, t),
       () {
         // The sleeve, wide at the deltoid and narrowing to the elbow.
@@ -2448,7 +2481,7 @@ class _WalkerPainter extends CustomPainter {
         paintLimb(
           soft: soft,
           canvas,
-          const Offset(56, 62),
+          armShoulder,
           const Offset(56, 81),
           11 * build.arm,
           7.6 * build.arm,
@@ -2457,7 +2490,7 @@ class _WalkerPainter extends CustomPainter {
         );
         _about(
           canvas,
-          const Offset(56, 80),
+          armElbow,
           posedFore ?? _sample(near ? _elbowNear : _elbowFar, t),
           () {
             // A forearm is widest just below the elbow and narrowest at the
@@ -2482,12 +2515,12 @@ class _WalkerPainter extends CustomPainter {
             // The hand as a MITTEN rather than a circle: wider across the
             // knuckles than at the wrist, which is what stops the arm reading as
             // one tapering stick with a bead on the end.
-            paintHand(canvas, const Offset(56, 100.6), flesh, far: !near);
+            paintHand(canvas, armHand, flesh, far: !near);
             // And the finger, out past it, for the gestures that point.
             if (near) {
               paintFinger(
                 canvas,
-                const Offset(56, 100.6),
+                armHand,
                 flesh,
                 pose?.finger ?? 0,
               );
