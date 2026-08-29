@@ -1852,38 +1852,92 @@ class _HoardingSegment extends StatelessWidget {
   );
 }
 
+/// **THE BRAND MARK ON A PANEL, and where it sits in the board.**
+///
+/// Public because it is the whole of what `hoarding_test` can ask about a strip
+/// that is otherwise a painter inside a scrolling clip — and both halves of it
+/// were wrong in ways a screenshot at this size does not show.
+///
+/// Laid out once per panel width and reused: a `TextPainter` per repaint, on a
+/// band that repaints with the scroll, is the one cost this strip cannot take.
+({ui.Paragraph text, double top}) hoardingLettering(
+  double width,
+  double boardHeight,
+) {
+  final text = _lettering(width);
+  // **CENTRED ON THE LETTERS, not on the line box.** Reported as needing to
+  // come down slightly, and it did: the mark is ALL CAPS, so no glyph reaches
+  // below the baseline and the descent under it — a quarter of the line box —
+  // is dead space that centring the box counted as if it were ink. On a 13 unit
+  // board at this type size that pushed the lettering about 0.8 units high,
+  // which is six percent of the board.
+  //
+  // The block that is actually inked runs from the cap line down to the
+  // baseline, and the baseline is the one end of it a `LineMetrics` hands back
+  // exactly. Centring the ascent-to-baseline block leaves the residual at the
+  // difference between the ascent and the cap height — under a quarter of a
+  // unit, and low rather than high — without having to guess a cap height that
+  // no font metric states.
+  final line = text.computeLineMetrics();
+  final baseline = line.isEmpty ? text.height : line.first.baseline;
+  return (text: text, top: (boardHeight - baseline) / 2);
+}
+
+/// **SMALL, and that is the point — it is in the DISTANCE.** Big enough to read
+/// as lettering on a board, too small to read as a sentence, which is exactly
+/// how an advertising hoarding behind a pitch looks from the touchline.
+/// Letter-spaced, because a squashed word at this size is a smudge and a spaced
+/// one is type.
+const double _hoardingType = 5.5;
+
+final Map<double, ui.Paragraph> _hoardingCache = {};
+
+ui.Paragraph _buildHoardingText(double fontSize) => (ui.ParagraphBuilder(
+  ui.ParagraphStyle(
+    textAlign: TextAlign.center,
+    fontSize: fontSize,
+    fontWeight: FontWeight.w900,
+    // **ONE LINE, ALWAYS** — see [_lettering].
+    maxLines: 1,
+  ),
+)
+      ..pushStyle(
+        ui.TextStyle(
+          color: Colors.black.withValues(alpha: 0.55),
+          // Kept proportional, so a mark that has to shrink to fit does not
+          // shrink its letters and keep its gaps.
+          letterSpacing: fontSize * (0.7 / _hoardingType),
+          height: 1,
+        ),
+      )
+      ..addText(hoardingText))
+    .build();
+
+/// **AND IT WAS WRAPPING.** Measured rather than assumed: the mark is 29
+/// characters and the pale half of a 240 panel is 120 wide, which is not enough
+/// at 5.5 in every face the platform might resolve — the test binding's own
+/// fallback wants 179.8 and breaks it over TWO lines, six units each, stacked
+/// inside a board 13 tall. Whether it wraps at all depended on which font the
+/// device handed back, which is the kind of thing that is fine until it is not.
+///
+/// So it measures what the mark wants unconstrained and scales the type down if
+/// the panel cannot take it. A brand mark on a hoarding is one line by
+/// definition; a smaller one is still the mark, and two lines of it is not.
+ui.Paragraph _lettering(double width) => _hoardingCache.putIfAbsent(width, () {
+  final wanted = (_buildHoardingText(_hoardingType)
+        ..layout(const ui.ParagraphConstraints(width: double.infinity)))
+      .maxIntrinsicWidth;
+  final size = wanted <= width || wanted <= 0
+      ? _hoardingType
+      : _hoardingType * width / wanted;
+  return _buildHoardingText(size)
+    ..layout(ui.ParagraphConstraints(width: width));
+});
+
 class _HoardingPainter extends CustomPainter {
   const _HoardingPainter({required this.kitColor});
 
   final Color kitColor;
-
-  /// The lettering, laid out once and reused: a `TextPainter` per repaint on a
-  /// strip that repaints with the scroll is the one cost this band cannot take.
-  static final Map<double, ui.Paragraph> _cache = {};
-
-  ui.Paragraph _lettering(double width) => _cache.putIfAbsent(width, () {
-    // **SMALL, and that is the point — it is in the DISTANCE.** Big enough to
-    // read as lettering on a board, too small to read as a sentence, which is
-    // exactly how an advertising hoarding behind a pitch looks from the
-    // touchline. Letter-spaced, because a squashed word at this size is a
-    // smudge and a spaced one is type.
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(
-        textAlign: TextAlign.center,
-        fontSize: 5.5,
-        fontWeight: FontWeight.w900,
-      ),
-    )
-      ..pushStyle(
-        ui.TextStyle(
-          color: Colors.black.withValues(alpha: 0.55),
-          letterSpacing: 0.7,
-          height: 1,
-        ),
-      )
-      ..addText(hoardingText);
-    return builder.build()..layout(ui.ParagraphConstraints(width: width));
-  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1899,13 +1953,10 @@ class _HoardingPainter extends CustomPainter {
 
     // The advert, on the PALE panel only. On the club-coloured one it would be
     // a second thing competing with the colour that is the point of that board.
-    final text = _lettering(size.width - half);
+    final mark = hoardingLettering(size.width - half, size.height);
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(half, 0, size.width - half, size.height));
-    canvas.drawParagraph(
-      text,
-      Offset(half, (size.height - text.height) / 2),
-    );
+    canvas.drawParagraph(mark.text, Offset(half, mark.top));
     canvas.restore();
     final all = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawRect(

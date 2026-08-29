@@ -25,6 +25,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
@@ -208,6 +209,8 @@ void main() {
     expect(near.hand.dy, lessThan(far.hand.dy));
   });
 
+  _smokeTests();
+
   group('THE NEAR ARM IS DRAWN OVER THE COAT', () {
     // The garment's own geometry is an opaque torso — the coat's body is one
     // path across the whole of x 47.8..69.9 — and it was painted over the arm
@@ -248,5 +251,57 @@ void main() {
       await pump(tester, 'kit');
       expect(coatArm, findsNothing);
     });
+  });
+}
+
+/// **THE CIGAR SMOKES.** `managerFaces['cigar']` ships three
+/// `.mgr-smoke-puff` circles at ONE point, because in the JS the class is a CSS
+/// animation and the SVG only says where each puff starts. Drawn as a file that
+/// is a grey disc on the end of the cigar that never moves.
+void _smokeTests() {
+  test('THE STATIC SMOKE GROUP IS CUT OUT OF THE ART', () {
+    const svg =
+        '<svg><path d="M1 1"/><g class="mgr-smoke">'
+        '<circle cx="1" cy="1" r="1"/></g></svg>';
+    expect(withoutStaticSmoke(svg), '<svg><path d="M1 1"/></svg>');
+    // Every other drawing in the wardrobe passes through untouched.
+    expect(withoutStaticSmoke('<svg><path d="M1 1"/></svg>'),
+        '<svg><path d="M1 1"/></svg>');
+  });
+
+  test('and the art it is cut from is the one that has it', () {
+    expect(managerFaces[cigarFace], contains('mgr-smoke'));
+    expect(withoutStaticSmoke(managerFaces[cigarFace]!), isNot(contains('mgr-smoke')));
+    // The ember the puffs rise from is the SVG's own lit end, not a guess.
+    expect(managerFaces[cigarFace], contains('#ff7a2f'));
+  });
+
+  testWidgets('THE SMOKE LAYER IS ONLY THERE FOR THE CIGAR', (tester) async {
+    Future<void> pump(String face) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 120,
+              height: 170,
+              child: ManagerWalker(
+                kit: const Color(0xFF4CAF50),
+                skin: const Color(0xFFEEBB8C),
+                hair: const Color(0xFF3A2A1C),
+                mood: Mood.neutral,
+                walking: false,
+                look: {...defaultManagerLook, 'face': face},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final smoke = find.byKey(const ValueKey('manager-cigar-smoke'));
+    await pump(cigarFace);
+    expect(smoke, findsOneWidget);
+    await pump('specs');
+    expect(smoke, findsNothing);
   });
 }

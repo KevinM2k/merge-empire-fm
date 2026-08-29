@@ -1315,6 +1315,15 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // pallor and the flush belong on the face, and a beanie must
                     // not be able to cover his breath.
                     _SetBack(child: _Comfort(comfort: widget.comfort)),
+                    // And the cigar's smoke, which is the same kind of thing:
+                    // in the air in front of his face rather than part of him.
+                    // [_SetBack] because it rises from a point in the HEAD's
+                    // art space, and the head group has been moved.
+                    _SetBack(
+                      child: _CigarSmoke(
+                        lit: '${look['face']}' == cigarFace,
+                      ),
+                    ),
                     // **THE BALL, OVER ALL OF HIM** — which is where the JS puts
                     // it too, and right: at his boot it belongs in front of the
                     // near leg, and in his hands the cradle is in front of his
@@ -1446,6 +1455,152 @@ const List<(double, _Puff)> _sweatFrames = [
   (1, (dx: 0.8, dy: 15, scale: 0.7, opacity: 0)),
 ];
 
+/// **THE CIGAR IS ALREADY SMOKING, and nothing ever lit it.**
+///
+/// `managerFaces['cigar']` ships a `<g class="mgr-smoke">` of three
+/// `.mgr-smoke-puff` circles — r 1.5, 1.1 and 1.8 — and all three are at the
+/// SAME point, (83.6, 51.8), because in the JS the class is a CSS animation and
+/// the SVG only states where each one starts. The port draws the file, so the
+/// three sat stacked at the cigar's lit end as one grey disc that never moved.
+/// Reported as the cigar wanting little bits of smoke coming out of it: they
+/// were there, in ten catalogues' worth of a bought item, going nowhere.
+///
+/// Up, out and gone, and slower than [_breathFrames] because smoke off a lit
+/// end is drifting rather than being blown anywhere.
+const List<(double, _Puff)> _smokeFrames = [
+  (0, (dx: 0, dy: 0, scale: 0.35, opacity: 0)),
+  (0.20, (dx: 0.6, dy: -1.6, scale: 0.70, opacity: 0.55)),
+  (0.60, (dx: 1.8, dy: -5.0, scale: 1.15, opacity: 0.32)),
+  (0.90, (dx: 2.8, dy: -8.4, scale: 1.60, opacity: 0)),
+  (1, (dx: 2.8, dy: -8.4, scale: 1.60, opacity: 0)),
+];
+
+/// The lit end, in the art's own space — the `<rect>` the SVG puts the ember on.
+const Offset cigarEmber = Offset(83.6, 51.8);
+
+/// The art's own three radii, kept rather than invented: the file says how big
+/// each puff is and only the CSS said where it went.
+const List<double> _smokeRadii = [1.5, 1.1, 1.8];
+
+/// How long one puff takes, and how far apart the three are started. A third of
+/// a cycle each, so there is always one leaving the end and one fading out.
+const Duration _smokeCycle = Duration(milliseconds: 2800);
+
+/// The face that smokes. Named so the layer and the stripper cannot disagree
+/// about which one it is.
+const String cigarFace = 'cigar';
+
+/// **AND THE STATIC GROUP COMES OUT.** Three overlapping discs at one point is
+/// a grey ball on the end of the cigar, and leaving it under the animation
+/// would draw the ball as well as the smoke. One contiguous run in the file, so
+/// this is a cut rather than a parse.
+String withoutStaticSmoke(String svg) {
+  const open = '<g class="mgr-smoke">';
+  const close = '</g>';
+  final start = svg.indexOf(open);
+  if (start < 0) return svg;
+  final end = svg.indexOf(close, start);
+  if (end < 0) return svg;
+  return svg.substring(0, start) + svg.substring(end + close.length);
+}
+
+/// The smoke, on its own clock over the head.
+///
+/// A sibling of [_Comfort] and for the same reason: it is a thing in the air in
+/// front of his face, not a part of him that turns.
+class _CigarSmoke extends StatefulWidget {
+  const _CigarSmoke({required this.lit});
+
+  final bool lit;
+
+  @override
+  State<_CigarSmoke> createState() => _CigarSmokeState();
+}
+
+class _CigarSmokeState extends State<_CigarSmoke>
+    with SingleTickerProviderStateMixin {
+  final ValueNotifier<double> _seconds = ValueNotifier<double>(0);
+  late final Ticker _ticker = createTicker(
+    (elapsed) => _seconds.value = elapsed.inMicroseconds / 1e6,
+  );
+
+  void _sync() {
+    final run = widget.lit && !MediaQuery.of(context).disableAnimations;
+    if (run == _ticker.isActive) return;
+    if (run) {
+      _ticker.start();
+    } else {
+      _ticker.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_CigarSmoke old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _seconds.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.lit) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: ValueListenableBuilder<double>(
+        valueListenable: _seconds,
+        builder: (context, seconds, _) => CustomPaint(
+          key: const ValueKey('manager-cigar-smoke'),
+          size: Size.infinite,
+          painter: _SmokePainter(seconds: seconds),
+        ),
+      ),
+    );
+  }
+}
+
+class _SmokePainter extends CustomPainter {
+  const _SmokePainter({required this.seconds});
+
+  final double seconds;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    canvas.save();
+    canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
+    final cycle = _smokeCycle.inMilliseconds / 1000;
+    for (var i = 0; i < _smokeRadii.length; i++) {
+      // **Staggered rather than simultaneous**, which is the whole difference
+      // between smoke and a pulsing dot — and it also means a stopped clock
+      // (reduced motion) leaves the three at three different heights instead of
+      // back on top of each other where the file had them.
+      final phase = ((seconds / cycle) + i / _smokeRadii.length) % 1;
+      _paintPuff(
+        canvas,
+        cigarEmber,
+        _puffAt(_smokeFrames, phase, Curves.easeOut),
+        (paint) => canvas.drawCircle(cigarEmber, _smokeRadii[i], paint),
+        const Color(0xFFDCDCDC),
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_SmokePainter old) => old.seconds != seconds;
+}
+
 /// The keyframe track at [phase], eased the way CSS eases it — per SEGMENT, not
 /// across the whole run.
 _Puff _puffAt(List<(double, _Puff)> track, double phase, Curve curve) {
@@ -1466,6 +1621,36 @@ _Puff _puffAt(List<(double, _Puff)> track, double phase, Curve curve) {
   return track.last.$2;
 }
 
+/// A puff, a bead, or a curl of smoke: drawn in its own place, moved and scaled
+/// about the point the CSS names as its transform origin.
+///
+/// `translate(t) scale(s)` about an origin `o` puts a point `p` at
+/// `o + t + s·(p - o)`, which is three canvas ops in that order and NOT the
+/// order they are written in.
+void _paintPuff(
+  Canvas canvas,
+  Offset origin,
+  _Puff frame,
+  void Function(Paint paint) draw,
+  Color color,
+) {
+  if (frame.opacity <= 0.004) return;
+  canvas.save();
+  canvas.translate(origin.dx + frame.dx, origin.dy + frame.dy);
+  canvas.scale(frame.scale);
+  canvas.translate(-origin.dx, -origin.dy);
+  draw(
+    Paint()
+      ..color = Color.fromRGBO(
+        (color.r * 255).round(),
+        (color.g * 255).round(),
+        (color.b * 255).round(),
+        frame.opacity,
+      ),
+  );
+  canvas.restore();
+}
+
 class _ComfortPainter extends CustomPainter {
   const _ComfortPainter({required this.comfort, required this.seconds});
 
@@ -1476,36 +1661,6 @@ class _ComfortPainter extends CustomPainter {
   /// space. This painter is inside the head group, so it wants [skullInArt]
   /// rather than [skullOnScreen].
   static const Offset _skull = skullInArt;
-
-  /// A puff, or a bead: drawn in its own place, moved and scaled about the point
-  /// the CSS names as its transform origin.
-  ///
-  /// `translate(t) scale(s)` about an origin `o` puts a point `p` at
-  /// `o + t + s·(p - o)`, which is three canvas ops in that order and NOT the
-  /// order they are written in.
-  void _drop(
-    Canvas canvas,
-    Offset origin,
-    _Puff frame,
-    void Function(Paint paint) draw,
-    Color color,
-  ) {
-    if (frame.opacity <= 0.004) return;
-    canvas.save();
-    canvas.translate(origin.dx + frame.dx, origin.dy + frame.dy);
-    canvas.scale(frame.scale);
-    canvas.translate(-origin.dx, -origin.dy);
-    draw(
-      Paint()
-        ..color = Color.fromRGBO(
-          (color.r * 255).round(),
-          (color.g * 255).round(),
-          (color.b * 255).round(),
-          frame.opacity,
-        ),
-    );
-    canvas.restore();
-  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1528,7 +1683,7 @@ class _ComfortPainter extends CustomPainter {
           width: puff.$2 * 2,
           height: puff.$3 * 2,
         );
-        _drop(
+        _paintPuff(
           canvas,
           // `transform-box: fill-box; transform-origin: 0% 50%` — the left edge
           // of the ellipse, so a puff grows AWAY from his mouth.
@@ -1566,7 +1721,7 @@ class _ComfortPainter extends CustomPainter {
       ]) {
         final centre = bead.$2;
         final r = bead.$3;
-        _drop(
+        _paintPuff(
           canvas,
           // `transform-origin: 50% 0%` — the top of the bead, so it stretches
           // downward as it runs.
@@ -1734,7 +1889,10 @@ ManagerParts managerPartsFor(
       : '${look['skinShade']}';
 
   String paint(String svg) => recolourManagerArt(
-    svg,
+    // The cigar's own smoke is animated over the head instead — see
+    // [_CigarSmoke]. Harmless on every other layer: nothing else in the
+    // wardrobe carries the group.
+    withoutStaticSmoke(svg),
     hair: hairColour,
     skin: skinColour,
     skinShade: shade,

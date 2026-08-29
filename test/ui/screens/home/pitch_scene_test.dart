@@ -192,6 +192,37 @@ void main() {
       expect(hoardingText, hoardingText.toUpperCase());
     });
 
+    test('AND IT IS ONE LINE, whatever font the platform hands back', () {
+      // 29 characters at 5.5 in the pale half of a 240 panel, which is 120
+      // wide. Not enough in every face — the test binding's own fallback wants
+      // 179.8 and wraps it over two six-unit lines inside a 13-unit board. It
+      // scales the type down to fit rather than breaking.
+      const panel = hoardingSegmentWidth / 2;
+      final mark = hoardingLettering(panel, hoardingHeight);
+      expect(mark.text.computeLineMetrics(), hasLength(1));
+      expect(mark.text.longestLine, lessThanOrEqualTo(panel + 0.01));
+      // Still lettering rather than a hairline: whatever it had to give up to
+      // fit, the board is 13 tall and the mark is a real proportion of it.
+      expect(mark.text.height, greaterThan(hoardingHeight * 0.25));
+    });
+
+    test('AND THE LETTERING IS CENTRED ON THE LETTERS', () {
+      // Reported as needing to come down slightly. It was centred on the LINE
+      // BOX, whose descent no capital ever reaches into — a quarter of the box
+      // counted as ink, which pushed the mark about 0.8 units up on a 13-unit
+      // board. The inked block runs from the cap line to the baseline.
+      final mark = hoardingLettering(hoardingSegmentWidth / 2, hoardingHeight);
+      final line = mark.text.computeLineMetrics().first;
+      final baseline = mark.top + line.baseline;
+      final gapAbove = mark.top;
+      final gapBelow = hoardingHeight - baseline;
+      // The board's own centre, and the block that is drawn in it. Equal to
+      // within a rounding error rather than the descent's worth out.
+      expect((gapAbove - gapBelow).abs(), lessThan(0.01));
+      // Which is BELOW where the old arithmetic put it — the whole of the fix.
+      expect(mark.top, greaterThan((hoardingHeight - mark.text.height) / 2));
+    });
+
     test('AND THE PITCH IS A FIELD AT THE BOTTOM', () {
       // The port drew the same kept turf at every rank. The spec scales it hard
       // and says why — nobody mows a Sunday League pitch — so the bottom of the
