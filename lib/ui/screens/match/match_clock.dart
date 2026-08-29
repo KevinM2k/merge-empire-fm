@@ -11,6 +11,11 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+// The engine's own pool table, so the opening filler and the events it is
+// filling around cannot disagree about how many lines the bucket holds. Pure
+// Dart, like this file: nothing here reaches for Flutter.
+import 'package:merge_empire_fc/engine/match_events.dart' show commentaryPools;
+
 /// One thing that happened, ready to show.
 typedef TimelineEvent = ({
   int minute,
@@ -190,6 +195,65 @@ const int chanceFeedGap = 10;
 /// filter on top of it — a line for every one of those is still too many.
 const double chanceFeedBigXg = 0.30;
 
+/// **THE OPENING IS TOO QUIET, and the engine cannot be what fixes it.**
+///
+/// `commentaryPools` puts the `open` bucket at [1, 1] and the next one,
+/// `firstA`, anywhere in 15..30. So a match says one thing at kick-off and then
+/// nothing for between fourteen and twenty-nine minutes. Reported exactly that
+/// way — the commentary being too quiet when a game starts and nothing
+/// happening for fifteen or twenty minutes.
+///
+/// **Chances cannot fill it**, which is worth stating because relaxing their
+/// filter is the obvious first idea and the arithmetic kills it: there are
+/// about thirteen in a match spread over eighty-eight minutes, so fewer than
+/// two land before minute fifteen and only half of those are on target. Letting
+/// every one of them through buys about one line.
+///
+/// **And the pool table is not this repo's to move.** It is the JS's, and
+/// `match_orchestration_reference.json` pins the events it produces field for
+/// field — 363 commentary lines — which cannot be regenerated from a cloud
+/// container. So the engine emits exactly what it always emitted and the
+/// divergence lives on the SCREEN, which is where this port puts them.
+///
+/// The `open` pool has THREE lines and a match printed one of them. All three
+/// are said now, spread across the window the engine leaves empty. The engine's
+/// own seeded pick still leads, so what a match opens with has not changed —
+/// what follows it is two lines of atmosphere instead of silence.
+const List<int> openingFillMinutes = [6, 11];
+
+/// The bucket those lines come from. Named so the filler and the engine cannot
+/// disagree about which pool is being emptied.
+const String openFlowPrefix = 'commentary.flow.open.';
+
+/// **WHICH CHANCES THE PLAYER ACTUALLY SEES.**
+///
+/// There are about thirteen chances in a match and the feed prints three or
+/// four of them: a chance earns a line only if it was big AND on target AND far
+/// enough from the last one. The SOUND was hung on the event instead, so every
+/// one of the thirteen played a kick and every on-target one played the crowd
+/// on top of it — nine or ten noises a match with nothing on screen to belong
+/// to. Reported as miss noises happening with no action, and the rule the
+/// report gives is the right one: if no action, no noise.
+///
+/// Derived by running the feed rather than by re-stating its rules. The gap
+/// filter is stateful across the whole list — it is measured from the last
+/// chance that was SHOWN, not the last that happened — so a second copy of that
+/// logic would drift the first time either half moved.
+Set<int> feedChanceMinutes(
+  List<TimelineEvent> events, {
+  Map<int, String> clippedChanceKeys = const {},
+}) => {
+  for (final line in feedOf(
+    events,
+    // The names only reach a line's parameters, never the filter.
+    ourName: '',
+    theirName: '',
+    isHome: true,
+    clippedChanceKeys: clippedChanceKeys,
+  ))
+    if (line.type == 'chance') line.minute,
+};
+
 /// What each event says in the feed, and which say nothing at all.
 ///
 /// **Ported from `_processEvent` in `MatchPopup.js`, and the point is what it
@@ -236,6 +300,9 @@ List<FeedLine> feedOf(
   String? Function(String instanceId)? nameOf,
 }) {
   final out = <FeedLine>[];
+  /// The kick-off pool's other lines, held back until the end so they can be
+  /// merged in at the minutes they belong to — see [openingFillMinutes].
+  final filled = <FeedLine>[];
   int? lastChance;
   // The score AS THE FEED HAS TOLD IT, which is what decides whether a goal
   // equalised or extended a lead.
@@ -337,6 +404,28 @@ List<FeedLine> feedOf(
             goal: null,
             aboutId: null,
           ));
+          // And the rest of the kick-off pool, into the quiet after it. See
+          // [openingFillMinutes].
+          if (e.textKey!.startsWith(openFlowPrefix)) {
+            final pool = commentaryPools.firstWhere(
+              (({List<int> range, String bucket, int count}) p) =>
+                  p.bucket == 'open',
+            );
+            final rest = [
+              for (var i = 0; i < pool.count; i++) '$openFlowPrefix$i',
+            ]..remove(e.textKey);
+            for (var i = 0; i < openingFillMinutes.length && i < rest.length; i++) {
+              filled.add((
+                minute: openingFillMinutes[i],
+                type: e.type,
+                key: rest[i],
+                params: const {},
+                seed: '${openingFillMinutes[i]}-c',
+                goal: null,
+                aboutId: null,
+              ));
+            }
+          }
         }
       case 'chance':
         final shown = clippedChanceKeys[e.minute];
@@ -363,5 +452,17 @@ List<FeedLine> feedOf(
         continue;
     }
   }
-  return out;
+  if (filled.isEmpty) return out;
+  // Merged rather than appended, and STABLY: the engine hands its events in
+  // minute order and the feed keeps it, so the filler has to fall where its
+  // minute puts it. Ties go to the line that was already there — a goal in the
+  // sixth minute reads before the atmosphere line that shares it.
+  final merged = [
+    for (var i = 0; i < out.length; i++) (i, out[i]),
+    for (var i = 0; i < filled.length; i++) (out.length + i, filled[i]),
+  ]..sort((a, b) {
+    final m = a.$2.minute.compareTo(b.$2.minute);
+    return m != 0 ? m : a.$1.compareTo(b.$1);
+  });
+  return [for (final line in merged) line.$2];
 }

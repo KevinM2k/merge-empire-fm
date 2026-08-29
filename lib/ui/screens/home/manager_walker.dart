@@ -506,6 +506,26 @@ final double _sink = _shadowBand * walkerHeight / 3;
 /// than a number in [_HeadPainter].
 const double _headSetBack = 3;
 
+/// **THE SKULL, WHERE IT IS ACTUALLY DRAWN.**
+///
+/// The art puts it at (62, 48.5) with r 12.5 and every head layer is drawn
+/// against that — but the group is then moved by [_headSetBack] and
+/// [_headLift], so the circle a raised arm has to clear is three units back and
+/// seven up from the one in the SVGs. Getting that wrong is not theoretical:
+/// the wave's elbow was ten units inside this circle and the badge kiss ended
+/// with the hand three inside it, and both read on screen as the arm
+/// disappearing behind his face.
+// Split into their own doubles because `Offset.dx` is not a constant
+// expression, and [skullOnScreen] has to stay const to be usable in one.
+const double _skullArtX = 62;
+const double _skullArtY = 48.5;
+const Offset skullInArt = Offset(_skullArtX, _skullArtY);
+const double skullRadius = 12.5;
+const Offset skullOnScreen = Offset(
+  _skullArtX - _headSetBack,
+  _skullArtY - _headLift,
+);
+
 /// How far the whole head group is lifted, in art units.
 ///
 /// **There was nowhere for a neck to be.** The skull is a circle at (62, 48.5)
@@ -1114,6 +1134,28 @@ class _ManagerWalkerState extends State<ManagerWalker>
         final rise = standing ? 0.0 : walkerHipRise(t);
         final span = standing ? _standSpan : _footSpan(t);
 
+        // **THE RIG, AS A PAINTER — and it is asked for four times.** The
+        // whole figure, then the near arm alone over the coat, over the face,
+        // and over a carried ball. Every pass reads the same clock, the same
+        // pose and the same look; they differ ONLY in [arms], so there is no
+        // window in which a copy of the arm and the real one are in different
+        // places, and nothing to crossfade.
+        _WalkerPainter walker(WalkerArms arms) => _WalkerPainter(
+          soft: widget.soft,
+          t: t,
+          kit: widget.kit,
+          skin: parts.skin,
+          // **His SHAPE.** The build axis was in the customiser, the wardrobe,
+          // the randomiser and the save, and six choices produced one figure —
+          // nothing read it.
+          build: buildScales(look['build'] as String?),
+          outfit: outfitPalette(look['outfit'] as String?),
+          sleevesAreKit: outfitSleevesAreKit(look['outfit'] as String?),
+          standing: standing,
+          pose: pose,
+          arms: arms,
+        );
+
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -1173,28 +1215,22 @@ class _ManagerWalkerState extends State<ManagerWalker>
                   fit: StackFit.expand,
                   children: [
                     // The rig: everything that turns.
+                    // A hand that belongs in front of the FACE is drawn in a
+                    // second pass after the head, and an arm that belongs in
+                    // front of the COAT in one after the garment — see
+                    // [WalkerArms] and [armOverTorso]. Either way the near arm
+                    // is held back from this pass so it is drawn once.
                     CustomPaint(
                       key: const ValueKey('manager-walker'),
-                      painter: _WalkerPainter(
-                        soft: widget.soft,
-                        t: t,
-                        kit: widget.kit,
-                        skin: parts.skin,
-                        // **His SHAPE.** The build axis was in the customiser,
-                        // the wardrobe, the randomiser and the save, and six
-                        // choices produced one figure — nothing read it.
-                        build: buildScales(look['build'] as String?),
-                        outfit: outfitPalette(look['outfit'] as String?),
-                        sleevesAreKit: outfitSleevesAreKit(
-                          look['outfit'] as String?,
-                        ),
-                        standing: standing,
-                        // A hand that belongs in front of the face is drawn in
-                        // a second pass, after the head — see [WalkerArms].
-                        arms: handsOverHead || armOverTorso
+                      // A hand that belongs in front of the FACE is drawn in a
+                      // second pass after the head, and an arm that belongs in
+                      // front of the COAT in one after the garment — see
+                      // [WalkerArms] and [armOverTorso]. Either way the near
+                      // arm is held back here so it is drawn once.
+                      painter: walker(
+                        handsOverHead || armOverTorso
                             ? WalkerArms.skipNear
                             : WalkerArms.both,
-                        pose: pose,
                       ),
                     ),
                     // Then the look, in the JS's own layering: what goes over the
@@ -1205,23 +1241,12 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // **THE NEAR ARM, back on top of the garment it wears.**
                     // See [armOverTorso]: the overlay is drawn over the torso
                     // and the near thigh, and the arm swings in front of both.
+                    // Between the cloth and the head, so a raised hand still
+                    // goes over the face rather than under it.
                     if (armOverTorso)
                       CustomPaint(
                         key: const ValueKey('manager-walker-coat-arm'),
-                        painter: _WalkerPainter(
-                          soft: widget.soft,
-                          t: t,
-                          kit: widget.kit,
-                          skin: parts.skin,
-                          build: buildScales(look['build'] as String?),
-                          outfit: outfitPalette(look['outfit'] as String?),
-                          sleevesAreKit: outfitSleevesAreKit(
-                            look['outfit'] as String?,
-                          ),
-                          standing: standing,
-                          pose: pose,
-                          arms: WalkerArms.nearOnly,
-                        ),
+                        painter: walker(WalkerArms.nearOnly),
                       ),
                     // The head and everything it wears, as ONE group — see
                     // [_headSetBack]. `FractionalTranslation` shifts by a
@@ -1287,25 +1312,21 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     if (handsOverHead)
                       CustomPaint(
                         key: const ValueKey('manager-walker-hands'),
-                        painter: _WalkerPainter(
-                          soft: widget.soft,
-                          t: t,
-                          kit: widget.kit,
-                          skin: parts.skin,
-                          build: buildScales(look['build'] as String?),
-                          outfit: outfitPalette(look['outfit'] as String?),
-                          sleevesAreKit: outfitSleevesAreKit(
-                            look['outfit'] as String?,
-                          ),
-                          standing: standing,
-                          pose: pose,
-                          arms: WalkerArms.nearOnly,
-                        ),
+                        painter: walker(WalkerArms.nearOnly),
                       ),
                     // How he is coping, over the head AND over the hat — the
                     // pallor and the flush belong on the face, and a beanie must
                     // not be able to cover his breath.
                     _SetBack(child: _Comfort(comfort: widget.comfort)),
+                    // And the cigar's smoke, which is the same kind of thing:
+                    // in the air in front of his face rather than part of him.
+                    // [_SetBack] because it rises from a point in the HEAD's
+                    // art space, and the head group has been moved.
+                    _SetBack(
+                      child: _CigarSmoke(
+                        lit: '${look['face']}' == cigarFace,
+                      ),
+                    ),
                     // **THE BALL, OVER ALL OF HIM** — which is where the JS puts
                     // it too, and right: at his boot it belongs in front of the
                     // near leg, and in his hands the cradle is in front of his
@@ -1326,20 +1347,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     if (widget.carrying)
                       CustomPaint(
                         key: const ValueKey('manager-walker-carry-arm'),
-                        painter: _WalkerPainter(
-                          soft: widget.soft,
-                          t: t,
-                          kit: widget.kit,
-                          skin: parts.skin,
-                          build: buildScales(look['build'] as String?),
-                          outfit: outfitPalette(look['outfit'] as String?),
-                          sleevesAreKit: outfitSleevesAreKit(
-                            look['outfit'] as String?,
-                          ),
-                          standing: standing,
-                          pose: pose,
-                          arms: WalkerArms.nearOnly,
-                        ),
+                        painter: walker(WalkerArms.nearOnly),
                       ),
                   ],
                 ),
@@ -1450,6 +1458,152 @@ const List<(double, _Puff)> _sweatFrames = [
   (1, (dx: 0.8, dy: 15, scale: 0.7, opacity: 0)),
 ];
 
+/// **THE CIGAR IS ALREADY SMOKING, and nothing ever lit it.**
+///
+/// `managerFaces['cigar']` ships a `<g class="mgr-smoke">` of three
+/// `.mgr-smoke-puff` circles — r 1.5, 1.1 and 1.8 — and all three are at the
+/// SAME point, (83.6, 51.8), because in the JS the class is a CSS animation and
+/// the SVG only states where each one starts. The port draws the file, so the
+/// three sat stacked at the cigar's lit end as one grey disc that never moved.
+/// Reported as the cigar wanting little bits of smoke coming out of it: they
+/// were there, in ten catalogues' worth of a bought item, going nowhere.
+///
+/// Up, out and gone, and slower than [_breathFrames] because smoke off a lit
+/// end is drifting rather than being blown anywhere.
+const List<(double, _Puff)> _smokeFrames = [
+  (0, (dx: 0, dy: 0, scale: 0.35, opacity: 0)),
+  (0.20, (dx: 0.6, dy: -1.6, scale: 0.70, opacity: 0.55)),
+  (0.60, (dx: 1.8, dy: -5.0, scale: 1.15, opacity: 0.32)),
+  (0.90, (dx: 2.8, dy: -8.4, scale: 1.60, opacity: 0)),
+  (1, (dx: 2.8, dy: -8.4, scale: 1.60, opacity: 0)),
+];
+
+/// The lit end, in the art's own space — the `<rect>` the SVG puts the ember on.
+const Offset cigarEmber = Offset(83.6, 51.8);
+
+/// The art's own three radii, kept rather than invented: the file says how big
+/// each puff is and only the CSS said where it went.
+const List<double> _smokeRadii = [1.5, 1.1, 1.8];
+
+/// How long one puff takes, and how far apart the three are started. A third of
+/// a cycle each, so there is always one leaving the end and one fading out.
+const Duration _smokeCycle = Duration(milliseconds: 2800);
+
+/// The face that smokes. Named so the layer and the stripper cannot disagree
+/// about which one it is.
+const String cigarFace = 'cigar';
+
+/// **AND THE STATIC GROUP COMES OUT.** Three overlapping discs at one point is
+/// a grey ball on the end of the cigar, and leaving it under the animation
+/// would draw the ball as well as the smoke. One contiguous run in the file, so
+/// this is a cut rather than a parse.
+String withoutStaticSmoke(String svg) {
+  const open = '<g class="mgr-smoke">';
+  const close = '</g>';
+  final start = svg.indexOf(open);
+  if (start < 0) return svg;
+  final end = svg.indexOf(close, start);
+  if (end < 0) return svg;
+  return svg.substring(0, start) + svg.substring(end + close.length);
+}
+
+/// The smoke, on its own clock over the head.
+///
+/// A sibling of [_Comfort] and for the same reason: it is a thing in the air in
+/// front of his face, not a part of him that turns.
+class _CigarSmoke extends StatefulWidget {
+  const _CigarSmoke({required this.lit});
+
+  final bool lit;
+
+  @override
+  State<_CigarSmoke> createState() => _CigarSmokeState();
+}
+
+class _CigarSmokeState extends State<_CigarSmoke>
+    with SingleTickerProviderStateMixin {
+  final ValueNotifier<double> _seconds = ValueNotifier<double>(0);
+  late final Ticker _ticker = createTicker(
+    (elapsed) => _seconds.value = elapsed.inMicroseconds / 1e6,
+  );
+
+  void _sync() {
+    final run = widget.lit && !MediaQuery.of(context).disableAnimations;
+    if (run == _ticker.isActive) return;
+    if (run) {
+      _ticker.start();
+    } else {
+      _ticker.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_CigarSmoke old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _seconds.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.lit) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: ValueListenableBuilder<double>(
+        valueListenable: _seconds,
+        builder: (context, seconds, _) => CustomPaint(
+          key: const ValueKey('manager-cigar-smoke'),
+          size: Size.infinite,
+          painter: _SmokePainter(seconds: seconds),
+        ),
+      ),
+    );
+  }
+}
+
+class _SmokePainter extends CustomPainter {
+  const _SmokePainter({required this.seconds});
+
+  final double seconds;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    canvas.save();
+    canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
+    final cycle = _smokeCycle.inMilliseconds / 1000;
+    for (var i = 0; i < _smokeRadii.length; i++) {
+      // **Staggered rather than simultaneous**, which is the whole difference
+      // between smoke and a pulsing dot — and it also means a stopped clock
+      // (reduced motion) leaves the three at three different heights instead of
+      // back on top of each other where the file had them.
+      final phase = ((seconds / cycle) + i / _smokeRadii.length) % 1;
+      _paintPuff(
+        canvas,
+        cigarEmber,
+        _puffAt(_smokeFrames, phase, Curves.easeOut),
+        (paint) => canvas.drawCircle(cigarEmber, _smokeRadii[i], paint),
+        const Color(0xFFDCDCDC),
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_SmokePainter old) => old.seconds != seconds;
+}
+
 /// The keyframe track at [phase], eased the way CSS eases it — per SEGMENT, not
 /// across the whole run.
 _Puff _puffAt(List<(double, _Puff)> track, double phase, Curve curve) {
@@ -1470,6 +1624,36 @@ _Puff _puffAt(List<(double, _Puff)> track, double phase, Curve curve) {
   return track.last.$2;
 }
 
+/// A puff, a bead, or a curl of smoke: drawn in its own place, moved and scaled
+/// about the point the CSS names as its transform origin.
+///
+/// `translate(t) scale(s)` about an origin `o` puts a point `p` at
+/// `o + t + s·(p - o)`, which is three canvas ops in that order and NOT the
+/// order they are written in.
+void _paintPuff(
+  Canvas canvas,
+  Offset origin,
+  _Puff frame,
+  void Function(Paint paint) draw,
+  Color color,
+) {
+  if (frame.opacity <= 0.004) return;
+  canvas.save();
+  canvas.translate(origin.dx + frame.dx, origin.dy + frame.dy);
+  canvas.scale(frame.scale);
+  canvas.translate(-origin.dx, -origin.dy);
+  draw(
+    Paint()
+      ..color = Color.fromRGBO(
+        (color.r * 255).round(),
+        (color.g * 255).round(),
+        (color.b * 255).round(),
+        frame.opacity,
+      ),
+  );
+  canvas.restore();
+}
+
 class _ComfortPainter extends CustomPainter {
   const _ComfortPainter({required this.comfort, required this.seconds});
 
@@ -1477,38 +1661,9 @@ class _ComfortPainter extends CustomPainter {
   final double seconds;
 
   /// Cold pallor over the whole head — the skull's own circle, from the art's
-  /// space.
-  static const Offset _skull = Offset(62, 48.5);
-
-  /// A puff, or a bead: drawn in its own place, moved and scaled about the point
-  /// the CSS names as its transform origin.
-  ///
-  /// `translate(t) scale(s)` about an origin `o` puts a point `p` at
-  /// `o + t + s·(p - o)`, which is three canvas ops in that order and NOT the
-  /// order they are written in.
-  void _drop(
-    Canvas canvas,
-    Offset origin,
-    _Puff frame,
-    void Function(Paint paint) draw,
-    Color color,
-  ) {
-    if (frame.opacity <= 0.004) return;
-    canvas.save();
-    canvas.translate(origin.dx + frame.dx, origin.dy + frame.dy);
-    canvas.scale(frame.scale);
-    canvas.translate(-origin.dx, -origin.dy);
-    draw(
-      Paint()
-        ..color = Color.fromRGBO(
-          (color.r * 255).round(),
-          (color.g * 255).round(),
-          (color.b * 255).round(),
-          frame.opacity,
-        ),
-    );
-    canvas.restore();
-  }
+  /// space. This painter is inside the head group, so it wants [skullInArt]
+  /// rather than [skullOnScreen].
+  static const Offset _skull = skullInArt;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1518,7 +1673,11 @@ class _ComfortPainter extends CustomPainter {
     if (comfort == 'cold') {
       // **The puffs are what actually read at this size** — a tint alone just
       // looks like a lighting change.
-      canvas.drawCircle(_skull, 12.5, Paint()..color = const Color(0x4D8AB9E8));
+      canvas.drawCircle(
+        _skull,
+        skullRadius,
+        Paint()..color = const Color(0x4D8AB9E8),
+      );
       // Two on the same path, offset so they overlap into a rhythm rather than
       // pulsing in lockstep.
       for (final puff in const [(0.0, 3.0, 2.1), (0.42, 2.4, 1.7)]) {
@@ -1527,7 +1686,7 @@ class _ComfortPainter extends CustomPainter {
           width: puff.$2 * 2,
           height: puff.$3 * 2,
         );
-        _drop(
+        _paintPuff(
           canvas,
           // `transform-box: fill-box; transform-origin: 0% 50%` — the left edge
           // of the ellipse, so a puff grows AWAY from his mouth.
@@ -1565,7 +1724,7 @@ class _ComfortPainter extends CustomPainter {
       ]) {
         final centre = bead.$2;
         final r = bead.$3;
-        _drop(
+        _paintPuff(
           canvas,
           // `transform-origin: 50% 0%` — the top of the bead, so it stretches
           // downward as it runs.
@@ -1733,7 +1892,10 @@ ManagerParts managerPartsFor(
       : '${look['skinShade']}';
 
   String paint(String svg) => recolourManagerArt(
-    svg,
+    // The cigar's own smoke is animated over the head instead — see
+    // [_CigarSmoke]. Harmless on every other layer: nothing else in the
+    // wardrobe carries the group.
+    withoutStaticSmoke(svg),
     hair: hairColour,
     skin: skinColour,
     skinShade: shade,
@@ -2468,7 +2630,7 @@ class _WalkerPainter extends CustomPainter {
     final posedFore = near ? pose?.foreNear : pose?.foreFar;
     _about(
       canvas,
-      const Offset(56, 62),
+      armShoulder,
       posed ?? _sample(near ? _armNear : _armFar, t),
       () {
         // The sleeve, wide at the deltoid and narrowing to the elbow.
@@ -2480,7 +2642,7 @@ class _WalkerPainter extends CustomPainter {
         paintLimb(
           soft: soft,
           canvas,
-          const Offset(56, 62),
+          armShoulder,
           const Offset(56, 81),
           11 * build.arm,
           7.6 * build.arm,
@@ -2489,7 +2651,7 @@ class _WalkerPainter extends CustomPainter {
         );
         _about(
           canvas,
-          const Offset(56, 80),
+          armElbow,
           posedFore ?? _sample(near ? _elbowNear : _elbowFar, t),
           () {
             // A forearm is widest just below the elbow and narrowest at the
@@ -2514,12 +2676,12 @@ class _WalkerPainter extends CustomPainter {
             // The hand as a MITTEN rather than a circle: wider across the
             // knuckles than at the wrist, which is what stops the arm reading as
             // one tapering stick with a bead on the end.
-            paintHand(canvas, const Offset(56, 100.6), flesh, far: !near);
+            paintHand(canvas, armHand, flesh, far: !near);
             // And the finger, out past it, for the gestures that point.
             if (near) {
               paintFinger(
                 canvas,
-                const Offset(56, 100.6),
+                armHand,
                 flesh,
                 pose?.finger ?? 0,
               );

@@ -141,10 +141,15 @@ void main() {
     final chip = find.byKey(const ValueKey('customise-chip-beard-stubble'));
     expect(chip, findsOneWidget, reason: 'a locked look was hidden, not gated');
 
-    // **ON THE BUS, not a `SnackBar`.** `ScaffoldMessenger.of` walks up to the
-    // Scaffold BEHIND this modal sheet, so the explanation was posted
-    // underneath the sheet the player was looking at — reported as a locked
-    // item doing nothing at all when tapped.
+    // **ON THE STAGE, not in a toast.** It was a toast because a Fan Zone lock
+    // has nothing to sell — but a sentence about a beard, with the beard still
+    // not on him, answers the wrong question. The bar shows the item and says
+    // what it waits on, which is what was asked for; the CTA row is what a
+    // pack lock adds, not what makes the bar worth raising.
+    //
+    // (Its ancestor was a `SnackBar`, which `ScaffoldMessenger.of` posted to
+    // the Scaffold BEHIND this modal sheet — reported as a locked item doing
+    // nothing at all. The bus fixed that; the bar answers the rest.)
     final said = <String>[];
     void listen(Object? line) => said.add('$line');
     on('toast:info', listen);
@@ -155,7 +160,25 @@ void main() {
     await tester.tap(chip);
     await tester.pump();
     await tester.pump();
-    expect(said, [t('customise.locked.fanzone', {'tier': 1})]);
+    expect(said, isEmpty, reason: 'it is shown now, not narrated');
+    expect(find.byKey(const ValueKey('locked-look-offer')), findsOneWidget);
+    expect(
+      tester.widget<Text>(
+        find.byKey(const ValueKey('locked-look-progress')),
+      ).data,
+      t('customise.locked.fanzone', {'tier': 1}),
+    );
+
+    // Tried on, on the PREVIEW figure only.
+    expect(
+      tester
+          .widget<ManagerWalker>(
+            find.byKey(const ValueKey('customise-preview')),
+          )
+          .look?['beard'],
+      'stubble',
+    );
+
     // And it did NOT get worn — the save is untouched, not written-and-reverted.
     final club =
         container.read(gameProvider).state?['club'] as Map<String, dynamic>;
@@ -355,6 +378,21 @@ void main() {
         greaterThan(grass.top),
         reason: 'his feet are above the ground',
       );
+
+      // **AND THERE IS SKY OVER HIS HEAD.** He was drawn at the art's full
+      // height in a stage only twenty points taller, so the crown sat fifteen
+      // points off the top edge and the stage's treeline and sky had nowhere to
+      // be. Reported as needing to be zoomed out. A tenth of the stage is the
+      // floor; his box carries no empty art above him, so its top edge IS very
+      // nearly the top of his hair.
+      expect(
+        walker.top - stage.top,
+        greaterThan(stage.height * 0.1),
+        reason: 'he fills the frame like a passport photo',
+      );
+      // But he is still the subject — a figure lost in a landscape is the
+      // opposite mistake, and this stage is 190 points tall in total.
+      expect(walker.height, greaterThan(stage.height * 0.7));
       await settleSave(tester);
     });
   });
@@ -661,23 +699,28 @@ void main() {
       await settleSave(tester);
     });
 
-    testWidgets('and a lock nothing can open stays a line, not a sheet', (
+    testWidgets('and a lock nothing can open still SHOWS the item', (
       tester,
     ) async {
-      // A Fan Zone tier has nothing to sell and nothing to watch, so a sheet
-      // with two dead buttons on it would be worse than the sentence.
+      // A Fan Zone tier has nothing to sell and nothing to watch — so the bar
+      // drops its buttons rather than the whole bar. Two dead CTAs would be
+      // worse than the sentence; so is the sentence on its own, which is what
+      // this used to be.
       phone(tester);
       await pumpHome(tester);
       await openCustomiser(tester);
       await openAxis(tester, 'beard');
-      final said = <String>[];
-      void listen(Object? args) => said.add('$args');
-      on('toast:info', listen);
-      addTearDown(() => off('toast:info', listen));
 
       await tapChip(tester, 'beard', 'stubble');
-      expect(find.byKey(const ValueKey('locked-look-offer')), findsNothing);
-      expect(said, [t('customise.locked.fanzone', {'tier': 1})]);
+      expect(find.byKey(const ValueKey('locked-look-offer')), findsOneWidget);
+      expect(find.byKey(const ValueKey('locked-look-watch')), findsNothing);
+      expect(find.byKey(const ValueKey('locked-look-buy')), findsNothing);
+      expect(
+        tester.widget<Text>(
+          find.byKey(const ValueKey('locked-look-progress')),
+        ).data,
+        t('customise.locked.fanzone', {'tier': 1}),
+      );
       await settleSave(tester);
     });
   });

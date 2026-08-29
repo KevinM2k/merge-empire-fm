@@ -1872,8 +1872,12 @@ const double _hoardingCap = 0.72;
 /// never uses, so centring it hangs the lettering high on the board — reported
 /// as the text needing to move down slightly to be vertically centred. This
 /// centres the cap band instead, which is the part anyone can see.
-double hoardingTextTop(double height, double baseline) =>
-    height / 2 + hoardingFontSize * _hoardingCap / 2 - baseline;
+/// [fontSize] defaults to [hoardingFontSize] and is passed explicitly by the
+/// painter, because the mark is not always set at that size: it shrinks rather
+/// than wrap — see [hoardingLettering] — and a cap band computed for 5.5 on a
+/// mark set at 3.7 puts back most of the offset this is removing.
+double hoardingTextTop(double height, double baseline, {double? fontSize}) =>
+    height / 2 + (fontSize ?? hoardingFontSize) * _hoardingCap / 2 - baseline;
 
 class _HoardingSegment extends StatelessWidget {
   const _HoardingSegment({required this.kitColor});
@@ -1888,35 +1892,60 @@ class _HoardingSegment extends StatelessWidget {
   );
 }
 
+final Map<double, ui.Paragraph> _hoardingCache = {};
+
+ui.Paragraph _buildHoardingText(double fontSize) => (ui.ParagraphBuilder(
+  ui.ParagraphStyle(
+    textAlign: TextAlign.center,
+    fontSize: fontSize,
+    fontWeight: FontWeight.w900,
+    // **ONE LINE, ALWAYS** — see [hoardingLettering].
+    maxLines: 1,
+  ),
+)
+      ..pushStyle(
+        ui.TextStyle(
+          color: Colors.black.withValues(alpha: 0.55),
+          // Kept proportional, so a mark that has to shrink to fit does not
+          // shrink its letters and keep its gaps.
+          letterSpacing: fontSize * (0.7 / hoardingFontSize),
+          height: 1,
+        ),
+      )
+      ..addText(hoardingText))
+    .build();
+
+/// **AND IT WAS WRAPPING.** Measured rather than assumed: the mark is 29
+/// characters and the pale half of a 240 panel is 120 wide, which is not enough
+/// at 5.5 in every face the platform might resolve — the test binding's own
+/// fallback wants 179.8 and breaks it over TWO lines, six units each, stacked
+/// inside a board 13 tall. Whether it wraps at all depended on which font the
+/// device handed back, which is the kind of thing that is fine until it is not.
+///
+/// So it measures what the mark wants unconstrained and scales the type down if
+/// the panel cannot take it. A brand mark on a hoarding is one line by
+/// definition; a smaller one is still the mark, and two lines of it is not.
+/// Public because it is the whole of what a test can ask about a strip that is
+/// otherwise a painter inside a scrolling clip.
+///
+/// Laid out once per panel width and reused: a `TextPainter` per repaint, on a
+/// band that repaints with the scroll, is the one cost this strip cannot take.
+ui.Paragraph hoardingLettering(double width) =>
+    _hoardingCache.putIfAbsent(width, () {
+  final wanted = (_buildHoardingText(hoardingFontSize)
+        ..layout(const ui.ParagraphConstraints(width: double.infinity)))
+      .maxIntrinsicWidth;
+  final size = wanted <= width || wanted <= 0
+      ? hoardingFontSize
+      : hoardingFontSize * width / wanted;
+  return _buildHoardingText(size)
+    ..layout(ui.ParagraphConstraints(width: width));
+});
+
 class _HoardingPainter extends CustomPainter {
   const _HoardingPainter({required this.kitColor});
 
   final Color kitColor;
-
-  /// The lettering, laid out once and reused: a `TextPainter` per repaint on a
-  /// strip that repaints with the scroll is the one cost this band cannot take.
-  static final Map<double, ui.Paragraph> _cache = {};
-
-  ui.Paragraph _lettering(double width) => _cache.putIfAbsent(width, () {
-    // Letter-spaced, because a squashed word at this size is a smudge and a
-    // spaced one is type. See [hoardingFontSize] for why it is this small.
-    final builder = ui.ParagraphBuilder(
-      ui.ParagraphStyle(
-        textAlign: TextAlign.center,
-        fontSize: hoardingFontSize,
-        fontWeight: FontWeight.w900,
-      ),
-    )
-      ..pushStyle(
-        ui.TextStyle(
-          color: Colors.black.withValues(alpha: 0.55),
-          letterSpacing: 0.7,
-          height: 1,
-        ),
-      )
-      ..addText(hoardingText);
-    return builder.build()..layout(ui.ParagraphConstraints(width: width));
-  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1932,12 +1961,23 @@ class _HoardingPainter extends CustomPainter {
 
     // The advert, on the PALE panel only. On the club-coloured one it would be
     // a second thing competing with the colour that is the point of that board.
-    final text = _lettering(size.width - half);
+    final mark = hoardingLettering(size.width - half);
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(half, 0, size.width - half, size.height));
+    // The cap band follows the size the mark was actually SET at, which is not
+    // always [hoardingFontSize] — see [hoardingLettering], which shrinks it
+    // rather than let it wrap. With `height: 1` on one line the paragraph's
+    // height IS that size.
     canvas.drawParagraph(
-      text,
-      Offset(half, hoardingTextTop(size.height, text.alphabeticBaseline)),
+      mark,
+      Offset(
+        half,
+        hoardingTextTop(
+          size.height,
+          mark.alphabeticBaseline,
+          fontSize: mark.height,
+        ),
+      ),
     );
     canvas.restore();
     final all = Rect.fromLTWH(0, 0, size.width, size.height);

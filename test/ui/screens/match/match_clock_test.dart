@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/match_events.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 
 Map<String, dynamic> resultWith({
@@ -174,6 +175,121 @@ void main() {
     List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
         feedOf(events, ourName: 'Us', theirName: 'Them', isHome: isHome);
 
+    group('THE OPENING IS NOT SILENT', () {
+      // `commentaryPools` says one line at minute 1 and the next anywhere in
+      // 15..30, so a match spoke once and then said nothing for between fourteen
+      // and twenty-nine minutes. Reported as the commentary being too quiet when
+      // a game starts.
+      List<FeedLine> opening(String opener) =>
+          feed([ev('commentary', minute: 1, textKey: opener)]);
+
+      test('the whole kick-off pool is said, not one line of it', () {
+        final lines = opening('${openFlowPrefix}0');
+        final pool = commentaryPools.firstWhere(
+          (({List<int> range, String bucket, int count}) p) => p.bucket == 'open',
+        );
+        expect(lines, hasLength(pool.count));
+        // Every line in the pool, once.
+        expect(
+          lines.map((l) => l.key).toSet(),
+          {for (var i = 0; i < pool.count; i++) '$openFlowPrefix$i'},
+        );
+      });
+
+      test('AND THE ENGINE STILL LEADS', () {
+        // The seeded pick is what a match opens with and that has not changed —
+        // the screen only fills the quiet after it.
+        for (final i in [0, 1, 2]) {
+          final lines = opening('$openFlowPrefix$i');
+          expect(lines.first.key, '$openFlowPrefix$i');
+          expect(lines.first.minute, 1);
+        }
+      });
+
+      test('and they land in the window the engine leaves empty', () {
+        final lines = opening('${openFlowPrefix}1');
+        expect(lines.map((l) => l.minute), [1, ...openingFillMinutes]);
+        // Before `firstA` can possibly speak, which is the whole point.
+        final firstA = commentaryPools.firstWhere(
+          (({List<int> range, String bucket, int count}) p) =>
+              p.bucket == 'firstA',
+        );
+        expect(lines.last.minute, lessThan(firstA.range[0]));
+      });
+
+      test('and a line from any OTHER bucket fills nothing', () {
+        final lines = feed([
+          ev('commentary', minute: 20, textKey: 'commentary.flow.firstA.0'),
+        ]);
+        expect(lines, hasLength(1));
+      });
+
+      test('AND THE MERGE KEEPS MINUTE ORDER, ties to the engine', () {
+        // The filler is held back and merged, so a goal in a minute it shares
+        // reads first and everything else stays where the engine put it.
+        final lines = feed([
+          ev('commentary', minute: 1, textKey: '${openFlowPrefix}0'),
+          ev('goal', minute: 6),
+          ev('goal', minute: 30, team: 'away'),
+        ]);
+        expect(lines.map((l) => l.minute).toList(), [1, 6, 6, 11, 30]);
+        expect(lines[1].type, 'goal', reason: 'the goal lost its own minute');
+      });
+    });
+    group('AND A CHANCE NOBODY SEES MAKES NO NOISE', () {
+      // There are about thirteen chances in a match and the feed prints three
+      // or four. The sound was hung on the EVENT, so all thirteen played a kick
+      // and every on-target one played the crowd on top of it — nine or ten
+      // noises a match with nothing on screen. Reported as miss noises with no
+      // action.
+      test('the shown minutes are the feed\'s own, not the timeline\'s', () {
+        final events = [
+          // Big, on target: printed, so it is heard.
+          ev('chance', minute: 5, shotResult: 'on_target', big: true, xg: 0.4),
+          // Inside the gap: dropped by the feed, so silent.
+          ev('chance', minute: 9, shotResult: 'on_target', big: true, xg: 0.4),
+          // Off target: dropped, so silent.
+          ev('chance', minute: 40, shotResult: 'off', big: true, xg: 0.4),
+          // Small: dropped, so silent.
+          ev('chance', minute: 60, shotResult: 'on_target', xg: 0.1),
+          // Big, on target, clear of the last SHOWN one: printed.
+          ev('chance', minute: 70, shotResult: 'on_target', big: true, xg: 0.4),
+        ];
+        expect(feedChanceMinutes(events), {5, 70});
+        // And that is exactly the set the feed itself prints, because it is
+        // the feed that produced it.
+        expect(
+          feed(events).where((l) => l.type == 'chance').map((l) => l.minute),
+          [5, 70],
+        );
+      });
+
+      test('and a chance the pitch retold is heard, whatever its numbers', () {
+        // A clip bypasses the filters — it is on screen by definition — so the
+        // sound has to follow it there too.
+        final events = [ev('chance', minute: 12, shotResult: 'off', xg: 0.05)];
+        expect(feedChanceMinutes(events), isEmpty);
+        expect(
+          feedChanceMinutes(
+            events,
+            clippedChanceKeys: const {12: 'commentary.shot_wide'},
+          ),
+          {12},
+        );
+      });
+
+      test('and nothing else in the timeline counts as a chance', () {
+        expect(
+          feedChanceMinutes([
+            ev('goal', minute: 5),
+            ev('corner', minute: 7),
+            ev('injury', minute: 9, player: 'Smith'),
+          ]),
+          isEmpty,
+        );
+      });
+    });
+
     test('AND A GOAL KNOWS WHOSE IT WAS', () {
       // The feed printed the scorer's NAME and carried nothing else, so a row
       // that wanted his face had a string to work from. The engine has written
@@ -322,5 +438,6 @@ void main() {
       expect(line.params['player'], 'Ada');
     });
   });
+
 
 }

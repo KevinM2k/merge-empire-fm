@@ -310,10 +310,20 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// giving it away, so `field`/`value` are laid over the saved look for the
   /// PREVIEW figure only, and the rest of the record is what the bar on the
   /// stage needs to sell it.
+  /// **AND IT IS NO LONGER ONLY FOR THE ONES WITH SOMETHING TO SELL.** A lock a
+  /// video cannot open — a Fan Zone tier, a cup — used to be a toast: a
+  /// sentence about a hat, with the hat still not on him. Asked for directly,
+  /// and the copy for it already ships: `customise.locked.fanzone` is "Unlocks
+  /// at Fan Zone Tier {tier}" and `customise.locked.cup` is "Win the {cup} to
+  /// unlock", both translated in all ten catalogues and neither ever printed
+  /// anywhere but a toast. So every lock tries the item on now; [packId] null
+  /// is the one that has nothing to offer, and the bar drops its buttons and
+  /// prints [reason] instead.
   ({
     String kind,
     String id,
-    String packId,
+    String? packId,
+    String reason,
     String field,
     Object? value,
   })?
@@ -383,24 +393,26 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// sheet, the item being sold is standing in the middle of it, and a sheet
   /// rising over the bottom half would cover the very thing the tap was for.
   ///
-  /// A lock a video cannot open — a Fan Zone tier, a cup — has nothing to sell
-  /// and nothing to watch, so it stays a line rather than becoming a bar.
+  /// A locked chip: SEE it, then be told what it costs or what it waits on.
+  ///
+  /// A lock a video cannot open used to stop here with a toast — a sentence
+  /// about an item the player had just pointed at and still could not see. The
+  /// showing is the part that has nothing to do with whether there is anything
+  /// to sell, so it happens either way and the bar decides what to put under
+  /// it. See [_offer].
   void _offerLockedItem(LookAxis axis, String id) {
     final why = lockedReason(_save, axis.kind, id);
     if (why == null) return;
-    if (!isPackLocked(_save, axis.kind, id)) {
-      emit('toast:info', why);
-      return;
-    }
-    final packId = lookRequirement(axis.kind, id)?.packId;
-    if (packId == null) return;
     // A celebration is not worn at all; it is played.
     if (axis.field.isEmpty) _play(id);
     setState(
       () => _offer = (
         kind: axis.kind,
         id: id,
-        packId: packId,
+        packId: isPackLocked(_save, axis.kind, id)
+            ? lookRequirement(axis.kind, id)?.packId
+            : null,
+        reason: why,
         field: axis.field,
         value: axis.kind == 'color' ? hairColorValue(id) : id,
       ),
@@ -523,13 +535,17 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
                   kind: offer.kind,
                   id: offer.id,
                   packId: offer.packId,
+                  reason: offer.reason,
                   onWatch: () {
                     _clearOffer();
                     unawaited(_watchForItem(offer.kind, offer.id));
                   },
                   onBuy: () {
+                    final pack = offer.packId;
                     _clearOffer();
-                    unawaited(_buyPackFor(offer.packId));
+                    // Only a bar with a pack draws a Buy, so this cannot fire
+                    // without one — the guard is the type's, not a doubt.
+                    if (pack != null) unawaited(_buyPackFor(pack));
                   },
                   onClose: _clearOffer,
                 ),
@@ -1391,6 +1407,7 @@ class _LockedOfferBar extends ConsumerWidget {
     required this.kind,
     required this.id,
     required this.packId,
+    required this.reason,
     required this.onWatch,
     required this.onBuy,
     required this.onClose,
@@ -1398,7 +1415,14 @@ class _LockedOfferBar extends ConsumerWidget {
 
   final String kind;
   final String id;
-  final String packId;
+
+  /// The pack this item is in, or null for a lock nothing can open on the spot
+  /// — a Fan Zone tier, a cup. See [_ManagerCustomiserState._offer].
+  final String? packId;
+
+  /// Why it is locked, from [lockedReason]. The only line under the name when
+  /// there is no pack, and the line the toast used to carry on its own.
+  final String reason;
   final VoidCallback onWatch;
   final VoidCallback onBuy;
   final VoidCallback onClose;
@@ -1407,7 +1431,8 @@ class _LockedOfferBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(saveRevisionProvider);
     final save = ref.read(gameProvider).state;
-    final tile = lookTileState(save, packId);
+    final pack = packId;
+    final tile = pack == null ? null : lookTileState(save, pack);
     final waiting = !canWatchPackAd(save);
     return Container(
       key: const ValueKey('locked-look-offer'),
@@ -1443,12 +1468,13 @@ class _LockedOfferBar extends ConsumerWidget {
                       ),
                     ),
                     Text(
+                      // `reason` IS the pack line when there is a pack —
+                      // `lockedReason` falls through to `customise.locked.pack`
+                      // — so the two cases differ only in the progress after
+                      // it, and a cup or a Fan Zone tier reads as itself.
                       tile == null
-                          ? t('customise.locked.pack', {
-                              'pack': t('customise.pack.$packId'),
-                            })
-                          : '${t('customise.locked.pack', {'pack': t('customise.pack.$packId')})}'
-                                ' · '
+                          ? reason
+                          : '$reason · '
                                 '${t('customise.pack.progress', {'n': tile.owned, 'total': tile.total})}',
                       key: const ValueKey('locked-look-progress'),
                       maxLines: 1,
@@ -1471,40 +1497,46 @@ class _LockedOfferBar extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // **FULL-SIZE BUTTONS, not the row variant.** `small` is the list
-          // line's — 11pt type in a 9pt radius — and these are the only two
-          // controls on the stage: asked for as "the buttons need a little
-          // more height to match others", which is the same call the shop's
-          // pack pill got for the same reason.
-          Row(
-            children: [
-              Expanded(
-                child: StoreButton(
-                  key: const ValueKey('locked-look-watch'),
-                  tone: StoreTone.ad,
-                  label: waiting
-                      ? t('customise.pack.wait', {
-                          'time': formatAdWait(msUntilPackAd(save)),
-                        })
-                      : t('customise.pack.watch'),
-                  onTap: waiting ? null : onWatch,
-                ),
-              ),
-              if (tile != null && tile.status != 'owned') ...[
-                const SizedBox(width: 8),
+          // **NOTHING TO SELL IS NOT AN EMPTY ROW.** A cup or a Fan Zone tier
+          // has no video and no price, so the bar is the item's name and the
+          // line saying what it waits on — which is the whole of what the
+          // player asked to be shown, with the item on the rig behind it.
+          if (pack != null) ...[
+            const SizedBox(height: 6),
+            // **FULL-SIZE BUTTONS, not the row variant.** `small` is the list
+            // line's — 11pt type in a 9pt radius — and these are the only two
+            // controls on the stage: asked for as "the buttons need a little
+            // more height to match others", which is the same call the shop's
+            // pack pill got for the same reason.
+            Row(
+              children: [
                 Expanded(
                   child: StoreButton(
-                    key: const ValueKey('locked-look-buy'),
-                    tone: StoreTone.gem,
-                    label: '${t('customise.pack.unlock_all')} · ${tile.cost}',
-                    leading: const GameIcon('gem', size: 14),
-                    onTap: onBuy,
+                    key: const ValueKey('locked-look-watch'),
+                    tone: StoreTone.ad,
+                    label: waiting
+                        ? t('customise.pack.wait', {
+                            'time': formatAdWait(msUntilPackAd(save)),
+                          })
+                        : t('customise.pack.watch'),
+                    onTap: waiting ? null : onWatch,
                   ),
                 ),
+                if (tile != null && tile.status != 'owned') ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StoreButton(
+                      key: const ValueKey('locked-look-buy'),
+                      tone: StoreTone.gem,
+                      label: '${t('customise.pack.unlock_all')} · ${tile.cost}',
+                      leading: const GameIcon('gem', size: 14),
+                      onTap: onBuy,
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );

@@ -204,6 +204,19 @@ layer run under plain `dart test` with no widget binding.
   `conceded` (`goal_replay.dart`) is the red a goal AGAINST is drawn in, shared
   by the feed's goal card and the replay popup — it moved out of
   `match_screen.dart` so the dependency runs screen → widget.
+- **A gesture pose is a place a hand GOES, and the head is not where the art
+  draws it.** The skull is a circle at (62, 48.5) r12.5 in the art's own space,
+  but the whole head group is then moved by `_headSetBack` and `_headLift`, so
+  the circle a raised arm has to clear is at **(59, 41.5)** — `skullOnScreen`.
+  Four of the sixteen poses had been written against the wrong one and the arm
+  simply vanished behind his face: the wave's elbow was 10.2 units inside it,
+  the robot's forearm 15.8, the badge kiss's hand 3.3, and the fist pump grazed
+  at 0.96. **The shoulder sits ~15 units under that centre and the upper arm is
+  18 long, so ANY raised arm meets the head** — the elbow reaches its furthest
+  forward at `armNear: -90` and every angle past that swings it in behind the
+  face. `gesture_reach_test` re-solves the chain from `armShoulder`/`armElbow`/
+  `armHand` and fails on a pose that reaches inside; solve against it rather
+  than nudging degrees.
 - **A planted manager is `standing`, not `walking: false`.** `ManagerWalker`
   distinguishes them: `walking: false` is a scene nobody is watching and stops
   him dead, blink and all; `standing` stops only the STRIDE, and `idle` gives
@@ -264,6 +277,13 @@ layer run under plain `dart test` with no widget binding.
   the coach tips, the income breakdown, every trait, the match commentary, the
   transfer pill and prestige. Grep `lib/i18n/locales/en.g.dart` for a key prefix
   and then for a caller — the gap between the two counts is a work queue.
+- **Shipped ART carrying an ANIMATION CLASS is the same tell in another
+  medium.** The generated SVGs come from a DOM, so a moving part is written as
+  its starting position plus a CSS class, and a painter that draws the file
+  draws every frame of it at once. `managerFaces['cigar']` ships three
+  `.mgr-smoke-puff` circles at ONE point — the port drew a grey disc on the
+  cigar's end that never moved, for a bought item named in ten catalogues. Grep
+  the generated art for `class="` and ask what moved it in the JS.
 - **A shipped string with markup in it is a second tell.** `t()` strips `<br>`
   and `<strong>` at the boundary because the copy was written for a DOM and the
   catalogues are generated; a string that renders its own tags is a call site

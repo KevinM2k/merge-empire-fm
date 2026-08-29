@@ -201,7 +201,13 @@ void main() {
           expect(parts.onSkin, isEmpty, reason: '$id is not paint');
           expect(
             parts.overHead.map((l) => l.svg),
-            contains(managerFaces[id]),
+            // **Less its static smoke**, which only the cigar has: three
+            // `.mgr-smoke-puff` circles stacked on one point, because in the JS
+            // that class is an animation and the file only says where each one
+            // starts. Drawn as written it is a grey disc on the lit end that
+            // never moves, so it is cut here and animated over the head — see
+            // `_CigarSmoke`. Every other drawing passes through unchanged.
+            contains(withoutStaticSmoke(managerFaces[id]!)),
             reason: '$id never reaches the face',
           );
         }

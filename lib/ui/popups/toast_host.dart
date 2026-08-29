@@ -271,6 +271,7 @@ const Duration _gemHold = Duration(milliseconds: 3600);
 /// accent — see the border below.
 const Color _gemGold = Color(0xFFFFD700);
 
+
 class ToastHost extends ConsumerStatefulWidget {
   const ToastHost({super.key, required this.child});
 
@@ -383,6 +384,26 @@ class ToastHostState extends ConsumerState<ToastHost> {
     if (_entry != null || _current == null) return widget.child;
     return Stack(children: [widget.child, _toastFace(context)]);
   }
+  /// **A LINE THAT IS ON TOP OF THE SCREEN, not printed on it.**
+  ///
+  /// It was a flat `kit.surface` fill with a one-pixel border and no shadow at
+  /// all unless it carried gems — and a flat surface fill is exactly the thing
+  /// that reads as page, which is the fourth time that has been reported in
+  /// this app. It is worse here than anywhere: a toast is raised OVER a sheet,
+  /// and a sheet's own panel is `kit.surface` too, so the box and the thing
+  /// behind it were the same colour and all that was left of the toast was its
+  /// red outline. Reported exactly as a clear box with a red border.
+  ///
+  /// So it takes the vocabulary the club's asset cards and the shop's look
+  /// tiles already settled on: the tone's own colour washed into the lit
+  /// corner over a raked `surface2 → surface`, and BOTH shadows — a soft cast
+  /// for how far off the page it is, a tight contact one for the weight. One
+  /// blurred shadow reads as a glow, which is what the gem line had.
+  ///
+  /// **And the ink follows the tone.** Every line printed `kit.accentBright`
+  /// whatever it said, so a refusal was green type inside a red box: the two
+  /// halves of the same toast disagreeing about whether it was bad news.
+  /// `readableInk` is what keeps a red legible on a daylit surface.
   Widget _toastFace(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final toast = _current;

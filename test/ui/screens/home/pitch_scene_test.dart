@@ -192,6 +192,21 @@ void main() {
       expect(hoardingText, hoardingText.toUpperCase());
     });
 
+    test('AND IT IS ONE LINE, whatever font the platform hands back', () {
+      // 29 characters at 5.5 in the pale half of a 240 panel, which is 120
+      // wide. Not enough in every face — the test binding's own fallback wants
+      // 179.8 and wraps it over two six-unit lines inside a 13-unit board. It
+      // scales the type down to fit rather than breaking, so the cap-band
+      // centring above has one line to centre.
+      const panel = hoardingSegmentWidth / 2;
+      final mark = hoardingLettering(panel);
+      expect(mark.computeLineMetrics(), hasLength(1));
+      expect(mark.longestLine, lessThanOrEqualTo(panel + 0.01));
+      // Still lettering rather than a hairline: whatever it gave up to fit,
+      // the board is 13 tall and the mark is a real proportion of it.
+      expect(mark.height, greaterThan(hoardingHeight * 0.25));
+    });
+
     /// **THE LINE BOX WAS BEING CENTRED, and the ink is not the line box.**
     /// Every letter on a board is a capital, so the ink runs from the baseline
     /// up to the cap line and the room a box reserves for descenders is empty

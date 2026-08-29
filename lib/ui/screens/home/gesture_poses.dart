@@ -186,27 +186,39 @@ final Map<String, GestureAnimation> _animations = {
   // to rest in the middle: it is a repeated motion, not a pose held.
   // **THE FIST STAYS OUT IN FRONT OF HIM.** `foreNear` is the forearm's angle
   // relative to the upper arm, so the ELBOW angle is `180 + foreNear` — and at
-  // -116 that is a 64° elbow, which folds the fist back past his own chin. It
-  // pumps between a 90° elbow and a 120° one now and never closes past ninety,
-  // with the upper arm held around eighty degrees off the body, which is where
-  // a fist pump actually happens.
+  // -116 that is a 64° elbow, which folds the fist back past his own chin.
+  //
+  // **AND IT WAS STILL GRAZING HIS FACE at the top of the pump**, reported as
+  // going a little too close. Measured rather than eyeballed: the skull is
+  // drawn at (59, 41.5) r12.5 — the art's (62, 48.5) less [_headSetBack] and
+  // [_headLift] — the hand is a 7.4-wide oval, and at the old peak of
+  // (-84, -90) the two were **0.96 art units apart**, which at this scale is
+  // touching.
+  //
+  // The lever is the ELBOW, not the shoulder. `armNear` cannot push the elbow
+  // any further forward than -90 (18 units dead ahead of the shoulder), so
+  // opening the elbow is the only thing that moves the fist away from the
+  // face — and it moves it FORWARD and UP rather than down, which is why the
+  // peak is now higher than it was: (78.3, 41.9) against (76.1, 43.4), with
+  // 3.09 units of daylight. The pump is also bigger than before, 16° of
+  // shoulder against 10°.
   'fistpump': const GestureAnimation(
     armNear: [
       (0, armNearRest),
-      (0.16, -84),
+      (0.16, -90),
       (0.34, -74),
-      (0.50, -84),
+      (0.50, -90),
       (0.66, -74),
-      (0.82, -82),
+      (0.82, -88),
       (1, armNearRest),
     ],
     foreNear: [
       (0, foreRest),
-      (0.16, -90),
+      (0.16, -78),
       (0.34, -62),
-      (0.50, -90),
+      (0.50, -78),
       (0.66, -62),
-      (0.82, -88),
+      (0.82, -76),
       (1, foreRest),
     ],
     head: _chinUp,
@@ -274,11 +286,27 @@ final Map<String, GestureAnimation> _animations = {
     foreNear: _hold(foreRest, -85, 0.22, 0.78),
     head: _hold(0, 15, 0.22, 0.78),
   ),
+  // ── ARMS FOLDED. **Two faults, and the second is about the PAINT ORDER.**
+  //
+  // The first is that the forearms were nowhere near each other: the near hand
+  // sat at (67.5, 79.4) and the far one at (67.2, 68.9), ten and a half units
+  // apart, which is one arm across the belly and another across the chest —
+  // not a fold. They are 5.4 apart now, both across the mid-chest, the near
+  // forearm lying on top of the far one.
+  //
+  // The second is why the pose read as a SINGLE arm however the angles were
+  // set. `_WalkerPainter` draws far arm, then body, then near arm, so the far
+  // forearm is BEHIND the torso — and the torso runs x 47.9 to 69.9, which is
+  // exactly the band a folded forearm crosses. The far arm was drawn and then
+  // painted over, every frame. So the far hand now finishes at (72.2, 76.5),
+  // past the shirt's front edge, where it emerges below and in front of the
+  // near one: the two of them are what makes it read as folded rather than as
+  // one arm held across.
   'armsfolded': GestureAnimation(
-    armNear: _hold(armNearRest, 30, 0.14, 0.86),
-    foreNear: _hold(foreRest, -115, 0.14, 0.86),
-    armFar: _hold(armFarRest, 23, 0.14, 0.86),
-    foreFar: _hold(foreRest, -141, 0.14, 0.86),
+    armNear: _hold(armNearRest, 25, 0.14, 0.86),
+    foreNear: _hold(foreRest, -135.5, 0.14, 0.86),
+    armFar: _hold(armFarRest, 13.5, 0.14, 0.86),
+    foreFar: _hold(foreRest, -112, 0.14, 0.86),
   ),
   'handsonhead': GestureAnimation(
     head: _hold(0, 20, 0.20, 0.80),
@@ -307,6 +335,22 @@ final Map<String, GestureAnimation> _animations = {
     foreFar: _hold(foreRest, -83.2, 0.14, 0.86),
   ),
   // ── WAVE. The arm goes UP and stays; the wave is in the forearm.
+  //
+  // **AND IT IS ONE OF [gestureHandsOverHead], which is what fixes it.** The
+  // numbers are worth keeping because they say why the rule exists rather than
+  // just that it does: at -150 the upper arm is very nearly vertical, which on
+  // this rig puts the elbow at (65.0, 46.4) against a skull DRAWN at (59, 41.5)
+  // r12.5 — the art's (62, 48.5) less the head group's set-back and lift. So
+  // the elbow sat 10.2 units inside it and the forearm 9.6, and only the hand
+  // cleared, popping out above the crown with the limb that carried it painted
+  // behind the face. Reported exactly as the arm going behind the head.
+  //
+  // **The shoulder is only ~15 units under that centre and the upper arm is 18
+  // long, so ANY raised arm meets the head** — the elbow reaches its furthest
+  // forward at -90 and every angle past that swings it in behind the face. So
+  // there is no raised wave that clears; drawing it in front is the answer, and
+  // it does not cover his face: the forearm passes at x 63..69, which is past
+  // the eye (it ends at 62) and above the mouth at (68, 48.5).
   'wave': const GestureAnimation(
     armNear: [(0, armNearRest), (0.16, -150), (0.84, -150), (1, armNearRest)],
     foreNear: [
@@ -417,6 +461,22 @@ final Map<String, GestureAnimation> _animations = {
   // eases, so hard-stepped joints read as mechanical instantly. Each track sits
   // on its value and jumps to the next, which is what a linear curve between two
   // identical keyframes gives for free.
+  //
+  // **Its ARM-UP hold was the worst reach on the rig, and no playthrough
+  // reported it — `gesture_reach_test` did.** The near arm held (-142, -88),
+  // which raises the upper arm to near-vertical and then folds the forearm
+  // BACK across the top of the skull: the hand landed at (51.3, 34.6), behind
+  // the head's own centre line, 5.8 units inside the circle with the forearm
+  // 15.8 inside it. The far arm's third hold, (-110, -96), was 9.8 inside on
+  // the same diagonal. So a third of this gesture was an arm that went up and
+  // simply was not there.
+  //
+  // The shoulder sits ~15 units under the skull's centre and the upper arm is
+  // 18 long, so the elbow reaches its furthest FORWARD at -90 (x 74, just past
+  // the head's front edge at 71.5) and every angle past that swings it in
+  // behind the face. Both holds are at -90-ish now with the forearm rising in
+  // FRONT of the head instead of over it — same right angle, same stepped
+  // read, and the hand is on screen.
   'robot': const GestureAnimation(
     curve: Curves.linear,
     cycleMs: 1400,
@@ -425,8 +485,8 @@ final Map<String, GestureAnimation> _animations = {
       (0.15, armNearRest),
       (0.25, -96),
       (0.40, -96),
-      (0.50, -142),
-      (0.65, -142),
+      (0.50, -90),
+      (0.65, -90),
       (0.75, -70),
       (0.90, -70),
       (1, armNearRest),
@@ -438,8 +498,8 @@ final Map<String, GestureAnimation> _animations = {
       (0.40, -70),
       (0.50, -34),
       (0.65, -34),
-      (0.75, -110),
-      (0.90, -110),
+      (0.75, -88),
+      (0.90, -88),
       (1, armFarRest),
     ],
     foreNear: [
@@ -448,8 +508,8 @@ final Map<String, GestureAnimation> _animations = {
       (0.15, -96),
       (0.25, -4),
       (0.40, -4),
-      (0.50, -88),
-      (0.65, -88),
+      (0.50, -78),
+      (0.65, -78),
       (0.75, -20),
       (0.90, -20),
       (1, foreRest),
@@ -462,8 +522,8 @@ final Map<String, GestureAnimation> _animations = {
       (0.40, -88),
       (0.50, -20),
       (0.65, -20),
-      (0.75, -96),
-      (0.90, -96),
+      (0.75, -74),
+      (0.90, -74),
       (1, foreRest),
     ],
     body: [
