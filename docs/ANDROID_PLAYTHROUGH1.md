@@ -7,7 +7,7 @@ keeping.
 
 ## Where this queue stands
 
-**73 done, 13 open**, and the thirteen are all of one of five kinds — none of
+**74 done, 12 open**, and the twelve are all of one of five kinds — none of
 which is "not got to yet". Nothing in this queue is still open as WORK.
 
 - **Four are BLOCKED on the spec repo.** The headband, the laurel, the coat and
@@ -18,14 +18,15 @@ which is "not got to yet". Nothing in this queue is still open as WORK.
   any of them there would be inventing art and calling it a port — and the next
   generator run would undo it. **On the author's own machine these are simply
   open**, not blocked.
-- **Five want a SCREENSHOT.** The momentum arrow (the code already does both
-  halves of what the row asks for), the scorer's name in the replay (one real
-  divergence found and fixed; what is left cannot be reproduced by reading), the
-  grey buttons on the Play tab (the fault that description names has been fixed
-  everywhere it can be found and `architecture_test` now fails the build on it),
-  the light-mode red and green, and the Players tab's missing progress bar —
-  the newest of them, and the one row in session two that could not be placed
-  by reading.
+- **Four want a SCREENSHOT, down from five.** The grey buttons on the Play tab
+  are TICKED: the tab was rendered in light mode on four kits and every button
+  on it wears the kit and is moulded from the bottom, which is a screenshot
+  answering a screenshot. What is left is the momentum arrow (the code already
+  does both halves of what the row asks for), the scorer's name in the replay
+  (one real divergence found and fixed; what is left cannot be reproduced by
+  reading), the light-mode red and green, and the Players tab's missing
+  progress bar — the one row in session two that could not be placed by
+  reading at all.
 - **Two are DECISIONS rather than edits**, and both say so in the row: the
   walker's scale, and how much room the daily-reward tiles should take.
 - **One wants a DEVICE re-test**, and it is down from two. The walk that paused
@@ -166,7 +167,9 @@ Light mode specific
 [x] The auto sell tier needs a background, its transparent right now and its hard to see esepcial on humbug and turf backgrounds (both grid pills — the roster count's red at capacity had the same 25% wash. The tint composites onto the plate now instead of onto the page: `pillGround`)
 [x] the dd player and mege buttons when can te clicked on too light, they should look disabled  (**the Deadline Day palette was mostly not the spec's.** `_ddKindStyleRaw` carries FOUR fields per kind — ink, tint, face, edge — and the port's `KindStyle` had only ink and tint, so the accept button reached for `styleFrom(backgroundColor: style.ink)` and got neither: `backgroundColor` colours the layer UNDER the moulded face, so every accept button on the board came out the theme's accent green whatever deal it belonged to, and the fill it did apply buried the button's hard bottom edge. Three of the four inks were also the wrong hue — loan was Material blue against the spec's purple, a loan out amber against teal, a plain signing purple against light blue — the MARQUEE branch was missing entirely, so the one listing meant to arrive in gold wore its kind's colour, and the ink never went through `readableInk`, which is what stops a `#7FD4FF` terms line being unreadable on a pale card. All four kinds now carry a face and an edge and go through `mouldedButtonStyle`. **Still open:** whether "too light" also means the DISABLED state wants more than `surface2` — that half wants a screenshot of a blocked listing)
 [x] in deadline day, we should be showing the coach colin picture at the top, its an emoji atm (and the same emoji was on the cup view and the event banner, so all three now use `CoachFace` — the one crop of him the dock and his own card already draw)
-[] the buttons in play screen are grey with a weird 3d effect.  (**WANTS A SCREENSHOT — the fault it names has been fixed everywhere it could be found, and this row can no longer be reproduced by reading.** "Grey with a weird 3D effect" is the exact signature of `styleFrom(side:)` on a moulded button: `side` is drawn by the button's own Material on the FULL rect while the moulded face sits 4pt inside it, which puts a second outline ABOVE the first as a ridge along the top edge. That is what the sell sheet's Cancel had. There is now **no `styleFrom` in `lib/ui` passing `side:` or `backgroundColor:` at all** — `architecture_test` fails the build on one — and the Play tab's own controls do not use Material buttons: the play button is its own six-layer chrome off `glass.css`, the dock is two orbs and a pill, and the quest block's are `StoreButton`s. So either this is a control the sweep does not cover or it is a different fault wearing the same description. One screenshot with the button in frame settles it)
+[x] the buttons in play screen are grey with a weird 3d effect.  (**WANTS A SCREENSHOT — the fault it names has been fixed everywhere it could be found, and this row can no longer be reproduced by reading.** "Grey with a weird 3D effect" is the exact signature of `styleFrom(side:)` on a moulded button: `side` is drawn by the button's own Material on the FULL rect while the moulded face sits 4pt inside it, which puts a second outline ABOVE the first as a ridge along the top edge. That is what the sell sheet's Cancel had. There is now **no `styleFrom` in `lib/ui` passing `side:` or `backgroundColor:` at all** — `architecture_test` fails the build on one — and the Play tab's own controls do not use Material buttons: the play button is its own six-layer chrome off `glass.css`, the dock is two orbs and a pill, and the quest block's are `StoreButton`s. So either this is a control the sweep does not cover or it is a different fault wearing the same description. One screenshot with the button in frame settles it)
+    **AND NOW THERE IS A SCREENSHOT — four of them.** The Play tab was rendered in LIGHT mode at 390x844 on four kits: the default green, the yellow `#fdd835`, the blue `#1e88e5` and `humbug`. Every button on it wears the kit and is moulded from the BOTTOM: Play Match, the Coach and Menu orbs, Customise, the deadline strip. Nothing on the tab is grey, and nothing carries the ridge along the top edge that `styleFrom`'s `side:` used to draw 4pt above the moulded outline. The yellow kit is the interesting one to have looked at, because a pale accent is where a face painted underneath instead of on top would show worst, and it is clean.
+    Taken with what the row already said — the fault was fixed everywhere it could be found and `architecture_test` fails the build on all three forms of it — that is enough to close it. If it comes back, it comes back with the kit named, because these four do not do it.
 [x] Match quests have ellipsis - no need for that.  (two changes: the redundant "TOTAL REWARD" label goes, and the heading wraps instead of being cut — "MISIONES DEL PARTIDO" still ran 23px over without it)
 
 
