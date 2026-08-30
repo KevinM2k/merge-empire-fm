@@ -29,6 +29,7 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart' show createInstance;
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
@@ -236,9 +237,29 @@ bool tutorialConditionMet(Map<String, dynamic>? state) {
 void advanceTutorial(Map<String, dynamic> state) {
   final tut = _map(state['tutorial']);
   if (tut == null) return;
-  final next = (_num(tut['step'])?.toInt() ?? 0) + 1;
+  final from = _num(tut['step'])?.toInt() ?? 0;
+  final next = from + 1;
   tut['step'] = next;
   if (next >= tutorialSteps.length) tut['done'] = true;
+
+  // **THE ONE FUNNEL THAT DECIDES WHETHER A PLAYER STAYS**, and it reported
+  // nothing at all. A tutorial is nine chances to lose someone and the only
+  // question worth asking of it is WHICH step they left on — which no other
+  // event in the app can answer, because a player who quits mid-script simply
+  // stops appearing.
+  //
+  // Logged from the engine rather than the overlay for the reason the daily
+  // reward and gem events are: this is the one function that moves the script,
+  // the overlay is not, and an event on a screen is an event a second caller
+  // silently skips.
+  final id = from >= 0 && from < tutorialSteps.length
+      ? tutorialSteps[from].id
+      : 'unknown';
+  if (from == 0) logAppEvent('tutorial_begin', {'step_id': id});
+  logAppEvent('tutorial_step_complete', {'step_id': id, 'step_index': from});
+  if (tut['done'] == true) {
+    logAppEvent('tutorial_complete', {'steps': tutorialSteps.length});
+  }
 }
 
 /// Give up on it. The save keeps whatever it has been lent.
@@ -250,7 +271,14 @@ void advanceTutorial(Map<String, dynamic> state) {
 void skipTutorial(Map<String, dynamic> state) {
   final tut = _map(state['tutorial']);
   if (tut == null) return;
+  // **Read BEFORE the flag is set**, because `tutorialStepFor` answers null for
+  // a finished script — which would file every skip in the game under nothing.
+  final step = tutorialStepFor(state);
   tut['done'] = true;
+  logAppEvent('tutorial_skip', {
+    'step_id': step?.id ?? 'unknown',
+    'step_index': _num(tut['step'])?.toInt() ?? 0,
+  });
 }
 
 /// The squad a full XI needs: one keeper, four at the back, three and three.

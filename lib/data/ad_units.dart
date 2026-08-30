@@ -25,12 +25,17 @@ const Map<String, String?> rewardedByPlacementAndroid = {
   'double_season': 'ca-app-pub-0386196346828968/8214511488',
   'daily_double': 'ca-app-pub-0386196346828968/1355120286',
   'streak_repair': 'ca-app-pub-0386196346828968/7343732572',
-  // TODO: the real Android cosmetics unit id, before release. Until then this
-  // falls back to energy_pip, which serves ads but files the revenue under the
-  // wrong placement — and, more importantly, shares energy_pip's frequency cap,
-  // so cosmetic unlocks WOULD eat into the energy budget. Not sharing that cap
-  // is the whole point of a separate unit.
-  'cosmetic_pack': null,
+  // **The manager customiser's own unit, and the port has one before the JS
+  // does.** It fell back to `energy_pip` for as long as it was null, which
+  // served ads and filed the revenue under the wrong placement — and, worse,
+  // shared `energy_pip`'s frequency cap, so a look unlocked ate into the energy
+  // budget. Not sharing that cap is the whole point of a separate unit.
+  //
+  // Supplied from the AdMob console rather than the spec: `energyEngine.js` has
+  // no row for this placement, which is why `ad_units_parity_test` now pins it
+  // as a DIVERGENCE rather than as a shared gap. See `lookPackPlacement` in
+  // `ui/screens/home/manager_customiser.dart` for the caller.
+  'cosmetic_pack': 'ca-app-pub-0386196346828968/6876353356',
 };
 
 const Map<String, String?> rewardedByPlacementIos = {
@@ -44,8 +49,8 @@ const Map<String, String?> rewardedByPlacementIos = {
   'double_season': 'ca-app-pub-0386196346828968/8036743041',
   'daily_double': 'ca-app-pub-0386196346828968/7176211614',
   'streak_repair': 'ca-app-pub-0386196346828968/4717569230',
-  // TODO: the real iOS cosmetics unit id — see the Android note.
-  'cosmetic_pack': null,
+  // The iOS half of the manager customiser's unit — see the Android note.
+  'cosmetic_pack': 'ca-app-pub-0386196346828968/1955767383',
 };
 
 const Map<String, String> interstitialByDivisionAndroid = {

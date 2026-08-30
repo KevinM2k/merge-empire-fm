@@ -85,13 +85,30 @@ void main() {
       expect(android.intersection(ios), isEmpty);
     });
 
-    test('the cosmetics placement is still unwired on both platforms', () {
-      // Deliberate, and it has a cost: it falls back to energy_pip, which
-      // serves ads but files the revenue under the wrong placement and shares
-      // energy_pip's frequency cap — so cosmetic unlocks WOULD eat into the
-      // energy budget. Delete this test when the real ids land.
-      expect(rewardedByPlacementAndroid['cosmetic_pack'], isNull);
-      expect(rewardedByPlacementIos['cosmetic_pack'], isNull);
+    test('THE COSMETICS PLACEMENT HAS ITS OWN UNIT NOW, on both platforms', () {
+      // It fell back to `energy_pip` for as long as these were null, which
+      // served ads and filed the revenue under the wrong placement — and shared
+      // `energy_pip`'s frequency cap, so a look unlocked ate into the energy
+      // budget. Not sharing that cap is the whole point of a separate unit.
+      expect(rewardedByPlacementAndroid['cosmetic_pack'], isNotNull);
+      expect(rewardedByPlacementIos['cosmetic_pack'], isNotNull);
+      expect(
+        rewardedByPlacementAndroid['cosmetic_pack'],
+        isNot(rewardedByPlacementIos['cosmetic_pack']),
+      );
+    });
+
+    test('AND IT NO LONGER FALLS BACK, which is the point of wiring it', () {
+      // The regression this guards is a null creeping back in: the fallback is
+      // silent, serves ads, and looks identical on the shelf.
+      expect(
+        rewardedUnitFor('ios', 'cosmetic_pack'),
+        isNot(fallbackRewardedUnit('ios')),
+      );
+      expect(
+        rewardedUnitFor('android', 'cosmetic_pack'),
+        isNot(fallbackRewardedUnit('android')),
+      );
     });
   });
 
@@ -138,9 +155,8 @@ void main() {
       );
     });
 
-    test('an unknown or unwired placement falls back to the longest-lived unit', () {
+    test('an unknown placement falls back to the longest-lived unit', () {
       expect(rewardedUnitFor('ios', 'not_a_placement'), fallbackRewardedUnit('ios'));
-      expect(rewardedUnitFor('ios', 'cosmetic_pack'), fallbackRewardedUnit('ios'));
       expect(fallbackRewardedUnit('ios'), rewardedByPlacementIos['energy_pip']);
     });
 

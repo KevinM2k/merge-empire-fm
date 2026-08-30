@@ -10,14 +10,14 @@ import 'package:merge_empire_fc/util/analytics.dart';
 
 void main() {
   late List<({String name, Map<String, Object?> params})> sent;
-  late List<({Object? message, bool fatal})> crashes;
+  late List<({Object? message, bool fatal, StackTrace? stack})> crashes;
 
   setUp(() {
     sent = [];
     crashes = [];
     setAnalyticsSink((name, params) => sent.add((name: name, params: params)));
-    setCrashSink((message, fatal) =>
-        crashes.add((message: message, fatal: fatal)));
+    setCrashSink((message, fatal, stack) =>
+        crashes.add((message: message, fatal: fatal, stack: stack)));
   });
 
   tearDown(() {
@@ -135,6 +135,16 @@ void main() {
       logError('bad thing');
       expect(sent, hasLength(1));
       expect(crashes, isEmpty);
+    });
+
+    test('THE STACK REACHES THE REPORT AND NOT THE EVENT', () {
+      // Firebase caps a parameter at a hundred characters, so an event
+      // carrying a trace would ship a truncated first line and nothing
+      // useful. Crashlytics is where a symbolicated trace belongs.
+      final stack = StackTrace.current;
+      logError('boom', fatal: true, stack: stack);
+      expect(crashes.single.stack, same(stack));
+      expect(sent.single.params.containsKey('stack'), isFalse);
     });
   });
 

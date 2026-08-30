@@ -30,16 +30,32 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:merge_empire_fc/services/analytics_wiring.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// Whether this build reports at all. A variable so a test can turn it on.
 bool analyticsEnabled = kReleaseMode;
+
+/// The bus-to-event listeners. One instance, so [startAnalytics] can take them
+/// back off before putting them on again.
+final AnalyticsWiring _wiring = AnalyticsWiring();
 
 /// Bring the backend up and point [logAppEvent] at it.
 ///
 /// Safe to call twice: `Firebase.initializeApp` is idempotent and the sink is
 /// simply replaced with an equivalent one.
 Future<void> startAnalytics() async {
+  // **The bus listeners go on FIRST and unconditionally**, ahead of the enabled
+  // check and ahead of anything that can fail. They cost nothing when there is
+  // no sink — `logAppEvent` drops — and wiring them behind the check would mean
+  // a dev build exercised a different set of listeners from the one that ships,
+  // which is the kind of difference that is only ever found in production.
+  //
+  // Detached first because this is safe to call twice, and a second set of
+  // listeners would report every event twice.
+  _wiring.detach();
+  _wiring.attach();
   if (!analyticsEnabled) return;
   try {
     // The native config — `google-services.json` and `GoogleService-Info.plist`
@@ -69,14 +85,14 @@ Future<void> startAnalytics() async {
   try {
     final crashlytics = FirebaseCrashlytics.instance;
     await crashlytics.setCrashlyticsCollectionEnabled(true);
-    setCrashSink((message, fatal) {
+    setCrashSink((message, fatal, stack) {
       unawaited(
         crashlytics
-            .recordError(message, null, fatal: fatal)
+            .recordError(message, stack, fatal: fatal)
             .catchError((_) {}),
       );
     });
-    _catchEverything(crashlytics);
+    _catchEverything();
   } catch (_) {
     // Crash reporting is best-effort: a missing pod or an older native build
     // must not take analytics down with it. The JS says the same.
@@ -90,18 +106,40 @@ Future<void> startAnalytics() async {
 /// is an unhandled error from anywhere else, including an async gap that no
 /// `try` surrounds. Between them they are the errors nobody wrote a `catch`
 /// for, which is exactly the set worth reporting.
-void _catchEverything(FirebaseCrashlytics crashlytics) {
+///
+/// **BOTH GO THROUGH [logError] rather than straight to the SDK**, which is the
+/// change that made `app_crash` a real event. They used to call Crashlytics
+/// directly, so a crash was recorded and NOTHING was counted: the analytics
+/// property saw a session simply stop, with no way to line the drop-off up
+/// against the behaviour before it. `logError` writes the event and then hands
+/// the same fault to the crash sink installed above, so one fault is one report
+/// and one event.
+///
+/// The cost of the change is `recordFlutterFatalError`, which folded a
+/// `FlutterErrorDetails`' library and context lines into the report. What
+/// actually symbolises a crash is the stack, and that still goes across — see
+/// the sink above.
+void _catchEverything() {
   final previous = FlutterError.onError;
   FlutterError.onError = (details) {
-    crashlytics.recordFlutterFatalError(details);
+    logError(details.exception, fatal: true, stack: details.stack);
     // Still printed to the console: a report going somewhere else is no reason
     // for a developer to stop seeing it.
     previous?.call(details);
   };
   PlatformDispatcher.instance.onError = (error, stack) {
-    crashlytics.recordError(error, stack, fatal: true);
+    logError(error, fatal: true, stack: stack);
     return true;
   };
+  // **A bus handler that throws is swallowed by the bus and printed**, which is
+  // the right call for the game — one bad listener must not stop the other
+  // eighty-seven — and it meant those failures existed only in a console nobody
+  // reads on a device. `setBusErrorHandler` shipped with the seam for exactly
+  // this and had no caller. Non-fatal: the app is still running, and an
+  // `app_error` beside the funnel is what says which listener keeps failing.
+  setBusErrorHandler((event, error, stack) {
+    logError('bus "$event": $error', stack: stack);
+  });
 }
 
 /// Firebase takes only strings and numbers, which is what
