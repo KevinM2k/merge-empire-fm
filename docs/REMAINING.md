@@ -8,6 +8,33 @@ rough sense of size, not a target.
 
 ---
 
+## Where this queue stands
+
+**17 rows are open and not one of them is code**, which is worth saying at the
+top so the next pass does not go looking. They are, by kind:
+
+- **Twelve are RELEASE work in a console or on a device** — signing, the
+  CI-generated Android build config, store listings, the eleven in-app products
+  in both consoles, a sandbox purchase pass, the VIP lapse-and-rebuy case, an
+  internal-track build, staged rollout, watching Crashlytics, registering the
+  iPhone, and the final Capacitor release from the old repo. None of them can
+  be done from a repository, let alone a cloud container.
+- **Three want a DEVICE**: the play button's pop, the crowd surge and the ear;
+  and profile-mode timings on physical hardware, which gates the M3 diorama row.
+- **Two are DECISIONS the owner has to make** and both say so in the row: which
+  manager looks a rewarded video should unlock and how many, and what replaces
+  the dormant `wc2026` event slot.
+- **One is left open on its own instruction**: the `mergeempirefc://event/`
+  deep link, whose row says to establish it is reachable on iOS before building
+  for it. Re-checked — `Info.plist` still carries only Google Sign-In's scheme.
+
+Two rows that were carried as missing turned out to be STALE and are ticked with
+what was actually there: the boot splash (its face had shipped; its GATE had
+not, and that is now built) and the loan players' departure (done, and done the
+way the row asked, with the mid-flight assertion the row implies).
+
+---
+
 ## What done looks like
 
 The whole game, running on Flutter, with nothing switched off. Concretely: a player
@@ -1637,26 +1664,47 @@ read `lib/`, and nothing reads the native shells.**
       shells now build: `Runner.app` on the simulator, `app-debug.apk` with the
       real icon in every mipmap.
 
-- [ ] **There is no boot splash.** `setupSplash` in `main.js:147` paints logo,
-      title, `LOADING` and a progress bar from inline CSS before any JS runs,
-      holds a minimum window so a fast gate does not flash, and fades out when
-      the cloud-save restore completes **or times out** — `main.js:189` is
-      explicit that a slow network must never trap a player there. The port has
-      nothing: `game_host.dart` boots and draws. The native launch screen added
-      above covers the flash and is not the same feature — the gate is what is
-      missing. The logo the JS actually uses is `src/assets/logo-raw.png`, set at
-      runtime (`main.js:23`), **not** `splash-logo.png`.
+- [x] **The boot splash's GATE.** The row said "the port has nothing", and half
+      of that had gone stale: `ui/boot_splash.dart` has shipped the face, the
+      minimum window, the creeping bar and the fade for a while, wrapping
+      `MergeEmpireApp` exactly as the JS's `#splash` is a sibling of `#app`.
+      What was genuinely missing is the half the row's own emphasis is on — it
+      **fades out when the cloud-save restore completes or times out** — and
+      without it the two halves of the boot ran past each other: the splash
+      lifted on a fixed 2.6s clock while `_restoreSessionAndCloud` was still in
+      the air, so a restore landing a beat later swapped the whole save out from
+      under a player already looking at their squad.
+      `providers/boot_gate.dart` is that gate. **It does NOT reinstate waiting
+      on the network to draw** — `game_host.dart` rejected that on purpose and
+      was right to; the first frame is still drawn immediately and the restore is
+      still fired and forgotten. What changed is only which moment the splash,
+      already on screen and already going to fade, fades ON.
+      Two details worth keeping. The gate is awaited AFTER the bar rather than
+      raced with it, so a fast restore cannot cut the window short — a splash
+      that flashes past in 80ms is the thing the window exists to prevent. And
+      its failure handler is attached in `initState`, not when the bar finishes:
+      a restore that fails FAST would otherwise be an unhandled error for the
+      whole length of the window, which Flutter reports as a crash.
+      **The timeout is this port's number and it has to be said plainly**: the
+      JS's own is in `main.js` and `../merge-empire-fc` is not cloned in a cloud
+      container, so it could not be read. Six seconds, chosen against the rule
+      rather than the source. Four tests: a restore in the air holds it, a dead
+      network cannot trap anyone there, a restore that threw is still a restore
+      that finished, and an instant one does not cut the window.
 
-- [ ] **The loan players' DEPARTURE is still a cut.** Their ARRIVAL is ported —
-      `loan-card-enter` at the JS's own 500ms stagger, with the script holding
-      until the last one has landed — and the exit is the other half of the same
-      feature: `loan_depart`'s `onEnterAsync` flies every borrowed card off
-      (`loan-card-exit`, 0.35s, 40ms apart) and only THEN writes the save and
-      opens its card. The port answers the card first and applies the save on the
-      way out, so by the time anything could animate the cards are gone. The fix
-      is an order change in `applyStepEffects` rather than a new animation:
-      `returnTutorialPlayers` has to run AFTER the flight, which means the
-      departure moves off the step's answer and onto its entrance.
+- [x] **The loan players' DEPARTURE.** **STALE — it was done, and done the way
+      this row asked for.** `departLoan` in `tutorial_overlay.dart` is the step's
+      ENTRANCE: `run` calls it before `showTutorialCard`, so the grid empties and
+      `returnTutorialPlayers` writes the save, and only then does Colin say the
+      squad has gone. It carries two things this row did not ask for and both
+      earn their place — a transparent input seal for the length of the flight,
+      because the tutorial's chrome is down and Add Player is sitting under the
+      emptying grid, and a wait for the tab slide to land first, because the step
+      is on the grid and the player was on the league screen a frame ago.
+      Pinned mid-flight rather than at the ends, which is the assertion that
+      matters: `tutorial_overlay_test.dart` checks that while the cards are
+      flying nothing has been said, nothing has been taken out of the save, and
+      nothing is pressable.
 
 - [ ] **`mergeempirefc://event/<eventId>` is not handled.** `main.js:657` routes
       it to EventScreen; the port has no URL scheme in `Info.plist` and no
@@ -1664,6 +1712,12 @@ read `lib/`, and nothing reads the native shells.**
       navigation with no relation to it. The spec's ANDROID manifest has no
       intent-filter for it either, so this was iOS-only — check it is reachable
       there before building for it.
+      **Re-checked and still true**: `ios/Runner/Info.plist` carries exactly one
+      `CFBundleURLTypes` entry and it is Google Sign-In's. Left open on the row's
+      own instruction rather than built past it — a scheme, a link plugin and a
+      route that cannot be opened from a container, for a feature this row says
+      to establish is reachable first, is three speculative changes to ship
+      untested.
 
 ---
 

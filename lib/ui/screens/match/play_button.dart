@@ -421,7 +421,27 @@ class PlayMatchButton extends ConsumerWidget {
     // A finished season is not a refusal to explain, it is a different button:
     // the way on is to close the season, and telling the player "no" without
     // offering it is the dead end this replaced.
-    if (ref.watch(seasonCompleteProvider)) return const EndSeasonButton();
+    //
+    // **BUT NOT WHILE A MATCH IS STILL IN FLIGHT, and that is a bug rather than
+    // a preference.** `simulateMatch` sets `seasonComplete` at KICK-OFF, so on
+    // the fourteenth match this swapped itself out for the end-season button
+    // before the whistle — and the whole post-match chain is an async method of
+    // THIS widget, holding THIS widget's `WidgetRef`. A `WidgetRef` whose
+    // element has been disposed throws the moment it is read, so the tail of
+    // the chain died silently inside a future nobody was awaiting: the money
+    // landed and then the bid, the sponsor, the rating prompt and the season
+    // summary were skipped. Whether it happened at all depended on which frame
+    // the rebuild landed on, which is why it looked like a flaky test rather
+    // than the missing end-of-season screen it actually was.
+    //
+    // The freeze already knows the answer — it is non-null for exactly the
+    // length of the chain — so the button holds still with the page behind it
+    // and swaps once the chain has let go. By then `endSeason` has run and the
+    // flag is false anyway, so what comes back is the Play button.
+    if (ref.watch(seasonCompleteProvider) &&
+        ref.watch(playFreezeProvider) == null) {
+      return const EndSeasonButton();
+    }
 
     final blocked = ref.watch(matchBlockedProvider);
     final pro = ref.watch(hardModeProvider);

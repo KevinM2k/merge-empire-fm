@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
+import 'package:merge_empire_fc/providers/boot_gate.dart';
 import 'package:merge_empire_fc/providers/game_host.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
@@ -56,7 +57,19 @@ Future<void> main() async {
       ],
       // The splash wraps the app rather than living inside it, exactly as the
       // JS's `#splash` is a sibling of `#app` — see `ui/boot_splash.dart`.
-      child: const BootSplash(child: MergeEmpireApp()),
+      //
+      // **The Consumer is only here to hand it the GATE.** The splash itself
+      // stays provider-free — it covers the loading of the theme, the locale
+      // and the save, so it must not depend on any of them — and this reads
+      // the one thing it does wait for: whether the boot's cloud restore has
+      // settled. See `providers/boot_gate.dart`.
+      child: Consumer(
+        builder: (context, ref, child) => BootSplash(
+          gate: ref.read(bootGateProvider).settled,
+          child: child!,
+        ),
+        child: const MergeEmpireApp(),
+      ),
     ),
   );
 }

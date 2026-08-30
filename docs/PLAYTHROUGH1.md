@@ -30,8 +30,11 @@ saying what was done instead.
 - [x] 12. the energy popup that appears at the bottom, the energy refill button should have 5 and then a gem icon, and it should be in the same place as the button in the advert - at the bottom, also you have 'already ready' in the energy one... no its not.
 - [x] 13. the emboss of numbers on the players tab looks bad, can hardly see the numbers, make them more visible.
 - [x] 14. when a bid comes in, the minimise ubtton in light mode has grey text on green, the othres have white, firstly the accept button should be the only green one and the coin should be in yellow with a coin icon next to it, the dceline should be in red, and minimise well we should just put a - button in a box top right so people can click on that to minimise, or can just click in background
-- [ ] 15. on club page
+- [x] 15. on club page
       — **the line stops there.** Nothing to act on; it needs saying again.
+      CLOSED as unactionable rather than left open: a row with no content cannot
+      be finished, and carrying it forever makes the queue's count a lie. If it
+      is remembered, it comes back as a new row.
 - [x] 16. in the shop on special offers the top right badges go over the button to buy, we have quite a bit of room here, use it - also the grey background on them look sboring, look at ../merge-empire-fc - that had nice colours on them.
 - [x] 17. the coin pack buttons are greyed out where as the gem ones are green and clickable
 - [x] 18. on boosts, the magic sponge has no injured players, that text shoudl be in red so its obvious.
@@ -43,9 +46,11 @@ saying what was done instead.
       — the coach card's buttons were not getting the app's moulding at all:
       `styleFrom`'s `backgroundColor` colours the Material UNDER the face the
       theme's own builder then paints over.
-- [ ] 22. privacy options not doing anything, but thats on the simulator
+- [x] 22. privacy options not doing anything, but thats on the simulator
       — the report's own diagnosis, and it is right: the consent SDK has no UI on
-      a simulator. Nothing changed.
+      a simulator. Nothing changed. CLOSED: there is no defect here to fix, and
+      the device pass that would show the form is already its own row in
+      `REMAINING.md`.
 - [x] 23. when starting a game, the team name should be randomised, its up to the user to choose one.
 - [x] 24. teh cancel buttons shoudl always be in red.
 - [x] 25. the team names button shows no teams as if there are no teams in the pyramid even though there are.

@@ -179,10 +179,21 @@ void main() {
     // the season settles, and parts of it are genuinely asynchronous. A fixed
     // pump is a race that this passes alone and loses when the suite is running
     // it alongside forty other files.
-    for (var i = 0; i < 40; i++) {
+    // **AND A BID IS ANSWERED IF ONE CAME IN.** `maybeGenerateOffer` rolls
+    // after every match, so about a third of the runs of this test put a
+    // transfer offer up between the report and the season — a real dialog,
+    // waiting for a real answer, which is exactly what a player would see. A
+    // test that walked past it looked like a flaky season screen, and chasing
+    // that is what turned up the two real bugs above it. Parked with a tap
+    // outside, which is the one dismissal that decides nothing.
+    for (var i = 0; i < 60; i++) {
       if (find.byKey(const ValueKey('season-end')).evaluate().isNotEmpty) break;
+      if (find.byKey(const ValueKey('transfer-offer')).evaluate().isNotEmpty) {
+        await tester.tapAt(const Offset(5, 5));
+        await tester.pumpAndSettle();
+      }
       await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
       await tester.pump(const Duration(milliseconds: 100));
     }

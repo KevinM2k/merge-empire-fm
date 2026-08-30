@@ -19,6 +19,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/providers/boot_gate.dart' show bootGateTimeout;
 
 /// The minimum time the splash holds. `MIN_SPLASH_MS` in `main.js`.
 const splashWindow = Duration(milliseconds: 2600);
@@ -40,12 +41,32 @@ const _splashBarTo = Color(0xFF8BE07A);
 
 /// Wraps [child] with the splash, which fades itself out and is then gone.
 class BootSplash extends StatefulWidget {
-  const BootSplash({required this.child, this.window = splashWindow, super.key});
+  const BootSplash({
+    required this.child,
+    this.window = splashWindow,
+    this.gate,
+    this.gateTimeout = bootGateTimeout,
+    super.key,
+  });
 
   final Widget child;
 
   /// Zero shows no splash at all, which is what a driver test wants.
   final Duration window;
+
+  /// What the splash WAITS for, on top of its window.
+  ///
+  /// **This is the half of `setupSplash` the port never had.** The JS fades out
+  /// when the cloud-save restore completes; the port faded out on a fixed
+  /// clock, so a restore that landed a beat later swapped the whole save out
+  /// from under a player already looking at their squad. Null keeps the old
+  /// behaviour, which is what every test that is not about the gate wants.
+  final Future<void>? gate;
+
+  /// And never for longer than this. `main.js` is explicit that a slow network
+  /// must not trap a player on the splash, and it is the rule rather than the
+  /// gate that matters: whatever the restore is doing, the game opens.
+  final Duration gateTimeout;
 
   @override
   State<BootSplash> createState() => _BootSplashState();
@@ -58,9 +79,20 @@ class _BootSplashState extends State<BootSplash>
   late final AnimationController _fade;
   bool _gone = false;
 
+  /// The gate with its failure already absorbed.
+  ///
+  /// **Attached in `initState`, not when the bar finishes.** A restore that
+  /// fails FAST — no network, no signed-in account — would otherwise be an
+  /// unhandled error for the whole length of the window, which Flutter reports
+  /// as a crash and a test zone turns into a failure. The splash's question is
+  /// only whether the save has stopped moving; how it stopped is the sync
+  /// layer's business.
+  Future<void>? _gate;
+
   @override
   void initState() {
     super.initState();
+    _gate = widget.gate?.then<void>((_) {}, onError: (Object _) {});
     _fill = AnimationController(vsync: this, duration: widget.window);
     _pulse = AnimationController(
       vsync: this,
@@ -73,6 +105,17 @@ class _BootSplashState extends State<BootSplash>
     }
     _pulse.repeat(reverse: true);
     _fill.forward().then((_) async {
+      // **THE WINDOW IS A FLOOR, NOT THE ANSWER.** The bar finishing is the
+      // earliest the splash may go; the restore settling is the other
+      // condition, and the timeout is what stops the second one from becoming
+      // a trap. Awaited AFTER the bar rather than raced with it, so a fast
+      // restore cannot cut the window short — a splash that flashes past in
+      // 80ms is the thing the window exists to prevent.
+      final gate = _gate;
+      if (gate != null) {
+        await gate.timeout(widget.gateTimeout, onTimeout: () {});
+        if (!mounted) return;
+      }
       await Future<void>.delayed(_splashHold);
       if (!mounted) return;
       await _fade.forward();
