@@ -105,9 +105,21 @@ void main() {
           continue;
         }
         final why = entry.key;
-        // The top of every hat is at or above the crown: a hat that started
-        // below it would be a band round his face.
-        expect(box.top, lessThanOrEqualTo(_crown), reason: why);
+        // A hat worn ON the crown has to reach it. A hat worn AROUND the head
+        // does not, and this rule used to say otherwise for all eighteen.
+        // `hatCrownY` is null for the four bands because "they sit around the
+        // head and hide nothing above themselves" — and a band that reached the
+        // crown would be hiding the crown, so the classification and the old
+        // assertion could not both be true. The headband was the one that
+        // actually contradicted it: the JS's own `HAIR_COVERED_BY` calls it "a
+        // strap across the brow with the whole crown open above it", and it was
+        // drawn arcing OVER the crown (apex y34.5 against a crown at y36),
+        // which is why it read as a swim cap. Redrawn across the brow it now
+        // measures y39, and this rule is what had to give.
+        // Bands still have to be on the upper head rather than merely
+        // somewhere, so they get a ceiling of their own rather than a pass.
+        final band = hatCrownY[why] == null;
+        expect(box.top, lessThanOrEqualTo(band ? 40 : _crown), reason: why);
         // And the bottom stops on the upper half of the head. The exception is
         // the headphones, which are one earpiece hanging by the ear — the only
         // hat in the set that is not worn on top.
