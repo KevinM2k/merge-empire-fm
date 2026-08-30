@@ -8288,6 +8288,16 @@ of buttons that error.
       app's own, copied across, and the two gradle plugins are the versions from
       its `android/build.gradle` — crashlytics applied AFTER google-services,
       which its own docs require.
+      **BUT "copied across" was only true of the DISK on iOS.** The plist sat in
+      `ios/Runner/` and had never been added to the Xcode project — no file
+      reference, nothing in the Resources phase — so it was never copied into
+      the app BUNDLE, `Firebase.initializeApp()` found no project to configure,
+      and `startAnalytics`'s own `catch (_)` returned. iOS had neither analytics
+      nor crash reporting and nothing said so, which is this row's own warning
+      landing on the row itself. Nor did anything upload the dSYM, so a report
+      that did arrive would have been hex addresses. Both are fixed and pinned
+      by `ios_crash_reporting_test`; the plist stays git-ignored, so what is
+      asserted is the REFERENCE and never the file.
       **The rules that decide what an event may CONTAIN are pure and tested**
       and live in `util/analytics.dart`: Firebase takes a number or a string of
       at most a hundred characters and silently drops anything else, which is
@@ -8694,3 +8704,9 @@ are anything here.
 
 **And `RELEASE.md`** carries everything between a finished port and a shipped
 app — signing, the consoles, the store listings, the purchase pass, the rollout.
+It is an ordered RUNBOOK rather than a checklist, because not one of its steps
+can be closed from a repository: each says what the port has already done and
+pinned with a test, and then what the operator has to bring to it. Three of them
+turned out to have a repo-side half that was silently broken rather than
+waiting — the debug-signed Android release, the iOS Firebase plist, the missing
+dSYM upload — and those are done here.
