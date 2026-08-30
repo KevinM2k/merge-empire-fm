@@ -7,9 +7,8 @@ keeping.
 
 ## Where this queue stands
 
-**66 done, 13 open**, and the thirteen are all of one of five kinds — none of
-which is "not got to yet". The sixth kind is gone: nothing in this queue is
-still open as WORK.
+**72 done, 14 open**, and the fourteen are all of one of five kinds — none of
+which is "not got to yet". Nothing in this queue is still open as WORK.
 
 - **Four are BLOCKED on the spec repo.** The headband, the laurel, the coat and
   suit shapes, and the facial-hair positions are all `manager_art.g.dart`,
@@ -19,12 +18,14 @@ still open as WORK.
   any of them there would be inventing art and calling it a port — and the next
   generator run would undo it. **On the author's own machine these are simply
   open**, not blocked.
-- **Four want a SCREENSHOT.** The momentum arrow (the code already does both
+- **Five want a SCREENSHOT.** The momentum arrow (the code already does both
   halves of what the row asks for), the scorer's name in the replay (one real
   divergence found and fixed; what is left cannot be reproduced by reading), the
   grey buttons on the Play tab (the fault that description names has been fixed
   everywhere it can be found and `architecture_test` now fails the build on it),
-  and the light-mode red and green.
+  the light-mode red and green, and the Players tab's missing progress bar —
+  the newest of them, and the one row in session two that could not be placed
+  by reading.
 - **Two are DECISIONS rather than edits**, and both say so in the row: the
   walker's scale, and how much room the daily-reward tiles should take.
 - **Two want a DEVICE re-test rather than more reading.** The walk that pauses
@@ -34,6 +35,29 @@ still open as WORK.
   a pulse is about a second — so it is worth another look before anything else
   is measured.
 - **One is a native SDK**: Meta's Aggregated Event Measurement on iOS.
+
+---
+
+Session 2
+=========
+The second Android pass. Six of the seven are done; the seventh is the only row
+in either session that could not be found by reading the code.
+
+Play tab
+[x] on play screen it always says match 14 at the top no matter what.  (**two counters, and the caption was reading the wrong one.** `matchesPlayed` is the CAREER total and nothing but a full wipe resets it; `seasonMatchesPlayed` is the one `endSeason` puts back to zero. `fixture_caption.dart` read the career figure and then clamped it to the season's length — and a season is fourteen matches — so from the fourteenth game a player ever played the caption pinned at the cap for the rest of the save, whatever fixture the card underneath was showing. Every other consumer of that figure was already on the season counter: the league table, the quests, the fixture preview, the cup launcher, and the engine that writes it. The old test only ever checked the FIRST match of a save, where both counters are zero, which is exactly why it never caught this)
+[x] when click play for a brief second we see the numbers change In next match card for them next game. that needs to stay away until after the game.  (**the fixture index moves at KICK-OFF, and the engine is right to do it.** `simulateMatch` writes `seasonMatchesPlayed` the instant the whistle goes — its own comment says why, and it holds: the cooldown, the fixture list and the placeholder scoreline all need the match to have happened while the popup animates. What it also does is point the card and the caption at the NEXT game one frame later, with the Play page still on screen behind the match route's transition. **The counter is the JS's and a node fixture pins the orchestration field for field, so the divergence goes on the SCREEN** — `play_freeze.dart` photographs the fixture before the save is touched and prints that until the whole chain is done, the summary and the season end included. Both halves of it: the card and the caption describe ONE fixture, and freezing the card alone would have left "Match 6" over match five's teams. The test looks MID-TRANSITION, which is the whole of the bug — `pumpAndSettle` lands after the card has been unmounted behind the match and sees nothing at all)
+[x] at end of season it lets us carry on and we have to click end season. that can't happen.. when season is over it should go to the end season screen  (**`settleMatch` sets `seasonComplete` at full time and the only thing that ever acted on it was a button.** So the fourteenth match ended, the game went back to the Play tab, and the player was left holding a save whose one legal move was to press End Season — free to wander the rest of the app first. The end-season flow came out of the button into `runSeasonEnd`, and `play_button.dart` runs it the moment the match's chain is done. **HERE rather than in a listener on the flag**: this is the moment it can become true, the chain above has already had its say, and a push from a provider watcher would land on top of whatever route happened to be up. The button stays for the one case it is still needed — an app killed between the whistle and the settle comes back to a complete season with nobody left to run it)
+
+HUD
+[x] the hud numbers like coin energy and gems changes colour depending on the theme. that can't happen they should be same everywhere.  (all three were `glassAccent(context, kit.accentBright)` — the club's accent put through the pane's contrast ramp — so they were one colour on a dark page, another on a light one, and a third on the next club. **The bar had already answered this question once, for the GLYPHS**, and the answer is reused rather than re-argued: you cannot fix a bright ink by darkening it, so the ink is left alone and the BACKING changes. **A neutral was tried first and it is the interesting failure**: white is the obvious "one colour everywhere" on the reasoning that the glyph carries identity and the figure carries information, but the pane swings from near-white to near-black and no neutral survives both — white on the light pane is a white core inside a dark halo, which reads as a smudge rather than as a number. Rendered and looked at, which is how that was caught. So each figure takes its own wallet's ink and the pair reads as one object. The energy ladder loses a rung on the way: it had four, the top two both meant "you are fine", and one of those was the club's accent — so the one figure whose colour carries information spent most of its life saying nothing with it. Three now, and a colour LEAVING the violet is the warning)
+
+Home
+[x] match quests the total number needs to move further to the right  (**two things held it short of the edge and the second is the interesting one.** The chevron sat AFTER the figure, so the figure was inset by a chevron; and the heading was a `Flexible` followed by a `Spacer`, which is a LOOSE fit — the heading takes a share of the free space, sizes to its own content, and whatever it does not use is dead space inside its own slot that the `Spacer` never sees. On a short heading that is most of the row. The chevron moved in beside the heading, where a disclosure arrow belongs anyway, and the heading became an `Expanded`. The total is now flush with the column of quest rewards it is the total of, which is what a test pins)
+
+Match and season end
+[x] the end match screen and end season screen need more work they look a little ugly.  (**rendered rather than guessed at, and the two screens had the same fault.** Both are a stack of cards over a foot that is pinned so the way out is never more than a thumb away, and the stack is usually shorter than the phone — and a `ListView` or a `SingleChildScrollView` puts short content at the TOP of its viewport. So what a player saw was the report crammed against the status bar, a hole, and then the button. Measured on a 390x844: **420 points empty on the season summary, half the page**, and 125 on full time. `ReportScroll` centres the cards in the room the foot leaves them — centred rather than spread, so every gap the cards were given on purpose stays exactly as it was — and costs nothing when the page IS full, because the minimum height is the viewport. Two more found by looking at the render: the full-time quest asks were ellipsised, so the report told a player they had missed something without saying what, and they wrap now like the same sentences already do on the next-match card; and with no quests at all the other half of the reaction row was an empty `Expanded`, so the dugout shot sat in a 120-point column against the left edge with two thirds of the row blank beside it. A cup tie and an early match both land there.
+    **A harness note worth keeping**: the first render had the season's three stat tiles at hopeless contrast, and it was the HARNESS. Swapping in a fallback text theme to get a real font also resets its COLOURS, which invents contrast bugs that are not there. Only the family should be overridden)
+[] on players, the progress bar has gone and the text that shows when the bar fills has a weird shadow on it that needs to go.  (**WANTS A SCREENSHOT, and this is the one row in either session that could not be placed by reading.** The Players tab was searched end to end — the grid and its empty-slot squares, the two status pills, the Add Player / Merge bar, the batch chip, the player cards, the scout reveal and the merge ring — and there is no progress bar on it, nor any text whose shadow appears when something fills. What was found and is NOT it, so the next pass does not re-find them: the empty slots carry an EMBOSSED number, which is a deliberate carve asked for directly with "very subtle" as the brief and iterated twice since, so it is the one weird text shadow on the tab but it has nothing to do with a bar; and the Add Player button swaps its price for a "20/20" count when the roster is full, which is the closest thing to "text that shows when the bar fills" and carries no shadow at all. Guessing between them would be inventing a feature and calling it a fix. **A screenshot of the bar, or of the text, places it in a minute.**)
 
 ---
 
