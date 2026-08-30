@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/home/play_freeze.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
 import 'package:merge_empire_fc/ui/screens/home/match_quests_block.dart';
@@ -212,7 +213,11 @@ class NextMatchCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final match = ref.watch(nextMatchProvider);
+    // **HELD while a match is in flight** — see `play_freeze.dart`. The
+    // fixture index moves at kick-off, so without this the card flips to the
+    // next game for the length of the match route's transition.
+    final match =
+        ref.watch(playFreezeProvider)?.match ?? ref.watch(nextMatchProvider);
     // No fixture is a real state — a finished season, or a save that has not
     // drawn one yet — and an empty card would be worse than none.
     if (match == null) return const SizedBox.shrink();

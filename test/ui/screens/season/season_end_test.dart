@@ -17,10 +17,13 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
+import 'package:merge_empire_fc/engine/match_tactics.dart'
+    show matchesPerSeason;
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/widgets/report_scroll.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Map<String, dynamic> finishedSeason({bool complete = true}) {
@@ -137,6 +140,64 @@ void main() {
     expect(find.byKey(const ValueKey('end-season')), findsNothing);
   });
 
+  testWidgets('THE LAST MATCH TAKES YOU THERE, with nothing to press', (
+    tester,
+  ) async {
+    // **A finished season used to hand back a Play tab that could not play.**
+    // `settleMatch` sets `seasonComplete` at full time and the only thing that
+    // ever acted on it was the button this screen swaps in — so the fourteenth
+    // match ended, the game went back to the tab, and the player was left
+    // holding a save whose one legal move was to press End Season, free to
+    // wander the rest of the app first. Reported as being allowed to carry on
+    // when the season is over.
+    final state = finishedSeason(complete: false);
+    (state['progression'] as Map<String, dynamic>)['seasonMatchesPlayed'] =
+        matchesPerSeason - 1;
+    final container = await pumpPlayArea(tester, state);
+    expect(seasonOf(container), 3);
+    expect(find.byKey(const ValueKey('play-match')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('play-match')));
+    await tester.pumpAndSettle();
+    final skip = find.byKey(const ValueKey('match-skip'));
+    if (skip.evaluate().isNotEmpty) await tester.tap(skip);
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 1500));
+    await tester.pumpAndSettle();
+
+    // The report, then out of it — and NOTHING else is pressed after this.
+    final out = find.byKey(const ValueKey('summary-no-thanks'));
+    expect(
+      out,
+      findsOneWidget,
+      reason: 'full time should be showing the report',
+    );
+    await tester.tap(out);
+    await tester.pumpAndSettle();
+    // **WAIT FOR THE SCREEN, not for a number of milliseconds.** The chain
+    // after the report — the bid, the sponsor, the rating prompt — runs before
+    // the season settles, and parts of it are genuinely asynchronous. A fixed
+    // pump is a race that this passes alone and loses when the suite is running
+    // it alongside forty other files.
+    for (var i = 0; i < 40; i++) {
+      if (find.byKey(const ValueKey('season-end')).evaluate().isNotEmpty) break;
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+
+    expect(
+      find.byKey(const ValueKey('season-end')),
+      findsOneWidget,
+      reason: 'the season closed itself',
+    );
+    expect(seasonOf(container), 4, reason: 'and the next campaign is drawn');
+    expect(container.read(seasonCompleteProvider), isFalse);
+  });
+
   testWidgets('closing it rolls the season on and shows what happened', (
     tester,
   ) async {
@@ -155,6 +216,44 @@ void main() {
       isFalse,
       reason: 'and the block is lifted',
     );
+  });
+
+  testWidgets('A SHORT SEASON SITS IN THE MIDDLE, not against the top', (
+    tester,
+  ) async {
+    // The foot is pinned so the way out is never more than a thumb away, and
+    // the cards above it usually do not fill the phone — so the page was a
+    // report crammed against the status bar, 420 points of nothing, and then
+    // the button. Measured on a 390x844. Reported as the screen looking a
+    // little ugly, which is what a hole that size looks like.
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(outcome: outcome(position: 3), seasonNumber: 2),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final page = tester.getRect(find.byType(ReportScroll));
+    final head = tester.getRect(find.byKey(const ValueKey('season-end-title')));
+    // It used to start hard against the top of its own viewport with the whole
+    // remainder below it. Measured on this phone the hole was 420 points; what
+    // matters is that the room is now ABOVE the first line as well as under
+    // the last card.
+    expect(
+      head.top - page.top,
+      greaterThan(60),
+      reason: 'the page is centred in what the foot leaves it',
+    );
+    // And it still fits, so none of that room came from making it scroll.
+    final position = tester
+        .widget<Scrollable>(find.byType(Scrollable).first)
+        .controller
+        ?.position;
+    expect(position?.maxScrollExtent ?? 0, closeTo(0, 0.5));
   });
 
   testWidgets('the summary names the season that FINISHED', (tester) async {

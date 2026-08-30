@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/screens/home/play_freeze.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
@@ -53,10 +54,20 @@ final fixtureLabelProvider = savePick<FixtureLabel>((s) {
   }
 
   final progression = _map(s['progression']);
-  final played = _num(progression?['matchesPlayed']).toInt();
+  // **`seasonMatchesPlayed`, NOT `matchesPlayed`.** They are two different
+  // counters and only one of them is a season: `matchesPlayed` is the CAREER
+  // total and is reset by nothing but a full wipe, while `seasonMatchesPlayed`
+  // is what `endSeason` puts back to zero. Reading the career one and then
+  // clamping it to the season's length means the caption climbs to the cap and
+  // stays there for ever — reported as the Play tab always saying "Match 14"
+  // whatever the fixture was, which is exactly what fourteen career games and a
+  // fourteen-match season produce. Every other consumer of this figure — the
+  // table, the quests, the fixture preview, the cup launcher, the engine that
+  // writes it — was already on the season counter.
+  final played = _num(progression?['seasonMatchesPlayed']).toInt();
   return (
     competition: tName('division', progression?['currentDivision']),
-    // Clamped, because the last match of a season is match 30 and not 31 — the
+    // Clamped, because the last match of a season is match 14 and not 15 — the
     // count is only reset once the season rolls over.
     round: t('play.matchLabel', {
       'n': played + 1 < matchesPerSeason ? played + 1 : matchesPerSeason,
@@ -70,7 +81,10 @@ class FixtureCaption extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final label = ref.watch(fixtureLabelProvider);
+    // HELD with the card under it — see `play_freeze.dart`. "Match 6" over
+    // match five's teams is the same fault told twice.
+    final frozen = ref.watch(playFreezeProvider);
+    final FixtureLabel label = frozen?.label ?? ref.watch(fixtureLabelProvider);
 
     // The ink the SKY wants — see [skyInk]. This line sits directly on the
     // diorama with nothing behind it, and it used to be white in both themes

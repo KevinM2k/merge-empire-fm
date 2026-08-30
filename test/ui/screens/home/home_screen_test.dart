@@ -13,6 +13,8 @@ import 'package:merge_empire_fc/data/manager_looks.dart' show styleVaultId;
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart'
     show matchesPerSeason, opponentsPerSeason;
+import 'package:merge_empire_fc/engine/quest_engine.dart'
+    show ensureMatchQuests;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -922,6 +924,67 @@ void main() {
     });
   });
 
+  group('the match quests block', () {
+    testWidgets('THE TOTAL LINES UP WITH THE COLUMN IT IS THE TOTAL OF', (
+      tester,
+    ) async {
+      // Two things held it short of the edge every quest reward below it is
+      // flush against, and the second is the interesting one. The chevron sat
+      // AFTER the figure, so the figure was inset by a chevron; and the heading
+      // was a `Flexible` followed by a `Spacer`, which is a loose fit — the
+      // heading takes a share of the free space, sizes to its own content, and
+      // whatever it does not use is dead space inside its own slot that the
+      // Spacer never sees. Reported as the total needing to move further right.
+      await pumpHome(
+        tester,
+        mutate: (st) {
+          readyToPlay(st);
+          // The track is rolled by `beginMatch`, not by looking at the card —
+          // a save that has never played has nothing for the block to show.
+          ensureMatchQuests(st);
+        },
+      );
+      final total = find.byKey(const ValueKey('match-quests-header-total'));
+      expect(total, findsOneWidget);
+
+      final rewards = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('match-quests')),
+              matching: find.byType(Text),
+            ),
+          )
+          .toList();
+      expect(rewards, isNotEmpty);
+
+      // Every quest row's payout, by its rect: the last Text on each row.
+      final rows = find.descendant(
+        of: find.byKey(const ValueKey('match-quests')),
+        matching: find.byWidgetPredicate(
+          (w) => w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.startsWith('match-quest-'),
+        ),
+      );
+      expect(rows, findsWidgets);
+
+      final totalRight = tester.getRect(total).right;
+      for (final row in rows.evaluate()) {
+        final payout = find
+            .descendant(
+              of: find.byWidget(row.widget),
+              matching: find.byType(Text),
+            )
+            .evaluate()
+            .last;
+        expect(
+          tester.getRect(find.byWidget(payout.widget)).right,
+          closeTo(totalRight, 1.5),
+          reason: 'a reward and the total are the same column',
+        );
+      }
+    });
+  });
+
   group('the fixture caption', () {
     testWidgets('names the competition and the match', (tester) async {
       // Without it the card is two clubs and a VS: no competition, and no place
@@ -944,6 +1007,120 @@ void main() {
       )) {
         expect(text.overflow, isNot(TextOverflow.ellipsis), reason: text.data);
       }
+    });
+
+    testWidgets('COUNTS THE SEASON, not the career', (tester) async {
+      // **It always said "Match 14".** The caption read `matchesPlayed` — the
+      // CAREER total, which nothing but a full wipe resets — and then clamped
+      // it to the season's length. So from the fourteenth game a player ever
+      // played it was pinned at the cap for the rest of the save, whatever
+      // fixture the card underneath was showing. Reported exactly that way.
+      //
+      // A save three games into its fourth season: forty-five career matches,
+      // three this season, so the next one is match FOUR.
+      await pumpHome(
+        tester,
+        mutate: (s) {
+          readyToPlay(s);
+          final prog = s['progression'] as Map<String, dynamic>;
+          prog['matchesPlayed'] = 45;
+          prog['seasonMatchesPlayed'] = 3;
+        },
+      );
+      final label = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('fixture-caption'))),
+      ).read(fixtureLabelProvider);
+      expect(label.round, t('play.matchLabel', {'n': 4}));
+      expect(
+        label.round,
+        isNot(t('play.matchLabel', {'n': matchesPerSeason})),
+        reason: 'the career total is not the season',
+      );
+    });
+
+    testWidgets('and the last match of a season is the last one', (
+      tester,
+    ) async {
+      // The clamp is still doing its job at the other end: the count is only
+      // put back once the season rolls over, so the fourteenth game must not
+      // ask for a fifteenth.
+      await pumpHome(
+        tester,
+        mutate: (s) {
+          readyToPlay(s);
+          (s['progression'] as Map<String, dynamic>)['seasonMatchesPlayed'] =
+              matchesPerSeason - 1;
+        },
+      );
+      final label = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('fixture-caption'))),
+      ).read(fixtureLabelProvider);
+      expect(label.round, t('play.matchLabel', {'n': matchesPerSeason}));
+    });
+
+    testWidgets('AND IT HOLDS STILL WHILE THE MATCH IS PLAYED', (
+      tester,
+    ) async {
+      // **The fixture index moves at KICK-OFF.** `simulateMatch` writes
+      // `seasonMatchesPlayed` the instant the whistle goes — the cooldown, the
+      // fixture list and the placeholder scoreline all need it while the popup
+      // animates — so the card and the caption pointed at the NEXT game one
+      // frame later, with this page still on screen behind the match route's
+      // transition. Reported as the next-match card's numbers changing for a
+      // second when Play is tapped, and asked to stay away until after it.
+      // SCOPED to the caption. "MATCH 1" is on this page more than once — the
+      // fixtures list says it too — so a bare text finder answers a different
+      // question than the one being asked.
+      Iterable<String> captionText() => tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('fixture-caption')),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((t) => t.data ?? '');
+
+      final container = await pumpHome(tester, mutate: readyToPlay);
+      final before = container.read(fixtureLabelProvider);
+      expect(captionText(), contains(before.round.toUpperCase()));
+
+      // **MID-TRANSITION is the whole of the bug**, so that is where this
+      // looks: the save has already moved and the match route is still sliding
+      // up over a page that is very much still on screen. `pumpAndSettle`
+      // would land after the card has been unmounted behind it and see
+      // nothing at all.
+      await tester.tap(find.byKey(const ValueKey('play-match')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+
+      final live = container.read(fixtureLabelProvider);
+      expect(
+        live.round,
+        isNot(before.round),
+        reason: 'the SAVE moves on at kick-off, which is the engine being right',
+      );
+      expect(
+        captionText(),
+        contains(before.round.toUpperCase()),
+        reason: 'and the page under the match does not follow it',
+      );
+      expect(captionText(), isNot(contains(live.round.toUpperCase())));
+
+      // Out of the match, and the page catches up with the save.
+      final skip = find.byKey(const ValueKey('match-skip'));
+      if (skip.evaluate().isNotEmpty) await tester.tap(skip);
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 1500));
+      await tester.pumpAndSettle();
+      final out = find.byKey(const ValueKey('summary-no-thanks'));
+      if (out.evaluate().isNotEmpty) {
+        await tester.tap(out);
+        await tester.pumpAndSettle();
+      }
+      // And the page catches up with the save once the match is behind it.
+      expect(captionText(), contains(live.round.toUpperCase()));
+      expect(captionText(), isNot(contains(before.round.toUpperCase())));
+      await settleSave(tester);
     });
 
     testWidgets('and sits ABOVE the card, not in it', (tester) async {
