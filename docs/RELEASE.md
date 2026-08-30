@@ -18,11 +18,12 @@ pinned with a test, and then what the operator has to bring.
 **Do them in order.** Step 1 is on the critical path and is irreversible in the
 one direction that matters.
 
-**What changed most recently:** three defects that were sitting behind
-"console task" wording and were not console tasks at all — the Android release
-build signed with the DEBUG key, `GoogleService-Info.plist` missing from the
-iOS bundle, and no dSYM upload phase. All three are fixed here and pinned by
-`android_signing_test` and `ios_crash_reporting_test`; see steps 2, 3 and 12.
+**What changed most recently:** four defects that were sitting behind "console
+task" wording and were not console tasks at all — the Android release build
+signed with the DEBUG key, `GoogleService-Info.plist` missing from the iOS
+bundle, no dSYM upload phase, and a lapsed VIP's re-purchase dead-ending on
+"payment failed". All four are fixed here and pinned by `android_signing_test`,
+`ios_crash_reporting_test` and `iap_purchase_test`; see steps 2, 3, 7a and 12.
 
 ---
 
@@ -141,19 +142,29 @@ rather than a console.
 
 ### 7a. And while you are there: buy VIP, let it lapse, buy it AGAIN
 
-**That is the one case that can be silently broken.** `vip_pass` is registered
-with the store as a NON-CONSUMABLE and is deliberately not `oneTime`, so the
-port offers a lapsed VIP the buy button while the store is entitled to refuse a
-second purchase of something the account already owns. Neither store has a code
-for that beyond a generic failure, so the player would get "payment failed" and
-no way forward.
+**That was the one case that could be silently broken, and the port's half of
+it is now fixed.** `vip_pass` is registered with the store as a NON-CONSUMABLE
+and is deliberately not `oneTime`, so the port offers a lapsed VIP the buy
+button while the store is entitled to refuse a second purchase of something the
+account already bought — Play answers ITEM_ALREADY_OWNED. Neither store has a
+code for that beyond a generic failure, so the player got "payment failed" and
+no way forward: the shop's one dead end.
 
-This is the JS's arrangement exactly — the port matches it product for product —
-so it is a property of the LIVE app rather than a port regression, and it must
-not be "fixed" here on a guess: whether it works at all depends on how
-`vip_pass` is really declared in the two consoles, which cannot be read from
-this repo. **Find out first, then decide.** If the store does refuse it, the fix
-is a port change and belongs in `REMAINING.md`, not here.
+**The store is now asked what it OWNS rather than what its error meant**, which
+is the part that needed no console. A failed non-consumable purchase runs the
+restore that `restorePurchases` already used, and an owned SKU is granted
+instead of refused — so the lapsed VIP's tap does what they meant by it. Not on
+a cancel, which is an answer; not on a consumable, which a restore never lists;
+and a store that will not answer leaves the original refusal standing.
+`iap_purchase_test` pins all four. Branching on the numeric error code would
+have been the guess — the codes in `iap_billing_policy.dart` are
+`cordova-plugin-purchase`'s and have never been re-pointed at this plugin's —
+and ownership is a question every store answers the same way.
+
+**Yours:** run it anyway. StoreKit tends to hand a repeat purchase of a
+non-consumable back as a restore rather than an error, so iOS may never reach
+that path at all, and how `vip_pass` is really declared in the two consoles
+cannot be read from this repo.
 
 ## 8. Sandbox purchase pass on both platforms
 

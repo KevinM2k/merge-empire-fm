@@ -192,6 +192,22 @@ void main() {
         await tester.tapAt(const Offset(5, 5));
         await tester.pumpAndSettle();
       }
+      // **AND THE SPONSOR ROLL IS THE OTHER HALF OF THAT.** `_afterMatch`
+      // offers a sponsor on the matches where no bid came in, so it is the
+      // same coin flip seen from the other side — and a coach card has no
+      // barrier to tap through, so the dismissal above walks straight past it
+      // and this loop would run out with the card still up. Its own Decline
+      // is what a player has.
+      final sponsor = find.byKey(const ValueKey('sponsor-offer'));
+      if (sponsor.evaluate().isNotEmpty) {
+        await tester.tap(
+          find.descendant(
+            of: sponsor,
+            matching: find.byKey(const ValueKey('coach-action-common.decline')),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );

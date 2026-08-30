@@ -8709,4 +8709,5 @@ can be closed from a repository: each says what the port has already done and
 pinned with a test, and then what the operator has to bring to it. Three of them
 turned out to have a repo-side half that was silently broken rather than
 waiting — the debug-signed Android release, the iOS Firebase plist, the missing
-dSYM upload — and those are done here.
+dSYM upload, and a lapsed VIP's re-purchase dead-ending on "payment failed" —
+and those are done here.

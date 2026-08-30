@@ -1107,14 +1107,56 @@ void main() {
       expect(captionText(), isNot(contains(live.round.toUpperCase())));
 
       // Out of the match, and the page catches up with the save.
+      //
+      // **EVERY STEP OF THE WAY OUT IS ASSERTED, and that is the fix for a
+      // flake rather than tidiness.** This tail used to be two `if
+      // (…isNotEmpty)` guards, so a control that was not there was skipped in
+      // SILENCE — the match went on playing, the chain went on awaiting it,
+      // the freeze was never released, and what failed was the caption not
+      // catching up, forty lines below the thing that actually went wrong.
+      // Twice in four full-suite runs and never once on its own, which is
+      // exactly how a silent guard reads from the outside.
+      //
+      // **The route has to LAND before its controls are worth tapping**: at
+      // 60ms it is still sliding, which is where the assertions above wanted
+      // it and is no place to press a button.
+      await tester.pump(const Duration(milliseconds: 400));
       final skip = find.byKey(const ValueKey('match-skip'));
-      if (skip.evaluate().isNotEmpty) await tester.tap(skip);
+      expect(skip, findsOneWidget, reason: 'the match screen never landed');
+      await tester.tap(skip);
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 1500));
       await tester.pumpAndSettle();
-      final out = find.byKey(const ValueKey('summary-no-thanks'));
-      if (out.evaluate().isNotEmpty) {
-        await tester.tap(out);
+      // **AND THE SUMMARY HAS TWO WAYS OUT, not one.** The decline link exists
+      // only when there is a reward to double — `canDouble` is `_base > 0` —
+      // and a match that paid nothing closes on `summary-continue` instead.
+      // The scoreline is simulated, so which of the two is on screen changes
+      // between runs.
+      final decline = find.byKey(const ValueKey('summary-no-thanks'));
+      final carryOn = find.byKey(const ValueKey('summary-continue'));
+      final out = decline.evaluate().isNotEmpty ? decline : carryOn;
+      expect(out, findsOneWidget, reason: 'the summary has no way out');
+      await tester.tap(out);
+      await tester.pumpAndSettle();
+      // **AND ANSWER WHATEVER THE MATCH DROPPED.** `_afterMatch` rolls for a
+      // transfer bid and then a sponsor, both on `Math.random`, so both are
+      // there on some runs and not others — and the chain AWAITS the card it
+      // puts up. On the runs where one came, the freeze was still held at the
+      // assertion below and the caption still read MATCH 1: the chain being
+      // right, and the test simply not answering it. Parked with a tap
+      // outside, which is the one dismissal that decides nothing —
+      // `season_end_test` does the same for the same roll.
+      for (final card in const ['transfer-offer', 'sponsor-offer']) {
+        final finder = find.byKey(ValueKey(card));
+        if (finder.evaluate().isEmpty) continue;
+        // Its own Decline, not a tap outside: a coach card has no barrier to
+        // tap through, so the dismissal a player has is the one on the card.
+        await tester.tap(
+          find.descendant(
+            of: finder,
+            matching: find.byKey(const ValueKey('coach-action-common.decline')),
+          ),
+        );
         await tester.pumpAndSettle();
       }
       // And the page catches up with the save once the match is behind it.

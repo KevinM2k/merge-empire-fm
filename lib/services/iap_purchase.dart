@@ -15,6 +15,12 @@
 /// is a legal one — Texas SB 2420 — and a minor must not be told what they
 /// cannot buy is out of stock.
 ///
+/// **AND A REFUSAL IS ASKED ABOUT ONCE.** A non-consumable the account already
+/// owns comes back from Play as a failure, which left a lapsed VIP tapping Buy
+/// and being told "payment failed" with no way on. The store is asked what it
+/// owns rather than what its error code meant — see the note in
+/// [initiatePurchase] — and an owned SKU is granted instead of refused.
+///
 /// **NOTHING IS GRANTED WITHOUT A STORE.** The JS grants for free in a dev
 /// build and refuses everywhere else, and the reason it spells out is that a
 /// hosted build and a native launch whose billing plugin failed to come up look
@@ -78,7 +84,36 @@ Future<InitiateResult> initiatePurchase(
       nonConsumable: isNonConsumable(product.type),
     );
     if (!outcome.ok) {
-      return _refused(outcome.reason?.id ?? PurchaseFailure.paymentFailed.id);
+      // **A NON-CONSUMABLE THE ACCOUNT ALREADY OWNS IS NOT A PAYMENT FAILURE**,
+      // and it was the shop's one dead end. `vip_pass` is a non-consumable and
+      // is deliberately not `oneTime`, so a LAPSED VIP is offered the buy
+      // button while the store is entitled to refuse a second purchase of
+      // something the account already bought — Play answers
+      // ITEM_ALREADY_OWNED. Neither store has a code for that beyond a
+      // failure, so the player got "payment failed" and no way forward.
+      //
+      // **The store is asked WHAT IT OWNS rather than what its error meant.**
+      // The numeric codes above are `cordova-plugin-purchase`'s and have never
+      // been re-pointed at this plugin's, so branching on one here would be a
+      // guess; ownership is a question every store answers the same way, and
+      // `restoreOwnedSkus` already asks it. A store that will not answer
+      // returns nothing and the original refusal stands.
+      //
+      // Not on `cancelled`: the player pressed Back, which is an answer.
+      // Only non-consumables, because a restore never lists anything else —
+      // a consumable that "failed" really failed.
+      //
+      // Mostly Android in practice: StoreKit hands a repeat purchase of a
+      // non-consumable back as a restore rather than an error, so iOS tends
+      // not to reach here at all.
+      final recoverable =
+          outcome.reason != PurchaseFailure.cancelled &&
+          isNonConsumable(product.type);
+      if (!recoverable ||
+          !(await restoreOwnedSkus()).contains(product.sku)) {
+        return _refused(outcome.reason?.id ?? PurchaseFailure.paymentFailed.id);
+      }
+      // Owned. The grant below is what a restore would have done.
     }
   } else if (!simulatePurchases) {
     return _refused('billing_unavailable');

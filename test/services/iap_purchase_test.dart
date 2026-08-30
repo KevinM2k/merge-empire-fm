@@ -194,6 +194,76 @@ void main() {
     });
   });
 
+  group('AND A REFUSAL THAT MEANS "YOU ALREADY OWN THIS"', () {
+    // **The shop's one dead end.** `vip_pass` is a non-consumable and is
+    // deliberately not `oneTime`, so a lapsed VIP is offered the buy button
+    // while the store is entitled to refuse a second purchase of something the
+    // account already bought. Play answers ITEM_ALREADY_OWNED and neither
+    // store has a code for it beyond a failure, so the player was told
+    // "payment failed" and had nowhere to go.
+    test('IS A GRANT, not a payment failure', () async {
+      final vip = getProduct('vip_pass')!;
+      storeKnowsEverything();
+      storeSays(purchaseFailed(PurchaseFailure.paymentFailed));
+      iapRestoreSource = () async => {vip.sku};
+      final state = createDefaultState();
+      final result = await initiatePurchase(state, 'vip_pass', mutatorFor(state));
+      expect(result.ok, isTrue, reason: 'the account owns it');
+      expect(
+        (state['shop'] as Map<String, dynamic>)['vipExpiresAt'],
+        isA<num>(),
+      );
+    });
+
+    test('and a real failure is still a real failure', () async {
+      // The store answered, and it does not own this.
+      storeKnowsEverything();
+      storeSays(purchaseFailed(PurchaseFailure.paymentFailed));
+      iapRestoreSource = () async => const <String>{};
+      final state = createDefaultState();
+      final result = await initiatePurchase(state, 'vip_pass', mutatorFor(state));
+      expect(result.ok, isFalse);
+      expect(result.reason, 'payment_failed');
+    });
+
+    test('A CANCEL IS AN ANSWER, and is never overridden', () async {
+      // The player pressed Back. Owning it is beside the point.
+      final vip = getProduct('vip_pass')!;
+      storeKnowsEverything();
+      storeSays(purchaseFailed(PurchaseFailure.cancelled));
+      iapRestoreSource = () async => {vip.sku};
+      final state = createDefaultState();
+      final result = await initiatePurchase(state, 'vip_pass', mutatorFor(state));
+      expect(result.ok, isFalse);
+      expect(result.reason, 'cancelled');
+    });
+
+    test('and a CONSUMABLE that failed really failed', () async {
+      // A restore never lists one, so there is nothing to recover from — and
+      // granting a coin pack off a failed payment is a free coin button.
+      final coins = getShopProducts().firstWhere((p) => p.category == 'coins');
+      storeKnowsEverything();
+      storeSays(purchaseFailed(PurchaseFailure.paymentFailed));
+      iapRestoreSource = () async => {coins.sku};
+      final state = createDefaultState();
+      final before = (state['resources'] as Map)['fanCoins'];
+      final result = await initiatePurchase(state, coins.id, mutatorFor(state));
+      expect(result.ok, isFalse);
+      expect(result.reason, 'payment_failed');
+      expect((state['resources'] as Map)['fanCoins'], before);
+    });
+
+    test('a store that will not answer leaves the refusal standing', () async {
+      storeKnowsEverything();
+      storeSays(purchaseFailed(PurchaseFailure.paymentFailed));
+      iapRestoreSource = () async => throw Exception('offline');
+      final state = createDefaultState();
+      final result = await initiatePurchase(state, 'vip_pass', mutatorFor(state));
+      expect(result.ok, isFalse);
+      expect(result.reason, 'payment_failed');
+    });
+  });
+
   group('restoring', () {
     test('grants a non-consumable the save does not own', () async {
       final vault = getProduct('style_vault')!;
