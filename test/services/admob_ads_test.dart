@@ -9,6 +9,7 @@ import 'package:merge_empire_fc/data/ad_app_ids.dart';
 import 'package:merge_empire_fc/data/ad_units.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 
 class _Handle implements RewardedHandle {
   _Handle({this.earns = true});
@@ -69,6 +70,27 @@ void main() {
         File('ios/Runner/Info.plist').readAsStringSync(),
         contains(admobAppIdIos),
         reason: 'Info.plist is missing GADApplicationIdentifier',
+      );
+    });
+
+    test('AND iOS ASKS FOR TRACKING, rather than only declaring that it will', () {
+      // **The failure this pins was a declared key with no caller.** Fifty
+      // SKAdNetwork ids and `NSUserTrackingUsageDescription` shipped in
+      // Info.plist and nothing ever called the ATT API, so the prompt never
+      // appeared, the IDFA was never available and every iOS impression was
+      // contextual. Apple requires the key; only a caller makes it do anything,
+      // and `google_mobile_ads` has no ATT API of its own — UMP answers a
+      // different question. The reachability check CLAUDE.md asks for, in the
+      // one form a cloud container can make it.
+      expect(
+        File('ios/Runner/Info.plist').readAsStringSync(),
+        contains('NSUserTrackingUsageDescription'),
+        reason: 'iOS refuses to show the prompt without the key',
+      );
+      expect(
+        File('lib/services/admob_ads.dart').readAsStringSync(),
+        contains('requestTrackingIfNeeded()'),
+        reason: 'the prompt is never asked for, so the key is decoration',
       );
     });
 
@@ -202,6 +224,54 @@ void main() {
         await const NoRewardedAds().show('energy_pip'),
         AdOutcome.unavailable,
       );
+    });
+  });
+
+  group('EVERY ASK IS ANSWERED ON THE RECORD', () {
+    // The three outcomes are three different problems and the dashboard cannot
+    // tell them apart without this: `rewarded` is the funnel working,
+    // `dismissed` is a player walking away from a reward, and `unavailable` is
+    // inventory or consent failing them — which reads to the player as a broken
+    // button and to AdMob as nothing at all.
+    late List<({String name, Map<String, Object?> params})> sent;
+
+    setUp(() {
+      sent = [];
+      setAnalyticsSink((name, params) => sent.add((name: name, params: params)));
+    });
+
+    tearDown(() => setAnalyticsSink(null));
+
+    test('a watched video is `rewarded`, with its placement', () async {
+      await _ads(_Loader()).show('lucky_boot');
+      expect(sent.single.name, 'ad_shown');
+      expect(sent.single.params['outcome'], 'rewarded');
+      expect(sent.single.params['placement'], 'lucky_boot');
+      expect(sent.single.params['ad_platform'], 'android');
+    });
+
+    test('one closed early is `dismissed` rather than missing', () async {
+      await _ads(_Loader(earns: false)).show('energy_pip');
+      expect(sent.single.params['outcome'], 'dismissed');
+    });
+
+    test('AND A NO-FILL IS REPORTED, which is the one that was invisible', () {
+      // No fill emits nothing to AdMob, so without this the placement simply
+      // stops appearing and reads as a placement nobody uses.
+      expect(_ads(_Loader(fill: false)).show('daily_double'), completion(AdOutcome.unavailable));
+    });
+
+    test('a consent refusal is reported too, and it is not an error', () async {
+      await _ads(_Loader(), permitted: false).show('heal_all');
+      expect(sent.single.params['outcome'], 'unavailable');
+      expect(sent.single.params['placement'], 'heal_all');
+    });
+
+    test('every outcome carries whether it could be PERSONALISED', () async {
+      // On iOS a fill rate is not comparable between an ATT-authorised device
+      // and a contextual one, so the eCPM has no explanation without it.
+      await _ads(_Loader()).show('energy_pip');
+      expect(sent.single.params.containsKey('personalised'), isTrue);
     });
   });
 }

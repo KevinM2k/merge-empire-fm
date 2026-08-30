@@ -66,12 +66,19 @@ void main() {
     }
   });
 
-  test('and `cosmetic_pack` is the ONE the shipped app has not got either', () {
-    // The port carries the placement with a null id and a note saying why. That
-    // is not the port being behind: the JS has no unit for it either, so this
-    // is a console job on both sides rather than a porting gap.
-    expect(rewardedByPlacementAndroid['cosmetic_pack'], isNull);
-    expect(rewardedByPlacementIos['cosmetic_pack'], isNull);
+  test('and `cosmetic_pack` IS A DIVERGENCE — the port has a unit the JS has not', () {
+    // **This flipped, and the direction matters.** The placement used to be
+    // null on both sides: a console job nobody had done, not a porting gap. The
+    // units now exist and came from the AdMob console rather than from
+    // `energyEngine.js`, so the port is AHEAD of the spec here.
+    //
+    // Pinned rather than deleted, because the assertion that still earns its
+    // keep is the one about the fixture: a later fixture regeneration that
+    // suddenly carries `cosmetic_pack` means the JS grew its own unit, and
+    // whether the two agree is then a real question. Until it does, this is the
+    // divergence stated out loud — which is what CLAUDE.md asks of one.
+    expect(rewardedByPlacementAndroid['cosmetic_pack'], isNotNull);
+    expect(rewardedByPlacementIos['cosmetic_pack'], isNotNull);
     expect(android.containsKey('cosmetic_pack'), isFalse);
     expect(ios.containsKey('cosmetic_pack'), isFalse);
   });

@@ -27,7 +27,9 @@ import 'dart:io' show Platform;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:merge_empire_fc/data/ad_units.dart';
 import 'package:merge_empire_fc/services/ad_consent.dart';
+import 'package:merge_empire_fc/services/app_tracking.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 
 /// How long a show waits for a load before giving up and answering honestly.
 ///
@@ -167,20 +169,43 @@ class AdMobRewardedAds implements RewardedAds {
   Future<AdOutcome> show(String placement) async {
     // **Consent first, and a refusal is `unavailable` rather than an error.**
     // Serving without it in the EEA is the thing the gate exists to stop.
-    if (!_permitted()) return AdOutcome.unavailable;
+    if (!_permitted()) return _report(placement, AdOutcome.unavailable);
 
     var handle = _ready.remove(placement);
     handle ??= await (_loading[placement] ?? _load(placement));
     // A load that resolved into the cache while we awaited it is the same
     // object — take it out so nothing shows it twice.
     _ready.remove(placement);
-    if (handle == null) return AdOutcome.unavailable;
+    if (handle == null) return _report(placement, AdOutcome.unavailable);
 
     final earned = await handle.show();
     // And line up the next one while the player is still on the screen that
     // asked for this one.
     prepare(placement);
-    return earned ? AdOutcome.rewarded : AdOutcome.dismissed;
+    return _report(
+      placement,
+      earned ? AdOutcome.rewarded : AdOutcome.dismissed,
+    );
+  }
+
+  /// **Every ask, answered on the record.** The three outcomes are three
+  /// different problems and the dashboard cannot tell them apart without this:
+  /// `rewarded` is the funnel working, `dismissed` is a player choosing to walk
+  /// away from a reward, and `unavailable` is inventory or consent failing them
+  /// — which reads to the player as a broken button and to AdMob as nothing at
+  /// all. The placement is the dimension the ad units were split up FOR.
+  ///
+  /// `personalised` rides along because it is the other half of an eCPM: on iOS
+  /// a fill rate is not comparable between an ATT-authorised device and a
+  /// contextual one. See `services/app_tracking.dart`.
+  AdOutcome _report(String placement, AdOutcome outcome) {
+    logAppEvent('ad_shown', {
+      'placement': placement,
+      'outcome': outcome.name,
+      'ad_platform': _platform,
+      'personalised': trackingAuthorised,
+    });
+    return outcome;
   }
 }
 
@@ -193,7 +218,16 @@ Future<RewardedAds> startAds({
 }) async {
   try {
     await initAdConsent();
-    if (!adsPermitted) return const NoRewardedAds();
+    if (!adsPermitted) {
+      logAppEvent('ad_stack_blocked', {'reason': 'consent'});
+      return const NoRewardedAds();
+    }
+    // **ATT AFTER UMP AND BEFORE THE FIRST REQUEST**, which is Google's own
+    // order and is not a preference either: the SDK reads the tracking status
+    // when it initialises, so a prompt answered after `initialize` does not
+    // apply until the next launch. Without this the IDFA is never available and
+    // every iOS impression is contextual. See `services/app_tracking.dart`.
+    await requestTrackingIfNeeded();
     // **THE AGE FLAGS GO ON BEFORE THE FIRST REQUEST, not after.** They are a
     // property of the SDK's request configuration rather than of an ad, so a
     // request made before they are set is served untagged — and for a player
@@ -205,6 +239,7 @@ Future<RewardedAds> startAds({
     return AdMobRewardedAds();
   } catch (_) {
     // No SDK on this platform. Every placement answers `unavailable`, honestly.
+    logAppEvent('ad_stack_blocked', {'reason': 'unavailable'});
     return const NoRewardedAds();
   }
 }

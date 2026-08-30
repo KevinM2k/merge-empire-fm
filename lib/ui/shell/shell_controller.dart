@@ -64,7 +64,18 @@ final shellControllerProvider = NotifierProvider<ShellController, ShellState>(
 
 class ShellController extends Notifier<ShellState> {
   @override
-  ShellState build() => const ShellState(tab: defaultTab);
+  ShellState build() {
+    // **THE FIRST SCREEN OF EVERY SESSION WAS MISSING.** `goTab` only reports a
+    // CHANGE, so the tab the app opens on — the one every player sees and the
+    // one a player who never switches tabs sees exclusively — was never sent.
+    // The dimension that says where people are when they stop playing had a
+    // hole in it exactly where the drop-off is worst.
+    //
+    // Here rather than in a widget's `initState`: this notifier is built once
+    // per session, which is precisely how often the opening screen happens.
+    logScreen(defaultTab.name);
+    return const ShellState(tab: defaultTab);
+  }
 
   /// [noSlide] is for a move that should arrive already in place — a deep link,
   /// or anything that scrolls the incoming screen the moment it opens.

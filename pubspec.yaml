@@ -63,6 +63,12 @@ dependencies:
   flutter_local_notifications: ^22.3.0 # main.js's four — @capacitor/local-notifications
   timezone: ^0.11.1 # its own transitive, named because notifications.dart imports it
   google_mobile_ads: ^6.0.0 # engine/energyEngine.js's units — @capacitor-community/admob
+  # **iOS ONLY, and it is the ad stack's other half.** `google_mobile_ads`
+  # carries UMP, which answers the EEA's consent question; Apple's is a separate
+  # prompt with a separate API and no plugin exposes it, so without this one
+  # `NSUserTrackingUsageDescription` sits in Info.plist and is never read. A
+  # no-op on Android, where there is no such prompt.
+  app_tracking_transparency: ^2.0.7
   # services/authService.js — @capacitor-firebase/authentication. Both hand back
   # an OAuth id_token; the Firebase session is minted from it over REST.
   google_sign_in: ^7.2.0

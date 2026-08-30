@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 
 Map<String, dynamic> save({int step = 0, bool done = false, int cards = 0}) {
   final s = createDefaultState();
@@ -342,6 +343,64 @@ void main() {
       expect(tutorialFinished(old), isTrue);
       expect(tutorialFirstMatch(old), isFalse);
       expect(effectiveScoutBatch(old), greaterThanOrEqualTo(1));
+    });
+  });
+
+  group('WHAT THE SCRIPT REPORTS', () {
+    // **The one funnel that decides whether a player stays**, and it reported
+    // nothing at all. A player who quits mid-tutorial simply stops appearing,
+    // so the step they left on is not derivable from any other event.
+    late List<({String name, Map<String, Object?> params})> sent;
+
+    setUp(() {
+      sent = [];
+      setAnalyticsSink((name, params) => sent.add((name: name, params: params)));
+    });
+
+    tearDown(() => setAnalyticsSink(null));
+
+    List<String> names() => sent.map((e) => e.name).toList();
+
+    test('the first advance BEGINS it as well as completing a step', () {
+      advanceTutorial(save(step: 0));
+      expect(names(), ['tutorial_begin', 'tutorial_step_complete']);
+      expect(sent.first.params['step_id'], tutorialSteps.first.id);
+    });
+
+    test('and a later one only completes a step', () {
+      advanceTutorial(save(step: 2));
+      expect(names(), ['tutorial_step_complete']);
+      expect(sent.single.params['step_index'], 2);
+      expect(sent.single.params['step_id'], tutorialSteps[2].id);
+    });
+
+    test('THE STEP IT NAMES IS THE ONE JUST FINISHED, not the next', () {
+      // Off by one here and every drop-off is filed against the step after the
+      // one the player actually gave up on.
+      advanceTutorial(save(step: 4));
+      expect(sent.single.params['step_id'], tutorialSteps[4].id);
+    });
+
+    test('running off the end completes the script', () {
+      advanceTutorial(save(step: tutorialSteps.length - 1));
+      expect(names(), contains('tutorial_complete'));
+      expect(sent.last.params['steps'], tutorialSteps.length);
+    });
+
+    test('A SKIP NAMES THE STEP IT WAS ABANDONED ON', () {
+      // Read before the done flag is set: `tutorialStepFor` answers null for a
+      // finished script, which would file every skip in the game under nothing.
+      skipTutorial(save(step: 3));
+      expect(sent.single.name, 'tutorial_skip');
+      expect(sent.single.params['step_id'], tutorialSteps[3].id);
+      expect(sent.single.params['step_index'], 3);
+    });
+
+    test('and a save with no tutorial branch reports nothing', () {
+      final old = createDefaultState()..remove('tutorial');
+      advanceTutorial(old);
+      skipTutorial(old);
+      expect(sent, isEmpty);
     });
   });
 }

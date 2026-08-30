@@ -72,20 +72,31 @@ String bucketCoins(num n) {
 /// the crash reporter catches the process dying and the event is what shows up
 /// beside the rest of the funnel, so a spike in errors is visible in the same
 /// place as the behaviour that caused it.
-void logError(Object? message, {bool fatal = false}) {
+///
+/// **And for a long time NOTHING CALLED IT**, so the analytics half of that
+/// arrangement did not exist: crashes reached Crashlytics through handlers that
+/// recorded straight to the SDK, and `app_crash` never once appeared beside the
+/// funnel it was meant to explain. `analytics_service.dart` routes both
+/// handlers through here now, which is the only way the two halves stay in step.
+///
+/// [stack] is passed through to the crash sink and deliberately NOT to the
+/// event: a stack trace is thousands of characters and Firebase's parameter
+/// limit is a hundred, so an event carrying one would ship a truncated first
+/// line and nothing useful. The symbolicated trace belongs in Crashlytics.
+void logError(Object? message, {bool fatal = false, StackTrace? stack}) {
   logAppEvent(fatal ? 'app_crash' : 'app_error', {
     'description': '$message',
     'fatal': fatal,
   });
-  _errors?.call(message, fatal);
+  _errors?.call(message, fatal, stack);
 }
 
 /// Where a crash report goes. Null drops them, which is what a test wants.
-void Function(Object? message, bool fatal)? _errors;
+void Function(Object? message, bool fatal, StackTrace? stack)? _errors;
 
 /// Send crash reports to [sink]. Returns the one being replaced.
-void Function(Object?, bool)? setCrashSink(
-  void Function(Object?, bool)? sink,
+void Function(Object?, bool, StackTrace?)? setCrashSink(
+  void Function(Object?, bool, StackTrace?)? sink,
 ) {
   final previous = _errors;
   _errors = sink;
