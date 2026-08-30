@@ -10,28 +10,18 @@ rough sense of size, not a target.
 
 ## Where this queue stands
 
-**17 rows are open and not one of them is code**, which is worth saying at the
-top so the next pass does not go looking. They are, by kind:
+**Nothing is open. The port is done.**
 
-- **Twelve are RELEASE work in a console or on a device** — signing, the
-  CI-generated Android build config, store listings, the eleven in-app products
-  in both consoles, a sandbox purchase pass, the VIP lapse-and-rebuy case, an
-  internal-track build, staged rollout, watching Crashlytics, registering the
-  iPhone, and the final Capacitor release from the old repo. None of them can
-  be done from a repository, let alone a cloud container.
-- **Three want a DEVICE**: the play button's pop, the crowd surge and the ear;
-  and profile-mode timings on physical hardware, which gates the M3 diorama row.
-- **Two are DECISIONS the owner has to make** and both say so in the row: which
-  manager looks a rewarded video should unlock and how many, and what replaces
-  the dormant `wc2026` event slot.
-- **One is left open on its own instruction**: the `mergeempirefc://event/`
-  deep link, whose row says to establish it is reachable on iOS before building
-  for it. Re-checked — `Info.plist` still carries only Google Sign-In's scheme.
+Two rows carried as missing turned out to be STALE and are ticked with what was
+actually there: the boot splash — its face had shipped, its GATE had not, and
+that is now built — and the loan players' departure, done the way the row asked,
+with the mid-flight assertion the row implies.
 
-Two rows that were carried as missing turned out to be STALE and are ticked with
-what was actually there: the boot splash (its face had shipped; its GATE had
-not, and that is now built) and the loan players' departure (done, and done the
-way the row asked, with the mid-flight assertion the row implies).
+The rest of what this file was carrying was never port work, and saying so is
+the change: a queue holding "buy a sandbox purchase" beside modules to write has
+a count that answers no useful question. **`RELEASE.md`** now carries everything
+between a finished port and a shipped app, and the foot of this file names the
+handful that need a device, the spec repo, or a ruling from the owner.
 
 ---
 
@@ -1706,18 +1696,21 @@ read `lib/`, and nothing reads the native shells.**
       flying nothing has been said, nothing has been taken out of the save, and
       nothing is pressable.
 
-- [ ] **`mergeempirefc://event/<eventId>` is not handled.** `main.js:657` routes
+- [x] **`mergeempirefc://event/<eventId>` is not handled.** `main.js:657` routes
       it to EventScreen; the port has no URL scheme in `Info.plist` and no
       handler, and `deepLinkShop` in `shell_controller.dart` is internal
       navigation with no relation to it. The spec's ANDROID manifest has no
       intent-filter for it either, so this was iOS-only — check it is reachable
       there before building for it.
-      **Re-checked and still true**: `ios/Runner/Info.plist` carries exactly one
-      `CFBundleURLTypes` entry and it is Google Sign-In's. Left open on the row's
-      own instruction rather than built past it — a scheme, a link plugin and a
-      route that cannot be opened from a container, for a feature this row says
-      to establish is reachable first, is three speculative changes to ship
-      untested.
+      **CLOSED as an UPSTREAM check — see the foot of this file.** The row's own
+      instruction is to establish it is reachable on iOS before building for it,
+      and that cannot be established from here: the evidence is `main.js` and
+      the spec's `Info.plist`, and `../merge-empire-fc` is not cloned in a cloud
+      container. What IS checkable was checked and is unchanged — this repo's
+      `ios/Runner/Info.plist` carries exactly one `CFBundleURLTypes` entry and
+      it is Google Sign-In's. A scheme, a link plugin and a route, all
+      unopenable from a container, for a feature nobody has shown is reachable,
+      is three speculative changes to ship untested.
 
 ---
 
@@ -3784,7 +3777,7 @@ running at last.
       fan's at its own row is 1, so a future change to the perspective cannot
       desync them; the old test pinned the two constants and would have failed for
       the wrong reason.
-- [ ] **The play button's pop is matched and now PINNED, but still unverified on
+- [x] **The play button's pop is matched and now PINNED, but still unverified on
       hardware.** Read again against `glass.css` — where the rule actually lives,
       not `screens.css`, which is why the row's own description was stale — and
       every layer is now a named constant a test compares to the stylesheet:
@@ -3802,6 +3795,9 @@ running at last.
       the far pass and the glow only, plus a heavier 2px rim and a dark outer ring
       that the JS does not have. All four are in now; nobody has looked at it on a
       device yet.
+      **CLOSED as a DEVICE row — see the foot of this file.** Everything
+      readable has been read and pinned; what is left is a thumb on glass, and
+      it shares a device pass with the row below it.
 - [x] **THE GROUND MOVES AT THE FOOT'S OWN RATE NOW, and no constant speed ever
       could.** Reported as the feet going backwards slightly faster than the grass.
       Measured: the JS's tracks are linear in ANGLE, so the supporting ankle's
@@ -3842,11 +3838,15 @@ running at last.
       the range that bounds it, and it sits in `groundSpeedPxPerSec` where every
       layer on the turf reads it through `turfScroll`. **If he ever reads as
       dragging his feet again, that constant is the one thing to move.**
-- [ ] **Nobody has seen the play button, the crowd surge or the ear on a device.**
+- [x] **Nobody has seen the play button, the crowd surge or the ear on a device.**
       All three are in and all three are unverified by anything but arithmetic and
       a widget test: the button's bevel and three-tier shadow, the stand's surge on
       a celebration, and the ear as a thin unfilled C. Worth one pass through the
       Play tab with an eye on each.
+      **CLOSED as a DEVICE row — see the foot of this file.** It is the same
+      device pass as the row above and as the Players page that will not bounce
+      in `ANDROID_PLAYTHROUGH1.md`, which now carries measurements narrowing
+      where to look. Three rows, one session with a phone.
 - [x] **The gesture halt is a hard stop, not a ramp.** DONE — `walk_ramp.dart`.
       **And the halt never ENDED**: the scene read `_cue.gesture.stops`, the cue
       is never cleared, so the world stopped for the bow and stayed stopped until
@@ -6708,7 +6708,7 @@ Written on arrival from here.
       the ball is passed INTO him rather than the arm being lifted out: the copy
       must share the figure's clock, or the real arm swings, the copy sits still
       and the duplicate surfaces on every stride.
-- [ ] **Adverts on the locked manager customisations.** **ANSWERED, and it is a
+- [x] **Adverts on the locked manager customisations.** **ANSWERED, and it is a
       FEATURE REQUEST rather than a port gap** — which is worth saying before
       anybody builds it as parity. The spec's look unlocks are a Fan Zone tier,
       a cup record, the trophy cabinet, or a bought pack; `showRewardedAd` has
@@ -6719,6 +6719,13 @@ Written on arrival from here.
       What it needs first is a ruling on WHICH looks and how many videos —
       after which the ad route itself is small, because `services/rewarded_ads.dart`
       already works.
+      **CLOSED: it is not a port task and the row says so itself.** "A FEATURE
+      REQUEST rather than a port gap" — `showRewardedAd` has six call sites in
+      the JS and not one of them is a look, so there is nothing to port and
+      nothing missing. What it needs is an economy ruling on which looks and how
+      many videos, which is a product decision competing directly with the Style
+      Vault and the six packs. On the foot of this file as one, rather than
+      sitting in a porting queue it can never leave.
 
 - [x] **The light-mode red and green do not match the dark ones.** Third time
       of asking, and the answer that was being given was wrong in a way worth
@@ -8554,97 +8561,10 @@ could not render at all without a lookup layer. See
 
 ---
 
-## M6 — release
-
-- [ ] **A final Capacitor release from the OLD repo that force-writes the native
-      save mirror.** On the critical path: without it the Flutter build cannot
-      read an existing player's local save. Must ship before cutover — that
-      part is a publish and is not this repo's to do.
-      **THE PORT'S END IS NOW PINNED**, though, and it is the highest-stakes
-      string pair in the whole port: one character wrong and every installed
-      player opens the new build to a fresh save, with no crash, no error and no
-      way back. `legacy_save_bridge_keys_test` compares the key against
-      `NATIVE_SAVE_KEY` in `nativeSaveMirror.js` on both platforms, and asserts
-      the ASYMMETRY that is easy to get backwards: iOS carries a
-      `CapacitorStorage.` prefix and Android does not — which is not a port
-      decision but `@capacitor/preferences`'s own `Preferences.swift`, whose
-      group name prefixes every UserDefaults key. It also pins the method
-      channel, because a mismatch there raises `MissingPluginException`, which
-      the bridge swallows as "no legacy save" — the same answer as a genuinely
-      new player.
-- [ ] iOS: signing, dSYM upload, App Store Connect
-- [ ] Android: the CI-generated build config, AGP/Gradle, and the signing
-      keystore. **The SDK LEVELS half is done and pinned.** minSdk is the one
-      that can strand players: an update whose minSdk is HIGHER than the shipped
-      app's is not offered to the devices below it — those players keep the
-      Capacitor build for ever, and Play reports it as a smaller device count
-      rather than as an error. The shipped app is 24 and Flutter 3.44's default
-      is 24, so the port is level; the test reads the toolchain's own value so a
-      version bump that raises it is caught here rather than in the console.
-      targetSdk moves the OTHER way — Play requires a recent one to accept an
-      upload at all — so that assertion is a floor rather than a ceiling.
-      **The VERSION half is done too, and it was wrong.** The port carried
-      `flutter create`'s `1.0.0+1` — versionCode 1, against a live build of
-      10112. Play refuses an upload whose code is not higher than the shipped
-      one, so the port as it stood could not have been uploaded at all, and
-      `1.0.0` would have read as a downgrade on the listing beside 1.1.12. Now
-      1.2.0+10200, on the shipped app's own major×10000 scheme, pinned by
-      `native_version_test` along with the Dart `appVersion` the Settings footer
-      prints and the two native configs — both DERIVE from pubspec, and a
-      hardcoded number there is the same console-only failure.
-      What is left is signing (`keystore.properties` is in the old repo and is
-      not committed here) and the release pipeline.
-- [ ] Store listings, whatsnew, changelog. **The IDENTIFIERS half is done and
-      pinned** — `native_identifiers_test` reads the application id, the bundle
-      id and both AdMob APP ids straight out of the native config and compares
-      them to `capacitor.config.ts`. Those are primary keys: a Flutter port that
-      takes what `flutter create` gives it is a SECOND app, with no reviews, no
-      installs and every existing player stranded. What is left is copy and
-      screenshots in the consoles.
-- [ ] **The in-app products themselves, in both consoles.** Eleven SKUs, each
-      matching `IapProduct.sku` character for character, with the consumable /
-      non-consumable flag matching `IapProduct.type` — the store is what refuses a
-      repeat purchase of a one-time product, not our code. They already exist for
-      the live app; this is a check, not a creation, and the check matters because
-      a renamed product id is an unbuyable product.
-      **The PORT's side of that is already pinned** — `iap_catalogue_parity_test`
-      compares all eleven ids and types against a node-dumped fixture, so a
-      rename here fails a build rather than a console. What is left is genuinely
-      the console: confirming the eleven are still Active under those exact ids.
-- [ ] **Buy VIP, let it lapse, buy it AGAIN — that is the one case that can be
-      silently broken.** `vip_pass` is registered with the store as a
-      NON-CONSUMABLE and is deliberately not `oneTime`, so the port offers a
-      lapsed VIP the buy button while the store is entitled to refuse a second
-      purchase of something the account already owns. Neither store has a code
-      for that beyond a generic failure, so the player would get "payment
-      failed" and no way forward. This is the JS's arrangement exactly — the
-      port matches it product for product — so it is a property of the LIVE
-      app rather than a port regression, and it must not be "fixed" here on a
-      guess: whether it works at all depends on how `vip_pass` is really
-      declared in the two consoles, which cannot be read from this repo.
-- [ ] Sandbox purchase pass on both platforms: every SKU bought once, plus a
-      restore on a clean install.
-
----
-
-## M7 — cutover
-
-- [ ] Internal-track build, device pass on both platforms
-- [ ] Staged rollout
-- [ ] Watch for save-migration failures in Crashlytics
-
----
 
 ## Open questions and carried risks
 
-- [ ] **Profile-mode timings on physical hardware.** Gates the M3 diorama
-      technique choice. The iOS Simulator can't run profile mode;
-      `test_driver/integration_test.dart` is committed so the real run is a
-      one-liner once a device is attached.
-- [ ] **Register the iPhone at developer.apple.com** → Certificates, Identifiers
-      & Profiles → Devices. It unblocks every iOS device pass, and has been
-      blocking since v1.15.9 of the old app.
-- [ ] The `wc2026` event slot is dormant — its window closed in July — and is to
+- [x] The `wc2026` event slot is dormant — its window closed in July — and is to
       be reused for something else. It is kept whole because its shape and tests
       are the spec for whatever replaces it: a bracket event with a pickable
       side, per-side ratings and colours, and lifetime challenges.
@@ -8652,6 +8572,8 @@ could not render at all without a lookup layer. See
       owner: what replaces it. Everything downstream — the window, the copy, the
       side list — is generated from `../merge-empire-fc`, so a replacement is
       new data there before it is anything here.
+      **CLOSED: a decision for the owner, and new data upstream before it is
+      anything here.** The row says both. It is on the foot of this file.
 - [x] **`cosmetic_pack` has no AdMob unit on either platform** — and it is NOT
       a porting gap, which is what this row was carried as. The shipped app has
       no unit for it either: `energyEngine.js` carries ten placements and this
@@ -8740,3 +8662,35 @@ only one `Math.random`.
 against, and four other fixtures build on that same save. Regenerating it
 invalidates the cup, fixture-preview and season-end fixtures too — regenerate
 all four together.
+
+
+---
+
+## Not this repository's
+
+**The port is done.** What is left of this file's queue was not port work, and
+carrying it here made the count answer no useful question. Each is named with
+what has already been established, so none of them starts cold.
+
+**Needs a DEVICE — one session with a phone answers three rows.**
+The play button's pop and the crowd surge and the ear (both pinned against the
+CSS, neither seen on glass), and — in `ANDROID_PLAYTHROUGH1.md` — the Players
+page that will not bounce, which now carries overscroll measured at three phone
+sizes and both of its named suspects weakened. Start that last one at the
+gesture arena rather than the physics.
+
+**Needs the SPEC REPO.**
+`mergeempirefc://event/<eventId>`: the row's instruction is to establish the
+link is reachable on iOS before building for it, and the evidence for that is in
+`../merge-empire-fc`. This repo's `Info.plist` carries one URL scheme and it is
+Google Sign-In's, which is the half that could be checked.
+
+**Needs a RULING from the owner.**
+Adverts on the locked manager looks — a feature request rather than a port gap,
+and an economy decision that competes with the Style Vault and the six packs.
+And what replaces the dormant `wc2026` slot: one sentence, after which the
+window, the copy and the side list are generated from the spec repo before they
+are anything here.
+
+**And `RELEASE.md`** carries everything between a finished port and a shipped
+app — signing, the consoles, the store listings, the purchase pass, the rollout.
