@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/club_name.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// Opens the card. Resolves to the stored name, or null if it was dismissed.
 ///
@@ -95,6 +96,23 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
   );
   String? _error;
 
+  /// **The naming funnel's two clocks.** The JS reports how long the card was
+  /// up before a name was taken and whether the dice was what produced it —
+  /// between them they say whether the suggestion is doing its job or whether
+  /// players are sitting on this screen inventing a football club.
+  final int _shownAt = DateTime.now().millisecondsSinceEpoch;
+  bool _usedGenerateBtn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // A save with no name has never seen this card; one with a name is here to
+    // rename. Two different moments, and summing them hides the first.
+    emit('club:name-card-shown', {
+      'isFirstTime': ref.read(clubNameProvider).isEmpty,
+    });
+  }
+
   @override
   void dispose() {
     _field.dispose();
@@ -113,6 +131,15 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
       return;
     }
     ref.read(gameProvider).update((s) => s['clubName'] = check.name);
+    emit('club:renamed', {
+      'name': check.name,
+      'nameLength': check.name.length,
+      // Kept as it was offered — the dice's answer accepted, whether it was
+      // left in the field or retyped.
+      'usedSuggestion': typed.isEmpty || typed == _suggested,
+      'usedGenerateBtn': _usedGenerateBtn,
+      'timeToConfirmMs': DateTime.now().millisecondsSinceEpoch - _shownAt,
+    });
     if (mounted) Navigator.of(context).pop(check.name);
   }
 
@@ -178,6 +205,7 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
                 tooltip: t('club_name.generate'),
                 icon: Icon(Icons.casino_outlined, color: kit.accentBright),
                 onPressed: () => setState(() {
+                  _usedGenerateBtn = true;
                   _suggested = generateClubName();
                   // Into the FIELD, not just the placeholder: a suggestion you
                   // then have to retype is not a suggestion.

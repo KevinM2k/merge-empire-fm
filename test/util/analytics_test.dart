@@ -155,10 +155,81 @@ void main() {
       expect(sent.single.params['screen_name'], 'shop');
     });
 
+    test('AND ITS CLASS, or half of every screen report is empty', () {
+      // GA4's screen reports group by the class and fall back to the name, so
+      // a build sending only the name leaves the grouping blank.
+      logScreen('shop');
+      expect(sent.single.params['screen_class'], 'shop');
+    });
+
     test('and an empty one is not an event', () {
       logScreen(null);
       logScreen('');
       expect(sent, isEmpty);
+    });
+
+    test('the last one is remembered, for the backgrounded event', () {
+      resetCurrentScreen();
+      expect(currentScreen, isNull);
+      logScreen('league');
+      expect(currentScreen, 'league');
+    });
+  });
+
+  group('user properties', () {
+    test('are sanitised the same way a parameter is', () {
+      final props = <String, Object?>{};
+      final previous = setUserPropsSink((k, v) => props[k] = v);
+      addTearDown(() => setUserPropsSink(previous));
+      setUserProps({'is_vip': true, 'total_seasons': 4, 'game_mode': 'pro'});
+      expect(props['is_vip'], 1);
+      expect(props['total_seasons'], 4);
+      expect(props['game_mode'], 'pro');
+    });
+
+    test('DROPPING IS THE DEFAULT, as it is for events', () {
+      setUserPropsSink(null);
+      // Nothing to assert but that it does not throw: a build with no backend
+      // must not fail on a dimension it cannot send.
+      setUserProps({'is_vip': true});
+    });
+
+    test('and a broken sink cannot fail a game action', () {
+      final previous = setUserPropsSink((_, _) => throw StateError('nope'));
+      addTearDown(() => setUserPropsSink(previous));
+      setUserProps({'is_vip': true});
+    });
+  });
+
+  group('the user id', () {
+    test('reaches the sink, trimmed to what Firebase accepts', () {
+      final ids = <String>[];
+      final previous = setUserIdSink(ids.add);
+      addTearDown(() => setUserIdSink(previous));
+      setAnalyticsUserId('player-uuid');
+      expect(ids, ['player-uuid']);
+      setAnalyticsUserId('x' * 300);
+      expect(ids.last.length, 256);
+    });
+
+    test('AN ID SET BEFORE THE BACKEND IS UP IS NOT LOST', () {
+      // The boot path has the save in hand long before `startAnalytics` has
+      // resolved. Without the cache every session started anonymous.
+      setUserIdSink(null);
+      setAnalyticsUserId('early-bird');
+      final ids = <String>[];
+      final previous = setUserIdSink(ids.add);
+      addTearDown(() => setUserIdSink(previous));
+      expect(ids, ['early-bird']);
+    });
+
+    test('and an empty id is not an identity', () {
+      final ids = <String>[];
+      final previous = setUserIdSink(ids.add);
+      addTearDown(() => setUserIdSink(previous));
+      setAnalyticsUserId(null);
+      setAnalyticsUserId('');
+      expect(ids, isEmpty);
     });
   });
 }

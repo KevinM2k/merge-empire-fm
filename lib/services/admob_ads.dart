@@ -199,8 +199,30 @@ class AdMobRewardedAds implements RewardedAds {
   /// a fill rate is not comparable between an ATT-authorised device and a
   /// contextual one. See `services/app_tracking.dart`.
   AdOutcome _report(String placement, AdOutcome outcome) {
-    logAppEvent('ad_shown', {
+    // **THREE NAMES, which are the JS's three.** One event with an `outcome`
+    // param is the tidier shape and it is the wrong one here: FC has been
+    // sending `ad_watched`, `ad_dismissed` and `ad_failed` into this same
+    // Firebase project for the life of the app, and the port ships as an
+    // UPDATE to it. A single renamed event would leave all three historical
+    // series flat from the update onwards — see the head of
+    // `services/analytics_wiring.dart`.
+    //
+    // `type` is the JS's too, and it is load-bearing: a rewarded ad the player
+    // chose to watch and an interstitial they were shown are different funnels
+    // that would otherwise be summed into one impression count.
+    //
+    // `ad_platform` and `personalised` have no JS counterpart and stay. They
+    // are additions to the event rather than a rename of it, and the second is
+    // half of an eCPM — on iOS a fill rate is not comparable between an
+    // ATT-authorised device and a contextual one.
+    const names = {
+      AdOutcome.rewarded: 'ad_watched',
+      AdOutcome.dismissed: 'ad_dismissed',
+      AdOutcome.unavailable: 'ad_failed',
+    };
+    logAppEvent(names[outcome] ?? 'ad_failed', {
       'placement': placement,
+      'type': 'rewarded',
       'outcome': outcome.name,
       'ad_platform': _platform,
       'personalised': trackingAuthorised,

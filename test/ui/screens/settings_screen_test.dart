@@ -31,6 +31,7 @@ import 'package:merge_empire_fc/ui/screens/settings_audio_row.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 
 /// A save that has been round once, which is what unlocks Pro.
 void _prestiged(Map<String, dynamic> s) =>
@@ -675,6 +676,43 @@ void main() {
         );
         expect(state['clubName'], isNot('Ember Rovers'));
         expect(container.read(gameProvider).frozen, isFalse);
+      });
+
+      testWidgets('THE SWITCH IS REPORTED BEFORE THE RESET WIPES ITS CONTEXT',
+          (tester) async {
+        // A pro→casual bail a few seasons in is the signal that Pro is too
+        // hard rather than too rare, and every field that says so — the
+        // division, the season, the matches played — is about to be thrown
+        // away by `resetState`. Logged after it, the event carries a fresh
+        // save's zeroes and says nothing.
+        final sent = <({String name, Map<String, Object?> params})>[];
+        setAnalyticsSink((name, params) => sent.add((name: name, params: params)));
+        addTearDown(() => setAnalyticsSink(null));
+
+        await pumpSettings(
+          tester,
+          SettingsTab.match,
+          mutate: (s) {
+            _prestiged(s);
+            (s['progression'] as Map<String, dynamic>)['matchesPlayed'] = 42;
+          },
+        );
+        await tester.tap(find.text(t('settings.difficulty.hard')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('coach-action-difficulty.switch.confirm')),
+        );
+        await tester.pumpAndSettle();
+        await settleSave(tester);
+
+        final e = sent.singleWhere((e) => e.name == 'difficulty_switch');
+        // `standard`, not `casual`: the mode was renamed in the UI and this
+        // value deliberately was not, so the funnel stays comparable with
+        // everything recorded before the rename.
+        expect(e.params['from'], 'standard');
+        expect(e.params['to'], 'pro');
+        expect(e.params['source'], 'settings');
+        expect(e.params['matches_played'], 42);
       });
 
       testWidgets('and backing out changes nothing at all', (tester) async {

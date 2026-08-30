@@ -108,7 +108,122 @@ void Function(Object?, bool, StackTrace?)? setCrashSink(
 /// **Native builds report `(not set)` without this**, because the whole app is
 /// one Activity — so the screen dimension, which is the one that says where
 /// people are when they leave, is empty unless it is sent by hand.
+/// **`screen_class` rides along with it.** GA4's screen reports group by the
+/// class and fall back to the name, so a build that sends only the name leaves
+/// half of every screen report empty. The JS sends both — `screenClassOverride`
+/// on native, the two reserved params on web — for exactly that reason.
+///
+/// The name is also kept for [currentScreen], because the one dimension
+/// `app_backgrounded` needs is where the player was when they left.
 void logScreen(String? screen) {
   if (screen == null || screen.isEmpty) return;
-  logAppEvent('screen_view', {'screen_name': screen});
+  _currentScreen = screen;
+  logAppEvent('screen_view', {
+    'screen_name': screen,
+    'screen_class': screen,
+  });
+}
+
+String? _currentScreen;
+
+/// The last screen [logScreen] was told about, or null before the first one.
+///
+/// Read by the session events rather than tracked a second time beside them:
+/// the JS keeps its own `_activeTab` off a bus event, which is a second copy of
+/// a fact this function already has and a second place for it to go stale.
+String? get currentScreen => _currentScreen;
+
+/// Forget the current screen. For tests, which must not leak one into the next.
+void resetCurrentScreen() => _currentScreen = null;
+
+/// Where a user-scoped dimension goes. Null drops them, which is what a test
+/// wants.
+void Function(String key, Object? value)? _props;
+
+/// Where the stable player id goes. Null drops it.
+void Function(String id)? _userId;
+
+/// A user id set before the backend was ready, applied once it is.
+///
+/// The JS caches one for the same reason: `setAnalyticsUserId` is called from
+/// the boot path with the save in hand, and `initAnalytics` is a network-shaped
+/// future that has usually not resolved yet. Without the cache the id was set
+/// on a sink that dropped it, and every session started anonymous.
+String? _pendingUserId;
+
+/// Send user properties to [sink]. Returns the one being replaced.
+void Function(String, Object?)? setUserPropsSink(
+  void Function(String, Object?)? sink,
+) {
+  final previous = _props;
+  _props = sink;
+  return previous;
+}
+
+/// Send the user id to [sink]. Returns the one being replaced.
+///
+/// Installing a sink flushes any id cached before it arrived.
+void Function(String)? setUserIdSink(void Function(String)? sink) {
+  final previous = _userId;
+  _userId = sink;
+  if (sink != null && _pendingUserId != null) {
+    final id = _pendingUserId!;
+    _pendingUserId = null;
+    try {
+      sink(id);
+    } catch (_) {
+      // Best-effort, as everywhere else here.
+    }
+  }
+  return previous;
+}
+
+/// **The dimensions every event in the session is sliced BY.**
+///
+/// An event says what happened; a user property says who it happened to, and
+/// without them a funnel cannot answer the only question anyone asks of one —
+/// whether the players dropping out are the new ones or the established ones.
+/// Firebase caps a property at 24 per project, so this is a small fixed set:
+/// `current_division`, `total_seasons`, `is_vip`, `prestige_level`,
+/// `game_mode`, `signed_in`. The JS's own six.
+///
+/// **`game_mode` sends `standard` for Casual**, not `casual`. The mode was
+/// renamed in the UI and the event value deliberately was not, so the funnel
+/// stays comparable with everything recorded before the rename — the same rule
+/// the `difficulty_switch` event follows. See the JS's `CLAUDE.md`.
+void setUserProps(Map<String, Object?> props) {
+  final sink = _props;
+  if (sink == null) return;
+  for (final entry in props.entries) {
+    try {
+      sink(entry.key, _sanitise(entry.value));
+    } catch (_) {
+      // Deliberately swallowed — a broken sink must not fail a game action.
+    }
+  }
+}
+
+/// **The retention identity, which survives what the automatic one does not.**
+///
+/// Pass the stable per-player id (`state.leaderboard.playerId` — a UUID minted
+/// on first boot and cloud-synced), NOT the auth uid: `playerId` exists for
+/// every player from the first session including those who never sign in, so
+/// cohorts stitch across app-instance-id resets, updates, reinstalls and
+/// platforms. Requires GA4 Reporting Identity = Blended.
+///
+/// Safe to call before the backend is up — see [_pendingUserId].
+void setAnalyticsUserId(Object? userId) {
+  final id = '${userId ?? ''}';
+  if (id.isEmpty) return;
+  final trimmed = id.length <= 256 ? id : id.substring(0, 256);
+  final sink = _userId;
+  if (sink == null) {
+    _pendingUserId = trimmed;
+    return;
+  }
+  try {
+    sink(trimmed);
+  } catch (_) {
+    // Best-effort.
+  }
 }

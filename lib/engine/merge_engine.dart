@@ -259,9 +259,15 @@ MergeResult attemptMerge(
   }
 
   if (announce) {
+    final into = getDefinition(def.mergesInto);
     emit('merge:complete', {
       'newCard': newCard,
-      'newDef': getDefinition(def.mergesInto),
+      'newDef': into,
+      // The tier the card BECAME, for the `merge` analytics event. A plain
+      // count cannot tell the tutorial's first merge from the one that makes a
+      // Football Icon, and the definition is already in hand here — a listener
+      // re-deriving it would be a second lookup of the same fact.
+      'tier': into?.tier ?? 0,
     });
   }
   return MergeResult(ok: true, action: MergeAction.merge, result: newCard);

@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 Map<String, dynamic> stateWith({int coins = 100000, bool freeScout = false}) {
@@ -431,6 +432,61 @@ void main() {
 
       expect(settleAutoSales(s, batch.placed).sold, 0);
       expect(heard, isEmpty);
+    });
+  });
+
+  group('WHAT A SCOUT REPORTS', () {
+    late List<({String name, Map<String, Object?> params})> sent;
+
+    setUp(() {
+      sent = [];
+      setAnalyticsSink((name, params) => sent.add((name: name, params: params)));
+    });
+
+    tearDown(() => setAnalyticsSink(null));
+
+    List<({String name, Map<String, Object?> params})> scouts() =>
+        sent.where((e) => e.name == 'scout').toList();
+
+    test('ONE EVENT PER CARD, so the count survives batching', () {
+      // A batch of four reports four scouts, which is what keeps the series
+      // comparable with every scout recorded before batching existed.
+      signPlayers(stateWith(), 4);
+      expect(scouts(), hasLength(4));
+      expect(scouts().first.params['batch_size'], 4);
+    });
+
+    test('the cost is BANDED as well as raw', () {
+      // It scales with the division, so the raw figure is nearly unique per
+      // player and useless as a dimension on its own.
+      signPlayer(stateWith());
+      final e = scouts().single;
+      expect(e.params['cost'], isA<num>());
+      expect(e.params['cost_bucket'], isA<String>());
+      expect(e.params['division'], 'sunday_league');
+    });
+
+    test('A FREE SCOUT SAYS SO, and costs nothing', () {
+      signPlayer(stateWith(freeScout: true));
+      final e = scouts().single;
+      expect(e.params['is_free'], 1);
+      expect(e.params['cost'], 0);
+    });
+
+    test('a scout with no voucher on it reports tier 0, not a missing param',
+        () {
+      // A missing param and a zero are different rows on a dashboard.
+      signPlayer(stateWith());
+      expect(scouts().single.params['voucher_tier'], 0);
+    });
+
+    test('AND A SIGNING THAT NEVER HAPPENED REPORTS NOTHING', () {
+      // The draw can fail on a full grid, and an event for a card that did not
+      // land would inflate the numerator of every scout funnel.
+      final s = stateWith(coins: 0);
+      final result = signPlayer(s);
+      expect(result.ok, isFalse);
+      expect(scouts(), isEmpty);
     });
   });
 }

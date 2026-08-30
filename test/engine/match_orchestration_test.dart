@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/match_events.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -715,6 +716,42 @@ void main() {
         () => bestFormationForFixture(state, divisionId: 'regional_league'),
         returnsNormally,
       );
+    });
+  });
+
+  group('WHAT A MATCH REPORTS', () {
+    late List<({String name, Map<String, Object?> params})> sent;
+
+    setUp(() {
+      sent = [];
+      setAnalyticsSink((name, params) => sent.add((name: name, params: params)));
+    });
+
+    tearDown(() => setAnalyticsSink(null));
+
+    ({String name, Map<String, Object?> params}) played() =>
+        sent.singleWhere((e) => e.name == 'match_played');
+
+    test('EVERY MATCH REPORTS ONCE, from the one function they all go through',
+        () {
+      // `match_played` is the JS's name and this is the JS's moment — at
+      // KICK-OFF, where the counters it carries have just been written. The
+      // full-time path is a screen, and a screen can be left.
+      final state = _state(division: 'regional_league', seasonMatchesPlayed: 4);
+      simulateMatch(state, 'regional_league');
+      expect(sent.where((e) => e.name == 'match_played'), hasLength(1));
+      expect(played().params['division'], 'regional_league');
+      expect(played().params['season_match'], 5);
+    });
+
+    test('the outcome is one of exactly three words', () {
+      simulateMatch(_state(), 'regional_league');
+      expect(played().params['outcome'], anyOf('win', 'draw', 'loss'));
+    });
+
+    test('and the venue rides along, because home advantage is +3', () {
+      simulateMatch(_state(), 'regional_league');
+      expect(played().params['is_home'], anyOf(0, 1));
     });
   });
 }

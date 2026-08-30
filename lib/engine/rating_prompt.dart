@@ -17,6 +17,8 @@
 /// Flutter-free: the sheet itself is `services/store_review.dart`.
 library;
 
+import 'package:merge_empire_fc/util/event_bus.dart';
+
 /// Lifetime matches before the first ask. A player who has not finished eight
 /// games has not seen enough of it to have a view.
 const int ratingMatchThreshold = 8;
@@ -37,6 +39,8 @@ Map<String, dynamic>? _rating(Map<String, dynamic> state) {
 }
 
 int _int(Object? v) => v is num ? v.toInt() : 0;
+
+Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
 /// The three checks every trigger shares: not opted out, not inside the
 /// cooldown, not over the lifetime cap.
@@ -90,12 +94,28 @@ Map<String, dynamic> _ensure(Map<String, dynamic> state) {
 /// Call when FIRING the sheet, not when the player answers it: the OS never
 /// tells us what they chose, so the count and the cooldown have to be spent on
 /// the asking.
-void recordRatingShown(Map<String, dynamic> state, {int? now}) {
+void recordRatingShown(
+  Map<String, dynamic> state, {
+  int? now,
+  String trigger = 'match',
+}) {
   final r = _ensure(state);
   final at = now ?? DateTime.now().millisecondsSinceEpoch;
-  r['promptCount'] = _int(r['promptCount']) + 1;
+  final count = _int(r['promptCount']) + 1;
+  r['promptCount'] = count;
   r['lastPromptAt'] = at;
   r['nextPromptAt'] = at + ratingCooldownMs;
+  // **Reported from HERE because this is the one function both paths go
+  // through.** The JS logs `rating_shown` at each of its two call sites, and
+  // the port has the same two — a good win and a promotion. One event emitted
+  // where the count is actually spent cannot drift from it, and `prompt_count`
+  // is the field that says whether the lifetime cap is working.
+  emit('rating:shown', {
+    'promptCount': count,
+    'trigger': trigger,
+    'matchesPlayed':
+        (_map(state['progression'])?['matchesPlayed'] as num?)?.toInt() ?? 0,
+  });
 }
 
 /// `later` | `never` | `done`. Kept because the SETTINGS row still produces one

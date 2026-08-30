@@ -46,6 +46,7 @@ import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
@@ -1145,6 +1146,24 @@ MatchResult simulateMatch(
     'isHome': isHome,
     'opponentName': opponentName,
   };
+
+  // **`match_played`, the JS's own event, at the JS's own moment.** It is
+  // logged at KICK-OFF rather than at full time, which looks like the wrong
+  // end and is deliberate: this is the one function every match goes through,
+  // league and cup alike, and the counters it has just written are exactly the
+  // fields the event carries. The full-time path is a screen, and a screen can
+  // be left.
+  //
+  // The consequence, which the JS shares: a tactic change re-simulates the
+  // remainder, so `outcome` is the scoreline as it stood when the whistle blew
+  // to START. Both apps report it the same way, so the series is comparable
+  // with itself — which is what a funnel is for.
+  logAppEvent('match_played', {
+    'division': '${prog['currentDivision'] ?? 'unknown'}',
+    'outcome': won ? 'win' : (drawn ? 'draw' : 'loss'),
+    'is_home': isHome,
+    'season_match': matchNum + 1,
+  });
 
   // `match:complete` is deliberately NOT emitted here — the UI fires it at full
   // time, after the animation, so achievement banners and sound effects don't

@@ -42,6 +42,7 @@ import 'package:merge_empire_fc/ui/screens/settings_audio_row.dart';
 import 'package:merge_empire_fc/ui/screens/settings/pyramid_editor_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 
 /// Is the OS refusing to deliver, while the player thinks it is not?
 ///
@@ -285,6 +286,26 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           labelKey: 'difficulty.switch.confirm',
           tone: CoachTone.decline,
           onTap: () {
+            // **REPORTED BEFORE THE RESET WIPES THE CONTEXT**, which is the
+            // JS's own order and its own reasoning: a pro→casual bail, and
+            // especially one a few seasons in, is the signal that Pro is too
+            // hard rather than too rare, and every field that says so is about
+            // to be thrown away. `standard` rather than `casual` is deliberate
+            // — the mode was renamed in the UI and this value was not, so the
+            // funnel stays comparable with pre-rename data.
+            final state = ref.read(gameProvider).state;
+            final progression = state?['progression'];
+            final wasHard = _map(state?['settings'])?['hardMode'] == true;
+            logAppEvent('difficulty_switch', {
+              'from': wasHard ? 'pro' : 'standard',
+              'to': hard ? 'pro' : 'standard',
+              'source': 'settings',
+              'division':
+                  '${_map(progression)?['currentDivision'] ?? 'unknown'}',
+              'season': _map(progression)?['seasonCount'] ?? 0,
+              'matches_played': _map(progression)?['matchesPlayed'] ?? 0,
+              'prestige_level': _map(state?['prestige'])?['level'] ?? 0,
+            });
             writeSetting(ref, 'hardMode', hard);
             ref.read(gameProvider).resetState();
             // Same reason the reset rows do it: landing back on the Settings

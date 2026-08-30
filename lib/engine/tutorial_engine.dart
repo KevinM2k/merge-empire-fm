@@ -255,10 +255,19 @@ void advanceTutorial(Map<String, dynamic> state) {
   final id = from >= 0 && from < tutorialSteps.length
       ? tutorialSteps[from].id
       : 'unknown';
-  if (from == 0) logAppEvent('tutorial_begin', {'step_id': id});
-  logAppEvent('tutorial_step_complete', {'step_id': id, 'step_index': from});
+  // **The JS's four names, not tidier ones.** The port ships into the same
+  // Firebase project under the same app id, so a renamed event ends the series
+  // FC has been filling and starts a new one at the update boundary — see the
+  // head of `services/analytics_wiring.dart`.
+  if (from == 0) {
+    logAppEvent('tutorial_started', {
+      'resumed_at_step': id,
+      'resumed_at_index': from,
+    });
+  }
+  logAppEvent('tutorial_step_viewed', {'step_id': id, 'step_index': from});
   if (tut['done'] == true) {
-    logAppEvent('tutorial_complete', {'steps': tutorialSteps.length});
+    logAppEvent('tutorial_completed', {'steps': tutorialSteps.length});
   }
 }
 
@@ -275,9 +284,9 @@ void skipTutorial(Map<String, dynamic> state) {
   // a finished script — which would file every skip in the game under nothing.
   final step = tutorialStepFor(state);
   tut['done'] = true;
-  logAppEvent('tutorial_skip', {
-    'step_id': step?.id ?? 'unknown',
-    'step_index': _num(tut['step'])?.toInt() ?? 0,
+  logAppEvent('tutorial_skipped', {
+    'at_step_id': step?.id ?? 'unknown',
+    'at_step_index': _num(tut['step'])?.toInt() ?? 0,
   });
 }
 

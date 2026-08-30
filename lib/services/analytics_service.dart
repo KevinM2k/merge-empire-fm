@@ -78,6 +78,32 @@ Future<void> startAnalytics() async {
             .catchError((_) {}),
       );
     });
+    // **The user-scoped half, which the port did not have at all.** Every event
+    // above says what happened; these say who it happened to, and a funnel
+    // without them cannot tell a new player's drop-off from an established
+    // one's. See `util/analytics.dart`.
+    setUserPropsSink((key, value) {
+      unawaited(
+        analytics
+            .setUserProperty(name: key, value: '$value')
+            .catchError((_) {}),
+      );
+    });
+    setUserIdSink((id) {
+      unawaited(analytics.setUserId(id: id).catchError((_) {}));
+      // Mirrored onto Crashlytics so a crash report names which player it hit.
+      // Guarded on its own: the crash sink is installed below and may not
+      // exist at all on a build with no Crashlytics pod.
+      try {
+        unawaited(
+          FirebaseCrashlytics.instance
+              .setUserIdentifier(id)
+              .catchError((_) {}),
+        );
+      } catch (_) {
+        // Best-effort.
+      }
+    });
   } catch (_) {
     // Leave the default sink, which drops.
   }

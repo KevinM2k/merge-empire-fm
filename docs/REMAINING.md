@@ -8386,6 +8386,70 @@ of buttons that error.
       **Dev builds send nothing**, which is the JS's own first line: production
       dashboards stay clean and a developer playing for an afternoon does not
       look like a very engaged user.
+- [x] Firebase Analytics — the EVENTS. **The sink shipped; the JS's event list
+      did not.** The row above built the pipe and `analytics_wiring.dart` filled
+      it with a vocabulary invented here, so the port sent `merge_complete`,
+      `match_complete` and `season_complete` where the shipped app has always
+      sent `merge`, `match_played` and `season_end` — and sent nothing at all
+      for eighteen others.
+      **A renamed event is not a tidier name for the same series.** The port
+      ships under `com.mergeempirefc.app`, the primary key of the published app,
+      against the same `merge-empire-fc` Firebase project — so an updating
+      device carries on writing into the property FC has been filling for its
+      whole life. Renaming ENDS a series and starts another at the update
+      boundary, which reads on the dashboard as every established player
+      abruptly stopping and a cohort of strangers arriving. The JS's `CLAUDE.md`
+      already states this rule for one event — `difficulty_switch` still sends
+      `standard` for a mode the UI renamed to Casual "so the funnel stays
+      comparable with pre-rename data" — and this is the general case of it.
+      So every name is now the JS's. Events with no JS counterpart are
+      ADDITIONS rather than renames and stay (`season_start`,
+      `achievement_unlocked`, `quest_*`, `cup_won`, `cup_eliminated`,
+      `login`/`logout`, `ad_stack_blocked`, `att_status`), as do the extra
+      params on ported events — `ad_platform` and `personalised` are half of an
+      eCPM, and a param nothing reads costs a dashboard nothing.
+      **The USER-SCOPED half did not exist at all**, which is the largest single
+      gap: no `setUserProperty` and no `setUserId` anywhere in `lib/`. An event
+      says what happened and a user property says who it happened to, so without
+      the six (`current_division`, `total_seasons`, `is_vip`, `prestige_level`,
+      `game_mode`, `signed_in`) a funnel cannot answer the only question anyone
+      asks of one — whether the players dropping out are the new ones or the
+      established ones. The id is `leaderboard.playerId`, NOT the auth uid: it
+      exists for every player from first boot including those who never sign in,
+      so cohorts stitch across app-instance-id resets, updates and reinstalls.
+      It is cached until the backend is up, because the boot path has the save
+      in hand long before `startAnalytics` resolves — without that every session
+      started anonymous.
+      **`app_boot` cannot be fired where `startAnalytics` is.** That runs in
+      `main` before the store is read, so every save-derived field would be
+      `unknown`; `game_host` fires it once `boot()` has a save, which is the
+      JS's own two-step. Its opposite number `app_backgrounded` is the session's
+      last event and the churn question's only real answer — what the player was
+      in the middle of when they put the phone down. `time_since_action_s` is
+      **-1** rather than 0 when nothing was ever done, which is the JS's
+      encoding: a player who opened the app and did nothing is the single most
+      interesting row in that event and a zero would file them beside somebody
+      who had just merged.
+      **`match_played` is logged at KICK-OFF, which looks like the wrong end.**
+      It is the JS's moment: `simulateMatch` is the one function every match
+      goes through, league and cup alike, and the counters it has just written
+      are the event's fields. The full-time path is a screen and a screen can be
+      left. The consequence is shared with the JS — a tactic change re-simulates
+      the remainder, so `outcome` is the scoreline as it stood at the whistle to
+      START — so the series is comparable with itself, which is what a funnel is
+      for. `match:close` therefore reports nothing now: a paramless second event
+      per match beside it would double every match count.
+      **`ad_shown` became the JS's three.** One event with an `outcome` param is
+      the tidier shape and the wrong one here, for the renaming reason above.
+      **The two feedback events are deliberately NOT ported.**
+      `feedback_modal_shown` and `feedback_submitted` are unreachable in the JS
+      too — `openFeedbackModal` has no caller there, the Settings button having
+      been removed before it ever shipped — so building a modal to carry them
+      would be adding a feature rather than porting one. They arrive with the
+      button, if it ever comes back.
+      Nothing here is high-frequency: `merge:happened` fires per merge and
+      `coins:updated` per tick, so neither reports — an event per frame is a
+      bill and a rate limit rather than a measurement.
 - [x] `authService` (662) — **the portable half is PORTED.** The rest of that
       file is Firebase Auth's own lifecycle, and this build has no Firebase SDK:
       the leaderboard and cloud save reach Firestore over plain HTTPS and a

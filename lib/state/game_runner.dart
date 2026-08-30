@@ -104,7 +104,12 @@ class GameRunner {
     // side and every reader substitutes the club's name, so an empty name is
     // also a fixture list with a hole in it.
     if (state['clubName'] is! String || (state['clubName'] as String).isEmpty) {
-      state['clubName'] = generateClubName();
+      final auto = generateClubName();
+      state['clubName'] = auto;
+      // The JS counts this: a club named for the player never saw the naming
+      // card, so it is the branch of that funnel where the card is not the
+      // thing to look at.
+      emit('club:name-auto-assigned', {'nameLength': auto.length});
     }
     grantTutorialGems(state);
     // The season quest track, which nothing rolled outside the season boundary:

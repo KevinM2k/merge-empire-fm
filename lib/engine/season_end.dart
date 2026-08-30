@@ -623,7 +623,7 @@ typedef PrestigeResult = ({
 
 /// Start a new adventure: back to Sunday League, with a permanent income
 /// multiplier and everything hard-currency intact.
-PrestigeResult performPrestige(Map<String, dynamic> state) {
+PrestigeResult performPrestige(Map<String, dynamic> state, {bool toPro = false}) {
   if (!canPrestige(state)) {
     return (ok: false, gemsAwarded: 0, level: 0, multiplier: 1);
   }
@@ -757,6 +757,12 @@ PrestigeResult performPrestige(Map<String, dynamic> state) {
   emit('prestige:complete', {
     'level': newLevel,
     'multiplier': newMultiplier,
+    // **Analytics only, and it rides the event rather than being read off the
+    // save.** The caller writes `settings.hardMode` AFTER this returns — see
+    // the ordering note in `ui/popups/prestige_card.dart` — so a listener
+    // asking the save would always get the pre-switch answer and the whole
+    // `difficulty_switch` funnel would read as nobody ever choosing Pro.
+    'toPro': toPro,
     // The season the new adventure starts in — always one, and carried anyway
     // so the line that announces it reads the event rather than reaching back
     // into a save the reset has just rewritten.
