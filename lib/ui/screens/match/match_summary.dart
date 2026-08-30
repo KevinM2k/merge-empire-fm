@@ -29,6 +29,7 @@ import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
+import 'package:merge_empire_fc/ui/widgets/report_scroll.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
     show CutawayClip, CutawayStage, clipFor, lineupNames, cardDisplayName;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart'
@@ -225,7 +226,12 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
           child: Column(
             children: [
               Expanded(
-                child: ListView(
+                // **CENTRED WHEN IT IS SHORT** — see `report_scroll.dart`. A
+                // ListView puts a stack of cards at the top of its viewport and
+                // the money block below is pinned, so a report that did not
+                // fill the phone left 125 points of nothing between the manager
+                // and the payout.
+                child: ReportScroll.list(
                   padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
                   children: [
                     // **ONE BOX, not three things loose around one.** The
@@ -301,25 +307,30 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                       child: Row(
                         key: const ValueKey('summary-reaction-row'),
                         crossAxisAlignment: CrossAxisAlignment.stretch,
+                        // **AND HE IS NOT LEFT STANDING IN A CORNER.** With no
+                        // quests the other half of the row was an empty
+                        // `Expanded`, so the shot sat in a 120-point column
+                        // against the left edge with two thirds of the row
+                        // blank beside it — one small square and a lot of
+                        // nothing, which is the worst-looking thing on the
+                        // page. A cup tie and an early match both land here.
+                        mainAxisAlignment: hasQuests
+                            ? MainAxisAlignment.start
+                            : MainAxisAlignment.center,
                         children: [
                           SizedBox(
                             width: 120,
                             child: _Manager(result: result),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: hasQuests
-                                ? GlassPanel(
-                                                                        padding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      10,
-                                      12,
-                                      12,
-                                    ),
-                                    child: QuestOutcomes(result: result),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
+                          if (hasQuests) ...[
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GlassPanel(
+                                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                                child: QuestOutcomes(result: result),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -1108,8 +1119,18 @@ class QuestOutcomes extends StatelessWidget {
                             ? glassText(context)
                             : glassText(context).withValues(alpha: 0.8),
                         fontSize: 12,
+                        height: 1.25,
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      // **IT WRAPS, and is not cut off.** "Keep a clean sh…"
+                      // and "Score inside 20 mi…" is the full-time report
+                      // telling the player they missed something without
+                      // saying what — and the verdict beside it is the widest
+                      // thing on the row, so on a narrow phone every ask lost
+                      // its end. The same call `_QuestTile` on the next-match
+                      // card already makes about the same sentences: this is a
+                      // column that can grow a line, so there is nothing to
+                      // protect by clipping it.
+                      softWrap: true,
                     ),
                   ),
                   const SizedBox(width: 8),

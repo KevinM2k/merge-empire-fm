@@ -1,5 +1,14 @@
 # The Shop Screen Implementation Plan
 
+> **DELIVERED — this is history, not a queue.** The checkboxes below are the
+> plan-execution skill's own workflow steps ("write the failing test", "run it",
+> "commit") and were never ticked as the work went in. They are not open tasks:
+> `lib/ui/screens/shop/` is fifteen files with ten test files against it. The tech-stack line still says Flutter
+> 3.38.3, which is two minors behind what this repo is pinned to, and is the
+> clearest sign of how long ago this ran. Kept whole because the plan and its
+> spec are the record of WHY the module is shaped the way it is.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** The first real tab body — seven shop sections, with the two that spend coins and gems fully live and the five that need M4's billing or AdMob rendered with real prices and disabled controls.

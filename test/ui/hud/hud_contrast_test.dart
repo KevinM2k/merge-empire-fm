@@ -4,6 +4,15 @@
 /// raw, and `glass.dart` says in as many words that "every coloured thing ON
 /// glass goes through this — a raw hue there is a bug by construction".
 ///
+/// **THE FIGURES HAVE MOVED ONTO THE ICONS' CONTRACT.** They were ramped, which
+/// is what this file was written to assert — and ramping is by construction a
+/// colour that changes with the pane, so the coins, the gems and the energy read
+/// one colour on a dark page, another on a light one, and another again on the
+/// next club. Reported in one line: they should be the same everywhere. So a
+/// figure is now a fixed white with a halo in daylight, exactly as a wallet glyph
+/// is a fixed hue with a halo in daylight, and what this file asserts about them
+/// is that they do not move.
+///
 /// **The wallet ICONS are the exception, and they are the interesting half.** You
 /// cannot fix a bright hue by darkening it: yellow is intrinsically light, so
 /// taking gold to 4.5:1 against a near-white pane lands on `#665600` — a dark
@@ -17,8 +26,15 @@
 /// person picks a new hue.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/save_slots.dart';
+import 'package:merge_empire_fc/state/save_store.dart';
+import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
@@ -43,13 +59,11 @@ void main() {
         home: Builder(
           builder: (context) {
             final kit = Theme.of(context).extension<KitTheme>()!;
-            out['figure'] = glassAccent(context, kit.accentBright);
+            // The COG still ramps, and it is the only thing in the bar that
+            // does: it carries no meaning in its colour, so on a kit whose
+            // accent is the glass's own hue it was the one control you could
+            // not find.
             out['cog'] = glassAccent(context, kit.accentBright);
-            out['energyFigure'] = glassAccent(
-              context,
-              energyInk(context, energy, 10, kit.accentBright),
-            );
-            out['cap'] = glassMuted(context);
             return const SizedBox.shrink();
           },
         ),
@@ -58,8 +72,37 @@ void main() {
     return out;
   }
 
+  /// The real bar, in a theme the test picks rather than the save's.
+  Future<void> pumpBar(WidgetTester tester, {required bool light}) async {
+    final container = ProviderContainer(
+      overrides: [
+        saveStoreProvider.overrideWithValue(
+          MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(gameProvider).load();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          // Keyed, so a second pump in the other theme is a new tree rather
+          // than a lerp away from the first.
+          key: ValueKey(light),
+          theme: buildAppTheme(kitId: '#4caf50', light: light),
+          home: const MediaQuery(
+            data: MediaQueryData(size: Size(400, 800)),
+            child: Scaffold(body: Hud()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 800));
+  }
+
   group('on a light pane', () {
-    testWidgets('every ink in the bar clears the small-text threshold', (
+    testWidgets('the cog still clears the small-text threshold', (
       tester,
     ) async {
       // Across the kits, because the accent is the club's and half of them are
@@ -85,37 +128,107 @@ void main() {
         }
       }
     });
+  });
 
-    testWidgets('and so does the energy ladder at every step of it', (
-      tester,
-    ) async {
-      // Green, amber and red are all bright by design — they are warnings — and
-      // bright is exactly what a bright pane cannot show.
-      for (final energy in const [10, 8, 4, 1, 0]) {
-        final inks = await hudInks(
-          tester,
-          kitId: '#4caf50',
-          light: true,
-          energy: energy,
-        );
-        expect(
-          paneContrast(inks['energyFigure']!),
-          greaterThanOrEqualTo(paneContrastTarget),
-          reason: 'at $energy energy',
-        );
+  group('THE FIGURES DO NOT MOVE', () {
+    testWidgets('the same ink on every theme and every kit', (tester) async {
+      // The whole of the report. A figure that is one colour on the dark page
+      // and another on the light one is not the same figure, and the club's
+      // accent made it a third on the next save.
+      // Each figure IS its glyph's ink, which is the one palette in this bar
+      // already proven against both panes.
+      expect(hudFigureInk, hudCoinInk);
+      expect(energyInk(10, 10), hudEnergyInk);
+      for (final kitId in const ['#4caf50', '#fdd835', 'humbug']) {
+        for (final light in const [true, false]) {
+          final inks = await hudInks(tester, kitId: kitId, light: light);
+          // The cog is the only ink in here and it is the only one that ramps;
+          // the figures are constants, which is the whole claim.
+          expect(inks.keys, ['cog'], reason: kitId);
+        }
       }
     });
 
-    testWidgets('the cap is quieter than the figure, but still readable', (
-      tester,
-    ) async {
-      final inks = await hudInks(tester, kitId: '#4caf50', light: true);
-      // It was the figure's own colour at 60% alpha — under the threshold, so
-      // "11/10" read as "11" and a smudge.
+    testWidgets('and the coins and the gems really carry it', (tester) async {
+      // At the call site rather than at the constant: the bar has to actually
+      // use it, in both themes.
+      for (final light in const [true, false]) {
+        await pumpBar(tester, light: light);
+        for (final (key, ink) in const [
+          ('hud-coins', hudCoinInk),
+          ('hud-gems', hudGemInk),
+        ]) {
+          final text = tester
+              .widgetList<Text>(
+                find.descendant(
+                  of: find.byKey(ValueKey(key)),
+                  matching: find.byType(Text),
+                ),
+              )
+              .where((t) => t.style?.fontSize == 13);
+          expect(text, isNotEmpty, reason: '$key in light=$light');
+          for (final t in text) {
+            expect(t.style!.color, ink, reason: '$key light=$light');
+          }
+        }
+      }
+    });
+
+    testWidgets('haloed in daylight, bare at night', (tester) async {
+      // **A halo is not a colour.** The ink is the same white in both themes;
+      // what changes is whether there is something dark behind it, which is
+      // what keeps a fixed ink legible on a pane that is not.
+      // **Keyed and SETTLED, or the answer is a lie.** `MaterialApp` lerps
+      // between themes, and `ThemeData.lerp` keeps the old brightness until
+      // half way — so reading this on the frame after a theme swap returns the
+      // theme you just left.
+      Future<List<Shadow>?> backing({required bool light}) async {
+        List<Shadow>? out;
+        await tester.pumpWidget(
+          MaterialApp(
+            key: ValueKey(light),
+            theme: buildAppTheme(kitId: '#4caf50', light: light),
+            home: Builder(
+              builder: (context) {
+                out = hudFigureShadows(context);
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        return out;
+      }
+
       expect(
-        paneContrast(inks['cap']!),
-        greaterThanOrEqualTo(paneContrastTarget),
+        await backing(light: true),
+        isNotEmpty,
+        reason: 'white on a bright pane needs a backing',
       );
+      expect(
+        await backing(light: false),
+        isNull,
+        reason: 'the pane is already dark',
+      );
+    });
+  });
+
+  group('the energy ladder says how much is LEFT, not what theme it is', () {
+    test('plenty looks like the bolt beside it', () {
+      // Four rungs and the top two both meant "you are fine", one of them in
+      // the club's own accent. A colour LEAVING the violet is the warning now.
+      expect(energyInk(10, 10), hudEnergyInk);
+      expect(energyInk(8, 10), hudEnergyInk);
+    });
+
+    test('and a colour only appears when there is something to say', () {
+      expect(energyInk(4, 10), hudEnergyLowInk);
+      expect(energyInk(1, 10), hudEnergyEmptyInk);
+      expect(energyInk(0, 10), hudEnergyEmptyInk);
+    });
+
+    test('a tank with no cap cannot be low', () {
+      expect(energyInk(0, 0), hudEnergyInk);
     });
   });
 
@@ -185,11 +298,20 @@ void main() {
   });
 
   group('the energy ladder', () {
-    test("its own greens are the reason the figures are ramped", () {
-      expect(
-        paneContrast(const Color(0xFF4ADE80)),
-        lessThan(paneContrastTarget),
-      );
+    test('none of its rungs could ever have been ramped', () {
+      // The numbers behind the decision rather than the decision on its own:
+      // the ladder's colours are WARNINGS, which is to say bright, and bright
+      // is exactly what a bright pane cannot show. Ramping them to the text
+      // threshold takes an amber to a brown; the halo is what a warning gets
+      // instead, the same as the glyphs.
+      for (final ink in const [
+        Color(0xFF4ADE80),
+        hudEnergyInk,
+        hudEnergyLowInk,
+        hudEnergyEmptyInk,
+      ]) {
+        expect(paneContrast(ink), lessThan(paneContrastTarget));
+      }
     });
   });
   group('AND WHATEVER IS BEHIND IT CANNOT SHOW THROUGH', () {

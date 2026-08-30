@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/engine/age_verification.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
 import 'package:merge_empire_fc/engine/cloud_save_policy.dart';
+import 'package:merge_empire_fc/providers/boot_gate.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/services/cloud_sync.dart';
 import 'package:merge_empire_fc/ui/popups/cloud_conflict_card.dart';
@@ -164,7 +165,26 @@ class _GameHostState extends ConsumerState<GameHost>
   /// first frame.** A boot that waited on the network to draw would pay for it
   /// on every launch, and the fallback at every step is the save already on the
   /// device.
+  /// **AND IT LETS THE SPLASH GO when it is done**, whichever way it went.
+  ///
+  /// The boot draws immediately and this is still fired and forgotten — none
+  /// of that changes. What changes is that the splash, which is already on
+  /// screen and already going to fade, now knows when the save has stopped
+  /// moving. Without it the two halves of the boot ran past each other and a
+  /// restore landing a beat late swapped the whole save out from under a
+  /// player already looking at their squad. See `providers/boot_gate.dart`,
+  /// which also holds the timeout that stops this becoming a trap.
   Future<void> _restoreSessionAndCloud() async {
+    try {
+      await _restoreSessionAndCloudNow();
+    } finally {
+      // A restore that failed, went offline or returned early is still a
+      // restore that has finished.
+      ref.read(bootGateProvider).settle();
+    }
+  }
+
+  Future<void> _restoreSessionAndCloudNow() async {
     // The card is the UI's half of the decision; the sync service holds the
     // seam so nothing below this layer has to know one exists.
     conflictPrompt = (cloud, local) async {

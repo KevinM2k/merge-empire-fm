@@ -1,7 +1,10 @@
 /// Which way the game is going, on the pitch it is going on.
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
@@ -66,6 +69,114 @@ void main() {
       isNot(equals(home.painter)),
       reason: 'the same arrow at home and away',
     );
+  });
+
+  group('AND WHERE IT SITS IS THE OTHER HALF OF THE READING', () {
+    // **"The location of the arrow should show the dominance — closer to them
+    // if I'm dominating."** The sign of the bias had a test and the POSITION
+    // never did, which is why the row sat waiting on a screenshot: the one
+    // thing it asks about was the one thing nothing checked. Measured off the
+    // painted pixels rather than off the painter's fields, so what is asserted
+    // is what a player actually sees.
+    const boxWidth = 200.0;
+
+    /// The centre of mass of everything the arrow paints, in logical pixels.
+    Future<double> paintedCentre(
+      WidgetTester tester, {
+      required double bias,
+      required bool attackingRight,
+    }) async {
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: RepaintBoundary(
+              key: key,
+              child: SizedBox(
+                width: boxWidth,
+                height: 120,
+                child: MomentumArrow(
+                  bias: bias,
+                  attackingRight: attackingRight,
+                  ours: const Color(0xFF4ADE80),
+                  theirs: const Color(0xFFE07A5F),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      late double centre;
+      await tester.runAsync(() async {
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        final image = await boundary.toImage();
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        final bytes = data!.buffer.asUint8List();
+        var weight = 0.0;
+        var moment = 0.0;
+        for (var y = 0; y < image.height; y++) {
+          for (var x = 0; x < image.width; x++) {
+            final alpha = bytes[(y * image.width + x) * 4 + 3] / 255;
+            weight += alpha;
+            moment += alpha * x;
+          }
+        }
+        expect(weight, greaterThan(0), reason: 'the arrow painted nothing');
+        centre = moment / weight / image.width * boxWidth;
+      });
+      return centre;
+    }
+
+    testWidgets('OUR spell puts it in THEIR half of the strip', (tester) async {
+      // Attacking right, our goal is on the left and theirs on the right.
+      final ours = await paintedCentre(
+        tester,
+        bias: 0.9,
+        attackingRight: true,
+      );
+      expect(ours, greaterThan(boxWidth / 2 + 5));
+
+      // And away, where the ends are swapped, it goes the other way for the
+      // same spell — the arrow follows the GOAL, not the screen.
+      final away = await paintedCentre(
+        tester,
+        bias: 0.9,
+        attackingRight: false,
+      );
+      expect(away, lessThan(boxWidth / 2 - 5));
+    });
+
+    testWidgets('and THEIR spell puts it in OURS', (tester) async {
+      expect(
+        await paintedCentre(tester, bias: -0.9, attackingRight: true),
+        lessThan(boxWidth / 2 - 5),
+      );
+    });
+
+    testWidgets('THE HARDER THE SPELL, THE FURTHER IT GOES', (tester) async {
+      // The whole of "the location shows the dominance": it is a slider, not a
+      // switch. Monotone all the way out.
+      var last = double.negativeInfinity;
+      for (final bias in const [0.0, 0.25, 0.5, 0.75, 1.0]) {
+        final at = await paintedCentre(
+          tester,
+          bias: bias,
+          attackingRight: true,
+        );
+        expect(at, greaterThan(last), reason: 'at bias $bias');
+        last = at;
+      }
+    });
+
+    testWidgets('and a level game leaves it in the middle', (tester) async {
+      expect(
+        await paintedCentre(tester, bias: 0, attackingRight: true),
+        closeTo(boxWidth / 2, 2),
+      );
+    });
   });
 
   testWidgets('the arrow draws, and redraws when the game swings', (

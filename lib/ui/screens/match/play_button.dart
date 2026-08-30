@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/ui/screens/match/cup_result_cards.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
+import 'package:merge_empire_fc/ui/screens/home/play_freeze.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_button.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
@@ -138,7 +139,29 @@ class PlayMatchButton extends ConsumerWidget {
   /// What holds the popup queue shut for the length of a match.
 
 
+  /// Tap to full time, with the Play page HELD across all of it.
+  ///
+  /// **The fixture index moves at KICK-OFF** — `simulateMatch` writes
+  /// `seasonMatchesPlayed` the instant the whistle goes, because the cooldown
+  /// and the fixture list need it while the popup animates. That points the
+  /// card and the caption at the NEXT game one frame later, with this page
+  /// still on screen behind the match route's transition: reported as the
+  /// next-match card's numbers changing for a second when Play is tapped.
+  ///
+  /// A wrapper rather than a `try` round the body, so the photograph is taken
+  /// before ANY branch touches the save — the cup path included — and released
+  /// on every way out of it, exception or not. See `play_freeze.dart`.
   Future<void> _play(BuildContext context, WidgetRef ref) async {
+    final freeze = ref.read(playFreezeProvider.notifier);
+    freeze.hold();
+    try {
+      await _playFixture(context, ref);
+    } finally {
+      freeze.release();
+    }
+  }
+
+  Future<void> _playFixture(BuildContext context, WidgetRef ref) async {
     final game = ref.read(gameProvider);
     // A cup tie takes precedence when one is due. Cups sit BETWEEN league games,
     // so this does not cost the league a fixture — it inserts a match.
@@ -147,8 +170,24 @@ class PlayMatchButton extends ConsumerWidget {
       return;
     }
 
+    // **THE NAVIGATOR, CAPTURED BEFORE THE SAVE MOVES — and this is a bug
+    // rather than tidiness.** `simulateMatch` sets `seasonComplete` at kick-off
+    // on the fourteenth match, and `build` swaps this very widget for
+    // [EndSeasonButton] the moment it does. So on the last match of a season
+    // THIS BUTTON'S CONTEXT IS UNMOUNTED before the whistle, and every
+    // `context.mounted` guard below it fell through: the money landed, and then
+    // the bid, the sponsor, the rating prompt and the season summary were all
+    // skipped in silence. It read as a flaky test — the widget rebuilds on a
+    // frame, so whether the chain survived depended on timing — which is what
+    // made it worth chasing.
+    //
+    // The navigator outlives every route it is holding, so it is what the tail
+    // of this chain asks. `season_end_button.dart` carries the same note for
+    // the same reason: the play area is the FIRST thing to disappear.
+    final navigator = Navigator.of(context);
+
     final result = game.update(beginMatch);
-    if (result == null || !context.mounted) return;
+    if (result == null || !navigator.mounted) return;
 
     // **Nothing pops over a match.** The JS suppresses coach tips on
     // `match:open`; blocking the QUEUE covers every popup rather than only that
@@ -161,7 +200,7 @@ class PlayMatchButton extends ConsumerWidget {
     // passed it. Null until the whistle; a match closed any other way falls
     // through to the push below.
     Future<void>? summary;
-    await Navigator.of(context).push<void>(
+    await navigator.push<void>(
       MatchRoute(
         builder: (_) => MatchScreen(
           result: result,
@@ -183,16 +222,33 @@ class PlayMatchButton extends ConsumerWidget {
     // watched, so what lands is what the screen last said.
     if (summary != null) {
       await summary;
-    } else if (context.mounted) {
-      await showMatchSummary(context, result);
+    } else if (navigator.mounted) {
+      await showMatchSummary(navigator.context, result);
     }
     game.update((s) => payMatch(s, result));
 
-    if (!context.mounted) {
+    if (!navigator.mounted) {
       unblockPopups(matchPopupBlocker);
       return;
     }
-    await _afterMatch(context, ref, result);
+    await _afterMatch(navigator.context, ref, result);
+
+    // **THE FOURTEENTH MATCH ENDS THE SEASON, so the game must not hand back a
+    // Play tab that cannot play.** `settleMatch` sets `seasonComplete` at full
+    // time, and the only thing that ever acted on it was the button this
+    // screen swaps in — so the player was returned to a save whose one legal
+    // move was to press End Season, and was free to wander the rest of the app
+    // first. Reported as being allowed to carry on when the season is over.
+    //
+    // HERE rather than in a listener on the flag: this is the moment it can
+    // become true, the chain above has already had its say, and a push from a
+    // provider watcher would land on top of whatever route happened to be up.
+    // Before `unblockPopups`, so nothing queued by the match lands over the
+    // season summary.
+    if (navigator.mounted && ref.read(seasonCompleteProvider)) {
+      await runSeasonEnd(navigator.context, ref);
+    }
+
     // The screen is gone and any bid or sponsor has been answered. **CLOSE, not
     // complete**: a coach tip fired on the whistle would land over the result.
     unblockPopups(matchPopupBlocker);
@@ -365,7 +421,27 @@ class PlayMatchButton extends ConsumerWidget {
     // A finished season is not a refusal to explain, it is a different button:
     // the way on is to close the season, and telling the player "no" without
     // offering it is the dead end this replaced.
-    if (ref.watch(seasonCompleteProvider)) return const EndSeasonButton();
+    //
+    // **BUT NOT WHILE A MATCH IS STILL IN FLIGHT, and that is a bug rather than
+    // a preference.** `simulateMatch` sets `seasonComplete` at KICK-OFF, so on
+    // the fourteenth match this swapped itself out for the end-season button
+    // before the whistle — and the whole post-match chain is an async method of
+    // THIS widget, holding THIS widget's `WidgetRef`. A `WidgetRef` whose
+    // element has been disposed throws the moment it is read, so the tail of
+    // the chain died silently inside a future nobody was awaiting: the money
+    // landed and then the bid, the sponsor, the rating prompt and the season
+    // summary were skipped. Whether it happened at all depended on which frame
+    // the rebuild landed on, which is why it looked like a flaky test rather
+    // than the missing end-of-season screen it actually was.
+    //
+    // The freeze already knows the answer — it is non-null for exactly the
+    // length of the chain — so the button holds still with the page behind it
+    // and swaps once the chain has let go. By then `endSeason` has run and the
+    // flag is false anyway, so what comes back is the Play button.
+    if (ref.watch(seasonCompleteProvider) &&
+        ref.watch(playFreezeProvider) == null) {
+      return const EndSeasonButton();
+    }
 
     final blocked = ref.watch(matchBlockedProvider);
     final pro = ref.watch(hardModeProvider);

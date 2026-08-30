@@ -158,6 +158,18 @@ layer run under plain `dart test` with no widget binding.
   menu — and goes on screen through `enqueuePopup`. A fourth shape is a spec
   change first. The queue drains in priority order and **may never time out or
   discard**: the welcome-back card holds coins that exist nowhere else.
+- **A post-match card is a real dialog the chain is AWAITING**, so a widget test
+  that plays a match has to answer it. `_afterMatch` rolls for a transfer bid
+  and then a sponsor on `Math.random`, so both are there on some runs and not
+  others, and `_playFixture` does not return until one is answered — which
+  leaves the play-button freeze held and the page behind it still showing the
+  OLD fixture. That is the chain being right, and it reads as a flaky caption:
+  two failures in four full-suite runs and none in twelve on its own. **And a
+  Coach Colin card has no barrier**, so the `tapAt(Offset(5, 5))` that parks a
+  bottom sheet walks straight past it; the dismissal is the card's own
+  `coach-action-common.decline`. An `if (…isNotEmpty)` around a step like that
+  is the trap, not the fix — it turns a missed control into a failure forty
+  lines later, in an assertion about something else.
 - **Every user-facing string goes through `t()`.** The key must exist in `en` or
   `test/i18n/call_sites_test.dart` fails the build. `t()` also strips the markup
   the copy was written with — a catalogue `<br>` becomes a newline, `<strong>`

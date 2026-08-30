@@ -1,5 +1,13 @@
 # Screen parity — what the JS has that the port does not
 
+> **Nothing is open.** The last row — lazy card mounting — was conditional
+> rather than outstanding, "only if a profile run asks for it", and the answer
+> is no: nothing reports the grid as slow, so mounting cards lazily would trade
+> a real behaviour for a saving nobody has shown is needed. A conditional row is
+> finished when its condition is answered, and the row carries the note to
+> reopen if a profile run on hardware ever does ask.
+
+
 A control-by-control diff of `../merge-empire-fc/src/ui/` against `lib/ui/`.
 
 **Why this exists.** The port was being built screen by screen and the gaps were
@@ -63,7 +71,17 @@ gaps are in this list.
       **And `tierName` is one function now.** It was private to the player index;
       two copies of "what is this tier called" is how one screen ends up
       translated and the other does not.
-- [ ] Lazy card mounting — only if a profile run asks for it
+- [x] Lazy card mounting — **NOT DOING IT, which is the row's own answer.** It
+      was written conditionally, "only if a profile run asks for it", and no
+      profile run has asked: nothing in the queue reports the grid as slow, and
+      the one row that ever touched the grid's cost was the mergeable-pairs
+      count writing to the save on every rebuild, which was a correctness bug
+      and is fixed. Mounting cards lazily trades a real behaviour — a grid that
+      can be dragged over, measured and screenshotted whole — for a saving
+      nobody has shown is needed.
+      **A conditional row is finished when its condition is answered**, and
+      leaving it open reads as work outstanding rather than as a decision taken.
+      If a profile run on hardware ever does ask, this is the note to reopen.
 - [x] **A COUNT WAS ANNOUNCING MERGES THAT NEVER HAPPENED.** `mergeablePairs`
       answers "what would Merge All eliminate" by running a sweep against a COPY
       of the cells — "asking the question must not answer it" — and the copy

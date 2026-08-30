@@ -24,6 +24,9 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/goalkeeper_practice_screen.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/keeper_view.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart'
+    show backdropRectFor;
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -399,6 +402,193 @@ void main() {
     });
   });
 
+
+  group('THE VIEW IS FROM THE GOAL, LOOKING OUT', () {
+    // It was the forest backdrop with a ball growing on it, so the only thing
+    // in the frame that said where the camera stood was the growth itself.
+    // Reported from the couch in as many words: the posts and the pitch in
+    // front of us, and then exactly what we do now.
+    Size stageOf(double width) => Size(width, width / keeperStageAspect);
+    const view = Size(384, 384 / keeperStageAspect);
+
+    test('the ground runs AWAY from the camera and never past the horizon', () {
+      final horizon = keeperHorizon * view.height;
+      expect(keeperGround(keeperNearDepth(view), view).dy, closeTo(384 / keeperStageAspect, 0.01));
+      var last = double.infinity;
+      for (final depth in [3.0, 5.5, 11.0, 16.5, 30.0, 52.5, 105.0, 400.0]) {
+        final y = keeperGround(depth, view).dy;
+        expect(y, lessThan(last), reason: '$depth m');
+        expect(y, greaterThan(horizon), reason: '$depth m');
+        last = y;
+      }
+    });
+
+    test('and the markings stack in the order a keeper sees them', () {
+      // Nearest first — the six-yard line, the box, the halfway line — and all
+      // of it between the bottom edge and the treeline.
+      expect(
+        keeperGround(sixYardDepth, view).dy,
+        greaterThan(keeperGround(boxDepth, view).dy),
+      );
+      expect(
+        keeperGround(boxDepth, view).dy,
+        greaterThan(keeperGround(halfwayDepth, view).dy),
+      );
+      expect(keeperGround(sixYardDepth, view).dy, lessThan(view.height));
+      expect(
+        keeperGround(farGoalDepth, view).dy,
+        greaterThan(keeperHorizon * view.height),
+      );
+    });
+
+    test('THE PENALTY AREA IS THE ONE MARKING WHOLLY IN FRAME', () {
+      // What the lens is tuned against: its front corners are the widest thing
+      // that has to be in the picture.
+      for (final side in [-1.0, 1.0]) {
+        final x = keeperProject(side * boxHalfWidth, 0, boxDepth, view).dx;
+        expect(x, greaterThan(0));
+        expect(x, lessThan(view.width));
+      }
+      // And the six-yard box is NOT, because it is nearer and so angularly
+      // wider — its corners are off the sides, which is why it reads as a line
+      // across the grass rather than as a box. A lens that fitted them would
+      // leave the penalty area a small rectangle in the middle of the frame.
+      expect(
+        keeperProject(sixYardHalfWidth, 0, sixYardDepth, view).dx,
+        greaterThan(view.width),
+      );
+      expect(
+        keeperProject(-sixYardHalfWidth, 0, sixYardDepth, view).dx,
+        lessThan(0),
+      );
+    });
+
+    test('and everything converges on straight ahead', () {
+      for (final depth in [5.5, 16.5, 52.5, 400.0]) {
+        expect(keeperGround(depth, view).dx, view.width / 2, reason: '$depth m');
+      }
+    });
+
+    test('ONE LENS, NOT TWO — a square metre is SQUARE', () {
+      // **The fault the goal frame made visible.** The scene used to scale
+      // sideways by the frame's width and downward by its height, which is two
+      // different lenses, so every shape was stretched by whatever the stage's
+      // aspect happened to be. On a portrait stage that stretch is vertical and
+      // large: a 3:1 goal came out taller than wide.
+      for (final width in [284.0, 384.0, 600.0]) {
+        final v = stageOf(width);
+        for (final depth in [5.0, 16.5, 40.0]) {
+          final across =
+              keeperProject(0.5, 0, depth, v).dx -
+              keeperProject(-0.5, 0, depth, v).dx;
+          final up =
+              keeperProject(0, 0, depth, v).dy -
+              keeperProject(0, 1, depth, v).dy;
+          expect(across, closeTo(up, 1e-9), reason: 'at $width, $depth m');
+        }
+      }
+    });
+
+    test('A GOAL IS WIDER THAN IT IS TALL', () {
+      // Reported in one line: it is a soccer goal. The frame IS the goal — see
+      // the note on the wide lens for why the posts cannot be projected — so
+      // the mouth it leaves has to read as one.
+      for (final width in [260.0, 284.0, 320.0, 384.0, 412.0, 600.0]) {
+        final v = stageOf(width);
+        final mouthWide = (keeperMouthRight - keeperMouthLeft) * v.width;
+        final mouthTall = v.height - keeperBarBottom * v.width;
+        expect(mouthWide, greaterThan(mouthTall), reason: 'at $width');
+        // And not so wide that there is no goal left to shoot into.
+        expect(mouthWide / mouthTall, lessThan(3.5), reason: 'at $width');
+      }
+    });
+
+    test('and the bar is the same aluminium as the posts', () {
+      // Sizing one off the width and the other off the height made the bar
+      // thinner than the posts by whatever the stage's aspect was — the same
+      // anamorphic fault as the lens, in the one place the eye checks it.
+      expect(keeperBarThick, keeperPostWidth);
+    });
+
+    test("THE TREELINE STANDS ON THE PITCH'S OWN HORIZON", () {
+      // Fitted, the art's own field stands up behind the pitch at a different
+      // perspective — the hill the penalty screen was reported for. Placed, its
+      // ground line IS the seam, and it is one number both of them read.
+      final rect = backdropRectFor(keeperHorizon * view.height, view);
+      // 0.62 is where the Kenney backdrops put their own ground line.
+      expect(
+        rect.top + 0.62 * rect.height,
+        closeTo(keeperHorizon * view.height, 0.5),
+      );
+      // Never narrower than the frame, or there is a gap down each side.
+      expect(rect.width, greaterThanOrEqualTo(view.width));
+    });
+  });
+
+  group('A DRILL STAYS INSIDE THE FRAME', () {
+    test('never behind a post, never over the bar, at any phone width', () {
+      // **The bands are FRACTIONS and the ball is 56 points**, and the two only
+      // ever agreed by luck: on a 384-point stage the far end of the left band
+      // put the ball's edge three tenths of a point inside the right post, and
+      // on a 320-point phone it put fifteen points of the ball BEHIND it.
+      // Nothing said so while the stage was a photograph — a ball near the edge
+      // was just a ball near the edge — and the frame is what makes it a fault.
+      for (final width in [260.0, 284.0, 320.0, 384.0, 412.0, 600.0]) {
+        final stage = Size(width, width / keeperStageAspect);
+        for (var i = 0; i <= 10; i++) {
+          for (var j = 0; j <= 10; j++) {
+            final centre = drillCentre(
+              0.15 + 0.55 * i / 10,
+              0.10 + 0.70 * j / 10,
+              stage,
+            );
+            final why = 'at $width, roll $i/$j';
+            expect(
+              centre.dx - bubbleSize / 2,
+              greaterThanOrEqualTo(keeperMouthLeft * width - 0.01),
+              reason: why,
+            );
+            expect(
+              centre.dx + bubbleSize / 2,
+              lessThanOrEqualTo(keeperMouthRight * width + 0.01),
+              reason: why,
+            );
+            expect(
+              centre.dy - bubbleSize / 2,
+              greaterThanOrEqualTo(keeperBarBottom * stage.width - 0.01),
+              reason: why,
+            );
+            expect(
+              centre.dy + bubbleSize / 2,
+              lessThanOrEqualTo(stage.height + 0.01),
+              reason: why,
+            );
+          }
+        }
+      }
+    });
+
+    test('and the spread it has always had survives a stage that fits', () {
+      // HELD, not re-spread. On a phone wide enough for the bands the ball is
+      // exactly where it has always been — the drill is unchanged and the frame
+      // is only what it cannot leave.
+      const stage = Size(384, 384 / keeperStageAspect);
+      expect(
+        drillCentre(0.15, 0.10, stage),
+        Offset(0.10 * 384 + 28, 0.15 * stage.height + 28),
+      );
+      expect(
+        drillCentre(0.70, 0.80, stage),
+        Offset(0.80 * 384 + 28, 0.70 * stage.height + 28),
+      );
+    });
+  });
+
+  testWidgets('THE POSTS AND THE PITCH ARE ON THE STAGE', (tester) async {
+    await pumpGame(tester);
+    expect(find.byType(KeeperView), findsOneWidget);
+    await closeGame(tester);
+  });
 
   testWidgets('THE GOAL HAS A HORIZON BEHIND IT', (tester) async {
     // `art_paths.dart` says what the backdrops are for in as many words: a goal

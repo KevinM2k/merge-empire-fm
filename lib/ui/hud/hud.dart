@@ -8,8 +8,6 @@ library;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show vsAmberOn, vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
@@ -27,6 +25,7 @@ import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/ui/theme/sky.dart' show nightSceneOf;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -61,25 +60,80 @@ const Color hudCoinInk = Color(0xFFFFD700);
 const Color hudEnergyInk = Color(0xFFA855F7);
 const Color hudGemInk = Color(0xFF22D3EE);
 
+/// A figure takes its own WALLET's ink, and it does not move.
+///
+/// **A NUMBER THAT CHANGES COLOUR IS A DIFFERENT NUMBER.** All three readings
+/// were `glassAccent(context, kit.accentBright)` — the club's accent, put
+/// through the pane's contrast ramp — so the coins, the gems and the energy
+/// were one colour on a dark page, another on a light one, and a third colour
+/// again on the next club. Reported in one line: they should be the same
+/// everywhere.
+///
+/// The bar had already answered this question once, for the GLYPHS, and the
+/// answer is reused rather than re-argued: you cannot fix a bright ink by
+/// darkening it, so the ink is left exactly alone and the BACKING changes —
+/// see [hudFigureShadows].
+///
+/// **A neutral was tried first and it is the interesting failure.** White is
+/// the obvious "one colour everywhere", on the reasoning that the glyph
+/// carries identity and the figure carries information. But the pane swings
+/// from near-white in daylight to near-black at night, and NO neutral survives
+/// both: white on the light pane is a white core inside a dark halo, which
+/// reads as a smudge rather than as a number. The wallet hues are the one
+/// palette in this bar already proven against both panes — that is exactly
+/// what `hud_chip.dart` picked them for — so the figure joins its glyph
+/// instead of standing apart from it, and the pair reads as one object.
+const Color hudFigureInk = hudCoinInk;
+
+/// What a fixed ink needs behind it in daylight.
+///
+/// The same backing the wallet glyphs wear, a little stronger: a 16px glyph is
+/// a solid shape and a 13px numeral is a few thin strokes, so it needs more of
+/// one. Null at night, where the pane is dark and the ink is already the
+/// brightest thing on it.
+///
+/// **A halo is not a colour.** The figure is the same white in both themes —
+/// what changes is whether there is something dark behind it, which is what
+/// keeps a fixed ink legible on a pane that is not.
+List<Shadow>? hudFigureShadows(BuildContext context) => nightSceneOf(context)
+    ? null
+    : const [
+        Shadow(color: Color(0x99102030), blurRadius: 3),
+        Shadow(color: Color(0x66102030), blurRadius: 6),
+      ];
+
+/// The cap beside the energy figure — quiet, and fixed with it.
+///
+/// It was `glassMuted`, which ramps with the pane like everything else did.
+/// The energy hue held back to 62% is the same relationship in a colour that
+/// does not move, and the halo underneath is what carries it in daylight.
+const Color hudCapInk = Color(0x9EA855F7);
+
+/// Energy running LOW, and energy nearly gone. Fixed, and these are the dark
+/// theme's own values — which is what "match the red and green dark mode uses"
+/// has been asking for.
+const Color hudEnergyLowInk = Color(0xFFFF9800);
+const Color hudEnergyEmptyInk = Color(0xFFF87171);
+
 /// The energy figure's colour, full to empty.
 ///
-/// The same ladder the squad's fitness bars use, and the same one the JS puts on
-/// the Pro-mode fitness figure: green while there is plenty, amber when it is
-/// getting thin, red when it is nearly gone. At the cap it takes the kit's own
-/// accent — a full tank is the club's colour rather than a warning of any kind.
-/// **THE PAIR IS THEME-AWARE, and takes a context for it.** The green and the
-/// red were the DARK values, printed unchanged on a light page — which is the
-/// same bug in four places this queue reported at once, always with dark mode
-/// right. `vsGreenOn` / `vsRedOn` have carried both halves since the stat rows
-/// were written; the call sites were the half nobody had gone round.
-Color energyInk(BuildContext context, num current, int max, Color full) {
-  if (max <= 0 || current >= max) return full;
+/// **THE COLOUR ONLY MEANS SOMETHING WHEN IT IS A WARNING.** The ladder used to
+/// have four rungs — the kit's accent at the cap, then green, amber, red — and
+/// the top two both meant "you are fine". So the one figure in the bar whose
+/// colour carries information spent most of its life saying nothing with it,
+/// in a colour that changed with the club and the theme on top.
+///
+/// Three rungs now, and the first of them is the bolt's own violet: plenty
+/// looks like the glyph beside it, and a colour LEAVING that violet is the
+/// warning. No context, because none of it depends on the theme any more.
+Color energyInk(num current, int max) {
+  if (max <= 0) return hudEnergyInk;
   final pct = current / max * 100;
   return pct > 50
-      ? vsGreenOn(context)
+      ? hudEnergyInk
       : pct > 20
-      ? vsAmberOn(context)
-      : vsRedOn(context);
+      ? hudEnergyLowInk
+      : hudEnergyEmptyInk;
 }
 
 /// How many adventures this save has finished — the figure the crest's chip
@@ -181,12 +235,11 @@ class Hud extends ConsumerWidget {
   }
 
   Widget _bar(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    // The figures, through [glassAccent]: 13px of mid-tone accent on a bright
-    // pane is the 2.4:1 case, and these are the numbers the whole bar exists to
-    // show.
-    final valueStyle = TextStyle(
-      color: glassAccent(context, kit.accentBright),
+    // FIXED, and haloed rather than ramped — see [hudFigureInk]. Each figure
+    // wears its own wallet's ink, so the glyph and the number are one object.
+    TextStyle valueStyle(Color ink) => TextStyle(
+      color: ink,
+      shadows: hudFigureShadows(context),
       fontWeight: FontWeight.w700,
       fontSize: 13,
     );
@@ -278,7 +331,7 @@ class Hud extends ConsumerWidget {
                     child: CoinCounter(
                       key: coinChipKey,
                       value: ref.watch(coinsProvider),
-                      style: valueStyle,
+                      style: valueStyle(hudCoinInk),
                       // Swells when a REWARD lands and not when the players'
                       // own trickle does — see `coin_flight.dart`.
                       reward: ref.watch(coinRewardProvider),
@@ -304,34 +357,25 @@ class Hud extends ConsumerWidget {
                         children: [
                           TextSpan(
                             text: '${ref.watch(energyProvider).floor()}',
-                            style: valueStyle.copyWith(
-                              // Through [glassAccent] like every other colour on
-                              // the pane. The ladder's own green is `#4ADE80` —
-                              // 1.9:1 on a bright pane, which is a figure you
-                              // cannot read at all in daylight.
-                              color: glassAccent(
-                                context,
-                                energyInk(
-                                  context,
-                                  ref.watch(energyProvider),
-                                  ref.watch(energyMaxProvider),
-                                  kit.accentBright,
-                                ),
+                            style: valueStyle(
+                              // The one figure whose colour says something —
+                              // and it says it in the same colour on every
+                              // theme and every kit. See [energyInk].
+                              energyInk(
+                                ref.watch(energyProvider),
+                                ref.watch(energyMaxProvider),
                               ),
                             ),
                           ),
                           TextSpan(
                             text: '/${ref.watch(energyMaxProvider)}',
-                            style: valueStyle.copyWith(
+                            style: valueStyle(hudCapInk).copyWith(
                               fontSize: 10,
-                              // **Quiet, not invisible**, and there is already a
-                              // colour for exactly this — `glassMuted`, whose own
-                              // doc names "a progress fraction". It was the
-                              // FIGURE's colour at 60% alpha, and that colour is
-                              // already ramped to the edge of legibility, so 60%
-                              // of it sits under the threshold and the cap read
-                              // as a smudge.
-                              color: glassMuted(context),
+                              // **Quiet, not invisible.** It was `glassMuted`,
+                              // which ramps with the pane like the figures used
+                              // to; [hudCapInk] is the same relationship to the
+                              // figure in a colour that does not move, and it
+                              // keeps the halo underneath.
                             ),
                           ),
                         ],
@@ -348,7 +392,7 @@ class Hud extends ConsumerWidget {
                     onTap: () => showCurrencySheet(context, ShopSection.gems),
                     child: Text(
                       '${ref.watch(gemsProvider)}',
-                      style: valueStyle,
+                      style: valueStyle(hudGemInk),
                     ),
                   ),
                   HudChip(

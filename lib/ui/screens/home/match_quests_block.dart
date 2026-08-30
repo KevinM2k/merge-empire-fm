@@ -147,25 +147,73 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                 // already makes about the quest text — this is a column that can
                 // grow a line, so there is nothing to protect by clipping it, and
                 // a wrapped title beats a cut one.
-                Flexible(
-                  child: Text(
-                    t('quests.match').toUpperCase(),
-                    softWrap: true,
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      height: 1.2,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.8,
-                      color: glassMuted(context),
-                    ),
+                // **EXPANDED, not Flexible-plus-Spacer, and that pairing is
+                // the rest of why the total sat short.** `Flexible` is a LOOSE
+                // fit: the heading is given a share of the free space and then
+                // sizes to its own content, so whatever it does not use is
+                // dead space inside its own slot — space the `Spacer` after it
+                // never sees. On a short heading that is most of the row, and
+                // the figure at the end stopped sixty points from the edge
+                // that every quest reward below it is flush against.
+                // **THE CHEVRON GOES WITH THE HEADING, and the total goes to
+                // the EDGE.** The chevron used to sit after the figure, which
+                // pushed the header's total a chevron's width in from the
+                // right while every quest row below it put its own payout hard
+                // against that edge — so the one figure that is the SUM of that
+                // column did not line up with it. Reported as the total needing
+                // to move further right; there was nowhere for it to go until
+                // the chevron moved. It reads as well or better beside the
+                // heading anyway: a disclosure arrow belongs to the thing it
+                // opens.
+                //
+                // **EXPANDED, not Flexible-plus-Spacer, and that pairing is the
+                // rest of why the total sat short.** `Flexible` is a LOOSE fit:
+                // the heading is given a share of the free space and then sizes
+                // to its own content, so whatever it does not use is dead space
+                // inside its own slot — space the `Spacer` after it never sees.
+                // On a short heading that is most of the row.
+                //
+                // The pair goes INSIDE that expanded slot so the arrow hugs the
+                // words rather than floating out beside the figure, and the
+                // slack falls between them and the total.
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          t('quests.match').toUpperCase(),
+                          softWrap: true,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            height: 1.2,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                            color: glassMuted(context),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      // Down when there is more to see, right when it is shut —
+                      // the chevron is the same glyph rotated, so the two
+                      // states cannot drift apart as shapes.
+                      AnimatedRotation(
+                        turns: _collapsed ? 0 : 0.25,
+                        duration: const Duration(milliseconds: 160),
+                        child: GameIcon(
+                          'chevron',
+                          size: 12,
+                          color: glassMuted(context),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
                 if (total > 0) ...[
                   const CoinIcon(size: 11, onGlass: true),
                   const SizedBox(width: 2),
                   Text(
                     '+${formatCoins(total)}',
+                    key: const ValueKey('match-quests-header-total'),
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w900,
@@ -184,19 +232,6 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                     ),
                   ),
                 ],
-                const SizedBox(width: 4),
-                // Down when there is more to see, right when it is shut — the
-                // chevron is the same glyph rotated, so the two states cannot
-                // drift apart as shapes.
-                AnimatedRotation(
-                  turns: _collapsed ? 0 : 0.25,
-                  duration: const Duration(milliseconds: 160),
-                  child: GameIcon(
-                    'chevron',
-                    size: 12,
-                    color: glassMuted(context),
-                  ),
-                ),
               ],
             ),
           ),

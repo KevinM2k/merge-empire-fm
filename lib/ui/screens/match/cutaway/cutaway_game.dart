@@ -745,6 +745,23 @@ class CutawayGame extends FlameGame {
     ball.position.setFrom(spot);
     ball.loft = 0;
 
+    // **THE TAKER STANDS OVER IT**, and this is the last place the ball moved
+    // with nobody at it. He was never told to stop: his target was still the
+    // spot the DRIBBLE beat gave him, so for the beat of stillness the wall
+    // needs he walked on past the ball — measured at 5.2 units, which is a
+    // figure's own width — and then it flew off the empty grass behind him.
+    // Watched from the couch that is "the ball still sometimes moving with no
+    // player near them".
+    //
+    // **A target is not enough, because a `Mover` COASTS.** Arriving damps the
+    // velocity at 6 per second rather than dropping it, so a man told to stand
+    // where he already is still slides several units past it. `frozen` is what
+    // the wall beside him uses and it is the same instruction: he has just been
+    // scythed down, and stopping dead is what that looks like.
+    attackers[carrier]
+      ..target = spot
+      ..frozen = true;
+
     // The wall: four defenders between the ball and the goal, ten yards off it,
     // and they stop thinking — a wall that kept tracking the ball would jog
     // out of the way of the shot it exists to block.
@@ -767,6 +784,9 @@ class CutawayGame extends FlameGame {
 
   bool _freeKickTaken = false;
   double _freeKickDelay = 0;
+
+  /// Whether the ball is spotted for a free kick and not yet struck.
+  bool get freeKickPending => _freeKickDelay > 0;
 
   /// Bumped the instant the ball is STRUCK — see [_shoot].
   ///
@@ -886,6 +906,9 @@ class CutawayGame extends FlameGame {
     if (_freeKickDelay > 0) {
       _freeKickDelay -= dt;
       if (_freeKickDelay <= 0) {
+        // On his feet the instant he has struck it: the plant is for the WAIT,
+        // and a scorer who cannot run is a celebration that does not happen.
+        attackers[carrier].frozen = false;
         // Curled, and harder than open play — that is what a free kick is.
         _shoot(const Finish('longshot'));
       }

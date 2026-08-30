@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/report_scroll.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -194,7 +195,10 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
+              // **CENTRED WHEN IT IS SHORT** — see `report_scroll.dart`. The
+              // foot below is pinned, so a season that fits left 420 points of
+              // nothing between the last card and it: half the page.
+              child: ReportScroll(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(13, 10, 13, 14),
                   child: Column(
