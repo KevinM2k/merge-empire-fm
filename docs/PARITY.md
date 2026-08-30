@@ -1,5 +1,14 @@
 # Screen parity — what the JS has that the port does not
 
+> **One row is open and it is conditional rather than outstanding.** "Lazy card
+> mounting — only if a profile run asks for it" is gated on a measurement that
+> needs physical hardware, and that measurement is its own row in
+> `REMAINING.md` ("profile-mode timings on physical hardware"). It is not work
+> waiting to be done; it is work that must not be done on a guess, because
+> mounting cards lazily trades a real behaviour for a saving nobody has shown
+> is needed yet.
+
+
 A control-by-control diff of `../merge-empire-fc/src/ui/` against `lib/ui/`.
 
 **Why this exists.** The port was being built screen by screen and the gaps were
