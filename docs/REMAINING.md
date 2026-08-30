@@ -112,9 +112,56 @@ never the copy or the surface, it was the NUMBERS**, and a number invented here
 would have been balance passed off as a port.
 
 So if you are running where `../merge-empire-fc` exists, read the blocked list
-above as a work queue rather than as a wall. The ones that stay blocked there are
-the ones that need NEW COPY — `en.js` plus a `gen_i18n.mjs` run — which is a
-different kind of blocked and is called out where it applies.
+above as a work queue rather than as a wall. **Even the NEW COPY ones**, which
+this file has been calling a second, harder kind of blocked: `en.js` plus a
+`gen_i18n.mjs` run is exactly what the spec repo being on disk buys you. Two of
+them came off that way in one sitting — the transfer card's "Review later" and
+the duplicated "Living Legend" achievement.
+
+**AND RUN `gen_i18n.mjs` EARLY WHEN YOU FIRST GET THE SPEC REPO, before you need
+it.** Regenerating is the only thing that compares the port's catalogue against
+its source, and the first run after a long gap is a diff worth reading rather
+than a formality. This one found two things nothing else would have:
+
+- **Four keys with live callers in `lib/` did not exist in `en.js` at all** —
+  `settings.comingSoon` (seven call sites), `match.full_time`, `match.half_time`
+  and `play.season_over`. They had been hand-added to the generated `.g.dart`
+  files in all ten languages. A regeneration DELETES them, and
+  `call_sites_test.dart` then fails the build on copy that had been on screen
+  for months. They are in `en.js` and the nine other catalogues now.
+- **Five strategy strings had been hand-patched the same way** — see the Counter
+  Attack row further down, which had been closed on the strength of grepping the
+  generated file.
+
+Both are the same mistake in two places: `.g.dart` was edited by hand because
+the source was unreachable. It is reachable now, and both are fixed at the
+source. The rule the repo already had — *nothing ending `.g.dart` is edited by
+hand* — is not style; it is the only thing that makes a regeneration safe.
+
+**The node FIXTURES are worth the same sweep, and the answer there was mostly
+NO.** With the spec repo on disk every `tool/dump_*_reference.mjs` can be re-run
+and compared, which was never possible from a cloud container. Doing it, five of
+them differ from the fixture in `test/fixtures/` — and **none of the five fails a
+test, and none is a stale rule.** They are, as far as they were looked at:
+
+- `utils` and `tactic_coach` — last-digit float noise
+  (`0.32775630966003133` against `0.3277563096600313`), i.e. a different node
+  build, not a different answer.
+- `manager_looks` — the `normalized.nullish` case comes back with a different
+  outfit and face each run, so that dump is not deterministic.
+- `iap` — the tool emits a LIST of products where the stored fixture is an
+  object keyed `fixedNow`; the two have different SHAPES, so the fixture was not
+  produced by the tool in its current form.
+- `game_state` — differences inside the serialised save strings.
+
+**Do not regenerate them to make the diff go away.** Three of the five would bake
+node-version float noise or a non-deterministic draw into a file whose whole job
+is to be the JS's answer. The one actually worth a look is `iap`, where a
+tool and its own fixture disagree about the shape of the output — that is either
+a tool that moved without its fixture or a fixture nothing regenerates, and
+either way the parity test passing does not mean what it looks like it means.
+`achievements` was the sixth, was genuinely stale, was caused by the rename in
+this pass, and is regenerated.
 
 **HIS READ ON OUR OWN SQUAD** — `squadstate.*`, thirteen keys and forty-odd
 sentences in ten languages, with no file in `lib/` so much as mentioning the
@@ -243,7 +290,7 @@ the shape of what is left is worth knowing before picking one:
 | playtesting, 19–27 Aug | 45 | mostly yes |
 | M1 logic core / M3 UI | 11 | yes |
 | M4 services | 16 | **no** — AdMob, Firebase, Play Billing, StoreKit |
-| M5 i18n | 2 | needs the spec repo's `en.js` |
+| M5 i18n | 2 | **yes now** — the spec repo's `en.js` is on disk |
 | M6 release / M7 cutover | 9 | **no** — signing, both consoles, staged rollout |
 | open questions | 5 | decisions and physical hardware |
 
@@ -2732,15 +2779,22 @@ has a trap in it that is worth stating before the first line is written.
       hand-drawn would have to be drawn and checked twelve times. In the
       GENERATOR, not the `.g.dart`.
 - [x] **Counter Attack's description is WRONG, and it is wrong in the JS too.**
-      **Fixed upstream and already in the port's catalogue.** `en.js` now reads
-      "Sits deep and reads the opponent: your attack climbs against a side that
-      commits forward and drops against a deep block. Widest spread of results.
-      Underdog pick." — which is the true line this entry proposed, word for
-      word. High Press's is corrected too: "the most open at the back" is in it
-      now.
-      The row is closed by CHECKING rather than by doing: the string lives in
-      the generated catalogue, the generation has been run since, and a grep is
-      the whole verification.
+      Fixed — but **this row was closed once on a premise that was false, and
+      that is the part worth keeping.** It read "fixed upstream and already in
+      the port's catalogue", and the second half was true while the first was
+      not: with `../merge-empire-fc` on disk at origin HEAD, `en.js` still had
+      the old wrong lines. The corrected text existed only in the port's
+      **generated** `.g.dart`, where somebody had hand-patched it — so the next
+      `gen_i18n.mjs` run put the wrong copy back, and the row that verified the
+      fix was the reason nobody would have looked.
+      It is genuinely upstream now: `strategy.counterAttack.hint`/`.desc`,
+      `strategy.highPress.hint`/`.desc` and `strategy.parkTheBus.hint` all carry
+      the corrected English in `en.js`, and a regeneration reproduces the
+      port's catalogue instead of reverting it.
+      **The general lesson: "a grep is the whole verification" is only true if
+      you grep the SOURCE.** Grepping a generated file proves what was generated
+      last time, not what will be generated next time — and the two had already
+      diverged here.
 
 ### Consistency, and how far it got
 
@@ -5210,13 +5264,17 @@ already done are marked; the rest are the queue.
       `transfer.market.below` — five band names, translated ten times over with
       nothing able to reach one of them — are the chip beside the figure, and
       the thresholds are Colin's own so the chip and his read cannot disagree.
-- [~] **"Minimise" should say "Review"** — and a minimised bid needs a way back.
-      **The way back is built**: `transfer.pill_label` — "Transfer offer — tap
-      to review", another string with no caller — is a pill in the shell above
-      the tab bar, so a parked bid follows the player across every tab. The
-      RENAME is the half that cannot be done here: the catalogues are generated
-      from `../merge-empire-fc`'s own `en.js`, so "Review" has to start there
-      and be regenerated.
+- [x] **"Minimise" should say "Review"** — and a minimised bid needs a way back.
+      **The way back was already built**: `transfer.pill_label` — "Transfer
+      offer — tap to review", another string with no caller — is a pill in the
+      shell above the tab bar, so a parked bid follows the player across every
+      tab. **The RENAME is done too**, upstream in `en.js` and all nine other
+      catalogues and regenerated: `transfer.minimize` reads **"Review later"**.
+      Not the bare "Review" this row asked for, and the difference is the
+      control rather than the copy — in the port the key is the SEMANTICS label
+      on the `−` glyph that parks the card, so "Review" would promise a screen
+      reader that the button opens something. "Review later" says what it does
+      and keeps the pill's own vocabulary.
 - [x] **And it must not open over the result.** The idle roll opened the card
       the instant the tick announced one, wherever the player was — the
       full-time summary included. It goes through `enqueuePopup` now, which
@@ -6257,8 +6315,8 @@ missing second choices.
       returns**, which is the dugout cam's trap in a new place. Reduced motion
       stops the clock and leaves the pill at full strength, so the test pumps
       under that policy — and so does any future test that has a bid parked.
-      (The RENAME to "Review" is a separate, still-blocked item — new copy, so
-      `en.js`.)
+      (The RENAME is done — "Review later", upstream in `en.js`. See the bid
+      window section.)
 - [x] **AND THE TARGETED PLAYER NEEDS HIGHLIGHTING ON THE SQUAD PAGE.**
       `BidTargetMark` — a ring and the pill's own 💸 — over whatever it wraps,
       so the pitch's `PitchToken` and the bench's `PlayerCard` wear the same
@@ -7713,13 +7771,17 @@ so the current behaviour is visible and a deliberate change is a one-line edit.
       incomplete — the prestige achievements are explicitly zeroed with a
       comment saying why, so somebody has been through it and the gaps may be
       deliberate. It stays open as a balance question for the manager.
-- [~] **Two achievements are both called "Living Legend"** — `prestige_level_10`
-      and `merge_to_legend`. **Verified: the clash is the JS's.**
-      `data/achievements.js` gives `prestige_level_10` the literal title and
-      `en.js` gives `ach.title.merge_to_legend` the same words, so the port
-      carries it faithfully. Fixing it is a change to `en.js` plus a
-      `gen_i18n.mjs` run and nine translations — a spec-repo change, not a port
-      one.
+- [x] **Two achievements were both called "Living Legend"** — `prestige_level_10`
+      and `merge_to_legend`. The clash was the JS's: `data/achievements.js` gave
+      `prestige_level_10` the literal title and `en.js` gives
+      `ach.title.merge_to_legend` the same words, so the port carried it
+      faithfully. **Fixed upstream**, and it cost no translation at all, which
+      is why it went the way it did: `prestige_level_10` has NO `ach.title` key
+      (it is one of the twenty of eighty-one that fall back to the data file),
+      so renaming that side is two lines and renaming the other would have been
+      ten. It is **"Immortal"** now, which also tops its own ladder — Legend
+      Reborn, Dynasty, Eternal Dynasty, Immortal — and `merge_to_legend`, the
+      translated one, keeps Living Legend.
 - [~] **`vipPrestigeLinked` is dead code, and the comment above `vip_pass`
       describes it as live.** **Verified against the spec and the port is right
       about the contradiction**: `iapEngine.js` has both branches, and the

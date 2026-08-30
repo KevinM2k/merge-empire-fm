@@ -7,31 +7,35 @@ keeping.
 
 ## Where this queue stands
 
-**86 done, 0 open.** Every row has been taken as far as this repository can
-take it, and the three kinds of thing that are not this repository's are named
-at the foot of the file rather than left sitting in the queue as tasks nobody
-here can do: the SHAPES that belong to `../merge-empire-fc`, and the two
-questions and one credential-and-privacy decision that belong to you.
+**86 done, 0 open — and the four UPSTREAM rows are now done too.** The spec repo
+was cloned alongside this one, so the shapes that could never be fixed from here
+have been: see the Upstream section, which is a record rather than a queue now.
+Everything else had already been taken as far as this repository can
+take it, and what is left at the foot of the file is the part that was never
+code in either repo: two questions and one credential-and-privacy decision that
+belong to you.
 
-That split is the point. A queue that carries "redraw the laurel" and "buy a
-sandbox purchase" forever is a queue whose count means nothing; the four art
-rows in particular were half this repo's and half the spec's, and the half that
-was ours turned out to be provable — the placement is measured and pinned now,
-so what is left of them really is upstream.
+That split is the point, and the art rows are what proved it. A queue that
+carries "redraw the laurel" and "buy a sandbox purchase" forever is a queue
+whose count means nothing; the four art rows were half this repo's and half the
+spec's, and separating the halves is what made both fixable. The half that was
+ours turned out to be provable rather than believed — the placement is measured
+and pinned. The half that was the spec's sat as "upstream" exactly as long as
+the spec was not on disk, and was a morning's work once it was.
 
 The kinds, for what is now all ticked:
 
-- **The four ART rows are CLOSED, and that is the change worth reading.** They
-  were carried as blocked on the spec repo, and being blocked was the right
-  answer to the wrong half of the question. `manager_art.g.dart`'s SHAPES are
-  upstream and cannot move from here — that part was always true — but where
-  each shape LANDS is measurable in this repo and was only ever believed.
-  `manager_art_fit_test.dart` measures every hat and every beard through the
-  production renderer and holds it: the headband and the laurel reach the crown
-  and stop at the brow, every beard is inside the skull's own span, and the two
-  that hang below the chin are named. So the port's half is finished and
-  proved, and the shapes are on the upstream list at the foot of this file
-  rather than sitting in a port queue that cannot act on them.
+- **The four ART rows are CLOSED at both ends now.** They were carried as
+  blocked on the spec repo, and being blocked was the right answer to the wrong
+  half of the question. Where each shape LANDS is measurable here and was only
+  ever believed: `manager_art_fit_test.dart` measures every hat and every beard
+  through the production renderer and holds it. What the shapes THEMSELVES look
+  like was genuinely upstream — and with the spec repo on disk, three of them
+  have been redrawn there and regenerated, and the fourth was answered by
+  rendering it. See the Upstream section at the foot of this file for what each
+  fault actually was; the short version is that the headband was drawn over the
+  crown, the laurel had its leaves centred on its own stem, and the coat and the
+  suit had no fastenings and no contrast to show them with.
 - **Two want a SCREENSHOT, down from five**, and how the three went is the
   lesson. The grey buttons on the Play tab were answered WITH a screenshot: the
   tab rendered in light mode on four kits, every button wearing the kit and
@@ -223,36 +227,70 @@ Shop
 
 
 ---
+## Upstream — `../merge-empire-fc` — **DONE**
 
-## Upstream — `../merge-empire-fc`
+**The spec repo was cloned alongside this one, so this section is no longer a
+list of things nobody here can do.** All four rows are closed: three were
+redrawn in `src/data/managerAvatar.js` and regenerated into
+`lib/data/manager_art.g.dart`, and the fourth was a look question that has been
+answered by looking.
 
-**Not a port queue and not blocked work: these are changes to the SPEC**, which
-is a different repository. They are listed here because four rows of the queue
-above were half this repo's and half this one's, and carrying the upstream half
-as an open port task made the count a lie — it can never be ticked from here,
-however long it sits.
+What each turned out to be, because the faults were more specific than "doesn't
+look right":
 
-Each is a SHAPE in `src/data/managerAvatar.js`. The port draws all four exactly
-where that file puts them, which `manager_art_fit_test.dart` now measures and
-holds; what the couch is reacting to is the drawing itself.
+- **The headband — it was drawn over the CROWN.** Its apex sat at y34.5 against
+  a skull top of y36, so the band arced over the top of his head and read as a
+  swim cap. `managerAvatar.js`'s own `HAIR_COVERED_BY` comment calls it "a strap
+  across the brow with the whole crown open above it", and `hatCrownY` in this
+  repo classifies it as a band that "hides nothing above itself" — the geometry
+  contradicted both. It was also lopsided: six coordinates off their mirror by
+  0.2–0.5, which on a 25-unit head is a visible tilt. Redrawn flat across the
+  brow, symmetric to the last decimal, top at y39 so three units of scalp stay
+  open above it and the lower edge clears the eye by 3.1.
+- **The laurel was a bead chain, not a wreath.** Nine fat ellipses (rx3 ry1.7 —
+  a blob, not a leaf) sat centred ON the stem, so the stem never showed and the
+  whole thing read as one lumpy sausage; its middle leaf was at -4° where every
+  other angle was mirrored, leaving a 28° hole on one side against 16–20°
+  everywhere else. Now ten pointed leaves, five a side, generated from one leaf
+  path so the branches mirror exactly, each flared 22° outward of the tangent —
+  which lifts them off the stem so the branch shows, points every leaf up toward
+  the crown, and lands all ten tips on one circle of r13.48, i.e. a clean outer
+  edge 1.0 proud of the skull. The two innermost leaves cross at the front, so
+  the branches MEET the way a real wreath's do.
+- **The coat and the suit were slabs, and the geometry was only half of why.**
+  Both garments had no opening, no collar, no buttons and no fastening — a coat
+  is *read* through its front edge and a suit through its lapels, and neither
+  had one. The coat now carries a collar revere at each shoulder, a wrap edge
+  down the front with four buttons, a real belt with a buckle, a hip pocket, a
+  back vent and a hem band; the suit has proper notch lapels, a shortened shirt
+  break (y70 rather than y76), a knotted tie, a waist button, a hip pocket and a
+  hem shadow onto the trousers. The other half was CONTRAST: `--lapel` #272b36
+  on `--jacket` #333846 is a shade apart, and at this size a shade apart is
+  invisible — both lapels and both collar revers simply did not render. They get
+  a hairline of light along the edge now (`GARMENT_EDGE`), which is the same
+  trick `SCARF_EDGE` already used in that file for the same reason.
+- **The `full` and `braided` beards are RIGHT, and that row is closed by
+  looking.** They reach y72.8 against a chin at y61, which the bounding box
+  could only report as "twelve units below the chin" — the row's own point was
+  that a long beard and a misplaced one measure the same. Rendered against the
+  chin line they attach correctly at the jaw and read as what they are: a big
+  rounded beard and a viking braid, both clearly distinct from the shorter
+  `beard`. No change; the manager confirmed the look.
 
-- **The headband.** A crescent across the brow, apex y34.5, ends at the temples.
-  It reaches the crown and stops on the brow, so it is placed correctly — it is
-  the band's own outline that reads wrong.
-- **The laurel.** A stroked arc with nine ellipses hung off it. Placed
-  correctly; the wreath's shape is the question.
-- **The coat and the suit.** A coat's skirt and a suit's lapels. The port owns
-  the palette (`outfitPalettes`) and the layering, and both are done — the arm
-  is drawn over the garment now. The garment's outline is upstream.
-- **`full` and `braided` beards** reach y72.8, about twelve units below a chin
-  at y61. Measured and named rather than fixed, because a long beard and a
-  misplaced one look identical to a bounding box. **This one is a LOOK rather
-  than a bug** — it needs a decision before it needs a change.
+**One trap worth keeping, because it is silent.** The port's SVG painter
+(`lib/ui/widgets/svg_canvas.dart`) parses exactly one transform —
+`rotate(deg cx cy)`. A `translate(...) rotate(...)` pair does not throw and does
+not warn; it simply does not apply, and every leaf lands at the origin. The
+laurel's leaves are therefore written at absolute coordinates and turned about
+their own bases. The same trap means the old wreath's group `translate(0 1.5)` —
+the correction that was resting it on the head — **never reached the port at
+all**, which is part of why it sat where it did.
 
-After a change to any of them, `node tool/gen_manager_art.mjs` regenerates
-`lib/data/manager_art.g.dart` and the fit test re-checks the landing.
-
----
+`manager_art_fit_test.dart` measures every one of these through the production
+renderer and passes. One of its rules had to give and it is called out in
+place: it asserted that every hat reaches the crown, which cannot be true of a
+band that by definition hides nothing above itself — bands now get a ceiling of
+their own rather than a pass.
 
 ## Back to you
 
