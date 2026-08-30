@@ -147,6 +147,121 @@ void main() {
     });
   });
 
+  group('THE COMMENTARY AND THE PITCH NAME THE SAME MAN', () {
+    // **The row is "the player name needs to match in the commentary who
+    // scored it and when viewing replay it needs to be identical".** One half
+    // was found and fixed earlier — the feed was reading a name SNAPSHOT while
+    // everything the pitch draws resolved the card live. This is the other
+    // half, and it was readable after all: the feed and the full-time scorers
+    // card both fall back to the recorded name when the card has gone, and the
+    // two CUTAWAY call sites — the live cut and the replay of it — had only the
+    // live half. A sold scorer resolved to null there, so the shooter's dot was
+    // never forced to his name and the pitch put a generic lineup name on the
+    // man the feed directly above it had just named.
+    TimelineEvent goal({String? scorer, String? scorerId}) => (
+      minute: 22,
+      type: 'goal',
+      team: 'home',
+      scorer: scorer,
+      scorerId: scorerId,
+      textKey: null,
+      shotResult: null,
+      big: false,
+      xg: 0,
+      player: null,
+    );
+
+    // The save, as far as this rule is concerned: which ids still have a card.
+    String? onTheGrid(Map<String, dynamic>? save, String id) =>
+        id == 'here' ? 'Live Name' : null;
+
+    test('a card still on the grid is named LIVE', () {
+      // The whole point of the earlier half: a player who has been renamed or
+      // re-rolled shows what he is called NOW, not what he was called then.
+      expect(
+        clipScorerName(
+          const {},
+          goal(scorer: 'Recorded Name', scorerId: 'here'),
+          ours: true,
+          nameOf: onTheGrid,
+        ),
+        'Live Name',
+      );
+    });
+
+    test('AND A SOLD ONE STILL SCORED', () {
+      expect(
+        clipScorerName(
+          const {},
+          goal(scorer: 'Recorded Name', scorerId: 'gone'),
+          ours: true,
+          nameOf: onTheGrid,
+        ),
+        'Recorded Name',
+        reason: 'the pitch would have had no name to put on him',
+      );
+    });
+
+    test('and it agrees with the FEED, which is the whole ask', () {
+      // Same event, same resolver, both readings — this is the assertion the
+      // row is actually making, and it is the reason the rule is one shared
+      // function rather than the same `??` written at each call site.
+      final sold = goal(scorer: 'Recorded Name', scorerId: 'gone');
+      final line = feedOf(
+        [sold],
+        ourName: 'Us',
+        theirName: 'Them',
+        isHome: true,
+        nameOf: (id) => onTheGrid(const {}, id),
+      ).first;
+      expect(
+        line.params.values,
+        contains('Recorded Name'),
+        reason: 'the feed prints the recorded name for a sold scorer',
+      );
+      expect(
+        clipScorerName(const {}, sold, ours: true, nameOf: onTheGrid),
+        'Recorded Name',
+      );
+    });
+
+    test('a goal against gets no name forced onto anyone', () {
+      // Their scorer is not one of our cards and never was.
+      expect(
+        clipScorerName(
+          const {},
+          goal(scorer: 'Their Man', scorerId: 'gone'),
+          ours: false,
+          nameOf: onTheGrid,
+        ),
+        isNull,
+      );
+    });
+
+    test('and neither does a chance', () {
+      expect(
+        clipScorerName(
+          const {},
+          (
+            minute: 30,
+            type: 'chance',
+            team: 'home',
+            scorer: 'Recorded Name',
+            scorerId: 'gone',
+            textKey: null,
+            shotResult: 'on_target',
+            big: true,
+            xg: 0.4,
+            player: null,
+          ),
+          ours: true,
+          nameOf: onTheGrid,
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('THE FEED', () {
     TimelineEvent ev(
       String type, {

@@ -43,6 +43,32 @@ typedef TimelineEvent = ({
   String? player,
 });
 
+/// The name to force onto the shooter's dot for a clip, or null for no name.
+///
+/// **LIVE, THEN THE NAME THE RESULT RECORDED — and the fallback was missing.**
+/// The feed and the full-time scorers card have both resolved a scorer this way
+/// since the snapshot bug was fixed: ask the save what the card is called now,
+/// and if the card is gone, print what it was called when it scored, because a
+/// player who has since been sold still scored. The two cutaway call sites had
+/// only the live half, so a sold scorer resolved to null, the shooter's dot was
+/// never forced to his name, and the pitch put a generic lineup name on the man
+/// the feed directly above it had just named. Reported as the commentary and
+/// the replay needing to be the same player, and it was the one half of that
+/// row that could be found by reading after all.
+///
+/// Pure and shared rather than the same `??` written at two call sites: they
+/// are the live cut and the replay OF that cut, and the one thing they must
+/// never do is disagree with each other.
+String? clipScorerName(
+  Map<String, dynamic>? save,
+  TimelineEvent event, {
+  required bool ours,
+  required String? Function(Map<String, dynamic>? save, String id) nameOf,
+}) {
+  if (!ours || event.type != 'goal') return null;
+  return nameOf(save, event.scorerId ?? '') ?? event.scorer;
+}
+
 /// The state of a match at some point through it.
 ///
 /// **`team: 'home'` on an event means US, not the home side.** The engine builds

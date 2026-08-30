@@ -641,12 +641,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ourSideLeft: widget.result['isHome'] == true,
         ours: ours,
         names: lineupNames(ref.read(gameProvider).state),
-        scorerName: event.type == 'goal' && ours
-            ? cardDisplayName(
-                ref.read(gameProvider).state,
-                event.scorerId ?? '',
-              )
-            : null,
+        // Live, then the name the result recorded — see [clipScorerName].
+        scorerName: clipScorerName(
+          ref.read(gameProvider).state,
+          event,
+          ours: ours,
+          nameOf: cardDisplayName,
+        ),
         // Seeded off the minute so the same match replays the same chances —
         // and BRACKETED, because `??` binds looser than `+`: without them the
         // minute was only added when the result carried no seed at all, so
@@ -1819,9 +1820,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       ourSideLeft: widget.result['isHome'] == true,
       ours: ours,
       names: lineupNames(ref.read(gameProvider).state),
-      scorerName: ours
-          ? cardDisplayName(ref.read(gameProvider).state, event.scorerId ?? '')
-          : null,
+      // The same rule as the live cut, through the same function — a replay
+      // of a sold player's goal is still his goal. See [clipScorerName].
+      scorerName: clipScorerName(
+        ref.read(gameProvider).state,
+        event,
+        ours: ours,
+        nameOf: cardDisplayName,
+      ),
       // The same seed the live cut used, so the replay is the passage that was
       // watched rather than another one from the same table.
       seed: ((widget.result['seed'] as num?)?.toInt() ?? 0) + minute,
