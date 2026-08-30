@@ -111,7 +111,7 @@ const Map<String, String> managerFaces = {
 /// Headwear, over everything on the head.
 const Map<String, String> managerHats = {
   'none': '',
-  'headband': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M48.6 44.5 C50 38.5 55 34.5 62 34.5 C69 34.5 74 38.5 75 44 L73.6 47.6 C72.4 42.6 68 39.6 62 39.6 C56 39.6 51.4 42.8 50 47.8 Z" fill="#4caf50"/></svg>''',
+  'headband': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M49.6 42.6 C52.6 39.9 56.6 39 62 39 C67.4 39 71.4 39.9 74.4 42.6 L73.9 46.9 C71.1 45 67.1 44.4 62 44.4 C56.9 44.4 52.9 45 50.1 46.9 Z" fill="#4caf50"/></svg>''',
   'cap': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M48.5 42.5 C49.5 35 55 30.5 62 30.5 C69.5 30.5 74.5 35.5 74.8 42.5 Z" fill="#4caf50"/><path d="M62 41 L80.5 41.6 C81.5 41.7 81.6 44.4 80.4 44.6 L62 45 Z" fill="#2e6b30"/></svg>''',
   'beanie': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M48.8 42 C48.8 34 54.6 28.2 62 28.2 C69.4 28.2 75.2 34 75.2 42 Z" fill="#4caf50"/><circle cx="62" cy="26.6" r="3.2" fill="#2e6b30"/><rect x="47.6" y="38.6" width="28.8" height="6.2" rx="3.1" fill="#2e6b30"/></svg>''',
   'crown': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M52.5 42 L54 31.5 L58.5 36 L62 27.5 L65.5 36 L70 31.5 L71.5 42 C66 38 58 38 52.5 42 Z" fill="#ffc233" stroke="#c68a12" stroke-width="0.9" stroke-linejoin="round"/></svg>''',
@@ -126,7 +126,7 @@ const Map<String, String> managerHats = {
   'party': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M52.6 40.6 L62 22.4 L71.4 40.6 Z" fill="#4caf50"/><path d="M57.6 31 L66.4 31 L67.6 34 L56.4 34 Z" fill="#ffffff" opacity="0.55"/><circle cx="62" cy="21.4" r="3" fill="#ffd44d"/></svg>''',
   'hardhat': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M49.8 43 C49.8 34.8 55.2 29.6 62 29.6 C68.8 29.6 74.2 34.8 74.2 43 Z" fill="#f0a81e"/><path d="M62 41.2 L80 41.8 C81.2 41.9 81.3 44.4 80 44.6 L62 45.2 Z" fill="#d18c10"/><rect x="48.6" y="40.4" width="26.8" height="4.4" rx="2.2" fill="#d18c10"/></svg>''',
   'headphones': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M57.4 44 C56.6 40 57.6 36.6 60.6 35.4" fill="none" stroke="#212121" stroke-width="2.6" stroke-linecap="round"/><rect x="54.4" y="43.8" width="7.2" height="10.8" rx="3.4" fill="#2f2f2f"/><ellipse cx="58" cy="49.2" rx="2.1" ry="3" fill="#4a4a4a"/></svg>''',
-  'laurel': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><g fill="#4caf50" stroke="#2e7d32" stroke-width="0.5" transform="translate(0 1.5)"><path d="M50.6 45.4 C51.6 40.4 55 36.2 62 34.9 C69 36.2 72.4 40.4 73.4 45.4" fill="none" stroke="#2e7d32" stroke-width="1.1"/><ellipse cx="50.8" cy="43.8" rx="3" ry="1.7" transform="rotate(-74 50.8 43.8)"/><ellipse cx="52.4" cy="40.2" rx="3" ry="1.7" transform="rotate(-58 52.4 40.2)"/><ellipse cx="55.3" cy="37.4" rx="3" ry="1.7" transform="rotate(-42 55.3 37.4)"/><ellipse cx="58.9" cy="35.6" rx="3" ry="1.7" transform="rotate(-24 58.9 35.6)"/><ellipse cx="62" cy="35" rx="3" ry="1.7" transform="rotate(-4 62 35)"/><ellipse cx="65.1" cy="35.6" rx="3" ry="1.7" transform="rotate(24 65.1 35.6)"/><ellipse cx="68.7" cy="37.4" rx="3" ry="1.7" transform="rotate(42 68.7 37.4)"/><ellipse cx="71.6" cy="40.2" rx="3" ry="1.7" transform="rotate(58 71.6 40.2)"/><ellipse cx="73.2" cy="43.8" rx="3" ry="1.7" transform="rotate(74 73.2 43.8)"/></g></svg>''',
+  'laurel': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><g stroke="#2e7d32" stroke-width="0.5" stroke-linejoin="round"><path d="M51.11 46.97 C52.2 42 55.8 38 62 37 C68.2 38 71.8 42 72.89 46.97" fill="none" stroke="#2e7d32" stroke-width="1.1" stroke-linecap="round"/><path d="M72.96 46.17 C74.26 44.72 76.06 45.02 77.36 46.17 C76.06 47.32 74.26 47.62 72.96 46.17 Z" fill="#4caf50" transform="rotate(-80 72.96 46.17)"/><path d="M71.89 43.24 C73.19 41.79 74.99 42.09 76.29 43.24 C74.99 44.39 73.19 44.69 71.89 43.24 Z" fill="#43a047" transform="rotate(-96 71.89 43.24)"/><path d="M70.06 40.72 C71.36 39.27 73.16 39.57 74.46 40.72 C73.16 41.87 71.36 42.17 70.06 40.72 Z" fill="#4caf50" transform="rotate(-112 70.06 40.72)"/><path d="M67.6 38.8 C68.9 37.35 70.7 37.65 72 38.8 C70.7 39.95 68.9 40.25 67.6 38.8 Z" fill="#43a047" transform="rotate(-128 67.6 38.8)"/><path d="M64.71 37.63 C66.01 36.18 67.81 36.48 69.11 37.63 C67.81 38.78 66.01 39.08 64.71 37.63 Z" fill="#4caf50" transform="rotate(-144 64.71 37.63)"/><path d="M51.04 46.17 C52.34 44.72 54.14 45.02 55.44 46.17 C54.14 47.32 52.34 47.62 51.04 46.17 Z" fill="#4caf50" transform="rotate(-100 51.04 46.17)"/><path d="M52.11 43.24 C53.41 41.79 55.21 42.09 56.51 43.24 C55.21 44.39 53.41 44.69 52.11 43.24 Z" fill="#43a047" transform="rotate(-84 52.11 43.24)"/><path d="M53.94 40.72 C55.24 39.27 57.04 39.57 58.34 40.72 C57.04 41.87 55.24 42.17 53.94 40.72 Z" fill="#4caf50" transform="rotate(-68 53.94 40.72)"/><path d="M56.4 38.8 C57.7 37.35 59.5 37.65 60.8 38.8 C59.5 39.95 57.7 40.25 56.4 38.8 Z" fill="#43a047" transform="rotate(-52 56.4 38.8)"/><path d="M59.29 37.63 C60.59 36.18 62.39 36.48 63.69 37.63 C62.39 38.78 60.59 39.08 59.29 37.63 Z" fill="#4caf50" transform="rotate(-36 59.29 37.63)"/></g></svg>''',
   'diamond': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M52.5 42 L54 31.5 L58.5 36 L62 27.5 L65.5 36 L70 31.5 L71.5 42 C66 38 58 38 52.5 42 Z" fill="#e8f4ff" stroke="#8fb8d8" stroke-width="0.9" stroke-linejoin="round"/><circle cx="54.2" cy="34" r="1.6" fill="#7fd4ff"/><circle cx="62" cy="30.5" r="2" fill="#bff0ff"/><circle cx="69.8" cy="34" r="1.6" fill="#7fd4ff"/></svg>''',
 };
 
@@ -136,17 +136,32 @@ const Map<String, String> managerOutfits = {
   'tracksuit': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M53.6 60.6 C56 64.6 61 66.2 65.4 64" fill="none" stroke="#2e6b30" stroke-width="2.4" stroke-linecap="round"/></svg>''',
   'coat': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170">
   <path d="M51.5 63 C51.5 59 54 57 57 57 L64 57 C67 57 68.8 59.5 68.8 63 L69.8 105 C70 109.5 68 112 64.5 112 L52.5 112 C49 112 47.4 109.5 47.8 105 Z" fill="#2a3140"/>
-  <path d="M47.9 88 L69.9 88 L69.9 91.5 L47.85 91.5 Z" fill="#1b202a" opacity="0.6"/>
-  <path d="M64.6 57 L59 68.5 L54.6 57.4 L57.4 57 L59.4 62.6 L62.6 57 Z" fill="#1b202a"/>
+  <path d="M47.92 106.5 C48.1 110 49.9 112 52.5 112 L64.5 112 C67.5 112 69.75 110 69.87 106.5 Z" fill="#1b202a" opacity="0.5"/>
+  <path d="M51.2 99 L50.6 111.6" fill="none" stroke="#1b202a" stroke-width="0.8" opacity="0.7"/>
+  <path d="M61.4 95.4 L69.55 95.4 L69.63 98.9 L61.5 98.9 Z" fill="#1b202a" stroke="rgba(255,255,255,0.16)" stroke-width="0.5" stroke-linejoin="round"/>
+  <path d="M49.3 87.4 L69.4 87.4 L69.5 92.2 L48.9 92.2 Z" fill="#1b202a"/>
+  <rect x="63.6" y="86.8" width="4.4" height="5.8" rx="1" fill="#8d93a2"/>
+  <rect x="65" y="88.6" width="1.6" height="2.2" fill="#1b202a"/>
+  <path d="M65.4 62.6 L66.7 111.4" fill="none" stroke="#1b202a" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="63.94" cy="68" r="1" fill="#8d93a2"/>
+  <circle cx="64.16" cy="76" r="1" fill="#8d93a2"/>
+  <circle cx="64.72" cy="97" r="1" fill="#8d93a2"/>
+  <circle cx="64.9" cy="104" r="1" fill="#8d93a2"/>
+  <path d="M52.1 59.6 C52.6 57.7 54.2 56.9 56.5 57 L58.9 64.4 L53.1 63.2 Z" fill="#1b202a" stroke="rgba(255,255,255,0.16)" stroke-width="0.5" stroke-linejoin="round"/>
+  <path d="M68.5 60.2 C68.2 58.3 66.9 57 64.8 57 L61.7 64.8 L68.1 63.4 Z" fill="#1b202a" stroke="rgba(255,255,255,0.16)" stroke-width="0.5" stroke-linejoin="round"/>
   
   <path d="M55.4 58.4 C57.6 63 61.6 65 65.6 63.4 L66.4 67 C61.2 69 56.6 66.6 54 61.2 Z" fill="#a2d5a4" stroke="rgba(0,0,0,0.42)" stroke-width="0.9" stroke-linejoin="round"/>
   <path d="M64.8 65.4 L67.6 64.6 L69 74 L66.2 74.6 Z" fill="#7ac47e" stroke="rgba(0,0,0,0.42)" stroke-width="0.9" stroke-linejoin="round"/></svg>''',
   'suit': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170">
   <path d="M52 63 C52 59.5 54 57.5 56.8 57.5 L64.2 57.5 C67 57.5 68.5 59.5 68.5 63 L68.9 98 C69 101 67.6 102.6 65 102.6 L53.5 102.6 C51 102.6 49.9 101 50 98 Z" fill="#333846"/>
-  <path d="M59.6 57.5 L66.6 57.5 L63.6 76 Z" fill="#f2f2f2"/>
-  <path d="M62.6 61.6 L65 61.2 L65.4 74.4 L63.6 76 Z" fill="var(--kit, #4caf50)"/>
-  <path d="M58.6 57.5 L61.4 57.5 L63 71.5 L56.6 60.5 Z" fill="#272b36"/>
-  <path d="M66.6 57.5 L68.5 58.6 L64.6 71 L65.6 60 Z" fill="#272b36"/></svg>''',
+  <path d="M53.5 102.6 L62.5 102.6 L62.5 105.2 L53.5 105.2 Z" fill="#000000" opacity="0.18"/>
+  <path d="M62 88.4 L68.79 88.4 L68.83 91.8 L62 91.8 Z" fill="#272b36" stroke="rgba(255,255,255,0.16)" stroke-width="0.5" stroke-linejoin="round"/>
+  <path d="M60.4 57.5 L66.3 57.5 L63.5 70.2 Z" fill="#f2f2f2"/>
+  <path d="M62.5 59.4 L65.3 59 L65.8 62.4 L63 62.8 Z" fill="var(--kit, #4caf50)"/>
+  <path d="M63.1 62.6 L65.7 62.2 L64.8 69.6 L63.6 70.2 Z" fill="var(--kit, #4caf50)"/>
+  <path d="M56.8 57.5 L60.4 57.5 L63.45 70.1 L54.6 62.2 Z" fill="#272b36" stroke="rgba(255,255,255,0.16)" stroke-width="0.5" stroke-linejoin="round"/>
+  <path d="M66.3 57.5 L68.45 59.4 L64.6 69.4 L65.2 59.8 Z" fill="#272b36" stroke="rgba(255,255,255,0.16)" stroke-width="0.5" stroke-linejoin="round"/>
+  <circle cx="64.6" cy="72.6" r="1.05" fill="#272b36"/></svg>''',
 };
 
 /// Round the throat — drawn UNDER the head and OVER the torso, which is why it is its own slot rather than part of the outfit.
