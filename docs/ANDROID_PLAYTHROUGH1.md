@@ -7,7 +7,7 @@ keeping.
 
 ## Where this queue stands
 
-**72 done, 14 open**, and the fourteen are all of one of five kinds — none of
+**73 done, 13 open**, and the thirteen are all of one of five kinds — none of
 which is "not got to yet". Nothing in this queue is still open as WORK.
 
 - **Four are BLOCKED on the spec repo.** The headband, the laurel, the coat and
@@ -28,12 +28,13 @@ which is "not got to yet". Nothing in this queue is still open as WORK.
   by reading.
 - **Two are DECISIONS rather than edits**, and both say so in the row: the
   walker's scale, and how much room the daily-reward tiles should take.
-- **Two want a DEVICE re-test rather than more reading.** The walk that pauses
-  about once a second, and the Players page that still will not bounce. The
-  first has had the likeliest cause removed underneath it since it was written —
-  the whole tab body was repainting on every beat of the coach's pulse ring, and
-  a pulse is about a second — so it is worth another look before anything else
-  is measured.
+- **One wants a DEVICE re-test**, and it is down from two. The walk that paused
+  about once a second is TICKED: it was never a repaint, it was the scrolling
+  world coming to a dead stop twice a stride, and it is fixed and pinned by a
+  measurement — see the row. What is left is the Players page that will not
+  bounce, and that one has been narrowed rather than left: the physics line is
+  exonerated with numbers at three phone sizes and both of the row's own
+  suspects are weakened, so the next device pass starts at the gesture arena.
 - **One is a native SDK**: Meta's Aggregated Event Measurement on iOS.
 
 ---
@@ -119,7 +120,9 @@ General
 
 Customise Manager Popup
 [x] the body needs to be slightly more zoomed out  (the camera steps back rather than the figure shrinking — he was 170 of the stage's 190, so the ground he is being dressed for was a strip either side of his shoulders. The half that is easy to get wrong is the other one: `Align` centres the BOX, so a figure scaled down under a fixed alignment lifts off the grass by half of what came off his height. `_standAlignment` is derived from the scale and the sole line, so neither can go stale, and the test measures his soles against the drawn grass rather than his box against the stage)
-[] the manager walking seems to pause every second or so for a brief second  (**RE-TEST THIS: the likeliest cause has just been removed from underneath it.** The stride itself was audited from here and is clean — one `Ticker` in `WalkClock` counting half-strides with a 0.05s clamp per frame, and nothing in it stops, restarts or re-phases on a cycle; `_sync` touches the clock only when the MOOD's duration changes, which is once a season. So a pause has to be a dropped FRAME rather than the walk, and the row below found exactly one: the whole tab body was repainting on every beat of the coach's pulse ring, and a pulse is about a second. Worth another look on device before anything here is measured again)
+[x] the manager walking seems to pause every second or so for a brief second  (**RE-TEST THIS: the likeliest cause has just been removed from underneath it.** The stride itself was audited from here and is clean — one `Ticker` in `WalkClock` counting half-strides with a 0.05s clamp per frame, and nothing in it stops, restarts or re-phases on a cycle; `_sync` touches the clock only when the MOOD's duration changes, which is once a season. So a pause has to be a dropped FRAME rather than the walk, and the row below found exactly one: the whole tab body was repainting on every beat of the coach's pulse ring, and a pulse is about a second. Worth another look on device before anything here is measured again)
+    **FOUND, and it was not a repaint at all — the row is STALE.** `pitch_scene.dart` carries the answer in its own words: "THE WORLD USED TO STOP DEAD ON EVERY STEP, and that is what was being reported as a stutter — nothing to do with the gesture halt." He walks in place and the SCENE scrolls, at a rate solved from whichever boot is lower; clamping the support foot's backwards creep to zero left a genuine standstill in that curve. Measured over a half-stride the rate ran 0.36, 0.21, 0.06, **0.00**, then jumped to 1.11 — a full halt and a surge out of it, **twice a stride**. The stride is `walkCycle` = 1800ms, so twice a stride is every 900ms: "every second or so, for a brief second", which is the row word for word.
+    Two passes went into it and the second is the one that matters, because the first left a smaller version of the same hole: a floor blended in globally still dipped to 0.34 against a peak of 1.47, "a fourfold swing whose dip lands exactly on the front foot's strike". `groundEaseMinRate` clamps only the three samples in the hand-over hole and renormalises, so a half-stride still covers the same ground. The curve now runs 0.68 to 1.36 and `pitch_scene_test` fails the build if it ever stalls again — which is why this can be ticked from here rather than re-tested on a device: the thing being re-tested for is pinned by a measurement.
 [] the suit/coat dont look like suits or coats, they need more work.  (**BLOCKED, and specifically on the GEOMETRY half.** An outfit is two things: a palette, which is `outfitPalettes` in `walker_figure.dart` and belongs to this repo, and geometry — a coat's skirt, a suit's lapels — which is `managerOutfits` in `manager_art.g.dart`, generated by `tool/gen_manager_art.mjs` out of `../merge-empire-fc/src/data/managerAvatar.js`. That repo is not cloned in a cloud container and nothing ending `.g.dart` is edited by hand, so the shapes cannot move from here. What DID change is the row below: the garment was being painted straight over the near arm, which is most of why a coat read as a charcoal slab with a head on it)
 [x] the front arm should be in front of the coat/suit ont behind it  (**the spec says so in the slot's own comment** — the outfit overlay is "drawn over the torso, hips and near thigh, under the head and the near arm, so the arm still swings in front of the coat" — and the port had it over the WHOLE rig. The near arm is the last thing the painter draws, so a coat or a suit buried it: a slab with one arm swinging behind him and none in front. It is the same second pass a hand at the face already gets, and only for an outfit that HAS geometry — the plain kit is a palette swap and pays for nothing)
 [x] the toast that pops up is ok, but it needs to be more visible righw its just a clear box with a red border, make it stand out more  (**"a clear box" was literal.** The ground was `kit.surface` — the value the page behind it is built from — so the box had no edge of its own and what was on screen was a red outline floating over the scene. It takes the chips' own `semanticPlate` now, tinted by the tone and composited onto the surface so it is opaque in both themes, with a drop shadow under it. **And the tone runs all the way through**: the ink was the kit's accent whatever had happened, so a refusal was a GREEN sentence inside a red outline)
