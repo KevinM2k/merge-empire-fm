@@ -4675,6 +4675,54 @@ by a test.
       knowing that "better than the SVG we have" is comparing it to something
       the port does not do.
 
+      **30 Aug, with a clip proposed** — `lottiefiles.com/animations/walking-e0kT228zil`,
+      offered as "the movement is good, he walks the wrong way". Three things
+      settled and one still blocking.
+
+      **The package is not the question and never was.** `lottie: ^3.5.1`
+      resolves against the pinned 3.44.9 / Dart `^3.10.1` and against all 145 of
+      this app's transitive deps — flame, the four Firebase plugins and
+      `google_mobile_ads` included — with no constraint moved. That was checked,
+      not assumed, and it is the cheapest part of this.
+
+      **The DIRECTION is the cheapest part of the cheap part.** The rig faces
+      +x (`facing` in `walker_figure.dart`, and every highlight and core shadow
+      is derived from it), so a clip that walks left is one `Transform.scale`
+      with `scaleX: -1` around the `LottieBuilder` — no JSON edited, no
+      keyframes touched. A clip's handedness is never the reason to turn one
+      down.
+
+      **What blocks it is still the FILE, and now for a second reason.** A cloud
+      session cannot fetch it: `lottiefiles.com` and its CDNs
+      (`assets.lottiefiles.com`, `lottie.host`) are refused at the egress proxy —
+      403 on CONNECT, an organization policy rather than a transient failure —
+      while `pub.dev` answers 200, which is exactly why the package half could be
+      verified and the asset half could not. The clip has to arrive as a file
+      committed to `assets/`, with its licence stated: LottieFiles' free tier is
+      not uniformly one licence and this app is paid-for and shipped on both
+      stores, so the terms belong beside it the way Kenney's CC0 is named in
+      `pubspec.yaml`.
+
+      **And the wardrobe is the argument the original note did not make.** The
+      contact-and-clock objection above is real but it is the small one. A
+      recorded clip is ONE man: this rig is 6 builds x 4 outfits x 15 hairstyles
+      x 10 beards x 18 hats x 12 faces, each recoloured per look, plus 17 gesture
+      poses that rotate about named joints (`gesture_poses.dart`), plus
+      `ManagerIdle` layering breath and sway UNDER all of it. Every look pack in
+      the shop is a SKU that renders through those joints. Swapping the walk for
+      a clip does not cost the walk, it costs the thing the walk is wearing — so
+      the clip cannot be a replacement for the home-screen figure, whatever its
+      motion looks like.
+
+      **Which leaves two honest uses, and they are worth separating.** As
+      REFERENCE: retime our own stride against the clip's — thigh and shin
+      curves, the bob's phase against the plant — which needs a human to watch
+      it, not a dependency. Or in the one place the figure is nobody's avatar,
+      per the customiser note under 28 Aug: a standing loop for a chip that is
+      not the player's own manager. Neither is "replace the walker", and the
+      request as put — "change him to do what we need" — is asking a recorded
+      clip to do the one thing a recording cannot.
+
 ## From playtesting — 27 Aug
 
 Reported from the couch in one sitting, in the order they were noticed. Nothing
