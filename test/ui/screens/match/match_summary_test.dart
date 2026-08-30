@@ -320,6 +320,20 @@ void main() {
     );
   });
 
+  testWidgets('AND HE IS NOT LEFT STANDING IN A CORNER', (tester) async {
+    // With no quests the other half of the row was an empty `Expanded`, so the
+    // shot sat in a 120-point column against the left edge with two thirds of
+    // the row blank beside it — one small square and a lot of nothing. A cup
+    // tie and an early match both land here.
+    await pumpSummary(tester, result());
+    await scrollReport(tester, const ValueKey('summary-reaction-row'));
+    final row = tester.getRect(
+      find.byKey(const ValueKey('summary-reaction-row')),
+    );
+    final him = tester.getRect(find.byKey(const ValueKey('summary-manager')));
+    expect(him.center.dx, closeTo(row.center.dx, 1.5));
+  });
+
   testWidgets('THE MANAGER AND THE QUESTS SHARE A ROW', (tester) async {
     // Stacked, the quest list was below the fold on any phone — and the two are
     // a natural pair: he is reacting to the match and they are what the match
