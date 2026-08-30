@@ -316,9 +316,11 @@ final List<Achievement> achievements = [
   ),
   Achievement(
     id: 'prestige_level_10',
-    // NOTE: shares this title with `merge_to_legend`. Duplicated in the JS; see
-    // docs/REMAINING.md.
-    title: 'Living Legend',
+    // Was 'Living Legend', which `merge_to_legend` also carried — the clash was
+    // the JS's and is fixed there. This one tops the prestige ladder (Legend
+    // Reborn / Dynasty / Eternal Dynasty), so it took the new name and the merge
+    // achievement, whose title comes from the catalogue, kept the old one.
+    title: 'Immortal',
     description: 'Reach prestige level 10.',
     icon: '🌟',
     category: 'progression',
@@ -494,7 +496,9 @@ final List<Achievement> achievements = [
   ),
   Achievement(
     id: 'merge_to_legend',
-    // NOTE: shares this title with `prestige_level_10`. See docs/REMAINING.md.
+    // Keeps 'Living Legend'; `prestige_level_10` is 'Immortal' now. This one's
+    // title is translated (`ach.title.merge_to_legend`), the prestige one's is
+    // not, so the rename went to the side that costs no translation.
     title: 'Living Legend',
     description: 'Create a Legendary Icon (tier 7) player.',
     icon: '🟣',
