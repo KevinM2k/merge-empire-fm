@@ -68,6 +68,11 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
   /// is of a woman.
   late final String _position;
   late final bool _female;
+
+  /// The tier of the card being named, for the rename analytics events. Read
+  /// in `initState` alongside everything else the definition answers, rather
+  /// than looked up again at commit time on a save the edit has just changed.
+  late final int _tier;
   String? _error;
 
   @override
@@ -79,6 +84,7 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
     _hasCustom = (card?.customName ?? '').isNotEmpty;
     _position = def?.position ?? 'FWD';
     _female = isVariantFemale(card?.variant ?? 0);
+    _tier = def?.tier ?? 0;
     _field = TextEditingController(text: card?.name(_defaultName) ?? '');
   }
 
@@ -142,6 +148,9 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
       'instanceId': widget.instanceId,
       'name': now,
       'reset': value == null,
+      // Which cards are worth naming — the JS's own dimension on both halves
+      // of this event.
+      'tier': _tier,
     });
     return now;
   }

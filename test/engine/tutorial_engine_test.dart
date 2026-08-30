@@ -363,13 +363,16 @@ void main() {
 
     test('the first advance BEGINS it as well as completing a step', () {
       advanceTutorial(save(step: 0));
-      expect(names(), ['tutorial_begin', 'tutorial_step_complete']);
-      expect(sent.first.params['step_id'], tutorialSteps.first.id);
+      // The JS's four names. A tidier one would end the series FC has been
+      // filling — see the head of `services/analytics_wiring.dart`.
+      expect(names(), ['tutorial_started', 'tutorial_step_viewed']);
+      expect(sent.first.params['resumed_at_step'], tutorialSteps.first.id);
+      expect(sent.first.params['resumed_at_index'], 0);
     });
 
     test('and a later one only completes a step', () {
       advanceTutorial(save(step: 2));
-      expect(names(), ['tutorial_step_complete']);
+      expect(names(), ['tutorial_step_viewed']);
       expect(sent.single.params['step_index'], 2);
       expect(sent.single.params['step_id'], tutorialSteps[2].id);
     });
@@ -383,7 +386,7 @@ void main() {
 
     test('running off the end completes the script', () {
       advanceTutorial(save(step: tutorialSteps.length - 1));
-      expect(names(), contains('tutorial_complete'));
+      expect(names(), contains('tutorial_completed'));
       expect(sent.last.params['steps'], tutorialSteps.length);
     });
 
@@ -391,9 +394,9 @@ void main() {
       // Read before the done flag is set: `tutorialStepFor` answers null for a
       // finished script, which would file every skip in the game under nothing.
       skipTutorial(save(step: 3));
-      expect(sent.single.name, 'tutorial_skip');
-      expect(sent.single.params['step_id'], tutorialSteps[3].id);
-      expect(sent.single.params['step_index'], 3);
+      expect(sent.single.name, 'tutorial_skipped');
+      expect(sent.single.params['at_step_id'], tutorialSteps[3].id);
+      expect(sent.single.params['at_step_index'], 3);
     });
 
     test('and a save with no tutorial branch reports nothing', () {

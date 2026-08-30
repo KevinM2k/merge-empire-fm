@@ -217,7 +217,9 @@ Future<int?> confirmAndPrestige(
   // pressing Cancel; nothing below it is.
   late PrestigeResult result;
   game.update((s) {
-    result = performPrestige(s);
+    // `toPro` is carried on the `prestige:complete` event for analytics; the
+    // flag itself is still written below, for the ordering reason that follows.
+    result = performPrestige(s, toPro: toPro);
     // **After the reset, not before**, and the two orders are not the same:
     // `performPrestige` mutates the save in place and never touches `settings`,
     // so the flag survives it either way — but `resetState`, which the New Team

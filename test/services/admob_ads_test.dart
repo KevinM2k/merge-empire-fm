@@ -242,16 +242,25 @@ void main() {
 
     tearDown(() => setAnalyticsSink(null));
 
-    test('a watched video is `rewarded`, with its placement', () async {
+    test('a watched video is `ad_watched`, with its placement', () async {
+      // **THREE NAMES, which are the JS's three.** One event with an `outcome`
+      // param is tidier and is the wrong shape here: FC has been sending
+      // `ad_watched` / `ad_dismissed` / `ad_failed` into this same Firebase
+      // project for the life of the app, and the port ships as an update to
+      // it — see the head of `services/analytics_wiring.dart`.
       await _ads(_Loader()).show('lucky_boot');
-      expect(sent.single.name, 'ad_shown');
+      expect(sent.single.name, 'ad_watched');
       expect(sent.single.params['outcome'], 'rewarded');
       expect(sent.single.params['placement'], 'lucky_boot');
       expect(sent.single.params['ad_platform'], 'android');
+      // The JS's dimension, and load-bearing: a rewarded video the player
+      // chose and an interstitial they were shown are different funnels.
+      expect(sent.single.params['type'], 'rewarded');
     });
 
-    test('one closed early is `dismissed` rather than missing', () async {
+    test('one closed early is `ad_dismissed` rather than missing', () async {
       await _ads(_Loader(earns: false)).show('energy_pip');
+      expect(sent.single.name, 'ad_dismissed');
       expect(sent.single.params['outcome'], 'dismissed');
     });
 
@@ -263,6 +272,7 @@ void main() {
 
     test('a consent refusal is reported too, and it is not an error', () async {
       await _ads(_Loader(), permitted: false).show('heal_all');
+      expect(sent.single.name, 'ad_failed');
       expect(sent.single.params['outcome'], 'unavailable');
       expect(sent.single.params['placement'], 'heal_all');
     });

@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
 import 'package:merge_empire_fc/engine/age_verification.dart';
 import 'package:merge_empire_fc/services/admob_ads.dart';
+import 'package:merge_empire_fc/services/analytics_wiring.dart';
 import 'package:merge_empire_fc/engine/cloud_save_policy.dart';
 import 'package:merge_empire_fc/providers/boot_gate.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
@@ -63,6 +64,15 @@ class _GameHostState extends ConsumerState<GameHost>
       for (final locale in dispatcher.locales) locale.toLanguageTag(),
     ]);
     _runner = ref.read(gameRunnerProvider)..boot();
+    // **ANALYTICS GETS THE SAVE HERE, which is the first moment there is one.**
+    // `startAnalytics` runs in `main` before the store is read, so every
+    // save-derived field — the division, the season, the six user properties,
+    // the stable player id — is unanswerable at that point. The JS has the same
+    // two-step: `initAnalytics().then(...)` reads its state singleton once boot
+    // has one. Installed before `_runner.start()`, so nothing the first tick
+    // emits reports `unknown` for a fact the save already knows.
+    setAnalyticsStateReader(() => _runner.game.state);
+    logAppBoot();
     _weather = ref.read(weatherProvider.notifier);
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());
     _runner.start();
@@ -256,6 +266,9 @@ class _GameHostState extends ConsumerState<GameHost>
     // The host going away means the app is. Same treatment as a background: the
     // loop stops, the pending save lands, the mirror is flushed.
     _runner.pause();
+    // And the reader goes with it: a closure holding a runner this widget has
+    // finished with would have analytics describing a save nothing else reads.
+    setAnalyticsStateReader(null);
     super.dispose();
   }
 
@@ -280,6 +293,12 @@ class _GameHostState extends ConsumerState<GameHost>
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         ref.read(appHiddenProvider.notifier).state = true;
+        // **THE SESSION'S LAST EVENT, and the churn question's only answer.**
+        // A `screen_view` says where the player was; this says what they were
+        // in the middle of when they put the phone down and how long they had
+        // been at it. Here rather than under `inactive`, which is a
+        // notification shade — see the note at the head of this file.
+        logAppBackgrounded();
         _runner.pause();
         // **AND THE CLOUD COPY, IMMEDIATELY.** `pause()` lands the local save;
         // the cloud upload is behind a debounce of its own, and a debounce is

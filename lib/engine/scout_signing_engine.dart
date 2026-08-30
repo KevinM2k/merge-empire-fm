@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/engine/scout_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/engine/season_end.dart' show trackEvent;
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -136,7 +137,7 @@ Signing _fail(String reason) => (
 /// The voucher is READ before the draw and only spent after the card lands. The
 /// draw can still fail on a full grid, and burning a voucher somebody paid gems
 /// for on a signing that never happened is the one bug this must not have.
-Signing signPlayer(Map<String, dynamic> state) {
+Signing signPlayer(Map<String, dynamic> state, {int batchSize = 1}) {
   final blocked = signBlocked(state);
   if (blocked != null) return _fail(blocked);
 
@@ -171,6 +172,23 @@ Signing signPlayer(Map<String, dynamic> state) {
   // The action funnel, which the season quest track and any live event's reward
   // track both read. `season_scout` could not advance without it.
   trackEvent(state, QuestAction.scoutCount);
+
+  // **ONE EVENT PER CARD, which is the JS's arrangement and worth keeping.**
+  // A batch of four reports four scouts, so the count stays comparable with
+  // every scout recorded before batching existed; `batch_size` is additive for
+  // anyone who wants to split them apart later. The cost is BANDED as well as
+  // raw — it scales with the division, so the raw figure is nearly unique per
+  // player and useless as a dimension.
+  logAppEvent('scout', {
+    'cost': cost,
+    'cost_bucket': bucketCoins(cost),
+    'is_free': free,
+    // 0 rather than null for a scout with no voucher on it: the JS sends 0 and
+    // a missing param and a zero are different rows on a dashboard.
+    'voucher_tier': floor ?? 0,
+    'batch_size': batchSize,
+    'division': '${_map(state['progression'])?['currentDivision'] ?? 'unknown'}',
+  });
 
   final idx = placed.idx!;
   final cells = _cells(state);
@@ -285,7 +303,7 @@ ScoutBatch signPlayers(Map<String, dynamic> state, int count) {
   String? stoppedBy;
 
   for (var i = 0; i < want; i++) {
-    final result = signPlayer(state);
+    final result = signPlayer(state, batchSize: want);
     if (!result.ok) {
       stoppedBy = result.reason;
       break;

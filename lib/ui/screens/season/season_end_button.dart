@@ -100,7 +100,7 @@ Future<void> runSeasonEnd(BuildContext context, WidgetRef ref) async {
   // the same reason the JS fires it from this exact line.
   if (outcome.outcome == 'promoted' &&
       shouldPromptRatingOnPromotion(game.state ?? {})) {
-    game.update((state) => recordRatingShown(state));
+    game.update((state) => recordRatingShown(state, trigger: 'promotion'));
     unawaited(requestNativeReview());
   }
 
