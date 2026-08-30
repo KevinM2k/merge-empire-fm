@@ -1157,11 +1157,21 @@ afternoon spent optimising that would have bought nothing.
 **Three things this pass could not do, all for the same reason** — the spec repo
 is not in a cloud container, and they are marked `[~]` rather than done:
 
-- **The gem pack art is NOT a port.** `assets/gemArt.js` is 146 lines in
-  `../merge-empire-fc`, and `../merge-empire-match-day` — which the queue points
-  at for the shop — is not cloned either. What landed is this repo's own
-  coin-pack pattern carried one shelf across. Check the three compositions
-  against the JS when you can read it.
+- **The gem pack art is NOT a port — CHECKED, and it holds.** `assets/gemArt.js`
+  is 146 lines in `../merge-empire-fc`, and with that repo on disk the check
+  this row asked for has been done. `gem_pack_art.dart`'s header describes the
+  JS accurately in every particular: five tiers, the piles escalating "two
+  loose, a handful, a heap, a three-row pyramid" (the LAYOUTS' own comments,
+  word for word), only the top tier a container, and the reason quoted for it —
+  "the jump from a lot to a container full is what sells the best-value tile" —
+  is verbatim from the file. So is the footprint note: stone size stays
+  constant, the base widens and rows stack, because packing more stones into
+  the same area reads as denser rather than bigger.
+  The divergence is real and stays: this shelf has THREE bundles and they are
+  NAMED (Pocket, Casket, Hoard), so the container is the brief rather than a
+  top-tier flourish and the JS's escalation has nowhere to run. What survives
+  is the faceted stone and the footprint rule, and both are in the port.
+  `../merge-empire-match-day` is still not cloned, but nothing here needed it.
 - **"Card bottoms still dark in light mode on the squad page" could not be
   reproduced.** The mechanism is gone — `PlayerCard`'s scrim follows the theme
   and the bench passes `light`. What IS dark on a high-tier card is the
