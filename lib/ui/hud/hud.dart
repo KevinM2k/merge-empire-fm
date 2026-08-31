@@ -468,7 +468,16 @@ LinearGradient hudChrome(KitTheme kit, BuildContext context) {
     // the top HUD, and too dark for light mode. Symmetrical, and no stop below
     // the page's own ground, is a band you can see the shape of without it
     // reading as a slab.
-    colors: [kit.bg, kit.surface, kit.bg],
+    // **TRANSLUCENT, which is what the blur behind it was always for.** These
+    // were the kit's tones at full opacity, so `_FrostedBar` was blurring a
+    // page nobody could see any of — and on a pattern kit that is a solid white
+    // band across the top of the turf. Reported on the squad page, where the
+    // band sits directly over the formation and rating row.
+    colors: [
+      kit.bg.withValues(alpha: 0.74),
+      kit.surface.withValues(alpha: 0.80),
+      kit.bg.withValues(alpha: 0.74),
+    ],
   );
 }
 

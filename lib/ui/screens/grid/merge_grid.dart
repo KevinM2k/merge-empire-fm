@@ -931,6 +931,13 @@ class _SlotTarget extends StatelessWidget {
 /// can be read because it is actually there. One recipe for both themes, which
 /// the emboss could never be — it needed opposite edges on a pale square and a
 /// dark one.
+/// How much of the square the number takes.
+///
+/// It has been the glyph's natural 14pt (invisible), then the whole square
+/// (far too big). Just over half reads as a mark ON the surface rather than as
+/// a label in a box or as a card with a number for a face.
+const double _slotNumberScale = 0.52;
+
 class _EmptySlotMark extends StatelessWidget {
   const _EmptySlotMark({required this.index});
 
@@ -941,40 +948,57 @@ class _EmptySlotMark extends StatelessWidget {
     final ink = lockedSlotSkin(
       Theme.of(context).extension<KitTheme>()!,
     ).ink;
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // **THE NUMBER IS THE SQUARE'S BACKGROUND, not a label in it.** It was
-        // an emboss first — two shadows and no ink at all, which delivered
-        // subtle at the cost of legible — and then a quiet 11pt caption under
-        // the plus, which is a form field. Asked for directly: big enough to
-        // fill the card, a shade off the card's own colour so it reads as part
-        // of the surface, with the plus floating over it.
-        // **BIGGER THAN THE SQUARE, and clipped by it.** Fitted inside the
-        // padding it was a number in a box; at twice that it runs off the top
-        // and bottom edges, which is what makes it read as the surface rather
-        // than as a label on it. Asked for in those terms — about 200% up.
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Transform.scale(
-            scale: 2,
+    // **IT HAS TO BE TOLD TO FILL, or a `FittedBox` fits nothing.** The slot
+    // centres its child, which hands it LOOSE constraints — so the box sized
+    // itself to the digit's natural 14pt and the "200% bigger" that was asked
+    // for twice had no room to happen in. `SizedBox.expand` under loose
+    // constraints takes the maximum, which is the square.
+    return SizedBox.expand(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // **THE NUMBER IS THE SQUARE'S BACKGROUND, not a label in it.** It was
+          // an emboss first — two shadows and no ink at all, which delivered
+          // subtle at the cost of legible — and then a quiet caption under the
+          // plus, which is a form field. Asked for directly: big enough to fill
+          // the card, a shade off the card's own colour so it reads as part of
+          // the surface, with the plus floating over it.
+          //
+          // Contained rather than scaled past the edges: a scaled one lost its
+          // top and bottom to the clip, which was reported the moment it
+          // shipped. Filling the whole square was then FAR too big — so it
+          // takes a fraction of it, which is the one number worth having a name
+          // for here. See [_slotNumberScale].
+          // **`Positioned.fill`, or the fit has nothing to fit TO.** A Stack
+          // hands its non-positioned children loose constraints, so a
+          // `FittedBox` in one sizes to the glyph's natural 14pt and scales
+          // nothing — which is why "200% bigger" landed twice with no visible
+          // change.
+          Positioned.fill(
+            child: Center(
+              child: FractionallySizedBox(
+                widthFactor: _slotNumberScale,
+                heightFactor: _slotNumberScale,
             child: FittedBox(
-            child: Text(
-              '${index + 1}',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                height: 1,
-                // A tenth of the glyph's own ink: present enough to count the
-                // squares by, nowhere near enough to compete with a card.
-                color: ink.withValues(alpha: 0.22),
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                  // Closer to the square than to the glyph beside it: it is
+                  // the surface, not a reading. A tenth is where it stops
+                  // competing with a card in the next cell and still counts.
+                  color: ink.withValues(alpha: 0.11),
+                ),
               ),
             ),
+              ),
             ),
           ),
-        ),
-        // Where the lock sits on a locked square, at the size the lock is.
-        Icon(Icons.add, size: 16, color: ink),
-      ],
+          // Floating on it, where the lock sits on a locked square.
+          Icon(Icons.add, size: 16, color: ink),
+        ],
+      ),
     );
   }
 }
@@ -1178,10 +1202,33 @@ class _MergeRing extends StatelessWidget {
     final t = math.sin(phase * math.pi * 2 - math.pi / 2) * 0.5 + 0.5;
 
     return Transform.scale(
-      scale: 1 + 0.04 * t,
+      scale: 1 + 0.07 * t,
       child: Stack(
         fit: StackFit.passthrough,
+        clipBehavior: Clip.none,
         children: [
+          // **A DARK HALO UNDER THE CARD, because the ring alone is a colour
+          // and a colour can lose.** The gold ring is invisible on a gold card
+          // — reported directly, and it is the whole tier-4 shelf — so the pair
+          // also LIFTS: a shadow off the grid behind it, and a bigger pulse.
+          // Neither of those is a hue, so neither can be camouflaged by one.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.30 + 0.16 * t),
+                      blurRadius: 10 + 6 * t,
+                      spreadRadius: 1,
+                      offset: Offset(0, 3 + 2 * t),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           child,
           // Painted OVER the card, so the portrait and the stat chips can
           // never obscure it.
@@ -1216,6 +1263,26 @@ class _MergeRing extends StatelessWidget {
                       blurStyle: BlurStyle.inner,
                     ),
                   ],
+                ),
+              ),
+            ),
+          ),
+          // **AND A DARK LINE INSIDE THE BRIGHT ONE.** A light ring on a light
+          // card is one contrast away from nothing; a light ring with a dark
+          // one against it always separates, whatever the card underneath
+          // happens to be. This is the half that makes the pulse work on gold.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.black.withValues(alpha: 0.34 + 0.16 * t),
+                      width: 1.2,
+                    ),
+                  ),
                 ),
               ),
             ),

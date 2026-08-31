@@ -74,15 +74,38 @@ class ArtImage extends StatelessWidget {
   final double dimBrightness;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, box) => _image(context, box));
+
+  Widget _image(BuildContext context, BoxConstraints box) {
+    // **THE DECODE WAS FULL SIZE, and the comment here has said so for months
+    // without the code doing anything about it.** Every one of these is a
+    // 512×512 PNG and most are drawn at 90 or less; `Image.asset` with no
+    // `cacheWidth` decodes at the file's own size, so the first time a portrait
+    // is shown the raster thread does thirty-two times the work it needs to.
+    //
+    // On the grid that is invisible — the cards are already up. It is the
+    // REVEAL that shows it: a merge and an Add Player both put a portrait on
+    // screen that has never been decoded, on the frame the card animates in,
+    // and the animation stutters on its first frame. Reported as a slight
+    // slowdown on both.
+    //
+    // Sized from the box it is actually being laid out in, times the device's
+    // pixel ratio so a 3× phone still gets a sharp one, and clamped to the
+    // asset's own size so this can never ask for an UPSCALE.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final want = width ?? (box.hasBoundedWidth ? box.maxWidth : null);
+    final tall = height ?? (box.hasBoundedHeight ? box.maxHeight : null);
     Widget image = Image.asset(
       path,
       fit: fit,
       alignment: alignment,
       width: width,
       height: height,
-      // Decoding a 512px trophy at 110px costs the same memory as showing it at
-      // 512 unless the cache is told the size it will actually be drawn at.
+      cacheWidth: want == null ? null : (want * dpr).round().clamp(1, 2048),
+      cacheHeight: want != null || tall == null
+          ? null
+          : (tall * dpr).round().clamp(1, 2048),
       filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) =>
           SizedBox(width: width, height: height, child: fallback),

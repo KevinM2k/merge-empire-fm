@@ -23,6 +23,8 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart'
+    show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/market_offer.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -202,7 +204,10 @@ Future<void> showSellSheet(
                                 CoinIcon(
                                   size: 20,
                                   solid: true,
-                                  color: coinFigureInk(sheetContext),
+                                  color: coinFigureInk(
+                                    sheetContext,
+                                    onGlass: true,
+                                  ),
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
@@ -211,7 +216,16 @@ Future<void> showSellSheet(
                                   style: TextStyle(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w900,
-                                    color: coinFigureInk(sheetContext),
+                                    // **THE BRIGHT gold, because this sheet is
+                                    // DARK in both themes.** `coinFigureInk`
+                                    // swaps to the deep light-mode gold off the
+                                    // theme, which is right on a card and wrong
+                                    // here — the price came out a bronze on a
+                                    // near-black sheet. Reported directly.
+                                    color: coinFigureInk(
+                                      sheetContext,
+                                      onGlass: true,
+                                    ),
                                     shadows: coinFigureShadows(sheetContext),
                                   ),
                                 ),
@@ -239,6 +253,13 @@ Future<void> showSellSheet(
                           Expanded(
                             child: OutlinedButton(
                               key: const ValueKey('sell-cancel'),
+                              // **RED, because this one is a REFUSAL.** A bare
+                              // outline is right for a cancel that sits beside
+                              // an action of equal weight; this one is next to
+                              // selling a player, which is irreversible, and
+                              // the pair reads better as go/stop than as one
+                              // button and one hole. Asked for directly.
+                              style: sellCancelStyle(sheetContext),
                               onPressed: () => Navigator.of(sheetContext).pop(),
                               // **NO STYLE OF ITS OWN — the theme's moulded
                               // outline is what a cancel is supposed to look
@@ -366,6 +387,7 @@ Future<void> showSellSheet(
               const SizedBox(height: 8),
               OutlinedButton(
                 key: const ValueKey('sell-cancel'),
+                style: sellCancelStyle(context),
                 onPressed: () => Navigator.of(sheetContext).pop(),
                 child: Text(t('common.cancel')),
               ),
@@ -439,4 +461,22 @@ class MarketBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The refusal beside an irreversible sale.
+///
+/// `mouldedButtonStyle` rather than `styleFrom`: a moulded button's face is
+/// painted in a `backgroundBuilder` over a transparent Material, so
+/// `backgroundColor:` colours the layer underneath it and fails silently.
+/// `architecture_test.dart` checks exactly this.
+ButtonStyle sellCancelStyle(BuildContext context) {
+  final kit = Theme.of(context).extension<KitTheme>()!;
+  return mouldedButtonStyle(
+    face: dangerInk,
+    edge: Color.alphaBlend(Colors.black.withValues(alpha: 0.45), dangerInk),
+    ink: Colors.white,
+    dead: kit.surface2,
+    deadInk: kit.textMuted,
+    border: kit.border,
+  );
 }

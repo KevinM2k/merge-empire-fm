@@ -339,9 +339,22 @@ class PlayerCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // **THE PICTURE TAKES THE WHOLE CARD, and the words float
+                    // on it.** It was a flex column — a well for the art and a
+                    // footer under it — which is what `card.css` says, and on a
+                    // 90pt card the footer was taking half the height for a
+                    // tier chip, a name and a rate. Reported directly: make the
+                    // image bigger, they can sit ON the picture.
+                    //
+                    // The reason the port moved AWAY from an overlay is still
+                    // true and is answered rather than ignored: a caption laid
+                    // straight on a drawing is unreadable over a light shirt.
+                    // It has a scrim under it now — see the footer below — so
+                    // what changed is not "no well" but "a well the size of the
+                    // card, with the words on a ground of their own".
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(3, 2, 3, 0),
+                        padding: const EdgeInsets.fromLTRB(3, 2, 3, 3),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: DecoratedBox(
@@ -367,7 +380,13 @@ class PlayerCard extends StatelessWidget {
                                         view.tier,
                                         view.variant!,
                                       ),
-                                      fit: BoxFit.contain,
+                                      // **COVER, not contain.** The well is
+                                      // the whole card now, so a contained
+                                      // drawing sits in a 3:4 box with a
+                                      // quarter of the height as slack. It
+                                      // fills, and what it loses off the sides
+                                      // is background.
+                                      fit: BoxFit.cover,
                                       fallback: PlayerPortrait(
                                         variantIndex: view.variant!,
                                         kitColor: kitColor ?? accent,
@@ -378,19 +397,19 @@ class PlayerCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // `.card-footer` — a BAND, not a scrim. It used to be a
-                    // gradient fading up into the portrait because the portrait
-                    // ran underneath it; with the art in its own well there is
-                    // nothing to fade into, and the spec's footer is a panel
-                    // with a hairline of the rarity along its top edge.
-                    //
-                    // **AND IT FOLLOWS THE THEME.** It was black in both, so a
-                    // light-mode grid was a page of pale cards with dark feet —
-                    // the one part of the card that had not been told which
-                    // theme it was in. A footer's job is contrast, and white
-                    // does that for dark ink exactly as well as black does for
-                    // light.
-                    DecoratedBox(
+                  ],
+                ),
+                // **THE FOOTER IS A SCRIM ON THE PICTURE, not a band under it.**
+                // It was a panel in the column, which is what `card.css` says
+                // and what cost half a small card's height. Laid over the art it
+                // costs nothing, and the gradient is what makes the words
+                // readable over a light shirt — fading to nothing at the top so
+                // there is no edge across the drawing.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           // CSS `0deg` is bottom-to-top, so the heavier end is
@@ -398,13 +417,9 @@ class PlayerCard extends StatelessWidget {
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                           colors: light
-                              ? const [Color(0xF0FFFFFF), Color(0xC7FFFFFF)]
-                              : const [Color(0xD9000000), Color(0x80000000)],
-                        ),
-                        border: Border(
-                          top: BorderSide(
-                            color: accent.withValues(alpha: 0x44 / 255),
-                          ),
+                              ? const [Color(0xF7FFFFFF), Color(0xE8FFFFFF), Color(0x00FFFFFF)]
+                              : const [Color(0xF0000000), Color(0xD9000000), Color(0x00000000)],
+                          stops: const [0, 0.62, 1],
                         ),
                       ),
                       child: Padding(
@@ -490,7 +505,7 @@ class PlayerCard extends StatelessWidget {
                             // speed.
                             if (view.incomePerSec != null) ...[
                               const SizedBox(height: 3),
-                              _Income(
+                              _IncomeRate(
                                 ratePerSec: view.incomePerSec!,
                                 // **GREEN FOR MONEY IN, RED FOR MONEY OUT.**
                                 // The bar and the rate were the club's accent,
@@ -501,17 +516,33 @@ class PlayerCard extends StatelessWidget {
                                 // too, so a loan visibly drains where a signing
                                 // visibly fills.
                                 ink: view.onLoan ? incomeOutInk : incomeInInk,
-                                track: captionTrack,
                                 drains: view.onLoan,
-                                onCycle: onIncomeCycle,
                               ),
                             ],
                           ],
                         ),
                       ),
                     ),
-                  ],
                 ),
+                // **THE BAR IS THE CARD'S BOTTOM EDGE.** It was three points
+                // tall in the middle of the caption, under the rate, where it
+                // was reported as missing — a hairline of faint accent inside a
+                // stack of text is not a progress bar anybody sees. Full width
+                // along the foot, it is the one thing on the card that is
+                // always in the same place on every card.
+                if (view.incomePerSec != null)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _IncomeBar(
+                      ratePerSec: view.incomePerSec!,
+                      ink: view.onLoan ? incomeOutInk : incomeInInk,
+                      track: captionTrack,
+                      drains: view.onLoan,
+                      onCycle: onIncomeCycle,
+                    ),
+                  ),
                 Positioned(
                   top: 5,
                   left: 5,
@@ -723,15 +754,52 @@ class _Ribbon extends StatelessWidget {
 const Color incomeInInk = Color(0xFF11913F);
 const Color incomeOutInk = Color(0xFFE03131);
 
-/// The rate, and a bar that fills once per payout of it.
+/// The rate line, on the card's caption.
+class _IncomeRate extends StatelessWidget {
+  const _IncomeRate({
+    required this.ratePerSec,
+    required this.ink,
+    required this.drains,
+  });
+
+  final double ratePerSec;
+  final Color ink;
+  final bool drains;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      // FLEXIBLE. A card is 90px wide and a rate can be five figures a second
+      // at the top tiers; the figure gives ground before the coin that says
+      // what it is.
+      Flexible(
+        child: Text(
+          '${drains ? '-' : '+'}${formatRate(ratePerSec)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            color: ink,
+          ),
+        ),
+      ),
+      const SizedBox(width: 2),
+      Icon(Icons.monetization_on, size: 9, color: ink),
+    ],
+  );
+}
+
+/// The bar that fills once per payout, along the card's bottom edge.
 ///
 /// The cycle length is DERIVED from the rate rather than picked — see
 /// `incomeBarCycleSec`. A hardcoded per-tier speed carries no information: it
 /// tracks the badge the card is already wearing, not the money, and income
 /// spans four orders of magnitude across the tiers where a tier table spans
 /// one.
-class _Income extends StatefulWidget {
-  const _Income({
+class _IncomeBar extends StatefulWidget {
+  const _IncomeBar({
     required this.ratePerSec,
     required this.ink,
     required this.track,
@@ -749,10 +817,11 @@ class _Income extends StatefulWidget {
   final bool drains;
 
   @override
-  State<_Income> createState() => _IncomeState();
+  State<_IncomeBar> createState() => _IncomeBarState();
 }
 
-class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
+class _IncomeBarState extends State<_IncomeBar>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _fill = AnimationController(vsync: this)
     ..addListener(_onTick);
 
@@ -794,7 +863,7 @@ class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
   }
 
   @override
-  void didUpdateWidget(_Income old) {
+  void didUpdateWidget(_IncomeBar old) {
     super.didUpdateWidget(old);
     if (old.ratePerSec != widget.ratePerSec) _sync();
   }
@@ -807,57 +876,22 @@ class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    // NOT a `BarFill`: that is a layout, and a grid of these re-laid-out and
+    // repainted every card every frame. This is one rect, painted off the
+    // clock, in a layer a few points tall.
+    return SizedBox(
       key: const ValueKey('card-income'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            // FLEXIBLE. A card is 90px wide and a rate can be five figures a
-            // second at the top tiers; the figure gives ground before the coin
-            // that says what it is.
-            Flexible(
-              child: Text(
-                '${widget.drains ? '-' : '+'}${formatRate(widget.ratePerSec)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w900,
-                  color: widget.ink,
-                ),
-              ),
-            ),
-            const SizedBox(width: 2),
-            Icon(Icons.monetization_on, size: 9, color: widget.ink),
-          ],
-        ),
-        const SizedBox(height: 2),
-        // NOT a `BarFill`: that is a layout, and a grid of these re-laid-out
-        // and repainted every card every frame. This is one rect, painted
-        // off the clock, in a layer 3pt tall.
-        // **TALL ENOUGH TO SEE.** Three points of a faint accent on a light
-        // card is a hairline nobody reported as a bar because nobody could
-        // report seeing one at all. Five, in a colour that means something.
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2.5),
-          child: SizedBox(
-            height: 5,
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: _FillPainter(
-                  fill: _fill,
-                  ink: widget.ink,
-                  track: widget.track,
-                  drains: widget.drains,
-                ),
-              ),
-            ),
+      height: 5,
+      child: RepaintBoundary(
+        child: CustomPaint(
+          painter: _FillPainter(
+            fill: _fill,
+            ink: widget.ink,
+            track: widget.track,
+            drains: widget.drains,
           ),
         ),
-      ],
+      ),
     );
   }
 }

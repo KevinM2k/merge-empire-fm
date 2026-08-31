@@ -373,42 +373,47 @@ void main() {
       }
     });
   });
-  group('THE PICTURE SITS IN A WELL, not across the whole card', () {
-    testWidgets('inset from the border, under the strip, above the footer', (
+  group('THE PICTURE IS THE CARD, and the words float on it', () {
+    testWidgets('the well runs from the strip to the bottom edge', (
       tester,
     ) async {
-      // `.card-artwrap` is `flex: 1; margin: 2px 3px 0` under a 4px
-      // `.card-strip`, with `.card-footer` below it. The port had the portrait
-      // as a `Positioned.fill` across the whole card with everything floating
-      // over it, so the drawing ran under the border and under the rating chip.
+      // **This reverses a decision, and the reason it was made is answered
+      // rather than dropped.** `card.css` is a flex column — a well for the art
+      // with a footer panel under it — and the port matched that after an
+      // earlier pass had the art full-bleed with everything floating over it.
+      // On a 90pt card the footer was taking half the height for a tier chip, a
+      // name and a rate. Asked for directly: make the image bigger, they can
+      // sit on the picture.
+      //
+      // What made the overlay unreadable the first time was a caption laid
+      // straight on a drawing. It has a scrim under it now, so what changed is
+      // not "no well" but "a well the size of the card, with the words on a
+      // ground of their own".
       await pumpCard(tester, _view);
       final card = tester.getRect(find.byType(PlayerCard));
       final art = tester.getRect(find.byType(ArtImage));
 
+      // Inset from the border on both sides, and clear of the rarity strip.
       expect(art.left, greaterThan(card.left));
       expect(art.right, lessThan(card.right));
-      // The 2pt border, the 4pt strip and the 2pt margin.
       expect(art.top, greaterThanOrEqualTo(card.top + 8));
-      // And it stops at the footer rather than running behind it.
-      expect(
-        art.bottom,
-        lessThanOrEqualTo(tester.getRect(find.text(_view.name)).top),
-      );
+
+      // And it runs UNDER the caption rather than stopping above it — which is
+      // the whole change. The name sits inside the picture's own rect.
+      final name = tester.getRect(find.text(_view.name));
+      expect(art.bottom, greaterThan(name.top));
+      expect(art.bottom, greaterThan(card.bottom - 12));
     });
 
-    testWidgets('and the WHOLE figure fits — contain, not a crop', (
-      tester,
-    ) async {
-      // `object-fit: contain`. The port used `fitWidth`, which scales a square
-      // drawing to the card's full width and pins it to the top: bigger than
-      // the well the spec gives it, and cropped. A pass before that had tried
-      // `contain` across the whole CARD and backed it out for the band of
-      // nothing it left above his head — that is a 3:4 box, and the well is
-      // near enough square.
+    testWidgets('and it FILLS that well — cover, not contain', (tester) async {
+      // Contained in a 3:4 card a square drawing loses a quarter of its height
+      // to slack, which is the band of nothing above his head that sent an
+      // earlier pass back to a smaller well. The well is the whole card now, so
+      // it fills and loses what it must off the sides.
       await pumpCard(tester, _view);
       expect(
         tester.widget<ArtImage>(find.byType(ArtImage)).fit,
-        BoxFit.contain,
+        BoxFit.cover,
       );
     });
   });

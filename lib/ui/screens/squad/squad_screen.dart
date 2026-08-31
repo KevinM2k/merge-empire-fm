@@ -149,15 +149,14 @@ class SquadHeader extends ConsumerWidget {
         : const Color(0xFFFF9800);
 
     return Container(
+      // **NO GROUND OF ITS OWN AT ALL.** It was `kit.bg` as a SOLID, so on a
+      // pattern kit the strip carrying the rating, the formation and the
+      // counter-attack toggle was a flat slab with the turf running up to it
+      // and stopping — reported as there being no turf behind them. A 62% wash
+      // was the first answer and is still a slab, just a translucent one:
+      // asked for again, and this time in as many words. The panel inside it
+      // carries its own glass, which is all this band ever needed to be.
       decoration: BoxDecoration(
-        // **THE PAGE SHOWS THROUGH IT.** This band was `kit.bg` — the page's
-        // own ground as a SOLID — so on a pattern kit the strip carrying the
-        // rating, the formation and the counter-attack toggle was a flat slab
-        // with the turf running up to it and stopping. Reported directly: there
-        // is no turf behind them. A wash of the same colour keeps the band
-        // readable and lets the backdrop through, which is what every other
-        // surface on this page already does.
-        color: kit.bg.withValues(alpha: 0.62),
         border: Border(bottom: BorderSide(color: kit.border)),
       ),
       padding: EdgeInsets.fromLTRB(14, hudClearanceOf(context), 14, 11),

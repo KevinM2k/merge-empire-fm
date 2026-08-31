@@ -832,7 +832,23 @@ void main() {
         isNot(kit.textMuted),
         reason: 'that is the colour a DISABLED moulded button uses',
       );
-      expect(ink, kit.accent, reason: "the theme's own outline ink");
+      // **AND IT IS RED, because this one is a REFUSAL.** A bare outline is
+      // right for a cancel beside an action of equal weight; this one sits next
+      // to selling a player, which cannot be undone, and the pair reads better
+      // as go/stop than as one button and one hole. Asked for directly.
+      expect(ink, Colors.white, reason: 'white on the red face');
+      // And the red is painted in the `backgroundBuilder` like every other
+      // moulded face: `backgroundColor` colours the layer UNDERNEATH it and
+      // fails silently, which is the trap `architecture_test.dart` guards.
+      final style = tester
+          .widget<OutlinedButton>(find.byKey(const ValueKey('sell-cancel')))
+          .style!;
+      expect(
+        style.backgroundColor?.resolve(const {})?.a,
+        0,
+        reason: 'a moulded face is painted in the backgroundBuilder, never here',
+      );
+      expect(style.backgroundBuilder, isNotNull);
 
       // The sheet's market offer owns a 1Hz countdown, so it has to be shut
       // before the binding checks for pending timers.

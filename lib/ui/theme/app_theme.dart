@@ -113,13 +113,28 @@ Decoration _backgroundFor(String kitId, KitSurfaces s, bool light) {
   // screen is that picking claret changes nothing about the page. Reported
   // directly.
   //
-  // A twelfth of the way, which is a push rather than a wash: enough that two
-  // kits are not the same white, far too little to be a coloured page.
+  // **THE LIGHT PAGE IS BUILT THE WAY THE DARK ONE IS, rather than lerped
+  // toward the accent.** Three passes of "a bit more tint" got nowhere useful
+  // because a lerp toward a mid-tone accent darkens the page as much as it
+  // colours it — 20% of claret on white is a pink, and a pink page is not what
+  // dark mode does.
+  //
+  // Dark mode's stack is `hsl(h, sat, 7%)` over `hsl(h, sat·0.75, 12%)`: the
+  // club's HUE at the club's saturation, placed at a lightness that makes it a
+  // page. Mirrored at the top of the scale that is `hsl(h, sat, 97%)` over
+  // `hsl(h, sat·0.75, 94%)` — the same construction, the same amount of club,
+  // and a page that is unmistakably tinted without being coloured. Which is
+  // what was asked for: the equivalent of what dark mode already has.
+  //
+  // `kitSaturation` is the same clamp the dark stack uses, so a grey kit still
+  // has some colour in it and a neon one does not glow.
+  final hsl = hexToHsl(s.accent);
+  final sat = kitSaturation(hsl.s);
   final page = light
       ? [
-          Color.lerp(cssColor(s.bg), cssColor(s.accent), 0.055)!,
-          Color.lerp(cssColor(s.surface), cssColor(s.accent), 0.085)!,
-          Color.lerp(cssColor(s.bg), cssColor(s.accent), 0.055)!,
+          cssColor(hslToHex(hsl.h, sat, 97)),
+          cssColor(hslToHex(hsl.h, (sat * 0.75).round(), 94)),
+          cssColor(hslToHex(hsl.h, sat, 97)),
         ]
       : [cssColor(s.bg), cssColor(s.surface), cssColor(s.bg)];
   return BoxDecoration(
