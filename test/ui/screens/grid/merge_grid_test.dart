@@ -1493,6 +1493,58 @@ void main() {
       );
     });
 
+    testWidgets('AND LENDS IT AGAIN WHEN IT COMES BACK', (tester) async {
+      // **The pairing only balanced once, and that is the bug.** `deactivate`
+      // hands the resolver back; only `initState` ever handed one out. So the
+      // first thing that re-parented the grid — a tab switch, a rebuild that
+      // moves it — ran `deactivate` and then `activate`, and from that moment
+      // `scoutLandingProvider` was null for the life of the app.
+      //
+      // `add_player_button.dart` reads that provider. The merge path calls the
+      // grid's resolver directly and never touched it. Which is why a signing
+      // faded out where it stood while a merge, three lines away in the same
+      // overlay, still flew home — reported exactly that way, every time.
+      final container = await pumpGrid(tester);
+      await tester.pump();
+      expect(container.read(scoutLandingProvider), isNotNull);
+
+      // A re-parent: the same grid, moved in the tree. This is what a tab
+      // switch does to it, and the `GlobalKey` is what makes it a MOVE rather
+      // than a fresh mount — so `initState` does not run again and `activate`
+      // does, which is the whole point.
+      final key = GlobalKey();
+      Future<void> pumpAt({required bool nested}) => tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(disableAnimations: true),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: nested
+                    ? Center(child: MergeGrid(key: key))
+                    : MergeGrid(key: key),
+              ),
+            ),
+          ),
+        ),
+      );
+      await pumpAt(nested: false);
+      await tester.pumpAndSettle();
+      await pumpAt(nested: true);
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(scoutLandingProvider),
+        isNotNull,
+        reason: 'a signing has had nowhere to fly since the first re-parent',
+      );
+      await settleSave(tester);
+    });
+
     testWidgets('and hands it back when the grid leaves the screen', (
       tester,
     ) async {

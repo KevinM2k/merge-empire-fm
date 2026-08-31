@@ -236,9 +236,33 @@ class MergeGridState extends ConsumerState<MergeGrid>
   @override
   void initState() {
     super.initState();
-    // The grid lends the scout reveal a way home. Nothing watches this, so
-    // setting it costs no rebuild; the frame's delay is so that it is never set
-    // while the frame that mounted the grid is still being built.
+    _lendTheWayHome();
+  }
+
+  /// **AND AGAIN EVERY TIME IT COMES BACK.**
+  ///
+  /// This was `initState` alone, against a [deactivate] that hands the resolver
+  /// back — so the pairing only balanced once. Anything that re-parents the
+  /// grid runs `deactivate` and then `activate`, and the first half set the
+  /// provider to null while the second half did nothing: from that moment on
+  /// `scoutLandingProvider` was null for the life of the app.
+  ///
+  /// What that looked like is the whole bug. `add_player_button.dart` reads the
+  /// provider; the merge path calls `_landingRects` directly and never touched
+  /// it. So a signing had no way home and left the reveal by fading out where
+  /// it stood, while a merge — three lines away, same overlay, same code —
+  /// still flew. Reported exactly that way, and every single time.
+  ///
+  /// Nothing watches this, so setting it costs no rebuild; the frame's delay is
+  /// so that it is never set while the frame that mounted the grid is still
+  /// being built.
+  @override
+  void activate() {
+    super.activate();
+    _lendTheWayHome();
+  }
+
+  void _lendTheWayHome() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(scoutLandingProvider.notifier).state = _landingRects;
