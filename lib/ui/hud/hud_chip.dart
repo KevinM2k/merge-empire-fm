@@ -142,6 +142,13 @@ class HudCluster extends StatelessWidget {
       key: const ValueKey('hud-cluster'),
       radius: 14,
       darkGlass: true,
+      // **THE SAME RECIPE THE NEXT-MATCH CARD USES.** Both stand on the sky and
+      // both were reported in the same breath — the card much lighter than the
+      // bar, and the bar too dark. They are one material now rather than two
+      // that happen to be dark, which is a thing to state once instead of two
+      // opacities to keep in step by eye.
+      density: GlassDensity.deep,
+      tint: skyPaneTint,
       // **NO DROP SHADOW.** Every other pane in the app casts one to say it is
       // in FRONT of the page — see [GlassPanel.shadow]. This one is not on the
       // page, it is in a bar, and the shadow was a dark smear under the one

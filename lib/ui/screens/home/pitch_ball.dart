@@ -42,7 +42,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
-    show walkerFootOffset, walkerWidth;
+    show walkerFootOffset, walkerThighAngle, walkerWidth;
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
     show groundHalfStrideArtUnits, walkDurationFor, walkerScale;
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
@@ -734,11 +734,39 @@ class _PitchBallState extends State<PitchBall>
       ? 0
       : math.sin(math.pi * (1 - _flick / _flickSeconds)) * _flickHeight;
 
+  /// **HE ONLY SWINGS ON A LEG THAT IS ALREADY GOING THAT WAY.** The cue used
+  /// to fire the instant the trap timer reached [kickLead], whatever his legs
+  /// were doing — so about half the time the kick played on the near leg at the
+  /// back of its stride and the boot travelled backwards through the ball.
+  /// Reported directly: he should only kick when his right leg is moving
+  /// forwards.
+  ///
+  /// Forward is the thigh angle DECREASING, sampled a sixtieth of a stride
+  /// ahead. `_beat` counts half-strides and `walkerThighAngle` takes whole
+  /// ones, hence the halving.
+  bool get _nearLegSwingingForward {
+    final phase = (_beat?.value ?? 0) / 2;
+    return walkerThighAngle(phase + 1 / 60, near: true) <
+        walkerThighAngle(phase, near: true);
+  }
+
+  /// How far past [kickLead] the cue will wait for that window before giving up
+  /// and playing anyway.
+  ///
+  /// A stride is the longest it can ever have to wait — the near leg comes
+  /// forward once per stride — and the ball's own release is on the sim's clock
+  /// rather than on this, so a cue that never fired would leave a ball leaving
+  /// his feet with no kick at all.
+  static const double _strikeWindow = 0.34;
+
   void _watchStrike(double dt) {
     final trap = _sim.phase == BallPhase.trap && _sim.play != 'pickup';
     if (trap && !_strikeCued && _sim.timer <= kickLead && !_sim.halted) {
-      _strikeCued = true;
-      widget.onStrike?.call();
+      final late = _sim.timer <= kickLead - _strikeWindow;
+      if (_nearLegSwingingForward || late) {
+        _strikeCued = true;
+        widget.onStrike?.call();
+      }
     }
     // Left the trap for the turf: the ball has just been struck.
     if (_wasTrap && _sim.phase == BallPhase.out && _sim.grounded) {

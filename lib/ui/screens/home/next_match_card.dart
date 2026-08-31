@@ -225,13 +225,20 @@ class NextMatchCard extends ConsumerWidget {
     // GLASS, and DEEP because the card is tall enough to cross the sky's own
     // gradient.
     //
-    // It was forced DARK in both themes and it is not any more. The reason it
-    // was forced has gone: the sky was one fixed dusk-blue on a day→night clock,
-    // so a `surface` panel was pale-on-pale at the bright end of the cycle and
-    // the card never read as glass at either end of it. The sky follows the
-    // theme now, so in light mode this is a light pane under the app's own ink —
-    // and the one card on the screen that ignored the theme stops being that.
-    // [GlassPanel] carries both recipes; nothing here has to know which.
+    // **A LIGHT PANE IN LIGHT MODE, and dark glass was tried and put back.**
+    // The card's red and green are the DARK pair in both themes, because a
+    // player compares them against each other and a palette that changes with
+    // the theme is two palettes — see [vsColor]. Those two were chosen for a
+    // dark ground and neither is comfortable on a pale one, so the ground was
+    // moved under them: the card became the scorecard's glass in both themes,
+    // the way the match page's panels are.
+    //
+    // It works and it is not what was wanted. Dark enough for a mint green is
+    // dark enough to read as a slab cut out of a daylit sky, which is the same
+    // thing that had just been reported about the HUD's trough — and a whole
+    // card is a lot more of it. The pane stays light; what the verdict colours
+    // need is a ground of their OWN, the size of the number, rather than the
+    // card giving up its.
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

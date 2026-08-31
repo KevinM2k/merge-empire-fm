@@ -101,25 +101,26 @@ const Color _lightB = Color(0x33E4EFF8);
 const Color _lightChipA = Color(0xC4FCFEFF);
 const Color _lightChipB = Color(0xADE4EFF8);
 
-/// **The DEEP pane carries more in daylight than it used to.**
+/// The deep recipe's daylight stops.
 ///
-/// It was `0x57` over `0x42` — a third of a pane — which is right over a night
-/// sky and thin over a bright one: the next-match card sits on a daylight sky
-/// at the low tiers, so its verdict colours were reading against most of the
-/// sky rather than against the card. The red was the one reported as hard to
-/// read, which is what a low-contrast ink on a near-transparent ground does
-/// first. Asked for directly: less transparency on the card in light mode.
+/// **Left where they were, after a round trip.** They were pushed toward opaque
+/// to make the next-match card's red readable and pulled back when that washed
+/// out its green; the card is dark glass in both themes now — see
+/// `NextMatchCard` — so nothing that was being fixed here is on them any more.
+const Color _lightDeepA = Color(0x57FCFEFF);
+const Color _lightDeepB = Color(0x42DCEAF5);
+
+/// **A pane standing on a bright SKY, in light mode.**
 ///
-/// **Halfway, and the halfway is the answer rather than a hedge.** Taken all
-/// the way to near-opaque the red reads and the GREEN stops — a mint green
-/// wants some sky behind it and a coral red wants none, and they are printed
-/// side by side on the same row. The midpoint is the only place both are
-/// legible, which is what was asked for after seeing both ends.
+/// The HUD's trough and the next-match card both do, and both carry ink chosen
+/// for a dark ground — the wallet hues, and the card's red and green. So both
+/// are dark glass whatever the theme is. At the ordinary dark stops that came
+/// out as two slabs cut out of a daylit sky, reported as too dark, twice.
 ///
-/// Only the deep recipe moves. The chip and the panel stops are for surfaces
-/// with a page behind them rather than a sky, and neither was reported.
-const Color _lightDeepA = Color(0x87FCFEFF);
-const Color _lightDeepB = Color(0x74DCEAF5);
+/// About half. Enough of a ground under a mint green and a gold for them to be
+/// themselves, little enough that the sky is still visibly behind it — which is
+/// the difference between smoked glass and a hole.
+const List<Color> skyPaneTint = [Color(0x3D141E2C), Color(0x2E090F18)];
 
 /// How much the backdrop's colour is pushed under the pane.
 ///
@@ -329,6 +330,7 @@ class GlassPanel extends StatelessWidget {
     this.darkGlass,
     this.sheen = true,
     this.shadow = true,
+    this.tint,
   });
 
   final Widget child;
@@ -349,6 +351,11 @@ class GlassPanel extends StatelessWidget {
   /// it — reported on the commentary, where it also sat behind the minute down
   /// the left. It is a highlight on a small surface, not a wash for a big one.
   final bool sheen;
+
+  /// This pane's own two stops, in place of the pair its density and theme
+  /// would give it. For [skyPaneTint], which is a material rather than a
+  /// density — see there.
+  final List<Color>? tint;
 
   /// The drop shadow that lifts the pane off what is behind it.
   ///
@@ -382,7 +389,7 @@ class GlassPanel extends StatelessWidget {
     // panes on a bright sky and in dark mode was thin panes with the sky's own
     // violet coming through them. Both read as reported.
     final night = darkGlass ?? nightSceneOf(context);
-    final tints = switch ((night, density)) {
+    final tints = tint ?? switch ((night, density)) {
       (true, GlassDensity.chip) => const [_darkChipA, _darkChipB],
       (true, GlassDensity.panel) => const [_darkA, _darkB],
       (true, GlassDensity.deep) => const [_darkDeepA, _darkDeepB],

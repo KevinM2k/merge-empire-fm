@@ -941,20 +941,32 @@ class _EmptySlotMark extends StatelessWidget {
     final ink = lockedSlotSkin(
       Theme.of(context).extension<KitTheme>()!,
     ).ink;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return Stack(
+      alignment: Alignment.center,
       children: [
-        // Where the lock sits on a locked square, at the size the lock is.
-        Icon(Icons.add, size: 16, color: ink),
-        Text(
-          '${index + 1}',
-          style: TextStyle(
-            fontSize: 11,
-            height: 1.1,
-            fontWeight: FontWeight.w700,
-            color: ink,
+        // **THE NUMBER IS THE SQUARE'S BACKGROUND, not a label in it.** It was
+        // an emboss first — two shadows and no ink at all, which delivered
+        // subtle at the cost of legible — and then a quiet 11pt caption under
+        // the plus, which is a form field. Asked for directly: big enough to
+        // fill the card, a shade off the card's own colour so it reads as part
+        // of the surface, with the plus floating over it.
+        Padding(
+          padding: const EdgeInsets.all(6),
+          child: FittedBox(
+            child: Text(
+              '${index + 1}',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                height: 1,
+                // A tenth of the glyph's own ink: present enough to count the
+                // squares by, nowhere near enough to compete with a card.
+                color: ink.withValues(alpha: 0.22),
+              ),
+            ),
           ),
         ),
+        // Where the lock sits on a locked square, at the size the lock is.
+        Icon(Icons.add, size: 16, color: ink),
       ],
     );
   }
