@@ -50,6 +50,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart' show coinGold;
 import 'package:merge_empire_fc/ui/widgets/store_button.dart' show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/services/voice_cues.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 
 /// Colin's portrait, as the JS's `COLIN_IMG`.
@@ -407,6 +408,7 @@ Future<T?> showCoachCard<T>(
   String? badge,
   bool minimisable = false,
   CoachAction? footer,
+  bool speaks = false,
 
   /// Already-resolved body text, for a caller whose line comes out of a pool or
   /// carries a name the catalogue cannot know.
@@ -427,6 +429,7 @@ Future<T?> showCoachCard<T>(
       badge: badge,
       minimisable: minimisable,
       footer: footer,
+      speaks: speaks,
     ),
   );
 }
@@ -445,10 +448,12 @@ class _CoachCard<T> extends StatelessWidget {
     required this.badge,
     this.minimisable = false,
     this.footer,
+    this.speaks = false,
   });
 
   final bool minimisable;
   final CoachAction? footer;
+  final bool speaks;
 
   final String titleKey;
 
@@ -475,6 +480,7 @@ class _CoachCard<T> extends StatelessWidget {
     badge: badge,
     minimisable: minimisable,
     footer: footer,
+    speaks: speaks,
   );
 }
 
@@ -558,12 +564,21 @@ class CoachTypewriter extends StatefulWidget {
     this.style,
     this.textAlign = TextAlign.center,
     this.textKey,
+    this.speaks = false,
     super.key,
   });
 
   final String text;
   final TextStyle? style;
   final TextAlign textAlign;
+
+  /// Whether this line is also SAID. See [CoachCardFrame.speaks] — the flag is
+  /// the card's, and it is off by default.
+  ///
+  /// Announced on the bus rather than spoken here: the popup layer does not
+  /// import a speech engine, and a widget test emits into an empty bus. See
+  /// `services/voice_cues.dart`.
+  final bool speaks;
 
   /// The key the rendered text carries, so a caller's own hooks survive being
   /// typed rather than printed.
@@ -592,6 +607,10 @@ class _CoachTypewriterState extends State<CoachTypewriter>
 
   void _start() {
     _glyphs = widget.text.characters.toList();
+    // At the START of the line, not the end of it: the voice and the typing are
+    // the same delivery, and a sentence read out after it has finished
+    // appearing is a second telling rather than the same one.
+    if (widget.speaks) announceCoachLine(widget.text);
     _run
       ..duration = Duration(
         milliseconds: math.min(_maxTypeMs, math.max(1, _glyphs.length * _msPerGlyph)),
@@ -621,6 +640,9 @@ class _CoachTypewriterState extends State<CoachTypewriter>
 
   @override
   void dispose() {
+    // The card has gone, so the line goes with it — a coach still talking over
+    // the screen you went back to is the thing this is for.
+    if (widget.speaks) announceCoachSilence();
     _run.dispose();
     super.dispose();
   }
@@ -849,7 +871,23 @@ class CoachCardFrame extends StatelessWidget {
     this.badge,
     this.minimisable = false,
     this.footer,
+    this.speaks = false,
   });
+
+  /// Whether what he says is also SAID OUT LOUD.
+  ///
+  /// **Off, and opt-in per card, because the shape carries two different kinds
+  /// of thing.** A story beat — the club reaching a competition with a cup in
+  /// it, a milestone he has been waiting to tell you about — is exactly what a
+  /// voice is for. A confirmation dialog is not: "Sell Nakamura?" read aloud
+  /// every time a thumb lands on sell would have the player muting the game
+  /// inside a session, and the transfer bids and sponsor offers arrive on a
+  /// timer several times an hour.
+  ///
+  /// So the story and information cards ask for it and the decisions do not.
+  /// The line goes out on the bus; see `services/voice_cues.dart` for why it is
+  /// announced rather than spoken here.
+  final bool speaks;
 
   /// A `−` in the top corner that closes the card without answering it.
   ///
@@ -969,6 +1007,7 @@ class CoachCardFrame extends StatelessWidget {
                     CoachTypewriter(
                       text: body!,
                       textKey: const ValueKey('coach-card-body'),
+                      speaks: speaks,
                       style: TextStyle(
                         color: kit.textMuted,
                         fontSize: 13.5,

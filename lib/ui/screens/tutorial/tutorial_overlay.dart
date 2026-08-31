@@ -458,6 +458,11 @@ Future<TutorialAnswer?> showTutorialCard(
     titleKey: titleKey,
     bodyKey: bodyKey,
     bodyParams: tutorialParams(ref),
+    // **SPOKEN.** The walkthrough is the one stretch of the game that is purely
+    // him teaching, on the one run where the player has no idea what any of it
+    // does — and it happens once, so there is no session in which the voice
+    // becomes a thing to sit through twice.
+    speaks: true,
     extraLines: [
       // A step waiting on the save says so, or it reads as a card whose button
       // has failed to load.

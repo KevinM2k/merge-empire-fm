@@ -21,9 +21,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/services/voice_cues.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// A body long enough that the animation has somewhere to go: at 12ms a glyph,
 /// anything under a dozen characters is finished before the second frame.
@@ -47,6 +49,7 @@ Future<void> openCard(
   WidgetTester tester, {
   String body = longBody,
   bool disableAnimations = false,
+  bool speaks = false,
   List<CoachAction> actions = const [],
 }) async {
   await tester.pumpWidget(
@@ -67,6 +70,7 @@ Future<void> openCard(
                 titleKey: 'app.offline_title',
                 bodyKey: 'unused.body',
                 body: body,
+                speaks: speaks,
                 actions: actions,
               ),
               child: const Text('open'),
@@ -232,5 +236,57 @@ void main() {
   testWidgets('the title is NOT typed — only what he says', (tester) async {
     await openCard(tester);
     expect(find.text(t('app.offline_title')), findsOneWidget);
+  });
+
+  group('and some cards are SPOKEN', () {
+    /// What the card put on the bus. Announced rather than spoken directly, so
+    /// the popup layer never imports a speech engine and a test never touches a
+    /// device — see `services/voice_cues.dart`.
+    late List<String> said;
+    late int silences;
+
+    setUp(() {
+      said = [];
+      silences = 0;
+      on(coachSpeaksEvent, (args) {
+        final text = args is Map<String, dynamic> ? args['text'] : null;
+        if (text is String) said.add(text);
+      });
+      on(coachSilenceEvent, (_) => silences++);
+      addTearDown(clearBus);
+    });
+
+    testWidgets('a card that asks announces the WHOLE line, at the start', (
+      tester,
+    ) async {
+      // The whole line, not the typed prefix: the voice and the typing are one
+      // delivery, so he says the sentence while it appears rather than after.
+      await openCard(tester, speaks: true);
+      expect(typedSoFar(tester, 'coach-card-body'), isNot(longBody));
+      expect(said, [longBody]);
+    });
+
+    testWidgets('and stops when the card goes', (tester) async {
+      await openCard(
+        tester,
+        speaks: true,
+        actions: [CoachAction(labelKey: 'common.confirm', onTap: () {})],
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('coach-action-common.confirm')),
+      );
+      await tester.pumpAndSettle();
+      expect(silences, 1, reason: 'a coach still talking over the screen you '
+          'went back to is what this is for');
+    });
+
+    testWidgets('but a card that does not ask stays silent', (tester) async {
+      // Which is every confirmation, every bid and every sponsor: the default
+      // is off, and the story and information cards opt in.
+      await openCard(tester);
+      await tester.pumpAndSettle();
+      expect(said, isEmpty);
+      expect(silences, 0);
+    });
   });
 }

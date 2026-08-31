@@ -84,6 +84,12 @@ dependencies:
   firebase_analytics: ^12.4.6
   firebase_crashlytics: ^5.2.7
 
+  # **NOT a port of anything — the JS has no voice.** Coach Colin's story and
+  # milestone cards read themselves out through the device's own speech engine.
+  # Behind `services/voice_service.dart` like every other seam here, and behind
+  # a per-card opt-in on top of that: see the note on `CoachCardFrame.speaks`.
+  flutter_tts: ^4.2.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
