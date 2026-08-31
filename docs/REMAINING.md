@@ -76,7 +76,7 @@ which can be closed by writing Dart in this repo:
 Also still open, and deliberately so: the carried risks at the foot of the file
 are DECISIONS, not work.
 
-**5,592 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
+**5,774 tests, `flutter analyze` clean.** Flutter **3.44.9** / Dart **3.12.2**,
 in `.fvmrc` and in CI. See `The SDK the port builds against` below.
 
 **The newest pass also ran green on 3.38.3**, which is the version that happened
@@ -1665,6 +1665,74 @@ JS number or object did.
   where the JS writes `75`. Equal as numbers, different as JSON, and coins are
   the most-written field there is. Anything going into the save that JS holds as
   a whole number must arrive as a Dart `int`.
+
+---
+
+## Found while playing — 31 Aug (the global leaderboard scored nothing)
+
+Reported as "the global leaderboard doesn't seem to be updating my score when I
+play games". It was not the board, the schema, the transport or the sign-in.
+**Nothing in `lib/` emitted `match:complete`.**
+
+- [x] **A FINISHED MATCH NEVER REACHED THE LEADERBOARD, and nothing anywhere
+      said so.** `game_host` subscribes to `match:complete` and calls
+      `submitMatchStats` — the four-period write, in one atomic commit — and
+      `match_orchestration.dart` carries a comment explaining that it
+      deliberately does NOT emit that event at kick-off, because "the UI fires
+      it at full time, after the animation, so achievement banners and sound
+      effects don't trigger the instant the Play button is pressed". The UI
+      never did. The event had no emitter in `lib/` at all, so every score any
+      player put on any global board came from four writes that never ran, and
+      the board they were looking at was correct: they were not on it.
+      **`analytics_wiring.dart` had already written the finding down** — "reads
+      like the right hook and is a dead letter — nothing in `lib/` emits it,
+      though `game_host` subscribes" — as a note about why analytics uses
+      `match:close` instead. It was true, it was accurate, and it was filed
+      under the wrong feature.
+      The emit now sits in `play_button.dart`'s `onFinished`, **after
+      `settleMatch` and not before**, which is the whole reason it belongs at
+      the screen rather than in `MatchScreen`: an in-match tactic change
+      re-simulates the remainder and rewrites `won`, `drawn` and the scoreline
+      in place, and `finalizeMatchOutcome` is what settles them. Emitted a line
+      earlier, the board would take the score as it stood at kick-off — and so
+      would the achievement sweep in `game_wiring`, which hangs off the same
+      event.
+- [x] **The check that would have caught it, in `architecture_test.dart`:**
+      every bus event `lib/` subscribes to has to be emitted somewhere in
+      `lib/`. This is a class of bug no widget test can see — the two halves of
+      a bus wiring live in different files BY DESIGN, engines emit and the UI
+      listens, so neither half is wrong on its own — and it is the bus's
+      equivalent of `tool/unreached.sh`. Removing the new emit makes it fail
+      with the original bug named in the message, which is how it was checked.
+      It reads the bulk `for (final event in const [...])` loops as well as
+      plain `on(...)` calls, because the achievement sweep subscribes that way
+      and that is how `match:complete` was subscribed to.
+- [~] **`scout:placed` is the same bug, still open, and it is the only other
+      one in the tree.** The sweep above found exactly two dead letters and this
+      is the second. `signPlayers` places the cards and emits `coins:updated`
+      and — when the batch fell short — `scout:short`, but never this;
+      `coach_tip_host.dart` and `game_wiring.dart`'s achievement sweep both
+      listen for it. Both are covered by luck today, because `signPlayers`
+      emits `coins:updated` and the sweep listens to that too, so no achievement
+      is unreachable and the tip host re-checks a beat differently rather than
+      not at all. **Where the emit belongs is a question about the scouting flow
+      rather than about the bus** — after the batch, or after the reveal, or per
+      card — so it is carried in the test's `knownDeadLetters` with that reason
+      written on it rather than guessed at. Answering it is a small job for
+      whoever owns that flow.
+- [ ] **Does a CUP TIE score on the leaderboard? Blocked on the spec repo.**
+      The cup path deliberately does not emit `match:complete`, and this is the
+      one judgement call in the change. A cup tie's result map carries the
+      CUP's id in `divisionId` (`cup_launcher.dart` sets it from
+      `prepared.cupId`), and that field is what `leaderboardRowMeta` writes to
+      the row's `division` — the very field the division-scoped boards filter
+      on. A tie emitted as-is would move the player onto a board named after a
+      cup until their next league match moved them back. Whether the JS counts
+      cup ties at all could not be checked from a cloud container, so the
+      narrower behaviour ships: **league fixtures score, cup ties do not**, and
+      the note is on the `onFinished` in `play_button.dart` so the next reader
+      does not "fix" it by adding an emit. If the JS does count them, the change
+      is an emit plus a league division on the submission, not a schema change.
 
 ---
 
@@ -8557,6 +8625,13 @@ of buttons that error.
       is the fetch, the four-period write and the opt-out sweep, and
       `ui/screens/leaderboard/leaderboard_board.dart` is the ranked list that
       the sheet had a one-line apology in place of.
+      **AND THE WRITE HAD NO CALLER UNTIL 31 AUG.** Everything in this row was
+      built, tested and correct, and a played match still scored nothing:
+      `game_host` subscribed to `match:complete` and nothing in `lib/` ever
+      emitted it. The four writes are reached from `play_button.dart` now, and
+      `architecture_test.dart` fails on a bus event that is subscribed to and
+      never fired. See the 31 Aug block — including the one open question it
+      leaves, which is whether a cup tie scores.
       **THE BOARD IS BUILT BY A CLOUD FUNCTION**, which is the JS's own primary
       path and the reason this is small: a rank is a `count()` over the whole
       collection — one server call, or a hundred document reads on a phone. The

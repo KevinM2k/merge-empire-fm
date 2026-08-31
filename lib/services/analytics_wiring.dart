@@ -266,10 +266,12 @@ class AnalyticsWiring {
       refreshUserProps();
     });
 
-    // **A match, from the one event that is actually emitted.** `match:complete`
-    // reads like the right hook and is a dead letter — nothing in `lib/` emits
-    // it, though `game_host` subscribes. `match:close` is what the play button
-    // fires at full time, for a league fixture and a cup tie alike.
+    // **A match, and NOT from `match:complete`.** That event was a dead letter
+    // when this was written — nothing in `lib/` emitted it, though `game_host`
+    // subscribed — and the play button now fires it at full time for a league
+    // fixture. It is still the wrong hook HERE: it does not fire for a cup tie,
+    // and analytics wants every match. `match:close` is what the play button
+    // fires on the way out, for a league fixture and a cup tie alike.
     // **`match:close` no longer reports.** The JS's `match_played` carries the
     // division, the result and the fixture number, and none of those are on
     // this signal — it fires when the SCREEN closes, with an empty payload. It

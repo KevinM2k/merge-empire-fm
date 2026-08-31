@@ -129,4 +129,126 @@ void main() {
     );
   });
 
+  // ---------------------------------------------------------------------------
+  // Dead letters on the bus.
+  // ---------------------------------------------------------------------------
+
+  /// **A subscription to an event nobody emits is silent, and it is not rare.**
+  ///
+  /// `match:complete` shipped this way. `match_orchestration.dart` says, in a
+  /// comment, that it deliberately does not emit at kick-off because "the UI
+  /// fires it at full time" — and then no screen ever did. `game_host`
+  /// subscribed to it to put a finished match on the four leaderboard rows and
+  /// `game_wiring` subscribed to sweep achievements, so both hung off a signal
+  /// that never arrived: every match a player finished, and no score on any
+  /// global board. Nothing failed, nothing analysed, and the only symptom was a
+  /// leaderboard that stayed still.
+  ///
+  /// That is the shape of the bug this catches: the two halves of a bus wiring
+  /// live in different files by design — engines emit, the UI and the wiring
+  /// listen — so neither half is wrong on its own and no test that builds one
+  /// widget can see the gap. A grep over `lib/` can.
+  ///
+  /// Only `lib/` counts on either side. A test that emits an event is a test
+  /// arranging its own fixture, not a caller — the same rule
+  /// `tool/unreached.sh` uses.
+  test('every bus event lib/ subscribes to is emitted somewhere in lib/', () {
+    // What the port has decided it is not fixing yet. An entry here is a known
+    // gap with a reason, not a way to make the test quiet — see
+    // `docs/REMAINING.md`.
+    const knownDeadLetters = {
+      // Placing a scouted card emits `coins:updated` and, when the batch fell
+      // short, `scout:short` — but never this. The coach tip host and the
+      // achievement sweep both want it; both are covered by luck today,
+      // because `signPlayers` emits `coins:updated` and the sweep listens to
+      // that too. Where it belongs is a question about the scouting flow
+      // rather than about the bus, so it is written down rather than guessed.
+      'scout:placed',
+    };
+
+    final emitted = <String>{};
+    final subscribed = <String, String>{};
+
+    final emitCall = RegExp(r"""\bemit\(\s*'([^']+)'""");
+    final listenCall = RegExp(r"""\b(?:on|_listen)\(\s*'([^']+)'""");
+    // The wiring files register in bulk — `for (final event in const [...])`
+    // then one `_listen(event, ...)` — so the names are in a list literal and
+    // never appear beside a call at all. That loop is how the achievement
+    // sweep subscribes, which is to say it is how `match:complete` was
+    // subscribed to.
+    final listenLoop = RegExp(
+      r'for\s*\(\s*final\s+\w+\s+in\s+const\s*\[(.*?)\]\s*\)',
+      dotAll: true,
+    );
+    final eventName = RegExp(r"'([a-z]+:[a-z_]+)'");
+
+    for (final entity in Directory('lib').listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      // Whole-line comments only. Every comment in this repo carries the
+      // reasoning for the code under it and names the events freely — the file
+      // head of `event_bus.dart` lists half of them — so a scan that counted
+      // prose would report the bus as fully wired no matter what.
+      final src = entity
+          .readAsStringSync()
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+
+      for (final m in emitCall.allMatches(src)) {
+        emitted.add(m.group(1)!);
+      }
+      for (final m in listenCall.allMatches(src)) {
+        subscribed.putIfAbsent(m.group(1)!, () => entity.path);
+      }
+      for (final loop in listenLoop.allMatches(src)) {
+        for (final m in eventName.allMatches(loop.group(1)!)) {
+          subscribed.putIfAbsent(m.group(1)!, () => entity.path);
+        }
+      }
+    }
+
+    // The scan itself, before its verdict. Both sides have to have found real
+    // work or "no dead letters" means "no events".
+    expect(emitted, hasLength(greaterThan(50)));
+    expect(subscribed, hasLength(greaterThan(20)));
+
+    final dead = [
+      for (final event in subscribed.keys.toList()..sort())
+        if (!emitted.contains(event) && !knownDeadLetters.contains(event))
+          '$event — subscribed in ${subscribed[event]}, emitted nowhere',
+    ];
+
+    expect(
+      dead,
+      isEmpty,
+      reason:
+          'These are dead letters: something in lib/ is listening and nothing '
+          'in lib/ ever fires them, so the handler is unreachable and says so '
+          'to nobody.\n${dead.join('\n')}',
+    );
+  });
+
+  test('and match:complete is in the scan on BOTH sides', () {
+    // The guard on the test above. It would pass just as happily if the regexes
+    // stopped matching anything the wiring actually does, and the event that
+    // was broken is the one worth naming: it is subscribed in a bulk loop and
+    // emitted from a screen, so between them the two sides exercise every part
+    // of that scan.
+    final host = File('lib/providers/game_host.dart').readAsStringSync();
+    expect(host, contains("on('match:complete', _submitMatch)"));
+
+    final wiring = File('lib/state/game_wiring.dart').readAsStringSync();
+    expect(wiring, contains("'match:complete',"));
+
+    // Full time in the play button, and AFTER the outcome is settled: a tactic
+    // change re-simulates the remainder and rewrites the scoreline in place, so
+    // an emit above `settleMatch` would put the kick-off score on the board.
+    final button = File(
+      'lib/ui/screens/match/play_button.dart',
+    ).readAsStringSync();
+    final settle = button.indexOf('settleMatch(s, r)');
+    final fire = button.indexOf("emit('match:complete', r)");
+    expect(settle, greaterThan(-1));
+    expect(fire, greaterThan(settle));
+  });
 }
