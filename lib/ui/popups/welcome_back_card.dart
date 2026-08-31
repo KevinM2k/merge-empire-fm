@@ -14,10 +14,17 @@
 /// nothing saying the books had stopped counting long before. The JS flags it;
 /// that is what the note is for.
 ///
-/// The shape is the JS's: Colin's face, his line, then the label over a hero
-/// figure, then the note, then Collect. Nothing is boxed inside anything — the
-/// card is already Colin talking, and a panel around his line is one bordered
-/// box inside another.
+/// The shape is the JS's: Colin, his line, then the label over a hero figure,
+/// then the note, then Collect. Nothing is boxed inside anything — the card is
+/// already Colin talking, and a panel around his line is one bordered box inside
+/// another.
+///
+/// **And it is his own chrome now, not a second one that looked like it.** This
+/// was an `AlertDialog` with its own disc, its own name plate and its own type
+/// sizes, which made the one card every single launch opens with the one card
+/// where Colin arrives through a different window. It stands on [CoachStage] —
+/// the bottom-anchored box he stands over — and his line is typed like every
+/// other line of his.
 library;
 
 import 'package:flutter/material.dart';
@@ -26,12 +33,9 @@ import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
-
-/// Colin, as the JS's `COLIN_IMG`.
-const String colinPortrait = 'assets/ui/manager_hint.png';
 
 /// The ceiling, in whole hours, for the note that mentions it.
 int get offlineCapHours => (Idle.maxOfflineMs / 3600000).round();
@@ -102,113 +106,112 @@ class WelcomeBackCardState extends State<WelcomeBackCard> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final earned = widget.offline.earned.floor();
 
-    return AlertDialog(
-      key: const ValueKey('welcome-back'),
-      backgroundColor: kit.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: kit.border),
-      ),
-      contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-      content: Column(
+    return CoachStage(
+      dialogKey: const ValueKey('welcome-back'),
+      // The same division of labour the coach card makes: what there is to read
+      // scrolls, and the one control does not go under the fold with it.
+      child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Colin's own face, not a glyph in a circle: this is the card the
-          // player opens the app on.
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: kit.surface2,
-              border: Border.all(color: kit.accent.withValues(alpha: 0.6)),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: ArtImage(
-              path: colinPortrait,
-              fallback: Icon(Icons.sports, size: 30, color: kit.accent),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            t('coachtip.name'),
-            style: TextStyle(
-              color: kit.accentBright,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            t('app.offline_title'),
-            key: const ValueKey('welcome-back-title'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            line,
-            key: const ValueKey('welcome-back-line'),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: kit.textMuted, fontSize: 13, height: 1.35),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            t('welcome.earned_label'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: kit.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: 2),
-          // The number is the point of the card, and the old one never said it.
-          Text(
-            '+${formatCoins(earned)} 💰',
-            key: const ValueKey('welcome-back-amount'),
-            style: TextStyle(
-              color: kit.accentBright,
-              fontSize: 26,
-              height: 1.1,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          if (capped) ...[
-            const SizedBox(height: 12),
-            Row(
-              key: const ValueKey('welcome-back-capped'),
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.timer_outlined, size: 14, color: kit.textMuted),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    t('welcome.note_capped', {'hours': offlineCapHours}),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // His name, not his face — the face is the figure standing
+                  // over the box.
+                  Text(
+                    t('coachtip.name').toUpperCase(),
+                    style: TextStyle(
+                      color: kit.accentBright,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    t('app.offline_title'),
+                    key: const ValueKey('welcome-back-title'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      height: 1.2,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  CoachTypewriter(
+                    text: line,
+                    textKey: const ValueKey('welcome-back-line'),
+                    style: TextStyle(
+                      color: kit.textMuted,
+                      fontSize: 13.5,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    t('welcome.earned_label'),
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: kit.textMuted,
                       fontSize: 11,
-                      height: 1.35,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  // The number is the point of the card, and the old one never
+                  // said it.
+                  Text(
+                    '+${formatCoins(earned)} 💰',
+                    key: const ValueKey('welcome-back-amount'),
+                    style: TextStyle(
+                      color: kit.accentBright,
+                      fontSize: 26,
+                      height: 1.1,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (capped) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      key: const ValueKey('welcome-back-capped'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.timer_outlined,
+                          size: 14,
+                          color: kit.textMuted,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            t('welcome.note_capped', {'hours': offlineCapHours}),
+                            style: TextStyle(
+                              color: kit.textMuted,
+                              fontSize: 11,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ],
-        ],
-      ),
-      actions: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
             key: const ValueKey('welcome-back-collect'),
             onPressed: () => Navigator.of(context).maybePop(),
             child: Text(t('app.offline_collect')),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

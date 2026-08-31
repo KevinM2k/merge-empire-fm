@@ -11,17 +11,32 @@
 /// under his own name plate, so the sheet rule's caps and club accent would put
 /// the game's voice in the middle of his.
 ///
+/// **It opens at the BOTTOM of the screen**, which is where a dialogue box goes
+/// and where a thumb already is. Centred, it cut the game in half and left him
+/// nowhere to stand; anchored low, the page it interrupts stays visible above it
+/// and there is room over the card for a whole man.
+///
 /// Four things the shape does, and each was a fault in what it replaced:
 ///
-/// 1. **His portrait sits ON the border**, half above the card. A face inside a
-///    title row is an avatar beside a heading; a face breaking the frame is
-///    someone leaning in.
+/// 1. **He STANDS BEHIND the card**, and the card is over his chest. A face
+///    inside a title row is an avatar beside a heading; a face breaking the
+///    frame is someone leaning in; a figure the box is in front of is someone
+///    actually there, saying it. That took a cutout — the master is a bust on
+///    flat white, which over a lit pitch is a white rectangle with a man in it.
+///    See [coachCutout] and `tool/gen_coach_cutout.dart`.
 /// 2. **His NAME is under it**, so the voice is attributed and the copy is free
 ///    to speak in the first person. It said "Coach Colin suggests Balanced" —
 ///    third person, about himself, while being the one saying it.
-/// 3. **The text is there IMMEDIATELY.** No typing animation: these are
-///    decisions, often on a clock, and making someone wait for a sentence they
-///    are about to answer is the wrong place to spend charm.
+/// 3. **The text TYPES IN, and a tap finishes it.** This REVERSES what stood
+///    here — "no typing animation: these are decisions, often on a clock" — and
+///    that objection was right about the clock rather than about the charm, so
+///    it is answered rather than dropped. The whole sentence takes 850ms at the
+///    very most; the ANSWERS are live from the first frame rather than the
+///    last; a tap anywhere on the card completes it; reduce-motion skips it
+///    outright; and the full line is laid out and in the semantics tree from
+///    the start, because the untyped tail is drawn TRANSPARENT rather than left
+///    out — so nothing reflows line by line and a screen reader is handed a
+///    sentence rather than a stutter. See [CoachTypewriter].
 /// 4. **The answers are COLOURED.** Yes is green and no is red, so the shape of
 ///    the decision is readable before the words are.
 library;
@@ -83,8 +98,44 @@ class CoachFace extends StatelessWidget {
   }
 }
 
-/// How far the portrait hangs above the card's top edge.
-const double _portrait = 68;
+/// **The same drawing with the white taken off it**, for the figure that stands
+/// behind a card rather than the face that sits inside a disc.
+///
+/// [coachPortrait] is a JPEG on flat white — fine in a circle, and a white
+/// rectangle with a man in it anywhere else. Written from it by
+/// `tool/gen_coach_cutout.dart`, which is where the reasoning lives.
+const String coachCutout = 'assets/ui/coach_cutout.png';
+
+/// How tall he stands, and how much of him the card covers.
+///
+/// **Nearly all of him is above the box.** The sink is only there to hide the
+/// crop: the master stops at the chest on a straight horizontal line, and a
+/// figure standing clear of the card ends in that line. Anything more than a
+/// sliver of cover and he is a head and a pair of shoulders peering over the
+/// top, which is not a man standing behind a box.
+const double coachStandeeHeight = 260;
+const double _coachStandeeSink = 30;
+
+/// The most of the screen he may take, whatever [coachStandeeHeight] says.
+///
+/// A 320x568 phone is where this bites: 260 of it is nearly half the screen, and
+/// what it takes comes off the box he is standing behind — the one part of this
+/// that has words in it.
+const double _coachStandeeShare = 0.38;
+
+/// Which side he stands on, and how far over.
+///
+/// Hard over, with a sliver left so he is not welded to the rim. `contain` in a
+/// full-width box leaves ~130pt of slack on a 393pt phone; nudging him a third
+/// of the way into it just reads as a badly centred figure, so this gives
+/// effectively all of it to his right.
+const Alignment coachStandeeSide = Alignment(-0.95, 1);
+
+/// His height on THIS screen.
+double coachStandeeHeightOn(BuildContext context) => math.min(
+  coachStandeeHeight,
+  MediaQuery.sizeOf(context).height * _coachStandeeShare,
+);
 
 /// The red on an unread nudge.
 ///
@@ -427,13 +478,327 @@ class _CoachCard<T> extends StatelessWidget {
   );
 }
 
-/// Colin's chrome, on its own, for a card whose CONTENT is more than a
-/// sentence — a sponsor's terms, a player's portrait, a bid to weigh up.
+/// Colin, cut out and standing, for the top of a [CoachStage].
 ///
-/// The whole point of exposing it: every one of those is still a question Colin
-/// is asking, so none of them should invent its own frame. The sponsor offer had
-/// a company logo where his head goes and a pair of uncoloured buttons at the
-/// bottom, which read as the app talking rather than the coach.
+/// **In front of the page and BEHIND the card.** He is drawn inside the dialog,
+/// so he clears the barrier's dim along with everything else the card draws, and
+/// the card is painted after him, so it covers him from the chest down.
+///
+/// [IgnorePointer] because he is scenery rather than a control: a tap on him is
+/// a tap on whatever the stage would have done with it.
+class CoachStandee extends StatelessWidget {
+  const CoachStandee({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return IgnorePointer(
+      child: ArtImage(
+        path: coachCutout,
+        fit: BoxFit.contain,
+        // **Bottom LEFT.** The bottom is the edge the card meets — a build with
+        // no art bundled would otherwise leave the fallback glyph floating in
+        // the middle of the dim with nothing under it. The left is because a
+        // figure standing dead centre over a centred name plate is a totem
+        // pole: off to one side he is standing BESIDE what he is saying, which
+        // is what a speaker over a dialogue box looks like everywhere it is
+        // done well.
+        alignment: coachStandeeSide,
+        fallback: Align(
+          alignment: coachStandeeSide,
+          child: Icon(
+            Icons.sports,
+            size: coachStandeeHeight * 0.45,
+            color: kit.accent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Stop typing and show the whole line."
+///
+/// A counter on the stage rather than a handle on one text, because a card can
+/// carry more than one of his sentences and a tap answers all of them at once.
+class CoachTypingSkip extends InheritedNotifier<ValueNotifier<int>> {
+  const CoachTypingSkip({
+    required super.notifier,
+    required super.child,
+    super.key,
+  });
+
+  static ValueNotifier<int>? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CoachTypingSkip>()?.notifier;
+}
+
+/// How fast he talks, and the ceiling on it.
+///
+/// The ceiling is the part that matters: a sentence is 40 characters in English
+/// and can be twice that in German, and a card whose reading time scales with
+/// the translation is a card that is slow in exactly the languages that already
+/// have the most to read.
+const int _msPerGlyph = 12;
+const int _maxTypeMs = 850;
+
+/// A line of his, arriving a character at a time.
+///
+/// **The whole string is laid out from the first frame** and only the untyped
+/// tail is painted transparent. Revealing a `substring` instead reflows the card
+/// line by line as it types — the buttons walk down the screen under the
+/// player's thumb — and hands a screen reader a fragment. This way the box is
+/// the size it will be, the semantics are the sentence, and `find.text` sees
+/// what he is going to say rather than what he has said so far.
+///
+/// It finishes on a tap ([CoachTypingSkip]), and it does not run at all under
+/// reduce-motion.
+class CoachTypewriter extends StatefulWidget {
+  const CoachTypewriter({
+    required this.text,
+    this.style,
+    this.textAlign = TextAlign.center,
+    this.textKey,
+    super.key,
+  });
+
+  final String text;
+  final TextStyle? style;
+  final TextAlign textAlign;
+
+  /// The key the rendered text carries, so a caller's own hooks survive being
+  /// typed rather than printed.
+  final Key? textKey;
+
+  @override
+  State<CoachTypewriter> createState() => _CoachTypewriterState();
+}
+
+class _CoachTypewriterState extends State<CoachTypewriter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _run = AnimationController(vsync: this);
+
+  /// Graphemes, not code units. `substring` splits a surrogate pair and a
+  /// half-emoji is a rendering bug rather than a character arriving.
+  late List<String> _glyphs;
+
+  /// The last skip this text has already obeyed.
+  int _skipsSeen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  void _start() {
+    _glyphs = widget.text.characters.toList();
+    _run
+      ..duration = Duration(
+        milliseconds: math.min(_maxTypeMs, math.max(1, _glyphs.length * _msPerGlyph)),
+      )
+      ..value = 0
+      ..forward();
+  }
+
+  @override
+  void didUpdateWidget(CoachTypewriter old) {
+    super.didUpdateWidget(old);
+    if (old.text != widget.text) _start();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final skips = CoachTypingSkip.of(context);
+    if (skips != null && skips.value != _skipsSeen) {
+      _skipsSeen = skips.value;
+      _run.value = 1;
+    }
+    // Setting `value` stops the controller, so this both skips a run in flight
+    // and keeps a later one from starting.
+    if (MediaQuery.of(context).disableAnimations) _run.value = 1;
+  }
+
+  @override
+  void dispose() {
+    _run.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _run,
+      builder: (context, _) {
+        final shown = (_run.value * _glyphs.length).ceil().clamp(
+          0,
+          _glyphs.length,
+        );
+        return Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: _glyphs.take(shown).join()),
+              TextSpan(
+                text: _glyphs.skip(shown).join(),
+                style: const TextStyle(color: Colors.transparent),
+              ),
+            ],
+          ),
+          key: widget.textKey,
+          textAlign: widget.textAlign,
+          style: widget.style,
+        );
+      },
+    );
+  }
+}
+
+/// Where he speaks from: a box along the BOTTOM of the screen with him standing
+/// over it.
+///
+/// **The chrome on its own, because there were two of it.** [CoachCardFrame] is
+/// one caller and the welcome-back card is the other, and that one had its own
+/// `AlertDialog`, its own disc, its own name plate in its own size — the same
+/// coach, in a different window, on the one screen every single launch opens
+/// with. What varies between callers is what goes IN the box.
+///
+/// Painting order is the whole trick: the standee is the first child, so the
+/// card lands on top of him; both are inside the dialog, so both are over the
+/// barrier's dim.
+class CoachStage extends StatefulWidget {
+  const CoachStage({
+    required this.child,
+    this.dialogKey,
+    this.badge,
+    this.minimisable = false,
+    super.key,
+  });
+
+  /// What goes in the box.
+  final Widget child;
+
+  /// The key the dialog itself carries — each caller's own.
+  final Key? dialogKey;
+
+  /// A subject badge up beside his head. See [CoachCardFrame.badge].
+  final String? badge;
+
+  /// See [CoachCardFrame.minimisable].
+  final bool minimisable;
+
+  @override
+  State<CoachStage> createState() => _CoachStageState();
+}
+
+class _CoachStageState extends State<CoachStage> {
+  final ValueNotifier<int> _skips = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _skips.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final standee = coachStandeeHeightOn(context);
+    final rise = standee - _coachStandeeSink;
+    return Dialog(
+      key: widget.dialogKey,
+      alignment: Alignment.bottomCenter,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      // **The top inset does NOT reserve room for him — his own padding already
+      // does**, inside this child. Asking for both is asking for his height
+      // twice, which on a 320x568 phone left the box 82pt to lay out in and
+      // overflowed it by twelve.
+      insetPadding: EdgeInsets.fromLTRB(
+        10,
+        16,
+        10,
+        // `Dialog` folds in the keyboard's inset and nothing else, so the
+        // gesture bar is ours to clear.
+        10 + MediaQuery.paddingOf(context).bottom,
+      ),
+      child: CoachTypingSkip(
+        notifier: _skips,
+        // `deferToChild`, which is the default: a tap on the card finishes his
+        // line, and a tap on the transparent space around his head still falls
+        // through to the barrier the way it always has.
+        child: GestureDetector(
+          onTap: () => _skips.value++,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: standee,
+                child: Stack(
+                  children: [
+                    const Positioned.fill(child: CoachStandee()),
+                    // The milestone, in the space he is NOT standing in — the
+                    // far corner, since he is hard over to the near one.
+                    if (widget.badge case final badge?)
+                      Align(
+                        alignment: const Alignment(0.72, -0.45),
+                        child: Text(
+                          badge,
+                          key: const ValueKey('coach-card-badge'),
+                          style: const TextStyle(
+                            fontSize: 28,
+                            shadows: [
+                              Shadow(
+                                color: Color(0x80000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.only(top: rise),
+                child: Container(
+                  // The BOX, as opposed to the dialog — which is the whole
+                  // screen, barrier and all, and measures like it.
+                  key: const ValueKey('coach-box'),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: kit.surface,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: kit.border),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x8C000000),
+                        blurRadius: 28,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                  child: widget.child,
+                ),
+              ),
+              if (widget.minimisable)
+                Positioned(
+                  top: rise + 12,
+                  right: 12,
+                  child: const _MinimiseButton(),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The `−` that parks a card. See [CoachCardFrame.minimisable].
 class _MinimiseButton extends StatelessWidget {
   const _MinimiseButton();
@@ -464,6 +829,13 @@ class _MinimiseButton extends StatelessWidget {
   }
 }
 
+/// Colin's chrome, on its own, for a card whose CONTENT is more than a
+/// sentence — a sponsor's terms, a player's portrait, a bid to weigh up.
+///
+/// The whole point of exposing it: every one of those is still a question Colin
+/// is asking, so none of them should invent its own frame. The sponsor offer had
+/// a company logo where his head goes and a pair of uncoloured buttons at the
+/// bottom, which read as the app talking rather than the coach.
 class CoachCardFrame extends StatelessWidget {
   const CoachCardFrame({
     super.key,
@@ -536,242 +908,163 @@ class CoachCardFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
 
-    return Dialog(
-      key: const ValueKey('coach-card'),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
+    return CoachStage(
+      dialogKey: const ValueKey('coach-card'),
+      badge: badge,
+      minimisable: minimisable,
+      // **THE READING MATTER SCROLLS; THE ANSWERS DO NOT.**
+      //
+      // What he says is a sentence in whichever of ten languages the
+      // player has picked — German is the measured worst case — and a
+      // card carrying a portrait, a set of terms and three answers has
+      // no slack left. A `Column` in a loose box takes its natural
+      // height and paints straight past the bottom of the screen.
+      //
+      // Scrolling the WHOLE card is the other half of the same bug,
+      // though: it put a rival's Decline below the fold, where a tap
+      // found the barrier instead of the button. A question whose
+      // answers you have to go looking for is worse than one that
+      // overflows — so the buttons sit outside the scroll region and the
+      // reading moves under them.
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            // Room for the half of his head that hangs over the top.
-            padding: const EdgeInsets.only(top: _portrait / 2),
-            child: Container(
-              decoration: BoxDecoration(
-                color: kit.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: kit.border),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x73000000),
-                    blurRadius: 24,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.fromLTRB(
-                20,
-                _portrait / 2 + 10,
-                20,
-                14,
-              ),
-              // **THE READING MATTER SCROLLS; THE ANSWERS DO NOT.**
-              //
-              // What he says is a sentence in whichever of ten languages the
-              // player has picked — German is the measured worst case — and a
-              // card carrying a portrait, a set of terms and three answers has
-              // no slack left. A `Column` in a loose box takes its natural
-              // height and paints straight past the bottom of the screen.
-              //
-              // Scrolling the WHOLE card is the other half of the same bug,
-              // though: it put a rival's Decline below the fold, where a tap
-              // found the barrier instead of the button. A question whose
-              // answers you have to go looking for is worse than one that
-              // overflows — so the buttons sit outside the scroll region and the
-              // reading moves under them.
+          Flexible(
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            t('coachtip.name').toUpperCase(),
-                            key: const ValueKey('coach-card-name'),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: kit.accentBright,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              height: 1.2,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          if (child != null) ...[
-                            const SizedBox(height: 10),
-                            child!,
-                          ],
-                          if (body != null) ...[
-                            const SizedBox(height: 8),
-                            // What he says. Straight away — see the note at the top.
-                            Text(
-                              body!,
-                              key: const ValueKey('coach-card-body'),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: kit.textMuted,
-                                fontSize: 13.5,
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                          if (coins != null) ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // One currency in the pair: the disc takes the
-                                // figure's ink — see `coinFigureInk`.
-                                CoinIcon(
-                                  size: 18,
-                                  solid: true,
-                                  color: coinFigureInk(context),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  formatCoins(coins!),
-                                  key: const ValueKey('coach-card-coins'),
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    color: coinFigureInk(context),
-                                    shadows: coinFigureShadows(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          for (final text in extraTexts)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                text,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: kit.textMuted,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          for (final line in extraLines)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                t(line.key, line.params),
-                                key: ValueKey('coach-line-${line.key}'),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: line.strong
-                                      ? kit.accentBright
-                                      : kit.textMuted,
-                                  fontSize: line.strong ? 15 : 12,
-                                  fontWeight: line.strong
-                                      ? FontWeight.w900
-                                      : FontWeight.w400,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                  Text(
+                    t('coachtip.name').toUpperCase(),
+                    key: const ValueKey('coach-card-name'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: kit.accentBright,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
                     ),
                   ),
-                  // A card with a footer and no answers is still a card with
-                  // something to press — the tutorial's spotlight steps are
-                  // exactly that: perform the thing, or leave.
-                  if (actions.isNotEmpty || footer != null) ...[
-                    const SizedBox(height: 16),
-                    if (actions.isNotEmpty) _Actions(actions: actions),
-                    if (footer case final link?)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: TextButton(
-                          key: ValueKey('coach-footer-${link.labelKey}'),
-                          onPressed: () {
-                            if (link.dismisses) {
-                              Navigator.of(context).pop(link.result);
-                            }
-                            link.onTap();
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: kit.textMuted,
-                            textStyle: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.underline,
-                            ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      height: 1.2,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (child != null) ...[
+                    const SizedBox(height: 10),
+                    child!,
+                  ],
+                  if (body != null) ...[
+                    const SizedBox(height: 8),
+                    // What he says, typed — see the note at the top, and
+                    // [CoachTypewriter] for what "typed" does and does not mean
+                    // for the layout and the semantics.
+                    CoachTypewriter(
+                      text: body!,
+                      textKey: const ValueKey('coach-card-body'),
+                      style: TextStyle(
+                        color: kit.textMuted,
+                        fontSize: 13.5,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                  if (coins != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // One currency in the pair: the disc takes the
+                        // figure's ink — see `coinFigureInk`.
+                        CoinIcon(
+                          size: 18,
+                          solid: true,
+                          color: coinFigureInk(context),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          formatCoins(coins!),
+                          key: const ValueKey('coach-card-coins'),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: coinFigureInk(context),
+                            shadows: coinFigureShadows(context),
                           ),
-                          child: Text(t(link.labelKey, link.labelParams)),
+                        ),
+                      ],
+                    ),
+                  ],
+                  for (final text in extraTexts)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        text,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: kit.textMuted,
+                          fontSize: 12,
                         ),
                       ),
-                  ],
+                    ),
+                  for (final line in extraLines)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        t(line.key, line.params),
+                        key: ValueKey('coach-line-${line.key}'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: line.strong
+                              ? kit.accentBright
+                              : kit.textMuted,
+                          fontSize: line.strong ? 15 : 12,
+                          fontWeight: line.strong
+                              ? FontWeight.w900
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
-          // His head, ON the border rather than inside the card.
-          Container(
-            width: _portrait,
-            height: _portrait,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: kit.surface2,
-              border: Border.all(color: kit.accent, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x59000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const CoachFace(
-              key: ValueKey('coach-card-portrait'),
-              fallbackSize: 30,
-            ),
-          ),
-          // The milestone, beside his head and clear of it — the JS hangs it off
-          // the same top edge at `right: calc(50% - 56px)`.
-          if (badge != null)
-            Positioned(
-              top: -6,
-              left: MediaQuery.sizeOf(context).width / 2 + 4,
-              child: Text(
-                badge!,
-                key: const ValueKey('coach-card-badge'),
-                style: const TextStyle(
-                  fontSize: 28,
-                  shadows: [
-                    Shadow(
-                      color: Color(0x80000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
+          // A card with a footer and no answers is still a card with
+          // something to press — the tutorial's spotlight steps are
+          // exactly that: perform the thing, or leave.
+          if (actions.isNotEmpty || footer != null) ...[
+            const SizedBox(height: 16),
+            if (actions.isNotEmpty) _Actions(actions: actions),
+            if (footer case final link?)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: TextButton(
+                  key: ValueKey('coach-footer-${link.labelKey}'),
+                  onPressed: () {
+                    if (link.dismisses) {
+                      Navigator.of(context).pop(link.result);
+                    }
+                    link.onTap();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: kit.textMuted,
+                    textStyle: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
                     ),
-                  ],
+                  ),
+                  child: Text(t(link.labelKey, link.labelParams)),
                 ),
               ),
-            ),
-          if (minimisable)
-            const Positioned(
-              top: _portrait / 2 + 8,
-              right: 10,
-              child: _MinimiseButton(),
-            ),
+          ],
         ],
       ),
     );
