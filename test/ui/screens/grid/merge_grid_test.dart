@@ -1349,6 +1349,88 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('AND ADD PLAYER FLIES IT HOME, like a merge does', (
+      tester,
+    ) async {
+      // **The one path whose flight was never asserted.** `flyingHome` had no
+      // caller anywhere: the landing RECTS are covered here, and whether a
+      // reveal ever turned one into a journey was not — on either path. The
+      // merge path was fine; this one was reported from a handset as the cards
+      // zooming away and then appearing in place, which is what a reveal with
+      // no flights does on its way out.
+      // **`pumpGridAnimated`, and that matters.** The ordinary harness runs
+      // under reduce-motion, where a reveal drops the journey BY DESIGN — a
+      // test on it would assert the absence of the thing it is about.
+      await pumpGridAnimated(tester);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pump();
+      // Past the FLIP but not past the hold: settling here would run the
+      // reveal's own timer out and dismiss it, and there would be nothing left
+      // to watch leave.
+      await tester.pump(scoutRevealSkipAfter + const Duration(milliseconds: 32));
+
+      final overlay = find.byType(ScoutRevealOverlay);
+      expect(overlay, findsOneWidget, reason: 'no reveal to fly out of');
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        tester.state<ScoutRevealOverlayState>(overlay).flyingHome,
+        1,
+        reason: 'it faded out instead of travelling',
+      );
+
+      // Hand-pumped out: the grid's merge pulse loops forever, which is the
+      // whole reason this harness exists alongside the reduce-motion one.
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 32));
+      }
+      await settleSave(tester);
+    });
+
+    testWidgets('EVEN WHEN THE SQUARE IS DOWN THE GRID and the tap is quick', (
+      tester,
+    ) async {
+      // **The case the report is about, and it PASSES — which is the finding.**
+      // A signing goes to the first EMPTY square, so on a grid with anything in
+      // it the landing has to SCROLL, and the ask for it is fired and not
+      // awaited. That looked like the answer: a player who dismisses the moment
+      // the card can be tapped beats the scroll, `_capture` finds nothing, and
+      // the reveal leaves with no flights — cards fading where they are while
+      // the grid fills in behind, which is exactly what was reported.
+      //
+      // It does not happen here. Dismissed at the earliest frame a tap is
+      // allowed, on a grid that has to scroll, the flight is still there. So
+      // whatever the handset is doing is not this, and the race is pinned shut
+      // either way.
+      await pumpGridAnimated(
+        tester,
+        cards: {
+          for (var i = 0; i < 12; i++) i: _card(_baseDefId, 'c$i'),
+        },
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pump();
+      // The earliest a tap is allowed to dismiss it, and nothing more.
+      await tester.pump(scoutRevealSkipAfter + const Duration(milliseconds: 16));
+
+      final overlay = find.byType(ScoutRevealOverlay);
+      expect(overlay, findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        tester.state<ScoutRevealOverlayState>(overlay).flyingHome,
+        1,
+        reason: 'the exit beat the scroll and left with nowhere to go',
+      );
+
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 32));
+      }
+      await settleSave(tester);
+    });
+
     testWidgets('a card moved by hand does not glide there afterwards', (
       tester,
     ) async {

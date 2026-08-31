@@ -680,4 +680,113 @@ void main() {
       expect(scoutRevealHold(1, topTier: 1), plain);
     });
   });
+
+  group('THE JOURNEY HOME ACTUALLY HAPPENS', () {
+    // **`flyingHome` is a test seam that nothing has ever asked.** The rects
+    // are covered — `merge_grid_test` checks the grid hands one out and scrolls
+    // to a square below the fold — and the flight itself never was, which is
+    // the exact shape of gap this repo's sweeps exist to find. Reported from a
+    // handset: after Add Player the cards zoom away and then appear in place
+    // rather than travelling into it.
+    ScoutLanding landingAt(Rect rect) =>
+        (idxs) async => [for (final _ in idxs) rect];
+
+    testWidgets('a reveal with somewhere to go flies there', (tester) async {
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        landing: landingAt(const Rect.fromLTWH(20, 600, 90, 120)),
+      );
+      // Past the flip, so the reveal is settled and a tap dismisses it.
+      await tester.pump(_flipped);
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+      await tester.pump();
+
+      final state = tester.state<ScoutRevealOverlayState>(
+        find.byType(ScoutRevealOverlay),
+      );
+      expect(
+        state.flyingHome,
+        1,
+        reason: 'it faded out instead of travelling',
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and the card on screen is the one flying, not two', (
+      tester,
+    ) async {
+      // The body card is HIDDEN once it has a flight — same card, drawn by the
+      // flight instead. Two of them at once is the "zoom away AND appear" the
+      // report describes.
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        landing: landingAt(const Rect.fromLTWH(20, 600, 90, 120)),
+      );
+      await tester.pump(_flipped);
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(
+        find.byKey(const ValueKey('scout-reveal-flight')),
+        findsOneWidget,
+      );
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and it TRAVELS — it does not cut to the square', (
+      tester,
+    ) async {
+      // Measured as movement rather than against an absolute rect: the flight
+      // is drawn in the overlay's own coordinates, and a test that pins those
+      // is testing the harness. What the report is about is whether the card
+      // crosses the screen at all or blinks from one place to the other.
+      const target = Rect.fromLTWH(20, 600, 90, 120);
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        landing: landingAt(target),
+      );
+      await tester.pump(_flipped);
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+
+      final flight = find.byKey(const ValueKey('scout-reveal-flight'));
+      await tester.pump(const Duration(milliseconds: 40));
+      final early = tester.getRect(flight).center;
+      await tester.pump(scoutRevealFlyHome ~/ 2);
+      final middle = tester.getRect(flight).center;
+      await tester.pump(scoutRevealFlyHome ~/ 2);
+      final late_ = tester.getRect(flight).center;
+
+      expect(middle, isNot(early), reason: 'it never set off');
+      expect(late_, isNot(middle), reason: 'it stopped on the way');
+      // And it goes one way about it — down the screen toward the square,
+      // rather than wandering and snapping back.
+      expect(middle.dy, greaterThan(early.dy));
+      expect(late_.dy, greaterThan(middle.dy));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and reduce-motion keeps the reveal but drops the journey', (
+      tester,
+    ) async {
+      await pumpReveal(
+        tester,
+        _revealFor(_save(), 1).reveal!,
+        reduceMotion: true,
+        landing: landingAt(const Rect.fromLTWH(20, 600, 90, 120)),
+      );
+      await tester.pump(_flipped);
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+      await tester.pump();
+      expect(
+        tester
+            .state<ScoutRevealOverlayState>(find.byType(ScoutRevealOverlay))
+            .flyingHome,
+        0,
+      );
+      await tester.pumpAndSettle();
+    });
+  });
+
 }
