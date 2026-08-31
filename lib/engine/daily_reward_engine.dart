@@ -106,6 +106,30 @@ String _dayKey(int ts) => dateString(ts);
 
 String _prevDayKey(int ts) => dateString(ts - 24 * 60 * 60 * 1000);
 
+/// **HOW LONG UNTIL THE NEXT ONE, in milliseconds.**
+///
+/// The cycle turns over at LOCAL midnight, because [_dayKey] is `dateString` and
+/// that is a local-time day — so this is the wall clock to the next one, not a
+/// fixed 24 hours from the last claim. Those two differ by up to a day and the
+/// local one is what the player experiences: claim at 23:55 and the next reward
+/// is five minutes away, which is the rule the training streak already plays by.
+///
+/// `DateTime(y, m, d + 1)` rather than adding 86,400,000: the constructor
+/// normalises a rolled-over day, month and year, and it lands on local midnight
+/// through a daylight-saving change, which the arithmetic does not.
+///
+/// It answers for a state that has already claimed and for one that has not —
+/// the question is about the calendar, not about the save — so a caller that
+/// wants "when can I claim again" must ask [getDailyRewardStatus] whether today
+/// is spent first.
+int msUntilNextReward([int? ts]) {
+  final at = ts ?? now();
+  final d = DateTime.fromMillisecondsSinceEpoch(at);
+  final midnight = DateTime(d.year, d.month, d.day + 1);
+  final left = midnight.millisecondsSinceEpoch - at;
+  return left > 0 ? left : 0;
+}
+
 Map<String, dynamic> _dr(Map<String, dynamic> state) {
   final existing = _map(state['dailyReward']);
   if (existing != null) return existing;

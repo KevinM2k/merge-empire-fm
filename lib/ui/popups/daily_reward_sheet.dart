@@ -16,6 +16,8 @@
 /// line between the two shapes.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
@@ -32,6 +34,7 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/util/time.dart';
 
 /// One thing a day of the cycle pays: its figure, and the icon that says which
 /// wallet it lands in.
@@ -223,12 +226,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
           if (claim != null)
             _ItemsObtained(claim: claim)
           else if (status.claimedToday)
-            Text(
-              t('daily.come_back', {'n': (status.day % cycleDays) + 1}),
-              key: const ValueKey('daily-come-back'),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: kit.textMuted, fontSize: 12),
-            )
+            const _NextReward()
           else
             Column(
               children: [
@@ -789,6 +787,89 @@ class _BrokenStreak extends StatelessWidget {
             key: const ValueKey('daily-start-over'),
             onPressed: onStartOver,
             child: Text(t('daily.start_over')),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// **THE WAIT, AS A CLOCK.**
+///
+/// Asked for from the couch against a reference sign-in popup, whose whole
+/// bottom third is two lines: "Available Tomorrow", and a running `15:12:34`
+/// under it at twice the size. What was here was one 12pt grey line naming a
+/// day number — the least interesting true thing that could be said to somebody
+/// who has already claimed and is being asked to come back.
+///
+/// The shipped copy is unchanged and stays the label: no new `t()` key can be
+/// added from this repo, and `daily.come_back` already says the sentence. What
+/// is new is the FIGURE, and a figure needs no translating.
+///
+/// **The timer lives here rather than on the sheet**, which is the whole reason
+/// this is its own widget: the countdown is one of three things that branch can
+/// show, so a timer on the parent would tick through a claim, through the
+/// broken-streak card, and through the two buttons — and would keep every
+/// widget test that pumps this sheet scheduling frames forever. Mounted only
+/// while the clock is on screen, cancelled with it.
+class _NextReward extends ConsumerStatefulWidget {
+  const _NextReward();
+
+  @override
+  ConsumerState<_NextReward> createState() => _NextRewardState();
+}
+
+class _NextRewardState extends ConsumerState<_NextReward> {
+  late final Timer _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    // A second, because seconds are the field that moves. The same interval and
+    // the same shape as `market_offer.dart`'s, which is the app's existing
+    // countdown and the one to copy rather than invent a second.
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final state = ref.read(gameProvider).state ?? const <String, dynamic>{};
+    final status = getDailyRewardStatus(state);
+    return Column(
+      key: const ValueKey('daily-come-back'),
+      children: [
+        Text(
+          t('daily.come_back', {'n': (status.day % cycleDays) + 1}),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: kit.textMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          formatClock(msUntilNextReward()),
+          key: const ValueKey('daily-countdown'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: kit.accentBright,
+            fontSize: 26,
+            height: 1.1,
+            fontWeight: FontWeight.w900,
+            // **TABULAR, or the whole clock shuffles every second.** In a
+            // proportional face a `1` is narrower than a `4`, so each field
+            // changes width as it counts and the colons walk left and right.
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],
