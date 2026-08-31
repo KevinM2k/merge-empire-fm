@@ -43,6 +43,31 @@ void main() {
     });
   });
 
+  group('formatClock — the countdown as a readout, not as prose', () {
+    // `formatDuration` is the other shape and they are not interchangeable:
+    // that one is prose beside a sentence, this is the figure a sign-in popup
+    // puts under "available tomorrow" at twice the size.
+    test('two digits a field, always', () {
+      expect(formatClock(0), '00:00:00');
+      expect(formatClock(9000), '00:00:09');
+      expect(formatClock(9 * 60 * 1000 + 9000), '00:09:09');
+      expect(formatClock(9 * 3600 * 1000), '09:00:00');
+    });
+
+    test('and the seconds field is the one that moves', () {
+      expect(formatClock(15 * 3600000 + 12 * 60000 + 34000), '15:12:34');
+    });
+
+    test('HOURS ARE UNBOUNDED — a clock that rolls into days went backwards', () {
+      // 00:14 after showing 1d reads as fourteen minutes left.
+      expect(formatClock(49 * 3600 * 1000), '49:00:00');
+    });
+
+    test('and an elapsed deadline reads nought, never counts up', () {
+      expect(formatClock(-5000), '00:00:00');
+    });
+  });
+
   group('formatDuration', () {
     test('formats seconds', () {
       expect(formatDuration(45000), '45s');

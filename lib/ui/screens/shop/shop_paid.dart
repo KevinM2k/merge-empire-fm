@@ -21,9 +21,12 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_owned.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
+import 'package:merge_empire_fc/ui/screens/shop/pack_contents.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
+import 'package:merge_empire_fc/ui/screens/shop/value_seal.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -221,6 +224,17 @@ List<Widget> paidTilesFor(
                 (_oneTime.contains(tile.product.id)
                     ? t('product.starter_pack.badge_onetime')
                     : null),
+      // **WHAT IS IN THE BOX, on the offers shelf only.** See
+      // `pack_contents.dart` — the three heroes stated their contents in prose
+      // and nowhere else, and a grid tile has no room for a strip. An owned
+      // tile drops it: the question a strip answers is what the money buys, and
+      // that is not the question in front of somebody who has already paid.
+      contents: featured && !owned.owned
+          ? PackContentsRow(
+              tileKey: tile.product.id,
+              items: packContents(tile.product, save),
+            )
+          : null,
       accent: _offerInk[tile.product.id],
       skin: featured
           ? offerSkinFor(
@@ -329,7 +343,18 @@ const Map<String, String> _productIcons = {
   'style_vault': 'bank',
 };
 
-Widget shopProductGlyph(IapProduct product) {
+/// **EVERY PICTURE IN THE SHOP GOES THROUGH [ShopArt].** It draws a bundled
+/// illustration when the manifest has one for this product and the painter
+/// below when it does not, which is every product today — so the shop looks
+/// exactly as it did, and rendered art lands later without this function
+/// changing. See `shop_art.dart`.
+Widget shopProductGlyph(IapProduct product) => ShopArt(
+  id: product.id,
+  size: product.category == 'coins' || product.category == 'gems' ? 44 : 34,
+  fallback: _drawnProductGlyph(product),
+);
+
+Widget _drawnProductGlyph(IapProduct product) {
   if (product.category == 'coins') {
     return CoinPackPicture(art: coinPackArtFor(product.id), size: 44);
   }
@@ -454,9 +479,14 @@ class GemPackTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final art = GemPackPicture(
-      art: gemPackArtFor(tile.product.id),
-      size: hero ? 96 : 74,
+    final artSize = hero ? 96.0 : 74.0;
+    final art = ShopArt(
+      id: tile.product.id,
+      size: artSize,
+      fallback: GemPackPicture(
+        art: gemPackArtFor(tile.product.id),
+        size: artSize,
+      ),
     );
     final words = Column(
       crossAxisAlignment: hero
@@ -598,32 +628,21 @@ class GemPackTile extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [art, const SizedBox(height: 2), words],
                 ),
+              // The same seal the coin shelf wears, so a value claim is one
+              // object in this shop rather than two that happen to say similar
+              // things. It was a gold tab notched into the corner, which is the
+              // tile's own furniture wearing the claim rather than something
+              // stuck onto it.
               if (tile.bonus case final bonus?)
                 Positioned(
-                  top: -13,
-                  right: -8,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(9, 4, 9, 4),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFFFFD257), Color(0xFFF0A91B)],
-                      ),
-                      borderRadius: BorderRadius.only(
-                        topRight: Radius.circular(13),
-                        bottomLeft: Radius.circular(10),
-                      ),
-                    ),
-                    child: Text(
-                      bonus,
-                      style: const TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.4,
-                        color: Color(0xFF4A2C00),
-                      ),
-                    ),
+                  top: -16,
+                  right: -12,
+                  child: ValueSeal(
+                    key: ValueKey('shop-seal-${tile.product.id}'),
+                    text: bonus,
+                    ink: const Color(0xFFFFC02E),
+                    onInk: const Color(0xFF4A2C00),
+                    size: hero ? 54 : 46,
                   ),
                 ),
             ],
@@ -780,16 +799,24 @@ class CoinPackTile extends ConsumerWidget {
                     // tells them apart with a cluster of 1/2/3/5 — which is a
                     // quantity and makes no sense of "Coin Vault".
                     child: Center(
-                      child: CoinPackPicture(
-                        art: coinPackArtFor(product.id),
+                      child: ShopArt(
+                        id: product.id,
                         size: 52,
+                        fallback: CoinPackPicture(
+                          art: coinPackArtFor(product.id),
+                          size: 52,
+                        ),
                       ),
                     ),
                   ),
+                  // **The crown moved to the LEFT** when the value badge became
+                  // a seal: the seal is stuck on the top-right corner, which is
+                  // where a shopfront puts one, and the crown was sitting under
+                  // it.
                   if (product.popular)
                     const Positioned(
                       top: 0,
-                      right: 0,
+                      left: 0,
                       child: Text('👑', style: TextStyle(fontSize: 15)),
                     ),
                 ],
@@ -856,32 +883,24 @@ class CoinPackTile extends ConsumerWidget {
             ],
           ),
         ),
+        // **A SEAL, STUCK ON THE CORNER — not a pill straddling the top edge.**
+        // Asked for from the couch against a shelf of reference shots, where
+        // every value claim in the set is a die-cut rosette in the top-right.
+        // A rounded rectangle centred on the edge is what a STATUS looks like
+        // — Owned, Active — and this is the shelf shouting, which is a
+        // different thing and wants a different shape. See [ValueSeal].
         Positioned(
-          top: -9,
+          top: -12,
+          right: -10,
           child: badge == null
               ? const SizedBox.shrink()
-              : Container(
+              : ValueSeal(
                   key: ValueKey('shop-badge-${product.id}'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: badge.popular
-                        ? kit.accentBright
-                        : const Color(0xFFFF9800),
-                  ),
-                  child: Text(
-                    badge.text,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      color: badge.popular
-                          ? kit.accentBrightInk
-                          : const Color(0xFF171717),
-                    ),
-                  ),
+                  text: badge.text,
+                  ink: badge.popular ? kit.accentBright : const Color(0xFFFF9800),
+                  onInk: badge.popular
+                      ? kit.accentBrightInk
+                      : const Color(0xFF171717),
                 ),
         ),
       ],

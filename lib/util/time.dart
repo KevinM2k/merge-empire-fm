@@ -32,6 +32,23 @@ String formatDuration(int ms) {
   return '${seconds}s';
 }
 
+/// A countdown as a CLOCK FACE — `15:12:34`, always two digits a field.
+///
+/// [formatDuration] is the other shape and they are not interchangeable: that
+/// one is prose ("15h 12m"), which is right beside a sentence and right when the
+/// figure is approximate. This is a readout — fixed width, seconds always
+/// moving — for the one place a countdown IS the content rather than an aside.
+/// Hours are unbounded rather than rolling into days: a clock that reads 00:14
+/// after showing 1d is a clock that went backwards.
+///
+/// Never negative; an elapsed deadline reads `00:00:00` rather than counting up.
+String formatClock(int ms) {
+  final totalSeconds = ms <= 0 ? 0 : ms ~/ 1000;
+  String two(int n) => '$n'.padLeft(2, '0');
+  return '${two(totalSeconds ~/ 3600)}:${two((totalSeconds % 3600) ~/ 60)}:'
+      '${two(totalSeconds % 60)}';
+}
+
 T clamp<T extends num>(T value, T min, T max) =>
     value < min ? min : (value > max ? max : value);
 

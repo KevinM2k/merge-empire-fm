@@ -311,34 +311,150 @@ void main() {
       }
     });
   });
+  group('THE WAIT IS A CLOCK, not a day number', () {
+    test('the cycle turns over at LOCAL midnight, not 24h after the claim', () {
+      // `_dayKey` is `dateString`, which is a local-time day — so claim at 23:55
+      // and the next reward is five minutes away. A fixed 24 hours from the last
+      // claim is a different answer by up to a day, and the wrong one.
+      final lateEvening = DateTime(2026, 3, 14, 23, 55).millisecondsSinceEpoch;
+      expect(
+        msUntilNextReward(lateEvening),
+        5 * 60 * 1000,
+        reason: 'the countdown is measuring from the claim, not to midnight',
+      );
+      // And it normalises across a month end rather than adding 86,400,000.
+      final monthEnd = DateTime(2026, 1, 31, 22, 0).millisecondsSinceEpoch;
+      expect(msUntilNextReward(monthEnd), 2 * 60 * 60 * 1000);
+    });
+
+    testWidgets('a claimed day shows the running clock under the line', (
+      tester,
+    ) async {
+      // What was here was one 12pt grey line naming a day number — the least
+      // interesting true thing that could be said to somebody who has already
+      // claimed and is being asked back. The shipped sentence is unchanged and
+      // stays the label; the figure is what is new, and a figure needs no
+      // translating.
+      final container = await pumpSheet(tester, save(lastClaimDaysAgo: 0));
+      addTearDown(container.dispose);
+      expect(find.byKey(const ValueKey('daily-come-back')), findsOneWidget);
+      final clock = find.byKey(const ValueKey('daily-countdown'));
+      expect(clock, findsOneWidget);
+      expect(
+        tester.widget<Text>(clock).data,
+        matches(RegExp(r'^\d{2}:\d{2}:\d{2}$')),
+        reason: 'the countdown is not a clock face',
+      );
+    });
+
+    testWidgets('and the seconds actually move', (tester) async {
+      // The timer lives on the countdown rather than on the sheet, so it exists
+      // only while the clock is on screen — a timer on the parent would tick
+      // through a claim and through the broken-streak card as well.
+      //
+      // **Driven through `setClock`, because the test binding's clock and the
+      // app's are different clocks.** Pumping a second advances the SCHEDULER,
+      // which is what fires the timer; `now()` is still the wall clock, so the
+      // rebuild would read a figure a couple of real milliseconds later and
+      // print the same second back. Moving the app's clock is what makes the
+      // assertion about the countdown rather than about how long the test took.
+      var fake = DateTime(2026, 3, 14, 9, 0).millisecondsSinceEpoch;
+      setClock(() => fake);
+      addTearDown(resetClock);
+      final container = await pumpSheet(tester, save(lastClaimDaysAgo: 0));
+      addTearDown(container.dispose);
+      final clock = find.byKey(const ValueKey('daily-countdown'));
+      expect(tester.widget<Text>(clock).data, '15:00:00');
+
+      fake += 1000;
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        tester.widget<Text>(clock).data,
+        '14:59:59',
+        reason: 'the clock is a still picture of a countdown',
+      );
+    });
+  });
+
   group('THE WEEK USES THE ROOM IT HAS', () {
-    testWidgets('SEVEN EQUAL BOXES, and the row is as wide as the sheet', (
+    testWidgets('SIX EQUAL BOXES AND A GRAND PRIZE, edge to edge', (
       tester,
     ) async {
       // They were fixed at 84px in a `Wrap`, so seven of them broke into a full
       // row and a short one centred under it — and on any phone wider than the
       // four that fitted, the strip left a third of the sheet empty rather than
-      // growing.
+      // growing. That was fixed with seven EQUAL boxes, which fixed the width
+      // and left the last rung looking exactly like the second.
+      //
+      // **Day seven is the reason the other six get claimed** — this sheet's
+      // own opening comment says so, and it pays the only recurring gems in the
+      // game — so it is its own tile now: taller than a row, wider than the
+      // rest, standing beside two rows of three. What still has to hold is
+      // everything the old shape bought: the six are one object drawn six
+      // times, and the strip uses every point of the sheet.
       await pumpSheet(tester, save());
       final sizes = [
-        for (var day = 1; day <= cycleDays; day++)
+        for (var day = 1; day < cycleDays; day++)
           tester.getSize(find.byKey(ValueKey('daily-day-$day'))),
       ];
       for (final size in sizes) {
-        expect(size, sizes.first, reason: 'the boxes are not the same box');
+        expect(size, sizes.first, reason: 'the six are not the same box');
       }
 
-      // The top row spans the strip: four tiles and three gaps, edge to edge.
-      final left = tester.getTopLeft(find.byKey(const ValueKey('daily-day-1')));
-      final right = tester.getTopRight(
-        find.byKey(const ValueKey('daily-day-4')),
+      final grand = tester.getRect(
+        find.byKey(const ValueKey('daily-day-$cycleDays')),
       );
+      expect(
+        grand.width,
+        greaterThan(sizes.first.width),
+        reason: 'the grand prize is no wider than a Tuesday',
+      );
+      expect(
+        grand.height,
+        greaterThan(sizes.first.height * 1.5),
+        reason: 'the grand prize does not span the two rows',
+      );
+
+      // It spans BOTH rows: level with the top of the first and the foot of the
+      // second, which is what makes the block beside it read as a block.
+      final first = tester.getRect(find.byKey(const ValueKey('daily-day-1')));
+      final last = tester.getRect(find.byKey(const ValueKey('daily-day-4')));
+      expect(grand.top, closeTo(first.top, 1));
+      expect(grand.bottom, closeTo(last.bottom, 1));
+
+      // And the strip still spans the sheet, edge to edge.
       final sheet = tester.getSize(find.byType(DailyRewardSheet));
       expect(
-        right.dx - left.dx,
+        grand.right - first.left,
         // The sheet's own horizontal padding, both sides.
         closeTo(sheet.width - 36, 1),
         reason: 'the strip is narrower than the room it has',
+      );
+    });
+
+    testWidgets('and every day names itself on a band in its own state', (
+      tester,
+    ) async {
+      // The day's name was a caption floating over the rewards in one of three
+      // inks, which asks the eye to compare text colours across seven tiles to
+      // work out where in the week it is. A filled band is read as a block.
+      final container = await pumpSheet(tester, save(cycleDay: 3));
+      addTearDown(container.dispose);
+      for (var day = 1; day <= cycleDays; day++) {
+        expect(
+          find.byKey(ValueKey('daily-band-$day')),
+          findsOneWidget,
+          reason: 'day $day has no band',
+        );
+      }
+      // Claimed yesterday, so today is day 4 — and today's band says so rather
+      // than counting.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('daily-day-4')),
+          matching: find.text(t('daily.today')),
+        ),
+        findsOneWidget,
       );
     });
 

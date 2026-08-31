@@ -94,6 +94,7 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     });
 
     final shown = shopTabs[_tab];
+    final kit = Theme.of(context).extension<KitTheme>()!;
     return Column(
       children: [
         Padding(
@@ -106,28 +107,53 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
             },
           ),
         ),
+        // **THE PANEL THE TABS OPEN INTO.** Asked for from the couch against a
+        // shelf of reference shots, and it is the half of "make them look like
+        // tabs" that was missing: the strip already broke its baseline under
+        // the selected tab, which is the join — but there was nothing on the
+        // other side of it to join TO, so the gap opened onto the club backdrop
+        // and the tabs went back to reading as a row of links.
+        //
+        // The fill is [shopPanelInk], which is the DEEPEST tone in the kit
+        // rather than another surface: the tiles are `surface2 → surface` with a
+        // border, so a panel in a surface tone is a panel they disappear into.
+        // A shop is a case with things in it, and a case is a recess.
+        //
+        // Opaque, and it covers the backdrop from the tabs down. That is the
+        // point rather than a cost — the club backdrops put turf and
+        // black-and-white stripes behind this screen, which is what made the top
+        // of the Shop unreadable in the first place, and the strip above the
+        // tabs still shows them.
         Expanded(
-          child: SingleChildScrollView(
-            key: const ValueKey('shop-scroll'),
-            controller: _scroll,
-            // The Shop had NO padding at all: its first tile ran under the
-            // floating HUD and its last under the tab bar. The strip above
-            // carries the HUD's clearance now; this is the tab bar's own.
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: Column(
-              children: [
-                for (final id in shown.sections) _shelf(id),
-                // **Only on the shelves that sell for MONEY.** Restore is about
-                // purchases, and a Restore button under the kit colours is a
-                // control answering a question nobody asked there.
-                if (shown.sections.any(
-                  (id) =>
-                      id == ShopSectionId.offers ||
-                      id == ShopSectionId.gems ||
-                      id == ShopSectionId.coins,
-                ))
-                  const RestoreRow(),
-              ],
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: shopPanelInk(kit),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
+            ),
+            child: SingleChildScrollView(
+              key: const ValueKey('shop-scroll'),
+              controller: _scroll,
+              // The Shop had NO padding at all: its first tile ran under the
+              // floating HUD and its last under the tab bar. The strip above
+              // carries the HUD's clearance now; this is the tab bar's own.
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+              child: Column(
+                children: [
+                  for (final id in shown.sections) _shelf(id),
+                  // **Only on the shelves that sell for MONEY.** Restore is
+                  // about purchases, and a Restore button under the kit colours
+                  // is a control answering a question nobody asked there.
+                  if (shown.sections.any(
+                    (id) =>
+                        id == ShopSectionId.offers ||
+                        id == ShopSectionId.gems ||
+                        id == ShopSectionId.coins,
+                  ))
+                    const RestoreRow(),
+                ],
+              ),
             ),
           ),
         ),
@@ -135,6 +161,15 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     );
   }
 }
+
+/// The shop's own ground, and the fill the selected tab is continuous with.
+///
+/// `kit.bg` rather than a surface, for the reason above: the shelves' tiles are
+/// built out of the surface tones, so they need something behind them that is
+/// not one. It is also the one token that behaves in both themes — the deepest
+/// in dark, near-white in light — which is exactly the relationship a tab strip
+/// wants with the tabs sitting on it.
+Color shopPanelInk(KitTheme kit) => kit.bg;
 
 /// The strip that picks a shelf.
 ///
@@ -162,7 +197,7 @@ class _ShopTabs extends StatelessWidget {
     const radius = BorderRadius.vertical(top: Radius.circular(12));
     return SizedBox(
       // Two lines of label, because one of them needs two — see below.
-      height: 64,
+      height: 68,
       child: Row(
         key: const ValueKey('shop-tabs'),
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -173,7 +208,20 @@ class _ShopTabs extends StatelessWidget {
                 key: ValueKey('shop-tab-${shopTabSlug(tab)}'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onPick(i),
-                child: Stack(
+                // **AN UNSELECTED TAB STANDS SHORTER, and that is what makes
+                // the strip a stack rather than a row.** Four tabs of one
+                // height differing only in fill is a segmented control; a tab
+                // that is behind the others is physically further back, and
+                // the six points it gives up at the top are the whole of that
+                // reading. Reference shots from the couch, where the gap is
+                // wider still.
+                //
+                // The hit target keeps the full height — the `GestureDetector`
+                // is outside this padding — so a short tab is not a smaller
+                // thing to press.
+                child: Padding(
+                  padding: EdgeInsets.only(top: i == selected ? 0 : 6),
+                  child: Stack(
                   fit: StackFit.expand,
                   children: [
                     // The tab itself: filled, edged, and rounded at the TOP
@@ -191,13 +239,22 @@ class _ShopTabs extends StatelessWidget {
                     // them. The tint the selected tab carries is now BLENDED
                     // onto that fill rather than laid over the page, so its
                     // colour is the same colour it was.
+                    //
+                    // **AND THE SELECTED ONE IS THE PANEL'S OWN FILL**, tinted.
+                    // It was blended onto `kit.surface`, which is the tile
+                    // colour — so the tab that is supposed to be the mouth of
+                    // the panel was a different colour from the panel, and the
+                    // broken baseline underneath it opened onto a seam. Blended
+                    // onto [shopPanelInk] the join has nothing to show, which
+                    // is the only way a tab reads as continuous with what it
+                    // opens into.
                     DecoratedBox(
                       decoration: BoxDecoration(
                         borderRadius: radius,
                         color: i == selected
                             ? Color.alphaBlend(
                                 tab.ink.withValues(alpha: 0.16),
-                                kit.surface,
+                                shopPanelInk(kit),
                               )
                             : kit.surface,
                         border: Border.all(
@@ -205,6 +262,17 @@ class _ShopTabs extends StatelessWidget {
                               ? tab.ink.withValues(alpha: 0.45)
                               : Colors.transparent,
                         ),
+                        boxShadow: i == selected
+                            ? [
+                                // The selected tab stands proud of the two
+                                // beside it, so it casts on them.
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.28),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, -1),
+                                ),
+                              ]
+                            : null,
                       ),
                     ),
                     if (i == selected)
@@ -233,10 +301,23 @@ class _ShopTabs extends StatelessWidget {
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // **The glyph carries the tab, so it is drawn at a
+                        // size that can.** The reference shops put a piece of
+                        // ART on each tab and a word under it; the label here
+                        // is 9.5pt of two-line translated copy, which cannot be
+                        // the thing you aim at. Bigger icon, and it keeps the
+                        // shelf's colour even unselected — at a third of the
+                        // alpha, so the strip is four colours knocked back
+                        // rather than four greys.
                         Icon(
                           tab.icon,
-                          size: 19,
-                          color: i == selected ? tab.ink : kit.textMuted,
+                          size: 23,
+                          color: i == selected
+                              ? tab.ink
+                              : Color.alphaBlend(
+                                  tab.ink.withValues(alpha: 0.45),
+                                  kit.textMuted,
+                                ),
                         ),
                         const SizedBox(height: 3),
                         Padding(
@@ -266,6 +347,7 @@ class _ShopTabs extends StatelessWidget {
                       ],
                     ),
                   ],
+                ),
                 ),
               ),
             ),
