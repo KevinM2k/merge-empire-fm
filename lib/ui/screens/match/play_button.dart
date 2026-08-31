@@ -133,6 +133,35 @@ const double playButtonRimWidth = 1;
 /// running bright at the top and dark at the bottom.
 const double playButtonLabelShadowAlpha = 0.45;
 
+/// **The button's face: the club's colour, lit from above.**
+///
+/// One hue at two lightnesses rather than two colours. `accentBright` used to
+/// be the top stop, and once that stopped being a fixed `hsl(h,60%,36%)` and
+/// started tracking the player's own pick, the pair could be a bronze fading
+/// into a lemon — reported as looking horrible on the yellow kit.
+List<Color> playButtonFace(Color accent) {
+  final hsl = HSLColor.fromColor(accent);
+  return [
+    hsl.withLightness((hsl.lightness + 0.09).clamp(0.0, 1.0)).toColor(),
+    hsl.withLightness((hsl.lightness - 0.07).clamp(0.0, 1.0)).toColor(),
+  ];
+}
+
+/// **The label: the same hue, at the far end of the scale.**
+///
+/// Not white — invisible on a yellow club — and not the measured black either,
+/// which is legible and reads as harsh. A deep bronze on a yellow button and a
+/// pale rose on a claret one are both still the club's colour, which is what
+/// was asked for, and both clear the large-text bar against the face by a wide
+/// margin because they are most of the scale away from it.
+Color playButtonInk(Color accent) {
+  final hsl = HSLColor.fromColor(accent);
+  final saturation = (hsl.saturation * 0.85).clamp(0.0, 1.0);
+  return hsl.lightness > 0.5
+      ? hsl.withLightness(0.14).withSaturation(saturation).toColor()
+      : hsl.withLightness(0.94).withSaturation(saturation).toColor();
+}
+
 class PlayMatchButton extends ConsumerWidget {
   const PlayMatchButton({super.key});
 
@@ -628,10 +657,17 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
                             ],
                             stops: [0, 0.46, 1],
                           )
+                        // **ONE HUE, TWO LIGHTNESSES.** It ran `accentBright`
+                        // down to the accent, and those are two DIFFERENT
+                        // colours now that `accentBright` is derived from the
+                        // player's own pick rather than a fixed `hsl(h,60,36)`
+                        // — on a yellow club it was a bronze fading into a
+                        // lemon, reported as looking horrible. A sheen is one
+                        // colour lit from above.
                         : LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [kit.accentBright, kit.accent],
+                            colors: playButtonFace(kit.accent),
                           ),
                     color: widget.dead ? kit.surface2 : null,
                   ),
@@ -723,7 +759,17 @@ class _Label extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final ink = widget.dead ? kit.textMuted : Colors.white;
+    // **A VARIANT OF THE CLUB'S OWN COLOUR, not black and not white.** It was a
+    // flat white, which on a yellow club is an invisible label; the measured
+    // `accentInk` fixes that and swaps it for a flat black, which is the same
+    // answer from the other side and reads as harsh. Asked for directly: a
+    // variant of the theme.
+    //
+    // So the ink is the accent's HUE at whichever end of the lightness scale
+    // the face is not, with the saturation kept. On a yellow button it is a
+    // deep bronze; on a claret one, a pale rose. Both are the club's colour, and
+    // neither is a hole punched in the face.
+    final ink = widget.dead ? kit.textMuted : playButtonInk(kit.accent);
     final blocked = ref.watch(matchBlockedProvider);
 
     // The glyph says which of three states this is: play, paused on a clock, or
@@ -752,17 +798,12 @@ class _Label extends ConsumerWidget {
               // contrast with more words in the same width, where a blur under
               // every letter is what makes them hard to read rather than what
               // saves them — so it comes off there.
-              shadows: widget.dead
-                  ? null
-                  : const [
-                      Shadow(
-                        // `0 1px 3px rgba(0,0,0,0.45)` — the stylesheet's own,
-                        // and it was 0.40 here. See `playButtonChrome`.
-                        color: Color(0x73000000), // playButtonLabelShadowAlpha
-                        offset: Offset(0, 1),
-                        blurRadius: 3,
-                      ),
-                    ],
+              // **NO SHADOW.** The stylesheet's `0 1px 3px rgba(0,0,0,0.45)`
+              // was lifting a white label off a gradient. The label is the
+              // club's own deep or pale variant now — see [playButtonInk] — and
+              // it separates by lightness rather than by having something dark
+              // smeared under it, which on a dark ink is just a thicker letter.
+              shadows: null,
             ),
           ),
         ),

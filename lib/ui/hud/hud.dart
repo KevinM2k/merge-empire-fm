@@ -5,9 +5,15 @@
 /// provider, so a coin landing rebuilds the coin label and nothing else.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/util/kit_theme.dart' show whiteInkMinContrast;
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsAmberPlate, vsGreenPlate, vsRedPlate;
+import 'package:merge_empire_fc/ui/widgets/store_button.dart'
+    show storeCoinFace, storeGemFace;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
@@ -107,11 +113,13 @@ List<Shadow>? hudFigureShadows(BuildContext context) => null;
 /// The energy hue held back to 62% is the same relationship in a colour that
 /// does not move.
 ///
-/// **Derived rather than pinned**, because it was a second copy of the bolt's
-/// hex with an alpha on the front, and the two went out of step the moment the
-/// bolt changed colour. The `/10` stays the FULL tank's green whatever the
-/// figure in front of it is doing: it is the cap, not the reading.
-final Color hudCapInk = hudEnergyInk.withValues(alpha: 0.62);
+/// **A FADED WHITE, now the badge is the colour.** It was the bolt's own green
+/// at 62%, which was right when the figure stood on glass and is green-on-green
+/// inside a green chip. The reading beside it takes the badge's own lightened
+/// ink — see `hudBadgeInk` — and the cap is quieter than that: it is the cap,
+/// not the reading.
+const Color hudCapInk = Color(0x9EFFFFFF);
+
 
 /// Energy running LOW, and energy nearly gone. Fixed, and these are the dark
 /// theme's own values — which is what "match the red and green dark mode uses"
@@ -247,12 +255,11 @@ class Hud extends ConsumerWidget {
   Widget _bar(BuildContext context, WidgetRef ref) {
     // FIXED, and haloed rather than ramped — see [hudFigureInk]. Each figure
     // wears its own wallet's ink, so the glyph and the number are one object.
-    TextStyle valueStyle(Color ink) => TextStyle(
-      color: hudInk(context, ink),
-      shadows: hudFigureShadows(context),
-      fontWeight: FontWeight.w700,
-      fontSize: 13,
-    );
+    // **NO COLOUR HERE ANY MORE.** Each figure is printed on its own badge and
+    // takes that badge's ink — see `HudChip`, which hands it down through a
+    // `DefaultTextStyle`. Naming a colour at this level is what would put a
+    // gold figure on a gem badge.
+    const valueStyle = TextStyle(fontWeight: FontWeight.w700, fontSize: 13);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -341,7 +348,7 @@ class Hud extends ConsumerWidget {
                     child: CoinCounter(
                       key: coinChipKey,
                       value: ref.watch(coinsProvider),
-                      style: valueStyle(hudCoinInk),
+                      style: valueStyle,
                       // Swells when a REWARD lands and not when the players'
                       // own trickle does — see `coin_flight.dart`.
                       reward: ref.watch(coinRewardProvider),
@@ -350,7 +357,15 @@ class Hud extends ConsumerWidget {
                   HudChip(
                     key: const ValueKey('hud-energy'),
                     icon: Icons.bolt,
-                    iconColor: hudEnergyInk,
+                    // **THE BADGE IS THE LADDER.** Energy is the one wallet
+                    // whose colour carries a reading rather than an identity —
+                    // green at the top, down through amber to red — and now the
+                    // badge is the colour, the badge is what has to say it. See
+                    // [energyInk].
+                    iconColor: energyInk(
+                      ref.watch(energyProvider),
+                      ref.watch(energyMaxProvider),
+                    ),
                     semanticLabel: t('hud.aria.energy'),
                     trailing: HudPlus(
                       key: const ValueKey('hud-energy-plus'),
@@ -367,20 +382,13 @@ class Hud extends ConsumerWidget {
                         children: [
                           TextSpan(
                             text: '${ref.watch(energyProvider).floor()}',
-                            style: valueStyle(
-                              // The one figure whose colour says something —
-                              // and it says it in the same colour on every
-                              // theme and every kit. See [energyInk].
-                              energyInk(
-                                ref.watch(energyProvider),
-                                ref.watch(energyMaxProvider),
-                              ),
-                            ),
+                            style: valueStyle,
                           ),
                           TextSpan(
                             text: '/${ref.watch(energyMaxProvider)}',
-                            style: valueStyle(hudCapInk).copyWith(
+                            style: valueStyle.copyWith(
                               fontSize: 10,
+                              color: hudCapInk,
                               // **Quiet, not invisible.** It was `glassMuted`,
                               // which ramps with the pane like the figures used
                               // to; [hudCapInk] is the same relationship to the
@@ -402,7 +410,7 @@ class Hud extends ConsumerWidget {
                     onTap: () => showCurrencySheet(context, ShopSection.gems),
                     child: Text(
                       '${ref.watch(gemsProvider)}',
-                      style: valueStyle(hudGemInk),
+                      style: valueStyle,
                     ),
                   ),
                   HudChip(
@@ -485,6 +493,69 @@ Color hudChromeInk(BuildContext context) => glassText(context);
 /// this is what happens to a wallet's colour", and so there is one place to put
 /// it back if anything in this bar ever stands on the chrome directly again.
 Color hudInk(BuildContext context, Color colour) => colour;
+
+/// **A WALLET'S BADGE COLOUR — the one the shop already uses for it.**
+///
+/// The cluster is four badges, each filled with its own wallet's colour and
+/// printed in a lighter tint of it; see `HudChip`. Which colour a badge takes is
+/// not a new question: the shop has answered it for years, and a coin badge in
+/// the bar that is a different gold from the coin BUTTON you tap is two golds
+/// for one currency. So the fills come straight off `_paletteFor` — the JS's
+/// own values — rather than being derived here.
+///
+/// Energy has no shop button, and it does not need one: its ladder already
+/// carries a colour, green down to red, and that is the badge. It takes the
+/// card's own members of those hues rather than the vivid pair — a mint green
+/// filled chip is too light to carry a label, which is what was reported. See
+/// [vsGreenPlate].
+Color hudBadgeColour(Color hue) => switch (hue.toARGB32() | 0xFF000000) {
+  0xFFFFD700 => storeCoinFace,
+  0xFF22D3EE => storeGemFace,
+  // The ladder, in the members a filled chip can carry — the card's own greens
+  // and reds, so the bar and the next-match card agree about what green means.
+  0xFF4ADE80 => vsGreenPlate,
+  0xFFFF9800 => vsAmberPlate,
+  0xFFF87171 => vsRedPlate,
+  _ => hue,
+};
+
+/// The ink printed ON a badge: the badge's own colour, lightened until it
+/// carries.
+///
+/// **Lighter than the badge rather than white, which is what makes it show.**
+/// Flat white on a mid gold is legible and reads as a sticker; the same hue
+/// taken most of the way up keeps the badge one object and still clears the
+/// large-text bar on every one of them. Asked for in those terms — a bit
+/// lighter than the badge so the numbers show nicely.
+Color hudBadgeInk(Color badge) {
+  // 86% is where it starts, and it climbs from there until it actually clears
+  // — a flat lerp is enough on a blue and is not on a gold, which is a light
+  // colour to begin with, and the difference is the coin's figure being the one
+  // that does not read.
+  var out = Color.lerp(badge, Colors.white, 0.86)!;
+  for (var i = 0; i < 12 && _onBadge(out, badge) < hudBadgeInkTarget; i++) {
+    out = Color.lerp(out, Colors.white, 0.18)!;
+  }
+  return out;
+}
+
+/// **The palette's own bar for "is a pale ink readable on this", not 3:1.**
+///
+/// Gold is intrinsically light: even flat WHITE on the shop's `#D8A01A` is
+/// 2.3, so a target of 3 is not a target, it is an instruction to stop using
+/// the shop's gold. `whiteInkMinContrast` is where `inkFor` already draws that
+/// line for every filled accent in the app, and a badge is a filled accent.
+const double hudBadgeInkTarget = whiteInkMinContrast;
+
+double _onBadge(Color ink, Color badge) {
+  double channel(double v) =>
+      v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+  double luma(Color c) =>
+      0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+  final a = luma(ink) + 0.05;
+  final b = luma(badge) + 0.05;
+  return a > b ? a / b : b / a;
+}
 
 
 /// The ink that reads on the cluster's dark trough, in either theme.

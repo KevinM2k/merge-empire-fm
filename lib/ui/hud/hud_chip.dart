@@ -13,9 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show vividWellFill;
-import 'package:merge_empire_fc/ui/theme/glass.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart' show hudBadgeColour, hudBadgeInk;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class HudChip extends StatelessWidget {
@@ -53,121 +51,86 @@ class HudChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final body = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    // **EACH READING IS ITS OWN BADGE, FILLED WITH ITS OWN COLOUR.**
+    //
+    // Four rounds went into making a hue legible on a pane, and every one of
+    // them lost the same way: deepening the ink read as muted, a dark pane read
+    // as a slab cut out of the sky, an outline under the glyph did nothing, and
+    // a pane light enough to belong left the colours unreadable. All four were
+    // arguments about a GROUND the wallets did not control.
+    //
+    // A badge controls its ground. The chip is filled with the wallet's own
+    // colour and printed in white, so gold is gold because the CHIP is gold —
+    // the coding is louder than it has ever been — and it says the same thing
+    // on a night sky as it does on a daylit one. Asked for in those terms.
+    final hue = iconColor;
+    final fill = hue == null ? kit.accent : hudBadgeColour(hue);
+    final ink = hue == null ? kit.accentInk : hudBadgeInk(fill);
+    final body = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: child is SizedBox ? 7 : 8,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // **THE GLYPH KEEPS ITS HUE; THE FIGURE BUYS THE CONTRAST.** These
-          // were briefly pushed through `glassAccent` with everything else, and
-          // it took the colour coding out — a darkened gold and a darkened cyan
-          // are two browns. The split is that a 16px glyph with a distinctive
-          // SHAPE is identity and a number is information: the coin is a coin
-          // whatever its luminance, and the figure beside it is what has to be
-          // read. So the icon is left alone and the value is darkened.
-          Icon(
-            icon,
-            size: iconSize,
-            // **A wallet's hue is left EXACTLY alone; a control's is ramped.**
-            //
-            // Those are two different jobs. The cog carries no meaning in its
-            // colour, so it takes the pane's contrast ramp — on a kit whose
-            // accent is the same hue as the glass it was the one control in the
-            // bar you could not find. The coin, the bolt and the gem carry
-            // nothing BUT their colour: gold is money, cyan is gems, violet is
-            // energy, and their separation from each other is the whole reason
-            // those three were picked. See [hudCoinInk].
-            //
-            // And you cannot fix a bright hue by taking it to 4.5:1: yellow is
-            // intrinsically light, and gold at that threshold lands on
-            // `#665600`, a dark olive that is perfectly legible and no longer
-            // money. So the wallets go through [hudInk] instead, which deepens
-            // a hue only as far as a 16px glyph actually needs — and the soft
-            // dark halo that used to buy the same contrast in daylight is gone
-            // with the figures'. See [hudFigureShadows].
-            // The cog carries no meaning in its colour, so it takes the
-            // club's — raw, because the trough it stands on is dark whatever
-            // the theme is, which is the pairing `accentBright` is for.
-            color: iconColor ?? kit.accentBright,
-          ),
+          Icon(icon, size: iconSize, color: ink),
           // The cog has no figure, so it gets no gutter either — otherwise it
-          // sits off-centre in its own segment.
-          if (child is! SizedBox) ...[const SizedBox(width: 4), child],
-          if (trailing != null) ...[const SizedBox(width: 4), trailing!],
+          // sits off-centre in its own badge.
+          if (child is! SizedBox) ...[
+            const SizedBox(width: 4),
+            DefaultTextStyle.merge(style: TextStyle(color: ink), child: child),
+          ],
+          if (trailing != null) ...[const SizedBox(width: 5), trailing!],
         ],
       ),
     );
     return Semantics(
       label: semanticLabel,
       button: onTap != null,
-      child: onTap == null ? body : InkWell(onTap: onTap, child: body),
+      child: onTap == null
+          ? body
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(999),
+              child: body,
+            ),
     );
   }
 }
 
-/// The one box the whole cluster sits in.
+/// **FOUR BADGES IN A ROW, and no box.**
 ///
-/// **GLASS, and the SAME glass as the next-match card.** This has been round the
-/// houses and the landing point is worth writing down.
+/// This has been round the houses and the landing point is worth writing down.
+/// It began as four panes, which read as embossed buttons — four rims, four
+/// shadows and four highlights for one instrument — so they were collapsed into
+/// one box. The box then spent four rounds being too dark, too light, or a
+/// different material from the next-match card under it, because a shared pane
+/// has to serve four fixed hues at once and cannot.
 ///
-/// It started as four separate panes — one per reading — which is what read as
-/// embossed buttons: four rims, four shadows and four highlights for what is one
-/// instrument. Collapsing them into one box fixed that, and the box was made a
-/// solid pill because at the glass of the time a 13px accent-green figure on it
-/// was under 2:1.
-///
-/// That was solving the wrong end. The pane was never the problem — the FIGURE
-/// was, and `glassAccent` is the fix for it: a mid-tone hue darkened until it
-/// reads on a bright pane. With the ink handled, the pane can be the app's one
-/// glass recipe, and the HUD stops being the one surface that does its own thing.
+/// A badge carries its own ground, so there is nothing left for the box to do.
+/// Separated rather than divided, which is what tells them apart now that each
+/// one is a different colour. See [HudChip].
 class HudCluster extends StatelessWidget {
   const HudCluster({super.key, required this.children});
 
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => _body(context);
-
-  Widget _body(BuildContext context) {
-    // **THE SAME DARK GROUND THE CARD'S OWN VIVID MARKS STAND ON.** This pill
-    // has been a trough, then the card's light pane, and neither on its own was
-    // it: dark, it was darker than the card under it; light, the wallet hues had
-    // nothing to sit on and a tight outline was not enough to save them.
-    //
-    // What settled it is that the CARD grew the same problem and the same
-    // answer — its red and green get a dark recess, its modifiers get a dark
-    // badge — so the pill is not a special case any more. One constant for all
-    // three; see [vividWellFill].
-    return GlassPanel(
-      key: const ValueKey('hud-cluster'),
-      radius: 14,
-      density: GlassDensity.deep,
-      darkGlass: true,
-      tint: const [vividWellFill, vividWellFill],
-      // **NO DROP SHADOW.** Every other pane in the app casts one to say it is
-      // in FRONT of the page — see [GlassPanel.shadow]. This one is not on the
-      // page, it is in a bar, and the shadow was a dark smear under the one
-      // strip that is on screen on every tab all the time. Asked for directly.
-      shadow: false,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            // A hairline, not a gap. The four readings are one instrument, and
-            // the divider is what keeps them from running into each other
-            // without splitting them back into four boxes.
-            if (i > 0)
-              Container(
-                width: 1,
-                height: 22,
-                color: glassInk(context).withValues(alpha: 0.22),
-              ),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Row(
+    key: const ValueKey('hud-cluster'),
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      for (var i = 0; i < children.length; i++) ...[
+        if (i > 0) const SizedBox(width: 5),
+        children[i],
+      ],
+    ],
+  );
 }
 
 /// The small `+` that deep-links out of a resource chip.
@@ -179,7 +142,6 @@ class HudPlus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     return Semantics(
       label: label,
       button: true,
@@ -190,12 +152,17 @@ class HudPlus extends StatelessWidget {
           width: 18,
           height: 18,
           alignment: Alignment.center,
-          // **THE ACCENT ITSELF, and the ink measured for it.** Anything
-          // derived from the club's colour rather than the colour reads as not
-          // quite the club's colour — reported directly — and a filled disc is
-          // exactly what `accentInk` is measured against.
-          decoration: BoxDecoration(color: kit.accent, shape: BoxShape.circle),
-          child: Icon(Icons.add, size: 12, color: kit.accentInk),
+          // **WHITE ON THE BADGE, not the club's colour.** It used to be an
+          // accent disc, which is right on a neutral pane and wrong inside a
+          // filled gold one — two saturated colours touching, and the club's
+          // has nothing to say about buying coins. A hole punched in the badge
+          // reads as part of it. See [HudChip].
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.22),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.55)),
+          ),
+          child: const Icon(Icons.add, size: 11, color: Colors.white),
         ),
       ),
     );

@@ -120,6 +120,16 @@ const Color _vsGreenLight = Color(0xFF11913F);
 const Color _vsLevelLight = Color(0xFF2563EB);
 const Color _vsAmberLight = Color(0xFFC2650B);
 
+/// **The same three, for a surface that is FILLED with them.**
+///
+/// A badge takes the daylight member whatever the theme is — the vivid pair is
+/// too pale to carry a label — so the HUD's energy chip and the card's modifier
+/// chips are the same green and the same red. Asked for directly: use the green
+/// and the red the ATK/DEF ratings use. See `hudBadgeColour`.
+const Color vsGreenPlate = _vsGreenLight;
+const Color vsAmberPlate = _vsAmberLight;
+const Color vsRedPlate = _vsRedLight;
+
 bool _dark(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark;
 
@@ -141,8 +151,13 @@ Color vsAmberOn(BuildContext context) =>
 /// Anything it does not recognise comes back untouched, so it is safe to run a
 /// whole column through: a gold, a club accent and a tier colour are all
 /// deliberate and none of them is this bug.
-Color semanticInk(BuildContext context, Color ink) {
-  if (_dark(context)) return ink;
+///
+/// `light: true` asks for the daylight member whatever the theme is. For a
+/// surface that is the same on both — a badge FILLED with the colour and
+/// printed in white, where the vivid member is too pale to carry white. See
+/// `_Mod`.
+Color semanticInk(BuildContext context, Color ink, {bool light = false}) {
+  if (_dark(context) && !light) return ink;
   return switch (ink.toARGB32()) {
     0xFF4ADE80 || 0xFF76E876 => _vsGreenLight,
     0xFFF87171 || 0xFFFF6B70 => _vsRedLight,
@@ -217,12 +232,12 @@ const Color vsAmberBright = Color(0xFFFFB020);
 /// three, because the last four rounds of this were three opacities being kept
 /// in step by eye and losing.
 ///
-/// The BADGE takes it at full strength: it is the size of a number, so it can
-/// be as dark as it likes. The recess and the pill take [vividWellFill], which
-/// is the same colour with the sky still visible through it — a whole panel
-/// that dark reads as a hole cut in the page, which is what was reported the
-/// two times it was tried.
-const Color statBadgeFill = Color(0xE60E1620);
+/// **ONLY THE RECESS TAKES IT.** The HUD's pill and the modifier badges were
+/// both given this ground too and both came back as far too dark: they sit ON
+/// a daylit pane rather than inside a panel, and a dark lozenge on one is the
+/// slab the card itself was never allowed to be. The recess is different — it
+/// is an inset in the middle of the card, which is a place a scoreboard is
+/// expected to be dark.
 const Color vividWellFill = Color(0x990E1620);
 
 /// What reads on [vividWellFill] — the recess's labels and its bar tracks. The
@@ -827,7 +842,22 @@ class _Mod extends StatelessWidget {
           // **THE SIGN IS PRINTED FROM THE NUMBER**, not hardcoded. It was a
           // literal `+`, which is why nothing here could ever have been a
           // subtraction and why the colour had to come from somewhere else.
-          final ink = statToneColor(context, mod.tone, mod.amount);
+          // **WHITE ON A SOLID PLATE, not the colour on a tint of itself.**
+          // The badge was the league chip's recipe — a 13% wash, a rim, the
+          // colour as ink — which on a `+2` is a pale green lozenge with a
+          // green mark in it. Reported directly: white on green.
+          //
+          // The plate is the DAYLIGHT member of the pair in both themes, and
+          // that is what makes one recipe work on both: white on the mint
+          // `#4ADE80` is 1.8:1, white on `#11913F` is 4.9, and a solid green
+          // chip on the dark card reads exactly as well as it does on the light
+          // one. The vivid pair stays where it has a dark ground to sit on,
+          // which is the ATK/DEF recess above.
+          final plate = semanticInk(
+            context,
+            statToneColor(context, mod.tone, mod.amount),
+            light: true,
+          );
           return Padding(
             // **A TARGET, not just a mark.** The glyph and its number are 22
             // by 10; the padding is what a thumb actually lands on, and it is
@@ -843,29 +873,22 @@ class _Mod extends StatelessWidget {
               // pass at this was a chip too small to find.
               padding: const EdgeInsets.fromLTRB(5, 3, 6, 3),
               decoration: BoxDecoration(
-                // **A DARK plate, in both themes.** `semanticPlate` gives a
-                // 13% tint of the ink in daylight, which under a mint green is
-                // a pale lozenge with a pale mark in it. What the badge is FOR
-                // is giving a dark-ground colour its dark ground, at the size
-                // of the number rather than the size of the card — which is the
-                // whole reason the card itself did not have to go dark.
-                color: statBadgeFill,
+                color: plate,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: ink.withValues(alpha: 0.45)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  GameIcon(mod.icon, size: 10.5, color: ink),
+                  GameIcon(mod.icon, size: 10.5, color: Colors.white),
                   const SizedBox(width: 2),
                   Text(
                     '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 11,
                       height: 1,
                       fontWeight: FontWeight.w900,
-                      color: ink,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: Colors.white,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                 ],

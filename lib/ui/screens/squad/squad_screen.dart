@@ -150,7 +150,14 @@ class SquadHeader extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: kit.bg,
+        // **THE PAGE SHOWS THROUGH IT.** This band was `kit.bg` — the page's
+        // own ground as a SOLID — so on a pattern kit the strip carrying the
+        // rating, the formation and the counter-attack toggle was a flat slab
+        // with the turf running up to it and stopping. Reported directly: there
+        // is no turf behind them. A wash of the same colour keeps the band
+        // readable and lets the backdrop through, which is what every other
+        // surface on this page already does.
+        color: kit.bg.withValues(alpha: 0.62),
         border: Border(bottom: BorderSide(color: kit.border)),
       ),
       padding: EdgeInsets.fromLTRB(14, hudClearanceOf(context), 14, 11),

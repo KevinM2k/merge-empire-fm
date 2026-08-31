@@ -88,6 +88,19 @@ StatMod mod(int amount, {StatTone tone = StatTone.delta}) =>
 Color inkOfFigure(WidgetTester tester, String label) =>
     tester.widget<Text>(find.text(label)).style!.color!;
 
+/// **A MODIFIER'S COLOUR IS ITS BADGE, not its ink.** It used to be the ink on
+/// the bare pane; it is a filled chip printed in white now — reported as
+/// needing to be white on green rather than green on green — so what carries
+/// the tone is the plate behind it.
+Color plateOfFigure(WidgetTester tester, String label) {
+  final box = tester.widget<Container>(
+    find
+        .ancestor(of: find.text(label), matching: find.byType(Container))
+        .first,
+  );
+  return (box.decoration! as BoxDecoration).color!;
+}
+
 void main() {
   tearDown(resetLocale);
 
@@ -134,12 +147,16 @@ void main() {
     testWidgets('the same plus is the same green on both sides', (tester) async {
       await pumpRows(tester, leftMods: [mod(4)], rightMods: [mod(3)]);
       await tester.pumpAndSettle();
-      expect(inkOfFigure(tester, '+4'), inkOfFigure(tester, '+3'));
-      expect(inkOfFigure(tester, '+4'), statToneColor(
-        tester.element(find.text('+4')),
-        StatTone.delta,
-        4,
-      ));
+      expect(plateOfFigure(tester, '+4'), plateOfFigure(tester, '+3'));
+      expect(inkOfFigure(tester, '+4'), Colors.white);
+      expect(
+        plateOfFigure(tester, '+4'),
+        semanticInk(
+          tester.element(find.text('+4')),
+          statToneColor(tester.element(find.text('+4')), StatTone.delta, 4),
+          light: true,
+        ),
+      );
     });
 
     testWidgets('AND A MINUS IS RED, prints its own sign, and is not the green', (
@@ -152,7 +169,7 @@ void main() {
       await pumpRows(tester, leftMods: [mod(-2), mod(5)]);
       await tester.pumpAndSettle();
       expect(find.text('-2'), findsOneWidget);
-      expect(inkOfFigure(tester, '-2'), isNot(inkOfFigure(tester, '+5')));
+      expect(plateOfFigure(tester, '-2'), isNot(plateOfFigure(tester, '+5')));
     });
 
     testWidgets('and a relegation scrap is neither, on either side', (
@@ -167,11 +184,16 @@ void main() {
         rightMods: [mod(4, tone: StatTone.delta)],
       );
       await tester.pumpAndSettle();
-      final inks = tester
-          .widgetList<Text>(find.text('+4'))
-          .map((t) => t.style!.color)
+      final plates = tester
+          .widgetList<Container>(
+            find.ancestor(
+              of: find.text('+4'),
+              matching: find.byType(Container),
+            ),
+          )
+          .map((c) => (c.decoration! as BoxDecoration).color)
           .toSet();
-      expect(inks.length, 2, reason: 'warn is not the plus green');
+      expect(plates.length, 2, reason: 'warn is not the plus green');
     });
 
     testWidgets('and the tap tip is reachable without a long press', (

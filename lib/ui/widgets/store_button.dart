@@ -59,6 +59,13 @@ enum StoreTone {
 const Color adOfferInk = Color(0xFFFFD54A);
 const Color adOfferOnInk = Color(0xFF171717);
 
+/// **The coin and the gem faces, named.** They were literals inside
+/// `_paletteFor` and the HUD's badges want the same two — a coin badge in the
+/// bar that is a different gold from the coin button you tap is two golds for
+/// one currency. See `hudBadgeColour`.
+const Color storeCoinFace = Color(0xFFD8A01A);
+const Color storeGemFace = Color(0xFF1E88C7);
+
 /// Face, edge and ink per tone. The JS's own values.
 ({Color face, Color edge, Color ink})? _paletteFor(StoreTone tone) =>
     switch (tone) {
@@ -68,12 +75,12 @@ const Color adOfferOnInk = Color(0xFF171717);
         ink: Colors.white,
       ),
       StoreTone.gem => (
-        face: const Color(0xFF1E88C7),
+        face: storeGemFace,
         edge: const Color(0xFF12587F),
         ink: Colors.white,
       ),
       StoreTone.coin => (
-        face: const Color(0xFFD8A01A),
+        face: storeCoinFace,
         edge: const Color(0xFF916709),
         ink: Colors.white,
       ),

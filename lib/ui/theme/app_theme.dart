@@ -105,11 +105,28 @@ Decoration _backgroundFor(String kitId, KitSurfaces s, bool light) {
       lightWidth: stripes.width,
     );
   }
+  // **AND IN LIGHT MODE IT IS TINTED TOWARD THE CLUB.** The dark stack is built
+  // from the accent's own hue — `hsl(h, s, 7%)` and up — so a dark page already
+  // leans the club's way. The light stack is one fixed neutral for every kit
+  // (`#ffffff` over `#eef0f3`), which is the JS's own decision and stays in
+  // `kit_palette.dart` where the parity fixture compares it; what it means on
+  // screen is that picking claret changes nothing about the page. Reported
+  // directly.
+  //
+  // A twelfth of the way, which is a push rather than a wash: enough that two
+  // kits are not the same white, far too little to be a coloured page.
+  final page = light
+      ? [
+          Color.lerp(cssColor(s.bg), cssColor(s.accent), 0.055)!,
+          Color.lerp(cssColor(s.surface), cssColor(s.accent), 0.085)!,
+          Color.lerp(cssColor(s.bg), cssColor(s.accent), 0.055)!,
+        ]
+      : [cssColor(s.bg), cssColor(s.surface), cssColor(s.bg)];
   return BoxDecoration(
     gradient: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [cssColor(s.bg), cssColor(s.surface), cssColor(s.bg)],
+      colors: page,
     ),
   );
 }

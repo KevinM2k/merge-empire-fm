@@ -950,9 +950,15 @@ class _EmptySlotMark extends StatelessWidget {
         // the plus, which is a form field. Asked for directly: big enough to
         // fill the card, a shade off the card's own colour so it reads as part
         // of the surface, with the plus floating over it.
-        Padding(
-          padding: const EdgeInsets.all(6),
-          child: FittedBox(
+        // **BIGGER THAN THE SQUARE, and clipped by it.** Fitted inside the
+        // padding it was a number in a box; at twice that it runs off the top
+        // and bottom edges, which is what makes it read as the surface rather
+        // than as a label on it. Asked for in those terms — about 200% up.
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Transform.scale(
+            scale: 2,
+            child: FittedBox(
             child: Text(
               '${index + 1}',
               style: TextStyle(
@@ -962,6 +968,7 @@ class _EmptySlotMark extends StatelessWidget {
                 // squares by, nowhere near enough to compete with a card.
                 color: ink.withValues(alpha: 0.22),
               ),
+            ),
             ),
           ),
         ),

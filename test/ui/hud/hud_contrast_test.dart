@@ -27,6 +27,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +41,10 @@ import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsAmberPlate, vsGreenPlate, vsRedPlate;
+import 'package:merge_empire_fc/ui/widgets/store_button.dart'
+    show storeCoinFace, storeGemFace;
 
 void main() {
   /// Every colour the HUD puts on the pane, as the bar itself resolves them.
@@ -150,20 +155,14 @@ void main() {
     });
 
     testWidgets('and the coins and the gems really carry it', (tester) async {
-      // At the call site rather than at the constant: the bar has to actually
-      // use it, in both themes.
-      //
-      // **One constant everywhere, which is the claim the trough restored.**
-      // The bar going neutral briefly cost it — a raw `#FFD700` is 1.2:1 on
-      // near-white, so the hues were deepened in daylight and read as muted.
-      // The cluster is a dark trough in both themes now, so they are printed
-      // exactly as chosen on either.
+      // **THE FIGURE TAKES ITS BADGE'S INK, and naming one here is the bug this
+      // replaced.** Each reading is a filled chip in its wallet's colour now,
+      // printed in a lightened tint of that colour — see `HudChip` — so the
+      // figure inherits and the chip decides. A colour named at the call site
+      // is what would put a gold figure on a gem badge.
       for (final light in const [true, false]) {
         await pumpBar(tester, light: light);
-        for (final (key, ink) in const [
-          ('hud-coins', hudCoinInk),
-          ('hud-gems', hudGemInk),
-        ]) {
+        for (final key in const ['hud-coins', 'hud-gems']) {
           final text = tester
               .widgetList<Text>(
                 find.descendant(
@@ -174,8 +173,26 @@ void main() {
               .where((t) => t.style?.fontSize == 13);
           expect(text, isNotEmpty, reason: '$key in light=$light');
           for (final t in text) {
-            expect(t.style!.color, ink, reason: '$key light=$light');
+            expect(
+              t.style!.color,
+              isNull,
+              reason: '$key light=$light names its own colour',
+            );
           }
+          final box = tester.widget<Container>(
+            find
+                .descendant(
+                  of: find.byKey(ValueKey(key)),
+                  matching: find.byType(Container),
+                )
+                .first,
+          );
+          final fill = (box.decoration! as BoxDecoration).color!;
+          expect(
+            fill,
+            key == 'hud-coins' ? storeCoinFace : storeGemFace,
+            reason: '$key light=$light is not the shop\'s own colour',
+          );
         }
       }
     });
@@ -231,9 +248,9 @@ void main() {
     });
   });
 
-  group('the wallet icons keep the colour they MEAN', () {
-    /// The icon as the chip resolves it, and whether it was given a backing.
-    Future<(Color, bool)> walletIcon(
+  group('a wallet is a BADGE in its own colour', () {
+    /// The badge's fill and the ink printed on it.
+    Future<(Color fill, Color ink)> wallet(
       WidgetTester tester, {
       required bool light,
     }) async {
@@ -251,37 +268,72 @@ void main() {
         ),
       );
       final icon = tester.widget<Icon>(find.byIcon(Icons.monetization_on));
-      return (icon.color!, (icon.shadows ?? const []).isNotEmpty);
+      final box = tester.widget<Container>(find.byType(Container).first);
+      return ((box.decoration! as BoxDecoration).color!, icon.color!);
     }
 
-    testWidgets('gold is GOLD in daylight, and stands on its own ground', (
-      tester,
-    ) async {
-      // Three answers were tried before this one and each is worth a line.
-      // DEEPENING the hue works and reads as muted. A tight OUTLINE under the
-      // glyph works on paper and was reported as not helping at all — a 1px
-      // edge cannot argue with a whole pane of luminance. What carries is a
-      // GROUND: the cluster is a dark trough in both themes, so the hue is
-      // printed exactly as chosen and wears nothing at all. See `HudCluster`.
-      final (colour, haloed) = await walletIcon(tester, light: true);
-      expect(colour, hudCoinInk, reason: 'the coin was deepened again');
-      expect(haloed, isFalse, reason: 'the halo came back');
+    testWidgets('THE SAME BADGE ON BOTH THEMES', (tester) async {
+      // Four rounds went into making a fixed hue legible on a shared pane and
+      // each lost the same way: deepening the ink read as muted, a dark pane
+      // read as a slab cut out of the sky, an outline under the glyph did
+      // nothing at all, and a pane light enough to belong left the colours
+      // unreadable. Every one was an argument about a ground the wallets did
+      // not control.
+      //
+      // A badge carries its own. So the answer stops depending on what is
+      // behind it, which is why these two have to be identical.
+      final day = await wallet(tester, light: true);
+      final night = await wallet(tester, light: false);
+      expect(day, night, reason: 'the badge still moves with the theme');
     });
 
-    testWidgets('and at night it needs no help at all', (tester) async {
-      final (colour, haloed) = await walletIcon(tester, light: false);
-      expect(colour, hudCoinInk);
-      expect(
-        haloed,
-        isFalse,
-        reason: 'the vivid hues were chosen FOR a dark pane',
-      );
+    testWidgets('and it is the SHOP\'s own colour, not a second one', (
+      tester,
+    ) async {
+      // A coin badge in the bar that is a different gold from the coin BUTTON
+      // you tap is two golds for one currency.
+      final (fill, ink) = await wallet(tester, light: true);
+      expect(fill, storeCoinFace);
+      expect(hudBadgeColour(hudGemInk), storeGemFace);
+      // Energy has no shop button and takes the card's own ladder instead, so
+      // the bar and the next-match card agree about what green means.
+      expect(hudBadgeColour(hudEnergyInk), vsGreenPlate);
+      expect(hudBadgeColour(hudEnergyLowInk), vsAmberPlate);
+      expect(hudBadgeColour(hudEnergyEmptyInk), vsRedPlate);
+
+      // **THE INK IS THE BADGE, LIGHTENED — not white.** Flat white on a mid
+      // gold is legible and reads as a sticker; the same hue taken most of the
+      // way up keeps the chip one object. It still has to carry, at the
+      // large-text bar: the label is a 13pt w900 figure beside a 16px glyph.
+      expect(ink, hudBadgeInk(fill));
+      for (final hue in const [
+        hudCoinInk,
+        hudGemInk,
+        hudEnergyInk,
+        hudEnergyLowInk,
+        hudEnergyEmptyInk,
+      ]) {
+        final badge = hudBadgeColour(hue);
+        // The palette's own bar, not a rounder number: gold is intrinsically
+        // light and even flat white on the shop's `#D8A01A` is 2.3, so holding
+        // this to 3 would be an instruction to stop using the shop's gold. See
+        // [hudBadgeInkTarget].
+        expect(
+          _ratio(hudBadgeInk(badge), badge),
+          greaterThanOrEqualTo(hudBadgeInkTarget),
+          reason: '$hue cannot carry its own ink',
+        );
+        expect(
+          HSLColor.fromColor(hudBadgeInk(badge)).hue,
+          closeTo(HSLColor.fromColor(badge).hue, 2),
+          reason: '$hue lightened into a different colour',
+        );
+      }
     });
 
     testWidgets('which is why they cannot simply be darkened', (tester) async {
-      // The numbers behind the decision, rather than the assertion on its own:
-      // this is what [hudInk] exists INSTEAD of, and the reason it carries its
-      // own threshold and its own surface.
+      // The numbers behind the decision rather than the decision on its own:
+      // this is what the badge exists INSTEAD of.
       expect(paneContrast(hudCoinInk), lessThan(paneContrastTarget));
       expect(paneContrast(hudGemInk), lessThan(paneContrastTarget));
       late Color ramped;
@@ -384,4 +436,15 @@ void main() {
     });
   });
 
+}
+
+/// Contrast between two opaque colours, by sRGB's own transfer curve.
+double _ratio(Color a, Color b) {
+  double channel(double v) =>
+      v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+  double luma(Color c) =>
+      0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+  final x = luma(a) + 0.05;
+  final y = luma(b) + 0.05;
+  return x > y ? x / y : y / x;
 }

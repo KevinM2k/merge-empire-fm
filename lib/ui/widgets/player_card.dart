@@ -492,8 +492,17 @@ class PlayerCard extends StatelessWidget {
                               const SizedBox(height: 3),
                               _Income(
                                 ratePerSec: view.incomePerSec!,
-                                ink: accentLight,
+                                // **GREEN FOR MONEY IN, RED FOR MONEY OUT.**
+                                // The bar and the rate were the club's accent,
+                                // which says nothing about the direction the
+                                // money is going — and a loan is the one card
+                                // on the grid that is COSTING you. Asked for
+                                // directly. The bar runs the other way for one
+                                // too, so a loan visibly drains where a signing
+                                // visibly fills.
+                                ink: view.onLoan ? incomeOutInk : incomeInInk,
                                 track: captionTrack,
+                                drains: view.onLoan,
                                 onCycle: onIncomeCycle,
                               ),
                             ],
@@ -704,6 +713,16 @@ class _Ribbon extends StatelessWidget {
   );
 }
 
+/// **WHICH WAY THE MONEY IS GOING.** Green in, red out — the same pair the rest
+/// of the app uses for a verdict, because that is what this is. It was the
+/// club's accent for both, which says nothing at all about direction and left
+/// a loan player looking like a signing that happened to be cheap.
+///
+/// The light members deliberately: a card is a light surface in light mode and
+/// a lit one in dark, and these are printed ON it rather than under it.
+const Color incomeInInk = Color(0xFF11913F);
+const Color incomeOutInk = Color(0xFFE03131);
+
 /// The rate, and a bar that fills once per payout of it.
 ///
 /// The cycle length is DERIVED from the rate rather than picked — see
@@ -716,6 +735,7 @@ class _Income extends StatefulWidget {
     required this.ratePerSec,
     required this.ink,
     required this.track,
+    required this.drains,
     this.onCycle,
   });
 
@@ -723,6 +743,10 @@ class _Income extends StatefulWidget {
   final VoidCallback? onCycle;
   final Color ink;
   final Color track;
+
+  /// Empties instead of filling. A loan player is a wage going out, and a bar
+  /// that fills is the wrong picture of that.
+  final bool drains;
 
   @override
   State<_Income> createState() => _IncomeState();
@@ -795,7 +819,7 @@ class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
             // that says what it is.
             Flexible(
               child: Text(
-                '+${formatRate(widget.ratePerSec)}',
+                '${widget.drains ? '-' : '+'}${formatRate(widget.ratePerSec)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
@@ -814,16 +838,20 @@ class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
         // NOT a `BarFill`: that is a layout, and a grid of these re-laid-out
         // and repainted every card every frame. This is one rect, painted
         // off the clock, in a layer 3pt tall.
+        // **TALL ENOUGH TO SEE.** Three points of a faint accent on a light
+        // card is a hairline nobody reported as a bar because nobody could
+        // report seeing one at all. Five, in a colour that means something.
         ClipRRect(
-          borderRadius: BorderRadius.circular(2),
+          borderRadius: BorderRadius.circular(2.5),
           child: SizedBox(
-            height: 3,
+            height: 5,
             child: RepaintBoundary(
               child: CustomPaint(
                 painter: _FillPainter(
                   fill: _fill,
                   ink: widget.ink,
                   track: widget.track,
+                  drains: widget.drains,
                 ),
               ),
             ),
@@ -835,23 +863,34 @@ class _IncomeState extends State<_Income> with SingleTickerProviderStateMixin {
 }
 
 class _FillPainter extends CustomPainter {
-  _FillPainter({required this.fill, required this.ink, required this.track})
-    : super(repaint: fill);
+  _FillPainter({
+    required this.fill,
+    required this.ink,
+    required this.track,
+    required this.drains,
+  }) : super(repaint: fill);
 
   final Animation<double> fill;
   final Color ink;
   final Color track;
+  final bool drains;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = track);
+    final t = fill.value.clamp(0.0, 1.0);
+    // A loan EMPTIES: same clock, same cycle, read the other way round.
+    final w = size.width * (drains ? 1 - t : t);
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width * fill.value.clamp(0.0, 1.0), size.height),
+      Rect.fromLTWH(drains ? size.width - w : 0, 0, w, size.height),
       Paint()..color = ink,
     );
   }
 
   @override
   bool shouldRepaint(_FillPainter old) =>
-      old.fill != fill || old.ink != ink || old.track != track;
+      old.fill != fill ||
+      old.ink != ink ||
+      old.track != track ||
+      old.drains != drains;
 }

@@ -9,7 +9,8 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart'
+    show incomeInInk, incomeOutInk;
 import 'package:merge_empire_fc/util/format.dart';
 
 /// The JS's 1200ms ease-out, 44px climb, and its 28px seat above the cell foot.
@@ -127,8 +128,11 @@ class _CoinTickFloatState extends State<CoinTickFloat>
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final ink = widget.negative ? const Color(0xFFEF5350) : kit.accentBright;
+    // **GREEN IN, RED OUT — the card's own pair.** It was the club's accent for
+    // a payout, which says nothing about direction; the float and the bar it
+    // rises off now agree, and a loan's wage reads as money against. See
+    // [incomeInInk].
+    final ink = widget.negative ? incomeOutInk : incomeInInk;
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _clock,
@@ -149,11 +153,13 @@ class _CoinTickFloatState extends State<CoinTickFloat>
                   overflow: TextOverflow.visible,
                   style: TextStyle(
                     color: ink,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    shadows: const [
-                      Shadow(color: Color(0xE6000000), blurRadius: 5, offset: Offset(0, 1)),
-                    ],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    // **NO SHADOW.** A 90% black blur under an 11pt figure is
+                    // most of what you see of it — reported as hard to read.
+                    // The colour is the thing that has to carry, and it is a
+                    // green or a red picked to read on a card rather than one
+                    // propped up by a smudge behind it.
                   ),
                 ),
               ),
