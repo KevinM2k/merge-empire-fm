@@ -86,8 +86,22 @@ class AppShellState extends ConsumerState<AppShell>
 
   /// Every route into the shell goes through the controller, so there is one
   /// answer to "which tab, and did it slide" rather than two racing.
-  void goTab(ShellTab tab, {bool noSlide = false}) =>
-      ref.read(shellControllerProvider.notifier).goTab(tab, noSlide: noSlide);
+  ///
+  /// **BUT THE TAP APPLIES ON THE TAP.** It used to only write the controller
+  /// and wait for the `ref.listen` in `build` to hand it back, which is a whole
+  /// frame in the best case: Riverpod's listener fires DURING the rebuild that
+  /// observes the change, `_applyTab` calls `setState` from inside that build,
+  /// and the slide therefore cannot start until the frame after. Reported as a
+  /// delay of about 100ms before a tab starts moving, which is two frames plus
+  /// whatever the incoming screen costs to build.
+  ///
+  /// Applying first and telling the controller second is not two answers
+  /// racing: the listener's call is a no-op by the time it arrives, because
+  /// `_applyTab` returns early on the tab it is already on.
+  void goTab(ShellTab tab, {bool noSlide = false}) {
+    _applyTab(tab, noSlide: noSlide);
+    ref.read(shellControllerProvider.notifier).goTab(tab, noSlide: noSlide);
+  }
 
   void _applyTab(ShellTab tab, {required bool noSlide}) {
     // The home screen used to have sub-tabs, so tapping Home had to reset it to

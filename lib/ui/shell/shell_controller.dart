@@ -6,6 +6,7 @@
 /// listeners here are the only code that has to know the strings.
 library;
 
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
@@ -84,7 +85,13 @@ class ShellController extends Notifier<ShellState> {
     // is one Activity, so the automatic screen name is `(not set)` for every
     // session — and that dimension is the one that says where people are when
     // they stop playing. The JS says the same thing about its WebView.
-    if (state.tab != tab) logScreen(tab.name);
+    // **AFTER THE FRAME, not on the tap.** It is a platform-channel call and
+    // it was sitting directly on the path between a finger and a transition
+    // starting. Nothing downstream of it is needed to draw the tab.
+    if (state.tab != tab) {
+      final name = tab.name;
+      scheduleMicrotask(() => logScreen(name));
+    }
     state = ShellState(tab: tab, noSlide: noSlide);
   }
 

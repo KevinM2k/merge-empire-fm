@@ -984,7 +984,14 @@ class _EmptySlotMark extends StatelessWidget {
           // simply be wider.
           Positioned.fill(
             child: LayoutBuilder(
-              builder: (context, box) => Center(
+              // **BOTTOM RIGHT, out from under the plus.** Centred, the two
+              // marks sat on top of each other and the plus read as part of the
+              // digit. In the corner it is a page number on the square rather
+              // than a face.
+              builder: (context, box) => Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 6, bottom: 3),
                 child: Text(
                   '${index + 1}',
                   style: TextStyle(
@@ -996,6 +1003,7 @@ class _EmptySlotMark extends StatelessWidget {
                     // competing with a card in the next cell and still counts.
                     color: ink.withValues(alpha: 0.11),
                   ),
+                ),
                 ),
               ),
             ),
