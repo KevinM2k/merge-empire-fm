@@ -1,4 +1,5 @@
-/// A report page: CENTRED when it is short, scrolling when it is long.
+/// A report page: PLACED in the room it has when it is short, scrolling when it
+/// is long.
 ///
 /// **A SCROLL VIEW WITH A PINNED FOOT LEAVES A HOLE, and both report screens
 /// had one.** Full time and the end of a season are the same shape — a stack of
@@ -31,6 +32,7 @@ class ReportScroll extends StatelessWidget {
   const ReportScroll({
     super.key,
     this.padding = EdgeInsets.zero,
+    this.alignment = Alignment.center,
     required this.child,
   });
 
@@ -42,6 +44,7 @@ class ReportScroll extends StatelessWidget {
   ReportScroll.list({
     super.key,
     this.padding = EdgeInsets.zero,
+    this.alignment = Alignment.center,
     required List<Widget> children,
   }) : child = Column(
          mainAxisSize: MainAxisSize.min,
@@ -50,6 +53,15 @@ class ReportScroll extends StatelessWidget {
        );
 
   final EdgeInsets padding;
+
+  /// Where a SHORT page sits in the room it has.
+  ///
+  /// Centred is the default and is what the hole above was about. Full time
+  /// asks for [Alignment.topCenter] instead: its first card is the scoreline,
+  /// and a scoreline that floats down the page as the report below it grows or
+  /// shrinks reads as the page settling rather than as the result. Asked for
+  /// directly.
+  final AlignmentGeometry alignment;
   final Widget child;
 
   @override
@@ -63,7 +75,7 @@ class ReportScroll extends StatelessWidget {
         constraints: BoxConstraints(
           minHeight: (box.maxHeight - padding.vertical).clamp(0.0, box.maxHeight),
         ),
-        child: Center(child: child),
+        child: Align(alignment: alignment, child: child),
       ),
     ),
   );

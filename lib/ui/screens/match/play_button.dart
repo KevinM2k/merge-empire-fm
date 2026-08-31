@@ -23,6 +23,8 @@ import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_result_cards.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
+import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
+    show settingPick;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
 import 'package:merge_empire_fc/ui/screens/home/play_freeze.dart';
@@ -132,9 +134,15 @@ const double playButtonRimWidth = 1;
 const double playButtonLabelShadowAlpha = 0.45;
 
 class PlayMatchButton extends ConsumerWidget {
-  const PlayMatchButton({super.key, this.fast = false});
+  const PlayMatchButton({super.key});
 
-  final bool fast;
+  /// **THE SETTING IS WHAT A MATCH OPENS ON**, and nothing was reading it.
+  /// `matchSpeedFast` has been in the settings screen and in the save all
+  /// along; this button constructed every match at 1x regardless, so the in-
+  /// match `2x` had to be tapped again every single game. See
+  /// `MatchScreen.toggleSpeed`, which writes it back.
+  static bool _fast(WidgetRef ref) =>
+      ref.read(settingPick<bool>('matchSpeedFast', false));
 
   /// What holds the popup queue shut for the length of a match.
 
@@ -204,7 +212,7 @@ class PlayMatchButton extends ConsumerWidget {
       MatchRoute(
         builder: (_) => MatchScreen(
           result: result,
-          fast: fast,
+          fast: _fast(ref),
           // Full time, with the screen still up: commit the outcome so the
           // table and the season move on.
           onFinished: (r) => game.update((s) => settleMatch(s, r)),
@@ -277,7 +285,7 @@ class PlayMatchButton extends ConsumerWidget {
         fullscreenDialog: true,
         builder: (_) => MatchScreen(
           result: tie.result,
-          fast: fast,
+          fast: _fast(ref),
           onFinished: (_) => drop = game.update((s) => settleCupRound(s, tie)),
         ),
       ),

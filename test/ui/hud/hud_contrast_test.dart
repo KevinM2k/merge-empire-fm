@@ -152,6 +152,12 @@ void main() {
     testWidgets('and the coins and the gems really carry it', (tester) async {
       // At the call site rather than at the constant: the bar has to actually
       // use it, in both themes.
+      //
+      // **One constant everywhere, which is the claim the trough restored.**
+      // The bar going neutral briefly cost it — a raw `#FFD700` is 1.2:1 on
+      // near-white, so the hues were deepened in daylight and read as muted.
+      // The cluster is a dark trough in both themes now, so they are printed
+      // exactly as chosen on either.
       for (final light in const [true, false]) {
         await pumpBar(tester, light: light);
         for (final (key, ink) in const [
@@ -174,10 +180,11 @@ void main() {
       }
     });
 
-    testWidgets('haloed in daylight, bare at night', (tester) async {
-      // **A halo is not a colour.** The ink is the same white in both themes;
-      // what changes is whether there is something dark behind it, which is
-      // what keeps a fixed ink legible on a pane that is not.
+    testWidgets('and BARE, in both themes', (tester) async {
+      // The figures wore a soft dark halo in daylight to buy a fixed ink some
+      // contrast against a pane that ramps. It read as a smudge — the violet
+      // energy figure worst of all, a few thin strokes over a blur — and taking
+      // it off both themes was asked for directly.
       // **Keyed and SETTLED, or the answer is a lie.** `MaterialApp` lerps
       // between themes, and `ThemeData.lerp` keeps the old brightness until
       // half way — so reading this on the frame after a theme swap returns the
@@ -200,16 +207,8 @@ void main() {
         return out;
       }
 
-      expect(
-        await backing(light: true),
-        isNotEmpty,
-        reason: 'white on a bright pane needs a backing',
-      );
-      expect(
-        await backing(light: false),
-        isNull,
-        reason: 'the pane is already dark',
-      );
+      expect(await backing(light: true), isNull, reason: 'no halo in daylight');
+      expect(await backing(light: false), isNull, reason: 'and none at night');
     });
   });
 
@@ -255,12 +254,15 @@ void main() {
       return (icon.color!, (icon.shadows ?? const []).isNotEmpty);
     }
 
-    testWidgets('gold stays gold in daylight, and gets a halo instead', (
-      tester,
-    ) async {
+    testWidgets('gold is GOLD in daylight, not a deepened one', (tester) async {
+      // It was briefly deepened, because the bar had gone neutral and gold on
+      // near-white is 1.2:1. That read as muted — the report was that light
+      // mode wants the same vibrant yellows, greens and blues the dark theme
+      // has — so the SURFACE moved instead and the cluster is a dark trough in
+      // both themes. See `HudCluster`.
       final (colour, haloed) = await walletIcon(tester, light: true);
-      expect(colour, hudCoinInk, reason: 'the coin stopped being yellow');
-      expect(haloed, isTrue, reason: 'a bright hue on a bright pane needs one');
+      expect(colour, hudCoinInk, reason: 'the coin was deepened again');
+      expect(haloed, isFalse, reason: 'the halo came off the whole bar');
     });
 
     testWidgets('and at night it needs no help at all', (tester) async {
@@ -274,7 +276,9 @@ void main() {
     });
 
     testWidgets('which is why they cannot simply be darkened', (tester) async {
-      // The numbers behind the decision, rather than the assertion on its own.
+      // The numbers behind the decision, rather than the assertion on its own:
+      // this is what [hudInk] exists INSTEAD of, and the reason it carries its
+      // own threshold and its own surface.
       expect(paneContrast(hudCoinInk), lessThan(paneContrastTarget));
       expect(paneContrast(hudGemInk), lessThan(paneContrastTarget));
       late Color ramped;

@@ -154,6 +154,15 @@ class AppShellState extends ConsumerState<AppShell>
     return CoachTipHost(
       tab: _active,
       child: Scaffold(
+        // **ON PLAY, THE DIORAMA RUNS UNDER THE TAB BAR.** Everywhere else the
+        // bar is a surface with content scrolling up to it; on Play the page is
+        // a pitch, and a band of chrome across the foot of it was reported as
+        // jarringly bright against the grass. `extendBody` plus a bar with no
+        // decoration of its own is the same answer the top HUD has always given
+        // — see `Hud.build` and `ShellTabBar.build`. The body's own
+        // `MediaQuery` carries the bar's height, so the footer's `SafeArea`
+        // clears it without anything here being told how tall it is.
+        extendBody: _active == ShellTab.home,
         body: Stack(
           children: [
             // FULL BLEED. The ground and anything a screen paints over it run to
@@ -162,7 +171,16 @@ class AppShellState extends ConsumerState<AppShell>
             // the home screen's diorama stopped at the notch and left a bar of
             // page colour above it.
             Container(
-              decoration: kit.background,
+              // **PLAY GETS A FLAT GROUND, not the kit's pattern.** The diorama
+              // covers the page there, so the backdrop is only ever seen for the
+              // length of a swipe — and on a pattern kit that meant the turf
+              // stripes ran to the top of the screen for half a second and then
+              // vanished as the pitch landed on them, while sliding to Squad
+              // showed no such thing. Reported directly: there is no turf to be
+              // seen on Play, so it should not be there at all.
+              decoration: _active == ShellTab.home
+                  ? BoxDecoration(color: kit.bg)
+                  : kit.background,
               child: SizedBox.expand(
                 child: GestureDetector(
                   onHorizontalDragEnd: _onDragEnd,

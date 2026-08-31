@@ -211,16 +211,25 @@ const Color vsRedBright = _vsRedDark;
 const Color vsAmberBright = Color(0xFFFFB020);
 
 /// Green when this figure beats the one it faces, red when it loses, blue level.
+///
+/// **THE DARK TRIPLE, IN BOTH THEMES — this is the card's own palette.** The
+/// light counterparts above are the brightest members of each hue that still
+/// clear 3:1 as ink on white, which is the right rule for a table of text and
+/// the wrong one here: the ATK and DEF figures are read as a PAIR against the
+/// other side of the same row, and what is being compared is which one is
+/// green. "The red and green should be the same as dark mode" has now been
+/// asked five times, about this row specifically. See [statToneColor], which
+/// is the same decision for the modifiers hanging under it.
 Color vsColor(BuildContext context, int mine, int opp) {
-  final dark = _dark(context);
-  if (mine > opp) return dark ? _vsGreenDark : _vsGreenLight;
-  if (mine < opp) return dark ? _vsRedDark : _vsRedLight;
-  return dark ? _vsLevelDark : _vsLevelLight;
+  if (mine > opp) return _vsGreenDark;
+  if (mine < opp) return _vsRedDark;
+  return _vsLevelDark;
 }
 
-/// The same three, taken down far enough to read on a bright pane.
+/// No ramp either, for the same reason: `glassAccent` would take all three of
+/// them straight back down to the light counterparts this just stopped using.
 Color vsColorOnGlass(BuildContext context, int mine, int opp) =>
-    glassAccent(context, vsColor(context, mine, opp));
+    vsColor(context, mine, opp);
 
 /// One side's ATK and DEF, already through `fifaSplit`.
 typedef StatSide = ({int atk, int def});
@@ -253,12 +262,26 @@ enum StatTone {
 ///
 /// [amount] is what picks green from red for [StatTone.delta]; a zero would be a
 /// modifier not worth drawing, so it falls on the green side with the pluses.
+/// **THE DARK PAIR, IN BOTH THEMES, on this card.**
+///
+/// The light-mode counterparts above are the brightest members of each hue that
+/// still clear 3:1 as ink on white, and that is the right rule for a table of
+/// text. It is the wrong rule here and it has now been asked about four times:
+/// these are a signed number and a 9pt glyph hung off a rating, read as a PAIR
+/// against the other side of the same card, and what a player is comparing is
+/// which one is green. A darker green and a darker red compare exactly as well
+/// as the mint and the coral and read as a different palette from the one on
+/// the same card in dark mode.
+///
+/// No ramp either, for the same reason: `glassAccent` would take both of them
+/// straight back down. `vsRedOn` and `vsGreenOn` keep the flip everywhere else,
+/// which is every place these are actually running text.
 Color statToneColor(BuildContext context, StatTone tone, int amount) =>
-    glassAccent(context, switch (tone) {
-      StatTone.warn => vsAmberOn(context),
-      StatTone.delta when amount < 0 => vsRedOn(context),
-      StatTone.delta => vsGreenOn(context),
-    });
+    switch (tone) {
+      StatTone.warn => const Color(0xFFFF9800),
+      StatTone.delta when amount < 0 => _vsRedDark,
+      StatTone.delta => _vsGreenDark,
+    };
 
 /// One modifier hanging off a rating: a glyph, a signed number, what it means,
 /// and the sentence that explains it.
@@ -351,6 +374,8 @@ class MatchStatRows extends StatelessWidget {
                     figureKey: const ValueKey('nm-figure-left'),
                     value: leftRating,
                     mods: leftMods,
+                    // BOTH sides or neither — see [_Rating._modBand].
+                    band: leftMods.isNotEmpty || rightMods.isNotEmpty,
                     boot: leftBoot,
                     // Always OUTWARD, away from the stat bars.
                     bootOnLeft: true,
@@ -364,6 +389,7 @@ class MatchStatRows extends StatelessWidget {
                     figureKey: const ValueKey('nm-figure-right'),
                     value: rightRating,
                     mods: rightMods,
+                    band: leftMods.isNotEmpty || rightMods.isNotEmpty,
                     boot: rightBoot,
                     bootOnLeft: false,
                   ),
@@ -630,6 +656,7 @@ class _Rating extends StatelessWidget {
     super.key,
     required this.value,
     required this.mods,
+    required this.band,
     required this.boot,
     required this.bootOnLeft,
     required this.figureKey,
@@ -642,55 +669,86 @@ class _Rating extends StatelessWidget {
 
   final int? value;
   final List<StatMod> mods;
+
+  /// Whether to hold the band open — see [_modBand]. Decided for the PAIR, not
+  /// for this side: a fixture with no modifier at either end (the match page's
+  /// own board, always) pays nothing for it.
+  final bool band;
   final bool boot;
   final bool bootOnLeft;
 
-  /// The figure's own height, which is what the modifiers hang below. Out of
-  /// flow, because in flow they add height under the number and the box is
-  /// vertically centred — so a side WITH a modifier sat higher than a side
-  /// without, and the two ratings stopped lining up with each other.
+  /// The figure's own height, which is what the modifiers hang below.
   static const double _figureHeight = 26;
+
+  /// The band the modifiers sit in, RESERVED whether there are any or not.
+  ///
+  /// **They were a `Positioned` hanging out of a `Clip.none` stack, and that is
+  /// why tapping one did nothing.** Flutter paints outside a box happily and
+  /// hit-tests nothing outside it, so the glyphs drew where they were meant to
+  /// and every tap on one fell through to the card behind — which opens the
+  /// league table. The `Tooltip` explaining home advantage had been unreachable
+  /// since it was written. Reported as the icons under the next-match card
+  /// needing a popup saying what they are.
+  ///
+  /// Reserving the band on both sides is what the out-of-flow trick was buying:
+  /// in flow and only when present, a side WITH a modifier sat higher than a
+  /// side without and the two ratings stopped lining up.
+  static const double _modBand = 20;
 
   @override
   Widget build(BuildContext context) {
     final ink = Theme.of(context).colorScheme.onSurface;
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          '${value ?? '?'}',
-          key: figureKey,
-          style: TextStyle(
-            fontSize: 26,
-            height: 1,
-            fontWeight: FontWeight.w900,
-            color: ink,
-            fontFeatures: const [FontFeature.tabularFigures()],
+        SizedBox(
+          height: _figureHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Text(
+                '${value ?? '?'}',
+                key: figureKey,
+                style: TextStyle(
+                  fontSize: 26,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              // Hangs into the empty margin rather than widening the figure —
+              // in flow it pushed the number off the line it shares with the
+              // club name above, so the one fixture in ten with a weakened
+              // opponent looked misaligned.
+              if (boot)
+                Align(
+                  alignment: bootOnLeft
+                      ? Alignment.centerLeft
+                      : Alignment.centerRight,
+                  child: const Text(
+                    '🍀',
+                    style: TextStyle(fontSize: 15, height: 1),
+                  ),
+                ),
+            ],
           ),
         ),
-        // Hangs into the empty margin rather than widening the figure — in flow
-        // it pushed the number off the line it shares with the club name above,
-        // so the one fixture in ten with a weakened opponent looked misaligned.
-        if (boot)
-          Align(
-            alignment: bootOnLeft
-                ? Alignment.centerLeft
-                : Alignment.centerRight,
-            child: const Text('🍀', style: TextStyle(fontSize: 15, height: 1)),
-          ),
-        if (mods.isNotEmpty)
-          Positioned(
-            top: _figureHeight + 4,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final mod in mods) ...[
-                  if (mod != mods.first) const SizedBox(width: 6),
-                  _Mod(mod: mod),
-                ],
-              ],
-            ),
+        if (band)
+          SizedBox(
+            height: _modBand,
+            child: mods.isEmpty
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final mod in mods) ...[
+                        if (mod != mods.first) const SizedBox(width: 2),
+                        _Mod(mod: mod),
+                      ],
+                    ],
+                  ),
           ),
       ],
     );
@@ -719,27 +777,36 @@ class _Mod extends StatelessWidget {
       // explanation nobody could reach without knowing to hold it down. It says
       // where the number comes from, which is the Stadium's Fan Zone tier.
       triggerMode: TooltipTriggerMode.tap,
+      // Long enough to READ. The default 1.5s is written for a mouse hovering
+      // away, not for a sentence somebody has just asked to see.
+      showDuration: const Duration(seconds: 3),
       child: Builder(
         builder: (context) {
           // **THE SIGN IS PRINTED FROM THE NUMBER**, not hardcoded. It was a
           // literal `+`, which is why nothing here could ever have been a
           // subtraction and why the colour had to come from somewhere else.
           final ink = statToneColor(context, mod.tone, mod.amount);
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GameIcon(mod.icon, size: 9, color: ink),
-              Text(
-                '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  color: ink,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+          return Padding(
+            // **A TARGET, not just a mark.** The glyph and its number are 22
+            // by 10; the padding is what a thumb actually lands on, and it is
+            // inside the tooltip's own detector so it is all live.
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GameIcon(mod.icon, size: 9, color: ink),
+                Text(
+                  '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    color: ink,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),

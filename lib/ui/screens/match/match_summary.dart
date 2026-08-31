@@ -232,6 +232,12 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                 // fill the phone left 125 points of nothing between the manager
                 // and the payout.
                 child: ReportScroll.list(
+                  // **TOP, not centred.** The first card is the scoreline, and
+                  // a scoreline that floats down the page as the report below
+                  // it grows or shrinks reads as the page settling rather than
+                  // as the result. Asked for directly; the season summary keeps
+                  // the centring, which is what `report_scroll.dart` is about.
+                  alignment: Alignment.topCenter,
                   padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
                   children: [
                     // **ONE BOX, not three things loose around one.** The

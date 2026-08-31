@@ -851,13 +851,48 @@ class _PitchBallState extends State<PitchBall>
           bottom: ballGroundLine + _sim.y + _hop,
           width: ballSize,
           height: ballSize,
-          child: Transform.rotate(
-            angle: _sim.rot * math.pi / 180,
-            child: Image.asset(
-              'assets/penalty/ball.png',
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.medium,
-            ),
+          // **THE PANELS TURN; THE LIGHT DOES NOT.** The art has its shading
+          // baked in — a pale crescent top-left, a grey one bottom-right — so
+          // rotating the file rotated the lighting with it, and a light source
+          // that orbits a ball is what a TUMBLING ball looks like. Reported as
+          // the spin being on the wrong axis, moving slightly up and down: the
+          // ball's own dark mass was swinging over the top and back under.
+          //
+          // Nothing here changes the rotation, which was always a clean turn
+          // about the centre. A fixed highlight and a fixed shade are laid over
+          // the spinning panels instead, so the sun stays where the rest of the
+          // scene's is and only the ball moves.
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Transform.rotate(
+                angle: _sim.rot * math.pi / 180,
+                child: Image.asset(
+                  'assets/penalty/ball.png',
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                ),
+              ),
+              const IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      // Up and to the left, the same corner the scene's own
+                      // light comes from.
+                      center: Alignment(-0.45, -0.5),
+                      radius: 0.95,
+                      colors: [
+                        Color(0x3DFFFFFF),
+                        Color(0x00FFFFFF),
+                        Color(0x38000000),
+                      ],
+                      stops: [0, 0.55, 1],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

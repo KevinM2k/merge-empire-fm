@@ -2,23 +2,23 @@
 /// `../merge-empire-fc/src/data/transferMarket.js`.
 ///
 /// Offers arrive at random — any rival in the league can bid, not just the team
-/// just faced. The targets combine to roughly two offers per 14-match season
-/// across the post-match and idle triggers.
+/// just faced.
 ///
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
-/// Post-match: a small chance per match. Across 14 matches this alone is about
-/// one offer a season.
-const double transferMatchTriggerChance = 0.07;
-
-/// Idle: rolled by the main tick. The check itself is gated by
-/// [transferIdleMinIntervalMs] so offers cannot spam.
-const double transferIdleTriggerChance = 0.30;
-
-/// Earliest another idle offer-roll is allowed after any offer activity. At
-/// ~0.30 per check this averages one offer per ~50 minutes of active play.
-const int transferIdleMinIntervalMs = 15 * 60 * 1000;
+/// **AFTER A MATCH, and nowhere else.** There used to be an idle roll on the
+/// main tick as well, behind a fifteen-minute gate, so a player who left the
+/// game sitting on the Play screen collected a bid roughly every fifty minutes
+/// for as long as they left it there — and a season could carry any number of
+/// them depending on how long the app had been open. Reported directly.
+///
+/// A bid is a thing a rival does because of something they saw, so a FIXTURE is
+/// the right clock for it and idle time is not. This is the whole budget now:
+/// across a 14-match season it lands about two, which is what the file has
+/// always said it was aiming at — it just used to spend half of it on the
+/// wrong trigger.
+const double transferMatchTriggerChance = 0.14;
 
 /// A sponsored player still nudges the per-match trigger chance up.
 const double transferSponsorTriggerBonus = 0.06;

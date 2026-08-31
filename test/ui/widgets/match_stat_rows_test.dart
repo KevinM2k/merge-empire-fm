@@ -250,4 +250,92 @@ void main() {
     });
   });
 
+
+  group('A MODIFIER IS A CONTROL, and it never once took a tap', () {
+    // They were a `Positioned` hanging out of the bottom of a `Clip.none`
+    // stack, which paints outside a box and hit-tests nothing outside it: the
+    // glyphs drew where they were meant to and every tap fell through to the
+    // card behind. The `Tooltip` that says what home advantage IS had been
+    // unreachable since the day it was written.
+    const homeAdv = (
+      icon: 'home',
+      amount: 4,
+      tone: StatTone.delta,
+      tip: 'Home advantage',
+    );
+
+    testWidgets('tapping one says what it is, and it goes again', (
+      tester,
+    ) async {
+      await pumpRows(tester, leftMods: const [homeAdv]);
+      await tester.pumpAndSettle();
+      expect(find.text('Home advantage'), findsNothing);
+
+      await tester.tap(find.byType(Tooltip));
+      await tester.pumpAndSettle();
+      expect(find.text('Home advantage'), findsOneWidget);
+
+      // It is a popup, not a panel: nobody has to put it away.
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(find.text('Home advantage'), findsNothing);
+    });
+
+    testWidgets('and the glyph is inside its own side, not hanging off it', (
+      tester,
+    ) async {
+      // The hit test walks the tree by BOX, so a mark drawn past the edge of
+      // the rating it belongs to is a mark nothing can reach.
+      await pumpRows(tester, leftMods: const [homeAdv]);
+      await tester.pumpAndSettle();
+      final mod = tester.getRect(find.byType(Tooltip));
+      final side = tester.getRect(find.byKey(const ValueKey('nm-rating-left')));
+      expect(side.contains(mod.topLeft), isTrue);
+      expect(side.contains(mod.bottomRight - const Offset(0.5, 0.5)), isTrue);
+    });
+
+    testWidgets('on the narrowest phone too', (tester) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpRows(tester, rightMods: const [homeAdv]);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Tooltip));
+      await tester.pumpAndSettle();
+      expect(find.text('Home advantage'), findsOneWidget);
+    });
+
+    testWidgets('and a fixture with none pays nothing for the band', (
+      tester,
+    ) async {
+      // The match page's own board never carries one, and a strip of reserved
+      // air under the ratings on the one screen with no room to spare is a
+      // cost for nothing.
+      await pumpRows(tester);
+      await tester.pumpAndSettle();
+      final bare = tester.getSize(find.byKey(const ValueKey('nm-rating-left')));
+      await pumpRows(tester, leftMods: const [homeAdv]);
+      await tester.pumpAndSettle();
+      final banded = tester.getSize(
+        find.byKey(const ValueKey('nm-rating-left')),
+      );
+      expect(banded.height, greaterThan(bare.height));
+    });
+
+    testWidgets('AND THE TWO FIGURES STILL LINE UP', (tester) async {
+      // The band is reserved on both sides whether there are modifiers in it
+      // or not — in flow and only when present, the side WITH one sat higher
+      // than the side without.
+      await pumpRows(tester, leftMods: const [homeAdv]);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getRect(find.byKey(const ValueKey('nm-figure-left'))).top,
+        closeTo(
+          tester.getRect(find.byKey(const ValueKey('nm-figure-right'))).top,
+          0.01,
+        ),
+      );
+    });
+  });
+
 }

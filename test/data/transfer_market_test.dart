@@ -5,16 +5,13 @@ import 'package:merge_empire_fc/data/transfer_market.dart';
 void main() {
   group('trigger tuning', () {
     test('values', () {
-      expect(transferMatchTriggerChance, 0.07);
-      expect(transferIdleTriggerChance, 0.30);
-      expect(transferIdleMinIntervalMs, 900000);
+      expect(transferMatchTriggerChance, 0.14);
       expect(transferSponsorTriggerBonus, 0.06);
     });
 
     test('every chance is a probability', () {
       for (final p in [
         transferMatchTriggerChance,
-        transferIdleTriggerChance,
         transferSponsorTriggerBonus,
       ]) {
         expect(p, inInclusiveRange(0, 1));
@@ -28,14 +25,14 @@ void main() {
       );
     });
 
-    test('the idle gate is 15 minutes', () {
-      expect(transferIdleMinIntervalMs, 15 * 60 * 1000);
-    });
-
-    test('the post-match trigger lands near one offer per 14-match season', () {
-      // The file targets roughly two offers a season across both triggers,
-      // with the post-match half contributing about one.
-      expect(transferMatchTriggerChance * 14, closeTo(1.0, 0.05));
+    test('THE MATCH IS THE ONLY TRIGGER, and it carries the whole budget', () {
+      // There used to be an idle roll on the main tick as well, so a player who
+      // left the game sitting on the Play screen collected a bid every fifty
+      // minutes or so for as long as they left it there — and a season could
+      // carry any number of them depending on how long the app had been open.
+      // Reported directly. A bid is something a rival does because of something
+      // they saw, so a fixture is the right clock for it and idle time is not.
+      expect(transferMatchTriggerChance * 14, closeTo(2.0, 0.05));
     });
   });
 

@@ -101,8 +101,25 @@ const Color _lightB = Color(0x33E4EFF8);
 const Color _lightChipA = Color(0xC4FCFEFF);
 const Color _lightChipB = Color(0xADE4EFF8);
 
-const Color _lightDeepA = Color(0x57FCFEFF);
-const Color _lightDeepB = Color(0x42DCEAF5);
+/// **The DEEP pane carries more in daylight than it used to.**
+///
+/// It was `0x57` over `0x42` — a third of a pane — which is right over a night
+/// sky and thin over a bright one: the next-match card sits on a daylight sky
+/// at the low tiers, so its verdict colours were reading against most of the
+/// sky rather than against the card. The red was the one reported as hard to
+/// read, which is what a low-contrast ink on a near-transparent ground does
+/// first. Asked for directly: less transparency on the card in light mode.
+///
+/// **Halfway, and the halfway is the answer rather than a hedge.** Taken all
+/// the way to near-opaque the red reads and the GREEN stops — a mint green
+/// wants some sky behind it and a coral red wants none, and they are printed
+/// side by side on the same row. The midpoint is the only place both are
+/// legible, which is what was asked for after seeing both ends.
+///
+/// Only the deep recipe moves. The chip and the panel stops are for surfaces
+/// with a page behind them rather than a sky, and neither was reported.
+const Color _lightDeepA = Color(0x87FCFEFF);
+const Color _lightDeepB = Color(0x74DCEAF5);
 
 /// How much the backdrop's colour is pushed under the pane.
 ///
@@ -220,6 +237,14 @@ Color glassAccent(BuildContext context, Color colour) {
 /// 4.5:1 — the small-text threshold, applied to everything rather than trying to
 /// decide per call site which text is "large".
 ///
+/// **Lowering it to 3 was tried and put back**, and the reason is worth keeping:
+/// the accents reading as "darker than the colour I picked" is real, but this
+/// ramp was only half of it and the cheaper half to blame. The other half was
+/// `accentBright` being a hue re-derived at a FIXED saturation and lightness,
+/// which is what made a chosen `#4CAF50` come out as a different green rather
+/// than a darker one — see `uiAccentBright`, which fixes that without spending
+/// the app's whole text-contrast budget on it.
+///
 /// Public so a test can assert the thing this file is FOR, rather than restating
 /// the number and drifting from it.
 const double paneContrastTarget = 4.5;
@@ -246,6 +271,14 @@ double _ratio(double luminance, Color ink) {
 /// The one place the contrast of a colour on glass is measured, so a test and the
 /// ramp cannot disagree about what "readable" means.
 double paneContrast(Color ink) => _ratio(paneLuminance, ink);
+
+/// The same measurement against a surface that is NOT the pane.
+///
+/// The HUD's own bars are brighter than any pane in daylight — see `hudInk` —
+/// and a ramp aimed at 0.62 over-darkens against 0.85. Public so that one ramp
+/// and this file agree on what a ratio is, rather than growing a second
+/// luminance formula next door.
+double contrastOn(double luminance, Color ink) => _ratio(luminance, ink);
 
 /// The quieter ink on a pane — a label, a caption, a progress fraction.
 ///
@@ -295,6 +328,7 @@ class GlassPanel extends StatelessWidget {
     this.blur = true,
     this.darkGlass,
     this.sheen = true,
+    this.shadow = true,
   });
 
   final Widget child;
@@ -315,6 +349,15 @@ class GlassPanel extends StatelessWidget {
   /// it — reported on the commentary, where it also sat behind the minute down
   /// the left. It is a highlight on a small surface, not a wash for a big one.
   final bool sheen;
+
+  /// The drop shadow that lifts the pane off what is behind it.
+  ///
+  /// **Off for a pane that is already floating on chrome of its own.** The HUD's
+  /// cluster sits in a bar, not on the scene, so the shadow was not saying "this
+  /// is in front" — it was a dark smear under the one strip that is on screen on
+  /// every tab all the time. Asked for directly. Everything on a page keeps it:
+  /// that is the case the shadow was written for.
+  final bool shadow;
 
   /// Force the DARK glass stops whatever the theme is.
   ///
@@ -401,7 +444,9 @@ class GlassPanel extends StatelessWidget {
       // than drawn on it.
       decoration: BoxDecoration(
         borderRadius: shape,
-        boxShadow: [
+        boxShadow: !shadow
+            ? null
+            : [
           BoxShadow(
             // At a quarter opacity the shadow is not decoration — it is the only
             // thing telling you the pane is IN FRONT of the scene rather than a
@@ -413,7 +458,7 @@ class GlassPanel extends StatelessWidget {
             blurRadius: _deep ? 26 : 18,
             offset: Offset(0, _deep ? 10 : 6),
           ),
-        ],
+              ],
       ),
       child: ClipRRect(
         borderRadius: shape,

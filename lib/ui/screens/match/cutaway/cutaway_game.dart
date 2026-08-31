@@ -425,6 +425,16 @@ typedef AttackCast = ({
 
   /// The receiver's index per beat index. -1 where the beat is not a pass.
   List<int> receiverAt,
+
+  /// Which attacker has the ball at the Finish — the man who shoots.
+  ///
+  /// **Known before the passage starts, which is the point of it.** The carrier
+  /// walks the same chain every run: he begins at 0 and becomes the receiver of
+  /// each pass in turn, and both of those come off the script. So the figure
+  /// who is going to shoot can be given the scorer's name at kick-off instead
+  /// of being handed it at the moment he pulls the trigger. See
+  /// [CutawayGame._shoot] for what that fixed.
+  int finisher,
 });
 
 /// How far back a receiver stands from the ball he is about to be played.
@@ -464,10 +474,22 @@ AttackCast castFor(CutawaySequence sequence) {
   while (starts.length < 2) {
     starts.add((p: 0.5, q: starts.isEmpty ? 0.5 : 0.35));
   }
-  return (starts: starts, receiverAt: receiverAt);
+
+  // The carrier's chain, walked to the end: he starts on 0 and becomes each
+  // pass's receiver in turn. Whoever holds it at the last beat takes the shot.
+  var finisher = 0;
+  for (var i = 0; i < receiverAt.length; i++) {
+    if (receiverAt[i] >= 0) finisher = receiverAt[i];
+  }
+  return (starts: starts, receiverAt: receiverAt, finisher: finisher);
 }
 
-class CutawayGame extends FlameGame {
+/// **`HasTimeScale` IS WHAT MAKES `2x` MEAN 2x.** The clock's period halved and
+/// the pitch did not, so at double speed the passages ran at the same pace
+/// against a match going twice as fast — reported as `2x` not speeding the 2D
+/// pitch up. The mixin scales `dt` for the whole tree, so a run-up, the shot and
+/// the ball's flight all halve together and the passage still fits its minute.
+class CutawayGame extends FlameGame with HasTimeScale {
   CutawayGame({
     required this.sequence,
     required this.attackingRight,
@@ -576,6 +598,18 @@ class CutawayGame extends FlameGame {
     String nameOr(String number) =>
         pool.isEmpty ? number : pool.removeAt(0);
 
+    // **THE SCORER WEARS HIS OWN NAME FROM THE FIRST FRAME.** He used to be
+    // handed it at the shot — `_shoot` relabelled the carrier and gave his old
+    // name to whoever else was wearing the scorer's — so on the one passage a
+    // player actually watches, two names on the pitch changed at the instant
+    // the ball went in. Reported live and in the replay, which are the same
+    // game. `_cast.finisher` is who takes the shot and is known before the
+    // passage starts, so nothing has to change hands mid-run.
+    final scorerLabel = ours && outcome == CutawayOutcome.goal && scorerName != null
+        ? shortName(scorerName!)
+        : null;
+    final finisher = _cast.finisher;
+
     // **WE ARE GREEN AND THEY ARE RED, WHICHEVER SIDE HAS THE BALL.** The
     // attackers were always the green shirts and the defenders always the red
     // ones, so an opponent's goal was replayed with THEM in green attacking OUR
@@ -594,7 +628,9 @@ class CutawayGame extends FlameGame {
         sprite: sprites['${attackKit}_${(i % 10) + 1}.png']!,
         start: _at(starts[i]),
         paceScale: 0.9 + _rng.nextDouble() * 0.35,
-        label: ours ? nameOr(number) : number,
+        label: !ours
+            ? number
+            : (i == finisher ? (scorerLabel ?? nameOr(number)) : nameOr(number)),
       );
       mover.target = mover.position.clone();
       attackers.add(mover);
@@ -679,16 +715,12 @@ class CutawayGame extends FlameGame {
   }
 
   void _shoot(Finish beat) {
-    // The JS forces the scorer's real name onto the shooter's dot.
-    final scorer = scorerName;
-    if (ours && scorer != null && outcome == CutawayOutcome.goal) {
-      final me = attackers[carrier];
-      final label = shortName(scorer);
-      for (final a in attackers) {
-        if (a != me && a.label == label) a.label = me.label;
-      }
-      me.label = label;
-    }
+    // **NOTHING IS RENAMED HERE, and that is the fix.** The JS forces the
+    // scorer's real name onto the shooter's dot at this moment, and the port
+    // copied it: the carrier took the scorer's name and handed his own to
+    // whoever had been wearing it, so two labels on the pitch changed on the
+    // frame the shot was struck. The scorer is labelled at kick-off now — see
+    // `_cast.finisher` in [onLoad].
     final style = finishStyles[beat.style] ?? finishStyles['placed']!;
     // Where the ball ends up is the OUTCOME's business, not the script's — the
     // same passage has to be able to end in the net, in the keeper's hands or

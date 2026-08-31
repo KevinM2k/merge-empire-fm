@@ -206,23 +206,65 @@ void main() {
     ));
   });
 
-  testWidgets('THE SCORER TAKES THE SHOT', (tester) async {
+  testWidgets('THE SCORER TAKES THE SHOT, wearing his name all along', (
+    tester,
+  ) async {
+    // **AND NOBODY IS RENAMED MID-PASSAGE, which is the bug this caught.** The
+    // JS forces the scorer's name onto the shooter's dot at the moment of the
+    // shot and the port copied it — the carrier took the scorer's name and
+    // handed his own to whoever had been wearing it, so TWO labels on the pitch
+    // changed on the frame the ball was struck. Reported from a handset, live
+    // and in the replay, which are the same game.
     final game = await loaded(
       tester,
       names: const ['Ada Lovelace', 'Grace Hopper'],
       scorerName: 'Grace Hopper',
     );
-    // Held out of the pool, so nobody wears it before the shot.
-    expect([for (final a in game.attackers) a.label], isNot(contains('Hopper')));
+    final before = [for (final a in game.attackers) a.label];
+    expect(before, contains('Hopper'), reason: 'he is named at kick-off');
+    expect(
+      before.where((l) => l == 'Hopper'),
+      hasLength(1),
+      reason: 'and only one figure wears it',
+    );
+
     var struck = false;
     game.struck.addListener(() => struck = true);
     var t = 0.0;
-    while (!struck && t < 30) {
+    while (t < 30) {
       game.update(1 / 60);
       t += 1 / 60;
+      expect(
+        [for (final a in game.attackers) a.label],
+        before,
+        reason: 'a label changed ${t.toStringAsFixed(2)}s in',
+      );
+      if (struck && t > 2) break;
     }
     expect(struck, isTrue);
     expect(game.attackers[game.carrier].label, 'Hopper');
+  });
+
+  testWidgets('and the cast knows who will shoot before a ball is kicked', (
+    tester,
+  ) async {
+    // The carrier walks the same chain every run — he starts on 0 and becomes
+    // each pass's receiver in turn — so the finisher comes off the script.
+    // Asserted against the game actually playing it out, on every sequence,
+    // because a cast that disagrees with the run puts the scorer's name on the
+    // wrong shirt for ninety seconds instead of for one frame.
+    for (final sequence in cutawaySequences) {
+      final game = await loaded(tester, sequence: sequence);
+      var struck = false;
+      game.struck.addListener(() => struck = true);
+      var t = 0.0;
+      while (!struck && t < 30) {
+        game.update(1 / 60);
+        t += 1 / 60;
+      }
+      expect(struck, isTrue, reason: sequence.id);
+      expect(game.carrier, castFor(sequence).finisher, reason: sequence.id);
+    }
   });
 
   /// **WE ARE GREEN AND THEY ARE RED, WHICHEVER SIDE HAS THE BALL.**

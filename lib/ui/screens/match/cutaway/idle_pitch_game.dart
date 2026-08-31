@@ -72,7 +72,8 @@ AttackPoint idleSpotFor(
 }
 
 /// Two sides holding a shape, and a ball between them.
-class IdlePitchGame extends FlameGame {
+/// The twenty-two run at the match's own speed too — see [CutawayGame].
+class IdlePitchGame extends FlameGame with HasTimeScale {
   IdlePitchGame({required this.attackingRight, required this.momentum});
 
   /// Which way WE are kicking, so the same `(p, q)` reads for both venues.

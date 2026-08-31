@@ -267,13 +267,17 @@ void main() {
   });
 
   group('the chrome', () {
-    testWidgets('both bars wear the CLUB\'s colour, not a grey surface', (
+    testWidgets('both bars are LIGHT on a light theme, not the club', (
       tester,
     ) async {
-      // The JS's own decision: light mode is a neutral page, and the kit hue is
-      // used for accents "AND for the HUD top bar + bottom tab bar, which are
-      // solid accent-coloured chrome". Both bars were `surface`, so a player who
-      // picked claret and blue got a grey app with a green tint in the buttons.
+      // **A deliberate divergence from the JS, and it is a bug fix.** The spec
+      // makes the two bars the one structural use of the kit colour — "solid
+      // accent-coloured chrome" — so the luminance of both swung with the club,
+      // and every ink standing on one had to be argued about separately. On the
+      // bottom bar it went past awkward into invisible: the tabs print
+      // `accentInk`, which is measured against a FILLED accent, and a pale kit
+      // resolved that to a near-black and painted it on the near-black
+      // dark-mode bar. Reported directly. See [hudChrome].
       await pumpHud(tester, (_) {}, tab: ShellTab.shop);
       final context = tester.element(find.byType(Hud));
       final kit = Theme.of(context).extension<KitTheme>()!;
@@ -288,12 +292,42 @@ void main() {
           .whereType<BoxDecoration>()
           .map((d) => d.gradient)
           .whereType<LinearGradient>();
-      // The middle stop IS the accent in light mode.
+      final chrome = hudChrome(kit, context);
+      // It is the band's own gradient and not just a function nothing calls.
       expect(
-        gradients.any((g) => g.colors.contains(kit.accent)),
+        gradients.any((g) => g.colors.toString() == chrome.colors.toString()),
         isTrue,
-        reason: 'the band is not wearing the kit',
+        reason: 'the chrome is not on the band',
       );
+      expect(
+        chrome.colors.contains(kit.accent),
+        isFalse,
+        reason: 'the band is still wearing the kit at full strength',
+      );
+      for (final c in chrome.colors) {
+        final luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        expect(luma, greaterThan(0.80), reason: 'not a light bar: $c');
+      }
+    });
+
+    testWidgets('and it is the SAME light on every kit', (tester) async {
+      // Which is the point of the whole change: one luminance per theme means
+      // the ink standing on it can be decided once instead of per club.
+      final seen = <List<Color>>[];
+      for (final kitId in const ['#4caf50', '#fdd835', '#7b1d34', '#00bcd4']) {
+        await pumpHud(
+          tester,
+          (s) =>
+              (s['club'] as Map<String, dynamic>)['kitPrimaryColor'] = kitId,
+          tab: ShellTab.shop,
+        );
+        final context = tester.element(find.byType(Hud));
+        final kit = Theme.of(context).extension<KitTheme>()!;
+        seen.add(hudChrome(kit, context).colors);
+      }
+      for (final stops in seen) {
+        expect(stops, seen.first, reason: 'the bar moved with the club');
+      }
     });
 
     testWidgets('and it is a dark TINT of the same hue in dark mode', (
@@ -310,7 +344,11 @@ void main() {
       final chrome = hudChrome(kit, context);
       for (final c in chrome.colors) {
         final luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-        expect(luma, lessThan(0.12), reason: 'too bright for a dark page: $c');
+        // The kit's own `bg` and `surface` — the app's dark page and dark card
+        // — rather than a fourth dark invented for the bar. `surface` is the
+        // brighter of the two at 12% lightness, which is where the ceiling
+        // comes from.
+        expect(luma, lessThan(0.16), reason: 'too bright for a dark page: $c');
         // Still the hue — a bar that has gone to pure black says nothing about
         // whose club it is.
         expect(c.g, greaterThan(c.r));

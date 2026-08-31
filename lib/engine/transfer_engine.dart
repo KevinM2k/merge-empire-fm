@@ -260,10 +260,21 @@ Map<String, dynamic>? maybeGenerateOffer(
   return buildOffer(state, opponentRating: opponentRating ?? 55);
 }
 
-/// Idle trigger, called by the main tick.
+/// The market's own housekeeping, called by the main tick.
 ///
-/// The interval gate is the primary throttle; the chance check adds jitter so
-/// offers do not arrive at perfectly predictable times.
+/// **IT NO LONGER OFFERS ANYTHING, and that is the change.** There used to be a
+/// roll here too — a 30% chance behind a fifteen-minute gate — so a player who
+/// left the game sitting on the Play screen collected a bid roughly every fifty
+/// minutes, for as long as they left it there. Reported directly: bids come in
+/// far too often, and the chance should be after a MATCH.
+///
+/// It is now, and only there. What is left here is the half that always had to
+/// run on a clock rather than on a fixture: a bid nobody answered inside five
+/// minutes is a bid that has timed out, and the rival takes it personally.
+///
+/// The return type stays, because a `TickReport` field that has to be threaded
+/// back through the loop to be deleted is a bigger change than the one being
+/// made; it is simply always null now.
 Map<String, dynamic>? maybeGenerateIdleOffer(Map<String, dynamic> state) {
   if (_map(state['tutorial'])?['done'] != true) return null;
 
@@ -294,12 +305,7 @@ Map<String, dynamic>? maybeGenerateIdleOffer(Map<String, dynamic> state) {
     }
   }
 
-  if (now() - (_num(market['lastOfferAt']) ?? 0) < transferIdleMinIntervalMs) {
-    return null;
-  }
-  if (seeded.random() >= transferIdleTriggerChance) return null;
-
-  return buildOffer(state, opponentRating: 60);
+  return null;
 }
 
 /// When a rival buys one of our players they slot the signing into their

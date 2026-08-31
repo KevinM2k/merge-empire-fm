@@ -25,7 +25,6 @@ import 'package:merge_empire_fc/ui/screens/trophies/trophy_room_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
-import 'package:merge_empire_fc/ui/theme/sky.dart' show nightSceneOf;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/badge_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -48,16 +47,20 @@ final energyMaxProvider = savePick<int>(getEnergyMax);
 /// than they look. GOLD is money and is not negotiable. The GEM keeps cyan —
 /// which is what a gem is — but a vivid one rather than a wash. That leaves
 /// energy, and the obvious answer of yellow is the one hue it cannot have,
-/// because that is the coins; green is out too, because green is the chrome the
-/// icons sit on and half the kits are some shade of it; and orange came out 30°
-/// from gold, which is the same mistake one hue over.
+/// because that is the coins; and orange came out 30° from gold, which is the
+/// same mistake one hue over.
 ///
-/// So the bolt is VIOLET. Lightning is drawn violet about as often as it is drawn
-/// yellow, it is 135° from the gold and 90° from the gem, and it is the one warm-
-/// side hue no wallet in this game has a claim on. Fixed on every kit, because
-/// what these code is WHICH WALLET, and that does not change with the strip.
+/// **GREEN, which used to be ruled out and no longer is.** The reason it was
+/// out is written in the sentence above this one in every earlier draft — "green
+/// is the chrome the icons sit on and half the kits are some shade of it" — and
+/// that stopped being true the day the bars went neutral. See [hudChrome]. It
+/// took a spell as violet in between, and the report from the couch was that
+/// energy wants to be GREEN WHEN IT IS FULL AND RED WHEN IT IS LOW, which is
+/// what a tank reads as everywhere else in the world. So the bolt is green, the
+/// ladder runs down from it, and the hue and the warning are the same
+/// instrument rather than two.
 const Color hudCoinInk = Color(0xFFFFD700);
-const Color hudEnergyInk = Color(0xFFA855F7);
+const Color hudEnergyInk = Color(0xFF4ADE80);
 const Color hudGemInk = Color(0xFF22D3EE);
 
 /// A figure takes its own WALLET's ink, and it does not move.
@@ -85,29 +88,30 @@ const Color hudGemInk = Color(0xFF22D3EE);
 /// instead of standing apart from it, and the pair reads as one object.
 const Color hudFigureInk = hudCoinInk;
 
-/// What a fixed ink needs behind it in daylight.
+/// **NOTHING BEHIND THE FIGURES.** They wore a soft dark halo in daylight to
+/// buy a fixed ink some contrast against a pane that ramps — and the report
+/// from the couch was that the bar looked smudged, the violet energy figure
+/// worst of all: a thin `#A855F7` numeral over a dark blur is a purple core in
+/// a grey cloud rather than a number. Asked for directly, in both themes.
 ///
-/// The same backing the wallet glyphs wear, a little stronger: a 16px glyph is
-/// a solid shape and a 13px numeral is a few thin strokes, so it needs more of
-/// one. Null at night, where the pane is dark and the ink is already the
-/// brightest thing on it.
-///
-/// **A halo is not a colour.** The figure is the same white in both themes —
-/// what changes is whether there is something dark behind it, which is what
-/// keeps a fixed ink legible on a pane that is not.
-List<Shadow>? hudFigureShadows(BuildContext context) => nightSceneOf(context)
-    ? null
-    : const [
-        Shadow(color: Color(0x99102030), blurRadius: 3),
-        Shadow(color: Color(0x66102030), blurRadius: 6),
-      ];
+/// The contrast the halo was buying is bought by [hudInk] instead, which is the
+/// same answer one layer down: deepen the hue rather than put something behind
+/// it. Kept as a function rather than deleted so the one call site still reads
+/// as "and this is what goes behind it", and so the answer lives in one place
+/// if the daylight pane ever needs one again.
+List<Shadow>? hudFigureShadows(BuildContext context) => null;
 
 /// The cap beside the energy figure — quiet, and fixed with it.
 ///
 /// It was `glassMuted`, which ramps with the pane like everything else did.
 /// The energy hue held back to 62% is the same relationship in a colour that
-/// does not move, and the halo underneath is what carries it in daylight.
-const Color hudCapInk = Color(0x9EA855F7);
+/// does not move.
+///
+/// **Derived rather than pinned**, because it was a second copy of the bolt's
+/// hex with an alpha on the front, and the two went out of step the moment the
+/// bolt changed colour. The `/10` stays the FULL tank's green whatever the
+/// figure in front of it is doing: it is the cap, not the reading.
+final Color hudCapInk = hudEnergyInk.withValues(alpha: 0.62);
 
 /// Energy running LOW, and energy nearly gone. Fixed, and these are the dark
 /// theme's own values — which is what "match the red and green dark mode uses"
@@ -123,9 +127,15 @@ const Color hudEnergyEmptyInk = Color(0xFFF87171);
 /// colour carries information spent most of its life saying nothing with it,
 /// in a colour that changed with the club and the theme on top.
 ///
-/// Three rungs now, and the first of them is the bolt's own violet: plenty
-/// looks like the glyph beside it, and a colour LEAVING that violet is the
-/// warning. No context, because none of it depends on the theme any more.
+/// Three rungs, and the first of them is the bolt's own hue: plenty looks like
+/// the glyph beside it, and a colour LEAVING that hue is the warning. No
+/// context, because none of it depends on the theme.
+///
+/// **And that hue is GREEN again, which is the whole point of the ladder.**
+/// Full green, running down through amber to red is what a tank reads as
+/// without being told, and for a spell the top rung was a violet that had to
+/// be learned. Asked for directly. See [hudEnergyInk] for why green was ever
+/// off the table and why it is back on it.
 Color energyInk(num current, int max) {
   if (max <= 0) return hudEnergyInk;
   final pct = current / max * 100;
@@ -238,7 +248,7 @@ class Hud extends ConsumerWidget {
     // FIXED, and haloed rather than ramped — see [hudFigureInk]. Each figure
     // wears its own wallet's ink, so the glyph and the number are one object.
     TextStyle valueStyle(Color ink) => TextStyle(
-      color: ink,
+      color: hudInk(context, ink),
       shadows: hudFigureShadows(context),
       fontWeight: FontWeight.w700,
       fontSize: 13,
@@ -415,47 +425,73 @@ class Hud extends ConsumerWidget {
   }
 }
 
-/// The kit's own chrome, for the top bar and the bottom tab bar.
+/// The chrome behind the top bar and the bottom tab bar: LIGHT on a light theme,
+/// DARK on a dark one, faintly the club's hue and never more than that.
 ///
-/// **THE BARS ARE THE ONE PLACE THE KIT COLOUR IS STRUCTURAL**, and that is the
-/// JS's decision rather than this file's. Its note, verbatim in intent: light mode
-/// is deliberately NEUTRAL — white cards on a light-grey page — and the kit hue is
-/// used for accents AND *"for the HUD top bar + bottom tab bar, which are solid
-/// accent-coloured chrome"*. The page stays white; the chrome is the club.
+/// **A DELIBERATE DIVERGENCE FROM THE JS, and it is the fix for a whole class of
+/// bug.** The spec makes the two bars the one structural use of the kit colour —
+/// "solid accent-coloured chrome" — so in light mode the bar was the accent at
+/// full strength and in dark mode the accent blended most of the way to black.
+/// Which means the luminance of both bars swung with the club: a claret bar and
+/// a yellow bar want opposite inks, and every ink standing on one had to be
+/// argued about separately. There are three long notes in this file that are
+/// nothing but that argument.
 ///
-/// The port had both bars as `surface`, so a player who picked claret and blue got
-/// a grey app with a green tint in the buttons. On the tabs, the bars were the
-/// only two surfaces big enough to say whose club this is.
+/// **And on the bottom bar it went past awkward into invisible.** The tabs print
+/// `kit.accentInk`, which is measured against a FILLED accent — correct for a
+/// button. The dark chrome is not a filled accent, it is the accent at 15% over
+/// black, so a pale kit (yellow, cyan, white) resolved `accentInk` to the
+/// near-black `#0d0d0d` and painted it on a near-black bar. Reported as the
+/// bottom HUD making the icons invisible on some themes.
 ///
-/// Dark mode is the kit's `--hud-gradient`: a very dark tint of the same hue
-/// rather than the accent at full strength, because a saturated bar on a
-/// near-black page is a stripe of daylight across it. Derived from the accent
-/// here rather than added to `KitSurfaces` — the JS builds it per kit from the
-/// same hue, and blending to near-black reaches the same place without a second
-/// pinned value to keep in step.
+/// So the bars take the kit's own SURFACE stack, which is already exactly this:
+/// a neutral card ramp in light mode and a very dark tint of the club's hue in
+/// dark mode. One luminance per theme for every kit — so an ink can be decided
+/// once — and the club still says who it is in the accents standing on it. See
+/// [hudChromeInk] for the ink that goes with it, and `tab_bar.dart` for the
+/// highlight.
 LinearGradient hudChrome(KitTheme kit, BuildContext context) {
-  final light = Theme.of(context).brightness == Brightness.light;
-  if (light) {
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        Color.lerp(kit.accent, Colors.white, 0.10)!,
-        kit.accent,
-        Color.lerp(kit.accent, Colors.black, 0.06)!,
-      ],
-    );
-  }
   return LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [
-      Color.lerp(kit.accent, Colors.black, 0.90)!,
-      Color.lerp(kit.accent, Colors.black, 0.82)!,
-      Color.lerp(kit.accent, Colors.black, 0.90)!,
-    ],
+    // **Both themes return to `bg` at each end.** Light used to run white →
+    // surface → surface2, which put the darkest of the three tones at one edge
+    // of a band sitting on a white page — reported as too much background on
+    // the top HUD, and too dark for light mode. Symmetrical, and no stop below
+    // the page's own ground, is a band you can see the shape of without it
+    // reading as a slab.
+    colors: [kit.bg, kit.surface, kit.bg],
   );
 }
+
+/// The ink that reads on [hudChrome], and it is the same two values on every
+/// kit — which is the whole point of the bars being neutral.
+///
+/// The app's own pane inks rather than a fourth pair invented here: the chrome
+/// and the glass sitting on it now land in the same luminance band, so a label
+/// on one and a label on the other have no reason to be different colours.
+Color hudChromeInk(BuildContext context) => glassText(context);
+
+/// **THE WALLET HUES ARE PRINTED RAW, on every theme.**
+///
+/// There was a ramp here that deepened them in daylight, because the bar had
+/// gone neutral and gold on near-white is 1.2:1. It worked and it read as
+/// muted — reported as light mode wanting the same vibrant yellows, greens and
+/// blues the dark theme has. A hue cannot be both vivid and legible on white,
+/// so the SURFACE moved instead: the cluster is a dark trough in both themes
+/// now (see `HudCluster`), and on that these are exactly as chosen.
+///
+/// Kept as a function rather than deleted so the call sites still read as "and
+/// this is what happens to a wallet's colour", and so there is one place to put
+/// it back if anything in this bar ever stands on the chrome directly again.
+Color hudInk(BuildContext context, Color colour) => colour;
+
+/// The ink that reads on the cluster's dark trough, in either theme.
+///
+/// Not `glassInk`, which follows the theme: this one pane deliberately does
+/// not, so the divider and anything else neutral inside it cannot follow it
+/// either. See `HudCluster`.
+const Color hudTroughInk = Color(0xFFE9EFF5);
 
 /// The band the HUD sits in, off the Play tab.
 ///

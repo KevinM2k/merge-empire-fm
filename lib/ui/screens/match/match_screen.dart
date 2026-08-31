@@ -56,7 +56,7 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart'
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
-    show settingPick;
+    show settingPick, writeSetting;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart' show Gesture, Mood;
@@ -67,6 +67,8 @@ import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart' show PlayerFace;
+import 'package:merge_empire_fc/ui/widgets/store_button.dart'
+    show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
@@ -142,13 +144,59 @@ double stageBandHeight({
   );
 }
 
+/// The face the match's own controls wear.
+///
+/// **Solid, where every other `OutlinedButton` in the app is not.** The outline
+/// form is a transparent face by design and that is right nearly everywhere —
+/// a cancel that carried a face would out-shout the action beside it. This row
+/// is not that: it is the only row of controls on the page, and its ground is a
+/// stadium at dusk, so three empty outlines read as holes cut in the page.
+/// Asked for directly.
+///
+/// Through `mouldedButtonStyle` rather than `styleFrom`, because a moulded
+/// button's face is painted in a `backgroundBuilder` over a transparent
+/// Material — `backgroundColor:` colours the layer underneath it and fails
+/// silently. `architecture_test.dart` checks exactly this.
+ButtonStyle matchControlStyle(BuildContext context) {
+  final kit = Theme.of(context).extension<KitTheme>()!;
+  return mouldedButtonStyle(
+    face: kit.surface2,
+    edge: kit.border,
+    ink: Theme.of(context).colorScheme.onSurface,
+    dead: kit.surface2,
+    deadInk: kit.textMuted,
+    border: kit.border,
+  );
+}
+
 /// The commentary's own side inset.
 ///
-/// **Half what it was.** Every line carried 14 either side INSIDE a panel that
-/// is already inset 13 from the page, so a line of commentary started 27 points
-/// in on a 320pt phone — a quarter of the screen gone before the first word,
-/// on the one band here that is read rather than looked at.
-const double feedInset = 7;
+/// **Nothing, and the BAND's inset comes off too.** Every line used to carry 14
+/// either side inside a panel that was itself inset 13 from the page, so a line
+/// of commentary started 27 points in on a 320pt phone — a quarter of the
+/// screen gone before the first word, on the one band here that is read rather
+/// than looked at. Halving it was not enough; the plates are the only thing in
+/// this band now, so they take the page's own margin and nothing on top of it.
+/// See [feedBandInset].
+const double feedInset = 0;
+
+/// What the commentary band itself is inset by.
+///
+/// **[matchInset], the same as every other band — and that is the whole fix.**
+/// The feed used to pay twice: [matchInset] for the band and another 7 inside
+/// it for each plate, so the commentary started 20 points in while the tactic
+/// strip directly above it started at 13. Reported as the commentary having
+/// more margin than the tactics. One inset, paid once, and the two line up.
+const double feedBandInset = matchInset;
+
+/// The ground under one line of commentary.
+///
+/// **It had almost none.** A 4% white wash was the whole plate, which on the
+/// sky behind it is a rumour of a box rather than a box — and with the outer
+/// panel gone there is nothing else holding the lines apart. Reported directly:
+/// the boxes need more of a background.
+const double feedPlateFill = 0.13;
+const double feedPlateEdge = 0.16;
 
 class MatchScreen extends ConsumerStatefulWidget {
   const MatchScreen({
@@ -261,6 +309,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// The arrow's own figure, handed to the idle pitch so the shape it holds and
   /// the arrow over it are the same reading rather than two.
   final ValueNotifier<double> _momentum = ValueNotifier<double>(0);
+
+  /// The pitch band, so Colin's scrim can leave it alone — see
+  /// [CoachCorner.litArea].
+  final GlobalKey _stageKey = GlobalKey();
 
   /// Which of the two the body is showing.
   /// Which of the three the body is showing.
@@ -413,9 +465,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// Halve the wait, or put it back. The clock is restarted rather than
   /// retimed, which is the only way to change a periodic timer's period.
+  ///
+  /// **AND IT STICKS.** It was live-only, so a manager who had settled on 2x
+  /// re-tapped it every game — reported directly. `matchSpeedFast` is the
+  /// setting the settings screen already writes and `PlayMatchButton` now
+  /// opens on, so the button and the segment are two doors onto one preference
+  /// rather than two speeds that disagree.
   void toggleSpeed() {
     if (frame.finished) return;
     setState(() => _fast = !_fast);
+    writeSetting(ref, 'matchSpeedFast', _fast);
     _startClock();
   }
 
@@ -1350,7 +1409,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           context: context,
           tier: ref.watch(stadiumTierProvider),
         ),
-        child: SafeArea(
+        // **THE SCRIM IS OUTSIDE THE SAFE AREA, and everything else is inside
+        // it.** Colin's dim used to be a `Positioned.fill` in the same Stack as
+        // the page, which the `SafeArea` had already inset — so the strip under
+        // the notch and the strip over the home indicator stayed at full
+        // brightness while the rest of the screen went dark, and the overlay
+        // read as a panel rather than as the page being pushed back. Reported
+        // directly. His BUBBLE keeps its own `SafeArea(top: false)`, so the
+        // words still clear the indicator; only the dim runs edge to edge.
+        child: Stack(
+          children: [
+            SafeArea(
           child: Stack(
             children: [
               Column(
@@ -1436,6 +1505,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                       // As wide as every other box on the page; the height is
                       // [stageBandHeight]'s, decided against the pool above.
                       child: SizedBox(
+                        key: _stageKey,
                         width: double.infinity,
                         child: Stack(
                           key: const ValueKey('match-stage'),
@@ -1453,6 +1523,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               // was mounting it.
                               CutawayStage(
                                 clip: _clip,
+                                // `2x` is the whole screen's speed, not just
+                                // the clock's.
+                                fast: _fast,
                                 // **The match, between the chances.** The stage
                                 // keeps twenty-two bodies on the grass and slides
                                 // their shape with the same figure the arrow
@@ -1515,40 +1588,24 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                         onPick: applyStrategy,
                         cooldown: _tacticCooldown,
                       ),
-                    // **THE COMMENTARY IS IN A BOX.** The tabs and the feed sat
-                    // loose on the sky gradient — the one band on the screen with no
-                    // surface under it, on a page where the scoreboard, the stage and
-                    // the tactic strip are all panels. It read as the background
-                    // having text on it rather than as a thing being read.
-                    // **THE TAB BAR HAS GONE, and the commentary is what it
-                    // paid for.** It was a full row of chrome serving two panels
-                    // nobody watches during a match: the QUESTS auto-pay at the
-                    // whistle and are reported on the summary, which is where the
-                    // money is, and the STATISTICS are behind the board's own
-                    // chart button now. What is left in this box is the one thing
-                    // on the screen a player actually reads, in the whole box.
-                    //
-                    // **And it is a `GlassPanel`**, which is what every other
-                    // surface on this screen and on the summary is. It was a
-                    // hand-rolled `DecoratedBox` with its own colour, radius and
-                    // border — one pane of glass and one painted box, side by
-                    // side, on a page whose backdrop is a sky.
+                    // **THE COMMENTARY IS NOT IN A BOX OF ITS OWN.** Every
+                    // line already draws its own plate — that is what makes a
+                    // line a line rather than a paragraph — so the `GlassPanel`
+                    // around the lot was a box full of boxes, and the two
+                    // borders 8px apart down each side were the only thing it
+                    // added. Asked for directly. The tab bar it used to hold is
+                    // long gone: what is left here is the one thing on the
+                    // screen a player actually reads, and the plates carry it.
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(
-                          matchInset,
+                          feedBandInset,
                           0,
-                          matchInset,
+                          feedBandInset,
                           matchGap,
                         ),
-                        child: GlassPanel(
-                                                  density: GlassDensity.deep,
-                          // **NO SHEEN ON THIS ONE.** It fills the rest of the
-                          // screen, so the pane's highlight — a lit top edge on a
-                          // card — stretched into a band across the middle of the
-                          // feed and sat behind the minute down the left. See
-                          // [GlassPanel.sheen].
-                          sheen: false,
+                        child: Padding(
+                          key: const ValueKey('match-commentary'),
                           padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
                           child: Stack(
                             children: [
@@ -1677,8 +1734,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                         ? const SizedBox.shrink()
                         : Row(
                             children: [
+                              // **A FACE, not a hole.** The outline form's face
+                              // is transparent by design — right for a cancel
+                              // beside an action, wrong for the only row of
+                              // controls on a page whose ground is a sky, where
+                              // it read as three empty outlines with the
+                              // stadium showing through. Reported directly.
+                              // `mouldedButtonStyle` rather than `styleFrom`:
+                              // a moulded button's face is painted in a
+                              // `backgroundBuilder`, so `backgroundColor:`
+                              // colours the layer UNDERNEATH it and fails
+                              // silently. See `store_button.dart`.
                               OutlinedButton(
                                 key: const ValueKey('match-speed'),
+                                style: matchControlStyle(context),
                                 onPressed: toggleSpeed,
                                 child: Text(_fast ? '2×' : '1×'),
                               ),
@@ -1686,17 +1755,25 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               // Subs before skip: one is a decision and the other is
                               // giving up on watching, and the one that takes a
                               // thought should not be the afterthought.
-                              OutlinedButton(
-                                key: const ValueKey('match-subs'),
-                                onPressed: openSubs,
-                                child: Text(t('match.subs')),
+                              Expanded(
+                                child: OutlinedButton(
+                                  key: const ValueKey('match-subs'),
+                                  style: matchControlStyle(context),
+                                  onPressed: openSubs,
+                                  child: Text(t('match.subs')),
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: OutlinedButton(
                                   key: const ValueKey('match-skip'),
+                                  style: matchControlStyle(context),
                                   onPressed: skipToEnd,
-                                  child: Text(t('common.skip')),
+                                  child: Text(
+                                    t('common.skip'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1724,20 +1801,27 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               // `startOpen`, because this one is a REACTION — something just
               // happened on the pitch — and a reaction that waits to be tapped
               // is not one. See [CoachCorner.startOpen].
-              if (_coachLine case final line?)
-                Positioned.fill(
-                  child: CoachCorner(
-                    key: ValueKey(line),
-                    idPrefix: 'match-coach',
-                    bubbleKey: const ValueKey('match-coach-line'),
-                    text: line,
-                    startOpen: true,
-                    pulse: false,
-                    onDismissed: () => setState(() => _coachLine = null),
-                  ),
-                ),
             ],
           ),
+            ),
+            if (_coachLine case final line?)
+              Positioned.fill(
+                child: CoachCorner(
+                  key: ValueKey(line),
+                  idPrefix: 'match-coach',
+                  bubbleKey: const ValueKey('match-coach-line'),
+                  text: line,
+                  startOpen: true,
+                  pulse: false,
+                  // **THE PITCH STAYS LIT.** He is reacting to something
+                  // that just happened on it, and the match does not stop
+                  // while he says so — dimming the grass dimmed the one
+                  // thing on the page still moving. Asked for directly.
+                  litArea: _stageKey,
+                  onDismissed: () => setState(() => _coachLine = null),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -2247,18 +2331,16 @@ class _Scoreboard extends StatelessWidget {
       // nothing. The panel's bottom padding goes with it, and the bar takes the
       // panel's radius on its two bottom corners so it follows the shape rather
       // than squaring it off.
-      // **AND IT SAYS SO.** The whole board has opened the statistics since the
-      // tab strip was taken out, with nothing on it saying it could — reported
-      // as there being no stats menu anywhere, which is what an invisible
-      // affordance is. A chart glyph in the corner, the way the board's own
-      // note said it would be.
+      // **AND THE DOOR IS DOWN IN THE BUTTON ROW.** It was a `STATS` pill in
+      // the board's top-right corner — the one control on the page not in the
+      // row of controls, sitting on the scoreboard as if it were part of the
+      // scoreline. Asked for directly. The board still takes the tap, which is
+      // what keeps the statistics reachable at full time when the row is gone.
       child: GestureDetector(
         key: const ValueKey('match-stats-button'),
         behavior: HitTestBehavior.opaque,
         onTap: onStats,
-        child: Stack(
-          children: [
-        GlassPanel(
+        child: GlassPanel(
                 density: GlassDensity.deep,
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
         child: Column(
@@ -2403,53 +2485,11 @@ class _Scoreboard extends StatelessWidget {
           ],
         ),
         ),
-            Positioned(
-              top: 6,
-              right: 8,
-              child: Container(
-                // **SAYS "STATS".** It was a bare chart glyph in a dark
-                // circle, and the report from the couch was that the stats
-                // were missing — a door nobody can read is not a door.
-                key: const ValueKey('match-stats-glyph'),
-                padding: const EdgeInsets.fromLTRB(6, 3, 8, 3),
-                // A plate dark enough to carry white in BOTH themes: the
-                // accent on a 28% wash was 1.04:1 on the light sky.
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GameIcon('bars', size: 12, color: Colors.white),
-                    SizedBox(width: 4),
-                    _StatsWord(),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 }
 
-/// "STATS", on the board's door. Its own widget only so the row can be const.
-class _StatsWord extends StatelessWidget {
-  const _StatsWord();
-
-  @override
-  Widget build(BuildContext context) => Text(
-    t('match.tab.stats').toUpperCase(),
-    style: const TextStyle(
-      fontSize: 9.5,
-      fontWeight: FontWeight.w900,
-      letterSpacing: 0.5,
-      color: Colors.white,
-    ),
-  );
-}
 
 class _FeedLine extends StatelessWidget {
   const _FeedLine({required this.line, required this.state, this.onReplay});
@@ -2713,11 +2753,13 @@ class _FeedLine extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 2),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+        padding: const EdgeInsets.fromLTRB(9, 7, 9, 7),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
+          color: glassInk(context).withValues(alpha: feedPlateFill),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+          border: Border.all(
+            color: glassInk(context).withValues(alpha: feedPlateEdge),
+          ),
         ),
         child: row,
       ),

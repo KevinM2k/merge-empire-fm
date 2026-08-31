@@ -1611,11 +1611,19 @@ void main() {
     testWidgets('and the list BOUNCES at each end', (tester) async {
       // A list that stops dead reads as having hit a wall rather than as having
       // reached the bottom. The default is per-platform and Android clamps.
+      //
+      // **AND `AlwaysScrollable` OUTSIDE IT, which is the half that was
+      // missing.** Bouncing physics only give at an end the view will let a
+      // drag reach: with the content no taller than the viewport — an early
+      // save, or a tall phone — the drag is refused outright and there is
+      // nothing to bounce. Reported as the Players tab not having the bounce
+      // the other tabs do, which is exactly the case a one-card grid is in.
       await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
       final view = tester.widget<SingleChildScrollView>(
         find.byKey(const ValueKey('merge-grid')),
       );
-      expect(view.physics, isA<BouncingScrollPhysics>());
+      expect(view.physics, isA<AlwaysScrollableScrollPhysics>());
+      expect(view.physics?.parent, isA<BouncingScrollPhysics>());
     });
   });
 

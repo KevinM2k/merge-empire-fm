@@ -13,8 +13,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart' show hudTroughInk;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
-import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 class HudChip extends StatelessWidget {
@@ -77,19 +77,17 @@ class HudChip extends StatelessWidget {
             // energy, and their separation from each other is the whole reason
             // those three were picked. See [hudCoinInk].
             //
-            // And you cannot fix a bright hue by darkening it. Yellow is
-            // intrinsically light — taking gold to 4.5:1 against a near-white
-            // pane lands on `#665600`, a dark olive that is perfectly legible and
-            // no longer money. So the hue stays and the BACKING changes: a soft
-            // dark halo under the glyph in daylight, which is contrast the colour
-            // does not have to pay for.
-            color: iconColor ?? glassAccent(context, kit.accentBright),
-            shadows: iconColor == null || nightSceneOf(context)
-                ? null
-                : const [
-                    Shadow(color: Color(0x59102030), blurRadius: 3),
-                    Shadow(color: Color(0x33102030), blurRadius: 6),
-                  ],
+            // And you cannot fix a bright hue by taking it to 4.5:1: yellow is
+            // intrinsically light, and gold at that threshold lands on
+            // `#665600`, a dark olive that is perfectly legible and no longer
+            // money. So the wallets go through [hudInk] instead, which deepens
+            // a hue only as far as a 16px glyph actually needs — and the soft
+            // dark halo that used to buy the same contrast in daylight is gone
+            // with the figures'. See [hudFigureShadows].
+            // The cog carries no meaning in its colour, so it takes the
+            // club's — raw, because the trough it stands on is dark whatever
+            // the theme is, which is the pairing `accentBright` is for.
+            color: iconColor ?? kit.accentBright,
           ),
           // The cog has no figure, so it gets no gutter either — otherwise it
           // sits off-centre in its own segment.
@@ -127,10 +125,28 @@ class HudCluster extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => _body(context);
+
+  Widget _body(BuildContext context) {
+    // **THE PILL IS A DARK TROUGH IN BOTH THEMES, and that is what lets the
+    // wallets keep their colours.** The three hues are identity — gold is
+    // money, cyan is gems, green is energy — and on a near-white daylight bar a
+    // raw `#FFD700` is 1.2:1, so the only way to print them there was to deepen
+    // them. Which worked, and read as muted: the report was that light mode
+    // wants the same vibrant yellows, greens and blues the dark theme has.
+    //
+    // A hue cannot be both vivid and legible on white, so the SURFACE moves
+    // instead of the ink. The JS's own resource pill is described as a dark
+    // trough for exactly this reason.
     return GlassPanel(
       key: const ValueKey('hud-cluster'),
       radius: 14,
+      darkGlass: true,
+      // **NO DROP SHADOW.** Every other pane in the app casts one to say it is
+      // in FRONT of the page — see [GlassPanel.shadow]. This one is not on the
+      // page, it is in a bar, and the shadow was a dark smear under the one
+      // strip that is on screen on every tab all the time. Asked for directly.
+      shadow: false,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -142,7 +158,9 @@ class HudCluster extends StatelessWidget {
               Container(
                 width: 1,
                 height: 22,
-                color: glassInk(context).withValues(alpha: 0.22),
+                // The trough's own ink, not the page's: `glassInk` follows the
+                // THEME and this pane deliberately does not.
+                color: hudTroughInk.withValues(alpha: 0.22),
               ),
             children[i],
           ],
@@ -172,6 +190,10 @@ class HudPlus extends StatelessWidget {
           width: 18,
           height: 18,
           alignment: Alignment.center,
+          // **THE ACCENT ITSELF, and the ink measured for it.** Anything
+          // derived from the club's colour rather than the colour reads as not
+          // quite the club's colour — reported directly — and a filled disc is
+          // exactly what `accentInk` is measured against.
           decoration: BoxDecoration(color: kit.accent, shape: BoxShape.circle),
           child: Icon(Icons.add, size: 12, color: kit.accentInk),
         ),

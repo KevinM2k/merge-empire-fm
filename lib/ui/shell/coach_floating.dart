@@ -171,8 +171,18 @@ class CoachCorner extends StatefulWidget {
     this.pulse = true,
     this.startOpen = false,
     this.bubbleKey,
+    this.litArea,
     super.key,
   });
+
+  /// The one region the scrim must NOT dim, given as a key on the widget
+  /// occupying it.
+  ///
+  /// **For a page with something LIVE on it.** During a match the pitch is
+  /// playing underneath him — the goal he is reacting to is one of twenty-two
+  /// bodies still moving — and dimming that is dimming the match to talk about
+  /// the match. Asked for directly. The tap-anywhere catcher still covers the
+  /// hole; only the paint is cut out of it.
 
   /// His line. Captured when the bubble opens and held until it closes —
   /// swapping the sentence under somebody reading it looks like the tip
@@ -207,6 +217,8 @@ class CoachCorner extends StatefulWidget {
   /// bottom, it dims the page, and a tap anywhere is done with it.
   final bool startOpen;
 
+  final GlobalKey? litArea;
+
   /// Names the line inside the bubble, for a caller whose test asks for it.
   final Key? bubbleKey;
 
@@ -216,6 +228,10 @@ class CoachCorner extends StatefulWidget {
 
 class _CoachCornerState extends State<CoachCorner> {
   String? _open;
+
+  /// The scrim's own box, so [_ScrimHole] can put the lit area into its
+  /// coordinates. Read at PAINT time, by which point both are laid out.
+  final GlobalKey _scrimKey = GlobalKey();
 
   @override
   void initState() {
@@ -244,9 +260,28 @@ class _CoachCornerState extends State<CoachCorner> {
               // so the same speech bubble pushed the page back on the home tab
               // and floated on a live screen everywhere else — see
               // [coachScrim].
-              child: const ColoredBox(
-                color: coachScrim,
-                child: SizedBox.expand(),
+              //
+              // `IgnorePointer` so the cut-out changes only what is PAINTED:
+              // a `ClipPath` rejects hit tests outside its clip, and the tap
+              // that dismisses him has to land anywhere. The catcher above is
+              // opaque, so it takes the tap over the hole regardless.
+              child: IgnorePointer(
+                child: widget.litArea == null
+                    ? const ColoredBox(
+                        color: coachScrim,
+                        child: SizedBox.expand(),
+                      )
+                    : ClipPath(
+                        key: _scrimKey,
+                        clipper: _ScrimHole(
+                          lit: widget.litArea!,
+                          scrim: _scrimKey,
+                        ),
+                        child: const ColoredBox(
+                          color: coachScrim,
+                          child: SizedBox.expand(),
+                        ),
+                      ),
               ),
             ),
           ),
@@ -461,4 +496,43 @@ class _Bubble extends StatelessWidget {
     onClose: onClose,
     child: Text(text, key: textKey, style: coachBubbleTextStyle(context)),
   );
+}
+
+
+/// The scrim, minus the box [lit] is standing in.
+///
+/// Both rectangles are resolved in `getClip`, which runs during PAINT — so
+/// layout has happened and the lit widget's position is real, rather than one
+/// frame stale the way a `build`-time read of it would be.
+class _ScrimHole extends CustomClipper<Path> {
+  const _ScrimHole({required this.lit, required this.scrim});
+
+  final GlobalKey lit;
+  final GlobalKey scrim;
+
+  @override
+  Path getClip(Size size) {
+    final full = Path()..addRect(Offset.zero & size);
+    final area = lit.currentContext?.findRenderObject();
+    final self = scrim.currentContext?.findRenderObject();
+    if (area is! RenderBox ||
+        self is! RenderBox ||
+        !area.hasSize ||
+        !self.hasSize ||
+        !area.attached ||
+        !self.attached) {
+      return full;
+    }
+    final at = self.globalToLocal(area.localToGlobal(Offset.zero));
+    return Path.combine(
+      PathOperation.difference,
+      full,
+      Path()..addRect(at & area.size),
+    );
+  }
+
+  /// The lit widget moves with the page under it — a feed line arriving pushes
+  /// nothing here, but a rotation or a keyboard does.
+  @override
+  bool shouldReclip(_ScrimHole old) => true;
 }

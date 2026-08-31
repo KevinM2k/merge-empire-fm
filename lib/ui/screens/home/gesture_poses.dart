@@ -430,10 +430,16 @@ final Map<String, GestureAnimation> _animations = {
   // the screen when he is about to play it back (see `PitchBall.onStrike`).
   // The near thigh draws back, then snaps through with the shin extending, and
   // the contact lands at 0.6 — which is where the ball leaves his boot.
+  //
+  // **THE CONTACT IS THE END OF IT, not the middle.** The thigh carried on to
+  // -58 and the boot came up past his own waist: a volley, from a man playing a
+  // loose ball back to a ball boy. Reported as the kick being far too much.
+  // The swing stops where it meets the ball, and the leg is down again by 0.8
+  // rather than riding a follow-through all the way to the end of the clip.
   'kick': const GestureAnimation(
-    kickThigh: [(0, 0), (0.30, 24), (0.60, -58), (1, 0)],
-    kickShin: [(0, 0), (0.30, 52), (0.60, -6), (1, 0)],
-    armNear: [(0, armNearRest), (0.30, armNearRest + 14), (0.60, armNearRest - 22), (1, armNearRest)],
+    kickThigh: [(0, 0), (0.30, 20), (0.60, -26), (0.80, -4), (1, 0)],
+    kickShin: [(0, 0), (0.30, 46), (0.60, -4), (0.80, 6), (1, 0)],
+    armNear: [(0, armNearRest), (0.30, armNearRest + 10), (0.60, armNearRest - 14), (1, armNearRest)],
     curve: Curves.easeInOut,
   ),
   // ── SALUTE. Snapped up rather than eased: the curve is the gesture.

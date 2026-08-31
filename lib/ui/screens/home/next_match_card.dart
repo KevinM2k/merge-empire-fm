@@ -419,7 +419,10 @@ class PosChip extends StatelessWidget {
                 child: GameIcon(
                   'chevrons',
                   size: 11,
-                  color: delta > 0 ? vsGreenOn(context) : vsRedOn(context),
+                  // The card's own pair, which is the same in both themes —
+                  // see [statToneColor]. A position chip beside a green `+2`
+                  // must not be a different green from it.
+                  color: statToneColor(context, StatTone.delta, delta),
                 ),
               ),
             ],

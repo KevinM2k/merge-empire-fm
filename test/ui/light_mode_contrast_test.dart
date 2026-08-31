@@ -200,6 +200,8 @@ void main() {
     ('the full-time report', summaryScreen()),
   ]) {
     testWidgets('$name reads in LIGHT MODE', (tester) async {
+      // See [_cardVerdictPair] for the one pair that is exempt and why.
+
       await pumpLight(tester, screen);
       // `.first`: the settings screen nests a `Scaffold` of its own.
       final kit = Theme.of(
@@ -208,7 +210,8 @@ void main() {
       final bad = [
         for (final row in inksOn(tester))
           if (_ratio(row.ink, row.ground) < 3 &&
-              !(row.ground == kit.accent && row.ink == kit.accentInk))
+              !(row.ground == kit.accent && row.ink == kit.accentInk) &&
+              !_cardVerdictPair(row.ink))
             row,
       ];
       expect(
@@ -225,3 +228,22 @@ void main() {
     });
   }
 }
+
+/// **The next-match card's own verdict palette, which is the DARK set in both
+/// themes and is exempt from the sweep.**
+///
+/// Everything else in light mode gets the light counterpart of a semantic
+/// colour — see `semanticInk` — precisely so the sweep passes. This one pair
+/// does not, and it is a decision rather than an oversight: these are a signed
+/// number and a 9pt glyph hung off a rating, read as a PAIR against the other
+/// side of the same card, and what a player is comparing is which one is green.
+/// "The red and green should be the same as dark mode" has now been asked four
+/// times, about the modifiers and about the ATK/DEF row. The comparison
+/// survives the low ratio; the palette changing between themes is what did
+/// not.
+bool _cardVerdictPair(Color ink) => const {
+  0xFF4ADE80, // green — this side is stronger
+  0xFFFF6B70, // red — this side is weaker
+  0xFF60A5FA, // blue — level
+  0xFFFF9800, // amber — a relegation scrap
+}.contains(ink.toARGB32());

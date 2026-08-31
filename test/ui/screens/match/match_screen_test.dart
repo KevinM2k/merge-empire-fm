@@ -94,6 +94,7 @@ Future<ProviderContainer> pumpMatch(
   // Every test below settles, and none of them is about the camera; the ones
   // that are pass `reduceMotion: false` and pump by hand.
   bool reduceMotion = true,
+  bool fast = false,
   List<Override> overrides = const [],
 }) async {
   final container = ProviderContainer(
@@ -127,6 +128,7 @@ Future<ProviderContainer> pumpMatch(
               child: MatchScreen(
                 key: ValueKey('match-$instance'),
                 result: result,
+                fast: fast,
                 onFinished: onFinished,
               ),
             ),
@@ -1965,20 +1967,21 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('AND THE FEED SITS ON GLASS, like everything else here', (
-      tester,
-    ) async {
-      // It was a hand-rolled `DecoratedBox` with its own colour, radius and
-      // border — one pane of glass and one painted box side by side, on a page
-      // whose backdrop is a sky.
+    testWidgets('AND IT IS NOT IN A BOX OF ITS OWN', (tester) async {
+      // Every line already draws its own plate — that is what makes a line a
+      // line rather than a paragraph — so the `GlassPanel` around the lot was
+      // a box full of boxes, and the two borders 8px apart down each side were
+      // the only thing it added. Asked for directly.
       await pumpMatch(tester, matchResult());
       expect(
         find.ancestor(
           of: find.byKey(const ValueKey('match-feed')),
           matching: find.byType(GlassPanel),
         ),
-        findsWidgets,
+        findsNothing,
       );
+      // The scoreboard still has one: the feed is the exception, not the rule.
+      expect(find.byType(GlassPanel), findsWidgets);
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
     });
@@ -2007,6 +2010,7 @@ void main() {
       expect(state.frame.minute, atNormal + 20);
       state.skipToEnd();
       await tester.pumpAndSettle();
+      await settleSave(tester);
     });
 
     testWidgets('and it says which speed it is on', (tester) async {
@@ -2017,6 +2021,8 @@ void main() {
       expect(find.text('2×'), findsOneWidget);
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+      // The tap writes the setting, which arms the debounced save.
+      await settleSave(tester);
     });
 
     testWidgets('it OPENS on the setting', (tester) async {
@@ -2025,6 +2031,51 @@ void main() {
       expect(stateOf(tester).fast, isFalse);
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('AND THE TAP IS WHAT WRITES THAT SETTING', (tester) async {
+      // It was live-only, so `PlayMatchButton` opened every match at 1x and a
+      // manager who had settled on 2x re-tapped it every single game —
+      // reported directly. The button and the settings screen's own `1x | 2x`
+      // are two doors onto one preference now.
+      final container = await pumpMatch(tester, matchResult());
+      bool stored() {
+        final settings = container.read(gameProvider).state?['settings'];
+        return settings is Map && settings['matchSpeedFast'] == true;
+      }
+      expect(stored(), isFalse);
+
+      await tester.tap(find.byKey(const ValueKey('match-speed')));
+      await tester.pump();
+      expect(stored(), isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('match-speed')));
+      await tester.pump();
+      expect(stored(), isFalse, reason: 'and back down again');
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('AND IT IS THE PITCH\'S SPEED, not just the clock\'s', (
+      tester,
+    ) async {
+      // The clock's period halved and the grass did not, so at 2x a passage
+      // ran at its own pace against a match going twice as fast — reported as
+      // 2x not speeding the 2D pitch up. See `CutawayGame`'s `HasTimeScale`.
+      await pumpMatch(tester, matchResult(), fast: true);
+      expect(tester.widget<CutawayStage>(find.byType(CutawayStage)).fast, isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('match-speed')));
+      await tester.pump();
+      expect(
+        tester.widget<CutawayStage>(find.byType(CutawayStage)).fast,
+        isFalse,
+        reason: 'and it is LIVE — the grass follows the button down too',
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
     });
   });
 
@@ -2062,6 +2113,46 @@ void main() {
       );
     });
 
+    testWidgets('AND THE PITCH STAYS LIT WHILE HE TALKS', (tester) async {
+      // He is reacting to something that has just happened on the grass and
+      // the match does not stop while he says so — dimming the pitch dimmed
+      // the one thing on the page still moving. Asked for directly. Only the
+      // PAINT is cut out: the tap-anywhere catcher still covers the hole.
+      await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {'minute': 45, 'type': 'halftime'},
+          ],
+        ),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(46));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
+
+      final scrim = find.byType(ClipPath).first;
+      final box = tester.getRect(scrim);
+      final clip = tester.widget<ClipPath>(scrim).clipper!.getClip(box.size);
+      Offset local(Offset global) => global - box.topLeft;
+      final stage = tester.getRect(find.byKey(const ValueKey('match-stage')));
+      expect(
+        clip.contains(local(stage.center)),
+        isFalse,
+        reason: 'the grass is under the scrim',
+      );
+      expect(
+        clip.contains(local(box.center + Offset(0, box.height / 3))),
+        isTrue,
+        reason: 'and everything else stopped being dimmed',
+      );
+
+      // The tap that dismisses him still lands over the hole.
+      await tester.tapAt(stage.center);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
+    });
+
     testWidgets('and PRO MODE buys the numbers and gives up the advice', (
       tester,
     ) async {
@@ -2082,12 +2173,22 @@ void main() {
       expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
     });
   });
-  testWidgets('THE STATISTICS SAY THEY ARE THERE', (tester) async {
-    // The whole board has opened them since the tab strip came out, with
-    // nothing on it saying it could — reported as there being no stats menu
-    // anywhere, which is what an invisible affordance is.
+  testWidgets('THE STATISTICS ARE BEHIND THE BOARD, and nowhere else', (
+    tester,
+  ) async {
+    // **Both visible doors have now been turned down.** It was a `STATS` pill
+    // in the scoreboard's top-right corner — rejected, because it was the one
+    // control on the page that was not in the page's row of controls. It was
+    // then a fourth button in that row — rejected too, because four buttons is
+    // more than the row has width for. What is left is the board itself, which
+    // is where a hand goes anyway: the numbers are what the panel is about, so
+    // tapping them to see more of them costs no height at all.
     await pumpMatch(tester, matchResult());
-    expect(find.byKey(const ValueKey('match-stats-glyph')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('match-stats-glyph')),
+      findsNothing,
+      reason: 'the row is back to three controls',
+    );
     await tester.tap(find.byKey(const ValueKey('match-stats-button')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('match-stats-sheet')), findsOneWidget);
@@ -2110,14 +2211,17 @@ void main() {
       // above them six — on the control the eye returns to most.
       await pumpMatch(tester, matchResult());
       final strip = tester.getRect(find.byKey(const ValueKey('match-tactics')));
+      // **AND A LINE OF COMMENTARY STARTS WHERE A TACTIC DOES.** The feed used
+      // to pay the inset twice — once for the band and again inside each plate
+      // — so it started 20 points in against the strip's 13. Reported as the
+      // commentary having more margin than the tactics.
+      expect(
+        tester.getRect(find.byKey(const ValueKey('match-commentary'))).left,
+        closeTo(strip.left, 0.5),
+      );
       final pitch = tester.getRect(find.byKey(const ValueKey('match-stage')));
       final feed = tester.getRect(
-        find
-            .ancestor(
-              of: find.byKey(const ValueKey('match-feed')),
-              matching: find.byType(GlassPanel),
-            )
-            .first,
+        find.byKey(const ValueKey('match-commentary')),
       );
       expect(strip.top - pitch.bottom, closeTo(feed.top - strip.bottom, 0.5));
     });
@@ -2144,21 +2248,20 @@ void main() {
       // pitch keeps its shape and gives the width back either side. Its
       // padding is the same; its pane is deliberately narrower.
       final feed = tester.getRect(
-        find
-            .ancestor(
-              of: find.byKey(const ValueKey('match-feed')),
-              matching: find.byType(GlassPanel),
-            )
-            .first,
+        find.byKey(const ValueKey('match-commentary')),
       );
-      for (final (name, rect) in [('board', board), ('feed', feed)]) {
-        expect(rect.left, closeTo(matchInset, 1.5), reason: '$name left');
-        expect(
-          width - rect.right,
-          closeTo(matchInset, 1.5),
-          reason: '$name right',
-        );
-      }
+      expect(board.left, closeTo(matchInset, 1.5), reason: 'board left');
+      expect(
+        width - board.right,
+        closeTo(matchInset, 1.5),
+        reason: 'board right',
+      );
+      expect(feed.left, closeTo(matchInset, 1.5), reason: 'feed left');
+      expect(
+        width - feed.right,
+        closeTo(matchInset, 1.5),
+        reason: 'feed right',
+      );
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
     });

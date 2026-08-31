@@ -195,8 +195,17 @@ class CutawayStage extends StatefulWidget {
     this.momentum,
     this.attackingRight = true,
     this.onGrass,
+    this.fast = false,
     super.key,
   });
+
+  /// The match is running at double speed, so the grass does too.
+  ///
+  /// The clock's period is what `2x` used to halve, and nothing told the pitch:
+  /// a passage kept its own wall-clock length while the minutes went past twice
+  /// as fast, so a chance that fitted its minute at 1x overran two of them.
+  /// See [CutawayGame], which carries `HasTimeScale` for this.
+  final bool fast;
 
   /// Drawn ON the pitch between chances — under the markings, in the pitch's
   /// own perspective. The momentum shading was a sibling of the stage in screen
@@ -286,7 +295,12 @@ class _CutawayStageState extends State<CutawayStage> {
       attackingRight: widget.attackingRight,
       momentum: momentum,
     );
+    _idle!.timeScale = _timeScale;
   }
+
+  /// Set on every sync rather than at construction: the button is a LIVE
+  /// control, so the speed can change with a game already on the grass.
+  double get _timeScale => widget.fast ? 2.0 : 1.0;
 
   /// A NEW passage means a new game; the same passage means the same one.
   ///
@@ -300,7 +314,10 @@ class _CutawayStageState extends State<CutawayStage> {
       _seed = null;
       return;
     }
-    if (_seed == clip.seed && _game != null) return;
+    if (_seed == clip.seed && _game != null) {
+      _game!.timeScale = _timeScale;
+      return;
+    }
     _seed = clip.seed;
     final game = CutawayGame(
       sequence: clip.sequence,
@@ -312,6 +329,7 @@ class _CutawayStageState extends State<CutawayStage> {
       scorerName: clip.scorerName,
       onDone: widget.onDone,
     );
+    game.timeScale = _timeScale;
     _listen(game);
     _game = game;
   }

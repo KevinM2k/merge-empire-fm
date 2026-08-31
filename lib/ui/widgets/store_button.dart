@@ -374,29 +374,107 @@ ButtonStyle mouldedButtonStyle({
     backgroundBuilder: (context, states, child) {
       final off = states.contains(WidgetState.disabled);
       final down = states.contains(WidgetState.pressed) && !off;
-      return AnimatedContainer(
+      final fill = off ? dead : (outline ? Colors.transparent : face);
+      final shape = BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(radius),
+        border: off || outline
+            ? Border.all(color: off ? border : edge, width: outline ? 1.4 : 1)
+            : null,
+      );
+      // **A `BoxShadow` IS ONLY AN EDGE BAR WHEN SOMETHING OPAQUE COVERS THE
+      // HALF OF IT THE BUTTON SITS ON.** It is the whole shape offset down and
+      // drawn BEHIND the fill, so on the outline form — whose fill is
+      // transparent by design — the bar showed straight through the button as a
+      // grey slab with a lighter strip along its top edge. Reported as a weird
+      // grey 3D border on the bench's buttons. The solid form keeps the shadow;
+      // the outline form gets the same bar painted UNDER it — see
+      // [_MouldedEdge].
+      if (off || !outline) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 80),
+          transform: Matrix4.translationValues(0, down ? lift - 1 : 0, 0),
+          decoration: shape.copyWith(
+            boxShadow: off
+                ? null
+                : [
+                    BoxShadow(
+                      color: edge,
+                      offset: Offset(0, down ? 1 : lift),
+                      blurRadius: 0,
+                    ),
+                  ],
+          ),
+          child: child,
+        );
+      }
+      return TweenAnimationBuilder<double>(
         duration: const Duration(milliseconds: 80),
-        transform: Matrix4.translationValues(0, down ? lift - 1 : 0, 0),
-        decoration: BoxDecoration(
-          color: off
-              ? dead
-              : (outline ? Colors.transparent : face),
-          borderRadius: BorderRadius.circular(radius),
-          border: off || outline
-              ? Border.all(color: off ? border : edge, width: outline ? 1.4 : 1)
-              : null,
-          boxShadow: off
-              ? null
-              : [
-                  BoxShadow(
-                    color: edge,
-                    offset: Offset(0, down ? 1 : lift),
-                    blurRadius: 0,
-                  ),
-                ],
-        ),
+        tween: Tween<double>(end: down ? 1 : 0),
+        builder: (context, t, body) {
+          final sink = t * (lift - 1);
+          return CustomPaint(
+            painter: _MouldedEdge(
+              colour: edge,
+              radius: radius,
+              sink: sink,
+              drop: lift - sink,
+            ),
+            child: Transform.translate(
+              offset: Offset(0, sink),
+              child: DecoratedBox(decoration: shape, child: body),
+            ),
+          );
+        },
         child: child,
       );
     },
   );
+}
+
+/// The moulded button's hard bottom edge, for a face too transparent to hide a
+/// shadow — the sliver of the shape that shows below the button, and nothing of
+/// the part underneath it.
+class _MouldedEdge extends CustomPainter {
+  const _MouldedEdge({
+    required this.colour,
+    required this.radius,
+    required this.sink,
+    required this.drop,
+  });
+
+  final Color colour;
+  final double radius;
+
+  /// How far the face has dropped under the press.
+  final double sink;
+
+  /// How much of the bar is still showing under it. `sink + drop` is constant,
+  /// so the bar's bottom edge never moves — only the button does.
+  final double drop;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = Radius.circular(radius);
+    final face = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, sink, size.width, size.height),
+      r,
+    );
+    final bar = face.shift(Offset(0, drop));
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRRect(bar),
+        Path()..addRRect(face),
+      ),
+      Paint()..color = colour,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MouldedEdge old) =>
+      old.colour != colour ||
+      old.radius != radius ||
+      old.sink != sink ||
+      old.drop != drop;
 }

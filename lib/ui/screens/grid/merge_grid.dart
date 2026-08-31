@@ -509,8 +509,17 @@ class MergeGridState extends ConsumerState<MergeGrid>
                   // rather than as having reached the bottom. The rest of the app
                   // takes the default; this is the longest scroll in the game and
                   // the one a thumb lives in.
-                  physics: const BouncingScrollPhysics(
-                    parent: RangeMaintainingScrollPhysics(),
+                  //
+                  // **`AlwaysScrollable` on the outside, which is the half that
+                  // was missing.** `BouncingScrollPhysics` only gives at an end
+                  // it can actually reach: with the content no taller than the
+                  // viewport — an early save, or a tall phone — the view refuses
+                  // the drag outright and there is nothing to bounce. Reported
+                  // as the Players tab not having the bounce the other tabs do.
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(
+                      parent: RangeMaintainingScrollPhysics(),
+                    ),
                   ),
                   padding: const EdgeInsets.fromLTRB(_pad, _pad, _pad, 12),
                   child: LayoutBuilder(
@@ -894,60 +903,59 @@ class _SlotTarget extends StatelessWidget {
       onAcceptWithDetails: (d) => onDrop(d.data, cell.index),
       builder: (context, candidate, _) => _Slot(
         slotKey: 'grid-empty-${cell.index}',
-        border: candidate.isNotEmpty ? kit.accent : kit.border,
-        fill: kit.surface,
-        // Dashes only where there is nothing, which is what makes an empty
-        // square read as a place a card could go.
-        dashed: true,
-        // WHICH square it is, 1-based. An empty grid is a field of identical
-        // dashed boxes with nothing to say how far along it you are looking, and
-        // now that a merge closes the gaps behind it (see `closeGridGaps`) the
-        // first numbered box is always the next card's home — so the number is
-        // also how many players you have, plus one.
-        //
-        // **EMBOSSED, not printed.** Faint ink on a faint square is still ink
-        // ON something; a number PRESSED INTO the surface is part of it, and
-        // the moment this competes with the cards next to it the grid reads as
-        // a numbered form. Asked for directly, and "very subtle" is the whole
-        // brief.
-        //
-        // The trick is the one a real emboss uses and nothing else: a light
-        // edge one pixel BELOW the glyph and a dark one one pixel above, with
-        // the glyph itself the same colour as the square it sits in. There is
-        // no ink at all — what you see is the two shadows, so it cannot
-        // out-shout a card however bright the theme goes.
-        // **AND THE RELIEF HAS TO BE VISIBLE IN BOTH THEMES.** The two edges
-        // were a white at 7% and a black at 28% — numbers picked against a
-        // near-black square, where 7% of white is a real highlight. On a pale
-        // one it is nothing at all and the carve disappears, which is the
-        // embossed number reported as too hard to read. On a light square the
-        // work is done by the DARK edge and the highlight has to be near-solid
-        // white to sit against it; on a dark one it is the other way round, so
-        // the pair is chosen by theme rather than shared.
-        child: Builder(
-          builder: (context) {
-            final light = Theme.of(context).brightness == Brightness.light;
-            return Text(
-              '${cell.index + 1}',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: kit.surface,
-                shadows: [
-                  Shadow(
-                    offset: const Offset(0, 1),
-                    color: Colors.white.withValues(alpha: light ? 0.95 : 0.07),
-                  ),
-                  Shadow(
-                    offset: const Offset(0, -1),
-                    color: Colors.black.withValues(alpha: light ? 0.42 : 0.28),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+        border: candidate.isNotEmpty ? kit.accent : lockedSlotSkin(kit).border,
+        // **THE SAME WASH A LOCKED SQUARE WEARS.** It was the opaque `surface`,
+        // so an empty half of the grid was a wall of solid tiles over a backdrop
+        // the locked squares let through — reported as the empty cards being too
+        // opaque. Same treatment, and the GLYPH is what tells them apart: a plus
+        // where a lock says no.
+        fill: lockedSlotSkin(kit).fill,
+        child: _EmptySlotMark(index: cell.index),
       ),
+    );
+  }
+}
+
+/// **WHICH square it is, and that a card can go in it.**
+///
+/// The number is 1-based, and now that a merge closes the gaps behind it (see
+/// `closeGridGaps`) the first numbered box is always the next card's home — so
+/// it is also how many players you have, plus one.
+///
+/// **PRINTED, not embossed, and that reverses a decision.** It was carved into
+/// the square: the glyph in the square's own colour with a light edge below it
+/// and a dark edge above, so what you saw was two shadows and no ink at all.
+/// The brief was "very subtle" and it delivered subtle at the cost of legible —
+/// reported as not being able to read the numbers. A quiet ink does the same
+/// job: it cannot out-shout a card because it is a muted grey at 11pt, and it
+/// can be read because it is actually there. One recipe for both themes, which
+/// the emboss could never be — it needed opposite edges on a pale square and a
+/// dark one.
+class _EmptySlotMark extends StatelessWidget {
+  const _EmptySlotMark({required this.index});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = lockedSlotSkin(
+      Theme.of(context).extension<KitTheme>()!,
+    ).ink;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Where the lock sits on a locked square, at the size the lock is.
+        Icon(Icons.add, size: 16, color: ink),
+        Text(
+          '${index + 1}',
+          style: TextStyle(
+            fontSize: 11,
+            height: 1.1,
+            fontWeight: FontWeight.w700,
+            color: ink,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1224,43 +1232,40 @@ const List<double> _desaturated = <double>[
   0,
 ];
 
-/// A slot with nothing in it: `1.5px dashed`, which Flutter's `Border` cannot
-/// draw, so it is painted.
+/// One square of the grid: a rounded rect with a fill and a 1.5px outline.
+///
+/// **Nothing dashes any more.** The empty square used to be a dashed outline
+/// over an opaque fill, which is what said "a card could go here". It wears the
+/// locked square's wash and a plus now — see [_EmptySlotMark] — and the plus
+/// says it, so the dash walker and its per-size cache have gone with it.
 class _Slot extends StatelessWidget {
   const _Slot({
     required this.slotKey,
     required this.border,
     required this.fill,
     this.child,
-    this.dashed = false,
   });
 
   final String slotKey;
   final Color border;
   final Color fill;
   final Widget? child;
-  final bool dashed;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       key: ValueKey(slotKey),
-      painter: _SlotPainter(border: border, fill: fill, dashed: dashed),
+      painter: _SlotPainter(border: border, fill: fill),
       child: Center(child: child ?? const SizedBox.shrink()),
     );
   }
 }
 
 class _SlotPainter extends CustomPainter {
-  const _SlotPainter({
-    required this.border,
-    required this.fill,
-    required this.dashed,
-  });
+  const _SlotPainter({required this.border, required this.fill});
 
   final Color border;
   final Color fill;
-  final bool dashed;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1269,43 +1274,18 @@ class _SlotPainter extends CustomPainter {
       const Radius.circular(12),
     );
     canvas.drawRRect(rect, Paint()..color = fill);
-    final stroke = Paint()
-      ..color = border
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    if (!dashed) {
-      canvas.drawRRect(rect, stroke);
-      return;
-    }
-    canvas.drawPath(_dashes(size), stroke);
-  }
-
-  /// 5-on, 4-off, walked along the rounded rect's own outline so the dashes
-  /// follow the corners. Cached per size: extracting ~30 segments was a
-  /// measurable cost on every repaint of the grid.
-  static final Map<Size, Path> _dashCache = {};
-  static Path _dashes(Size size) => _dashCache.putIfAbsent(size, () {
-    final rect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(12),
+    canvas.drawRRect(
+      rect,
+      Paint()
+        ..color = border
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
     );
-    final out = Path();
-    for (final metric in (Path()..addRRect(rect)).computeMetrics()) {
-      var d = 0.0;
-      while (d < metric.length) {
-        out.addPath(
-          metric.extractPath(d, (d + 5).clamp(0, metric.length)),
-          Offset.zero,
-        );
-        d += 9;
-      }
-    }
-    return out;
-  });
+  }
 
   @override
   bool shouldRepaint(_SlotPainter old) =>
-      old.border != border || old.fill != fill || old.dashed != dashed;
+      old.border != border || old.fill != fill;
 }
 
 /// The Players tab.
