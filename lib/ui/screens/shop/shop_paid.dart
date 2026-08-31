@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/pack_contents.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
@@ -342,7 +343,18 @@ const Map<String, String> _productIcons = {
   'style_vault': 'bank',
 };
 
-Widget shopProductGlyph(IapProduct product) {
+/// **EVERY PICTURE IN THE SHOP GOES THROUGH [ShopArt].** It draws a bundled
+/// illustration when the manifest has one for this product and the painter
+/// below when it does not, which is every product today — so the shop looks
+/// exactly as it did, and rendered art lands later without this function
+/// changing. See `shop_art.dart`.
+Widget shopProductGlyph(IapProduct product) => ShopArt(
+  id: product.id,
+  size: product.category == 'coins' || product.category == 'gems' ? 44 : 34,
+  fallback: _drawnProductGlyph(product),
+);
+
+Widget _drawnProductGlyph(IapProduct product) {
   if (product.category == 'coins') {
     return CoinPackPicture(art: coinPackArtFor(product.id), size: 44);
   }
@@ -467,9 +479,14 @@ class GemPackTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final art = GemPackPicture(
-      art: gemPackArtFor(tile.product.id),
-      size: hero ? 96 : 74,
+    final artSize = hero ? 96.0 : 74.0;
+    final art = ShopArt(
+      id: tile.product.id,
+      size: artSize,
+      fallback: GemPackPicture(
+        art: gemPackArtFor(tile.product.id),
+        size: artSize,
+      ),
     );
     final words = Column(
       crossAxisAlignment: hero
@@ -782,9 +799,13 @@ class CoinPackTile extends ConsumerWidget {
                     // tells them apart with a cluster of 1/2/3/5 — which is a
                     // quantity and makes no sense of "Coin Vault".
                     child: Center(
-                      child: CoinPackPicture(
-                        art: coinPackArtFor(product.id),
+                      child: ShopArt(
+                        id: product.id,
                         size: 52,
+                        fallback: CoinPackPicture(
+                          art: coinPackArtFor(product.id),
+                          size: 52,
+                        ),
                       ),
                     ),
                   ),

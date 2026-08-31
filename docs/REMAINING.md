@@ -8983,14 +8983,37 @@ gold rather than in a word.
       further UI work.
 
 - [ ] **"The artwork needs to be stepped up."** Agreed, and it is the biggest
-      remaining gap against the reference shots: those packs are rendered 3D
-      illustrations and ours are `CustomPainter` vector art (`coin_pack_art.dart`,
-      `gem_pack_art.dart`) and inline SVG line art (`game_icon.dart`).
-      **BLOCKED ON NETWORK POLICY in a cloud session, and the suggested route
-      is one of the blocked ones.** `image.pollinations.ai` is refused at the
-      proxy's CONNECT with a 403 — a policy denial, not a transient failure, and
-      it is named in `__agentproxy/status`'s own `recentRelayFailures`. So are
-      `api.openai.com`, `fal.run` and `api.replicate.com`. The one image-capable
+      remaining gap against the reference shots. **DEFERRED by the owner —
+      "do the art later, just make the fallbacks for now" — and the fallbacks
+      are BUILT**, so this row is now a drop rather than a project. See
+      `lib/ui/screens/shop/shop_art.dart`: every picture in the shop goes
+      through `ShopArt`, which draws a bundled illustration when
+      `shopArtManifest` has one for that product id and the existing painter
+      when it does not, which is every product today. Landing real art is three
+      mechanical steps and no logic — the file in `assets/shop/`, the
+      `pubspec.yaml` line, the manifest row — and `shop_art_test` holds the
+      manifest against `pubspec.yaml` so a half-landed drop fails the build
+      rather than shipping a broken image box.
+
+      A manifest rather than a runtime probe, deliberately: asking the bundle
+      whether a file exists is asynchronous, gives every tile a frame of nothing
+      before it resolves, and turns a missing asset into console noise instead
+      of a fact.
+
+      **The daily reward's grand prize has no such seam and would want one** if
+      art ever arrives for it — the reference's day-seven tile is a rendered
+      illustration and ours is three chips. It is not keyed by a product id, so
+      it needs its own small manifest rather than a row in this one.
+
+      **What is still blocked is MAKING the art, and the suggested route is one
+      of the blocked ones.** The gap itself is plain enough: the reference packs
+      are rendered 3D illustrations and ours are `CustomPainter` vector art
+      (`coin_pack_art.dart`, `gem_pack_art.dart`) and inline SVG line art
+      (`game_icon.dart`). But `image.pollinations.ai` is refused at the proxy's
+      CONNECT with a 403 — a policy denial, not a transient failure, and it is
+      named in `__agentproxy/status`'s own `recentRelayFailures`. So are
+      `api.openai.com`, `fal.run`, `api.replicate.com`, `api.stability.ai`,
+      `api-inference.huggingface.co` and the AI Horde. The one image-capable
       host that answers is `generativelanguage.googleapis.com`, which needs an
       API key this environment does not carry.
 
