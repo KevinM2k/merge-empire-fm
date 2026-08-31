@@ -486,6 +486,7 @@ Color hudChromeInk(BuildContext context) => glassText(context);
 /// it back if anything in this bar ever stands on the chrome directly again.
 Color hudInk(BuildContext context, Color colour) => colour;
 
+
 /// The ink that reads on the cluster's dark trough, in either theme.
 ///
 /// Not `glassInk`, which follows the theme: this one pane deliberately does

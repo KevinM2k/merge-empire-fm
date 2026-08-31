@@ -31,7 +31,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
-import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// The card's geometry. Every row keys off the same gutter, which is what makes
@@ -209,6 +208,26 @@ Color semanticPlate(BuildContext context, [Color? ink]) => _dark(context)
 const Color vsGreenBright = _vsGreenDark;
 const Color vsRedBright = _vsRedDark;
 const Color vsAmberBright = Color(0xFFFFB020);
+
+/// **THE DARK GROUND A VIVID INK STANDS ON, wherever one does.**
+///
+/// The modifier badge, the ATK/DEF recess and the HUD's own pill all carry
+/// colours chosen for a night sky — the card's red and green, the wallet hues —
+/// on panes that are the same glass in both themes. One constant rather than
+/// three, because the last four rounds of this were three opacities being kept
+/// in step by eye and losing.
+///
+/// The BADGE takes it at full strength: it is the size of a number, so it can
+/// be as dark as it likes. The recess and the pill take [vividWellFill], which
+/// is the same colour with the sky still visible through it — a whole panel
+/// that dark reads as a hole cut in the page, which is what was reported the
+/// two times it was tried.
+const Color statBadgeFill = Color(0xE60E1620);
+const Color vividWellFill = Color(0x990E1620);
+
+/// What reads on [vividWellFill] — the recess's labels and its bar tracks. The
+/// pane's own ink is a near-black in daylight and this is not the pane.
+const Color vividWellInk = Color(0xFFE9EFF5);
 
 /// Green when this figure beats the one it faces, red when it loses, blue level.
 ///
@@ -422,15 +441,32 @@ class _StatWell extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
       decoration: BoxDecoration(
-        // A RECESS, not a grey box. On dark glass a black wash reads as depth
-        // and can take a quarter of the pane's opacity; on a near-white pane the
-        // same wash is a mid-grey slab that outweighs everything on the card. It
-        // has to be a whisper there — the border does the work instead.
-        // See the same note in `match_quests_block.dart`: on a pane that is half
-        // transparent, any real wash reads as a slab rather than as depth.
-        color: glassInk(context).withValues(alpha: 0.05),
+        // **A REAL RECESS, and dark in both themes.** It was a 5% whisper,
+        // because on a near-white pane a proper wash reads as a slab rather
+        // than as depth — true, and it left the four figures standing on the
+        // pane itself. Those figures are the DARK triple whatever the theme is
+        // (see [vsColor]), and the red is the one that suffers: a coral chosen
+        // for a night sky, printed on daylight glass. Reported twice.
+        //
+        // Taking it properly dark was tried and is what this note is for: the
+        // four figures read beautifully and the BARS beside them disappeared,
+        // because they are drawn from the pane's own ink and the pane's ink is
+        // dark. A recess deep enough for a coral red is a recess nothing else
+        // in it survives.
+        //
+        // So the well is dark AND everything in it is repainted for that
+        // ground: the labels and the bar tracks take [vividWellInk], and the
+        // figures were already the dark triple. See [vividWellFill] for why it
+        // is not as dark as the badge.
+        //
+        // **A SHADOW UNDER THE FIGURES WAS TRIED FIRST, and it is the reason
+        // this well exists.** A tight dark outline on a vivid glyph is the
+        // textbook answer to a bright ground and it did not carry — reported as
+        // not helping — which is what a 1px edge does against a whole pane of
+        // luminance. A ground beats an outline; it just has to be a small one.
+        color: vividWellFill,
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: glassInk(context).withValues(alpha: 0.10)),
+        border: Border.all(color: vividWellInk.withValues(alpha: 0.14)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -499,11 +535,12 @@ class _StatRow extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 9.5,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.8,
-              color: glassMuted(context),
+              // The WELL's ink, not the pane's — see [vividWellInk].
+              color: vividWellInk,
             ),
           ),
         ),
@@ -627,9 +664,10 @@ class _Bar extends StatelessWidget {
       child: Container(
         height: 5,
         // A TRACK has to be visible on its own, or a bar at 20% reads as a
-        // stray mark rather than as a fifth of something. 0.15 was tuned against
-        // a near-opaque pane.
-        color: glassInk(context).withValues(alpha: 0.26),
+        // stray mark rather than as a fifth of something — and it is inside the
+        // dark recess, so it is a pale wash rather than the pane's dark one.
+        // Taking the well dark without this is what made the bars vanish.
+        color: vividWellInk.withValues(alpha: 0.20),
         child: TweenAnimationBuilder<double>(
           tween: Tween(end: fraction),
           duration: const Duration(milliseconds: 380),
@@ -693,7 +731,11 @@ class _Rating extends StatelessWidget {
   /// Reserving the band on both sides is what the out-of-flow trick was buying:
   /// in flow and only when present, a side WITH a modifier sat higher than a
   /// side without and the two ratings stopped lining up.
-  static const double _modBand = 20;
+  ///
+  /// **Tall enough for the BADGE**, which is what it holds now — at the old 20
+  /// the chip was clipped to a sliver with its contents cut off, which reads as
+  /// a mark too small to find rather than as a badge.
+  static const double _modBand = 26;
 
   @override
   Widget build(BuildContext context) {
@@ -790,22 +832,44 @@ class _Mod extends StatelessWidget {
             // **A TARGET, not just a mark.** The glyph and its number are 22
             // by 10; the padding is what a thumb actually lands on, and it is
             // inside the tooltip's own detector so it is all live.
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GameIcon(mod.icon, size: 9, color: ink),
-                Text(
-                  '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                    color: ink,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+            child: Container(
+              // **A BADGE, and a readable one.** It was a bare glyph and a
+              // signed number on the pane, in a colour chosen for a dark
+              // ground; asked for directly, put the modifiers in a badge. The
+              // pattern is the league sheet's form chip — the colour's own
+              // tint for a plate, the colour at 45% for a rim, the colour full
+              // strength for the ink — and it is a size up, because the first
+              // pass at this was a chip too small to find.
+              padding: const EdgeInsets.fromLTRB(5, 3, 6, 3),
+              decoration: BoxDecoration(
+                // **A DARK plate, in both themes.** `semanticPlate` gives a
+                // 13% tint of the ink in daylight, which under a mint green is
+                // a pale lozenge with a pale mark in it. What the badge is FOR
+                // is giving a dark-ground colour its dark ground, at the size
+                // of the number rather than the size of the card — which is the
+                // whole reason the card itself did not have to go dark.
+                color: statBadgeFill,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: ink.withValues(alpha: 0.45)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GameIcon(mod.icon, size: 10.5, color: ink),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      color: ink,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },

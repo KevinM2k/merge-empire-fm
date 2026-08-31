@@ -13,7 +13,8 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/hud/hud.dart' show hudTroughInk;
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vividWellFill;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -128,27 +129,21 @@ class HudCluster extends StatelessWidget {
   Widget build(BuildContext context) => _body(context);
 
   Widget _body(BuildContext context) {
-    // **THE PILL IS A DARK TROUGH IN BOTH THEMES, and that is what lets the
-    // wallets keep their colours.** The three hues are identity — gold is
-    // money, cyan is gems, green is energy — and on a near-white daylight bar a
-    // raw `#FFD700` is 1.2:1, so the only way to print them there was to deepen
-    // them. Which worked, and read as muted: the report was that light mode
-    // wants the same vibrant yellows, greens and blues the dark theme has.
+    // **THE SAME DARK GROUND THE CARD'S OWN VIVID MARKS STAND ON.** This pill
+    // has been a trough, then the card's light pane, and neither on its own was
+    // it: dark, it was darker than the card under it; light, the wallet hues had
+    // nothing to sit on and a tight outline was not enough to save them.
     //
-    // A hue cannot be both vivid and legible on white, so the SURFACE moves
-    // instead of the ink. The JS's own resource pill is described as a dark
-    // trough for exactly this reason.
+    // What settled it is that the CARD grew the same problem and the same
+    // answer — its red and green get a dark recess, its modifiers get a dark
+    // badge — so the pill is not a special case any more. One constant for all
+    // three; see [vividWellFill].
     return GlassPanel(
       key: const ValueKey('hud-cluster'),
       radius: 14,
-      darkGlass: true,
-      // **THE SAME RECIPE THE NEXT-MATCH CARD USES.** Both stand on the sky and
-      // both were reported in the same breath — the card much lighter than the
-      // bar, and the bar too dark. They are one material now rather than two
-      // that happen to be dark, which is a thing to state once instead of two
-      // opacities to keep in step by eye.
       density: GlassDensity.deep,
-      tint: skyPaneTint,
+      darkGlass: true,
+      tint: const [vividWellFill, vividWellFill],
       // **NO DROP SHADOW.** Every other pane in the app casts one to say it is
       // in FRONT of the page — see [GlassPanel.shadow]. This one is not on the
       // page, it is in a bar, and the shadow was a dark smear under the one
@@ -165,9 +160,7 @@ class HudCluster extends StatelessWidget {
               Container(
                 width: 1,
                 height: 22,
-                // The trough's own ink, not the page's: `glassInk` follows the
-                // THEME and this pane deliberately does not.
-                color: hudTroughInk.withValues(alpha: 0.22),
+                color: glassInk(context).withValues(alpha: 0.22),
               ),
             children[i],
           ],

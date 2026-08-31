@@ -254,15 +254,18 @@ void main() {
       return (icon.color!, (icon.shadows ?? const []).isNotEmpty);
     }
 
-    testWidgets('gold is GOLD in daylight, not a deepened one', (tester) async {
-      // It was briefly deepened, because the bar had gone neutral and gold on
-      // near-white is 1.2:1. That read as muted — the report was that light
-      // mode wants the same vibrant yellows, greens and blues the dark theme
-      // has — so the SURFACE moved instead and the cluster is a dark trough in
-      // both themes. See `HudCluster`.
+    testWidgets('gold is GOLD in daylight, and stands on its own ground', (
+      tester,
+    ) async {
+      // Three answers were tried before this one and each is worth a line.
+      // DEEPENING the hue works and reads as muted. A tight OUTLINE under the
+      // glyph works on paper and was reported as not helping at all — a 1px
+      // edge cannot argue with a whole pane of luminance. What carries is a
+      // GROUND: the cluster is a dark trough in both themes, so the hue is
+      // printed exactly as chosen and wears nothing at all. See `HudCluster`.
       final (colour, haloed) = await walletIcon(tester, light: true);
       expect(colour, hudCoinInk, reason: 'the coin was deepened again');
-      expect(haloed, isFalse, reason: 'the halo came off the whole bar');
+      expect(haloed, isFalse, reason: 'the halo came back');
     });
 
     testWidgets('and at night it needs no help at all', (tester) async {
