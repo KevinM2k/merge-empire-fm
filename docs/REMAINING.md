@@ -8906,11 +8906,36 @@ gold rather than in a word.
       of three now, across both, in gold, with its chips drawn up to match. It
       also fixes the shape the strip had: four across and then three centred
       underneath, with a tile of dead space beside them.
+- [x] **"Come back tomorrow for day 5" was the whole bottom of the sheet.** The
+      reference gives its bottom third to two lines — the sentence, and a
+      running `15:12:34` under it at twice the size — and that is the right
+      weight for it: a countdown is the only thing on a claimed sheet that is
+      still happening. The shipped line is unchanged and stays the label; the
+      figure is new, and a figure needs no translating.
+      `msUntilNextReward` is to LOCAL midnight rather than 24 hours from the
+      claim, because `_dayKey` is a local-time day — claim at 23:55 and the next
+      reward is five minutes away. `formatClock` is the readout shape beside
+      `formatDuration`'s prose one, and the timer lives on the countdown widget
+      rather than on the sheet so it exists only while the clock is on screen.
+
 - [x] **The day's name was a caption in one of three inks**, which asks the eye
       to compare text colours across seven tiles to work out where in the week
       it is. It is a filled band at the foot of each tile now, in that day's own
       state colour — the reference's own device, and a block is read at a glance
       from the distance this strip is actually looked at from.
+
+### Still open against the reference, and both are ART rather than layout
+
+- [ ] **The sign-in popup leads with an illustrated BANNER** — a big "7-Day
+      Sign-in / Grand Prize!" title with a character leaning out of it — and
+      ours leads with a `SheetHeader` and the streak band. The streak band was
+      built deliberately and is the better statement of the two (it is about the
+      player rather than about the prize), so this is a banner ABOVE it rather
+      than a replacement. Blocked with the row below: the banner is a picture.
+- [ ] **And the grand prize is NAMED above the grid**, on its own chip. Ours
+      cannot be: day seven pays coins, energy and gems, which the chips already
+      say, and a name for it would be new copy. Worth revisiting only if the
+      spec repo ever gives day seven a named item.
 
 ### Blocked, and both worth reading before picking up
 
