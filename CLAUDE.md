@@ -305,8 +305,11 @@ layer run under plain `dart test` with no widget binding.
 
 ## Identifiers
 
-The display name is "Merge Empire Football Manager" (`CFBundleDisplayName`,
-`android:label`, window title, store listings); `CFBundleName` is
-"Merge Empire FM". The identifiers deliberately still read `mergeempirefc` —
-`com.mergeempirefc.app` on both stores is the primary key of an already-published
-app, and the Dart package name `merge_empire_fc` is internal.
+The display name is "Merge Empire Football Manager" (`android:label`, window
+title, store listings); `CFBundleName` is "Merge Empire FM". iOS's
+`CFBundleDisplayName` is the short "Merge Empire" — the home screen gets one
+tightened line and squeezes the spaces out of anything past ~12 characters.
+
+The identifiers deliberately still read `mergeempirefc` — `com.mergeempirefc.app`
+on both stores is the primary key of an already-published app, and the Dart
+package name `merge_empire_fc` is internal.

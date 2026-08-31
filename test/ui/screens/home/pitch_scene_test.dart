@@ -185,7 +185,7 @@ void main() {
 
     test('and the boards carry the GAME\'S OWN NAME, not a t() key', () {
       // A brand mark on a prop, the same class of thing as a badge — the
-      // display name from `CFBundleDisplayName` and `android:label`. Which is
+      // display name from `android:label` and the window title. Which is
       // just as well: the catalogues are generated from the JS and no new key
       // can be added from this repo.
       expect(hoardingText, contains('MERGE EMPIRE'));

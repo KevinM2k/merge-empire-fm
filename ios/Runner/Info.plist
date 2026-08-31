@@ -7,8 +7,9 @@
 	<string>ca-app-pub-0386196346828968~3098217491</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<!-- Home screen only, one tightened line: >12 chars squeezes the spaces out. -->
 	<key>CFBundleDisplayName</key>
-	<string>Merge Empire Football Manager</string>
+	<string>Merge Empire</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

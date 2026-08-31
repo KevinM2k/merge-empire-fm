@@ -1841,8 +1841,8 @@ class _StandPainter extends CustomPainter {
 /// with white, under a sheen that catches the light along their top edge.
 /// **What a perimeter board says, and why it is not a `t()` key.**
 ///
-/// It is the game's own DISPLAY NAME — the one in `CFBundleDisplayName`,
-/// `android:label` and the window title — so it is a brand mark on a prop, the
+/// It is the game's own DISPLAY NAME — the one in `android:label` and the
+/// window title — so it is a brand mark on a prop, the
 /// same class of thing as a badge, and not copy that a locale would translate.
 /// Which is just as well: the catalogues are generated from the JS and no new
 /// key can be added from this repo.
