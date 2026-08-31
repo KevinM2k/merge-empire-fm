@@ -8847,3 +8847,131 @@ turned out to have a repo-side half that was silently broken rather than
 waiting — the debug-signed Android release, the iOS Firebase plist, the missing
 dSYM upload, and a lapsed VIP's re-purchase dead-ending on "payment failed" —
 and those are done here.
+
+---
+
+## From reference shots — 31 Aug (the shop, and the daily reward)
+
+Not a playtest. Four screenshots of another game's shop and one of its sign-in
+popup, with "look how good this looks, ours needs more work" and "we could
+improve ours to this level". So the rows below are read off the PICTURES rather
+than off a session, and every one of them names the device it is copying.
+
+**The JS spec could not be consulted for any of it.** `../merge-empire-fc` is a
+separate repo and only this one is cloned in a cloud container, so nothing here
+is presented as the spec's rule — and no new `t()` key can be added from here
+either, which is the constraint that shaped every row: a seal carries shipped
+copy, a contents chip is a glyph and a number, and a grand prize says it in
+gold rather than in a word.
+
+### The shop
+
+- [x] **The tabs opened onto nothing.** The strip already broke its baseline
+      under the selected tab — which is the join, and the whole difference
+      between a tab and a link — but there was no panel on the other side of
+      it, so the gap opened onto the club backdrop. The panel is `kit.bg`
+      rather than another surface: the tiles are `surface2 → surface` with a
+      border, so a panel in a surface tone is one they disappear into. A shop
+      is a case, and a case is a recess. The selected tab is blended onto that
+      same fill so the join has nothing to show, and the other three stand six
+      points shorter, which is the whole of "these are behind that one".
+- [x] **A 9.5pt two-line translated label cannot be the thing you aim at.**
+      Every tab in the reference set is a piece of ART with a word under it.
+      The glyph goes to 23pt and keeps its shelf's colour even unselected — at
+      a blend rather than at full strength, so the strip is four colours
+      knocked back rather than four greys. The label stays: shorter copy is not
+      available from this repo.
+- [x] **A value claim was a rounded rectangle, which is what a STATUS looks
+      like.** Owned, Active, Coming soon — all pills, and so was "MOST POPULAR".
+      `ValueSeal` is the die-cut rosette every reference shot puts its discount
+      in, and it is a painter because the shape is the point: a rosette is a
+      radius that varies with angle and no `BoxDecoration` can express one. Both
+      shelves that make a value claim wear the same one now — they had two
+      different shapes for the same statement — and the coin shelf's crown moved
+      to the left to make room for it.
+- [x] **The three offers said what was in them in PROSE and nowhere else**, on
+      the highest-converting slot in the game. Every pack in the reference set
+      carries a strip of item chips — a glyph for the thing, a figure for how
+      many — and `pack_contents.dart` is that strip. The coin figure is
+      `getProductGrantCoins`'s, not the catalogue's: a Starter Pack in the
+      Champions Cup grants a thousand times its printed number. It shares the
+      price's line, which was a button hard against the right edge with the
+      width of the hero empty beside it.
+
+### The daily reward
+
+- [x] **Day seven was drawn as the same object as day two.** This sheet's own
+      opening comment says the last rung pays the only recurring gems in the
+      game — and then laid out seven identical boxes. It stands beside two rows
+      of three now, across both, in gold, with its chips drawn up to match. It
+      also fixes the shape the strip had: four across and then three centred
+      underneath, with a tile of dead space beside them.
+- [x] **The day's name was a caption in one of three inks**, which asks the eye
+      to compare text colours across seven tiles to work out where in the week
+      it is. It is a filled band at the foot of each tile now, in that day's own
+      state colour — the reference's own device, and a block is read at a glance
+      from the distance this strip is actually looked at from.
+
+### Blocked, and both worth reading before picking up
+
+- [ ] **"Coin packs should have other things in them — a free scout voucher or
+      another boost."** Asked for directly, and the reference shots are the
+      argument: every pack in them holds four or five items and the coin count
+      is only the headline. **BLOCKED ON THE PARITY HARNESS, which is the
+      feature working.** `iap_parity_test` compares what `purchaseProduct`
+      leaves in the save field for field against `test/fixtures/iap_reference.json`
+      — `fanCoins`, `gems`, `energyCurrent`, the whole `shop` and `boosts`
+      branches, for all 25 purchases — and that fixture is dumped from
+      `../merge-empire-fc`, which is not cloned here. So a coin bundle that
+      grants anything more than coins fails the harness, and the fixture cannot
+      be regenerated from a cloud container to say otherwise. It wants a session
+      with the spec repo, where the change lands in the JS first.
+
+      **And there is a design finding to carry into that session, because two
+      of the three sweeteners named are the wrong ones.** A coin bundle is a
+      CONSUMABLE — bought as often as the player likes — and:
+
+      - the scout voucher is **one at a time by design**. `anyVoucherArmed`
+        blocks a second across the whole ladder, for two reasons its own comment
+        spells out, and `freeScoutReady` is a bool the rewarded video and the
+        Lucky Boot also set. A paid grant into a flag that is already true is
+        value that silently evaporates.
+      - both coin boosts are **per-season flags**, not stacking timers:
+        `kitSponsorSeason` and `matchRevBoostSeason` are compared against the
+        current season, and the shop already greys them as `already_active`.
+        Same problem — buy the pack twice in a season and the second one pays
+        nothing.
+
+      **Energy is the one that stacks**, additively, with a Pro-mode branch
+      already written (`topUpAllEnergy` with `overfill`) — and it is what the
+      reference set actually bundles, where every pack is mostly speedups. So
+      the shape to take to the spec repo is coins + energy, rising with the
+      tier, and NOT gems: `iap_engine.dart`'s own note on the gem ladder is that
+      every gem price in the game is quoted against one rate, so a coin bundle
+      handing out gems discounts the whole catalogue and squeezes the Style
+      Vault's ceiling with it.
+
+      The screen half is already built and waiting — `PackContentsRow` draws
+      whatever `packContents` returns, and that function reads `energyAdd`,
+      `vipDays`, `styleVault` and `energyDirector` today. A coin bundle with
+      energy on it would show a two-chip strip the day the grant lands, with no
+      further UI work.
+
+- [ ] **"The artwork needs to be stepped up."** Agreed, and it is the biggest
+      remaining gap against the reference shots: those packs are rendered 3D
+      illustrations and ours are `CustomPainter` vector art (`coin_pack_art.dart`,
+      `gem_pack_art.dart`) and inline SVG line art (`game_icon.dart`).
+      **BLOCKED ON NETWORK POLICY in a cloud session, and the suggested route
+      is one of the blocked ones.** `image.pollinations.ai` is refused at the
+      proxy's CONNECT with a 403 — a policy denial, not a transient failure, and
+      it is named in `__agentproxy/status`'s own `recentRelayFailures`. So are
+      `api.openai.com`, `fal.run` and `api.replicate.com`. The one image-capable
+      host that answers is `generativelanguage.googleapis.com`, which needs an
+      API key this environment does not carry.
+
+      So there are two routes and they are a decision rather than an edit:
+      either the environment's network policy gains an image host and a key,
+      after which a `tool/gen_*_art` script can be written the way
+      `gen_app_icons.py` and `gen_park_backdrop.py` already are — or the art is
+      brought in as files and committed, which is how everything under
+      `assets/club`, `assets/players` and `assets/trophies` got here.
