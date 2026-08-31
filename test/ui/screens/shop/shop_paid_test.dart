@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
@@ -317,12 +318,23 @@ void main() {
       // under three identical images — the tile said nothing at all about
       // which of them was the big one. The names are the brief, the same way
       // they were for the coin packs on the shelf beside it.
+      //
+      // Only the packs still drawing, for the reason on the coin shelf's own
+      // version of this: a bundled illustration replaces the painter per id.
       await pumpShopWidget(tester, (_) {}, GemPacksSection.new);
       final drawn = tester
           .widgetList<GemPackPicture>(find.byType(GemPackPicture))
           .map((g) => g.art)
           .toList();
-      expect(drawn, [GemPackArt.pocket, GemPackArt.casket, GemPackArt.hoard]);
+      const want = [
+        (id: 'gems_5', art: GemPackArt.pocket),
+        (id: 'gems_15', art: GemPackArt.casket),
+        (id: 'gems_35', art: GemPackArt.hoard),
+      ];
+      expect(drawn, [
+        for (final w in want)
+          if (shopArtAsset(w.id) == null) w.art,
+      ]);
       // And no two of them are the same drawing.
       expect(drawn.toSet(), hasLength(drawn.length));
     });
@@ -350,16 +362,26 @@ void main() {
       // All four share one 💰 in the catalogue, and the JS tells them apart with
       // a cluster of 1/2/3/5 coins — which is a quantity and makes no sense of
       // "Coin Vault".
+      //
+      // **It is the DRAWN art this pins, so it asks only about the packs still
+      // drawing.** `ShopArt` swaps a painter for a bundled illustration the
+      // moment `shopArtManifest` has one for that id, and rendered art landing
+      // one file at a time must not turn this red — the rule is that no two
+      // packs share a picture, not that a pack is a `CoinPackPicture` forever.
       await pumpShopWidget(tester, (_) {}, CoinPacksSection.new);
       final drawn = tester
           .widgetList<CoinPackPicture>(find.byType(CoinPackPicture))
           .map((c) => c.art)
           .toList();
+      const want = [
+        (id: 'coins_small', art: CoinPackArt.pocket),
+        (id: 'coins_medium', art: CoinPackArt.pile),
+        (id: 'coins_large', art: CoinPackArt.vault),
+        (id: 'coins_mega', art: CoinPackArt.mountain),
+      ];
       expect(drawn, [
-        CoinPackArt.pocket,
-        CoinPackArt.pile,
-        CoinPackArt.vault,
-        CoinPackArt.mountain,
+        for (final w in want)
+          if (shopArtAsset(w.id) == null) w.art,
       ]);
     });
 
@@ -378,9 +400,17 @@ void main() {
         expect(
           find.descendant(
             of: find.byKey(ValueKey('shop-tile-${product.id}')),
+            // **A PICTURE, drawn or rendered.** What this pins is that the
+            // tile is not text with a price under it and not the catalogue's
+            // emoji — and a bundled illustration satisfies that as well as a
+            // painter does. See `shop_art.dart`: the tile asks `ShopArt` and
+            // gets whichever exists.
             matching: find.byWidgetPredicate(
               (w) =>
-                  w is GameIcon || w is CoinPackPicture || w is GemPackPicture,
+                  w is GameIcon ||
+                  w is CoinPackPicture ||
+                  w is GemPackPicture ||
+                  w is Image,
             ),
           ),
           findsWidgets,

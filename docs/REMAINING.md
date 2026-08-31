@@ -9005,8 +9005,46 @@ gold rather than in a word.
       illustration and ours is three chips. It is not keyed by a product id, so
       it needs its own small manifest rather than a row in this one.
 
-      **What is still blocked is MAKING the art, and the suggested route is one
-      of the blocked ones.** The gap itself is plain enough: the reference packs
+      **`tool/gen_shop_art.py` is the script, and it runs LOCALLY.** Asked for
+      directly. `pip install pillow`, then
+      `python3 tool/gen_shop_art.py --backend pollinations` (keyless) or
+      `--backend openai` / `--backend gemini` with the matching key in the
+      environment. `--list` prints the prompts without calling anything;
+      `--write-manifest` patches `shop_art.dart` and `pubspec.yaml` for you.
+
+      Two parts of it are worth knowing before changing it:
+
+      - **The prompts are the deliverable.** Twelve pictures that each look good
+        and do not look like ONE SET is the failure mode a loop of curl calls
+        walks into, so there is a single `STYLE` preamble every subject
+        inherits, its palette is lifted from the painters the art replaces, and
+        the subjects are the painter enums rather than a second reading of the
+        catalogue — a pouch, a heap, a strongbox, a peak. Change the preamble,
+        regenerate everything; never half a set. It also forbids text and
+        numbers: every tile prints its own figure, and a "5000" lettered onto
+        the bag is a second number that disagrees the moment the division
+        multiplier applies.
+      - **The post-processing is most of the value.** Generators return opaque
+        squares; the tiles want transparent art that fills its box. Each render
+        is background-knocked-out by a flood fill FROM THE CORNERS — not a
+        global colour match, which eats holes out of a gold coin's grey shading
+        — then trimmed to its own alpha and re-padded square, so every picture
+        on the shelf has the same margin whatever the generator framed.
+
+      It reads the product ids out of `iap_engine.dart` and refuses to run if
+      any of them has no prompt, so a product added to the catalogue is a loud
+      failure here rather than the one tile on the shelf still wearing its
+      drawing.
+
+      **The drop was rehearsed end to end**, with three placeholder files wired
+      through `--write-manifest`: `flutter analyze` clean and all 131 shop tests
+      green with art in place. That rehearsal is what found the four tests that
+      asserted the DRAWN art specifically and would have gone red on the first
+      real file — they ask the manifest now, so each says the same sentence
+      whether a pack is drawing or rendering.
+
+      **What is still blocked is MAKING the art from a cloud session, and the
+      suggested route is one of the blocked ones.** The gap itself is plain enough: the reference packs
       are rendered 3D illustrations and ours are `CustomPainter` vector art
       (`coin_pack_art.dart`, `gem_pack_art.dart`) and inline SVG line art
       (`game_icon.dart`). But `image.pollinations.ai` is refused at the proxy's

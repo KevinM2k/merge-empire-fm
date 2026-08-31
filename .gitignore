@@ -29,3 +29,6 @@ GoogleService-Info.plist
 
 # Coverage output
 coverage/
+
+# Python bytecode from tool/*.py
+__pycache__/

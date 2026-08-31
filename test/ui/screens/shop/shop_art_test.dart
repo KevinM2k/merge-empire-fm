@@ -78,13 +78,21 @@ void main() {
     }
   });
 
-  testWidgets('and with no art the shelves are exactly the drawings', (
-    tester,
-  ) async {
-    // The whole promise of the seam is that landing it changed nothing today.
-    expect(shopArtManifest, isEmpty);
+  testWidgets('and the shelf uses whichever of the two exists', (tester) async {
+    // **The promise of the seam is that it changed nothing on the day it
+    // landed, and changes everything on the day the art does.** So this asks
+    // the manifest rather than assuming it is empty: with no art the coin shelf
+    // is its painters, and with art it is `Image`s — and the assertion is the
+    // same sentence either way, so an art drop does not turn it red.
     await pumpShopWidget(tester, (_) {}, CoinPacksSection.new);
-    expect(find.byType(CoinPackPicture), findsWidgets);
-    expect(find.byType(Image), findsNothing);
+    final rendered = getShopProducts()
+        .where((p) => p.category == 'coins' && shopArtAsset(p.id) != null)
+        .length;
+    final drawn = getShopProducts()
+            .where((p) => p.category == 'coins')
+            .length -
+        rendered;
+    expect(find.byType(CoinPackPicture), findsNWidgets(drawn));
+    expect(find.byType(Image), findsNWidgets(rendered));
   });
 }
