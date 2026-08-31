@@ -933,10 +933,11 @@ class _SlotTarget extends StatelessWidget {
 /// dark one.
 /// How much of the square the number takes.
 ///
-/// It has been the glyph's natural 14pt (invisible), then the whole square
-/// (far too big). Just over half reads as a mark ON the surface rather than as
-/// a label in a box or as a card with a number for a face.
-const double _slotNumberScale = 0.52;
+/// A fraction of the cell's HEIGHT, which is the half that took three passes:
+/// while it was a `FittedBox` the same setting gave a `1` and a `12` wildly
+/// different sizes, because a fit is bound by whichever axis runs out first.
+/// Off the height, every number is the same size and a wide one is just wide.
+const double _slotNumberScale = 0.26;
 
 class _EmptySlotMark extends StatelessWidget {
   const _EmptySlotMark({required this.index});
@@ -974,24 +975,28 @@ class _EmptySlotMark extends StatelessWidget {
           // `FittedBox` in one sizes to the glyph's natural 14pt and scales
           // nothing — which is why "200% bigger" landed twice with no visible
           // change.
+          // **SIZED BY THE CELL, not fitted to it.** A `FittedBox` scales
+          // until the box is full on ONE axis, so a `1` — which is narrow —
+          // grew until its HEIGHT filled and came out enormous, while a `12`
+          // was held back by its width and came out small. Reported exactly
+          // that way: especially the first nine. A font size off the cell's
+          // height gives every number the same height and lets the wide ones
+          // simply be wider.
           Positioned.fill(
-            child: Center(
-              child: FractionallySizedBox(
-                widthFactor: _slotNumberScale,
-                heightFactor: _slotNumberScale,
-            child: FittedBox(
-              child: Text(
-                '${index + 1}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                  // Closer to the square than to the glyph beside it: it is
-                  // the surface, not a reading. A tenth is where it stops
-                  // competing with a card in the next cell and still counts.
-                  color: ink.withValues(alpha: 0.11),
+            child: LayoutBuilder(
+              builder: (context, box) => Center(
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    fontSize: box.maxHeight * _slotNumberScale,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                    // Closer to the square than to the glyph beside it: it is
+                    // the surface, not a reading. A tenth is where it stops
+                    // competing with a card in the next cell and still counts.
+                    color: ink.withValues(alpha: 0.11),
+                  ),
                 ),
-              ),
-            ),
               ),
             ),
           ),

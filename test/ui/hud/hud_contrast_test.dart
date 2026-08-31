@@ -373,16 +373,22 @@ void main() {
       }
     });
   });
-  group('AND WHATEVER IS BEHIND IT CANNOT SHOW THROUGH', () {
-    // **"Anywhere the top has a background, both themes have to work."** The
-    // HUD sits over the sky on the Play tab, over a page everywhere else, and
-    // over whatever the customiser is drawing while its sheet slides up — and
-    // the answer is not to recolour the icons for each of them, it is for the
-    // BAND to be opaque. The blur behind it is a texture, not a see-through.
+  group('AND THE PAGE SHOWS THROUGH IT', () {
+    // **This reverses an invariant, and the thing that made it necessary has
+    // gone.** The band used to be opaque, and the reason was sound: the HUD
+    // sits over the sky on the Play tab, over a page everywhere else and over
+    // whatever the customiser is drawing while its sheet slides up, and
+    // recolouring the icons for each of those is a losing game. An opaque band
+    // meant they only ever had one backdrop.
     //
-    // Pinned as an invariant rather than checked by eye, because an alpha
-    // creeping into one stop of one theme is invisible until somebody opens
-    // the one screen with a bright thing under the bar.
+    // Every reading is a filled badge with its own ground now — see
+    // `HudChip` — so none of them can see the page at all, and the constraint
+    // is spent. What was left was a solid strip of near-white across the top of
+    // a turf page, reported on the squad screen; and a `BackdropFilter`
+    // blurring something nobody could see any of.
+    //
+    // Both halves are pinned, because the translucency is only safe while the
+    // badges hold.
     Future<LinearGradient> chromeIn(
       WidgetTester tester, {
       required bool light,
@@ -406,7 +412,7 @@ void main() {
       return out;
     }
 
-    testWidgets('every stop of the chrome is OPAQUE, in both themes', (
+    testWidgets('every stop of the chrome is translucent, in both themes', (
       tester,
     ) async {
       for (final light in [true, false]) {
@@ -414,8 +420,39 @@ void main() {
         for (final colour in chrome.colors) {
           expect(
             colour.a,
+            lessThan(1.0),
+            reason: 'light: $light — the band is a slab again',
+          );
+          // Not a wash either: it is still a BAND, and the blur under it needs
+          // something to be a band of.
+          expect(colour.a, greaterThan(0.6), reason: 'light: $light');
+        }
+      }
+    });
+
+    testWidgets('AND NOTHING IN IT DEPENDS ON THE PAGE, which is why', (
+      tester,
+    ) async {
+      // The half that pays for the half above. Each reading is a filled chip in
+      // its own colour with its own ink, so the backdrop reaches none of them —
+      // and if that ever stops being true, the band has to go back to opaque.
+      for (final light in [true, false]) {
+        await pumpBar(tester, light: light);
+        for (final key in const ['hud-coins', 'hud-energy', 'hud-gems']) {
+          final box = tester.widget<Container>(
+            find
+                .descendant(
+                  of: find.byKey(ValueKey(key)),
+                  matching: find.byType(Container),
+                )
+                .first,
+          );
+          final fill = (box.decoration! as BoxDecoration).color;
+          expect(fill, isNotNull, reason: '$key light=$light has no ground');
+          expect(
+            fill!.a,
             1.0,
-            reason: 'light: $light — the page shows through the bar',
+            reason: '$key light=$light lets the bar through',
           );
         }
       }
