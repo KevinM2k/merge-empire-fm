@@ -43,6 +43,7 @@ class ShopTile extends StatelessWidget {
     this.corner,
     this.accent,
     this.skin,
+    this.contents,
   });
 
   final String tileKey;
@@ -130,6 +131,15 @@ class ShopTile extends StatelessWidget {
   /// are: the light-mode overrides in `screens.css` cover the energy cards and
   /// deliberately leave these alone.
   final ({Gradient gradient, Color border, double width})? skin;
+
+  /// **THE STRIP THAT SAYS WHAT IS IN THE BOX** — see `pack_contents.dart`.
+  ///
+  /// Featured only, and it goes on the price's own line, to its left: that line
+  /// was a button pushed against the right edge with the whole width of the
+  /// hero empty beside it, which is the room a contents strip wants and the
+  /// reason the price moved down there in the first place. On a two-across grid
+  /// tile there is no such room and the description is already the whole story.
+  final Widget? contents;
 
   /// Reads on [skin]'s gradient. The heroes are dark whatever the theme, so
   /// their text cannot come from the kit.
@@ -368,15 +378,28 @@ class ShopTile extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: StoreButton(
-                      key: ValueKey('shop-buy-$tileKey'),
-                      tone: tone,
-                      label: price,
-                      stretch: false,
-                      onTap: onBuy,
-                    ),
+                  // **THE CONTENTS AND THE PRICE SHARE A LINE.** The button was
+                  // alone on it, hard against the right edge, with the width of
+                  // the hero empty to its left — and what belongs in that space
+                  // is the one thing the tile never said outright: what the
+                  // money actually buys. Bottom-aligned, so a strip that wraps
+                  // to two rows grows upward and the button stays on the tile's
+                  // own baseline.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: contents ?? const SizedBox.shrink(),
+                      ),
+                      const SizedBox(width: 10),
+                      StoreButton(
+                        key: ValueKey('shop-buy-$tileKey'),
+                        tone: tone,
+                        label: price,
+                        stretch: false,
+                        onTap: onBuy,
+                      ),
+                    ],
                   ),
                 ],
               )

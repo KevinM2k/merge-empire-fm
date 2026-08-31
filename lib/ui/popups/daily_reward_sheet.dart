@@ -312,35 +312,70 @@ class _CycleStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      // **EQUAL BOXES, and the row uses the width it has.** They were fixed at
-      // 84px in a `Wrap`, so seven of them broke into a full row and a short
-      // one that sat centred under it — and on any phone wider than the four
-      // they fitted, the strip left a third of the sheet empty rather than
-      // growing. Four and three, each tile a share of the same width, so a day
-      // is the same object wherever it is in the week.
+      // **DAY SEVEN IS NOT THE SAME OBJECT AS DAY TWO, and it was drawn as
+      // one.** Asked for from the couch against a shelf of reference shots:
+      // every sign-in ladder in that set gives the last rung its own tile,
+      // taller than the rest and off to one side, because the grand prize is
+      // the reason the other six get claimed. This file's own opening comment
+      // says the same thing — "day seven pays the only recurring gems in the
+      // game" — and then laid out seven identical boxes.
+      //
+      // So: two rows of three, and the seventh standing beside them across
+      // both. It also fixes the shape the old strip had, which was four and
+      // then three centred underneath with a tile of dead space beside them.
       const spacing = 6.0;
-      const perRow = 4;
-      final width = (box.maxWidth - spacing * (perRow - 1)) / perRow;
+      // The seventh is wider than a sixth of the strip AND narrower than two of
+      // them — it has to hold the same chips as the others without becoming a
+      // second column of content.
+      final unit = (box.maxWidth - spacing * 3) / 4;
+      final grandWidth = unit * 1.28;
+      final ordinaryWidth =
+          (box.maxWidth - grandWidth - spacing * 3) / 3;
+      // The two rows plus the gap between them, so the tall tile lines up top
+      // and bottom with the block beside it rather than approximately.
+      const rowHeight = 118.0;
+      const grandHeight = rowHeight * 2 + spacing;
+
       Widget row(Iterable<int> days) => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           for (final day in days) ...[
-            SizedBox(width: width, child: _tile(context, day)),
+            SizedBox(
+              width: ordinaryWidth,
+              height: rowHeight,
+              child: _tile(context, day),
+            ),
             if (day != days.last) const SizedBox(width: spacing),
           ],
         ],
       );
-      return Column(
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          row([for (var d = 1; d <= perRow; d++) d]),
-          const SizedBox(height: spacing),
-          row([for (var d = perRow + 1; d <= cycleDays; d++) d]),
+          Column(
+            children: [
+              row([1, 2, 3]),
+              const SizedBox(height: spacing),
+              row([4, 5, 6]),
+            ],
+          ),
+          const SizedBox(width: spacing),
+          SizedBox(
+            width: grandWidth,
+            height: grandHeight,
+            child: _tile(context, cycleDays, grand: true),
+          ),
         ],
       );
     },
   );
 
-  Widget _tile(BuildContext context, int day) {
+  /// The gold the last rung is drawn in. Fixed rather than the kit's accent: a
+  /// grand prize is the SHOP's kind of statement, and half the kits are a green
+  /// the accent is already made of — the tile would stop being special on
+  /// exactly the clubs whose accent it borrowed.
+  static const Color _grandInk = Color(0xFFFFC02E);
+
+  Widget _tile(BuildContext context, int day, {bool grand = false}) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final reward = getDailyRewardPreview(state, day);
     if (reward == null) return const SizedBox.shrink();
@@ -350,14 +385,23 @@ class _CycleStrip extends StatelessWidget {
     // which is exactly right: a streak that broke has nothing banked.
     final banked = day < today || (day == today && claimedToday);
     final now = day == today;
+    // Three states, three inks, and the footer is where they are stated — see
+    // below. `grand` is a fourth thing a tile can be and it is orthogonal: the
+    // last rung is gold whether it is banked, today or still ahead, because
+    // what the gold says is "this is the big one" rather than "this is next".
+    final edge = now
+        ? kit.accent
+        : grand
+        ? _grandInk.withValues(alpha: 0.75)
+        : banked
+        ? kit.accent.withValues(alpha: 0.45)
+        : kit.border;
     return Container(
       key: ValueKey('daily-day-$day'),
-      // One height for all seven: a strip whose tiles are as tall as their own
-      // reward line is a strip that steps up and down across the week. Taller
-      // since the rewards became chips — three of them stacked is what the
-      // seventh day needs, and the sheet has the room.
-      height: 118,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+      // **CLIPPED, because the footer runs to the tile's own corners.** A band
+      // with square ends inside a rounded box is the one detail that makes it
+      // read as part of the tile rather than as a caption laid on it.
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: now
             ? kit.surface2
@@ -365,45 +409,91 @@ class _CycleStrip extends StatelessWidget {
             ? kit.accent.withValues(alpha: 0.10)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: now
-              ? kit.accent
-              : banked
-              ? kit.accent.withValues(alpha: 0.45)
-              : kit.border,
-          width: now ? 2 : 1,
-        ),
+        border: Border.all(color: edge, width: now || grand ? 2 : 1),
+        // The last rung glows. Nothing else on the strip does, which is what
+        // makes it worth doing at all.
+        boxShadow: grand
+            ? [
+                BoxShadow(
+                  color: _grandInk.withValues(alpha: 0.28),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                now && !claimedToday
-                    ? t('daily.today')
-                    : t('daily.day', {'n': day}),
-                style: TextStyle(
-                  color: now || banked ? kit.accentBright : kit.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+          // The gold wash off the top edge, UNDER everything. As a
+          // `foregroundDecoration` it would lie over the chips and mute the
+          // very figures the tile exists to show.
+          if (grand)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    _grandInk.withValues(alpha: 0.26),
+                    _grandInk.withValues(alpha: 0.04),
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
-              // **A banked day is DIMMED, not hidden.** What it paid is still
-              // the answer to "what does this cycle give me", and a strip that
-              // blanks its own history teaches nothing.
-              Opacity(
-                opacity: banked && !now ? 0.5 : 1,
-                // The chips are glyphs and figures and say nothing out loud, so
-                // the line they replaced is what a screen reader gets.
-                child: Semantics(
-                  label: dayRewardLine(reward),
-                  child: ExcludeSemantics(
-                    child: _RewardChips(reward: reward, today: now),
+            ),
+          Column(
+            children: [
+              Expanded(
+                // **A banked day is DIMMED, not hidden.** What it paid is still
+                // the answer to "what does this cycle give me", and a strip that
+                // blanks its own history teaches nothing.
+                child: Opacity(
+                  opacity: banked && !now ? 0.5 : 1,
+                  // The chips are glyphs and figures and say nothing out loud,
+                  // so the line they replaced is what a screen reader gets.
+                  child: Semantics(
+                    label: dayRewardLine(reward),
+                    child: ExcludeSemantics(
+                      child: Center(
+                        child: _RewardChips(
+                          reward: reward,
+                          today: now,
+                          // The grand prize has a tile half again as tall and
+                          // wider than the rest; chips at the strip's size in it
+                          // would be a big empty box with small print in it.
+                          scale: grand ? 1.25 : 1,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
+              ),
+              // **THE DAY'S NAME IS A BAND ACROSS THE FOOT, and its colour is
+              // the tile's state.** It was a caption floating above the
+              // rewards in one of three inks, which asks the eye to compare
+              // text colours across seven tiles to work out where in the week
+              // it is. A filled band is read as a block, at a glance, from a
+              // foot away — which is the distance this strip is actually
+              // looked at from.
+              _DayBand(
+                day: day,
+                label: now && !claimedToday
+                    ? t('daily.today')
+                    : t('daily.day', {'n': day}),
+                fill: now
+                    ? kit.accent
+                    : grand
+                    ? _grandInk
+                    : banked
+                    ? kit.accent.withValues(alpha: 0.35)
+                    : kit.surface2,
+                ink: now
+                    ? kit.accentInk
+                    : grand
+                    ? const Color(0xFF4A2C00)
+                    : banked
+                    ? kit.accentBright
+                    : kit.textMuted,
               ),
             ],
           ),
@@ -429,6 +519,36 @@ class _CycleStrip extends StatelessWidget {
   }
 }
 
+/// The filled strip along the foot of a day, carrying its name.
+class _DayBand extends StatelessWidget {
+  const _DayBand({
+    required this.day,
+    required this.label,
+    required this.fill,
+    required this.ink,
+  });
+
+  final int day;
+  final String label;
+  final Color fill;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: ValueKey('daily-band-$day'),
+    width: double.infinity,
+    color: fill,
+    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        style: TextStyle(color: ink, fontSize: 11, fontWeight: FontWeight.w900),
+      ),
+    ),
+  );
+}
+
 /// One box per reward, inside a day of the strip.
 ///
 /// **A BOX EACH, not one run of text.** The rewards were joined with middots
@@ -437,12 +557,21 @@ class _CycleStrip extends StatelessWidget {
 /// small pills. Each one is its wallet's own colour, which is the same coding
 /// the HUD uses: gold is money, violet is energy, cyan is gems.
 class _RewardChips extends StatelessWidget {
-  const _RewardChips({required this.reward, required this.today});
+  const _RewardChips({
+    required this.reward,
+    required this.today,
+    this.scale = 1,
+  });
 
   final DailyRewardPreview reward;
 
   /// Today's tile draws its figures heavier — it is the one being claimed.
   final bool today;
+
+  /// The grand prize's tile is taller and wider than the six beside it, so its
+  /// chips are drawn up to match. A multiplier rather than a second size table:
+  /// there is one chip in this sheet and it is drawn at two sizes.
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
@@ -452,9 +581,12 @@ class _RewardChips extends StatelessWidget {
       children: [
         for (final part in dayRewardParts(reward))
           Padding(
-            padding: const EdgeInsets.only(top: 3),
+            padding: EdgeInsets.only(top: 3 * scale),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              padding: EdgeInsets.symmetric(
+                horizontal: 5 * scale,
+                vertical: 2 * scale,
+              ),
               decoration: BoxDecoration(
                 // A wash of the wallet's own hue rather than a second grey: the
                 // tile behind it is already a surface, and a box that is only a
@@ -472,13 +604,13 @@ class _RewardChips extends StatelessWidget {
                     // The app's own coin, bolt and gem — the money was an emoji
                     // money-bag, which is the one glyph in the game that was not
                     // drawn in the set everything else is drawn in.
-                    GameIcon(name, size: 10, color: part.ink),
-                    const SizedBox(width: 3),
+                    GameIcon(name, size: 10 * scale, color: part.ink),
+                    SizedBox(width: 3 * scale),
                   ],
                   Text(
                     part.text,
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 10.5 * scale,
                       height: 1.1,
                       color: part.ink,
                       fontWeight: today ? FontWeight.w900 : FontWeight.w700,
