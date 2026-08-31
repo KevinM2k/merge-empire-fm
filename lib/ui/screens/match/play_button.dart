@@ -244,7 +244,26 @@ class PlayMatchButton extends ConsumerWidget {
           fast: _fast(ref),
           // Full time, with the screen still up: commit the outcome so the
           // table and the season move on.
-          onFinished: (r) => game.update((s) => settleMatch(s, r)),
+          //
+          // **AND `match:complete`, WHICH NOTHING HAD EVER EMITTED.**
+          // `match_orchestration.dart` says the UI fires it at full time and
+          // deliberately does not fire it at kick-off, and then no screen ever
+          // did — so `game_host`'s subscription was a dead letter and a
+          // finished match never reached the leaderboard. Every score a player
+          // put on a global board came from the four writes that never ran.
+          // The achievement sweep in `game_wiring` hangs off the same event.
+          //
+          // AFTER `settleMatch`, not before, and that ordering is the whole
+          // point of emitting here rather than in `MatchScreen`: an in-match
+          // tactic change re-simulates the remainder and rewrites `won`,
+          // `drawn` and the scoreline in place, and `finalizeMatchOutcome` is
+          // what settles them. Emitted a line earlier, the board would take
+          // the score as it stood at kick-off and an achievement would be
+          // judged on a match that did not happen.
+          onFinished: (r) {
+            game.update((s) => settleMatch(s, r));
+            emit('match:complete', r);
+          },
           onLeave: (ctx) => summary = Navigator.of(
             ctx,
           ).pushReplacement<void, void>(matchSummaryRoute(result)),
@@ -315,6 +334,17 @@ class PlayMatchButton extends ConsumerWidget {
         builder: (_) => MatchScreen(
           result: tie.result,
           fast: _fast(ref),
+          // **NO `match:complete` HERE, and that is a decision rather than an
+          // oversight.** A cup tie's result map carries the CUP's id in
+          // `divisionId` (see `cup_launcher.dart`), and that field is what
+          // `leaderboardRowMeta` writes to the row's `division` — the very
+          // field the division-scoped boards filter on. A tie emitted here
+          // would move the player onto a board named after a cup until their
+          // next league match moved them back. Whether the JS counts cup ties
+          // at all could not be checked from a cloud container, so the
+          // narrower behaviour is the one that ships: league fixtures score,
+          // and the question is written down in `docs/REMAINING.md` rather
+          // than guessed at here.
           onFinished: (_) => drop = game.update((s) => settleCupRound(s, tie)),
         ),
       ),
