@@ -409,7 +409,18 @@ class _Tooltip extends ConsumerWidget {
     ],
     // **A LINK, NOT A BUTTON.** Leaving the tutorial and getting on with it are
     // not two answers of equal weight — see [CoachCardFrame.footer].
-    footer: CoachAction(labelKey: 'tut.skip', onTap: onSkip),
+    //
+    // **AND IT DOES NOT DISMISS, because there is nothing to dismiss.** This
+    // card is drawn on the host's own tree rather than pushed as a route, so
+    // the default `dismisses: true` popped the nearest Navigator — which is the
+    // APP's. Skipping from a spotlight step took the game's own route off the
+    // stack and left a black screen; reported from the couch in one line. What
+    // takes this card down is the script ending, which `onSkip` does.
+    footer: CoachAction(
+      labelKey: 'tut.skip',
+      onTap: onSkip,
+      dismisses: false,
+    ),
   );
 }
 

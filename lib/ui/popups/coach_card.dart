@@ -413,6 +413,12 @@ class CoachAction {
 
   /// Whether pressing it closes the card.
   ///
+  /// **Only a card that is a ROUTE may say yes.** Closing is
+  /// `Navigator.pop`, so on a card drawn inline — the tutorial's spotlight
+  /// steps are the one place that does it, because a route would cover the
+  /// control being taught — this pops whatever route is actually there, which
+  /// is the app's own. That is a black screen, and it is what it did.
+  ///
   /// Almost always yes — an answer given is an answer, and the card goes. False
   /// is for a card the player can get WRONG: one carrying a name to validate
   /// keeps its own card up so the error has somewhere to appear, and pops itself

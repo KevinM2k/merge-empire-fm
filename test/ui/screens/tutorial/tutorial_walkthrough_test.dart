@@ -32,6 +32,9 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
+import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart'
+    show tutorialInputSeal, tutorialPopupBlocker;
+import 'package:merge_empire_fc/ui/shell/tab_bar.dart' show ShellTabBar;
 import 'package:merge_empire_fc/util/popup_queue.dart';
 
 /// The app never settles — the diorama, the coach's ring and the pitch are all
@@ -306,5 +309,77 @@ void main() {
     // earned finally opens rather than being stranded.
     expect(arePopupsBlocked(), isFalse);
     await beat(tester);
+  });
+
+  /// **AND A PLAYER WHO SKIPS IT GETS THE GAME, not a black screen.**
+  ///
+  /// Reported from the couch: pressing Skip on the first card left the screen
+  /// black. The link is the one control on the tutorial that ends the script
+  /// from the outside, so nothing downstream of it has a step to hang the
+  /// cleanup on.
+  testWidgets('AND SKIP HANDS THE GAME BACK', (tester) async {
+    tester.view.physicalSize = const Size(420, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    late ProviderContainer container;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          saveStoreProvider.overrideWithValue(
+            MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
+          ),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            container = ProviderScope.containerOf(context);
+            return const MergeEmpireApp();
+          },
+        ),
+      ),
+    );
+    await until(
+      tester,
+      () => find.text(t('tut.welcome.title')).evaluate().isNotEmpty,
+      reason: 'the welcome card never opened',
+    );
+
+    // **From a SPOTLIGHT step, which is where it broke.** That card is drawn on
+    // the host's own tree rather than pushed as a route — a route would cover
+    // the control the step is pointing at — so the footer's default
+    // `dismisses` popped the nearest Navigator, which is the APP's. The screen
+    // that was left is the black one that was reported.
+    await tester.tap(
+      find.byKey(const ValueKey('coach-action-tut.welcome.btn')),
+    );
+    await until(
+      tester,
+      () => find.byKey(const ValueKey('tutorial-hand')).evaluate().isNotEmpty,
+      reason: 'the scout step never opened',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('coach-footer-tut.skip')));
+    await until(
+      tester,
+      () => tutorialOf(container)['done'] == true,
+      reason: 'skip did not end the script',
+    );
+    await beat(tester);
+
+    // Nothing of the tutorial is left on the screen: not the card, not the
+    // input seal, not the spotlight's dim — which with no hole to cut is a
+    // full-screen 72% black, and is the black screen that was reported.
+    expect(find.byKey(const ValueKey('coach-card')), findsNothing);
+    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsNothing);
+    expect(find.byKey(const ValueKey('tutorial-spotlight')), findsNothing);
+    // And the game is there and pressable.
+    expect(find.byType(ShellTabBar), findsOneWidget);
+    // **And the queue is handed back**, or the daily reward the player has
+    // earned is stranded for the rest of the process.
+    expect(
+      isPopupBlockedBy(tutorialPopupBlocker),
+      isFalse,
+      reason: 'the script ended still holding the popup queue',
+    );
   });
 }
