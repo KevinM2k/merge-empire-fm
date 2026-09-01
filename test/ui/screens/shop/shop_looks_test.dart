@@ -392,7 +392,13 @@ void main() {
     final b = tester.getRect(
       find.text(lookItemLabel(second.first, second.last)),
     );
-    expect(a.center.dy, closeTo(b.center.dy, 1), reason: 'still a column');
+    // **THE TOPS, not the centres.** A name is wrapped by its own 64pt chip
+    // rather than by the sheet — "Celebration" fills the chip and takes two
+    // lines where "Cap" takes one — so two chips side by side legitimately
+    // hold labels of different HEIGHTS, and their centres are then a line
+    // apart however wide the sheet is. The top edge is where "across, not
+    // down" actually lives.
+    expect(a.top, closeTo(b.top, 1), reason: 'still a column');
     expect(b.center.dx, greaterThan(a.center.dx));
 
     // And the name is UNDER its own picture rather than beside it.

@@ -415,169 +415,181 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              // **THE MONEY SITS WITH THE BUTTON THAT CHANGES IT.** The
-              // figure was at the top of the scroll and the offer to double it
-              // at the foot, which is one decision split across a page — the
-              // player had to remember a number to understand the button. It
-              // is the same `_Payout`, moved, and the strike-through it draws
-              // while the video runs is now a hand's width from the control
-              // that started it.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // **THE MONEY GETS A SURFACE, like everything else here.**
-                    // It was the one figure on the report drawn straight onto
-                    // the sky, directly under a column of panels — so the
-                    // biggest number on the screen read as a caption.
-                    // **THE BUTTON GOES INSIDE THE CARD.** The offer and the
-                    // figure it changes were a panel with a button sitting
-                    // under it, which is two objects for one decision — the
-                    // card says what you have and the button says what it
-                    // could be, so they are the same thing. Asked for
-                    // directly, and "No thanks" stays outside and at the
-                    // bottom, on its own.
-                    if (_base + _quests > 0 || canDouble)
-                      GlassPanel(
-                                                key: const ValueKey('summary-payout-card'),
-                        // **MORE ROOM UNDER THE BUTTON than over the figure.**
-                        // Ten and ten put the rewarded-video control hard
-                        // against the card's bottom edge, which on the one
-                        // control here that costs the player something reads as
-                        // the card having been cut off. Asked for directly.
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_base + _quests > 0)
-                              _Payout(
-                                base: _base,
-                                quests: _quests,
-                                doubled: canDouble && _answering,
-                              ),
-                            if (canDouble) ...[
-                              const SizedBox(height: 10),
-                              // **THE SHOP'S OWN BUTTON, in the ad tone.** It
-                              // was a bespoke `ElevatedButton` painted gold by
-                              // hand, on a game whose rule is one button and
-                              // four colours where the colour answers "what
-                              // does this cost me?". A rewarded video is
-                              // yellow and wears the video chip, here as it
-                              // does on the energy sheet and the free shelf.
-                              // Rebuilt off the tally so the figure on the face
-                              // climbs — see [_tally]. `AnimatedBuilder` rather
-                              // than `setState` on every tick, so nothing else
-                              // on the report rebuilds sixty times a second.
-                              AnimatedBuilder(
-                                animation: _tally,
-                                builder: (context, _) {
-                                  final single = _base + _quests;
-                                  final both = single * 2;
-                                  final climbing =
-                                      _tallying || _tally.value > 0;
-                                  final shown = climbing
-                                      ? (single +
-                                              (both - single) *
-                                                  Curves.easeOutCubic.transform(
-                                                    _tally.value,
-                                                  ))
-                                          .round()
-                                      : both;
-                                  return StoreButton(
-                                    key: const ValueKey('summary-double'),
-                                    tone: StoreTone.ad,
-                                    // While it climbs the label is the figure
-                                    // and nothing else: the offer has been
-                                    // taken, so "2× Coins" is a description of
-                                    // something that already happened.
-                                    label: climbing
-                                        ? formatCoins(shown)
-                                        : _answering
-                                        ? t('common.loading')
-                                        : '${t('match.double_reward')} → '
-                                              '${formatCoins(both)}',
-                                    leading: climbing
-                                        ? const CoinIcon(size: 14, solid: true)
-                                        : _answering
-                                        ? null
-                                        : const GameIcon('video', size: 14),
-                                    // Dead for the whole of it: the answer is
-                                    // in and the screen is on its way out.
-                                    onTap: _answering ? null : _double,
-                                  );
-                                },
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    // **TWO, not eight.** The card already ends in fourteen of
-                    // its own padding and the text button brings its own; eight
-                    // more here was the widest seam on the page, under the one
-                    // control the eye is meant to fall straight onto.
-                    const SizedBox(height: 2),
-                    canDouble
-                    ? Column(
+                    // **THE MONEY SITS WITH THE BUTTON THAT CHANGES IT.** The
+                    // figure was at the top of the scroll and the offer to
+                    // double it at the foot, which is one decision split across
+                    // a page — the player had to remember a number to
+                    // understand the button.
+                    //
+                    // **AND IT SCROLLS WITH THE REST NOW.** It was pinned under
+                    // the scroll, which buys nothing on a report built to fit
+                    // one screen and costs a hole: a defeat with a short table
+                    // left a hand's width of empty sky between the quest panel
+                    // and the money. Asked for from the couch — it is fine for
+                    // it to scroll. `ReportScroll` centres a short report, so
+                    // the block travels with what it is reporting on.
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 4),
+                      child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // **Stripped to TEXT, not a quieter button.** Two
-                          // buttons stacked read as a choice between two offers,
-                          // and a muted one still invites a press. This is the
-                          // decline, so it looks like walking away.
-                          TextButton(
-                            key: const ValueKey('summary-no-thanks'),
-                            onPressed: _answering
-                                ? null
-                                : () => Navigator.of(context).pop(),
-                            style: TextButton.styleFrom(
-                              foregroundColor: kit.textMuted,
-                              visualDensity: VisualDensity.compact,
-                              minimumSize: const Size(0, 32),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
+                          // **THE MONEY GETS A SURFACE, like everything else here.**
+                          // It was the one figure on the report drawn straight onto
+                          // the sky, directly under a column of panels — so the
+                          // biggest number on the screen read as a caption.
+                          // **THE BUTTON GOES INSIDE THE CARD.** The offer and the
+                          // figure it changes were a panel with a button sitting
+                          // under it, which is two objects for one decision — the
+                          // card says what you have and the button says what it
+                          // could be, so they are the same thing. Asked for
+                          // directly, and "No thanks" stays outside and at the
+                          // bottom, on its own.
+                          if (_base + _quests > 0 || canDouble)
+                            GlassPanel(
+                                                      key: const ValueKey('summary-payout-card'),
+                              // **MORE ROOM UNDER THE BUTTON than over the figure.**
+                              // Ten and ten put the rewarded-video control hard
+                              // against the card's bottom edge, which on the one
+                              // control here that costs the player something reads as
+                              // the card having been cut off. Asked for directly.
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_base + _quests > 0)
+                                    _Payout(
+                                      base: _base,
+                                      quests: _quests,
+                                      hasQuests: hasQuests,
+                                      doubled: canDouble && _answering,
+                                    ),
+                                  if (canDouble) ...[
+                                    const SizedBox(height: 10),
+                                    // **THE SHOP'S OWN BUTTON, in the ad tone.** It
+                                    // was a bespoke `ElevatedButton` painted gold by
+                                    // hand, on a game whose rule is one button and
+                                    // four colours where the colour answers "what
+                                    // does this cost me?". A rewarded video is
+                                    // yellow and wears the video chip, here as it
+                                    // does on the energy sheet and the free shelf.
+                                    // Rebuilt off the tally so the figure on the face
+                                    // climbs — see [_tally]. `AnimatedBuilder` rather
+                                    // than `setState` on every tick, so nothing else
+                                    // on the report rebuilds sixty times a second.
+                                    AnimatedBuilder(
+                                      animation: _tally,
+                                      builder: (context, _) {
+                                        final single = _base + _quests;
+                                        final both = single * 2;
+                                        final climbing =
+                                            _tallying || _tally.value > 0;
+                                        final shown = climbing
+                                            ? (single +
+                                                    (both - single) *
+                                                        Curves.easeOutCubic.transform(
+                                                          _tally.value,
+                                                        ))
+                                                .round()
+                                            : both;
+                                        return StoreButton(
+                                          key: const ValueKey('summary-double'),
+                                          tone: StoreTone.ad,
+                                          // While it climbs the label is the figure
+                                          // and nothing else: the offer has been
+                                          // taken, so "2× Coins" is a description of
+                                          // something that already happened.
+                                          label: climbing
+                                              ? formatCoins(shown)
+                                              : _answering
+                                              ? t('common.loading')
+                                              : '${t('match.double_reward')} → '
+                                                    '${formatCoins(both)}',
+                                          leading: climbing
+                                              ? const CoinIcon(size: 14, solid: true)
+                                              : _answering
+                                              ? null
+                                              : const GameIcon('video', size: 14),
+                                          // Dead for the whole of it: the answer is
+                                          // in and the screen is on its way out.
+                                          onTap: _answering ? null : _double,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
-                            // **BOTH FIGURES ARE WHAT YOU WALK AWAY WITH**,
-                            // and the quest money is part of both. The link
-                            // said `_base` — the match fee alone — while the
-                            // player was actually leaving with the fee plus
-                            // whatever the three quests paid at the whistle, so
-                            // the one line naming the outcome of declining
-                            // understated it. Totals on both sides also make
-                            // the two answers comparable: the difference
-                            // between them is exactly what the video is worth.
-                            // **A FIGURE IN THIS GAME COMES WITH THE GLYPH.**
-                            // Every other coin total on the report wears one
-                            // and this line did not, so the one number the
-                            // player is comparing against the button above it
-                            // was the one that did not say what it was counted
-                            // in. Asked for from the couch, and consistency is
-                            // the whole of the reason.
-                            child: Row(
+                        ],
+                      ),
+                    ),
+                    // **AND SO DOES THE WAY OUT.** It was pinned on its own
+                    // for a while — unpinning the payout had put "No Thanks" at
+                    // 673 on a 600-point screen. Asked for anyway: it does not
+                    // need to be fixed either. So the page is one scroll from
+                    // the scoreline to the decline, and a phone short enough to
+                    // cut the link off is a phone the player scrolls.
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, bottom: 6),
+                      child:
+                          canDouble
+                          ? Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('${t('match.no_thanks')} - '),
-                                const CoinIcon(size: 12, onGlass: true),
-                                const SizedBox(width: 3),
-                                Text(formatCoins(_base + _quests)),
+                                // **Stripped to TEXT, not a quieter button.** Two
+                                // buttons stacked read as a choice between two offers,
+                                // and a muted one still invites a press. This is the
+                                // decline, so it looks like walking away.
+                                TextButton(
+                                  key: const ValueKey('summary-no-thanks'),
+                                  onPressed: _answering
+                                      ? null
+                                      : () => Navigator.of(context).pop(),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: kit.textMuted,
+                                    visualDensity: VisualDensity.compact,
+                                    minimumSize: const Size(0, 32),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                  ),
+                                  // **BOTH FIGURES ARE WHAT YOU WALK AWAY WITH**,
+                                  // and the quest money is part of both. The link
+                                  // said `_base` — the match fee alone — while the
+                                  // player was actually leaving with the fee plus
+                                  // whatever the three quests paid at the whistle, so
+                                  // the one line naming the outcome of declining
+                                  // understated it. Totals on both sides also make
+                                  // the two answers comparable: the difference
+                                  // between them is exactly what the video is worth.
+                                  // **A FIGURE IN THIS GAME COMES WITH THE GLYPH.**
+                                  // Every other coin total on the report wears one
+                                  // and this line did not, so the one number the
+                                  // player is comparing against the button above it
+                                  // was the one that did not say what it was counted
+                                  // in. Asked for from the couch, and consistency is
+                                  // the whole of the reason.
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('${t('match.no_thanks')} - '),
+                                      const CoinIcon(size: 12, onGlass: true),
+                                      const SizedBox(width: 3),
+                                      Text(formatCoins(_base + _quests)),
+                                    ],
+                                  ),
+                                ),
                               ],
+                            )
+                          : SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                key: const ValueKey('summary-continue'),
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text(t('common.continue')),
+                              ),
                             ),
-                          ),
-                        ],
-                      )
-                    : SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          key: const ValueKey('summary-continue'),
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: Text(t('common.continue')),
-                        ),
-                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1146,6 +1158,7 @@ class _Payout extends StatelessWidget {
   const _Payout({
     required this.base,
     required this.quests,
+    required this.hasQuests,
     required this.doubled,
   });
 
@@ -1154,6 +1167,13 @@ class _Payout extends StatelessWidget {
   /// What the three match quests paid — already in the bank, and doubled by the
   /// same offer the fee is.
   final int quests;
+
+  /// Whether the match had a quest TRACK, which is not the same as the track
+  /// having paid. A defeat that missed all three is exactly the match whose
+  /// total most needs breaking down — the split is the answer to "why only
+  /// ten?" — so the rows follow the track's existence, not its takings.
+  final bool hasQuests;
+
   final bool doubled;
 
   @override
@@ -1213,13 +1233,42 @@ class _Payout extends StatelessWidget {
             ),
           ],
         ),
-        // **NO BREAKDOWN OF THE FIGURE, and that is a consequence rather than
-        // a choice.** There was one — a fee row with a `×2` chip and a quest row
-        // without, because the offer used to double only the fee. Now that it
-        // doubles both there is no split left to explain, and two rows restating
-        // a total they add up to is clutter on a card that already carries a
-        // teaser and a button. Asked for from the couch in exactly that order:
-        // make 2× cover both, then drop the ×2.
+        // **THE FIGURE IS TWO THINGS, so it says which.** The breakdown came
+        // off when `2×` stopped applying to the fee alone: with no split left
+        // in the OFFER, two rows adding up to the total above them looked like
+        // clutter. What that missed is that the split is not about the offer —
+        // a player who has just won 900 for the result and 300 off the quests
+        // reads one gold `+1,200` and cannot tell which part the ninety minutes
+        // earned. Asked for back in exactly those terms.
+        //
+        // Only when there are genuinely two parts: a row restating a total it
+        // is the whole of is the clutter the removal was right about. And the
+        // rows follow the offer — `2×` covers both now, so both double.
+        //
+        // **A MISSED TRACK STILL GETS ITS ROW, and that was the bug in the
+        // first cut of this.** The condition was `quests > 0`, so the one
+        // result that most needs explaining — a defeat, ten coins, all three
+        // quests missed — was the one that showed no breakdown at all.
+        // Reported from a live save with that exact screen.
+        if (hasQuests) ...[
+          const SizedBox(height: 8),
+          _Split(
+            // **THE SAME WORDS WHATEVER HAPPENED.** This read the verdict —
+            // "Won", "Drew", "Lost" — which says a third time what the banner
+            // and the scoreline above it have already said, and makes the two
+            // rows a mismatched pair: one named after an outcome, one after a
+            // thing. `play.match_prizes` is what the Play screen calls this
+            // money before the match is played, so it is the same purse under
+            // the same name at both ends. Asked for from the couch: something
+            // that does not change on a defeat.
+            label: t('play.match_prizes'),
+            amount: doubled ? base * 2 : base,
+          ),
+          _Split(
+            label: t('quests.match'),
+            amount: doubled ? quests * 2 : quests,
+          ),
+        ],
         // The teaser is about an offer, so it goes when there is no offer to
         // make: a match that paid no fee still shows its quest money, and
         // "watch to keep 2× coins" under a figure nothing can double is a
@@ -1233,6 +1282,44 @@ class _Payout extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// One half of the payout, named.
+///
+/// Muted and small against the gold total above it: this is the working, and
+/// the answer is the figure it sits under. The amount is tabular so the two
+/// rows' digits line up under each other rather than drifting by a comma.
+class _Split extends StatelessWidget {
+  const _Split({required this.label, required this.amount});
+
+  final String label;
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: glassMuted(context),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        key: ValueKey('summary-split-$label'),
+        children: [
+          Expanded(child: Text(label, style: style)),
+          const SizedBox(width: 8),
+          Text(
+            '+${formatCoins(amount)}',
+            style: style.copyWith(
+              color: glassText(context),
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

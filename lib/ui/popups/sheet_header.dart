@@ -34,13 +34,25 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
+/// The air a sheet's heading sits in: clear of the drag handle above it and
+/// off the content below.
+///
+/// **Thirteen call sites each passed their own**, so the gap between the handle
+/// and the title was a different size on every sheet in the game — the league
+/// table's 8 had the division name almost touching the grabber while the
+/// quests' zero left the parent to decide. Reported from the couch asking for
+/// consistency across the table, the trophies and the quests. A sheet whose
+/// parent already pays the gap still passes `EdgeInsets.zero`; what this stops
+/// is a caller inventing a THIRD number.
+const EdgeInsets sheetHeaderPadding = EdgeInsets.fromLTRB(16, 16, 16, 10);
+
 class SheetHeader extends StatelessWidget {
   const SheetHeader({
     super.key,
     required this.title,
     this.subtitle,
     this.trailing,
-    this.padding = const EdgeInsets.fromLTRB(16, 16, 16, 10),
+    this.padding = sheetHeaderPadding,
   });
 
   /// As the catalogue writes it. Upper-cased here rather than in the string, so

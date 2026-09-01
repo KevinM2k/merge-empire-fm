@@ -44,6 +44,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -269,9 +270,13 @@ const double coachTailTipX = 1.5;
 
 
 /// His name over the line, in the one size and weight both bubbles use.
+///
+/// Eleven, which is what the club's asset hints and the match quests are set
+/// in — reported from the couch as the coach's type reading smaller than the
+/// rest. His LINE is 13 and always was; this is the name above it.
 TextStyle coachLabelStyle(BuildContext context) => TextStyle(
   color: Theme.of(context).extension<KitTheme>()!.accentBright,
-  fontSize: 10,
+  fontSize: 11,
   fontWeight: FontWeight.w800,
   letterSpacing: 0.5,
 );
@@ -1355,10 +1360,17 @@ class CoachCardFrame extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         text,
-                        textAlign: TextAlign.center,
+                        // **LEFT, not centred.** Colin's cards are two or
+                        // three lines of him TALKING, and centred prose gives
+                        // every line a different left edge — the eye has to
+                        // find where the next one starts. Centring is for a
+                        // heading or a single line; this is neither. Asked for
+                        // from the couch.
+                        textAlign: TextAlign.start,
+                        // The card's body, at the 13 his bubble already uses.
                         style: TextStyle(
                           color: kit.textMuted,
-                          fontSize: 12,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -1368,15 +1380,19 @@ class CoachCardFrame extends StatelessWidget {
                       child: Text(
                         t(line.key, line.params),
                         key: ValueKey('coach-line-${line.key}'),
-                        textAlign: TextAlign.center,
+                        // Left, with the body above it — see the note there.
+                        textAlign: TextAlign.start,
                         style: TextStyle(
                           color: line.strong
                               ? kit.accentBright
                               : kit.textMuted,
-                          fontSize: line.strong ? 15 : 12,
+                          fontSize: line.strong ? 15 : 13,
+                          // The quiet half of the pair is still at the app's
+                          // floor — it was `w400`, which is the one weight the
+                          // bundled face does not have.
                           fontWeight: line.strong
                               ? FontWeight.w900
-                              : FontWeight.w400,
+                              : uiBaseWeight,
                         ),
                       ),
                     ),
@@ -1403,9 +1419,9 @@ class CoachCardFrame extends StatelessWidget {
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: kit.textMuted,
-                    textStyle: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                    textStyle: controlTextStyle(
+                      size: 12.5,
+                      weight: FontWeight.w700,
                       decoration: TextDecoration.underline,
                     ),
                   ),
@@ -1498,9 +1514,7 @@ class _CoachButton extends StatelessWidget {
         padding: const WidgetStatePropertyAll(
           EdgeInsets.symmetric(vertical: 12, horizontal: 10),
         ),
-        textStyle: const WidgetStatePropertyAll(
-          TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
-        ),
+        textStyle: WidgetStatePropertyAll(controlTextStyle(size: 13.5)),
       ),
       child: action.coins == null
           ? Text(

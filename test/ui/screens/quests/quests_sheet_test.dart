@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
@@ -235,28 +236,40 @@ void main() {
       expect(find.textContaining('$coins'), findsNothing);
     });
 
-    /// **THE CHIP PAINTS ITS OWN DARK PLATE, so it takes the DARK theme's
-    /// gold.** It used to ask `coinFigureInk`, which answers the deep bronze
-    /// `gameGoldLight` on a light page — a shade that exists for gold on WHITE.
-    /// On the charcoal plate this chip draws for itself that is brown on
-    /// near-black, which is what the playtest reported.
-    testWidgets('and the figure is GOLD on the plate, not bronze', (
+    /// **THE CHIP IS THE WALLET'S OWN FACE, printed in a tint of it.**
+    ///
+    /// It used to paint itself a charcoal plate and print bright gold on that
+    /// — the scoreboard answer to "yellow on yellow in light mode". The HUD
+    /// settled the same question the other way and every other chip in the
+    /// game followed: fill in the wallet's colour, print in `hudBadgeInk`.
+    /// Reported from the couch as the season quests still doing it the old
+    /// way. What the test pins is the RELATIONSHIP — the print has to clear
+    /// the face it is on — rather than either literal.
+    testWidgets('and the figure is a tint of the wallet it names', (
       tester,
     ) async {
       await pumpShell(tester, saveWithQuests());
       await openQuests(tester);
+      final chip = find.byKey(const ValueKey('quests-track-coins'));
       final ink = tester
           .widgetList<Text>(
-            find.descendant(
-              of: find.byKey(const ValueKey('quests-track-coins')),
-              matching: find.byType(Text),
-            ),
+            find.descendant(of: chip, matching: find.byType(Text)),
           )
           .single
           .style!
           .color;
-      expect(ink, gameGold);
+      final face = hudBadgeColour(gameGold);
+      expect(ink, hudBadgeInk(face));
+      // The old treatment, and the bronze that made it necessary — neither is
+      // what this chip wears now.
+      expect(ink, isNot(gameGold));
       expect(ink, isNot(gameGoldLight));
+      final plate = tester
+          .widgetList<Container>(
+            find.descendant(of: chip, matching: find.byType(Container)),
+          )
+          .first;
+      expect((plate.decoration! as BoxDecoration).color, face);
     });
 
     testWidgets('and a division that has already paid its gem stops offering '

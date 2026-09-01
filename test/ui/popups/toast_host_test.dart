@@ -70,9 +70,14 @@ void main() {
       // The hint that follows is `settings.difficulty.hint` for the same
       // reason — `prestige.body_pro_hint` opens with "Or prestige into Pro
       // Mode", which is no longer the route.
+      //
+      // And it ASKS for the league rather than reporting it won: the caption
+      // `champ.subtitle` is written for the moment after — see
+      // [proLockedAnswer].
       final toast = toastFor('prestige:locked', null)!;
       expect(toast.text, startsWith(proLockedAnswer()));
-      expect(toast.text, contains(t('champ.subtitle')));
+      expect(toast.text, contains(t('division.champions_cup')));
+      expect(toast.text, isNot(contains(t('champ.subtitle'))));
       expect(toast.text, isNot(contains(t('ach.desc.prestige_level_1'))));
       expect(toast.text, contains(t('settings.difficulty.hint')));
       expect(toast.good, isFalse);

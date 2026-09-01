@@ -166,12 +166,21 @@ void main() {
     await tester.pumpAndSettle();
 
     // The report, then out of it — and NOTHING else is pressed after this.
+    //
+    // **SCROLLED TO, because the whole report scrolls now.** The payout and
+    // the decline used to be pinned under the scroll; on a report built to fit
+    // one screen that bought nothing and left a hole above the money, so both
+    // went into it. The link is then below the fold on a 600-point test
+    // viewport — which is what a player on a short phone sees too, and they
+    // scroll. `warnIfMissed` is the thing that catches this going wrong.
     final out = find.byKey(const ValueKey('summary-no-thanks'));
     expect(
       out,
       findsOneWidget,
       reason: 'full time should be showing the report',
     );
+    await tester.scrollUntilVisible(out, 120);
+    await tester.pumpAndSettle();
     await tester.tap(out);
     await tester.pumpAndSettle();
     // **WAIT FOR THE SCREEN, not for a number of milliseconds.** The chain

@@ -136,7 +136,12 @@ class _SkipAll extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: StoreButton(
         tone: StoreTone.ad,
-        small: true,
+        // **FULL SIZE, like every other rewarded-video control in the game.**
+        // `small: true` drew it at 11-point type in a short pill while the
+        // shop's ad buttons and the summary's 2× are 14 in a full one — so the
+        // one on the screen that actually clears the board looked like a
+        // footnote. Reported from the couch, naming the height and the font.
+        stretch: true,
         // `minigame.skip_all_left` is "{n} left" — the day's ledger, which the
         // player has no other way of seeing.
         label: skipsLeft > 0

@@ -67,14 +67,27 @@ double nextPrestigeMultiplier(Map<String, dynamic>? state) =>
 /// sentence, so this is the condition and not a paraphrase of it — see
 /// [proModeUnlocked].
 ///
-/// `champ.subtitle` is that condition in the game's own shipped words, in ten
-/// languages, and the padlock in front of it is what marks the sentence as the
-/// reason rather than a boast.
+/// **AND A TROPHY CAPTION IS NOT AN INSTRUCTION.** This read `champ.subtitle`
+/// — "Champions League Conquered" — which is the achievement's own celebration
+/// text, written for the moment AFTER it happens. Under a padlock it states a
+/// fact about somebody else's save: a new player has no reason to read it as
+/// something they are being asked to go and do. Reported in exactly those
+/// words.
+///
+/// `customise.locked.cup` is the game's own locked-until sentence — "Win the
+/// {cup} to unlock", the line every cup-gated manager look already wears — and
+/// `division.champions_cup` names the gate. Together they say what to do rather
+/// than what would then be true, and both are shipped in ten languages.
+///
+/// The mode is not named because there is only one to be in: Pro is what the
+/// padlock is on, so the league is won on Casual by definition.
 ///
 /// **No new key, and there could not be one** — the catalogues are generated
-/// from the JS's `en.js`, so a glyph and an existing string is the whole of the
+/// from the JS's `en.js`, so a glyph and existing strings are the whole of the
 /// budget. See CLAUDE.md.
-String proLockedAnswer() => '🔒 ${t('champ.subtitle')}';
+String proLockedAnswer() => '🔒 ${t('customise.locked.cup', {
+      'cup': t('division.champions_cup'),
+    })}';
 
 /// The multiplier as the copy wants it.
 ///

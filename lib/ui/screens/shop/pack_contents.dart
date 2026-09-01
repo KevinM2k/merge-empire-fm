@@ -135,6 +135,10 @@ class _Chip extends StatelessWidget {
   final PackItem item;
   final double size;
 
+  /// How much wider than tall. Enough for a five-figure count at the strip's
+  /// own type size, and not so much that a chip with no count reads as a bar.
+  static const double _wide = 1.32;
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(size * 0.26);
@@ -144,7 +148,12 @@ class _Chip extends StatelessWidget {
     // flat black, so the chip stays one object in one colour.
     final deep = Color.lerp(face, Colors.black, 0.34)!;
     return Container(
-      width: size,
+      // **WIDER THAN IT IS TALL.** A square chip is sized by the GLYPH and
+      // then asked to carry the count under it — and "20,000" in a box as wide
+      // as a coin icon is six characters shoulder to shoulder with the rim.
+      // Reported from the couch across all three shelves that use these.
+      // The height is untouched, so nothing on the tile moves down.
+      width: size * _wide,
       height: size,
       decoration: BoxDecoration(
         borderRadius: radius,

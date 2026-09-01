@@ -530,13 +530,21 @@ void main() {
       // **AND THE CONDITION IS THE CHAMPIONS LEAGUE.** It was "Prestige for
       // the first time", which answers a padlock with a word the game invented
       // for its own meta-loop: a player who has not met prestige learns
-      // nothing from being told to do one. `champ.subtitle` is the same
-      // achievement in the language of the game, and it is the gate itself —
-      // see `proModeUnlocked`.
+      // nothing from being told to do one. The gate itself is winning the
+      // league — see `proModeUnlocked`.
       expect(find.text(proLockedAnswer()), findsOne);
       expect(find.text(t('prestige.body_pro_hint')), findsNothing);
-      expect(proLockedAnswer(), contains(t('champ.subtitle')));
+      expect(proLockedAnswer(), contains(t('division.champions_cup')));
       expect(proLockedAnswer(), isNot(contains(t('ach.desc.prestige_level_1'))));
+      // **AND IT TELLS THEM TO GO AND DO IT.** `champ.subtitle` — "Champions
+      // League Conquered" — is the trophy's caption, written for the moment
+      // after; under a padlock it states a fact rather than asking for
+      // anything. `customise.locked.cup` is the game's own locked-until line.
+      expect(proLockedAnswer(), isNot(contains(t('champ.subtitle'))));
+      expect(
+        proLockedAnswer(),
+        contains(t('customise.locked.cup', {'cup': t('division.champions_cup')})),
+      );
       // **AND IT WEARS A PADLOCK.** A dead segment does not say it is locked,
       // and the note underneath is a sentence nobody reads until they have
       // worked out there is something to read about. Asked for directly.

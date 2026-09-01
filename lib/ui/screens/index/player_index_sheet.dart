@@ -16,6 +16,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,20 +168,17 @@ class _PlayerIndexViewState extends ConsumerState<PlayerIndexView> {
 
     return Padding(
       key: const ValueKey('player-index'),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            t('pi.title').toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-              color: kit.accentBright,
-            ),
-          ),
-          const SizedBox(height: 8),
+          // **THE SHEET'S OWN HEADING, not a label this screen invented.**
+          // Every other sheet in the game titles itself through [SheetHeader]
+          // — centred, 15/w900 in the club accent — and this one drew a
+          // left-aligned 11-point caption, so opening the index after the
+          // table or the quests read as a different kind of thing. Reported
+          // from the couch, asking for consistency.
+          SheetHeader(title: t('pi.title'), padding: sheetHeaderPadding),
           _FilterBar(
             filters: _filters,
             onChanged: (f) => setState(() => _filters = f),

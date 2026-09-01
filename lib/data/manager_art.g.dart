@@ -81,7 +81,7 @@ const Map<String, (String back, String front)> managerHair = {
 /// Facial hair, over the jaw.
 const Map<String, String> managerBeards = {
   'none': '',
-  'stubble': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M60.5 60.9 A12.5 12.5 0 0 0 74.25 51 C72.4 52.2 69.4 53.6 66 54 C63.4 54.4 61.4 57.4 60.5 60.9 Z" fill="#3a2a1c" opacity="0.42"/></svg>''',
+  'stubble': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M60.5 60.9 A12.5 12.5 0 0 0 74.25 51 C72.4 52.2 69.4 53.6 66 54 C63.4 54.4 61.4 57.4 60.5 60.9 Z" fill="#3a2a1c" opacity="0.72"/></svg>''',
   'moustache': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M74 52 C72.3 51.5 70.5 51.6 69.3 52.1 C68.4 52.5 68.1 53.2 68.7 53.7 C70.2 53.8 71.8 54 73.03 54.4 A12.5 12.5 0 0 0 74 52 Z" fill="#3a2a1c"/></svg>''',
   'goatee': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M73.1 54 C72.4 56.6 70.4 58.8 67.4 60 C66.6 60.4 65.8 60.6 65.2 60.6 C65.4 58 66.6 56 68.8 55.2 C70.2 54.6 71.8 54.2 73.1 54 Z" fill="#3a2a1c"/><path d="M74 52 C72.3 51.5 70.5 51.6 69.3 52.1 C68.4 52.5 68.1 53.2 68.7 53.7 C70.2 53.8 71.8 54 73.03 54.4 A12.5 12.5 0 0 0 74 52 Z" fill="#3a2a1c"/></svg>''',
   'beard': '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"><path d="M60.5 60.9 A12.5 12.5 0 0 0 74.25 51 C72.4 52.2 69.4 53.6 66 54 C63.4 54.4 61.4 57.4 60.5 60.9 Z" fill="#3a2a1c"/><path d="M74 52 C72.3 51.5 70.5 51.6 69.3 52.1 C68.4 52.5 68.1 53.2 68.7 53.7 C70.2 53.8 71.8 54 73.03 54.4 A12.5 12.5 0 0 0 74 52 Z" fill="#3a2a1c"/></svg>''',

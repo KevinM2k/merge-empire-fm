@@ -224,7 +224,7 @@ class SettingsRow extends StatelessWidget {
               child: Text(
                 note!,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   height: 1.5,
                   color: kit.textMuted,
                 ),
@@ -511,7 +511,7 @@ class SettingsAction extends StatelessWidget {
                   if (reason != null)
                     Text(
                       reason!,
-                      style: TextStyle(fontSize: 11, color: kit.textMuted),
+                      style: TextStyle(fontSize: 12, color: kit.textMuted),
                     ),
                 ],
               ),
@@ -615,7 +615,7 @@ class DangerRow extends StatelessWidget {
                   Text(
                     description,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       height: 1.4,
                       color: kit.textMuted,
                     ),

@@ -420,9 +420,13 @@ void main() {
       }
     });
 
-    testWidgets('the popular one is crowned and tagged', (tester) async {
+    testWidgets('the popular one is TAGGED, and wears no crown', (tester) async {
       await pumpShopWidget(tester, (_) {}, CoinPacksSection.new);
-      expect(find.text('👑'), findsOneWidget);
+      // **THE CROWN WENT.** The gold rim, the glow and the corner flash are
+      // three marks for one claim already; a 👑 in the opposite corner was a
+      // fourth, and an emoji on a shelf drawn in the app's own line art.
+      // Asked for from the couch.
+      expect(find.text('👑'), findsNothing);
       expect(
         find.byKey(const ValueKey('shop-badge-coins_medium')),
         findsOneWidget,

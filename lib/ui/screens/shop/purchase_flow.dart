@@ -247,14 +247,10 @@ class _ConfirmCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return AlertDialog(
-      key: ValueKey('spend-confirm-${offer.key}'),
-      backgroundColor: kit.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: kit.border),
-      ),
-      contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+    return _SpendDialog(
+      dialogKey: ValueKey('spend-confirm-${offer.key}'),
+      surface: kit.surface,
+      edge: kit.border,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -319,6 +315,74 @@ class _ConfirmCard extends StatelessWidget {
       ],
     );
   }
+}
+
+/// **A DIALOG THAT DOES NOT MEASURE WHAT IT IS GIVEN.**
+///
+/// `AlertDialog` wraps its column in an `IntrinsicWidth`, which asks the whole
+/// subtree for a DRY LAYOUT — and `LayoutBuilder` cannot answer one, by
+/// design: working it out would mean running the build callback speculatively.
+/// So an offer whose `body` contains one throws
+/// `_RenderLayoutBuilder does not support dry layout` mid-layout, the subtree
+/// never gets a size, and every ancestor then fails its own `hasSize` assert.
+/// On a device that is a grey screen and a wall of `!semantics.parentDataDirty`
+/// in the log; reported from the couch as a style pack going grey when tapped.
+///
+/// The pack sheet is exactly that case — `LookPreview` scales the rig off its
+/// own box, so it must have a `LayoutBuilder` — and it reached the dry pass
+/// through the `Wrap` the chips are laid out in. Nothing about it is wrong; the
+/// dialog asking arbitrary caller-supplied content for its intrinsic width is.
+///
+/// So the width is a NUMBER here rather than a measurement, and no ancestor of
+/// `offer.body` ever needs a dry layout. It also stops the next `body` from
+/// having to know any of this.
+class _SpendDialog extends StatelessWidget {
+  const _SpendDialog({
+    required this.dialogKey,
+    required this.surface,
+    required this.edge,
+    required this.content,
+    required this.actions,
+  });
+
+  final Key dialogKey;
+  final Color surface;
+  final Color edge;
+  final Widget content;
+
+  /// Laid out under the content in the same column, so the card is one box —
+  /// `AlertDialog` kept them in separate padding regions and the two had to
+  /// agree by hand.
+  final List<Widget> actions;
+
+  /// What `AlertDialog` would have measured its way to on every phone this
+  /// game runs on, give or take the odd point.
+  static const double _width = 300;
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+    key: dialogKey,
+    backgroundColor: surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(color: edge),
+    ),
+    child: ConstrainedBox(
+      // A phone narrower than the card still gets a card that fits, and the
+      // `Dialog`'s own 40pt of inset is already off the top of this.
+      constraints: const BoxConstraints(maxWidth: _width),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [content, const SizedBox(height: 20), ...actions],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _ReceiptCard extends StatelessWidget {

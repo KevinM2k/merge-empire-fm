@@ -270,19 +270,14 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
             ),
         ],
 
-        // **NO CLOSE BUTTON.** Tapping outside closes the sheet and so does
-        // the handle at the top, so a full-width button doing the same thing
-        // was a third control competing with the two that pay — and after a
-        // claim it was the ONLY thing left, which made a reward screen look
-        // like a dialog. Asked for directly. The line stays as a line: it is
-        // the sheet saying it is finished, not something to press.
-        const SizedBox(height: 12),
-        Text(
-          claim == null ? t('daily.close') : t('daily.tap_to_close'),
-          key: const ValueKey('daily-close'),
-          textAlign: TextAlign.center,
-          style: TextStyle(color: kit.textMuted, fontSize: 11),
-        ),
+        // **AND NO LINE ABOUT CLOSING IT EITHER.** The full-width button went
+        // first — tapping outside closes the sheet and so does the handle at
+        // the top, so it was a third control competing with the two that pay.
+        // The caption that replaced it is the same redundancy in smaller type:
+        // a sheet with a drag handle does not need to say it can be shut.
+        // Asked for from the couch. `daily.close` and `daily.tap_to_close` are
+        // now shipped copy with no caller, which is deliberate here rather
+        // than the tell it usually is.
       ],
     );
   }
@@ -466,17 +461,31 @@ class _CycleStrip extends StatelessWidget {
                     child: ExcludeSemantics(
                       child: Padding(
                         // The chips run to the tile's width now, so the tile
-                        // owns the gutter rather than each chip owning a margin.
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        child: Center(
-                          child: _RewardChips(
-                            reward: reward,
-                            today: now,
-                            // The grand prize has a tile half again as tall and
-                            // wider than the rest; chips at the strip's size in
-                            // it would be a big empty box with small print.
-                            scale: grand ? 1.25 : 1,
-                          ),
+                        // owns the gutter rather than each chip owning a
+                        // margin.
+                        //
+                        // **AND THE TOP AND BOTTOM ONES TOO.** The chips only
+                        // filled their slots once the strip went to fixed
+                        // slots, and with no vertical gutter the first and
+                        // last ran flush into the tile's own edges. Reported
+                        // from the couch: the buttons pushed right to the top
+                        // and bottom.
+                        padding: const EdgeInsets.fromLTRB(
+                          5,
+                          dailyChipGap / 2,
+                          5,
+                          dailyChipGap / 2,
+                        ),
+                        child: _RewardChips(
+                          reward: reward,
+                          today: now,
+                          // The grand prize has a tile half again as tall and
+                          // wider than the rest; chips at the strip's size in
+                          // it would be a big empty box with small print.
+                          scale: grand ? 1.25 : 1,
+                          // Two halves on a normal day, thirds on the one that
+                          // pays three wallets.
+                          slots: grand ? 3 : 2,
                         ),
                       ),
                     ),
@@ -586,10 +595,17 @@ class _DayBand extends StatelessWidget {
 /// the strip read as ragged; a stretched box of a fixed height makes the three
 /// wallets a column of equal rows, and the figure shrinks inside it rather
 /// than widening it.
+/// The air over the first chip, between each pair, and under the last — one
+/// number, because a strip whose outer gap is not its inner gap reads as the
+/// chips having been pushed up. Half is paid by the slot and half by the
+/// tile's gutter; see both call sites.
+const double dailyChipGap = 6;
+
 class _RewardChips extends StatelessWidget {
   const _RewardChips({
     required this.reward,
     required this.today,
+    required this.slots,
     this.scale = 1,
   });
 
@@ -603,18 +619,48 @@ class _RewardChips extends StatelessWidget {
   /// there is one chip in this sheet and it is drawn at two sizes.
   final double scale;
 
+  /// How many rows the tile is divided into, whatever it actually pays.
+  ///
+  /// **A DAY IS A FIXED NUMBER OF SLOTS, not a centred stack of what it
+  /// happens to pay.** The chips were `mainAxisSize.min` inside a `Center`, so
+  /// a coins-only day drew one pill halfway down the tile and a coins-and-
+  /// energy day drew two smaller ones higher up — six tiles in a row with
+  /// their wallets at five different heights. Asked for from the couch: split
+  /// the six in half, coin on top and energy under it, nothing in the bottom
+  /// half when there is no energy, and the grand prize in thirds because it
+  /// pays three.
+  final int slots;
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final parts = dayRewardParts(reward);
     return Column(
-      mainAxisSize: MainAxisSize.min,
       // Every chip the tile's full width, so the wallets stack as equal rows.
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final part in dayRewardParts(reward))
-          Padding(
-            padding: EdgeInsets.only(top: 3 * scale),
-            child: _chip(kit, part),
+        for (var i = 0; i < slots; i++)
+          Expanded(
+            child: Padding(
+              // **HALF A GAP EITHER SIDE OF EVERY SLOT, not a full one on top
+              // of all but the first.** The slots are equal and a padding only
+              // some of them carry comes out of the CHIP, so the boxes in one
+              // tile finished 3.7 points apart — which is the raggedness this
+              // strip exists to avoid, moved one level down.
+              //
+              // Half here and half from the tile's own gutter, so the gap over
+              // the first chip, the gaps between them and the gap under the
+              // last are all exactly [dailyChipGap]. Asked for from the couch:
+              // the same gap at the top as everywhere else. Unscaled, because
+              // the grand tile sits in the same row as the six and a gutter
+              // that grew with it would step at the seam.
+              padding: const EdgeInsets.symmetric(vertical: dailyChipGap / 2),
+              // An empty slot is empty rather than absent: it is what holds
+              // the row above it level with the tile beside it.
+              child: i < parts.length
+                  ? _chip(kit, parts[i])
+                  : const SizedBox.shrink(),
+            ),
           ),
       ],
     );
@@ -627,7 +673,8 @@ class _RewardChips extends StatelessWidget {
     final fill = part.ink == null ? kit.accent : hudBadgeColour(part.ink!);
     final ink = part.ink == null ? kit.accentInk : hudBadgeInk(fill);
     return Container(
-      height: 21 * scale,
+      // No height of its own any more — the slot is the height, which is what
+      // makes the boxes on two neighbouring tiles line up.
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 4 * scale),
       decoration: BoxDecoration(

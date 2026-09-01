@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/data/quests.dart' show getQuest;
 import 'package:merge_empire_fc/engine/quest_engine.dart';
@@ -251,7 +252,13 @@ class _TrackPrize extends ConsumerWidget {
             _RewardChip(
               key: const ValueKey('quests-track-gem'),
               icon: 'gem',
-              ink: const Color(0xFF7FD4FF),
+              // **THE HUD'S OWN GEM BLUE.** This was a hand-picked
+              // `0xFF7FD4FF`, which `hudBadgeColour` does not recognise — it
+              // maps the wallet hues by value — so the chip came back tinted
+              // in the literal rather than in the shop's `storeGemFace`, and
+              // the season's gem was a different blue from the one in the bar
+              // above it. Reported from the couch.
+              ink: hudGemInk,
               label: t('quests.capstone_reward', {'n': prize.gems}),
             ),
           ],
@@ -278,43 +285,42 @@ class _RewardChip extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    // **THE BADGE DARKENS IN LIGHT MODE; the gold and the blue do not change.**
-    // A 14% wash of the ink is a pale tint of it on white, with the ink itself
-    // on top — yellow on yellow, and blue on blue. The hues are the currencies
-    // and they are not the problem, so the contrast is bought with the SURFACE:
-    // a dark plate, the way a scoreboard does it, which is the same move the
-    // coin figure's halo already makes on this theme.
+  Widget build(BuildContext context) {
+    // **THE WALLET'S OWN FACE, which is how the rest of the game draws these
+    // now.** This chip solved "yellow on yellow in light mode" by painting
+    // itself a dark plate and printing the bright gold on that — the
+    // scoreboard move. The HUD settled the same question the other way and
+    // everything else followed it: FILL the chip in the wallet's colour and
+    // print in a tint of it, which is what `hudBadgeColour`/`hudBadgeInk` are
+    // and what the pack contents, the shop shelves and the bar all wear.
     //
-    // **AND THE PLATE IS WHY THE INK IS THE DARK THEME'S.** Callers used to
-    // pass `coinFigureInk`, which answers `gameGoldLight` — a deep bronze — on
-    // a light page. That shade exists for gold on WHITE; put it on the plate
-    // this chip paints for itself and it is brown on charcoal, which is what
-    // the playtest reported. A chip that supplies its own dark surface wants
-    // the gold that was made for dark surfaces.
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(999),
-      color: Theme.of(context).brightness == Brightness.light
-          ? const Color(0xFF1A1F26).withValues(alpha: 0.88)
-          : ink.withValues(alpha: 0.14),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GameIcon(icon, size: 13, color: ink),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            color: ink,
+    // Reported from the couch as the season quests still doing it the old way:
+    // gold ground for coins, blue for gems.
+    final face = hudBadgeColour(ink);
+    final print = hudBadgeInk(face);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: face,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GameIcon(icon, size: 13, color: print),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: print,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 /// Swap the unfinished season quests for different ones.
@@ -416,6 +422,10 @@ class _QuestTile extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 10, 12, 10),
         child: Row(
+          // Top-aligned, so the quest, the dial and the state all start on the
+          // same line however many lines the ask runs to — see the note on the
+          // right-hand column.
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // **THE BAR IS A RING, round the thing it describes.** A full-width
             // bar under the text is a second row saying what the fraction beside
@@ -444,54 +454,66 @@ class _QuestTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        '${quest.progress.toInt()} / ${quest.target.toInt()}',
-                        style: TextStyle(color: kit.textMuted, fontSize: 11),
-                      ),
-                      if (quest.coins > 0) ...[
-                        const SizedBox(width: 8),
-                        // **WHAT IT PAYS, on the row that asks for the work.**
-                        // The figure is a percentage of one league win rather
-                        // than a literal, so it is worth different money in
-                        // every division — which is the other half of why it has
-                        // to be shown.
-                        Opacity(
-                          opacity: quest.claimed ? 0.5 : 1,
-                          child: _RewardChip(
-                            key: ValueKey('quest-reward-$track-${quest.id}'),
-                            icon: 'coin',
-                            ink: gameGold,
-                            label: t('quests.reward_coins', {
-                              'n': formatCoins(quest.coins, trim: true),
-                            }),
-                          ),
-                        ),
-                      ],
-                    ],
+                  Text(
+                    '${quest.progress.toInt()} / ${quest.target.toInt()}',
+                    style: TextStyle(color: kit.textMuted, fontSize: 11),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            if (quest.claimed)
-              Text(
-                t('quests.done'),
-                key: ValueKey('quest-done-$track-${quest.id}'),
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
-              )
-            else if (onClaim != null)
-              ElevatedButton(
-                key: ValueKey('quest-claim-$track-${quest.id}'),
-                onPressed: onClaim,
-                child: Text(t('quests.claim')),
-              )
-            else
-              Text(
-                quest.completed ? t('quests.done') : t('quests.live'),
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
-              ),
+            // **THE STATE ON THE QUEST'S OWN LINE, AND WHAT IT PAYS UNDER IT.**
+            //
+            // "In Play" was centred against the whole tile, so on a two-line
+            // quest it floated between the ask and the count and read as a
+            // caption for neither — and the reward chip sat down in the left
+            // column beside the fraction, which put the money on the row about
+            // PROGRESS. Asked for from the couch: the state inline with the
+            // quest, and the coins to the right underneath it.
+            //
+            // One column, right-aligned: what this quest is doing, then what
+            // it is worth. The row is `start`-aligned so the first line of
+            // each column shares a baseline however many lines the ask takes.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (quest.claimed)
+                  Text(
+                    t('quests.done'),
+                    key: ValueKey('quest-done-$track-${quest.id}'),
+                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                  )
+                else if (onClaim != null)
+                  ElevatedButton(
+                    key: ValueKey('quest-claim-$track-${quest.id}'),
+                    onPressed: onClaim,
+                    child: Text(t('quests.claim')),
+                  )
+                else
+                  Text(
+                    quest.completed ? t('quests.done') : t('quests.live'),
+                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                  ),
+                if (quest.coins > 0) ...[
+                  const SizedBox(height: 4),
+                  // **WHAT IT PAYS.** The figure is a percentage of one league
+                  // win rather than a literal, so it is worth different money
+                  // in every division — which is why it has to be shown at all.
+                  Opacity(
+                    opacity: quest.claimed ? 0.5 : 1,
+                    child: _RewardChip(
+                      key: ValueKey('quest-reward-$track-${quest.id}'),
+                      icon: 'coin',
+                      ink: gameGold,
+                      label: t('quests.reward_coins', {
+                        'n': formatCoins(quest.coins, trim: true),
+                      }),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),

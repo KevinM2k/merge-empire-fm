@@ -32,6 +32,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/data/deadline_day.dart';
 import 'package:merge_empire_fc/data/events.dart';
@@ -647,10 +648,11 @@ class _LiveHead extends StatelessWidget {
                     key: const ValueKey('dd-colin'),
                     // Not bold. It is a full sentence of running commentary and
                     // 700 across all of it reads as shouting rather than as
-                    // emphasis — the accent LIVE label carries that.
+                    // emphasis — the accent LIVE label carries that. The floor
+                    // is the floor, though: `uiBaseWeight`, not under it.
                     style: const TextStyle(
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: uiBaseWeight,
                       height: 1.45,
                     ),
                   ),

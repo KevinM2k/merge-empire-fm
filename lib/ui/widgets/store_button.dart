@@ -29,6 +29,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// What the button costs, which is what decides its colour.
@@ -369,9 +370,10 @@ ButtonStyle mouldedButtonStyle({
     shape: WidgetStateProperty.all(
       RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
     ),
-    textStyle: const WidgetStatePropertyAll(
-      TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-    ),
+    // Through [controlTextStyle], which names the FAMILY: a button style's
+    // textStyle replaces the label's ambient one rather than merging, so a bare
+    // literal here put every moulded button in the app in the platform's font.
+    textStyle: WidgetStatePropertyAll(controlTextStyle(size: 14)),
     foregroundColor: WidgetStateProperty.resolveWith(
       (states) => states.contains(WidgetState.disabled) ? deadInk : ink,
     ),

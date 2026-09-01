@@ -245,6 +245,36 @@ TextStyle displayText(TextStyle style) =>
 /// One place, because the next nudge should be one number.
 const FontWeight uiBaseWeight = FontWeight.w600;
 
+/// A control's OWN text style, for the one place a style does not inherit.
+///
+/// **A `ButtonStyle.textStyle` REPLACES the ambient style rather than merging
+/// with it.** Material installs it as the label's `DefaultTextStyle` wholesale,
+/// so whatever it leaves null is null at the `Text` — not inherited from the
+/// page. And `ThemeData.fontFamily` reaches the `TextTheme`, not a style
+/// literal: a bare `TextStyle(fontSize: 13)` in a button style therefore
+/// renders its label in the PLATFORM's font at `w400`, which is the whole of
+/// the app that escapes Barlow.
+///
+/// It was every moulded button — [mouldedButtonStyle]'s own literal names a
+/// weight and no family, so eighty-odd labels were San Francisco or Roboto on a
+/// page set in Barlow — and the match row's 2×/Subs/Skip were worse again:
+/// `matchControlStyle` reaches them through `ButtonStyle.copyWith`, which swaps
+/// the whole property out, so those three lost the `w900` with the family and
+/// came out at `w400`. Reported from the couch as the wrong font, and then as
+/// those three defo not being `w600`.
+///
+/// So this names both, every time, and [uiBaseWeight] is the floor.
+TextStyle controlTextStyle({
+  required double size,
+  FontWeight weight = FontWeight.w900,
+  TextDecoration? decoration,
+}) => TextStyle(
+  fontFamily: uiFontFamily,
+  fontSize: size,
+  fontWeight: weight.value < uiBaseWeight.value ? uiBaseWeight : weight,
+  decoration: decoration,
+);
+
 /// Raise every theme text style that never chose a weight to [uiBaseWeight].
 ///
 /// **Only the styles that never said.** Anything already heavier is left exactly

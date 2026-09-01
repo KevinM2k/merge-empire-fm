@@ -465,6 +465,7 @@ class GemPackTile extends ConsumerWidget {
   final bool hero;
 
   /// `.store-3d--gem`, and the hero's own face.
+  static const double _rimWidth = 2;
   static const Color _rim = Color(0xFF63B8EC);
   static const Color _face = Color(0xFF2F86CB);
   static const Color _mid = Color(0xFF1C62A4);
@@ -492,26 +493,62 @@ class GemPackTile extends ConsumerWidget {
           : CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // **THE PACK HAS A NAME, and the shelf was not printing it.** Pocket,
+        // Casket and Hoard of Gems have been on `IapProduct` since the ladder
+        // was written; the tile showed a bare figure, so three bundles that
+        // read as three THINGS on the coin shelf read as three numbers here.
+        // Asked for from the couch, naming all three. Through [productName],
+        // which prefers the catalogue and falls back to the product's own —
+        // and falls back is what happens today, because the shipped keys are
+        // `product.gems_small`/`_large` from a two-rung ladder that no longer
+        // exists.
         Text(
-          '${tile.product.gems ?? 0}',
+          productName(tile.product),
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: hero ? 30 : 23,
-            fontWeight: FontWeight.w900,
-            height: 1.05,
+            fontSize: hero ? 14 : 12,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
             color: Colors.white,
             shadows: const [
-              Shadow(color: Color(0x61000000), offset: Offset(0, 2)),
+              Shadow(color: Color(0x61000000), offset: Offset(0, 1)),
             ],
           ),
         ),
-        Text(
-          t('shop.gems_label').toUpperCase(),
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-            color: Color(0xB8FFFFFF),
-          ),
+        const SizedBox(height: 1),
+        // **ONE LINE — "5 GEMS", not a 23-point 5 with GEMS under it.** Asked
+        // for directly. The figure keeps its weight and the word rides the
+        // same baseline at the size it always was, so the count still reads as
+        // the number rather than as a sentence. `shop.gems_label` is the
+        // shipped word; there is no `shop.gems_count` to match the coins'.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              '${tile.product.gems ?? 0}',
+              style: TextStyle(
+                fontSize: hero ? 30 : 23,
+                fontWeight: FontWeight.w900,
+                height: 1.05,
+                color: Colors.white,
+                shadows: const [
+                  Shadow(color: Color(0x61000000), offset: Offset(0, 2)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              t('shop.gems_label').toUpperCase(),
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+                color: Color(0xB8FFFFFF),
+              ),
+            ),
+          ],
         ),
         SizedBox(height: hero ? 6 : 8),
         // The price reads as a BUTTON, not a caption: it is what the tile is
@@ -567,76 +604,103 @@ class GemPackTile extends ConsumerWidget {
             ref.read(storeCatalogueProvider).valueOrNull,
           ),
         ),
-        child: Container(
-          padding: hero
-              ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
-              : const EdgeInsets.fromLTRB(8, 13, 8, 11),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: hero ? _heroRim : _rim, width: 2),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: hero
-                  ? const [_heroFace, _heroMid, _heroDeep]
-                  : const [_face, _mid, _deep],
-              stops: const [0, 0.55, 1],
-            ),
-            boxShadow: const [
-              // The flat bar under the tile: this is the thickness.
-              BoxShadow(color: _edge, offset: Offset(0, 4)),
-              BoxShadow(
-                color: Color(0x52000000),
-                blurRadius: 14,
-                offset: Offset(0, 7),
-              ),
-            ],
-          ),
-          // **CENTRED.** A `Stack`'s non-positioned children align to its
-          // top-LEFT corner unless it is told otherwise, so the pile, the
-          // number and the price all sat in the corner of the tile — reported
-          // as the gem packs not being centred. The sheen and the ribbon are
-          // `Positioned` and are unaffected.
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // The sheen across the top third, so the card has a light source.
-              const Positioned(
-                top: -13,
-                left: -16,
-                right: -16,
-                height: 62,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0x29FFFFFF), Color(0x00FFFFFF)],
-                    ),
+        // **THE FLASH GOES OVER THE TILE, NOT INSIDE IT.** It used to live in
+        // the `Stack` that is the box's CHILD — so it was inset by the box's
+        // own padding and its 2pt rim before it started, and sat a corner's
+        // width in from the corner while the product shelf's identical banner
+        // sat flush. Reported from the couch as the 35-gem tile having an
+        // outer margin the Best Value one has not.
+        //
+        // Hung as a sibling instead, which is the shape `_ProductTile` already
+        // uses.
+        //
+        // **`passthrough`, or the tile stops filling its cell.** A `Stack`
+        // hands its non-positioned children LOOSE constraints, so the box shrank
+        // to its contents and sat in the top-left of a grid cell it used to
+        // fill — which does not throw and does not analyse; it reads as a tap
+        // that lands on nothing, and that is how `shop_paid_test` found it.
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            Container(
+              padding: hero
+                  ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
+                  : const EdgeInsets.fromLTRB(8, 13, 8, 11),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: hero ? _heroRim : _rim, width: _rimWidth),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: hero
+                      ? const [_heroFace, _heroMid, _heroDeep]
+                      : const [_face, _mid, _deep],
+                  stops: const [0, 0.55, 1],
+                ),
+                boxShadow: const [
+                  // The flat bar under the tile: this is the thickness.
+                  BoxShadow(color: _edge, offset: Offset(0, 4)),
+                  BoxShadow(
+                    color: Color(0x52000000),
+                    blurRadius: 14,
+                    offset: Offset(0, 7),
                   ),
-                ),
+                ],
               ),
-              if (hero)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [art, const SizedBox(width: 20), words],
-                )
-              else
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [art, const SizedBox(height: 2), words],
-                ),
-              // **A BANNER, not a rosette.** Both shelves wore a die-cut seal
-              // stuck on the corner; asked for again from the couch, with the
-              // banner named — a rosette is a sticker somebody slapped on, and
-              // on a tile this small it sat over the pile it was recommending
-              // and pushed the crown off its own corner. The corner flash is
-              // the shop's own device, already on the offers hero, and it is
-              // part of the tile rather than something on top of it.
-              if (tile.bonus case final bonus?)
-                Positioned.fill(
+              // **CENTRED.** A `Stack`'s non-positioned children align to its
+              // top-LEFT corner unless it is told otherwise, so the pile, the
+              // number and the price all sat in the corner of the tile — reported
+              // as the gem packs not being centred. The sheen and the ribbon are
+              // `Positioned` and are unaffected.
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (hero)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [art, const SizedBox(width: 20), words],
+                    )
+                  else
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [art, const SizedBox(height: 2), words],
+                    ),
+                ],
+                  ),
+            ),
+            // **THE SHEEN IS WHAT READ AS A SECOND BOX.** It was a hard-edged
+            // 62-point band inside the PADDED stack, so it was inset from the
+            // rim by the border on the hero and — carrying `left: -16,
+            // right: -16` to undo a padding that is only 8 on a half-width
+            // tile — twelve points WIDER than the tile on the others, spilling
+            // over the page with nothing clipping it. Either way it drew its
+            // own edges, which is what was reported from the couch as two
+            // boxes: an outer one and an inner one with a different gradient.
+            //
+            // A light source has no edges. Out here it spans the tile corner
+            // to corner, and the clip is what keeps it off the rounded ones.
+            const Positioned.fill(
+              child: _TileWash(ink: Colors.white, radius: 16, stop: 0.45),
+            ),
+            // **A BANNER, not a rosette.** Both shelves wore a die-cut seal
+            // stuck on the corner; asked for again from the couch, with the
+            // banner named — a rosette is a sticker somebody slapped on, and
+            // on a tile this small it sat over the pile it was recommending
+            // and pushed the crown off its own corner. The corner flash is the
+            // shop's own device, already on the offers hero, and it is part of
+            // the tile rather than something on top of it.
+            // **INSIDE THE RIM, not over it.** Hung across the whole tile the
+            // flash cut the gold border at both ends, so the frame the tile is
+            // drawn in stopped at the corner it most wants to turn. Asked for
+            // from the couch: the banner belongs inside the borders. The inset
+            // is the rim's width and the radius comes down by the same, which
+            // is what keeps the clip parallel to the edge it sits under.
+            if (tile.bonus case final bonus?)
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(_rimWidth),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16 - _rimWidth),
                     child: Align(
                       alignment: Alignment.topRight,
                       child: CornerBanner(
@@ -647,12 +711,48 @@ class GemPackTile extends ConsumerWidget {
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// A wash across the top of a tile, from the tile's own edges.
+///
+/// **The two pack shelves each grew one of these INSIDE their content**, where
+/// it is a hard-edged rectangle inset by the tile's padding that stops
+/// somewhere in the middle — an inner box with a different gradient from the
+/// one around it, which is exactly how it was reported from the couch, twice.
+/// A light falls on a surface; it does not have edges of its own. So it takes
+/// the whole tile and the clip is what keeps it off the rounded corners.
+class _TileWash extends StatelessWidget {
+  const _TileWash({required this.ink, required this.radius, this.stop = 0.55});
+
+  final Color ink;
+  final double radius;
+
+  /// How far down the tile it has faded out. Short of the bottom, or it is a
+  /// tint rather than a light.
+  final double stop;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [ink.withValues(alpha: 0.28), ink.withValues(alpha: 0)],
+            stops: [0, stop],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Soft currency, and the one shelf with its own tile.
@@ -775,25 +875,17 @@ class CoinPackTile extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // The tier's wash, over the tile's own surface but under the pile.
+              // **THE TIER'S WASH IS ON THE TILE, not on a panel inside it.**
+              // It filled the ART's own stack, so it was a hard-edged
+              // rectangle inset by the tile's 12 points of padding and
+              // stopping dead under the pile — an inner box with a different
+              // gradient from the one around it. Reported from the couch on
+              // the gem shelf first and then here; the same fault, and it goes
+              // out to the tile's edges for the same reason. See `_TileWash`.
               Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            ink.withValues(alpha: 0.28),
-                            ink.withValues(alpha: 0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
                   SizedBox(
                     height: 52,
                     // A PICTURE of the thing it is called, not a count of coins.
@@ -815,12 +907,11 @@ class CoinPackTile extends ConsumerWidget {
                   // a seal: the seal is stuck on the top-right corner, which is
                   // where a shopfront puts one, and the crown was sitting under
                   // it.
-                  if (product.popular)
-                    const Positioned(
-                      top: 0,
-                      left: 0,
-                      child: Text('👑', style: TextStyle(fontSize: 15)),
-                    ),
+                  // **NO CROWN.** The popular pack already says so with a gold
+                  // rim, a glow and a MOST POPULAR flash across its corner; a
+                  // fourth mark for the same claim, an emoji in a shelf drawn
+                  // in the app's own line art, sat in the opposite corner from
+                  // the banner and read as a sticker. Asked for from the couch.
                 ],
               ),
               const SizedBox(height: 8),
@@ -898,18 +989,25 @@ class CoinPackTile extends ConsumerWidget {
         // crown across to the other corner to make room. A corner flash is the
         // tile's own furniture, and it is what the offers hero already wears —
         // one device for a value claim in this shop rather than two.
+        // The tier's wash, corner to corner over the tile's own surface and
+        // under everything on it — see the note where it used to live.
+        Positioned.fill(child: _TileWash(ink: ink, radius: 14)),
+        // Inside the rim, the same as the pack shelves — see the note there.
         if (badge case final flash?)
           Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Align(
-                alignment: Alignment.topRight,
-                child: CornerBanner(
-                  key: ValueKey('shop-badge-${product.id}'),
-                  text: flash.text,
-                  ink: flash.popular
-                      ? kit.accentBright
-                      : const Color(0xFFFF9800),
+            child: Padding(
+              padding: const EdgeInsets.all(1),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(13),
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: CornerBanner(
+                    key: ValueKey('shop-badge-${product.id}'),
+                    text: flash.text,
+                    ink: flash.popular
+                        ? kit.accentBright
+                        : const Color(0xFFFF9800),
+                  ),
                 ),
               ),
             ),
@@ -965,9 +1063,18 @@ class _RestoreRowState extends ConsumerState<RestoreRow> {
     // the fourth time that sentence appeared on one screen.
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 18, 12, 32),
+      // **AND IT HAS AN EDGE.** It was a bare fill on a panel of the same
+      // family, so the one control on the screen that is not a tile had
+      // nothing marking it as a control at all — reported from the couch as
+      // plain, with no border. Quiet is right for housekeeping; invisible is
+      // not, so it takes the tiles' own rim rather than a colour of its own.
       child: Material(
         color: kit.surface,
-        borderRadius: BorderRadius.circular(10),
+        // `shape` rather than `borderRadius` — `Material` asserts on both.
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: kit.border),
+        ),
         child: InkWell(
           key: const ValueKey('shop-restore'),
           borderRadius: BorderRadius.circular(10),

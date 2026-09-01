@@ -61,6 +61,7 @@ import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart' show Gesture, Mood;
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart' show CoachCorner;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
@@ -201,7 +202,21 @@ ButtonStyle matchControlStyle(BuildContext context, {Color? face}) {
     // commentary directly under it, and with one weight everywhere the size was
     // the only thing making these three shout. Reported from the couch — not
     // liking them being bigger, bold is fine.
-    textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 13)),
+    // **`copyWith` SWAPS THE WHOLE PROPERTY**, so a bare `TextStyle(fontSize:
+    // 13)` here threw away the moulded style's family AND its weight — these
+    // three came out at `w400` in the platform's font while every other button
+    // in the app was `w900`. Reported from the couch, twice: the wrong font,
+    // then these three defo not being `w600`.
+    //
+    // **AND THEY ARE THE COMMENTARY'S OWN STYLE, deliberately.** The moulded
+    // `w900` is a weight `pubspec.yaml` does not bundle a cut for, and these
+    // three sit directly over the feed — asked for as needing to be the SAME
+    // as the commentary, which is 13 at [uiBaseWeight] and nothing else. So
+    // the row matches the thing it sits on rather than the other eighty
+    // buttons in the app, which is what makes it part of the page.
+    textStyle: WidgetStatePropertyAll(
+      controlTextStyle(size: 13, weight: uiBaseWeight),
+    ),
   );
 }
 

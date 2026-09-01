@@ -130,7 +130,10 @@ class _PyramidPagerState extends ConsumerState<_PyramidPager> {
       children: [
         SheetHeader(
           title: _divisionName(divisions[_page]),
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+          // The shared gap — see [sheetHeaderPadding]. This was 8 over the
+          // title and 2 under it, which put the division name hard against
+          // the drag handle.
+          padding: sheetHeaderPadding,
         ),
         // The hint sits under the heading and says the same thing the dots do,
         // in words, because a row of dots is only a hint once you have already
@@ -724,8 +727,16 @@ class FixturesView extends ConsumerWidget {
         key: const ValueKey('league-fixtures'),
         // Room at the foot for the corner to sit over, so the last fixture is
         // not underneath him.
-        padding: const EdgeInsets.fromLTRB(0, 8, 0, 84),
-        children: rows,
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 84),
+        children: [
+          // Named, like the table it shares a sheet with — see the note in the
+          // trophy room. `subnav.fixtures` is the word this tab already wears.
+          SheetHeader(
+            title: t('subnav.fixtures'),
+            padding: sheetHeaderPadding,
+          ),
+          ...rows,
+        ],
       ),
     );
   }

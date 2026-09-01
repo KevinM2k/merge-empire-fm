@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
@@ -122,6 +123,16 @@ class FreeShelfSection extends ConsumerWidget {
         children: [
           ShopTile(
             tileKey: 'ad-match-cooldown',
+            // **THE ONLY TWO TILES IN THE SHOP WITH NOTHING ON TOP.** Every
+            // other shelf hands `ShopTile` a glyph and it is, in the widget's
+            // own words, the first thing scanned; these two were a title and a
+            // subtitle in a box, which is why the free shelf read as a notice
+            // rather than as two things being offered. Reported from the couch.
+            //
+            // The clock for a cooldown that gets shortened and the clover for a
+            // boot that changes your luck — both already in the game's own set,
+            // in the yellow the ad tone is drawn in everywhere else.
+            glyph: const GameIcon('stopwatch', size: 32, color: adOfferInk),
             title: t('shop.match_cooldown_ad_name'),
             subtitle: t('shop.match_cooldown_ad_desc'),
             price: t('shop.claim_cta'),
@@ -139,6 +150,7 @@ class FreeShelfSection extends ConsumerWidget {
           ),
           ShopTile(
             tileKey: 'ad-lucky-boot',
+            glyph: const GameIcon('clover', size: 32, color: adOfferInk),
             title: t('shop.lucky_boot_ad_name'),
             subtitle: t('shop.lucky_boot_ad_desc'),
             price: t('shop.claim_cta'),

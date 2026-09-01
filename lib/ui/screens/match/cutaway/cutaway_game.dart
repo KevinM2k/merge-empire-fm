@@ -40,6 +40,7 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_sequences.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
     show shortName;
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 
 /// How a chance ended.
 enum CutawayOutcome { goal, saved, post, wide, over, tackled }
@@ -121,9 +122,18 @@ class Mover extends PositionComponent {
   /// the scorer's name moves onto whoever takes the shot.
   String? label;
 
+  /// **A `TextPaint` INHERITS NOTHING**, so the family is named here or the
+  /// names on the pitch are drawn in the platform's own font — the same escape
+  /// the button styles were making.
+  ///
+  /// Sixteen rather than 12.8, which is four world units against a 5.2-unit
+  /// figure: asked for from the couch as the names wanting to be a bit bigger.
+  /// The size is quadrupled and the canvas scaled back down at the call — a
+  /// 4-unit font rasterises as mush — so this number is four times what lands.
   static final TextPaint _labelPaint = TextPaint(
     style: const TextStyle(
-      fontSize: 12.8,
+      fontSize: 16,
+      fontFamily: uiFontFamily,
       fontWeight: FontWeight.w800,
       color: Colors.white,
       shadows: [Shadow(offset: Offset(0.5, 0.5), color: Colors.black87)],

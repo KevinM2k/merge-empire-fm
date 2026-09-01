@@ -397,6 +397,117 @@ void main() {
     );
   });
 
+  testWidgets('AND IT SAYS WHICH PART THE RESULT PAID', (tester) async {
+    // One gold figure over a match that paid a fee AND quest money tells the
+    // player what they have and not what earned it — reported as the old
+    // breakdown having been clearer about what the win itself was worth.
+    //
+    // **AND THE LABEL DOES NOT MOVE WITH THE RESULT.** It read the verdict —
+    // "Won"/"Drew"/"Lost" — which is a third telling of what the banner and
+    // the scoreline already say, and pairs an outcome against a thing.
+    // `play.match_prizes` is the Play screen's own name for this purse before
+    // the match; the same money keeps the same name after it.
+    await pumpSummary(
+      tester,
+      result(
+        coins: 500,
+        questResults: [
+          {
+            'id': 'match_clean_sheet',
+            'icon': '🧱',
+            'target': 1,
+            'passed': true,
+            'coins': 120,
+          },
+        ],
+      ),
+    );
+    final card = find.byKey(const ValueKey('summary-payout-card'));
+    await scrollReport(tester, const ValueKey('summary-payout-card'));
+    for (final label in [t('play.match_prizes'), t('quests.match')]) {
+      expect(
+        find.descendant(of: card, matching: find.text(label)),
+        findsOneWidget,
+        reason: '$label names its half of the payout',
+      );
+    }
+    // `coinsEarned` is the fee alone — a match quest pays itself at the
+    // whistle — so the two rows are the two figures and not one net of the
+    // other.
+    expect(
+      find.descendant(of: card, matching: find.text('+${formatCoins(500)}')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('+${formatCoins(120)}')),
+      findsOneWidget,
+    );
+    // And the total is still the answer above the working.
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.byKey(const ValueKey('summary-coins')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('AND A MISSED TRACK STILL GETS ITS ROW', (tester) async {
+    // **The first cut gated on `quests > 0`, which hid the split on the one
+    // result that most needs it**: a defeat, ten coins, all three quests
+    // missed. Reported from a live save showing exactly that screen — the
+    // breakdown is the answer to "why only ten?", so a track that paid nothing
+    // is the case it exists for, not the case to skip.
+    await pumpSummary(
+      tester,
+      result(
+        won: false,
+        coins: 10,
+        questResults: [
+          {
+            'id': 'match_clean_sheet',
+            'icon': '🧱',
+            'target': 1,
+            'passed': false,
+            'coins': 0,
+          },
+        ],
+      ),
+    );
+    final card = find.byKey(const ValueKey('summary-payout-card'));
+    await scrollReport(tester, const ValueKey('summary-payout-card'));
+    expect(
+      find.descendant(of: card, matching: find.text(t('play.match_prizes'))),
+      findsOneWidget,
+      reason: 'the same name on a defeat as on a win',
+    );
+    expect(
+      find.descendant(of: card, matching: find.text(t('quests.match'))),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('+${formatCoins(0)}')),
+      findsOneWidget,
+      reason: 'nothing off the track is what the row has to say',
+    );
+  });
+
+  testWidgets('but a payout with NO track does not restate itself', (
+    tester,
+  ) async {
+    // A row adding up to a total it is the whole of is the clutter the removal
+    // was right about.
+    await pumpSummary(tester, result(coins: 500));
+    await scrollReport(tester, const ValueKey('summary-payout-card'));
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('summary-payout-card')),
+        matching: find.text(t('play.match_prizes')),
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('AND THE MONEY GETS A SURFACE, like everything else here', (
     tester,
   ) async {
@@ -707,7 +818,12 @@ void main() {
       // moment 2× started covering both. Asked for from the couch.
       await pumpSummary(tester, result(coins: 0, questResults: outcomes()));
       expect(find.byKey(const ValueKey('summary-payout')), findsOneWidget);
-      expect(find.text('+${formatCoins(120)}'), findsOneWidget);
+      // The TOTAL by its key, not by its text: the breakdown under it prints
+      // the same figure on the quest row when the fee is the part that is zero.
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('summary-coins'))).data,
+        '+${formatCoins(120)}',
+      );
       expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
       expect(
         find.text('${t('match.double_reward')} → ${formatCoins(240)}'),

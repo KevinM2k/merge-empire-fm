@@ -169,6 +169,25 @@ for (const [id, value] of Object.entries(av.HAIR_STYLES)) {
 }
 lines.push('};', '');
 
+// **STUBBLE HAS TO READ AS A CHOICE, and at the JS's own alpha it does not.**
+//
+// `FACIAL_HAIR.stubble` is the beard's jaw path at `opacity="0.42"` — right in
+// a DOM, where the avatar is drawn large and the tint sits over a flat CSS
+// skin fill. The port draws the same figure into a painter at chip size, on a
+// shaded face, and 0.42 of it disappears: reported from the couch as stubble
+// and NONE looking almost the same, which is the one comparison that has to be
+// obvious because they are neighbours in the picker.
+//
+// Raised here rather than in the spec, which is where this generator already
+// makes the port's own medium work — see `strands` and `SCALP`, neither of
+// which has a counterpart in the JS. `none` stays empty; the fix is stubble
+// being visible, not none growing any.
+const STUBBLE_ALPHA = 0.72;
+
+const readable = (id, markup) => id !== 'stubble'
+  ? markup
+  : markup.replace(/opacity="0\.42"/, `opacity="${STUBBLE_ALPHA}"`);
+
 const flatTables = {
   managerBeards: ['FACIAL_HAIR', "Facial hair, over the jaw."],
   managerFaces: [
@@ -193,7 +212,8 @@ const flatTables = {
 for (const [name, [source, doc]] of Object.entries(flatTables)) {
   lines.push(`/// ${doc}`);
   lines.push(`const Map<String, String> ${name} = {`);
-  for (const [id, markup] of Object.entries(av[source])) {
+  for (const [id, raw] of Object.entries(av[source])) {
+    const markup = name === 'managerBeards' ? readable(id, raw) : raw;
     lines.push(`  '${id}': ${markup ? lit(wrap(markup)) : "''"},`);
   }
   lines.push('};', '');

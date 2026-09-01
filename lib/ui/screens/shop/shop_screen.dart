@@ -143,40 +143,128 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
         // cannot be rounded on one side only.
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: shopPanelInset),
+            // **AND IT STOPS SHORT OF THE DOCK.** The case ran to the bottom
+            // of the screen, so its framed edge met the nav bar's top edge
+            // with nothing between them and the two read as one thick rule.
+            // Asked for from the couch: about twelve points of air.
+            padding: const EdgeInsets.fromLTRB(
+              shopPanelInset,
+              0,
+              shopPanelInset,
+              12,
+            ),
             child: DecoratedBox(
-              decoration: BoxDecoration(color: shopPanelInk(kit)),
-              child: SingleChildScrollView(
-                key: const ValueKey('shop-scroll'),
-                controller: _scroll,
-                // The Shop had NO padding at all: its first tile ran under the
-                // floating HUD and its last under the tab bar. The strip above
-                // carries the HUD's clearance now; this is the tab bar's own.
-                //
-                // Narrower down the sides than it was, because the panel itself
-                // now carries [shopPanelInset]: 12 inside 12 would be 24 of air
-                // beside every tile.
-                padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
-                child: Column(
-                  children: [
-                    for (final id in shown.sections) _shelf(id),
-                    // **Only on the shelves that sell for MONEY.** Restore is
-                    // about purchases, and a Restore button under the kit colours
-                    // is a control answering a question nobody asked there.
-                    if (shown.sections.any(
-                      (id) =>
-                          id == ShopSectionId.offers ||
-                          id == ShopSectionId.gems ||
-                          id == ShopSectionId.coins,
-                    ))
-                      const RestoreRow(),
-                  ],
+              // **THE SAME FILL AS THE TAB THAT OPENED IT.** The selected tab
+              // is a 16% wash of its own colour over [shopPanelInk] and the
+              // panel was the undiluted ink, so the two met at a colour
+              // change — and this file's whole argument for the square
+              // shoulders and the broken baseline is that a tab and the panel
+              // it opens into SHARE an edge. A shared edge between two
+              // different fills is still a seam. Asked from the couch as a
+              // question; it is the same [shopTabFill] on both sides now, so
+              // the join is only where the frame says it is.
+              decoration: BoxDecoration(
+                color: shopTabFill(kit, shown.ink),
+                // **AND THE BOTTOM CORNERS TURN.** The case was square at the
+                // foot while every tile in it and every tab above it is
+                // rounded; asked for from the couch. The TOP two stay square —
+                // that edge is shared with the tabs, and a shared edge cannot
+                // be rounded on one side only.
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(_tabRadius),
                 ),
               ),
+              child: _PanelFrame(
+                ink: shown.ink,
+                // **AND THE CASE IS FRAMED IN THE TAB'S OWN COLOUR.** Asked for
+                // from the couch, naming all four: yellow for Special Offers,
+                // then the blue, the green and the purple. The tab strip has
+                // carried these since it was built and the panel under it was
+                // neutral, so the one thing telling a player which shelf they
+                // are looking at was the tab they had already stopped looking
+                // at. `shown` is the selected tab, so the frame changes with it.
+                //
+                // **IN FRONT OF THE SCROLL, not behind it.** A `DecoratedBox`
+                // paints its decoration BEHIND the child by default, so the
+                // bottom edge ran under the list and a pack tile scrolled over
+                // the top of it — reported from the couch with a shot of two
+                // cards sitting on the purple. A frame is in front of what it
+                // frames.
+                //
+                // **NO TOP EDGE**, for the same reason the top corners are
+                // square: the tabs and the panel share that edge, and a line
+                // drawn along it is the join coming apart — see above.
+                child: SingleChildScrollView(
+                  key: const ValueKey('shop-scroll'),
+                  clipBehavior: Clip.hardEdge,
+                  controller: _scroll,
+                  // The Shop had NO padding at all: its first tile ran under the
+                  // floating HUD and its last under the tab bar. The strip above
+                  // carries the HUD's clearance now; this is the tab bar's own.
+                  //
+                  // Narrower down the sides than it was, because the panel itself
+                  // now carries [shopPanelInset]: 12 inside 12 would be 24 of air
+                  // beside every tile.
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+                  child: Column(
+                    children: [
+                      for (final id in shown.sections) _shelf(id),
+                      // **Only on the shelves that sell for MONEY.** Restore is
+                      // about purchases, and a Restore button under the kit colours
+                      // is a control answering a question nobody asked there.
+                      if (shown.sections.any(
+                        (id) =>
+                            id == ShopSectionId.offers ||
+                            id == ShopSectionId.gems ||
+                            id == ShopSectionId.coins,
+                      ))
+                        const RestoreRow(),
+                    ],
+                  ),
+                ),
+                ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The frame round the case, in the selected tab's colour.
+///
+/// **In FRONT of the shelf, which is the whole reason it is a widget.** As a
+/// `BoxDecoration` on the panel it painted BEHIND the scroll view — a
+/// `DecoratedBox` does, by default — so the bottom edge ran under the list and
+/// a pack tile scrolled straight over the top of it. Reported from the couch
+/// with a shot of two cards sitting on the purple.
+///
+/// No top edge: the tabs and the panel share that one, and a line along it is
+/// the join coming apart — see the note at the call site.
+class _PanelFrame extends StatelessWidget {
+  const _PanelFrame({required this.ink, required this.child});
+
+  final Color ink;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final edge = BorderSide(
+      color: shopFrameInk(Theme.of(context).extension<KitTheme>()!, ink),
+      width: shopFrameWidth,
+    );
+    const corners = BorderRadius.vertical(
+      bottom: Radius.circular(_tabRadius),
+    );
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        borderRadius: corners,
+        border: Border(left: edge, right: edge, bottom: edge),
+      ),
+      // Clipped to the same corners, or a tile scrolling past the foot squares
+      // off the two the case just grew.
+      child: ClipRRect(borderRadius: corners, child: child),
     );
   }
 }
@@ -283,6 +371,32 @@ Color shopPanelInk(KitTheme kit) => kit.bg;
 /// One number, because the whole point of the panel is that the selected tab
 /// opens into it — and a panel wider than the tabs standing on it is not a
 /// panel they belong to.
+/// How thick the case is framed, in the selected tab's colour.
+///
+/// One point, not two: at phone scale two reads as a slab round the shelf
+/// rather than as a frame on it. Shared with the tab strip's baseline, which
+/// is the same line carried across the tabs that are shut.
+const double shopFrameWidth = 1;
+
+/// The open tab's face, and the case's ground — one colour, because they are
+/// one surface. See the note at the panel.
+Color shopTabFill(KitTheme kit, Color ink) =>
+    Color.alphaBlend(ink.withValues(alpha: 0.16), shopPanelInk(kit));
+
+/// **ONE LINE ALL THE WAY ROUND.** The case's frame was full-strength ink while
+/// the tab's own edge and the baseline under the shut ones were the same ink at
+/// 55%, so the border changed shade exactly where the tabs meet the panel —
+/// the join those alphas exist to hide.
+///
+/// **AND THE ALPHA WAS THE SECOND HALF OF IT.** 55% of one colour over three
+/// different grounds is three colours: the tab's edge sits on the page, the
+/// baseline on the strip, the frame on the case. Reported from the couch twice,
+/// the second time after the first fix — the sides and the bottom still not
+/// matching the top. Blended ONCE here, so every call site gets an OPAQUE
+/// colour that cannot pick up what is behind it.
+Color shopFrameInk(KitTheme kit, Color ink) =>
+    Color.alphaBlend(ink.withValues(alpha: 0.55), shopPanelInk(kit));
+
 const double shopPanelInset = 12;
 
 /// The strip that picks a shelf.
@@ -307,7 +421,12 @@ class _ShopTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final rule = kit.textMuted.withValues(alpha: 0.35);
+    // **THE BASELINE UNDER THE SHUT TABS IS THE FRAME'S OWN LINE.** It was a
+    // muted grey while the case below it is framed in the tab's colour, so the
+    // frame stopped dead at the two ends of the strip. Asked for from the
+    // couch: the tab bar's bottom border keeps that same colour. Knocked back,
+    // because a shut tab is not the open one — same line, quieter.
+    final rule = shopFrameInk(kit, shopTabs[selected].ink);
     return SizedBox(
       // Two lines of label, because one of them needs two — see below.
       height: 68,
@@ -382,16 +501,13 @@ class _ShopTabs extends StatelessWidget {
                     CustomPaint(
                       painter: _TabFace(
                         fill: i == selected
-                            ? Color.alphaBlend(
-                                tab.ink.withValues(alpha: 0.16),
-                                shopPanelInk(kit),
-                              )
+                            ? shopTabFill(kit, tab.ink)
                             : kit.surface,
                         // An unselected tab is a container too. It had a
                         // TRANSPARENT border, so the three that are not open
                         // were flat blocks of surface with no edge on them.
                         edge: i == selected
-                            ? tab.ink.withValues(alpha: 0.55)
+                            ? shopFrameInk(kit, tab.ink)
                             : kit.border,
                         accent: i == selected ? tab.ink : null,
                         radius: _tabRadius,

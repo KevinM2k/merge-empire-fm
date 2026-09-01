@@ -27,6 +27,7 @@ import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/achievement_engine.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show readableInk;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
@@ -154,10 +155,17 @@ class _TrophyRoom extends ConsumerWidget {
 
     return Padding(
       key: const ValueKey('trophy-room'),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 32),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // **IT TITLES ITSELF, like every other sheet.** The trophy room
+          // opened straight onto its badge row with nothing naming it, while
+          // the table and the quests both carry a [SheetHeader] — so the one
+          // sheet a player reaches for to look at what they have WON was the
+          // one that did not say what it was. Reported from the couch, asking
+          // for the header at the top here and on the fixtures.
+          SheetHeader(title: t('trophy.title'), padding: sheetHeaderPadding),
           _BadgeRow(equipped: view.equippedBadgeId),
           if (hasSessionTrophies) ...[
             const SizedBox(height: 16),

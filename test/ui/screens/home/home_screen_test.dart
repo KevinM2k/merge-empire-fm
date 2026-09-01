@@ -1136,6 +1136,13 @@ void main() {
       final carryOn = find.byKey(const ValueKey('summary-continue'));
       final out = decline.evaluate().isNotEmpty ? decline : carryOn;
       expect(out, findsOneWidget, reason: 'the summary has no way out');
+      // **SCROLLED TO, because the whole report scrolls now.** The payout and
+      // the way out used to be pinned under the scroll; that left a hole above
+      // the money on a report built to fit one screen, so both went into it.
+      // Either control is then below the fold on a 600-point viewport — which
+      // is what a short phone shows too, and the player scrolls.
+      await tester.scrollUntilVisible(out, 120);
+      await tester.pumpAndSettle();
       await tester.tap(out);
       await tester.pumpAndSettle();
       // **AND ANSWER WHATEVER THE MATCH DROPPED.** `_afterMatch` rolls for a

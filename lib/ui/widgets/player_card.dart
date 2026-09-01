@@ -754,7 +754,7 @@ class _Chip extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: bold ? 13 : 10,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: bold ? FontWeight.w700 : uiBaseWeight,
             color: foreground,
           ),
         ),

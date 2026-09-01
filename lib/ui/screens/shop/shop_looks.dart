@@ -617,14 +617,21 @@ class _LookTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
+            // **THE SAME SIZE AS EVERY OTHER TILE'S NAME.** `ShopTile` sets
+            // 13.5/w900 for "Magic Sponge" and the pack shelf was carrying its
+            // own 11/w800, so the one shelf whose tiles are three across had
+            // the smallest names in the shop. Reported from the couch against
+            // the boosts. This shelf still lays its own tile out — it has a
+            // Vault mark in the glyph row that `ShopTile` has no slot for — so
+            // the number is matched rather than shared.
             Text(
               t('customise.pack.$packId'),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w900,
                 height: 1.2,
               ),
             ),

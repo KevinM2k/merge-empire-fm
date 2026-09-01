@@ -505,6 +505,13 @@ class CornerBanner extends StatelessWidget {
   static const double _thick = 17;
   static const double _bar = 150;
 
+  /// How much of [_bar] the tile actually shows.
+  ///
+  /// The band crosses the corner at 45°, so the two edges cut it at
+  /// `_reach * √2` from the corner apiece and the chord between them is twice
+  /// [_reach]. Everything outside that is behind the tile's own clip.
+  static const double _chord = _reach * 2;
+
   /// How much of the tile's top-right the flash covers, which is what a tile
   /// carrying one has to keep clear. The band's far edge, projected back onto
   /// the edges it crosses.
@@ -546,16 +553,32 @@ class CornerBanner extends StatelessWidget {
                 child: Container(
                   alignment: Alignment.center,
                   color: ink,
-                  child: Text(
-                    text.toUpperCase(),
-                    key: const ValueKey('shop-corner-banner'),
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.6,
-                      color: onInk,
+                  // **THE BAR IS 150 LONG AND ONLY [_chord] OF IT IS SEEN.**
+                  // The text was centred in the BAR and clipped by the tile, so
+                  // a label wider than the chord lost a bite off both ends —
+                  // "MOST POPULAR" measures about 73 against a 68-point chord,
+                  // and the VIP pass and the coin pile both wore it cut off.
+                  // Reported from the couch.
+                  //
+                  // Held to what is actually visible and scaled down to fit, so
+                  // no label can be clipped again — including the ten
+                  // translations of it, which are not this one's length and
+                  // cannot be checked by eye.
+                  child: SizedBox(
+                    width: _chord - 8,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        text.toUpperCase(),
+                        key: const ValueKey('shop-corner-banner'),
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                          color: onInk,
+                        ),
+                      ),
                     ),
                   ),
                 ),

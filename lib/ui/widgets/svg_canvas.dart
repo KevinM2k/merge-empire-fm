@@ -28,6 +28,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 
 final RegExp _tag = RegExp(r'<(\w+)([^>]*?)/?>', multiLine: true);
 final RegExp _attr = RegExp(r'([\w:-]+)\s*=\s*"([^"]*)"');
@@ -509,10 +510,16 @@ class SvgPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: node.text,
+        // **A `TextPainter` INHERITS NOTHING**, so the family has to be named
+        // here or the lettering on a club crest is drawn in the platform's own
+        // font — the same escape the button styles were making, in the one
+        // place where the text is part of a picture. Sixty-one `<text>` nodes
+        // in `club_art.g.dart` were rendering in San Francisco or Roboto.
         style: TextStyle(
           color: colour,
           fontSize: size,
-          fontWeight: bold ? FontWeight.w800 : FontWeight.w400,
+          fontFamily: uiFontFamily,
+          fontWeight: bold ? FontWeight.w800 : uiBaseWeight,
         ),
       ),
       textDirection: TextDirection.ltr,

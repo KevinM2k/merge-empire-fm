@@ -288,8 +288,13 @@ class _QuestTile extends StatelessWidget {
             child: Text(
               row.text,
               softWrap: true,
+              // **THE SAME 11 THE CLUB'S ASSET HINTS ARE SET IN.** This
+              // block and those tiles are the same kind of line — a sentence
+              // explaining what a thing does — and at 10.5 against their 11
+              // the one on the busier card was the smaller. Reported from the
+              // couch, naming both.
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 11,
                 height: 1.3,
                 fontWeight: FontWeight.w700,
                 color: done ? kit.accentBright : ink,
@@ -303,7 +308,7 @@ class _QuestTile extends StatelessWidget {
             Text(
               '${row.progress.toInt()}/${row.target.toInt()}',
               style: TextStyle(
-                fontSize: 9.5,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w900,
                 color: glassMuted(context),
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -317,7 +322,7 @@ class _QuestTile extends StatelessWidget {
             Text(
               formatCoins(row.reward),
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w900,
                 color: coinFigureInk(context, onGlass: true),
                 shadows: coinFigureShadows(context, onGlass: true),

@@ -2106,7 +2106,7 @@ class _Turf extends StatelessWidget {
                       for (var band = 0; band < _tuftBands; band++)
                         Positioned.fill(
                           child: _Scroller(
-                            offsetPx: atRow(tuftBandFraction(band)),
+                            offsetPx: atRow(_decoBandFraction(band)),
                             segmentWidth: groundSegmentWidth,
                             stillKey: (band, tier),
                             child: _DecoSegment(band: band, tier: tier),
@@ -2298,6 +2298,19 @@ class _DecoSegment extends StatelessWidget {
 /// The spec's own range: 6% to 80% up the pitch.
 const double _decoFMin = 0.06;
 const double _decoFMax = 0.80;
+
+/// The middle of a deco band, over the DECO's range.
+///
+/// **It was riding on [tuftBandFraction], and that is a different pitch.** The
+/// tufts live between 0.34 and 0.96 and the mud between 0.06 and 0.80, so band
+/// 0's mud is drawn near the bottom touchline — the closest, fastest ground on
+/// the screen — and was being offset at the speed of the tuft band a third of
+/// the way up. Depth IS speed here, so a puddle given a slower row than the one
+/// it is painted on drifts backwards against the stripes under it. Reported
+/// from the couch: the mud and the water on the tier-1 pitch moving slightly
+/// slower than the pitch behind them.
+double _decoBandFraction(int band) =>
+    _decoFMin + (_decoFMax - _decoFMin) * (band + 0.5) / _tuftBands;
 
 class _DecoPainter extends CustomPainter {
   const _DecoPainter({required this.band, required this.tier});
