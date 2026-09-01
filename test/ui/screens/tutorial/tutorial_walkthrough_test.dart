@@ -154,8 +154,19 @@ void main() {
     /// a moment ago" is not the same as "it is there now" — which is exactly
     /// the way this test used to fail in a full suite and pass on its own.
     Future<void> press(Finder finder, {String? reason}) async {
-      await until(tester, () => finder.evaluate().isNotEmpty, reason: reason);
-      await tester.tap(finder);
+      // **`hitTestable`, not merely present.** The spotlight seals the screen
+      // with a full-screen `AbsorbPointer` for as long as it has no measured
+      // target — `tutorial_spotlight.dart` returns exactly that when the anchor
+      // is null — and it re-measures on every step change. So there are frames
+      // where the coach's button is in the tree, laid out, and cannot be
+      // tapped: `tap` then warns that the offset "would not hit test", presses
+      // nothing, and the step never moves on. One run in a dozen or so.
+      await until(
+        tester,
+        () => finder.hitTestable().evaluate().isNotEmpty,
+        reason: reason,
+      );
+      await tester.tap(finder.hitTestable());
     }
 
     Future<void> answer(
@@ -271,8 +282,21 @@ void main() {
       () => find.byKey(const ValueKey('grid-slot-0')).evaluate().isNotEmpty,
       reason: 'the grid never came up for the merge step',
     );
-    final grab = tester.getCenter(find.byKey(const ValueKey('grid-slot-0')));
-    final onto = tester.getCenter(find.byKey(const ValueKey('grid-slot-2')));
+    // **ASKED OF THE GRID, not assumed to be squares 0 and 2.** Those are where
+    // the forced twin lands in the ordinary case and only there: when the first
+    // two cards already pair, `tutorialPairTwin` returns null by design — "the
+    // draw stands" — and the pair is 0 and 1 with a free third card beside it.
+    // Hard-coding 0→2 dragged one card onto a stranger, nothing merged and the
+    // script never moved on, which failed about one run in four and read as the
+    // tutorial being broken. `tutorial_overlay.dart` resolves the CUE the same
+    // way, off the same function, so this now answers the step the way a player
+    // looking at the rings would.
+    final pair = tutorialMergePair(container.read(gameProvider).state);
+    expect(pair, isNotNull, reason: 'the merge step has no pair to teach with');
+    final grab = tester.getCenter(
+      find.byKey(ValueKey('grid-slot-${pair!.from}')),
+    );
+    final onto = tester.getCenter(find.byKey(ValueKey('grid-slot-${pair.to}')));
     final drag = await tester.startGesture(grab);
     await tester.pump(const Duration(milliseconds: 700));
     await drag.moveTo(onto);
