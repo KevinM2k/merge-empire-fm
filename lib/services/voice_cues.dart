@@ -14,15 +14,25 @@ library;
 import 'package:merge_empire_fc/services/voice_service.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
-/// A line of his has arrived on screen. `{'text': String}`.
+/// A line of his has arrived on screen. `{'key': String, 'text': String}`.
+///
+/// **Both halves.** The KEY is what the voice plays — a clip is
+/// `assets/voice/<locale>/<key>.mp3`, see `voice_service.dart` — and the TEXT is
+/// what is actually on screen, which is the only thing a caller with a pooled or
+/// interpolated line can hand over. A listener that wants to caption him wants
+/// the text; the one that speaks him wants the key.
 const String coachSpeaksEvent = 'coach:speaks';
 
 /// The card carrying it has gone.
 const String coachSilenceEvent = 'coach:silence';
 
 /// Announce a line, for a card that has asked to be spoken.
-void announceCoachLine(String text) =>
-    emit(coachSpeaksEvent, <String, dynamic>{'text': text});
+///
+/// [key] is empty for a card whose line is not a catalogue string — a pool, or a
+/// sentence with a fee in it. Nothing is spoken for those, which is the same
+/// answer as a key with no clip recorded.
+void announceCoachLine(String text, {String key = ''}) =>
+    emit(coachSpeaksEvent, <String, dynamic>{'key': key, 'text': text});
 
 /// And that it is over.
 void announceCoachSilence() => emit(coachSilenceEvent);
@@ -33,8 +43,8 @@ void announceCoachSilence() => emit(coachSilenceEvent);
 /// host that forgets this keeps a dead service alive and talking.
 void Function() wireVoiceCues(VoiceService service) {
   void speak(Object? args) {
-    final text = args is Map<String, dynamic> ? args['text'] : null;
-    if (text is String) service.say(text).ignore();
+    final key = args is Map<String, dynamic> ? args['key'] : null;
+    if (key is String && key.isNotEmpty) service.say(key).ignore();
   }
 
   void silence(Object? _) => service.silence().ignore();

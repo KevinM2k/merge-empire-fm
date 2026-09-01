@@ -25,19 +25,13 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 
 class _FakeVoice implements VoiceBackend {
-  final List<String> spoken = [];
+  final List<String> played = [];
   final List<double> volumes = [];
   int stops = 0;
 
   @override
-  Future<void> speak(
-    String text, {
-    required String locale,
-    required double volume,
-    required double rate,
-    required double pitch,
-  }) async {
-    spoken.add(text);
+  Future<void> play(String asset, {required double volume}) async {
+    played.add(asset);
     volumes.add(volume);
   }
 

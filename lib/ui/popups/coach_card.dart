@@ -535,6 +535,10 @@ class _CoachCard<T> extends StatelessWidget {
     minimisable: minimisable,
     footer: footer,
     speaks: speaks,
+    // **The KEY, not the sentence.** A clip is named after the catalogue key,
+    // and `body` may be a pool line or one with a fee in it — see
+    // [CoachCardFrame.speaksKey].
+    speaksKey: body == null ? bodyKey : '',
   );
 }
 
@@ -627,12 +631,18 @@ class CoachTypewriter extends StatefulWidget {
     this.textAlign = TextAlign.center,
     this.textKey,
     this.speaks = false,
+    this.speaksKey = '',
     super.key,
   });
 
   final String text;
   final TextStyle? style;
   final TextAlign textAlign;
+
+  /// The CATALOGUE key this line came from, which is what a clip is named after
+  /// — see `services/voice_service.dart`. Empty for a line the catalogue cannot
+  /// have on its own: a pool, or a sentence with a name or a fee in it.
+  final String speaksKey;
 
   /// Whether this line is also SAID. See [CoachCardFrame.speaks] — the flag is
   /// the card's, and it is off by default.
@@ -672,7 +682,7 @@ class _CoachTypewriterState extends State<CoachTypewriter>
     // At the START of the line, not the end of it: the voice and the typing are
     // the same delivery, and a sentence read out after it has finished
     // appearing is a second telling rather than the same one.
-    if (widget.speaks) announceCoachLine(widget.text);
+    if (widget.speaks) announceCoachLine(widget.text, key: widget.speaksKey);
     _run
       ..duration = Duration(
         milliseconds: math.min(_maxTypeMs, math.max(1, _glyphs.length * _msPerGlyph)),
@@ -1045,6 +1055,7 @@ class CoachCardFrame extends StatelessWidget {
     this.minimisable = false,
     this.footer,
     this.speaks = false,
+    this.speaksKey = '',
   });
 
   /// Whether what he says is also SAID OUT LOUD.
@@ -1061,6 +1072,11 @@ class CoachCardFrame extends StatelessWidget {
   /// The line goes out on the bus; see `services/voice_cues.dart` for why it is
   /// announced rather than spoken here.
   final bool speaks;
+
+  /// The catalogue key the body came from, which is what names its clip — see
+  /// `services/voice_service.dart`. [showCoachCard] passes its own `bodyKey`;
+  /// a caller building the frame by hand passes nothing and stays silent.
+  final String speaksKey;
 
   /// A `−` in the top corner that closes the card without answering it.
   ///
@@ -1185,6 +1201,7 @@ class CoachCardFrame extends StatelessWidget {
                       text: body!,
                       textKey: const ValueKey('coach-card-body'),
                       speaks: speaks,
+                      speaksKey: speaksKey,
                       style: TextStyle(
                         color: kit.textMuted,
                         fontSize: 13.5,

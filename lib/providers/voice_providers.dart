@@ -30,7 +30,7 @@ import 'package:merge_empire_fc/services/voice_service.dart';
 
 /// The voice. One per app.
 final voiceServiceProvider = Provider<VoiceService>(
-  (ref) => VoiceService(backend: FlutterTtsBackend()),
+  (ref) => VoiceService(backend: ClipVoiceBackend()),
 );
 
 /// His two save values, and nothing else's.

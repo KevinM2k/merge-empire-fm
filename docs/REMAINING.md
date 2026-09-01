@@ -18,8 +18,9 @@ through means shipped in this session; the open ones are the queue.
 - ~~Daily reward: yellow invisible in light mode; a box per reward, all one
   size, in the HUD's colours.~~ Filled badges off `hudBadgeColour`/`hudBadgeInk`.
 - ~~Colin's line types in too fast.~~ 30ms a glyph, 2s ceiling.
-- ~~No TTS.~~ iOS was never asked for an audio session; it is now. **Superseded
-  by the row below — the plugin is going.**
+- ~~No TTS.~~ iOS was never asked for an audio session; it was then given one.
+  **Superseded and gone: the plugin was dropped for a folder of clips** — see
+  the row below and `assets/voice/README.md`.
 - ~~No volume for his voice.~~ His own channel in Settings → Audio, under the
   master sound switch. Neither key is in `createDefaultState`: that map is
   compared field for field against the JS's.
@@ -46,65 +47,46 @@ through means shipped in this session; the open ones are the queue.
 - ~~After they go, our own three should sit in slots 1, 2 and 3.~~
   `returnTutorialPlayers` packs the grid with `closeGridGaps`.
 
-**Open, in the order they were asked for:**
+**The three that were blocked on a ruling are DONE.** The ruling was given —
+the spec may be changed and the fixtures re-dumped — and all three took that
+route:
 
-- [ ] **NO home advantage until the Fan Zone is bought**, with the first +1
-      arriving on the purchase. **Blocked on a decision, and worth reading
-      before touching.** The port's `homeAdvantageDisplayFor` pays +1 at tier 0
-      because the JS's does — `../merge-empire-fc/src/engine/matchEngine.js:42`
-      is `Math.round(1 + 3 * clamp(fanTier) / 8)` — so this is a change to the
-      SPEC, not a port bug. Making it in the port alone turns
-      `season_difftest`'s six seasons red: one point on ATK and DEF changes
-      every scoreline, and the harness compares them match by match. The whole
-      change is `fanTier <= 0 ? 0 : …` in both repos plus
-      `node tool/difftest/run.mjs > test/fixtures/season_difftest.json` to
-      re-dump the fixture. Editing the shipped JS was not asked for, so it has
-      not been done.
-- [ ] **Drop `flutter_tts`.** The device voice is horrible. What is wanted in
-      its place: a folder you can drop clips into that is used when a clip is
-      there and silent when it is not. The seam is already the right shape —
-      `VoiceBackend` in `services/voice_service.dart` — so this is a new
-      backend plus an asset folder and a manifest lookup, and the plugin, its
-      pod and its pubspec line come out. Note the cards announce TEXT on the
-      bus today; a clip lookup wants the catalogue KEY, which `CoachCardFrame`
-      already has.
-- [ ] **No three-word club names out of the generator.** "Three Horseshoes
-      Rangers" is 23 characters and wraps to two lines in the table, the
-      fixture card, the pyramid editor and the ticker. **Blocked the same way
-      as the row above, and it has been tried.** The banks are in
-      `lib/engine/team_names.dart` and a name is `<first> <suffix>`, so the fix
-      is the ten two-word entries in `_grassrootsFirst` ('Red Lion', 'Plough
-      Lane', 'Old Oak', 'Mill Street', 'Market Square', 'Heath End', 'Hollow
-      Lane', 'Three Horseshoes', 'Cobble Street', 'Quarry Lane'), plus 'Iron
-      Bridge' in `_semiproFirst` and 'Red Star' in `_proPrefix`. Keeping the
-      bank LENGTHS identical keeps the seeded stream intact — the draw is
-      `randomInt(0, length - 1)` — but the STRINGS are pinned: doing it turned
-      `season_difftest` and three `progression_parity` cases red, because those
-      fixtures are dumped from the JS's own banks and compare club for club.
-      So the same banks have to change in
-      `../merge-empire-fc/src/engine/progressionEngine.js` and the fixtures be
-      re-dumped (`node tool/dump_progression_reference.mjs`,
-      `node tool/difftest/run.mjs`). Not done: editing the shipped JS was not
-      asked for.
+- ~~**NO home advantage until the Fan Zone is bought.**~~ `fanTier <= 0 ? 0 : …`
+  in `match_tactics.dart` AND in `../merge-empire-fc/src/engine/matchEngine.js`,
+  because the difftest compares six simulated seasons match by match and one
+  point on ATK and DEF moves every scoreline. `season_difftest.json` re-dumped.
+- ~~**Drop `flutter_tts`.**~~ `ClipVoiceBackend` plays
+  `assets/voice/<locale>/<key>.mp3` when a clip is there and is silent when it
+  is not, off the asset manifest; the bus event carries the catalogue KEY beside
+  the text, and `showCoachCard` hands over its own `bodyKey` — a pooled or
+  interpolated line passes none and stays quiet, which is the case nothing
+  pre-rendered can cover. The plugin, its pod and its pubspec block are gone,
+  and `assets/voice/README.md` says what to drop in.
+- ~~**No three-word club names out of the generator.**~~ Twelve pub-and-street
+  firsts rewritten as one word in both repos, bank lengths untouched so the
+  seeded draw is unchanged; `progression_reference.json` and
+  `season_difftest.json` re-dumped.
+
+**Still open:**
 
 - [ ] **A poof/tap sound set worth having.** `pop` is doing the job for the
       loan departure; it is a 0.1s blip from `sound_defs.dart` and a proper
-      shatter cue would be better. Cosmetic, and nothing is blocked on it.
+      shatter cue would be better. Cosmetic, and nothing is blocked on it —
+      it needs audio, not code.
 
 ---
 
 ## Where this queue stands
 
-**The port is done; what is open is the playtest list above.** Three rows, and
-two of them are blocked on the same question — whether the JS spec may be
-changed so the parity fixtures can be re-dumped. Read those rows before
-touching either: both have been tried, and both turn the harness red for a
-reason that is a feature.
+**The port is done, and the playtest list above is down to one cosmetic row**
+that needs a recording rather than a change. The three that were blocked on
+whether the JS spec could be changed were unblocked by the owner and done in
+both repos, with the fixtures re-dumped in the same commits.
 
-**Branch state:** all of the above is committed on
-`claude/dialog-box-ui-design-7m5199` and **not yet merged into `main`**, which
-has moved on since (PR #15). The merge was asked for and is the next thing to
-do; `flutter analyze` is clean and the suite is green on the branch.
+**Branch state:** on `main`, and the playtest session after this one is there
+too — the coach card's room, the tap cue, the 2D pitch's facing and touchline,
+light mode taking the kit, the mini-games' shapes, and the tutorial's Skip,
+which was popping the app's own route and leaving a black screen.
 
 Two rows carried as missing turned out to be STALE and are ticked with what was
 actually there: the boot splash — its face had shipped, its GATE had not, and

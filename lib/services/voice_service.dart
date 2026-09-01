@@ -6,14 +6,24 @@
 /// it needs a device, so all of it is testable and the only untested part is the
 /// thin adapter that talks to `flutter_tts`.
 ///
-/// **HE SPEAKS THE DEVICE'S VOICE, not a recorded one, and that is a deliberate
-/// first step rather than the finished thing.** A recorded gaffer would sound
-/// enormously better and cannot cover this game: his lines are catalogue strings
-/// in ten languages, several of them interpolate a player's name or a fee, and
-/// `welcome.line` is a pool of five. Nothing pre-rendered can say "Nakamura
-/// wants twelve thousand five hundred". So the seam is what matters — swap this
-/// backend for one that plays a bundled clip when a line has no parameters, and
-/// no call site changes.
+/// **HE SPEAKS FROM A FOLDER OF CLIPS, and says nothing when there is no clip
+/// for the line.** The device voice went in first, behind this same seam, and it
+/// was horrible: `flutter_tts` reads a gaffer's line the way a phone reads a
+/// notification, and the ten locales it has to cover make that worse rather than
+/// better. Asked for from the couch, and the plugin is gone with it — pubspec
+/// line, pod and all.
+///
+/// So a line is a KEY now, not a sentence. Drop `assets/voice/<locale>/<key>.mp3`
+/// in and that line is spoken; ship none and the game is exactly as silent as it
+/// was before any of this. The lookup is a manifest read once — see
+/// [voiceClipsFrom] — because asking the platform to play a file that is not
+/// there is an exception per card rather than a no-op.
+///
+/// **What it cannot do is the reason the device voice was tried at all.**
+/// Several of his lines interpolate a player's name or a fee, and nothing
+/// pre-rendered can say "Nakamura wants twelve thousand five hundred". Those
+/// keys simply have no clip, so they stay quiet: the cards that are worth
+/// recording are the story beats, which are fixed sentences.
 ///
 /// **NOT EVERY CARD TALKS.** The voice is opt-in per card (`speaks:` on
 /// `showCoachCard`), because the same shape carries a story beat and a
@@ -29,84 +39,76 @@
 /// here. See `providers/voice_providers.dart`.
 library;
 
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter/services.dart' show AssetBundle, AssetManifest, rootBundle;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 
 /// Everything that touches the platform, and nothing else.
 abstract class VoiceBackend {
-  /// Say [text]. Completes when the utterance has been HANDED OVER, not when it
-  /// has finished being spoken — the engines differ on whether they await the
-  /// audio, and a service that blocked on it could not stop a line.
-  Future<void> speak(
-    String text, {
-    required String locale,
-    required double volume,
-    required double rate,
-    required double pitch,
-  });
+  /// Play [asset] — a path relative to `assets/`, the way `audioplayers` wants
+  /// it. Completes when the clip has been HANDED OVER, not when it has finished
+  /// playing: a service that blocked on the audio could not cut a line.
+  Future<void> play(String asset, {required double volume});
 
-  /// Cut whatever is being said.
+  /// Cut whatever is playing.
   Future<void> stop();
 }
 
-/// How he talks.
+/// Where a line's clip lives, given the catalogue it is written in.
 ///
-/// Slower and lower than the engine's default, which is tuned for reading a
-/// notification aloud rather than for a man leaning over a dugout. Both are
-/// engine-relative — 1.0 is "whatever this device calls normal" — so they are
-/// nudges rather than absolute settings.
-const double voiceRate = 0.46;
-const double voicePitch = 0.92;
+/// A path relative to `assets/`, because that is what `audioplayers` takes and
+/// what `sound_service.dart` already passes. The folder is per LOCALE and the
+/// file is the catalogue KEY, so dropping a clip in is the whole of adding a
+/// spoken line — there is no list to keep in step.
+String voiceClipAsset(String key, String locale) =>
+    '$voiceClipDir/$locale/$key.mp3';
 
-/// Which speech locale each shipped catalogue asks for.
+/// The folder, under `assets/`. Declared in pubspec per locale.
+const String voiceClipDir = 'voice';
+
+/// Which clips are actually bundled, off the asset manifest.
 ///
-/// **The catalogue ids are not speech locales.** `zh` and `pt` in particular are
-/// languages rather than voices, and an engine handed a bare language code picks
-/// a region for you — which for Portuguese is the difference between Lisbon and
-/// São Paulo. English is en-GB: he is a British gaffer, and the JS's copy is
-/// written that way ("boss", "the gaffer", "clean sheet").
-const Map<String, String> voiceLocales = {
-  'en': 'en-GB',
-  'es': 'es-ES',
-  'pt': 'pt-BR',
-  'fr': 'fr-FR',
-  'de': 'de-DE',
-  'it': 'it-IT',
-  'ja': 'ja-JP',
-  'ko': 'ko-KR',
-  'zh': 'zh-CN',
-  'ar': 'ar-SA',
-};
-
-/// What a speech engine should not be handed.
-///
-/// **The copy is written to be READ**, and the catalogue is full of things that
-/// are punctuation to an eye and a word to an engine: the emoji a milestone card
-/// carries, the arrows in a stat line, the box-drawing in a table. Engines
-/// disagree about what to do with them — some skip, some announce the character
-/// by name, and "clean sheet grinning face with smiling eyes" is not a sentence.
-final RegExp _unspeakable = RegExp(
-  r'[\u{1F000}-\u{1FAFF}\u{2190}-\u{2BFF}\u{2600}-\u{27BF}\u{FE0F}\u{2022}]',
-  unicode: true,
-);
-
-/// The line as it should be SAID rather than as it is printed.
-String speakable(String line) => line
-    .replaceAll(_unspeakable, ' ')
-    .replaceAll(RegExp(r'\s+'), ' ')
-    .trim();
+/// **Read once, and not by trying to play.** A missing clip reported as a
+/// platform exception is a thrown error per card on a game that ships none of
+/// them, and the manifest is the only thing that can answer the question
+/// cheaply. Keys keep the `assets/` prefix off, so this set is comparable with
+/// [voiceClipAsset].
+Future<Set<String>> voiceClipsFrom(AssetBundle bundle) async {
+  try {
+    final manifest = await AssetManifest.loadFromAssetBundle(bundle);
+    return {
+      for (final path in manifest.listAssets())
+        if (path.startsWith('assets/$voiceClipDir/'))
+          path.substring('assets/'.length),
+    };
+  } catch (e) {
+    debugPrint('voice manifest: $e');
+    return const <String>{};
+  }
+}
 
 class VoiceService {
-  VoiceService({required VoiceBackend backend, String Function()? locale})
-    : _backend = backend,
-      _locale = locale ?? getLocale;
+  VoiceService({
+    required VoiceBackend backend,
+    String Function()? locale,
+    Future<Set<String>> Function()? clips,
+  }) : _backend = backend,
+       _locale = locale ?? getLocale,
+       _clips = clips ?? (() => voiceClipsFrom(rootBundle));
 
   final VoiceBackend _backend;
 
   /// Which catalogue is loaded. Injectable so the locale rule can be tested
   /// without moving the whole app's language.
   final String Function() _locale;
+
+  /// Which clips are bundled. Injectable for the same reason, and awaited once:
+  /// the manifest does not change while the app is running.
+  final Future<Set<String>> Function() _clips;
+  Future<Set<String>>? _loaded;
 
   /// Whether he may speak at all. **Off until told otherwise**: the app's own
   /// settings push the save's value in at boot, and a service that started
@@ -118,30 +120,33 @@ class VoiceService {
 
   bool _suspended = false;
 
-  /// What he is saying, or null. A test seam, and the flag that makes
+  /// Which clip is playing, or null. A test seam, and the flag that makes
   /// [silence] cheap when there is nothing to cut.
   String? get saying => _saying;
   String? _saying;
 
-  /// Say a line.
+  /// Say the line for [key].
+  ///
+  /// **Silent when there is no clip, and that is the normal case.** A key with
+  /// nothing recorded for it — anything with a name or a fee in it, anything
+  /// nobody has got to yet — leaves the card exactly as it was before the voice
+  /// existed. No lookup, no exception, no log.
   ///
   /// **One line at a time.** A card can open over a card — a tip queued behind
   /// the welcome-back card is the everyday case — and two Colins talking at once
   /// is worse than either of them. The new line wins, because it is the one the
   /// player is looking at.
-  Future<void> say(String line) async {
+  Future<void> say(String key) async {
+    if (!enabled || _suspended || volume <= 0 || key.isEmpty) return;
+    final asset = voiceClipAsset(key, _locale());
+    final bundled = await (_loaded ??= _clips());
+    if (!bundled.contains(asset)) return;
+    // Checked again: awaiting the manifest gives the card time to close, and a
+    // clip that starts after its card has gone is a voice from nowhere.
     if (!enabled || _suspended || volume <= 0) return;
-    final text = speakable(line);
-    if (text.isEmpty) return;
     if (_saying != null) await _backend.stop();
-    _saying = text;
-    await _backend.speak(
-      text,
-      locale: voiceLocales[_locale()] ?? voiceLocales['en']!,
-      volume: volume,
-      rate: voiceRate,
-      pitch: voicePitch,
-    );
+    _saying = asset;
+    await _backend.play(asset, volume: volume);
   }
 
   /// Stop him — the card closed, or the setting went off.
@@ -172,84 +177,25 @@ class VoiceService {
   Future<void> resume() async => _suspended = false;
 }
 
-/// The `flutter_tts` adapter. The only thing in the app that imports the plugin.
-class FlutterTtsBackend implements VoiceBackend {
-  FlutterTtsBackend([FlutterTts? tts]) : _tts = tts ?? FlutterTts();
+/// The `audioplayers` adapter, and the only part of the voice that touches the
+/// platform.
+///
+/// One player, reused: he says one line at a time by construction — see
+/// [VoiceService.say] — so a pool would only ever hold one live clip and a
+/// second would be two Colins talking.
+class ClipVoiceBackend implements VoiceBackend {
+  ClipVoiceBackend([AudioPlayer? player]) : _player = player ?? AudioPlayer();
 
-  final FlutterTts _tts;
-
-  /// The locale the engine is currently set to, so a line in the same language
-  /// as the last one does not pay for the round trip.
-  String? _set;
-
-  /// **iOS SAYS NOTHING UNTIL THE SESSION IS ASKED FOR, which is why he was
-  /// silent.** `flutter_tts` leaves the audio session alone unless
-  /// `setSharedInstance(true)` is called, and what it falls back to is silenced
-  /// by the ring switch and by whatever the game's own player has already
-  /// activated - so on a phone that is playing coin sounds perfectly well, the
-  /// voice is inaudible and nothing throws.
-  ///
-  /// The session it asks for is the one `sound_service.dart` already argued
-  /// for: PLAYBACK so the ring switch does not silence a line the card is
-  /// waiting on, MIXED so the player's podcast keeps running, and DUCKED so
-  /// what is playing drops under him instead of burying him. `voicePrompt` is
-  /// the mode Apple documents for exactly this - a synthesised line spoken over
-  /// other audio.
-  ///
-  /// Once, lazily, and never fatal: a device with no speech engine at all
-  /// throws from whichever call comes first, and a coach card must still open.
-  bool _sessionAsked = false;
-
-  /// **Its own try, and only where the calls exist.** Both are iOS/macOS
-  /// methods: Android's plugin has no handler for either, so an unguarded pair
-  /// here throws a `MissingPluginException` out of the first line of `speak`
-  /// and takes the whole utterance with it - the one platform that was working
-  /// would have stopped talking to fix the one that was not.
-  Future<void> _session() async {
-    if (_sessionAsked) return;
-    _sessionAsked = true;
-    if (defaultTargetPlatform != TargetPlatform.iOS &&
-        defaultTargetPlatform != TargetPlatform.macOS) {
-      return;
-    }
-    try {
-      await _tts.setSharedInstance(true);
-      await _tts.setIosAudioCategory(
-        IosTextToSpeechAudioCategory.playback,
-        [
-          IosTextToSpeechAudioCategoryOptions.mixWithOthers,
-          IosTextToSpeechAudioCategoryOptions.duckOthers,
-        ],
-        IosTextToSpeechAudioMode.voicePrompt,
-      );
-    } catch (e) {
-      debugPrint('voice session: $e');
-    }
-  }
+  final AudioPlayer _player;
 
   @override
-  Future<void> speak(
-    String text, {
-    required String locale,
-    required double volume,
-    required double rate,
-    required double pitch,
-  }) async {
-    // **EVERY CALL IS GUARDED.** A speech engine is a service on the device that
-    // may simply not be there — a stripped Android build, a locale with no voice
-    // installed, an emulator — and it reports that by throwing from whichever
-    // call happens to be first. A coach card must not fail to open because the
-    // phone cannot talk.
+  Future<void> play(String asset, {required double volume}) async {
+    // **GUARDED, like every call in the sound backend.** A clip that is in the
+    // manifest and unplayable — a truncated file, a codec the device does not
+    // have — must not take the card down with it.
     try {
-      await _session();
-      if (_set != locale) {
-        await _tts.setLanguage(locale);
-        _set = locale;
-      }
-      await _tts.setVolume(volume);
-      await _tts.setSpeechRate(rate);
-      await _tts.setPitch(pitch);
-      await _tts.speak(text);
+      await _player.setVolume(volume);
+      await _player.play(AssetSource(asset));
     } catch (e) {
       debugPrint('voice: $e');
     }
@@ -258,7 +204,7 @@ class FlutterTtsBackend implements VoiceBackend {
   @override
   Future<void> stop() async {
     try {
-      await _tts.stop();
+      await _player.stop();
     } catch (e) {
       debugPrint('voice: $e');
     }

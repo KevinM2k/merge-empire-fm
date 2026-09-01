@@ -84,32 +84,6 @@ dependencies:
   firebase_analytics: ^12.4.6
   firebase_crashlytics: ^5.2.7
 
-  # **NOT a port of anything — the JS has no voice.** Coach Colin's story and
-  # milestone cards read themselves out through the device's own speech engine.
-  # Behind `services/voice_service.dart` like every other seam here, and behind
-  # a per-card opt-in on top of that: see the note on `CoachCardFrame.speaks`.
-  #
-  # **PINNED EXACTLY, and BELOW the latest, because 4.2.4 is where its NATIVE
-  # requirements jump.** That release raised the plugin's own
-  # `android/build.gradle` buildscript from AGP 8.2.0 to 8.13.0 and its
-  # `compileSdk` from 34 to 36; 4.2.3 and everything before it sit under what
-  # this app declares in `android/settings.gradle.kts` (AGP 8.11.1) and under
-  # Flutter 3.44.9's compileSdk 36, and 4.2.4 does not.
-  #
-  # **This is a precaution rather than a diagnosed fix**, and the honest version
-  # is worth writing down: a reported Android build failure could not be
-  # reproduced from a cloud container, which has no Android SDK. What IS
-  # established is that the Dart side is not the problem — the whole app
-  # compiles in release — so the fault is native, and this is the only native
-  # change the voice work made. Nothing else here asks the Android build for a
-  # newer toolchain than the app declares.
-  #
-  # The Dart API is byte-identical across 4.2.3, 4.2.4 and 4.2.5 — the diff is
-  # native build config — so nothing in `voice_service.dart` cares, and the pin
-  # costs the port nothing. A caret would walk straight back into 4.2.5 on the
-  # next `pub upgrade`. Raising the app's own AGP is the other fix, and it is a
-  # change to the whole Android build for one plugin's convenience.
-  flutter_tts: 4.2.3
 
 dev_dependencies:
   flutter_test:
@@ -154,6 +128,14 @@ flutter:
     - assets/whack/
     - assets/ui/
     - assets/audio/
+
+    # Colin's voice, and there may be nothing in it. **A folder per locale, one
+    # file per catalogue key** — `voice/en/coachtip.foo.mp3` — read through the
+    # asset manifest, so dropping a clip in is the whole of adding a spoken
+    # line and shipping none leaves him silent. He used to read himself out
+    # with the device's own speech engine; that plugin is gone.
+    # See services/voice_service.dart.
+    - assets/voice/
 
     # Kenney's top-down sports pack (CC0), for the 2D match cutaway.
     - assets/pitch/
