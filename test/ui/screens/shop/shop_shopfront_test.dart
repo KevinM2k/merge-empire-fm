@@ -186,6 +186,19 @@ void main() {
       );
     });
 
+    testWidgets('AND THE PANEL KEEPS THE STRIP\'S OWN MARGIN', (tester) async {
+      // The strip is inset either side and the panel ran to both edges of the
+      // phone, so the thing the tabs are supposed to be standing on was wider
+      // than they were. Reported from the couch.
+      await pumpShop(tester, (_) {});
+      final tabs = tester.getRect(find.byKey(const ValueKey('shop-tabs')));
+      // The scroll view fills the panel exactly — its own padding is inside it.
+      final panel = tester.getRect(find.byKey(const ValueKey('shop-scroll')));
+      expect(panel.left, closeTo(tabs.left, 0.5));
+      expect(panel.right, closeTo(tabs.right, 0.5));
+      expect(panel.left, greaterThan(0), reason: 'still flush to the glass');
+    });
+
     testWidgets('and an unselected tab stands SHORTER, so the strip stacks', (
       tester,
     ) async {

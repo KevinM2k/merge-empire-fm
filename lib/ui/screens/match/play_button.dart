@@ -190,11 +190,12 @@ Color playButtonInk(Color accent) {
       hsl.withLightness(l).withSaturation(saturation).toColor();
   final most = light ? playButtonInkLightest : playButtonInkDarkest;
   final ground = light ? lit : dim;
-  final want = light ? whiteInkMinContrast : playButtonInkDarkContrast;
   for (var l = light ? 0.62 : 0.44; ; l += light ? 0.02 : -0.02) {
     final stop = light ? l >= most : l <= most;
     final ink = at(stop ? most : l);
-    if (stop || contrastRatio(ground, ink.computeLuminance()) >= want) {
+    if (stop ||
+        contrastRatio(ground, ink.computeLuminance()) >=
+            playButtonInkContrast) {
       return ink;
     }
   }
@@ -210,11 +211,17 @@ Color playButtonInk(Color accent) {
 const double playButtonInkLightest = 0.94;
 const double playButtonInkDarkest = 0.12;
 
-/// What a DARK label has to clear, which is more than a light one is asked for.
+/// What the label aims to clear against the face, whichever way it went.
 ///
-/// It is only ever chosen for a face bright enough that white failed, and a
-/// dark ink on a bright face clears this without going anywhere near black.
-const double playButtonInkDarkContrast = 4;
+/// **The first pass asked the light branch for [whiteInkMinContrast] and it
+/// stopped too early** — that is the bar for "is white readable at all", not
+/// for a label, so a navy club got a mid-blue one. Reported back from the
+/// couch: better, but the darker buttons want their label lighter. Four is what
+/// a dark label on a bright face clears easily, and it is what a light label on
+/// a dark one reaches too; on a mid-tone face — a red, a green — no tint of the
+/// hue can reach it, and that case walks to [playButtonInkLightest] and stops
+/// there rather than going white.
+const double playButtonInkContrast = 4;
 
 class PlayMatchButton extends ConsumerWidget {
   const PlayMatchButton({super.key});

@@ -275,6 +275,15 @@ class _Swatch extends StatelessWidget {
   final bool selected;
   final bool locked;
 
+  /// Whether there is room for the pattern's name on it.
+  ///
+  /// A grid swatch passes no size and takes the cell — that one gets the pill.
+  /// The chip on the Kit Design row is 32 points square, and a word on that is
+  /// not a label.
+  bool get _named => size == null || size! >= _namedLeast;
+
+  static const double _namedLeast = 44;
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
@@ -322,23 +331,46 @@ class _Swatch extends StatelessWidget {
             )
           // A pattern kit gets its name on a dark pill: the bands alternate
           // light and dark, so no single ink holds contrast across both.
-          : stripes == null
+          //
+          // **ONE LINE, ALWAYS, and no pill at all on the small chip.**
+          // "Humbug" broke across two lines in the picker and again on the
+          // 32pt chip beside "Kit Design", where a two-line 9pt label in a
+          // 32pt square is a smudge. Reported from the couch, both places.
+          // `scaleDown` is what makes it a promise rather than a measurement:
+          // the grid is five cells across a phone and the word is a different
+          // length in each of ten languages.
+          : stripes == null || !_named
           ? null
           : Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.75),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Text(
-                  t(colour == 'turf' ? 'kit.swatch.turf' : 'kit.swatch.humbug'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.75),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      t(
+                        colour == 'turf'
+                            ? 'kit.swatch.turf'
+                            : 'kit.swatch.humbug',
+                      ),
+                      maxLines: 1,
+                      softWrap: false,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                 ),
               ),

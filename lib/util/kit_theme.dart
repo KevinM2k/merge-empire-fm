@@ -175,20 +175,36 @@ const Map<String, String> _patternLightAccent = {
   'void': '#7733cc',
 };
 
-/// Light mode is one neutral card stack for every kit; only the accent moves.
-const String _lightBg = '#ffffff';
-const String _lightSurface = '#eef0f3';
-const String _lightSurface2 = '#e3e6ea';
-const String _lightBorder = '#d0d5db';
+/// **Light mode takes the kit too, the same way dark mode does.**
+///
+/// It was one neutral card stack for every club — white page, grey boxes — with
+/// only the accent moving, while the dark theme has always leaned the club's
+/// way. So a light-mode Everton and a light-mode Liverpool were the same screen
+/// with a different button on it. Asked for in exactly those terms: the inverse
+/// of what dark mode does.
+///
+/// It IS [_darkFrom]'s ramp read from the other end. The lightnesses are the
+/// neutrals they replace — 100, 94.7, 90.4, 83.7, and 39 for muted text — so
+/// nothing tuned against a light grey shifts underfoot; what is new is the hue,
+/// on the same saturation ladder. A tint at 95% lightness is a whisper, which is
+/// the point: the page reads as the club's rather than as coloured.
 const String _lightTextMuted = '#5b616b';
 
 KitSurfaces _lightFrom(String accentHex, int hueRotate) {
   final hsl = hexToHsl(accentHex);
+  final h = hsl.h;
+  final sat = kitSaturation(hsl.s);
   return KitSurfaces(
-    bg: _lightBg,
-    surface: _lightSurface,
-    surface2: _lightSurface2,
-    border: _lightBorder,
+    bg: 'hsl($h,$sat%,99%)',
+    surface: 'hsl($h,${(sat * 0.75).round()}%,95%)',
+    surface2: 'hsl($h,${(sat * 0.65).round()}%,90%)',
+    border: 'hsl($h,${(sat * 0.55).round()}%,84%)',
+    // **The muted ink stays NEUTRAL, and it is the one value that has to.** Hue
+    // is not free at a fixed lightness: green weighs 0.7152 of the luminance
+    // sum, so a green-tinted grey at the same 39% is measurably brighter than
+    // this and lands under 3:1 on the pale panels — which is what
+    // `light_mode_contrast_test` caught on the match screen and the full-time
+    // report. The boxes take the club; the small grey text does not.
     textMuted: _lightTextMuted,
     accent: accentHex,
     accentBright: 'hsl(${hsl.h},60%,36%)',

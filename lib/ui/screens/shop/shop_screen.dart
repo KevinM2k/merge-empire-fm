@@ -98,7 +98,12 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     return Column(
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(12, hudClearanceOf(context), 12, 0),
+          padding: EdgeInsets.fromLTRB(
+            shopPanelInset,
+            hudClearanceOf(context),
+            shopPanelInset,
+            0,
+          ),
           child: _ShopTabs(
             selected: _tab,
             onPick: (i) {
@@ -124,35 +129,46 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
         // black-and-white stripes behind this screen, which is what made the top
         // of the Shop unreadable in the first place, and the strip above the
         // tabs still shows them.
+        // **AND IT LINES UP WITH THE TABS.** The strip is inset 12 either side
+        // and the panel ran to both edges of the phone, so the thing the tabs
+        // are supposed to be sitting ON was wider than they were — reported
+        // from the couch. Same margin, so the join is a join.
         Expanded(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: shopPanelInk(kit),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: shopPanelInset),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: shopPanelInk(kit),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(14),
+                ),
               ),
-            ),
-            child: SingleChildScrollView(
-              key: const ValueKey('shop-scroll'),
-              controller: _scroll,
-              // The Shop had NO padding at all: its first tile ran under the
-              // floating HUD and its last under the tab bar. The strip above
-              // carries the HUD's clearance now; this is the tab bar's own.
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              child: Column(
-                children: [
-                  for (final id in shown.sections) _shelf(id),
-                  // **Only on the shelves that sell for MONEY.** Restore is
-                  // about purchases, and a Restore button under the kit colours
-                  // is a control answering a question nobody asked there.
-                  if (shown.sections.any(
-                    (id) =>
-                        id == ShopSectionId.offers ||
-                        id == ShopSectionId.gems ||
-                        id == ShopSectionId.coins,
-                  ))
-                    const RestoreRow(),
-                ],
+              child: SingleChildScrollView(
+                key: const ValueKey('shop-scroll'),
+                controller: _scroll,
+                // The Shop had NO padding at all: its first tile ran under the
+                // floating HUD and its last under the tab bar. The strip above
+                // carries the HUD's clearance now; this is the tab bar's own.
+                //
+                // Narrower down the sides than it was, because the panel itself
+                // now carries [shopPanelInset]: 12 inside 12 would be 24 of air
+                // beside every tile.
+                padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+                child: Column(
+                  children: [
+                    for (final id in shown.sections) _shelf(id),
+                    // **Only on the shelves that sell for MONEY.** Restore is
+                    // about purchases, and a Restore button under the kit colours
+                    // is a control answering a question nobody asked there.
+                    if (shown.sections.any(
+                      (id) =>
+                          id == ShopSectionId.offers ||
+                          id == ShopSectionId.gems ||
+                          id == ShopSectionId.coins,
+                    ))
+                      const RestoreRow(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -170,6 +186,13 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
 /// in dark, near-white in light — which is exactly the relationship a tab strip
 /// wants with the tabs sitting on it.
 Color shopPanelInk(KitTheme kit) => kit.bg;
+
+/// The margin the tab strip and the panel under it BOTH keep.
+///
+/// One number, because the whole point of the panel is that the selected tab
+/// opens into it — and a panel wider than the tabs standing on it is not a
+/// panel they belong to.
+const double shopPanelInset = 12;
 
 /// The strip that picks a shelf.
 ///

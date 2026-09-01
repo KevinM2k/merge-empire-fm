@@ -310,10 +310,15 @@ void main() {
       }
     });
 
-    testWidgets('and it is the SAME light on every kit', (tester) async {
+    testWidgets('and it is the same LIGHTNESS on every kit', (tester) async {
       // Which is the point of the whole change: one luminance per theme means
       // the ink standing on it can be decided once instead of per club.
-      final seen = <List<Color>>[];
+      //
+      // **The same lightness, not the same colour.** Light mode's surfaces take
+      // the club's hue now, the way dark mode's always have — so the band leans
+      // the club's way and the thing that has to hold still is how BRIGHT it
+      // is, which is what the ink was chosen against.
+      final seen = <List<double>>[];
       for (final kitId in const ['#4caf50', '#fdd835', '#7b1d34', '#00bcd4']) {
         await pumpHud(
           tester,
@@ -323,10 +328,19 @@ void main() {
         );
         final context = tester.element(find.byType(Hud));
         final kit = Theme.of(context).extension<KitTheme>()!;
-        seen.add(hudChrome(kit, context).colors);
+        seen.add([
+          for (final c in hudChrome(kit, context).colors)
+            0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b,
+        ]);
       }
-      for (final stops in seen) {
-        expect(stops, seen.first, reason: 'the bar moved with the club');
+      for (var stop = 0; stop < seen.first.length; stop++) {
+        final across = [for (final kit in seen) kit[stop]];
+        expect(
+          across.reduce((a, b) => a > b ? a : b) -
+              across.reduce((a, b) => a < b ? a : b),
+          lessThan(0.05),
+          reason: 'stop $stop changes brightness with the club',
+        );
       }
     });
 

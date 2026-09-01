@@ -112,9 +112,11 @@ void main() {
       ]) {
         expect(labelIsLighter(accent), isTrue, reason: '$accent');
         final ink = HSLColor.fromColor(playButtonInk(accent));
+        // A degree or so of drift: a pale tint is three 8-bit channels close
+        // together, and the hue read back off them quantises.
         expect(
           ink.hue,
-          closeTo(HSLColor.fromColor(accent).hue, 1),
+          closeTo(HSLColor.fromColor(accent).hue, 3),
           reason: '$accent: the label stopped being red',
         );
         expect(
@@ -160,9 +162,10 @@ void main() {
       for (final accent in kitAccents) {
         // A light label on a mid face is the low end, and it is what the
         // label's drop shadow is for; a dark one is asked for more.
-        final least = labelIsLighter(accent)
-            ? 1.9
-            : playButtonInkDarkContrast;
+        // A light label on a MID face is the low end: no tint of a red or a
+        // green reaches four without going white, so that case takes the cap
+        // and leans on the label's drop shadow. Everything else clears the bar.
+        final least = labelIsLighter(accent) ? 1.9 : playButtonInkContrast;
         expect(
           labelGap(accent),
           greaterThanOrEqualTo(least),
