@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
+import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -200,6 +201,70 @@ void main() {
           .progress,
       greaterThan(0),
     );
+  });
+
+  group('the tier-up card names what the tier actually unlocked', () {
+    /// The splash's bonus line, or null when it did not say anything.
+    String? bonusLine(WidgetTester tester) {
+      final found = find.byKey(const ValueKey('feature-unlock-bonus'));
+      return found.evaluate().isEmpty
+          ? null
+          : tester.widget<Text>(found).data;
+    }
+
+    /// Builds [key] and returns what the card said it had unlocked.
+    Future<String?> buildAndRead(WidgetTester tester, String key) async {
+      await pumpClub(tester, coins: 10000000);
+      // The grid scrolls, and the last facilities sit below the fold — a tap at
+      // an off-screen widget's coordinates lands on whatever IS there.
+      final action = find.byKey(
+        ValueKey('club-action-$key'),
+        skipOffstage: false,
+      );
+      await tester.ensureVisible(action);
+      await tester.pumpAndSettle();
+      await tester.tap(action);
+      // Pumped rather than SETTLED: the splash dismisses itself after
+      // `featureUnlockHold`, and a settle runs the clock straight past it — so
+      // every one of these read an empty tree and agreed with each other.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byKey(const ValueKey('feature-unlock')), findsOneWidget);
+      final line = bonusLine(tester);
+      await tester.pumpAndSettle(featureUnlockHold);
+      await settleSave(tester);
+      return line;
+    }
+
+    testWidgets('the Training Ground names its drill', (tester) async {
+      // Only the Stadium was ever named here, so a player who had just paid for
+      // a mini-game, a squad slot or a haircut was told nothing about it.
+      expect(
+        await buildAndRead(tester, AssetCategory.training),
+        t('club.minigame.goalkeeper'),
+      );
+    });
+
+    testWidgets('the Youth Academy names its slot', (tester) async {
+      expect(
+        await buildAndRead(tester, AssetCategory.academy),
+        t('club.effect.player_slot'),
+      );
+    });
+
+    testWidgets('and the Fan Zone names its customisations', (tester) async {
+      // NAMED, not counted — the same words the ladder sheet uses.
+      final line = await buildAndRead(tester, AssetCategory.fanzone);
+      for (final key in looksUnlockedAtTier(1)) {
+        expect(line, contains(cosmeticName(key)), reason: key);
+      }
+    });
+
+    testWidgets('the Merch Store has nothing to add, and says nothing', (
+      tester,
+    ) async {
+      expect(await buildAndRead(tester, AssetCategory.merch), isNull);
+    });
   });
 
   testWidgets('a bar only appears once something is built', (tester) async {

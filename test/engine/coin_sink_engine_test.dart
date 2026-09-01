@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/coin_sinks.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/coin_sink_engine.dart';
@@ -306,6 +307,42 @@ void main() {
       expect(result.ok, isFalse);
       expect(result.reason, 'grid_full');
       expect(state['resources']['fanCoins'], before);
+    });
+
+    test('stops at the ROSTER cap, not at the end of the cell array', () {
+      // 39 cells, 30 of them full and no Youth Academy: `placeCard` would find
+      // cell 30 empty and drop a card into a square the grid draws padlocked.
+      final state = _state(
+        cells: [for (var i = 0; i < Grid.maxPlayers; i++) _card('c$i')],
+        slots: Grid.totalCells,
+      );
+      final before = state['resources']['fanCoins'];
+      final result = purchaseCoinSink(state, 'youth_academy');
+      expect(result.ok, isFalse);
+      expect(result.reason, 'grid_full');
+      expect(state['resources']['fanCoins'], before);
+      expect((state['grid']['cells'] as List)[Grid.maxPlayers], isNull);
+    });
+
+    test('and the Academy tiers that cap up, one slot at a time', () {
+      final state = _state(
+        cells: [for (var i = 0; i < Grid.maxPlayers; i++) _card('c$i')],
+        slots: Grid.totalCells,
+      );
+      (state['clubAssets'] as Map)[AssetCategory.academy] = <String, dynamic>{
+        'owned': true,
+        'tier': 2,
+        'invested': 0,
+        'tapCount': 0,
+      };
+      expect(getMaxPlayers(state), Grid.maxPlayers + 2);
+      expect(purchaseCoinSink(state, 'youth_academy').ok, isTrue);
+      expect(purchaseCoinSink(state, 'lucky_pack').ok, isTrue);
+      // Both slots the Academy bought are spent; the 33rd is refused.
+      final full = purchaseCoinSink(state, 'youth_academy');
+      expect(full.ok, isFalse);
+      expect(full.reason, 'grid_full');
+      expect((state['grid']['cells'] as List)[Grid.maxPlayers + 2], isNull);
     });
 
     test('a new card slots straight into an empty place in the XI', () {

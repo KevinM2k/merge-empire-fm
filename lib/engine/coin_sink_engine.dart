@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/data/coin_sinks.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart' show getMaxPlayers;
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -236,6 +237,18 @@ SinkPurchase purchaseCoinSink(
 
     case 'youth_academy':
     case 'lucky_pack':
+      // **THE ROSTER CAP, not the array's length.** [placeCard] only knows
+      // `grid.cells`, which is 39 long because 30 plus a maxed Youth Academy's
+      // 8 needs 39 with one spare — it is NOT the squad limit. Without this the
+      // pack dropped a player into a square the grid draws PADLOCKED, so a
+      // player on a cap of 30 paid 8,000 coins for a card they could not reach.
+      // `signBlocked` enforces the same rule on the scout, and this is the
+      // other way onto the grid.
+      if (cells.where((c) => c != null).length >= getMaxPlayers(state)) {
+        resources['fanCoins'] =
+            roundCoins((_num(resources['fanCoins']) ?? 0) + cost);
+        return _fail('grid_full');
+      }
       final pool = sink.id == 'youth_academy'
           ? youthAcademyPool(divIdx)
           : luckyPackPool(divIdx);

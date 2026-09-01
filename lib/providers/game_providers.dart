@@ -155,3 +155,18 @@ final canPrestigeProvider = savePick<bool>(canPrestige);
 final stadiumTierProvider = savePick<int>(
   (s) => math.max(1, assetTier(s, AssetCategory.stadium)),
 );
+
+/// The Stadium tier an UNLOCK is measured against — deliberately NOT the number
+/// above, and the difference is the whole reason this exists.
+///
+/// [stadiumTierProvider] floors at one so the ground can be drawn before it has
+/// been built. Gating with that floor handed the tier-one kit colours to a club
+/// with no Stadium at all: four of the twelve the facility promises were already
+/// unlocked in the picker before a coin had been spent on it, and the card went
+/// on advertising them as what tier one would buy. What a facility HAS is this
+/// one; what the scene LOOKS like is the other.
+final stadiumUnlockTierProvider = savePick<int>(
+  (s) => isAssetOwned(s, AssetCategory.stadium)
+      ? assetTier(s, AssetCategory.stadium)
+      : 0,
+);

@@ -1668,6 +1668,82 @@ JS number or object did.
 
 ---
 
+## From playtesting — 1 Sep (does every unlock DO what it says?)
+
+Reported as "I have tier 8 of the Fan Zone but only 30 slots are open in
+players", which is the Fan Zone working exactly as specified — **squad slots are
+the ACADEMY's milestone track, not the Fan Zone's**, and the Fan Zone's own are
+the manager customisations. So the row underneath it is the real one: an audit of
+every club-asset unlock against the code that is supposed to honour it, at all
+eight tiers.
+
+**The ladder itself came back clean, and it was always going to.**
+`club_asset_tiers.dart` DERIVES every line from the gate function the game runs
+on, with the milestones as a diff across the tier boundary, so a card cannot
+claim a perk the engine does not grant. All seven facilities check out against
+their gates: mini-games at Training 1-6, kit colours at Stadium 1/3/5/7/8, a
+squad slot at every Academy tier, customisations at every Fan Zone tier, and
+home advantage stepping at Fan Zone 2, 4 and 7 only.
+
+**What the audit actually found was at the EDGES of that ladder — three places
+where the number being gated on was not the ladder's, and one where the ladder
+was never asked.**
+
+- [x] **THE STADIUM'S FIRST FOUR KIT COLOURS WERE FREE.** The picker gated on
+      `stadiumTierProvider`, and that provider floors at one **on purpose** — the
+      stadium photo, the Play diorama's sky and the match page's ground all need
+      a scene before the ground has been built, and "a tier-zero sky over a
+      tier-one stand is two parts of one scene disagreeing". Gating on it handed
+      `getUnlockedColours(1)` to a club that had never spent a coin: four of the
+      twelve kits the facility advertises were already unpadlocked, while the
+      card went on promising them as what tier one would buy.
+      **The two numbers are genuinely different questions** — what a facility HAS
+      versus what the scene LOOKS like — so there are two providers now, and
+      `stadiumUnlockTierProvider` is owned-aware rather than floored. There was
+      no kit-picker test at all; there is one now, and it fails on the old
+      provider.
+- [x] **THE COIN SINKS COULD PUT A PLAYER IN A PADLOCKED SQUARE.** `grid.cells`
+      is 39 long because 30 plus a maxed Academy's 8 needs 39 with one spare, and
+      it is NOT the squad limit — `signBlocked` says so in as many words, because
+      the scout shipped with exactly this bug ("I'm locked at 30 and I have 39").
+      `purchaseCoinSink` is the OTHER way onto the grid and it only ever asked
+      `placeCard`, which knows the array and nothing else. A Youth Academy or a
+      Lucky Pack bought at the cap therefore charged 8,000 coins and dropped the
+      card into a cell `gridCellsProvider` draws locked.
+      Refunds now, with the reason the scout gives.
+- [x] **AND SO COULD A DEADLINE DAY SWAP.** `buildRivalOffer` already sizes
+      `incoming` against `_swapRoom`, which respects the Academy — but it does
+      that when the listing is WRITTEN, and the feed then sits there for the
+      whole fuse. Sign anyone in between and a two-player swap accepted at the
+      cap lands the second one past it. `_acceptBid` counts the room itself now,
+      after the sold player has vacated, so the swap still uses the slot it just
+      freed and the cash still lands for anyone it cannot house.
+- [x] **THE TIER-UP SPLASH ONLY EVER NAMED THE STADIUM.** `showFeatureUnlock`'s
+      `bonus` is documented as "a second thing the build unlocked — kit colours,
+      a mini-game", and the call site hardcoded `tile.key == STADIUM`. Four
+      facilities hand something over on a tier-up, so a player who had just paid
+      forty taps for a mini-game, a squad slot or a haircut was told nothing
+      about it on the one screen that exists to say so.
+      It reads `assetUnlocksAt` now — the same diff the card's "next" line
+      promised it with — so the splash cannot name a perk the tier did not grant
+      or miss one it did, and it needs no new copy: the ladder's own words
+      already ship in ten languages.
+
+**Two things the audit turned up and deliberately did NOT change:**
+
+- **`purchaseCoinSink` has no caller in `lib/`.** The engine is ported, tested
+  and unreachable — the sinks are priced and gated and nothing in the game can
+  buy one. That is a screen that was never built rather than a bug in this one,
+  so it goes on the queue rather than into this change; the cap fix above is
+  worth having regardless, because the day it gets a screen is not the day to
+  find out.
+- **Fan Zone tier 8 unlocks one item, and Training 7 and 8 unlock nothing.** Both
+  are the ladder as the spec wrote it — Training's stat runs to -40% at tier 8
+  and its drills run out at 6 — and neither can be topped up from here anyway: a
+  new mini-game is a screen and a new cosmetic is `en.js`'s to name.
+
+---
+
 ## Found while shipping — 24 Aug
 
 Not from playing and not from the source diff: from trying to put the app on a

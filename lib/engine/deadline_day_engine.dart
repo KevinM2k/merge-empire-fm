@@ -1139,10 +1139,19 @@ DealResult _acceptBid(Map<String, dynamic> state, Listing l, int nowMs) {
   final arrived = <Map<String, dynamic>>[];
   final incoming = _map(l['offer'])?['incoming'];
   if (incoming is List) {
+    // **THE ROSTER CAP, not just an empty square.** `buildRivalOffer` already
+    // sizes the offer against `_swapRoom`, but it does that when the listing is
+    // WRITTEN and the feed then sits there for its whole fuse — sign anyone in
+    // between and a two-player swap accepted at the cap lands the second one
+    // past it, in a square the grid draws padlocked. Counted after the sold
+    // player has vacated, so the swap still uses the slot it just freed.
+    var room = getMaxPlayers(state) - cells.where((c) => c != null).length;
     for (final card in incoming) {
+      if (room <= 0) break; // over the cap — the cash still lands
       final slot = findFirstEmpty(cells);
       if (slot == -1) break; // genuinely no room — the cash still lands
       cells[slot] = card;
+      room--;
       if (_map(card) case final m?) arrived.add(m);
     }
   }

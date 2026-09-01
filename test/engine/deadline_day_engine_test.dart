@@ -10,8 +10,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/deadline_day.dart';
 import 'package:merge_empire_fc/engine/deadline_day_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart' show getMaxPlayers;
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/negotiation_engine.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
@@ -814,6 +816,58 @@ void main() {
         return;
       }
       fail('no seed produced a bid with players in it');
+    });
+
+    test('a swap accepted at the ROSTER CAP never lands past it', () {
+      // `buildRivalOffer` sizes the offer against `_swapRoom` when the listing
+      // is WRITTEN, and the feed then sits there for its whole fuse. Sign anyone
+      // in between and a two-player swap would put the second one in a square
+      // the grid draws padlocked — 39 cells is the array, not the squad limit.
+      for (var seed = 0; seed < 60; seed++) {
+        final state = _openAndRun(seed, 600000);
+        final at = _windowStart + 600000;
+        final bid = _allLive(state, at).cast<Listing?>().firstWhere(
+          (l) =>
+              l!['kind'] == 'bid' &&
+              ((_map(l['offer'])?['incoming'] as List?)?.length ?? 0) > 1,
+          orElse: () => null,
+        );
+        if (bid == null) continue;
+
+        // The squad fills up after the offer was written.
+        final cells = (state['grid'] as Map)['cells'] as List;
+        final cap = getMaxPlayers(state);
+        // The reference save's array is shorter than the roster; pad it out, so
+        // what stops the second card is the CAP and not the end of the list.
+        while (cells.length < Grid.totalCells) {
+          cells.add(null);
+        }
+        for (var i = 0; i < cells.length; i++) {
+          if (cells[i] == null &&
+              cells.whereType<Map<String, dynamic>>().length < cap) {
+            cells[i] = <String, dynamic>{
+              'definitionId': 'player_t1_mid',
+              'instanceId': 'filler$i',
+            };
+          }
+        }
+        expect(cells.whereType<Map<String, dynamic>>().length, cap);
+
+        final res = acceptListing(state, '${bid['listingId']}', at);
+        expect(res['ok'], isTrue, reason: 'seed $seed');
+        // One out, and only the one the cap has room for back in.
+        expect((res['arrived'] as List).length, 1, reason: 'seed $seed');
+        expect(
+          cells.whereType<Map<String, dynamic>>().length,
+          cap,
+          reason: 'seed $seed',
+        );
+        for (var i = cap; i < cells.length; i++) {
+          expect(cells[i], isNull, reason: 'a card landed in a locked square');
+        }
+        return;
+      }
+      fail('no seed produced a two-player swap');
     });
 
     test('a loan can be bought by offering, not just at the sticker price', () {

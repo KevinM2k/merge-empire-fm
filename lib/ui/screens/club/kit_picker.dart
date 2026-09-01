@@ -149,7 +149,10 @@ class _KitPicker extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final current = ref.watch(kitColourProvider);
-    final stadiumTier = ref.watch(stadiumTierProvider);
+    // The UNLOCK tier, not the scene one: `stadiumTierProvider` floors at one
+    // for the stadium photo and the sky, and gating with that floor gave these
+    // four away before the Stadium existed.
+    final stadiumTier = ref.watch(stadiumUnlockTierProvider);
     final unlocked = {...baseKitColours, ...getUnlockedColours(stadiumTier)};
 
     return Dialog(

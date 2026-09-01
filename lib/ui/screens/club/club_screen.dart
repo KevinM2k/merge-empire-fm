@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/club_art.g.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
+import 'package:merge_empire_fc/engine/club_asset_tiers.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -325,14 +326,22 @@ class _AssetPanel extends ConsumerWidget {
           ? const Color(0xFFAAAAAA)
           : const Color(0xFFCD7F32),
       starCount: tier.clamp(1, 3),
-      // The Stadium is the one facility that unlocks something ELSE — a tier of
-      // it opens new kit colours — and it rides on the same card rather than
-      // arriving as a second popup behind this one.
-      bonus:
-          tile.key == AssetCategory.stadium &&
-              stadiumColourUnlocks.containsKey(tier)
-          ? t('club.kit_design')
-          : null,
+      // **What this tier ACTUALLY unlocked, off the ladder.** Four facilities
+      // hand something over on a tier-up — the Stadium's kit colours, the
+      // Training Ground's drills, the Academy's squad slot and the Fan Zone's
+      // customisations — and only the Stadium was ever named here, so a player
+      // who had just paid for a mini-game, a slot or a new haircut was told
+      // nothing about it. `assetUnlocksAt` is the same diff the card's "next"
+      // line promised it with, so the splash cannot name a perk the tier did
+      // not grant, or miss one it did. It rides on this card rather than
+      // arriving as a second popup behind it.
+      bonus: switch (assetUnlocksAt(tile.key, tier)
+          .map((line) => unlockLine(line)?.text)
+          .nonNulls
+          .join(' · ')) {
+        '' => null,
+        final unlocked => unlocked,
+      },
       icon: SizedBox(
         width: 54,
         height: 54,
