@@ -315,14 +315,21 @@ const Map<String, ManagerBuild> managerBuilds = {
   'lean': (torso: 0.76, hip: 0.86, limb: 0.85, arm: 0.85, bulge: null),
   'broad': (torso: 1.28, hip: 1.16, limb: 1.18, arm: 1.18, bulge: null),
   // Gut low and forward, hanging OVER the waistband — a bulge that stops dead
-  // at the shorts line reads as a barrel rather than a belly. It reaches y 95.5,
-  // past the shirt hem at 93.
+  // at the shorts line reads as a barrel rather than a belly.
+  //
+  // **AND IT HAS TO BREAK THE SILHOUETTE.** At (62, 81) r(6, 9.5) it did not:
+  // the front of it reached x68 and the shirt's own front edge is 69.9, so the
+  // whole gut was inside the body — a slightly lighter ellipse on a shirt, on a
+  // figure seen side-on, which is nothing. Reported from the couch as the belly
+  // build not looking fat in the belly. `curvy` has always read, and the reason
+  // is only that its bust clears the shirt's edge; this now does the same, and
+  // hangs to the hem at y93 while it is at it. See [bellyFront] for the rule.
   'belly': (
     torso: 1.18,
     hip: 1.04,
     limb: 1.04,
     arm: 1.04,
-    bulge: (cx: 62, cy: 81, rx: 6, ry: 9.5),
+    bulge: (cx: 64, cy: 82.5, rx: 8, ry: 11),
   ),
   'athletic': (torso: 1.14, hip: 0.92, limb: 1.04, arm: 1.44, bulge: null),
   // Chest forward over a narrow torso and a wider hip, so the waist-to-hip
@@ -335,6 +342,14 @@ const Map<String, ManagerBuild> managerBuilds = {
     bulge: (cx: 63.5, cy: 69, rx: 8.5, ry: 6),
   ),
 };
+
+/// How far the shirt's own front edge reaches, in the rig's units.
+///
+/// **A bulge inside this line is not a bulge.** The figure is drawn in profile,
+/// so a build is read off its outline and nothing else: an ellipse that stops
+/// short of the garment's edge changes only the shading. Both bulges are
+/// measured against it — see `manager_walker_test`.
+const double bellyFront = 69.9;
 
 /// The scales for a build id. An unknown one is `regular`, so a save from a
 /// future build still draws a man.
@@ -437,14 +452,34 @@ void paintTorso(
     canvas.translate(58, 0);
     canvas.scale(build, 1);
     canvas.translate(-58, 0);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(bulge.cx, bulge.cy),
-        width: bulge.rx * 2,
-        height: bulge.ry * 2,
-      ),
-      Paint()..color = kit,
+    final oval = Rect.fromCenter(
+      center: Offset(bulge.cx, bulge.cy),
+      width: bulge.rx * 2,
+      height: bulge.ry * 2,
     );
+    canvas.drawOval(oval, Paint()..color = kit);
+    // **And it is shaded UNDERNEATH.** Filled with the lit shirt colour it
+    // leaves no seam, which is what that fill is for — but a shape with no
+    // shadow under it is a flat patch rather than something hanging. The crease
+    // is inside the oval, so it cannot draw on the body around it.
+    canvas.save();
+    canvas.clipPath(Path()..addOval(oval));
+    canvas.drawRect(
+      oval,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0, bulge.cy),
+          Offset(0, oval.bottom),
+          [
+            Colors.black.withValues(alpha: 0),
+            Colors.black.withValues(alpha: 0.16),
+          ],
+        )
+        ..maskFilter = soft
+            ? const MaskFilter.blur(BlurStyle.normal, 1.6)
+            : null,
+    );
+    canvas.restore();
     canvas.restore();
   }
 

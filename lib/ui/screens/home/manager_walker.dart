@@ -62,7 +62,12 @@ import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 /// of hats. The JS reaches the same place by `clip-path="url(#psvSkull)"` on the
 /// front hair, and its comment records three narrower fixes that each failed
 /// before this one.
-typedef HeadLayer = ({String svg, double? hideAbove, bool clipToSkull});
+typedef HeadLayer = ({
+  String svg,
+  double? hideAbove,
+  bool clipToSkull,
+  bool clipToFace,
+});
 
 /// One head layer, clipped to below a hat's brow and inside the skull when it
 /// is hair being worn under something solid.
@@ -76,6 +81,9 @@ class _HeadArt extends StatelessWidget {
     Widget art = SvgArt(svg: layer.svg);
     if (layer.clipToSkull) {
       art = ClipPath(clipper: const _SkullClipper(), child: art);
+    }
+    if (layer.clipToFace) {
+      art = ClipPath(clipper: const _FaceClipper(), child: art);
     }
     final above = layer.hideAbove;
     if (above == null) return art;
@@ -109,6 +117,92 @@ class _SkullClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(_SkullClipper old) => false;
 }
+
+/// The head's own outline, in the art's 120x170 space.
+///
+/// **A SKULL WITH A JAW, not a circle with an arc drawn on it.** The circle
+/// stays exactly where it was — the generated hair, hats and glasses are all
+/// positioned against a skull at (62, 48.5) r12.5, so moving it by a unit puts
+/// a hat on his ear. What changes is that the face below the cheekbone narrows
+/// to a chin, which is the whole of the difference between a head and a ball on
+/// a stick.
+///
+/// One path, so the skin is a single fill: the cranium as an arc, then two
+/// curves down to the chin and back up under the ear.
+///
+/// **Shared, because the beards are clipped to it** — see [_FaceClipper]. Two
+/// copies of a profile is two profiles, and the whole fault this fixes was art
+/// drawn against a silhouette that had moved.
+Path managerFaceOutline() => Path()
+  ..addArc(
+    Rect.fromCircle(center: skullInArt, radius: skullRadius),
+    _deg(140),
+    _deg(180),
+  )
+  // **The nose is part of the PROFILE, not a shape laid over it.** It used to
+  // be its own slightly-lighter sliver drawn on top, and a two-point curve
+  // closed with a straight edge — so the closing edge ran down the middle of
+  // the face as a visible line. A nose is a bump in the outline; put it in the
+  // outline and there is no seam to see.
+  ..quadraticBezierTo(73.4, 43.4, 77.0, 48.0)
+  ..quadraticBezierTo(74.6, 50.8, 71.9, 51.3)
+  // The top lip, then down past the cheekbone to the point of the chin.
+  ..quadraticBezierTo(73.6, 55.2, 70.2, 59.6)
+  ..quadraticBezierTo(67.6, 62.4, 63.4, 61.8)
+  // And back under the jaw to where the ear meets it.
+  ..quadraticBezierTo(56.2, 60.8, 52.4, 55.2)
+  ..close();
+
+/// The FACE, for the layers that have to stay on it.
+///
+/// **The beards were drawn for a head that is a circle, and this one has a
+/// jaw.** Every facial-hair path in the wardrobe closes its front edge with an
+/// arc of the skull circle, on purpose and with the reason written down in
+/// `managerAvatar.js`: on a circular head that arc IS the silhouette, and a
+/// hand-drawn curve there falls inside it and leaves a strip of bare skin. This
+/// port's head is not that head — see [_HeadPainter], where the profile narrows
+/// from the nose's base to a chin — so below the nose the silhouette is around
+/// x72 while the arc is out at x74, and a moustache hung two units off the
+/// front of the face. Reported from the couch as the facial hair not quite
+/// being on it, coming out between the nose and the mouth.
+///
+/// So the art is clipped to the face the port actually draws. **Everything
+/// below [_beardHangs] is kept whatever the outline says**, because a long
+/// beard is meant to hang off the jaw and clipping one to the chin is a
+/// different bug.
+class _FaceClipper extends CustomClipper<Path> {
+  const _FaceClipper();
+
+  @override
+  Path getClip(Size size) {
+    final scale = Matrix4.identity()
+      ..scaleByDouble(
+        size.width / managerArtWidth,
+        size.height / managerArtHeight,
+        1,
+        1,
+      );
+    return Path.combine(
+      PathOperation.union,
+      managerFaceOutline().transform(scale.storage),
+      Path()..addRect(
+        Rect.fromLTRB(
+          0,
+          size.height * _beardHangs / managerArtHeight,
+          size.width,
+          size.height,
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldReclip(_FaceClipper old) => false;
+}
+
+/// Below this line — the corner of the mouth — the face stops clipping, because
+/// what is under it is a beard hanging off a jaw rather than hair on skin.
+const double _beardHangs = 56;
 
 /// Keeps the bottom [_BelowClipper.from] of a box, as a fraction of its height.
 ///
@@ -1913,9 +2007,15 @@ ManagerParts managerPartsFor(
     Iterable<String?> raw, {
     double? hideAbove,
     bool clipToSkull = false,
+    bool clipToFace = false,
   }) => [
     for (final svg in present(raw))
-      (svg: svg, hideAbove: hideAbove, clipToSkull: clipToSkull),
+      (
+        svg: svg,
+        hideAbove: hideAbove,
+        clipToSkull: clipToSkull,
+        clipToFace: clipToFace,
+      ),
   ];
 
   // **A HAT HIDES THE HAIR GOING THROUGH IT.** The hat is drawn over the hair,
@@ -1950,8 +2050,11 @@ ManagerParts managerPartsFor(
     ]),
     overHair: layers([hairFront], hideAbove: crown, clipToSkull: crownHat),
     overHead: [
+      // **The beard is clipped to the FACE**, and it is the only layer that is:
+      // every facial-hair path closes its front edge on the skull circle, and
+      // this head has a jaw. See [_FaceClipper].
+      ...layers([managerBeards['${look['beard']}']], clipToFace: true),
       ...layers([
-        managerBeards['${look['beard']}'],
         if (!faceIsUnderHair('${look['face']}'))
           managerFaces['${look['face']}'],
         managerHats['${look['hat']}'],
@@ -2055,9 +2158,6 @@ class _HeadPainter extends CustomPainter {
   /// How shut his eye is, 0 to 1.
   final double blink;
 
-  /// The skull, from the art's own space.
-  static const Offset _centre = Offset(62, 48.5);
-  static const double _radius = 12.5;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2072,34 +2172,7 @@ class _HeadPainter extends CustomPainter {
       return;
     }
 
-    // **The head is a SKULL WITH A JAW, not a circle with an arc drawn on it.**
-    // The circle stays exactly where it was — the generated hair, hats and
-    // glasses are all positioned against a skull at (62, 48.5) r12.5, so moving
-    // it by a unit puts a hat on his ear. What changes is that the face below the
-    // cheekbone now narrows to a chin, which is the whole of the difference
-    // between a head and a ball on a stick.
-    //
-    // Drawn as one path so the skin is a single fill: the cranium as an arc, then
-    // two curves down to the chin and back up under the ear.
-    final skull = Path()
-      ..addArc(
-        Rect.fromCircle(center: _centre, radius: _radius),
-        _deg(140),
-        _deg(180),
-      )
-      // **The nose is part of the PROFILE, not a shape laid over it.** It used to
-      // be its own slightly-lighter sliver drawn on top, and a two-point curve
-      // closed with a straight edge — so the closing edge ran down the middle of
-      // the face as a visible line. A nose is a bump in the outline; put it in
-      // the outline and there is no seam to see.
-      ..quadraticBezierTo(73.4, 43.4, 77.0, 48.0)
-      ..quadraticBezierTo(74.6, 50.8, 71.9, 51.3)
-      // The top lip, then down past the cheekbone to the point of the chin.
-      ..quadraticBezierTo(73.6, 55.2, 70.2, 59.6)
-      ..quadraticBezierTo(67.6, 62.4, 63.4, 61.8)
-      // And back under the jaw to where the ear meets it.
-      ..quadraticBezierTo(56.2, 60.8, 52.4, 55.2)
-      ..close();
+    final skull = managerFaceOutline();
 
     canvas.drawPath(skull, Paint()..color = skin);
     // Lit from the sky, the same direction as every other surface on this screen.

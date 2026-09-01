@@ -70,6 +70,70 @@ ManagerParts partsFor(
 );
 
 void main() {
+  /// **THE FACIAL HAIR IS ON THE FACE, and it was two units off the front of
+  /// it.** Every beard in the wardrobe closes its front edge with an arc of the
+  /// skull circle — deliberately, and `managerAvatar.js` says why: on a
+  /// CIRCULAR head that arc is the silhouette, and a hand-drawn curve there
+  /// falls inside it and leaves bare skin along the jaw.
+  ///
+  /// This port's head is not a circle. It narrows from the base of the nose to
+  /// a chin, so below the nose the profile is around x72 while the arc is out
+  /// at x74 — and a moustache hung off the front of the face between the nose
+  /// and the mouth. Reported from the couch in exactly those terms.
+  group('the beard is on the face', () {
+    /// The front corners of the moustache, off `managerAvatar.js`'s own `TASH`:
+    /// both sit exactly on the skull circle, which is the whole problem.
+    const tashFront = [Offset(74, 52), Offset(73.03, 54.4)];
+
+    test('THE ART OVERHANGS THIS HEAD, which is why it is clipped', () {
+      final face = managerFaceOutline();
+      for (final corner in tashFront) {
+        expect(
+          face.contains(corner),
+          isFalse,
+          reason: '$corner is inside the face — the clip has nothing to do, so '
+              'either the head moved or the art did, and this test is stale',
+        );
+      }
+      // And the skull circle it was drawn against still passes through them,
+      // so the art has not moved either.
+      for (final corner in tashFront) {
+        expect(
+          (corner - skullInArt).distance,
+          closeTo(skullRadius, 0.05),
+          reason: '$corner is no longer on the circle the beards use',
+        );
+      }
+    });
+
+    test('so the BEARD is clipped to it and nothing else is', () {
+      final parts = partsFor(<String, dynamic>{
+        ...defaultManagerLook,
+        'beard': 'full',
+        'face': 'specs',
+        'hat': 'cap',
+      });
+      expect(parts.overHead, isNotEmpty);
+      // The beard is the first layer over the head, and the only clipped one:
+      // a fringe is clipped to the skull, glasses and a hat sit where the art
+      // puts them, and the mouth is drawn last so a beard cannot cover it.
+      expect(parts.overHead.first.clipToFace, isTrue);
+      expect(
+        parts.overHead.skip(1).where((l) => l.clipToFace),
+        isEmpty,
+        reason: 'something other than the beard is being trimmed to the face',
+      );
+    });
+
+    testWidgets('and a beardless look clips nothing', (tester) async {
+      final parts = partsFor(<String, dynamic>{
+        ...defaultManagerLook,
+        'beard': 'none',
+      });
+      expect(parts.overHead.where((l) => l.clipToFace), isEmpty);
+    });
+  });
+
   group('recolouring', () {
     test('swaps the slot a default colour stands for', () {
       final out = recolourManagerArt(
@@ -646,6 +710,26 @@ void main() {
       for (final id in buildIds.where((i) => i != 'curvy' && i != 'belly')) {
         expect(buildScales(id).bulge, isNull, reason: id);
       }
+    });
+
+    test('AND A BULGE HAS TO BREAK THE SILHOUETTE', () {
+      // **The figure is seen side-on, so a build is its OUTLINE.** The gut
+      // reached x68 and the shirt's own front edge is 69.9, so the whole of it
+      // was inside the body — a slightly lighter ellipse on a green shirt.
+      // Reported from the couch as the belly build not looking fat in the
+      // belly. `curvy` always read, and that is the only reason why.
+      for (final id in ['belly', 'curvy']) {
+        final bulge = buildScales(id).bulge!;
+        expect(
+          bulge.cx + bulge.rx,
+          greaterThan(bellyFront),
+          reason: '$id is drawn entirely inside the shirt',
+        );
+      }
+      // And the gut hangs to the waistband — the shirt hem is at y93. One that
+      // stops above it reads as a barrel rather than a belly.
+      final gut = buildScales('belly').bulge!;
+      expect(gut.cy + gut.ry, greaterThanOrEqualTo(92));
     });
 
     test('and the HIP stays near 1', () {
