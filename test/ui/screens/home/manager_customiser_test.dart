@@ -108,6 +108,45 @@ void main() {
     expect((look as Map)['build'], 'belly');
   });
 
+  testWidgets('AND `none` TAKES THE BEARD OFF, which is a pick like any other', (
+    tester,
+  ) async {
+    // Reported from the couch: choosing none left the stubble on his jaw.
+    phone(tester);
+    final container = await pumpHome(tester);
+    await openCustomiser(tester);
+    // A beard he already has on. Written straight into the save, because
+    // `stubble` itself is Fan-Zone gated and this is about taking one OFF.
+    container.read(gameProvider).update((state) {
+      final club = state['club'] as Map<String, dynamic>;
+      club['managerAvatar'] = <String, dynamic>{
+        ...normalizeAvatar(club['managerAvatar']),
+        'beard': 'stubble',
+      };
+    });
+    await settleSave(tester);
+    Map<String, dynamic> lookNow() =>
+        ((container.read(gameProvider).state!['club']
+                as Map<String, dynamic>)['managerAvatar'])
+            as Map<String, dynamic>;
+    expect(lookNow()['beard'], 'stubble', reason: 'the save would not take it');
+
+    await openAxis(tester, 'beard');
+
+    await tapChip(tester, 'beard', 'none');
+    await settleSave(tester);
+    expect(lookNow()['beard'], 'none');
+    // And nothing is drawn for it: the beard is the first layer over the head,
+    // and on `none` there is no layer at all.
+    final parts = managerPartsFor(
+      lookNow(),
+      kit: const Color(0xFF4CAF50),
+      skin: const Color(0xFFEEBB8C),
+      hair: const Color(0xFF3A2A1C),
+    );
+    expect(parts.overHead.where((l) => l.clipToFace), isEmpty);
+  });
+
   testWidgets('hair colour is stored as the COLOUR, not the id', (
     tester,
   ) async {
