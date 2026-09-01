@@ -189,8 +189,11 @@ void main() {
       );
       expect(typedSoFar(tester, 'coach-card-body'), isNot(longBody));
 
-      // On his name plate: anywhere on the card that is not a control.
-      await tester.tap(find.byKey(const ValueKey('coach-card-name')));
+      // On the line itself: anywhere on the BOX that is not a control. It used
+      // to be his name plate, which has moved out onto the scene above the box
+      // — and out there it is scenery, so a tap on it falls through to the
+      // barrier the way a tap beside his head always has.
+      await tester.tap(find.byKey(const ValueKey('coach-card-body')));
       await tester.pump();
 
       expect(typedSoFar(tester, 'coach-card-body'), longBody);

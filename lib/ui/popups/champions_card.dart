@@ -49,6 +49,7 @@ Future<int?> showChampionsCelebration(
 
   final answer = await showDialog<bool>(
     context: context,
+    barrierColor: coachCardScrim,
     builder: (_) => _ChampionsCard(pro: pro, mult: mult),
   );
   // Null is the barrier tap and `champ.defend` is the button; both mean the

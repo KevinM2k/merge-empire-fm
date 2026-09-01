@@ -261,7 +261,7 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
       _track(key);
       return TutorialSpotlight(
         target: _anchor,
-        child: _Tooltip(step: step, onSkip: _skip),
+        child: _Tooltip(step: step, target: _anchor, onSkip: _skip),
       );
     }
 
@@ -356,13 +356,29 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
 /// past a step whose whole point is that the player performs it. `tut.skip` is
 /// still here because a tutorial you cannot leave is a trap.
 class _Tooltip extends ConsumerWidget {
-  const _Tooltip({required this.step, required this.onSkip});
+  const _Tooltip({required this.step, required this.target, required this.onSkip});
 
   final TutorialStep step;
+
+  /// Where the hole is, so the card can get out of its way.
+  final Rect? target;
+
   final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => CoachCardFrame(
+    // **THE CARD MOVES OUT OF THE WAY OF THE HOLE.** Colin stands over a box
+    // along the bottom of the screen now, and the control a spotlight step
+    // points at is often down there too — the kick-off step's PLAY button is,
+    // and the card landed squarely on it. The box eats its own taps, so the
+    // step could not be completed at all: the tutorial was a dead end on the
+    // one screen it cannot afford to be. Reported from the couch.
+    //
+    // The hole's own position decides it, rather than a flag per step: a step
+    // whose target sits in the bottom half opens the card at the TOP, and
+    // everything else keeps the bottom that a dialogue box wants. A step with
+    // no target has nothing to avoid.
+    alignment: _clearOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
     title: t(step.titleKey, tutorialParams(ref)),
     body: t(step.bodyKey, tutorialParams(ref)),
     extraLines: const [
@@ -374,6 +390,12 @@ class _Tooltip extends ConsumerWidget {
     // not two answers of equal weight — see [CoachCardFrame.footer].
     footer: CoachAction(labelKey: 'tut.skip', onTap: onSkip),
   );
+
+  bool _clearOf(BuildContext context) {
+    final hole = target;
+    if (hole == null) return false;
+    return hole.center.dy > MediaQuery.sizeOf(context).height / 2;
+  }
 }
 
 /// Every placeholder any step can ask for, supplied for all of them.

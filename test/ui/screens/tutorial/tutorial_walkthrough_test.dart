@@ -24,6 +24,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/main.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -260,6 +261,27 @@ void main() {
       reason: 'nothing was pointing at the play button',
     );
     expect(find.byKey(const ValueKey('tutorial-spotlight')), findsOneWidget);
+    // **AND THE CARD IS NOT SITTING ON THE BUTTON.** Colin stands over a box
+    // along the BOTTOM of the screen now, which is exactly where the play
+    // button is — the card landed on top of it, and since the box eats its own
+    // taps this step could not be completed at all. Reported from the couch as
+    // being unable to finish the play part. A spotlight step whose target is in
+    // the bottom half opens the card at the top instead.
+    final button = tester.getRect(find.byKey(const ValueKey('play-match')));
+    // The BOX is what eats the tap; Colin is scenery and lets one through, but
+    // a figure standing over the button is no more use to a player than a box
+    // on it. Neither may be there. (`coach-card` is the `Dialog` itself, which
+    // is the whole screen and measures like it — see `CoachStage`.)
+    expect(
+      tester.getRect(find.byKey(const ValueKey('coach-box'))).overlaps(button),
+      isFalse,
+      reason: 'the box covered the control the step is pointing at',
+    );
+    expect(
+      tester.getRect(find.byType(CoachStandee)).overlaps(button),
+      isFalse,
+      reason: 'Colin was standing on the play button',
+    );
     // The match itself is a screen of its own with a whole test file; what this
     // step waits on is the settled result, so that is what is put on the save.
     container.read(gameProvider).update((s) {

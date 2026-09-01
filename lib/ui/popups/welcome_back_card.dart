@@ -70,6 +70,7 @@ Future<void> showWelcomeBack(
 
   return showDialog<void>(
     context: context,
+    barrierColor: coachCardScrim,
     // Tapping the blank backdrop collects, as the JS's does: the money is
     // already earned, so there is nothing here to throw away by accident.
     barrierDismissible: true,
@@ -119,18 +120,10 @@ class WelcomeBackCardState extends State<WelcomeBackCard> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // His name, not his face — the face is the figure standing
-                  // over the box.
-                  Text(
-                    t('coachtip.name').toUpperCase(),
-                    style: TextStyle(
-                      color: kit.accentBright,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  // His name is on the SCENE, above the box and off to the
+                  // right, and [CoachStage] draws it for every card that opens
+                  // on this chrome — a second copy here was the same words
+                  // twice, one of them inside the box he is standing behind.
                   Text(
                     t('app.offline_title'),
                     key: const ValueKey('welcome-back-title'),

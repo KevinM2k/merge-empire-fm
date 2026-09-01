@@ -44,6 +44,7 @@ Future<String?> showPlayerNameCard(
   required String instanceId,
 }) => showDialog<String>(
   context: context,
+  barrierColor: coachCardScrim,
   builder: (_) => PlayerNameCard(instanceId: instanceId),
 );
 

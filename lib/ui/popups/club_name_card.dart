@@ -42,6 +42,7 @@ Future<String?> showClubNameCard(
   String? confirmKey,
 }) => showDialog<String>(
   context: context,
+  barrierColor: coachCardScrim,
   builder: (_) => ClubNameCard(
     titleKey: titleKey,
     placeholderKey: placeholderKey,

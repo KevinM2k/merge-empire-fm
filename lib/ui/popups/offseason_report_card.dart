@@ -46,6 +46,7 @@ Future<void> showOffseasonReport(
   SeasonOutcome outcome,
 ) => showDialog<void>(
   context: context,
+  barrierColor: coachCardScrim,
   builder: (_) => OffseasonReportCard(outcome: outcome),
 );
 

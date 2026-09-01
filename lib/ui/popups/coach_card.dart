@@ -206,6 +206,16 @@ const Size coachTailSize = Size(18, 12);
 /// enough that the game is still legible underneath: it is a dim, not a modal.
 const Color coachScrim = Colors.black26;
 
+/// The dim behind a coach CARD.
+///
+/// **`showDialog`'s own `black54` was too much of a night.** The card is an
+/// interruption, not a modal you have to escape from: the page behind it is
+/// what he is usually talking ABOUT — the grid he wants merged, the fixture he
+/// wants played — and at 54% the game went black behind him. Asked for from
+/// the couch. This is between that and [coachScrim], the bubble's, which is
+/// too light to sit a white nameplate on.
+const Color coachCardScrim = Colors.black38;
+
 /// The bubble's rim, and how far a tail has to be lifted to cover it.
 ///
 /// A wedge sitting flush under a four-sided rim has that rim across its own top
@@ -416,6 +426,7 @@ Future<T?> showCoachCard<T>(
 }) {
   return showDialog<T>(
     context: context,
+    barrierColor: coachCardScrim,
     builder: (dialogContext) => _CoachCard<T>(
       titleKey: titleKey,
       titleParams: titleParams,
@@ -544,8 +555,16 @@ class CoachTypingSkip extends InheritedNotifier<ValueNotifier<int>> {
 /// and can be twice that in German, and a card whose reading time scales with
 /// the translation is a card that is slow in exactly the languages that already
 /// have the most to read.
-const int _msPerGlyph = 12;
-const int _maxTypeMs = 850;
+///
+/// **12ms a glyph read as a flicker rather than as typing.** A 40 character
+/// line finished in half a second, which is under the time it takes to look
+/// down at the box, so the animation happened before the player was watching
+/// it. Reported from the couch as the text loading in too quickly. 30ms is
+/// about where a dialogue box types everywhere it is done well, and the ceiling
+/// moved with it so a long line still gets to be typed rather than being
+/// dumped: 2s is the longest he holds the floor.
+const int _msPerGlyph = 30;
+const int _maxTypeMs = 2000;
 
 /// A line of his, arriving a character at a time.
 ///
@@ -693,6 +712,7 @@ class CoachStage extends StatefulWidget {
     this.dialogKey,
     this.badge,
     this.minimisable = false,
+    this.alignment = Alignment.bottomCenter,
     super.key,
   });
 
@@ -707,6 +727,9 @@ class CoachStage extends StatefulWidget {
 
   /// See [CoachCardFrame.minimisable].
   final bool minimisable;
+
+  /// See [CoachCardFrame.alignment].
+  final Alignment alignment;
 
   @override
   State<CoachStage> createState() => _CoachStageState();
@@ -726,9 +749,10 @@ class _CoachStageState extends State<CoachStage> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final standee = coachStandeeHeightOn(context);
     final rise = standee - _coachStandeeSink;
+    final atTop = widget.alignment.y < 0;
     return Dialog(
       key: widget.dialogKey,
-      alignment: Alignment.bottomCenter,
+      alignment: widget.alignment,
       backgroundColor: Colors.transparent,
       elevation: 0,
       // **The top inset does NOT reserve room for him — his own padding already
@@ -737,7 +761,8 @@ class _CoachStageState extends State<CoachStage> {
       // overflowed it by twelve.
       insetPadding: EdgeInsets.fromLTRB(
         10,
-        16,
+        // The status bar is only ours to clear when the card is up against it.
+        16 + (atTop ? MediaQuery.paddingOf(context).top : 0),
         10,
         // `Dialog` folds in the keyboard's inset and nothing else, so the
         // gesture bar is ours to clear.
@@ -782,6 +807,50 @@ class _CoachStageState extends State<CoachStage> {
                         ),
                       ),
                   ],
+                ),
+              ),
+              // **HIS NAME IS OUT ON THE SCENE, not the first line inside the
+              // box.** It sat above the title in the club's accent, which
+              // spends the top of a card that is already short on room saying
+              // something the figure beside it has just said — and put the
+              // game's voice in the middle of his. Above the box and hard
+              // RIGHT it is a nameplate on a dialogue box: he stands on the
+              // left, his name stands opposite him, and the box below is
+              // nothing but what he is saying. Asked for from the couch.
+              //
+              // White rather than the accent, because it is over the scrim and
+              // the page rather than over a surface — with a shadow, since
+              // what is behind it is whatever screen the card interrupted.
+              Positioned(
+                left: 0,
+                right: 10,
+                top: 0,
+                height: rise,
+                child: IgnorePointer(
+                  child: Align(
+                    alignment: Alignment.bottomRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        t('coachtip.name').toUpperCase(),
+                        key: const ValueKey('coach-card-name'),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.4,
+                          shadows: [
+                            Shadow(
+                              color: Color(0xB3000000),
+                              blurRadius: 6,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               Padding(
@@ -861,6 +930,7 @@ class _MinimiseButton extends StatelessWidget {
 class CoachCardFrame extends StatelessWidget {
   const CoachCardFrame({
     super.key,
+    this.alignment = Alignment.bottomCenter,
     required this.title,
     this.body,
     this.child,
@@ -942,6 +1012,21 @@ class CoachCardFrame extends StatelessWidget {
 
   final List<CoachAction> actions;
 
+  /// Which end of the screen the box opens against.
+  ///
+  /// **The bottom, unless the card would cover the thing it is talking about.**
+  /// A dialogue box belongs where a thumb already is, and every card in the
+  /// game opens there — except a tutorial step, whose whole job is to point at
+  /// a control the player then has to press. The kick-off step points at the
+  /// PLAY button, which is at the bottom of the screen: the card landed on top
+  /// of it, and since the box eats its own taps the tutorial could not be
+  /// finished at all. Reported from the couch as being unable to complete the
+  /// play step.
+  ///
+  /// See `tutorial_overlay.dart`, which is the one caller that passes anything
+  /// but the default.
+  final Alignment alignment;
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
@@ -950,6 +1035,7 @@ class CoachCardFrame extends StatelessWidget {
       dialogKey: const ValueKey('coach-card'),
       badge: badge,
       minimisable: minimisable,
+      alignment: alignment,
       // **THE READING MATTER SCROLLS; THE ANSWERS DO NOT.**
       //
       // What he says is a sentence in whichever of ten languages the
@@ -974,18 +1060,8 @@ class CoachCardFrame extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    t('coachtip.name').toUpperCase(),
-                    key: const ValueKey('coach-card-name'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: kit.accentBright,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  // His name is on the SCENE now, above the box and off to the
+                  // right — see [CoachStage]. The box opens with the subject.
                   Text(
                     title,
                     textAlign: TextAlign.center,

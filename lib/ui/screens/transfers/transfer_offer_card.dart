@@ -173,6 +173,7 @@ Future<TransferAnswer?> showTransferOffer(
 
   final answer = await showDialog<TransferAnswer>(
     context: context,
+    barrierColor: coachCardScrim,
     // Tapping outside parks it rather than answering, which is only safe
     // because nothing is lost by doing so.
     barrierDismissible: true,
