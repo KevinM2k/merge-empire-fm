@@ -125,9 +125,11 @@ void main() {
     expect(ring.top, 300 - spotlightPad);
     expect(ring.width, 120 + spotlightPad * 2);
 
-    // The hand points UP at it from underneath, centred.
+    // The hand points UP at it from underneath, with the FINGERTIP on the
+    // centre line rather than the drawing's own middle — the tip is up and to
+    // the left of the palm, so centring the box misses the control by three.
     final hand = tester.getRect(find.byKey(const ValueKey('tutorial-hand')));
-    expect(hand.center.dx, closeTo(160, 0.01));
+    expect(hand.left + handTipInBox.dx, closeTo(160, 0.01));
     expect(hand.top, greaterThan(ring.bottom));
   });
 
@@ -150,16 +152,23 @@ void main() {
     );
     expect(_HandTapOffset.of(tester), lessThan(0));
 
-    // And the ripple is a shape that grows out of nothing after contact.
+    // **AND IT PRESSES IN THE MIDDLE OF THE BUTTON.** It rose seven points and
+    // pressed at the bottom rim, which is not where a thumb lands: the finger
+    // travels far enough for the tip to reach the centre line. Asked for from
+    // the couch.
+    await tester.pump(tapCue * (tapContact - 0.2));
+    final hole = const Rect.fromLTWH(100, 300, 120, 48).inflate(spotlightPad);
+    expect(
+      rest.top + _HandTapOffset.of(tester) + handTipInBox.dy,
+      closeTo(hole.center.dy, 0.5),
+    );
+
+    // And the ripple is a shape that grows out of nothing after contact, at
+    // that same point.
     await tester.pump(tapCue * 0.25);
     final ripple = find.byKey(const ValueKey('tutorial-tap-ripple'));
     expect(ripple, findsOneWidget);
-    // Centred on the fingertip: the bottom edge of the hole, where the hand
-    // meets it.
-    expect(
-      tester.getRect(ripple).center,
-      Offset(rest.center.dx, 300 + 48 + spotlightPad),
-    );
+    expect(tester.getRect(ripple).center, hole.center);
   });
 
   group('finding the control', () {

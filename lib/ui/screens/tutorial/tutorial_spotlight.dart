@@ -58,15 +58,47 @@ class TutorialSpotlight extends StatefulWidget {
 const Duration tapCue = Duration(milliseconds: 1500);
 
 /// Where in that beat the fingertip lands.
-const double _tapContact = 0.32;
+const double tapContact = 0.32;
 
-/// How far the hand rises to make it, and how long the rise takes.
-const double _tapLift = 7;
+/// How long the drop back takes.
 const double _tapReturn = 0.23;
 
-/// The ripple's life after contact, and how wide it gets.
+/// The ripple's life after contact, how wide it gets, and how far behind the
+/// first ring the second one follows.
 const double _tapSpread = 0.45;
 const double tapRippleRadius = 30;
+const double _tapSecondRing = 0.3;
+const double _ringLeast = 7;
+
+/// The hand's own box, and where the FINGERTIP is inside it.
+///
+/// **The tip is what has to land on the control, and it is nowhere near the
+/// middle of the drawing** — the index finger is up and to the left, and the
+/// palm fills the rest. Placing the box's centre under the target put the tip
+/// three points off it, which on a small control is the difference between a
+/// finger on the button and a finger beside it.
+const Size handBox = Size(34, 40);
+const Offset handTipInBox = Offset(14, 2.6);
+
+/// How far below the control the hand waits. The JS's own two pixels.
+const double _handRest = 2;
+
+/// The furthest it will travel to press.
+///
+/// A hand that slides the height of a tall target is a swipe rather than a tap,
+/// so past this it presses as deep as a button-sized control would take.
+const double _tapReachMost = 52;
+
+/// How far the hand travels to make contact.
+///
+/// **The fingertip lands in the MIDDLE of the control, not on its bottom
+/// edge.** It rose seven points from below the button and pressed at the rim,
+/// which is not where anybody puts a thumb — and with the ripple at the same
+/// place, the whole cue happened along an edge instead of on the thing being
+/// pressed. Asked for from the couch: the finger moves to the centre of the
+/// button before it presses down.
+double _tapReach(Rect hole) =>
+    math.min(hole.height / 2 + _handRest + handTipInBox.dy, _tapReachMost);
 
 class _TutorialSpotlightState extends State<TutorialSpotlight>
     with SingleTickerProviderStateMixin {
@@ -135,8 +167,10 @@ class _TutorialSpotlightState extends State<TutorialSpotlight>
           // accent, which no bundled sprite can be.
           Positioned(
             key: const ValueKey('tutorial-tap-ripple'),
+            // On the middle of the control, because that is where the finger
+            // now goes — see [_tapReach].
             left: hole.center.dx - tapRippleRadius,
-            top: hole.bottom - tapRippleRadius,
+            top: hole.center.dy - tapRippleRadius,
             width: tapRippleRadius * 2,
             height: tapRippleRadius * 2,
             child: IgnorePointer(
@@ -144,14 +178,16 @@ class _TutorialSpotlightState extends State<TutorialSpotlight>
             ),
           ),
           // Under the control, pointing up at it — the JS puts it two pixels
-          // below the bottom edge, centred.
+          // below the bottom edge, with the FINGERTIP on the centre line.
           Positioned(
             key: const ValueKey('tutorial-hand'),
-            left: hole.center.dx - 17,
-            top: hole.bottom + 2,
-            width: 34,
-            height: 40,
-            child: IgnorePointer(child: _TapHand(beat: _tap)),
+            left: hole.center.dx - handTipInBox.dx,
+            top: hole.bottom + _handRest,
+            width: handBox.width,
+            height: handBox.height,
+            child: IgnorePointer(
+              child: _TapHand(beat: _tap, reach: _tapReach(hole)),
+            ),
           ),
         ],
         ?child,
@@ -252,19 +288,22 @@ class _RingState extends State<_Ring> with SingleTickerProviderStateMixin {
 /// The pointing hand, path for path off `Tutorial.js`'s inline SVG — and
 /// tapping, which the JS's does not do.
 class _TapHand extends StatelessWidget {
-  const _TapHand({required this.beat});
+  const _TapHand({required this.beat, required this.reach});
 
   final Animation<double> beat;
 
+  /// How far it has to travel to reach the middle of the control.
+  final double reach;
+
   /// How far up the hand is at [t], as a negative offset: it rises to the
   /// button, holds nothing, and drops back.
-  static double lift(double t) {
-    if (t < _tapContact) {
-      return -_tapLift * Curves.easeOut.transform(t / _tapContact);
+  static double lift(double t, double reach) {
+    if (t < tapContact) {
+      return -reach * Curves.easeOut.transform(t / tapContact);
     }
-    if (t < _tapContact + _tapReturn) {
-      return -_tapLift *
-          (1 - Curves.easeIn.transform((t - _tapContact) / _tapReturn));
+    if (t < tapContact + _tapReturn) {
+      return -reach *
+          (1 - Curves.easeIn.transform((t - tapContact) / _tapReturn));
     }
     return 0;
   }
@@ -273,7 +312,7 @@ class _TapHand extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: beat,
     builder: (context, _) => Transform.translate(
-      offset: Offset(0, lift(beat.value)),
+      offset: Offset(0, lift(beat.value, reach)),
       child: const CustomPaint(painter: _HandPainter()),
     ),
   );
@@ -288,8 +327,8 @@ class _TapRipple extends StatelessWidget {
 
   /// How far through the ripple's own life [t] is, or null before it starts.
   static double? progress(double t) {
-    if (t < _tapContact) return null;
-    final p = (t - _tapContact) / _tapSpread;
+    if (t < tapContact) return null;
+    final p = (t - tapContact) / _tapSpread;
     return p > 1 ? null : p;
   }
 
@@ -310,26 +349,48 @@ class _RipplePainter extends CustomPainter {
   final double progress;
   final Color colour;
 
+  /// **TWO rings, in white over a dark backing.** One thin ring in the club's
+  /// accent was drawn on top of a button wearing that same accent, so the cue
+  /// that says "press this" was the hardest thing on the screen to see — and a
+  /// single wave reads as a shape appearing rather than something spreading.
+  /// Reported from the couch. The rim is the hand's own white-on-dark, which is
+  /// what makes both read over any control and over the dim; the accent stays
+  /// as the wash under them.
   @override
   void paint(Canvas canvas, Size size) {
     final centre = size.center(Offset.zero);
-    final radius = 6 + (tapRippleRadius - 6) * progress;
-    final fade = 1 - progress;
-    // A disc under a rim: the wash is the contact and the rim is the wave
-    // leaving it, which is what a tap looks like on a touchscreen.
-    canvas.drawCircle(
-      centre,
-      radius,
-      Paint()..color = colour.withValues(alpha: 0.18 * fade),
-    );
-    canvas.drawCircle(
-      centre,
-      radius,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = colour.withValues(alpha: 0.85 * fade),
-    );
+    // The second ring is the same wave, later — so the first one has moved on
+    // by the time it appears.
+    for (final (i, at) in [progress, progress - _tapSecondRing].indexed) {
+      if (at <= 0) continue;
+      final radius =
+          _ringLeast +
+          (tapRippleRadius - _ringLeast) * Curves.easeOut.transform(at);
+      final fade = 1 - at;
+      if (i == 0) {
+        canvas.drawCircle(
+          centre,
+          radius,
+          Paint()..color = colour.withValues(alpha: 0.3 * fade),
+        );
+      }
+      canvas.drawCircle(
+        centre,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5
+          ..color = const Color(0xFF1A1F2E).withValues(alpha: 0.4 * fade),
+      );
+      canvas.drawCircle(
+        centre,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.6
+          ..color = Colors.white.withValues(alpha: 0.95 * fade),
+      );
+    }
   }
 
   @override

@@ -87,6 +87,44 @@ Future<void> openCard(
   await tester.pump(const Duration(milliseconds: 400));
 }
 
+
+/// The card drawn INLINE over a page, which is how a tutorial step shows it —
+/// on the host's own tree rather than the navigator, so the route does not
+/// cover the control the step is pointing at.
+Future<void> pumpFrame(
+  WidgetTester tester, {
+  Rect? avoid,
+  String body = longBody,
+}) => pumpFrameWithSkip(tester, avoid: avoid, body: body, onSkip: () {});
+
+Future<void> pumpFrameWithSkip(
+  WidgetTester tester, {
+  required VoidCallback onSkip,
+  Rect? avoid,
+  String body = longBody,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: buildAppTheme(kitId: '#4caf50', light: false),
+      home: Scaffold(
+        body: Stack(
+          children: [
+            CoachCardFrame(
+              avoid: avoid,
+              title: 'Scout a player',
+              body: body,
+              // The shape the overflow was found in: a card with no answers and
+              // a way out under them.
+              footer: CoachAction(labelKey: 'tut.skip', onTap: onSkip),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
 void main() {
   testWidgets('the card sits at the BOTTOM of the screen', (tester) async {
     await openCard(tester);
@@ -290,6 +328,88 @@ void main() {
       await tester.pumpAndSettle();
       expect(said, isEmpty);
       expect(silences, 0);
+    });
+  });
+
+  /// **A card that has to keep off a control, which is every spotlight step.**
+  ///
+  /// The lift used to be worked out by the caller from the target's top edge
+  /// alone, so it fired for anything not against the bottom edge: the scout
+  /// step's button sits a third of the way down a screen the card never
+  /// reached, and it threw the card to the top, squeezed the box to a 52pt
+  /// sliver, overflowed it by 44 and stood Colin over the HUD and the very
+  /// button he was pointing at. Reported from the couch.
+  group('keeping off a control', () {
+    /// The screen, and the two ends of it a control can be at.
+    Size screen(WidgetTester tester) =>
+        tester.view.physicalSize / tester.view.devicePixelRatio;
+
+    testWidgets('a control DOWN THERE lifts the box clear of it', (
+      tester,
+    ) async {
+      final hole = Rect.fromLTWH(300, screen(tester).height - 100, 200, 40);
+      await pumpFrame(tester, avoid: hole);
+
+      final box = tester.getRect(find.byKey(const ValueKey('coach-box')));
+      expect(
+        box.bottom,
+        lessThanOrEqualTo(hole.top),
+        reason: 'the play button is under where the card opens, and the box '
+            'eats its own taps — the step could not be finished at all',
+      );
+      expect(find.byType(CoachStandee), findsOneWidget);
+    });
+
+    testWidgets('and a control UP THERE leaves the card where it opens', (
+      tester,
+    ) async {
+      final hole = const Rect.fromLTWH(300, 100, 200, 40);
+      await pumpFrame(tester, avoid: hole);
+
+      final box = tester.getRect(find.byKey(const ValueKey('coach-box')));
+      expect(
+        screen(tester).height - box.bottom,
+        lessThan(24),
+        reason: 'a card at the bottom was never in the way of a control at the '
+            'top; moving it is the bug',
+      );
+      expect(
+        box.top,
+        greaterThan(hole.bottom),
+        reason: 'and it still does not reach the hole',
+      );
+    });
+
+    testWidgets('and HE gives the room up before the words do', (tester) async {
+      // A hole with almost nothing under it and a line far too long for what
+      // is left: the card can be neither lifted clear nor opened below, so
+      // every point that is left has to go to the box.
+      var left = 0;
+      await pumpFrameWithSkip(
+        tester,
+        avoid: Rect.fromLTWH(0, 0, screen(tester).width, screen(tester).height - 40),
+        body: List.filled(6, longBody).join(' '),
+        onSkip: () => left++,
+      );
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'no room is not a licence to paint 44 past the bottom edge',
+      );
+      expect(
+        find.byType(CoachStandee),
+        findsNothing,
+        reason: 'a figure squeezed to a thumbnail is not a man standing '
+            'behind a box, and the words need the room more than he does',
+      );
+
+      // And the way out is still there to be PRESSED, which is the whole
+      // reason the answers sit outside the scroll region: the overflow ate
+      // exactly this, so a tap is the assertion rather than a `findsOneWidget`.
+      await tester.tap(find.byKey(const ValueKey('coach-footer-tut.skip')));
+      await tester.pump();
+      expect(left, 1);
     });
   });
 }

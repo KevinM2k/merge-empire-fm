@@ -390,19 +390,16 @@ class _Tooltip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => CoachCardFrame(
-    // **THE CARD MOVES OUT OF THE WAY OF THE HOLE.** Colin stands over a box
-    // along the bottom of the screen now, and the control a spotlight step
-    // points at is often down there too — the kick-off step's PLAY button is,
-    // and the card landed squarely on it. The box eats its own taps, so the
-    // step could not be completed at all: the tutorial was a dead end on the
-    // one screen it cannot afford to be. Reported from the couch.
+    // **THE CARD MOVES OUT OF THE WAY OF THE HOLE — and only when it is in the
+    // way.** Colin stands over a box along the bottom of the screen now, and
+    // the control a spotlight step points at is sometimes down there too — the
+    // kick-off step's PLAY button is, and the card landed squarely on it. The
+    // box eats its own taps, so the step could not be completed at all.
     //
-    // **Lifted just clear of it, not thrown to the top.** Sending the card to
-    // the other end of the screen was the first answer and it put the words as
-    // far from the button as they could get. Twelve points above it keeps the
-    // pair together and still leaves the control, its ring and the hand it is
-    // pointed at in the clear. Asked for in those terms.
-    liftedTo: _liftAbove(context),
+    // The hole, not a distance: what to do about it is the card's own
+    // arithmetic, and working it out here got the scout steps wrong. See
+    // [CoachCardFrame.avoid].
+    avoid: target?.inflate(spotlightPad),
     title: t(step.titleKey, tutorialParams(ref)),
     body: t(step.bodyKey, tutorialParams(ref)),
     extraLines: const [
@@ -414,23 +411,6 @@ class _Tooltip extends ConsumerWidget {
     // not two answers of equal weight — see [CoachCardFrame.footer].
     footer: CoachAction(labelKey: 'tut.skip', onTap: onSkip),
   );
-
-  /// The bottom inset that puts the box [_gap] above the target, or null when
-  /// the card is already clear of it.
-  ///
-  /// The hole's own position decides it rather than a flag per step, so a step
-  /// pointing at something high up keeps the bottom a dialogue box wants, and a
-  /// step with no target has nothing to avoid.
-  double? _liftAbove(BuildContext context) {
-    final hole = target;
-    if (hole == null) return null;
-    final lift = MediaQuery.sizeOf(context).height - hole.top + _gap;
-    final resting = 10 + MediaQuery.paddingOf(context).bottom;
-    return lift > resting ? lift : null;
-  }
-
-  /// How far above the control the box stops.
-  static const double _gap = 12;
 }
 
 /// Every placeholder any step can ask for, supplied for all of them.

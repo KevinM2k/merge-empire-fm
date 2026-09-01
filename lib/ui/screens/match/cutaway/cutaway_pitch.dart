@@ -13,6 +13,8 @@
 /// these into screen pixels.
 library;
 
+import 'dart:math' as math;
+
 /// The pitch, in the units every script and every speed is quoted in.
 const double pitchWidth = 200;
 const double pitchHeight = 120;
@@ -72,6 +74,15 @@ const List<int> defenderNumbers = [2, 5, 6, 3, 4];
 const List<int> attackerNumbers = [9, 10, 11, 7, 8, 17, 20, 14];
 
 /// How a mover behaves, in pitch units per second.
+/// The turn from [from] to [to] in radians, the short way round.
+///
+/// A figure asked to come from -170 degrees to +170 turns twenty degrees, not
+/// three hundred and forty.
+double shortestTurn(double from, double to) {
+  final d = (to - from) % (2 * math.pi);
+  return d > math.pi ? d - 2 * math.pi : d;
+}
+
 class MoverTuning {
   const MoverTuning._();
 
@@ -85,6 +96,37 @@ class MoverTuning {
 
   /// Cruise speed for a move with no time budget of its own.
   static const double baseSpeed = 34;
+
+  /// How fast a figure can come round, in radians a second.
+  ///
+  /// **A body turns; it does not snap.** The facing used to be assigned
+  /// straight from the velocity, so a player given a new target spun on the
+  /// spot in one frame — and with the ball now pulling his eyeline as well, a
+  /// pass across him would have flicked him round and back.
+  static const double turnRate = 9;
+
+  /// How much of the facing THE BALL claims, standing still and at full cruise.
+  ///
+  /// **A footballer watches the ball, and runs where he is going.** Square to
+  /// it when he is standing; leading with the run and keeping it in the corner
+  /// of his eye once he is moving. Asked for from the couch in those two
+  /// halves.
+  static const double watchAtRest = 1;
+  static const double watchAtRun = 0.4;
+
+  /// And never further off his own run than this, in radians.
+  ///
+  /// **Past about fifty degrees he is not watching the ball, he is
+  /// backpedalling** — which is real football and is not in a pack with no
+  /// backward run: a top-down figure sliding one way with its face pointed
+  /// another just reads as broken. A defender retreating with the ball in front
+  /// of him hit 118 degrees off before this.
+  static const double watchMostOff = 0.9;
+
+  /// Closer than this the ball is at his own FEET, and a man does not stare at
+  /// his own feet: the carrier faces his run instead. The dribble knocks it
+  /// 3.2 ahead, so this is just outside that.
+  static const double ballAtFeet = 4.5;
 }
 
 /// How a pass of each kind travels.

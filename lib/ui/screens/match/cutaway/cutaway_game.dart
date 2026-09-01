@@ -22,6 +22,11 @@
 /// cycle in it and none is wanted: these are overhead figures, so heading is
 /// rotation and movement reads from the movement itself. Ten skin and hair
 /// variants per kit colour is what stops a team looking like eleven clones.
+///
+/// **And they face along +X.** The figure is a shirt oval with the head on top
+/// and the FACE as a light crescent on the RIGHT of it, so the drawing looks
+/// down the positive x axis — not up the pitch, which is what this file
+/// believed. See [Mover.heading].
 library;
 
 import 'dart:math' as math;
@@ -128,9 +133,29 @@ class Mover extends PositionComponent {
   Vector2 target = Vector2.zero();
   final Vector2 _velocity = Vector2.zero();
 
-  /// Which way the figure is facing, in radians. Sprites are drawn facing up,
-  /// so a heading of zero points along -Y.
+  /// How fast he is going, and where to — what his facing has to agree with,
+  /// and the seam `cutaway_facing_test` checks it against.
+  double get speed => _velocity.length;
+  double get travelAngle => math.atan2(_velocity.y, _velocity.x);
+
+  /// Which way the figure is facing, in radians, clockwise from +X.
+  ///
+  /// **Zero points RIGHT, because that is where the art looks.** It was read as
+  /// north — `atan2(x, -y)`, sprites "drawn facing up" — and Kenney's top-down
+  /// footballer is not: the face is a pale crescent on the right of the head,
+  /// so every figure on the pitch ran with its face a quarter turn off the way
+  /// it was going. A man sprinting at the goal was looking at the far
+  /// touchline. Reported from the couch; the sprite files are where it was
+  /// settled, `green_1.png` in a pixel dump.
   double heading = 0;
+
+  /// Where the ball is — [_lookAngle]'s other half. Null just means nobody has
+  /// told him, and then he faces his run.
+  Vector2 Function()? watching;
+
+  /// Whether he has ever faced anywhere: the first frame SNAPS rather than
+  /// turning, so a clip does not open on eleven men spinning round.
+  bool _facedOnce = false;
 
   /// Brains off — a wall in a free kick, or anyone after the ball has gone in.
   bool frozen = false;
@@ -205,11 +230,47 @@ class Mover extends PositionComponent {
     position.add(step);
     // One stride per ~4.2 units covered.
     _stride = (_stride + step.length / 4.2) % 1;
-    if (_velocity.length2 > 1) {
-      // atan2(x, -y): the sprite's "up" is -Y, so a heading of zero is north.
-      heading = math.atan2(_velocity.x, -_velocity.y);
+
+    final want = _lookAngle();
+    if (!_facedOnce) {
+      _facedOnce = true;
+      heading = want;
+    } else {
+      final turn = shortestTurn(heading, want);
+      final most = MoverTuning.turnRate * dt;
+      // Kept inside a turn of zero, which is what `shortestTurn` from 0 is: a
+      // heading that only ever accumulates ends up a number nobody can read.
+      heading = shortestTurn(0, heading + turn.clamp(-most, most));
     }
   }
+
+  /// Which way he WANTS to be facing: down the run, canted toward the ball.
+  ///
+  /// The share the ball takes falls off with speed — see
+  /// [MoverTuning.watchAtRest] — so a standing player is square to it and a
+  /// sprinter leads with his run. A ball at his own feet is not something to
+  /// look at, and neither is a ball nobody has told him about.
+  double _lookAngle() {
+    final speed = _velocity.length;
+    final running = speed > _walking;
+    final run = running ? math.atan2(_velocity.y, _velocity.x) : heading;
+    final ball = watching?.call();
+    if (ball == null) return run;
+    final toBall = ball - position;
+    if (toBall.length < MoverTuning.ballAtFeet) return run;
+    final at = math.atan2(toBall.y, toBall.x);
+    if (!running) return at;
+    final share =
+        MoverTuning.watchAtRest +
+        (MoverTuning.watchAtRun - MoverTuning.watchAtRest) *
+            (speed / MoverTuning.baseSpeed).clamp(0.0, 1.0);
+    final cant = shortestTurn(run, at) * share;
+    return run +
+        cant.clamp(-MoverTuning.watchMostOff, MoverTuning.watchMostOff);
+  }
+
+  /// Below this he is standing still as far as his eyeline is concerned.
+  static const double _walking = 1;
 
   @override
   void render(Canvas canvas) {
@@ -665,6 +726,15 @@ class CutawayGame extends FlameGame with HasTimeScale {
     );
     world.add(ball);
 
+    // **TWENTY-TWO PAIRS OF EYES ON IT.** A figure with nothing to watch faces
+    // its run and nothing else, which on a pitch where the ball is the only
+    // thing happening reads as a squad of men ignoring the game. Read through
+    // a closure rather than handed the vector, so nothing here depends on the
+    // ball being built before the players.
+    for (final mover in [...attackers, ...defenders, keeper]) {
+      mover.watching = () => ball.position;
+    }
+
     _beginBeat();
   }
 
@@ -977,7 +1047,7 @@ class CutawayGame extends FlameGame with HasTimeScale {
       // than pinned: pinned, a turn swung the ball round him in one frame,
       // which is the same fault as the snap above.
       final me = attackers[carrier];
-      final ahead = Vector2(math.sin(me.heading), -math.cos(me.heading))
+      final ahead = Vector2(math.cos(me.heading), math.sin(me.heading))
         ..scale(3.2);
       final want = me.position + ahead;
       ball.position.add((want - ball.position)..scale(math.min(1, 14 * dt)));

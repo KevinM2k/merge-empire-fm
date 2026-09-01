@@ -142,6 +142,11 @@ class IdlePitchGame extends FlameGame with HasTimeScale {
       start: _at((p: 0.5, q: 0.5)),
     );
     world.add(ball);
+    // Watching it, the same as in a chance — see [Mover.watching]. It is the
+    // whole difference between a squad milling about and a squad in a match.
+    for (final mover in [...ours, ...theirs]) {
+      mover.watching = () => ball.position;
+    }
     _reshape();
   }
 

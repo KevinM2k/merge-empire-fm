@@ -124,6 +124,29 @@ const double _coachStandeeSink = 30;
 /// that has words in it.
 const double _coachStandeeShare = 0.38;
 
+/// The least of him worth drawing, below which he is not there at all.
+///
+/// A figure squeezed to a thumbnail behind a box is not a man standing behind a
+/// box; the box takes the whole card instead.
+const double _coachStandeeLeast = 110;
+
+/// What the BOX is owed, whatever else wants the room.
+///
+/// The title, a line or two of what he says under it and the answers — the
+/// reading scrolls below that, and see [CoachCardFrame.build] for why the
+/// answers never do. Anything asking for room comes off him first and this
+/// second: a card lifted clear of a control had been left 52pt to lay out a
+/// footer in and painted 44 straight past its own bottom edge.
+const double _coachBoxFloor = 200;
+
+/// The margins the stage keeps: down the sides, off the top, off the bottom.
+const double _coachStageSide = 10;
+const double _coachStageTop = 16;
+const double _coachStageEdge = 10;
+
+/// How far clear of a thing the card keeps when it has to get out of its way.
+const double _coachStageGap = 12;
+
 /// Which side he stands on, and how far over.
 ///
 /// Hard over, with a sliver left so he is not welded to the rim. `contain` in a
@@ -716,7 +739,7 @@ class CoachStage extends StatefulWidget {
     required this.child,
     this.dialogKey,
     this.minimisable = false,
-    this.liftedTo,
+    this.avoid,
     super.key,
   });
 
@@ -729,8 +752,8 @@ class CoachStage extends StatefulWidget {
   /// See [CoachCardFrame.minimisable].
   final bool minimisable;
 
-  /// See [CoachCardFrame.liftedTo].
-  final double? liftedTo;
+  /// See [CoachCardFrame.avoid].
+  final Rect? avoid;
 
   @override
   State<CoachStage> createState() => _CoachStageState();
@@ -745,28 +768,95 @@ class _CoachStageState extends State<CoachStage> {
     super.dispose();
   }
 
+  /// The room the card is given on this screen, and where in it the card sits.
+  ///
+  /// **The top inset does NOT reserve room for him — his own padding already
+  /// does**, inside this child. Asking for both is asking for his height twice,
+  /// which on a 320x568 phone left the box 82pt to lay out in and overflowed it
+  /// by twelve.
+  ///
+  /// **Whichever side of [CoachStage.avoid] has the room, and the card never
+  /// moves further than it has to.** Pushing the box above the thing it points
+  /// at is right for a control down at the bottom — the kick-off step's PLAY
+  /// button is under where the card opens — and wrong for everything else: the
+  /// first version lifted for ANY target that was not against the bottom edge,
+  /// so the scout step, whose button sits a third of the way down, threw the
+  /// card at the top of the screen, left the box a 52pt sliver and put Colin
+  /// over the HUD and the button he was pointing at. Reported from the couch as
+  /// him being messed up, and it overflowed by 44 on the way.
+  ///
+  /// So the two sides are measured and the roomier one wins. Above means a
+  /// bottom inset that lifts the box clear; below — the common case — means the
+  /// card stays exactly where every card in the game opens, with the hole's own
+  /// bottom edge as its ceiling so a long line scrolls rather than creeping up
+  /// over the control.
+  EdgeInsets _insets(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height;
+    // `Dialog` folds in the keyboard's inset and nothing else, so the gesture
+    // bar is ours to clear.
+    final resting = _coachStageEdge + MediaQuery.paddingOf(context).bottom;
+    final hole = widget.avoid;
+    if (hole == null) {
+      return EdgeInsets.fromLTRB(
+        _coachStageSide,
+        _coachStageTop,
+        _coachStageSide,
+        resting,
+      );
+    }
+
+    final above = hole.top - _coachStageGap - _coachStageTop;
+    final below = height - resting - hole.bottom - _coachStageGap;
+    if (above > below) {
+      return EdgeInsets.fromLTRB(
+        _coachStageSide,
+        _coachStageTop,
+        _coachStageSide,
+        // Clamped both ways: never below where the card rests anyway, and never
+        // so far up that the box is left less than it is owed.
+        (height - hole.top + _coachStageGap).clamp(
+          resting,
+          math.max(resting, height - _coachStageTop - _coachBoxFloor),
+        ),
+      );
+    }
+    return EdgeInsets.fromLTRB(
+      _coachStageSide,
+      (hole.bottom + _coachStageGap).clamp(
+        _coachStageTop,
+        math.max(_coachStageTop, height - resting - _coachBoxFloor),
+      ),
+      _coachStageSide,
+      resting,
+    );
+  }
+
+  /// How tall he stands here, once the box has what it needs.
+  ///
+  /// **He is the one who gives the room up.** The box holds the words and the
+  /// answers; he is a figure standing behind it, and a card with nowhere to put
+  /// its footer is broken in a way a shorter Colin is not.
+  double _standee(BuildContext context, EdgeInsets insets) {
+    final room = MediaQuery.sizeOf(context).height - insets.vertical;
+    final tallest = math.min(
+      coachStandeeHeightOn(context),
+      room - _coachBoxFloor + _coachStandeeSink,
+    );
+    return tallest >= _coachStandeeLeast ? tallest : 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final standee = coachStandeeHeightOn(context);
-    final rise = standee - _coachStandeeSink;
+    final insets = _insets(context);
+    final standee = _standee(context, insets);
+    final rise = standee > 0 ? standee - _coachStandeeSink : 0.0;
     return Dialog(
       key: widget.dialogKey,
       alignment: Alignment.bottomCenter,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      // **The top inset does NOT reserve room for him — his own padding already
-      // does**, inside this child. Asking for both is asking for his height
-      // twice, which on a 320x568 phone left the box 82pt to lay out in and
-      // overflowed it by twelve.
-      insetPadding: EdgeInsets.fromLTRB(
-        10,
-        16,
-        10,
-        // `Dialog` folds in the keyboard's inset and nothing else, so the
-        // gesture bar is ours to clear.
-        widget.liftedTo ?? 10 + MediaQuery.paddingOf(context).bottom,
-      ),
+      insetPadding: insets,
       child: CoachTypingSkip(
         notifier: _skips,
         // `deferToChild`, which is the default: a tap on the card finishes his
@@ -777,19 +867,22 @@ class _CoachStageState extends State<CoachStage> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: standee,
-                // **AND NOTHING BESIDE HIM.** A milestone tip used to hang its
-                // subject emoji in the air over his shoulder — a hospital, a
-                // trophy, a pair of lungs — which on a card that is a man
-                // standing behind a box reads as a sticker floating in the
-                // room. Asked for from the couch. The subject is in the title
-                // he is saying it under; it does not need a mascot.
-                child: const CoachStandee(),
-              ),
+              // Nothing of him when there is not room for a figure — see
+              // [_standee].
+              if (standee > 0)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: standee,
+                  // **AND NOTHING BESIDE HIM.** A milestone tip used to hang
+                  // its subject emoji in the air over his shoulder — a
+                  // hospital, a trophy, a pair of lungs — which on a card that
+                  // is a man standing behind a box reads as a sticker floating
+                  // in the room. Asked for from the couch. The subject is in
+                  // the title he is saying it under; it does not need a mascot.
+                  child: const CoachStandee(),
+                ),
               // **HIS NAME IS OUT ON THE SCENE, not the first line inside the
               // box.** It sat above the title in the club's accent, which
               // spends the top of a card that is already short on room saying
@@ -802,38 +895,41 @@ class _CoachStageState extends State<CoachStage> {
               // White rather than the accent, because it is over the scrim and
               // the page rather than over a surface — with a shadow, since
               // what is behind it is whatever screen the card interrupted.
-              Positioned(
-                left: 0,
-                right: 10,
-                top: 0,
-                height: rise,
-                child: IgnorePointer(
-                  child: Align(
-                    alignment: Alignment.bottomRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        t('coachtip.name').toUpperCase(),
-                        key: const ValueKey('coach-card-name'),
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.4,
-                          shadows: [
-                            Shadow(
-                              color: Color(0xB3000000),
-                              blurRadius: 6,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
+              // The plate needs the height he is standing in — no him, no
+              // plate.
+              if (rise > 0)
+                Positioned(
+                  left: 0,
+                  right: 10,
+                  top: 0,
+                  height: rise,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          t('coachtip.name').toUpperCase(),
+                          key: const ValueKey('coach-card-name'),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                            shadows: [
+                              Shadow(
+                                color: Color(0xB3000000),
+                                blurRadius: 6,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
               Padding(
                 padding: EdgeInsets.only(top: rise),
                 child: Container(
@@ -911,7 +1007,7 @@ class _MinimiseButton extends StatelessWidget {
 class CoachCardFrame extends StatelessWidget {
   const CoachCardFrame({
     super.key,
-    this.liftedTo,
+    this.avoid,
     required this.title,
     this.body,
     this.child,
@@ -984,7 +1080,7 @@ class CoachCardFrame extends StatelessWidget {
 
   final List<CoachAction> actions;
 
-  /// How far off the bottom the box sits, when the default is not enough.
+  /// A rectangle on the screen the card may not cover.
   ///
   /// **The card belongs at the bottom, and it must not cover what it is
   /// pointing at.** Every card in the game opens against the bottom edge, which
@@ -994,13 +1090,17 @@ class CoachCardFrame extends StatelessWidget {
   /// of it, and since the box eats its own taps the tutorial could not be
   /// finished at all. Reported from the couch.
   ///
-  /// Sending it to the TOP was the first answer and it threw the box across the
-  /// screen from the thing it was talking about. This is the inset instead — it
-  /// lifts the same card just clear of the control, so nothing moves further
-  /// than it has to.
+  /// **The rectangle rather than a distance, because the card is the only thing
+  /// that knows how much room it needs.** This was a lift in points, worked out
+  /// by the caller, and a caller cannot tell whether the card was in the way to
+  /// begin with: it lifted for every target that was not against the bottom
+  /// edge and wrecked the two scout steps, whose button sits a third of the way
+  /// down a screen the card never reached. Given the rectangle, [CoachStage]
+  /// takes whichever side of it has the room and leaves the card alone when the
+  /// answer is below — which it usually is.
   ///
   /// See `tutorial_overlay.dart`, the one caller that passes it.
-  final double? liftedTo;
+  final Rect? avoid;
 
   @override
   Widget build(BuildContext context) {
@@ -1009,7 +1109,7 @@ class CoachCardFrame extends StatelessWidget {
     return CoachStage(
       dialogKey: const ValueKey('coach-card'),
       minimisable: minimisable,
-      liftedTo: liftedTo,
+      avoid: avoid,
       // **THE READING MATTER SCROLLS; THE ANSWERS DO NOT.**
       //
       // What he says is a sentence in whichever of ten languages the
