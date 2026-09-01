@@ -657,7 +657,7 @@ class _CupResults extends StatelessWidget {
                     Text(
                       '${result['opponent'] ?? ''}  '
                       '${_num(result['playerGoals']).toInt()}'
-                      '–${_num(result['opponentGoals']).toInt()}',
+                      '-${_num(result['opponentGoals']).toInt()}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,

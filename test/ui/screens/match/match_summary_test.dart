@@ -217,7 +217,7 @@ void main() {
     expect(find.byKey(const ValueKey('match-summary')), findsOneWidget);
     expect(find.text(t('match.victory').toUpperCase()), findsOneWidget);
     expect(find.byKey(const ValueKey('summary-score')), findsOneWidget);
-    expect(find.text('2–0'), findsOneWidget);
+    expect(find.text('2-0'), findsOneWidget);
     // **Who scored, right under the score they made** — a scoreboard's own
     // convention. The name is on the event whether or not the save still has a
     // card to draw, so a scorer since sold still scored.
@@ -542,7 +542,7 @@ void main() {
         ads: FakeAds(AdOutcome.rewarded),
       );
       expect(
-        find.text('${t('match.no_thanks')} — ${formatCoins(420)}'),
+        find.text('${t('match.no_thanks')} - ${formatCoins(420)}'),
         findsOneWidget,
         reason: 'declining understated what the player keeps',
       );
@@ -609,7 +609,7 @@ void main() {
     await pumpSummary(tester, built);
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('summary-score'))).data,
-      '3–1',
+      '3-1',
       reason: 'the screen could not read the engine\'s own score',
     );
   });
@@ -705,7 +705,7 @@ group('a tie decided on penalties', () {
     // The scoreline the player complained about read `1–2`.
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('summary-score'))).data,
-      '1–1',
+      '1-1',
     );
   });
 
@@ -730,7 +730,7 @@ group('a tie decided on penalties', () {
       tester.getTopLeft(row).dy,
       greaterThan(tester.getBottomLeft(find.byKey(const ValueKey('summary-score'))).dy),
     );
-    expect(find.text('3 – 4'), findsOneWidget);
+    expect(find.text('3 - 4'), findsOneWidget);
   });
 });
 

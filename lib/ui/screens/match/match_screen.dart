@@ -2647,7 +2647,7 @@ class _FeedLine extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${goal.left}–${goal.right}',
+                    '${goal.left}-${goal.right}',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w900,

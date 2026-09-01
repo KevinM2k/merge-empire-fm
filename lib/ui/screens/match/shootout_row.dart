@@ -84,7 +84,7 @@ class ShootoutRow extends StatelessWidget {
           // The totals, big, because that is the answer. The marks under them
           // are how it was arrived at.
           Text(
-            '${ours.score} – ${theirs.score}',
+            '${ours.score} - ${theirs.score}',
             key: const ValueKey('shootout-score'),
             style: TextStyle(
               fontSize: 22,
