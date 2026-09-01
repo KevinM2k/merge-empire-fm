@@ -68,17 +68,43 @@ through means shipped in this session; the open ones are the queue.
       pod and its pubspec line come out. Note the cards announce TEXT on the
       bus today; a clip lookup wants the catalogue KEY, which `CoachCardFrame`
       already has.
-- [ ] **No three-word club names out of the pyramid generator.** "Three
-      Horseshoes Rangers" wraps to two lines nearly everywhere it is drawn.
-      `lib/engine/pyramid_names_engine.dart`, and mind the parity fixtures —
-      the generator is compared against the JS's, so check what
-      `season_difftest` and `pyramid_names` pin before changing draw order.
+- [ ] **No three-word club names out of the generator.** "Three Horseshoes
+      Rangers" is 23 characters and wraps to two lines in the table, the
+      fixture card, the pyramid editor and the ticker. **Blocked the same way
+      as the row above, and it has been tried.** The banks are in
+      `lib/engine/team_names.dart` and a name is `<first> <suffix>`, so the fix
+      is the ten two-word entries in `_grassrootsFirst` ('Red Lion', 'Plough
+      Lane', 'Old Oak', 'Mill Street', 'Market Square', 'Heath End', 'Hollow
+      Lane', 'Three Horseshoes', 'Cobble Street', 'Quarry Lane'), plus 'Iron
+      Bridge' in `_semiproFirst` and 'Red Star' in `_proPrefix`. Keeping the
+      bank LENGTHS identical keeps the seeded stream intact — the draw is
+      `randomInt(0, length - 1)` — but the STRINGS are pinned: doing it turned
+      `season_difftest` and three `progression_parity` cases red, because those
+      fixtures are dumped from the JS's own banks and compare club for club.
+      So the same banks have to change in
+      `../merge-empire-fc/src/engine/progressionEngine.js` and the fixtures be
+      re-dumped (`node tool/dump_progression_reference.mjs`,
+      `node tool/difftest/run.mjs`). Not done: editing the shipped JS was not
+      asked for.
+
+- [ ] **A poof/tap sound set worth having.** `pop` is doing the job for the
+      loan departure; it is a 0.1s blip from `sound_defs.dart` and a proper
+      shatter cue would be better. Cosmetic, and nothing is blocked on it.
 
 ---
 
 ## Where this queue stands
 
-**Nothing is open. The port is done.**
+**The port is done; what is open is the playtest list above.** Three rows, and
+two of them are blocked on the same question — whether the JS spec may be
+changed so the parity fixtures can be re-dumped. Read those rows before
+touching either: both have been tried, and both turn the harness red for a
+reason that is a feature.
+
+**Branch state:** all of the above is committed on
+`claude/dialog-box-ui-design-7m5199` and **not yet merged into `main`**, which
+has moved on since (PR #15). The merge was asked for and is the next thing to
+do; `flutter analyze` is clean and the suite is green on the branch.
 
 Two rows carried as missing turned out to be STALE and are ticked with what was
 actually there: the boot splash — its face had shipped, its GATE had not, and
