@@ -145,6 +145,36 @@ void main() {
     );
   });
 
+  testWidgets('HIS NAME IS ON A PLATE, out on the scene above the box', (
+    tester,
+  ) async {
+    // A drop shadow was all it had, and what is behind it is whatever screen
+    // the card interrupted — sometimes it could not be read. Reported from the
+    // couch. Moving the words inside the box was the other answer and it was
+    // worse; this is the plate.
+    await openCard(tester);
+    await tester.pumpAndSettle();
+
+    final box = tester.getRect(find.byKey(const ValueKey('coach-box')));
+    final name = find.byKey(const ValueKey('coach-card-name'));
+    expect(
+      tester.getRect(name).bottom,
+      lessThanOrEqualTo(box.top),
+      reason: 'the name is back inside the box',
+    );
+    // The plate behind it: dark, and not opaque — the scrim does the dimming.
+    final plate =
+        tester
+                .widget<DecoratedBox>(
+                  find.ancestor(of: name, matching: find.byType(DecoratedBox)).first,
+                )
+                .decoration
+            as BoxDecoration;
+    expect(plate.color, coachNamePlate);
+    expect(plate.color!.a, lessThan(1));
+    expect(plate.color!.computeLuminance(), lessThan(0.1));
+  });
+
   testWidgets('and Colin STANDS behind it, overlapping its top edge', (
     tester,
   ) async {

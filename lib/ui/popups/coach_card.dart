@@ -161,6 +161,15 @@ double coachStandeeHeightOn(BuildContext context) => math.min(
   MediaQuery.sizeOf(context).height * _coachStandeeShare,
 );
 
+/// What his nameplate is printed on.
+///
+/// **Dark enough to carry white type over anything.** The name is out on the
+/// scene rather than inside the box — see [CoachStage] — so what is behind it
+/// is whatever screen the card interrupted, and a drop shadow on its own left
+/// it unreadable over a bright one. Not opaque: a plate that hides the page is
+/// a slab, and the scrim is already doing the dimming.
+const Color coachNamePlate = Color(0xA6101418);
+
 /// The red on an unread nudge.
 ///
 /// **Not the kit accent.** A badge in the club's own colour reads as decoration
@@ -899,10 +908,16 @@ class _CoachStageState extends State<CoachStage> {
               // nothing but what he is saying. Asked for from the couch.
               //
               // White rather than the accent, because it is over the scrim and
-              // the page rather than over a surface — with a shadow, since
-              // what is behind it is whatever screen the card interrupted.
-              // The plate needs the height he is standing in — no him, no
-              // plate.
+              // the page rather than over a surface. The plate needs the height
+              // he is standing in — no him, no plate.
+              //
+              // **AND IT SITS ON A PLATE OF ITS OWN.** A drop shadow was all
+              // it had, and what is behind it is whatever screen the card
+              // interrupted — a bright sky, a pale panel, mown turf — so
+              // sometimes it simply could not be read. Reported from the
+              // couch, and it is the only thing wrong with it: a nameplate in
+              // a dialogue box is a plate. Moving the words inside the box was
+              // the other answer and it was worse — see the reverted commit.
               if (rise > 0)
                 Positioned(
                   left: 0,
@@ -914,22 +929,28 @@ class _CoachStageState extends State<CoachStage> {
                       alignment: Alignment.bottomRight,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          t('coachtip.name').toUpperCase(),
-                          key: const ValueKey('coach-card-name'),
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.4,
-                            shadows: [
-                              Shadow(
-                                color: Color(0xB3000000),
-                                blurRadius: 6,
-                                offset: Offset(0, 1),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: coachNamePlate,
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3.5,
+                            ),
+                            child: Text(
+                              t('coachtip.name').toUpperCase(),
+                              key: const ValueKey('coach-card-name'),
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                height: 1.1,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.4,
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
