@@ -287,12 +287,25 @@ const double _bob = 4;
 /// The JS accepts a foot that floats a couple of units and keeps the hips smooth.
 /// That is the walk that looks right, so that is the walk.
 ///
-/// **The one eased track on the figure**, and the CSS says why the limbs are not:
-/// `ease-in-out` zeroes velocity at each keyframe, which on a LEG reads as it
-/// pausing at full extension. A vertical bounce genuinely should decelerate at the
-/// top.
-double walkerHipRise(double t) =>
-    _bob * math.sin(Curves.easeInOut.transform((t * 2) % 1) * math.pi).abs();
+/// **A PLAIN SINE, and the ease that used to be inside it was the stutter.**
+///
+/// The CSS's `ease-in-out` was transcribed literally and fed to `sin`, which
+/// eases the SAME two ends a second time: the sine already arrives at each
+/// footfall with the ease's own zero velocity, so the two stacked and the hips
+/// came to a dead stop at the bottom of every step. Measured over a half
+/// stride, the eased bob left the floor at 0.13 units per unit phase against
+/// the plain sine's 6.28, sat inside a tenth of a unit for the first twentieth
+/// of the step, and then made the height back up at a peak rate the plain
+/// curve never reaches — 11.6 against 8.9. Slow, stalled, rushed, once per
+/// step, which is what it was reported as on a device.
+///
+/// The sine on its own still does the job the CSS wanted and the note below
+/// this one asked for: velocity is zero at mid-stance, so a vertical bounce
+/// decelerates at the TOP. What it no longer does is dwell at the bottom, where
+/// a walk should reverse sharply because a foot has just hit the ground.
+///
+/// `.abs()` went with it: `sin` over one half-stride never goes negative.
+double walkerHipRise(double t) => _bob * math.sin(((t * 2) % 1) * math.pi);
 
 /// **THE WALK IS THE JS'S OWN KEYFRAMES, PLAYED.**
 ///

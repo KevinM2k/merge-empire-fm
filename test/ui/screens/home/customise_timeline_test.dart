@@ -27,6 +27,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 
@@ -153,6 +154,75 @@ void main() {
       );
     }
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('AND SELECTING ONE DOES NOT RE-RASTERISE THE REST', (
+    tester,
+  ) async {
+    // **A chip is a PICTURE, taken once — unless the key throws it away.**
+    // `_Still` is keyed on `Object.hash(axis.kind, look, pose)` and a
+    // `ManagerLook` is a `Map`, which hashes by IDENTITY; `_Chip.build`
+    // composes a fresh map literal every time, so the key changed on every
+    // rebuild and the snapshot every chip exists to avoid was retaken on all
+    // of them at once. Reported as the rig-drawing axes — hair, celebrations —
+    // stuttering while the colour axes, which draw a swatch and no rig, stayed
+    // smooth.
+    //
+    // Picking a different BUILD changes no other chip's picture: each one
+    // overrides `axis.field` with its own id, so the selection is the one part
+    // of the look a chip does not draw. Their snapshots must survive it.
+    //
+    // On element identity rather than milliseconds, for the reason the test
+    // above gives: a `SnapshotWidget` whose key still matches keeps its state
+    // and its picture; one whose key moved is a new element and a fresh
+    // rasterisation of a full `ManagerWalker` rig.
+    tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await pumpHome(tester);
+    await tester.tap(find.byKey(const ValueKey('dock-customise')));
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (_chipsBuilt() >= buildIds.length) break;
+    }
+    expect(_chipsBuilt(), greaterThan(2), reason: 'the grid never filled');
+
+    // **A WARM-UP TAP FIRST, and it is not padding.** A save with no `look`
+    // branch draws its chips from `defaultManagerLook`, and the first
+    // selection WRITES a look — so every chip's signature legitimately moves
+    // on that one tap. The question this test asks is about the taps after it.
+    await tester.tap(
+      find.byKey(ValueKey('customise-chip-build-${buildIds.first}')),
+    );
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    final before = tester.elementList(find.byType(SnapshotWidget)).toList();
+    expect(before, isNotEmpty, reason: 'no chip is snapshotted at all');
+
+    // A build the player is not already wearing, so the tap really changes
+    // the save rather than being a no-op.
+    final target = find.byKey(ValueKey('customise-chip-build-${buildIds.last}'));
+    expect(target, findsOneWidget);
+    await tester.tap(target);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    final after = tester.elementList(find.byType(SnapshotWidget)).toList();
+    expect(after, hasLength(before.length));
+    for (var i = 0; i < before.length; i++) {
+      expect(
+        after[i],
+        same(before[i]),
+        reason:
+            'chip $i threw its picture away and re-rasterised a whole rig for '
+            'a selection that changed nothing it draws',
+      );
+    }
+    // The save's own debounce, drained rather than left pending.
+    await tester.pump(const Duration(seconds: 3));
   });
 }
 

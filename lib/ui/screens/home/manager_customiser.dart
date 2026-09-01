@@ -1134,7 +1134,19 @@ class LookPreview extends StatelessWidget {
         // a crawl. Snapshotted once and drawn as an image until the look or
         // the pose changes; the key is what throws the old picture away.
         return _Still(
-          key: ValueKey(Object.hash(axis.kind, look, pose)),
+          // **KEYED ON THE LOOK'S CONTENTS, not on the object.** A
+          // `ManagerLook` is a `Map` and a Map hashes by IDENTITY, while
+          // `_Chip.build` composes a fresh map literal on every build — so
+          // `Object.hash(axis.kind, look, pose)` produced a different key each
+          // time, `_StillState` was rebuilt, and the picture this whole widget
+          // exists to keep was retaken on every chip at once. It was invisible
+          // on the colour axes, which draw a swatch and no rig at all, and it
+          // was the rig axes — hair, celebrations — that were reported as
+          // stuttering.
+          //
+          // A record rather than a hash: records compare structurally, so
+          // there is no collision to leave a stale picture on screen.
+          key: ValueKey((axis.kind, _lookSignature(look), pose)),
           child: ClipRect(
             child: OverflowBox(
               alignment: Alignment.topLeft,
@@ -1168,6 +1180,17 @@ class LookPreview extends StatelessWidget {
       },
     );
   }
+}
+
+/// A look as a VALUE, for a widget key.
+///
+/// `ManagerLook` is `Map<String, dynamic>`, and a Dart Map hashes and compares
+/// by identity — two maps holding the same wardrobe are not equal and do not
+/// share a hash. Sorted so the same wardrobe always writes the same string
+/// whatever order the fields were composed in.
+String _lookSignature(ManagerLook look) {
+  final keys = look.keys.toList()..sort();
+  return [for (final key in keys) '$key=${look[key]}'].join('|');
 }
 
 /// A child rasterised once and drawn as an image from then on.
