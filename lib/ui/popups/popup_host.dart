@@ -11,7 +11,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/boot_popups.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
@@ -48,12 +47,20 @@ class PopupHostState extends ConsumerState<PopupHost> {
       // Queue what this boot owes BEFORE releasing the blocker, so the two are
       // one step and nothing drains against an empty queue first.
       final game = ref.read(gameProvider);
+      // **TAKEN FROM THE RUNNER, not computed here.** `processOfflineEarnings`
+      // measures against `lastSeen`, and by this callback half a dozen things
+      // have already had the chance to stamp it — the age-signal sweep, the
+      // save debounce, the cloud restore. Measured here it was racing them and
+      // losing: an hour away arrived as a one-millisecond window, so the card
+      // opened, paid a couple of coins and said "0s". `GameRunner.boot` takes
+      // the reading the moment the save is read, which is the only moment it
+      // means anything.
       queueBootPopups(
         context: () => context,
         game: game,
-        offline: game.state == null
-            ? (earned: 0, offlineMs: 0)
-            : processOfflineEarnings(game.state!),
+        offline:
+            ref.read(gameRunnerProvider).pendingOffline ??
+            (earned: 0, offlineMs: 0),
       );
       unblockPopups(noHostBlocker);
     });

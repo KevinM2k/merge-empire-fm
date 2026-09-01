@@ -181,6 +181,14 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           note: ref.watch(noticesBlockedProvider).valueOrNull == true
               ? t('settings.notifications_blocked')
               : null,
+          // **THE ONE FOREGROUND MOMENT.** The runtime prompt cannot be raised
+          // from `armNotices`, which runs as the app goes away — see the note
+          // there. `force`, because a player who has just switched this on has
+          // asked, whatever this process did earlier.
+          onTurnedOn: () async {
+            await ensureNoticePermission(force: true);
+            ref.invalidate(noticesBlockedProvider);
+          },
         ),
       ],
     ),

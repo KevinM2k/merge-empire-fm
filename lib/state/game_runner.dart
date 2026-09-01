@@ -17,6 +17,7 @@ import 'dart:async';
 
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/engine/season_fixtures.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -56,8 +57,25 @@ class GameRunner {
 
   /// Load the save, register the listeners, and run the sweeps that a boot owes
   /// the player before the first frame.
+  /// What the player is owed for the time the app was away, measured at the
+  /// instant the save was read and held until something shows it.
+  ///
+  /// **IT HAS TO BE MEASURED HERE.** `processOfflineEarnings` works off
+  /// `lastSeen`, and `lastSeen` is stamped by every `saveNow` — including the
+  /// age-signal sweep this boot fires and forgets, and the two-second save
+  /// debounce. Computed later, in the popup host's first post-frame callback,
+  /// it was racing all of them and usually losing: a save seeded an hour in the
+  /// past came back through a real boot with `lastSeen` moved forward
+  /// 3,600,859ms and a window of ONE MILLISECOND. The card still opened, paid
+  /// a couple of coins, and told the player they had been away "0s".
+  OfflineEarnings? pendingOffline;
+
   Map<String, dynamic> boot() {
     final state = game.load();
+    // Before the sweeps below, every one of which can stamp `lastSeen`.
+    pendingOffline = processOfflineEarnings(state);
+    // Before the sweeps below, every one of which can stamp `lastSeen`.
+
     _loop ??= GameLoop(startedAt: now());
     wiring.attach();
     // Anything unlocked by an older build gets its achievement row and its

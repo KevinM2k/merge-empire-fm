@@ -20,6 +20,8 @@
 /// save and notifies the providers — a raw write to the map would do neither.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -302,6 +304,7 @@ class SettingSwitch extends ConsumerWidget {
     this.note,
     this.defaultValue = true,
     this.enabled = true,
+    this.onTurnedOn,
   });
 
   final String settingKey;
@@ -310,6 +313,14 @@ class SettingSwitch extends ConsumerWidget {
   final String? note;
   final bool defaultValue;
   final bool enabled;
+
+  /// Run after the setting is written, and only when it was switched ON.
+  ///
+  /// **A permission is asked for HERE or nowhere.** Notifications need a
+  /// runtime prompt on both platforms and a prompt can only be raised while the
+  /// app is on screen — switching the toggle on is the one moment that is both
+  /// foreground and unambiguously the player asking for the feature.
+  final Future<void> Function()? onTurnedOn;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -322,7 +333,10 @@ class SettingSwitch extends ConsumerWidget {
         key: ValueKey('setting-$settingKey'),
         value: value,
         onChanged: enabled
-            ? (next) => writeSetting(ref, settingKey, next)
+            ? (next) {
+                writeSetting(ref, settingKey, next);
+                if (next && onTurnedOn != null) unawaited(onTurnedOn!());
+              }
             : null,
       ),
     );

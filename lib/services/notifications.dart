@@ -40,7 +40,43 @@ const String noticeChannelId = 'merge_empire_reminders';
 NoticeBackend notices = PluginNoticeBackend();
 
 /// Put it back. For tests.
-void resetNotices() => notices = PluginNoticeBackend();
+void resetNotices() {
+  notices = PluginNoticeBackend();
+  _permissionAsked = false;
+}
+
+/// Whether this process has already put the permission dialog up.
+///
+/// Per PROCESS rather than per save: it exists to stop a prompt on every
+/// resume, and both platforms stop showing one of their own accord after the
+/// player has answered. Nothing is written to the save, so the reset fixtures
+/// the parity harness compares field for field are untouched.
+bool _permissionAsked = false;
+
+/// Ask for permission at a moment a dialog can actually be shown.
+///
+/// **The prompt has to be raised in the FOREGROUND.** It used to be raised
+/// inside [armNotices], which only ever runs as the app is going away — see the
+/// note there. Call this from somewhere the player is looking at the app: the
+/// settings toggle being switched on, or the first resume of a session.
+///
+/// Returns whether notifications may now be posted. [force] is for the toggle,
+/// which is a deliberate act and should ask even if this process asked already.
+Future<bool> ensureNoticePermission({
+  NoticeBackend? backend,
+  bool force = false,
+}) async {
+  final send = backend ?? noticeBackend;
+  try {
+    if (await send.permissionGranted()) return true;
+    if (_permissionAsked && !force) return false;
+    _permissionAsked = true;
+    return await send.requestPermission();
+  } catch (_) {
+    // Not on a platform that has them. Same silence as everywhere else here.
+    return false;
+  }
+}
 
 /// Everything that touches the platform, and nothing else. A test replaces this.
 abstract class NoticeBackend {
@@ -202,7 +238,15 @@ Future<void> armNotices(
       await send.cancel(allNoticeIds());
       return;
     }
-    if (!await send.requestPermission()) return;
+    // **ASKED, not asking.** This runs as the app goes to the BACKGROUND, and
+    // Android 13+ shows its notification permission as a runtime dialog — which
+    // cannot appear over an activity that is being paused. So the request made
+    // here never produced a prompt, always answered false, and every schedule
+    // below it was skipped: fourteen translated `notif.*` strings that could
+    // not be delivered on any modern device. The asking moved to
+    // [ensureNoticePermission], which the settings toggle and the first resume
+    // call while the app is on screen.
+    if (!await send.permissionGranted()) return;
     for (final notice in notices) {
       await send.schedule(notice);
     }

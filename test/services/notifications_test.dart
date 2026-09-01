@@ -59,11 +59,58 @@ void main() {
   setUp(() => setClock(() => _now));
   tearDown(resetClock);
 
-  test('a NO is final — nothing is armed and nothing is asked twice', () async {
+  test('a NO is final — nothing is armed', () async {
     final fake = _Fake(granted: false);
     await armNotices(_save(), now: _now, backend: fake);
+    await armNotices(_save(), now: _now, backend: fake);
     expect(fake.scheduled, isEmpty);
-    expect(fake.permissionAsks, 1);
+  });
+
+  test('ARMING NEVER RAISES A PROMPT, because it runs on the way OUT', () async {
+    // **This is the bug that stopped every reminder in the app.** `armNotices`
+    // is called from the `paused` lifecycle branch and nowhere else, and
+    // Android 13+ shows notification permission as a runtime dialog — which
+    // cannot be raised over an activity that is being paused. So the request
+    // answered false every time and the schedule below it never ran. It CHECKS
+    // now; the asking happens in the foreground — see [ensureNoticePermission].
+    final fake = _Fake(granted: false);
+    await armNotices(_save(), now: _now, backend: fake);
+    expect(fake.permissionAsks, 0, reason: 'prompted while backgrounding');
+    expect(fake.permissionChecks, greaterThan(0));
+  });
+
+  test('and a granted one arms without asking anything', () async {
+    final fake = _Fake();
+    await armNotices(_save(), now: _now, backend: fake);
+    expect(fake.scheduled, isNotEmpty);
+    expect(fake.permissionAsks, 0);
+  });
+
+  group('ASKING, at a moment a dialog can appear', () {
+    setUp(resetNotices);
+    tearDown(resetNotices);
+
+    test('an ungranted permission is asked for once a process', () async {
+      final fake = _Fake(granted: false);
+      expect(await ensureNoticePermission(backend: fake), isFalse);
+      expect(await ensureNoticePermission(backend: fake), isFalse);
+      expect(fake.permissionAsks, 1, reason: 'nagged on every resume');
+    });
+
+    test('AND THE TOGGLE ASKS ANYWAY, because that is the player asking', () async {
+      // Somebody who has just switched the setting on has said what they want,
+      // whatever this process did earlier in the session.
+      final fake = _Fake(granted: false);
+      await ensureNoticePermission(backend: fake);
+      await ensureNoticePermission(backend: fake, force: true);
+      expect(fake.permissionAsks, 2);
+    });
+
+    test('one already granted is never asked for at all', () async {
+      final fake = _Fake();
+      expect(await ensureNoticePermission(backend: fake), isTrue);
+      expect(fake.permissionAsks, 0);
+    });
   });
 
   test('IT SCHEDULES FIRST AND WITHDRAWS AFTERWARDS', () async {

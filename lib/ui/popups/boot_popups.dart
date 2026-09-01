@@ -32,19 +32,7 @@ void queueBootPopups({
   // an absent save as "today's reward is unclaimed" would offer it twice.
   if (game.state == null) return;
 
-  if (offline.earned > 0) {
-    enqueuePopup(
-      PopupEntry(
-        id: 'welcome-back',
-        priority: PopupPriority.welcomeBack,
-        show: (done) => showWelcomeBack(
-          context(),
-          game: game,
-          offline: offline,
-        ).then((_) => done()),
-      ),
-    );
-  }
+  queueOfflineEarnings(context: context, game: game, offline: offline);
 
   enqueuePopup(
     PopupEntry(
@@ -88,3 +76,32 @@ bool bootHasWork(Map<String, dynamic>? state, OfflineEarnings offline) =>
 /// Kept so the caller does not have to know the label key.
 String welcomeLine(OfflineEarnings offline) =>
     t('welcome.earned_label', {'duration': proseDuration(offline.offlineMs)});
+
+/// The welcome-back card, on its own.
+///
+/// **Boot is not the only time the app has been away.** It was queued from the
+/// popup host's `initState` and nowhere else, so it ran on a COLD BOOT only —
+/// and the far commoner case, an app backgrounded for an hour and brought back,
+/// paid nothing at all. Worse than nothing: `GameRunner.resume` skips the
+/// elapsed time on the grounds that it "belongs to the offline earnings
+/// calculation", and on that path there was no such calculation. The hour was
+/// skipped by the loop and banked by nobody.
+///
+/// Nothing here if there is nothing owed — a resume after two minutes should
+/// not put a card in front of somebody who just answered a text message.
+void queueOfflineEarnings({
+  required BuildContext Function() context,
+  required GameState game,
+  required OfflineEarnings offline,
+}) {
+  if (offline.earned <= 0) return;
+  enqueuePopup(
+    PopupEntry(
+      id: 'welcome-back',
+      priority: PopupPriority.welcomeBack,
+      show: (done) =>
+          showWelcomeBack(context(), game: game, offline: offline)
+              .then((_) => done()),
+    ),
+  );
+}

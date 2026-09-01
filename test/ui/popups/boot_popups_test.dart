@@ -71,7 +71,12 @@ Future<ProviderContainer> boot(
     ],
   );
   addTearDown(container.dispose);
-  if (load) container.read(gameProvider).load();
+  // **THROUGH THE RUNNER, not `game.load()`.** The offline window is read
+  // inside `GameRunner.boot`, at the instant the save is loaded and before any
+  // sweep can stamp `lastSeen` over it — so a test that loads the save by hand
+  // has no reading for the host to show, and the welcome-back card never
+  // opens. Which is the shape of the bug it is here to catch.
+  if (load) container.read(gameRunnerProvider).boot();
 
   await tester.pumpWidget(
     UncontrolledProviderScope(

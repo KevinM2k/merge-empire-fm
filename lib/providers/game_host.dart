@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/engine/cloud_save_policy.dart';
 import 'package:merge_empire_fc/providers/boot_gate.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
 import 'package:merge_empire_fc/services/cloud_sync.dart';
+import 'package:merge_empire_fc/ui/popups/boot_popups.dart';
 import 'package:merge_empire_fc/ui/popups/cloud_conflict_card.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
@@ -34,6 +35,8 @@ import 'package:merge_empire_fc/services/leaderboard_service.dart';
 import 'package:merge_empire_fc/services/feedback_service.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart';
+import 'package:merge_empire_fc/engine/notification_plan.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/services/weather_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -273,13 +276,49 @@ class _GameHostState extends ConsumerState<GameHost>
     super.dispose();
   }
 
+  /// Pay for the time the app spent in the background.
+  ///
+  /// **Stamped immediately, whether or not the card is ever seen.** The window
+  /// is `lastSeen` to now, so leaving it unstamped means the next resume — or
+  /// the next boot — measures the same hour again and pays twice. The coins
+  /// ride on the card exactly as they do at boot; `showWelcomeBack` pays them
+  /// however it is closed, which is the arrangement that comment already
+  /// describes.
+  void _bankTimeAway() {
+    final save = _runner.game.state;
+    if (save == null) return;
+    final offline = processOfflineEarnings(save);
+    _runner.game.saveNow();
+    if (offline.earned <= 0) return;
+    queueOfflineEarnings(
+      context: () => context,
+      game: _runner.game,
+      offline: offline,
+    );
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
         ref.read(appHiddenProvider.notifier).state = false;
-        // The time away belongs to the offline earnings calculation, so the
-        // loop skips it rather than being paid for it twice.
+        // **AND THAT CALCULATION HAS TO ACTUALLY HAPPEN.** `resume` skips the
+        // elapsed time because it "belongs to the offline earnings
+        // calculation" — and that calculation only ever ran on a COLD BOOT,
+        // out of the popup host's `initState`. So an app backgrounded for an
+        // hour and brought back had its hour skipped by the loop and banked by
+        // nobody. Measured BEFORE `resume`, and before anything else here can
+        // stamp `lastSeen`.
+        _bankTimeAway();
+        // **AND THE PERMISSION IS ASKED FOR HERE, on screen.** `armNotices`
+        // used to ask as the app went AWAY, where Android 13+'s runtime dialog
+        // cannot be raised — so it was answered false every time and nothing
+        // was ever scheduled. Once per process, and only when the player has
+        // the setting on: a prompt for a feature somebody has turned off is
+        // worse than no reminders.
+        if (notificationsEnabled(_runner.game.state)) {
+          unawaited(ensureNoticePermission());
+        }
         _runner.resume();
         // And the weather has moved on while the app was away. `shouldRefreshLive`
         // decides whether it is worth a call, so this is cheap when it is not.
