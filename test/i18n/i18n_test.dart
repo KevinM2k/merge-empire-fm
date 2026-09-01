@@ -31,7 +31,16 @@ void main() {
       test('${row['label']} (${row['locale']})', () {
         setLocale(row['locale'] as String);
         final params = (row['params'] as Map<String, dynamic>?) ?? const {};
-        expect(t(row['key'] as String, params), row['value']);
+        // **THE EM DASH IS A DELIBERATE DIVERGENCE, and this is where it is
+        // stated.** The JS's copy joins clauses with `—` in 453 English
+        // entries and `t()` prints a hyphen instead; the fixture stays the
+        // JS's, so the rule is applied to ITS value here rather than the row
+        // being edited. Everything else this case pins - lookup, fallback,
+        // params with nowhere to go, placeholders with no param - is unchanged.
+        expect(
+          t(row['key'] as String, params),
+          withoutLongDash(row['value'] as String),
+        );
       });
     }
   });
@@ -241,6 +250,36 @@ void main() {
             isNot(contains('<br')),
             reason: '\$id/\$key still carries markup',
           );
+        }
+      }
+      resetLocale();
+    });
+
+    test('AND THE EM DASH COMES OFF, because it reads as machine-written', () {
+      // 453 English entries join their clauses with one — the JS's default
+      // joint — and it was asked for directly from the couch. At the boundary
+      // for the same reason the tags are: the catalogues are generated, so the
+      // next `gen_i18n.mjs` run would put all 453 back.
+      final out = t('gems.toast.season', {'n': 5});
+      expect(out, isNot(contains('—')));
+      expect(out, contains(' - '));
+      // The spacing it had is the spacing it keeps, so a clause joint stays a
+      // clause joint rather than becoming a hyphenated word.
+      expect(out, isNot(contains('milestone- ')));
+    });
+
+    test('and a bare dash standing for "no value" is still a dash', () {
+      expect(withoutLongDash('—'), '-');
+      expect(withoutLongDash('a — b'), 'a - b');
+      expect(withoutLongDash('3–1'), '3-1');
+      expect(withoutLongDash('nothing to do here'), 'nothing to do here');
+    });
+
+    test('and every locale is clean of the dash too', () {
+      for (final id in localeIds) {
+        setLocale(id);
+        for (final key in ['gems.toast.season', 'settings.difficulty.hint']) {
+          expect(t(key), isNot(contains('—')), reason: '$id/$key');
         }
       }
       resetLocale();

@@ -110,9 +110,11 @@ void main() {
       findsOneWidget,
       reason: 'nothing explained the Club tab',
     );
-    // With the milestone's own badge on it, which is what makes sixteen
-    // one-off subjects tell themselves apart at a glance.
-    expect(find.byKey(const ValueKey('coach-card-badge')), findsOneWidget);
+    // **And no emoji floating beside his head.** The milestone's subject used
+    // to hang in the air over his shoulder, which on a card that is a man
+    // standing behind a box reads as a sticker in the room. Asked for from the
+    // couch; the title he says it under is the subject.
+    expect(find.byKey(const ValueKey('coach-card-badge')), findsNothing);
     expect(find.text(t('coachtip.club_assets.title')), findsOneWidget);
     await settleSave(tester);
   });

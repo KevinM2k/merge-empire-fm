@@ -73,6 +73,23 @@ class _PageState extends State<_Page> {
   );
 }
 
+/// How far the hand has been lifted off its resting place this frame.
+///
+/// The widget is positioned once and MOVED by a transform, so its rect does not
+/// change — the offset is the only place the tap is visible.
+abstract final class _HandTapOffset {
+  static double of(WidgetTester tester) => tester
+      .widget<Transform>(
+        find.descendant(
+          of: find.byKey(const ValueKey('tutorial-hand')),
+          matching: find.byType(Transform),
+        ),
+      )
+      .transform
+      .getTranslation()
+      .y;
+}
+
 void main() {
   testWidgets('THE HOLE LETS THE TAP THROUGH', (tester) async {
     final taps = await pumpOver(tester, aimed: true);
@@ -112,6 +129,37 @@ void main() {
     final hand = tester.getRect(find.byKey(const ValueKey('tutorial-hand')));
     expect(hand.center.dx, closeTo(160, 0.01));
     expect(hand.top, greaterThan(ring.bottom));
+  });
+
+  /// **A STILL HAND SAYS "THIS ONE", NOT "PRESS IT".** The ring, the hand and
+  /// the card were three static things in front of a player who has never seen
+  /// the game. Asked for from the couch: the finger should move as if it is
+  /// clicking, with the wave a tap leaves on a screen.
+  testWidgets('AND THE HAND TAPS, with a ripple where it lands', (
+    tester,
+  ) async {
+    await pumpOver(tester, aimed: true);
+    final rest = tester.getRect(find.byKey(const ValueKey('tutorial-hand')));
+
+    // Into the rise: the hand is closer to the control than it was.
+    await tester.pump(tapCue * 0.2);
+    expect(
+      tester.getRect(find.byType(CustomPaint).at(0)).top,
+      isNotNull,
+      reason: 'the spotlight still paints',
+    );
+    expect(_HandTapOffset.of(tester), lessThan(0));
+
+    // And the ripple is a shape that grows out of nothing after contact.
+    await tester.pump(tapCue * 0.25);
+    final ripple = find.byKey(const ValueKey('tutorial-tap-ripple'));
+    expect(ripple, findsOneWidget);
+    // Centred on the fingertip: the bottom edge of the hole, where the hand
+    // meets it.
+    expect(
+      tester.getRect(ripple).center,
+      Offset(rest.center.dx, 300 + 48 + spotlightPad),
+    );
   });
 
   group('finding the control', () {

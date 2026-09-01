@@ -129,7 +129,7 @@ String cosmeticName(String key) {
 /// the moment a tier landed, not a standing perk, so it belongs on the tier-up
 /// card and in the ladder rather than on this one for ever.
 String assetPerkLine(String key, int tier) =>
-    tier <= 0 ? '—' : assetStatsAt(key, tier).map(statText).join(' · ');
+    tier <= 0 ? '-' : assetStatsAt(key, tier).map(statText).join(' · ');
 
 /// What the NEXT tier changes, or null at the top of the ladder.
 ///

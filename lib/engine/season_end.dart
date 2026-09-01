@@ -591,15 +591,28 @@ int prestigeLevel(Map<String, dynamic>? state) =>
 /// to somebody who has not finished the first one is offering a difficulty they
 /// have no way to judge.
 ///
-/// The gate is PRESTIGING ONCE: winning the top league, taking the reset, and
-/// coming back round. That is the point at which a player has seen the whole
-/// loop and is asking for a harder one.
+/// **THE GATE IS WINNING THE CHAMPIONS LEAGUE**, which is [canPrestige]'s own
+/// condition and one step earlier than what stood here.
+///
+/// It used to be PRESTIGING ONCE, and the fault in that is not the difficulty
+/// of it: nobody knows what prestige is. It is a word this game uses for
+/// "conquer the top flight and start again", and a padlock whose only
+/// explanation is "Prestige for the first time" answers an unknown control
+/// with an unknown word. Asked for in those terms. Winning the Champions
+/// League is the same achievement said in the language of the game rather than
+/// of its meta-loop, and every player who has prestiged has done it already.
+///
+/// **`prestigeLevel` stays in the condition, and it is not redundant.** A
+/// prestige RESETS `progression`, `wonChampionsCup` with it — so a player on
+/// their second adventure would otherwise have the difficulty they earned
+/// taken back off them at the reset.
 ///
 /// **A save already IN Pro keeps it.** Anyone who turned it on before the gate
 /// existed has been playing it, and taking a difficulty away from a running
 /// career is a worse thing than letting one save keep something it earned by
 /// being early.
 bool proModeUnlocked(Map<String, dynamic>? state) =>
+    canPrestige(state) ||
     prestigeLevel(state) > 0 ||
     _map(state?['settings'])?['hardMode'] == true;
 

@@ -59,14 +59,22 @@ double nextPrestigeMultiplier(Map<String, dynamic>? state) =>
 /// sentence it was cut out of. A player reading it under a greyed segment
 /// learns what they are missing and not one word about how to get it.
 ///
-/// The condition already ships, exactly and in ten languages, as
-/// `ach.desc.prestige_level_1`: "Prestige for the first time." The padlock in
-/// front of it is what marks the sentence as the reason rather than a boast.
+/// **AND NOBODY KNOWS WHAT PRESTIGE IS.** It said "Prestige for the first
+/// time" — `ach.desc.prestige_level_1`, the condition exactly, in a word the
+/// game invented for its own meta-loop. A player who has not met it reads a
+/// padlock explained by a second thing they have never heard of. Asked for
+/// directly: say the Champions League instead. The gate moved with the
+/// sentence, so this is the condition and not a paraphrase of it — see
+/// [proModeUnlocked].
+///
+/// `champ.subtitle` is that condition in the game's own shipped words, in ten
+/// languages, and the padlock in front of it is what marks the sentence as the
+/// reason rather than a boast.
 ///
 /// **No new key, and there could not be one** — the catalogues are generated
 /// from the JS's `en.js`, so a glyph and an existing string is the whole of the
 /// budget. See CLAUDE.md.
-String proLockedAnswer() => '🔒 ${t('ach.desc.prestige_level_1')}';
+String proLockedAnswer() => '🔒 ${t('champ.subtitle')}';
 
 /// The multiplier as the copy wants it.
 ///

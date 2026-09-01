@@ -1283,7 +1283,7 @@ class _Chip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: locked ? '$_label — $lockedReason' : _label,
+      label: locked ? '$_label - $lockedReason' : _label,
       child: GestureDetector(
         key: ValueKey('customise-chip-${axis.kind}-$id'),
         onTap: onTap,

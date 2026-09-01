@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/screens/grid/card_shatter.dart';
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 
 Future<void> pumpArrival(
@@ -55,6 +56,10 @@ Future<void> pumpDeparture(
 
 double _opacity(WidgetTester tester) =>
     tester.widget<Opacity>(find.byType(Opacity)).opacity;
+
+/// How far through its break a departing card is.
+double _breaking(WidgetTester tester) =>
+    tester.widget<CardShatter>(find.byType(CardShatter)).progress;
 
 void main() {
   testWidgets('A CARD THAT IS NOT ARRIVING IS JUST THERE', (tester) async {
@@ -125,35 +130,40 @@ void main() {
   });
 
   /// **The loan going home, which the port used to do by deleting it.**
-  /// `loan-card-exit` in `Tutorial.js`: up a little, then away and down.
+  ///
+  /// It flew off on `loan-card-exit` — up a little, then away and down — and
+  /// the report from the couch was that it should POOF, or come apart the way
+  /// the auto-sell does. It does the second: [CardShatter] is the game's own
+  /// effect for a card leaving the grid, and a second one would have been two
+  /// that drift.
   group('and the departure', () {
     testWidgets('leaves a card that is staying alone', (tester) async {
       await pumpDeparture(tester, null);
-      expect(find.byType(Opacity), findsNothing);
+      expect(find.byType(CardShatter), findsNothing);
     });
 
-    testWidgets('holds a card at full until its turn', (tester) async {
+    testWidgets('holds a card whole until its turn', (tester) async {
       await pumpDeparture(tester, loanDepartureStagger * 3);
-      expect(_opacity(tester), 1);
+      expect(_breaking(tester), 0);
       await tester.pump(loanDepartureStagger);
-      expect(_opacity(tester), 1, reason: 'not its turn yet');
+      expect(_breaking(tester), 0, reason: 'not its turn yet');
       // The timer fires the controller; the first tick is the frame after.
       await tester.pump(loanDepartureStagger * 3);
       await tester.pump(loanDepartureDuration);
-      expect(_opacity(tester), 0);
+      expect(_breaking(tester), greaterThanOrEqualTo(1));
     });
 
-    testWidgets('lifts before it drops away', (tester) async {
+    testWidgets('and then comes apart into pieces of itself', (tester) async {
       await pumpDeparture(tester, Duration.zero);
-      final resting = tester.getCenter(find.byKey(const ValueKey('card')));
       await tester.pump(loanDepartureDuration * 0.3);
-      expect(
-        tester.getCenter(find.byKey(const ValueKey('card'))).dy,
-        lessThan(resting.dy),
-        reason: 'the 40% keyframe lifts it',
-      );
+      final part = _breaking(tester);
+      expect(part, greaterThan(0));
+      expect(part, lessThan(1), reason: 'still on its way apart');
+      // **Past 1 by the end, deliberately.** The pieces run to slightly
+      // different lengths, so a figure capped at 1 freezes the slow ones in
+      // mid-air — see `cardShatterFrayMs`.
       await tester.pump(loanDepartureDuration);
-      expect(_opacity(tester), 0);
+      expect(_breaking(tester), greaterThan(1));
     });
 
     testWidgets('and answers no drag on the way out', (tester) async {

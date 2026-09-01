@@ -1792,7 +1792,7 @@ const List<({String label, Color ink})> _levelRows = [
   (label: 'I', ink: Color(0xFFCD7F32)),
   (label: 'II', ink: Color(0xFFAAAAAA)),
   (label: 'III', ink: Color(0xFFFFD700)),
-  (label: '—', ink: Color(0xFF999999)),
+  (label: '-', ink: Color(0xFF999999)),
 ];
 
 /// The row a lost roll stops on.

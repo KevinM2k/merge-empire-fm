@@ -34,7 +34,7 @@ const double spotlightPad = 6;
 /// The scrim over everything that is not the target. The JS's `rgba(0,0,0,.72)`.
 const Color spotlightScrim = Color(0xB8000000);
 
-class TutorialSpotlight extends StatelessWidget {
+class TutorialSpotlight extends StatefulWidget {
   const TutorialSpotlight({super.key, required this.target, this.child});
 
   /// Where the control is, in global coordinates — or null, which dims the
@@ -47,9 +47,63 @@ class TutorialSpotlight extends StatelessWidget {
   final Widget? child;
 
   @override
+  State<TutorialSpotlight> createState() => _TutorialSpotlightState();
+}
+
+/// One beat of "somebody is tapping this", and how long it runs.
+///
+/// **The hand and the ripple are the same gesture**, so they are the same
+/// clock: two controllers of equal length started a frame apart drift, and a
+/// ripple that fires while the finger is on its way back down is not a tap.
+const Duration tapCue = Duration(milliseconds: 1500);
+
+/// Where in that beat the fingertip lands.
+const double _tapContact = 0.32;
+
+/// How far the hand rises to make it, and how long the rise takes.
+const double _tapLift = 7;
+const double _tapReturn = 0.23;
+
+/// The ripple's life after contact, and how wide it gets.
+const double _tapSpread = 0.45;
+const double tapRippleRadius = 30;
+
+class _TutorialSpotlightState extends State<TutorialSpotlight>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _tap;
+
+  @override
+  void initState() {
+    super.initState();
+    // **Built here rather than lazily.** A spotlight with nothing to point at
+    // draws neither hand nor ripple, so a lazy controller would be created for
+    // the first time inside `dispose` — and a `vsync` looked up from a
+    // deactivated element throws. It does not START here: see `build`.
+    _tap = AnimationController(vsync: this, duration: tapCue);
+  }
+
+  @override
+  void dispose() {
+    _tap.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final target = widget.target;
+    final child = widget.child;
     final hole = target?.inflate(spotlightPad);
+    // **The beat runs only while there is a hand to move.** A step whose
+    // control has not been measured yet — a tab still sliding in — draws
+    // neither hand nor ripple, and a controller repeating behind nothing is an
+    // animation that never ends: every `pumpAndSettle` that reaches a
+    // spotlight step hangs on it.
+    if (hole == null) {
+      _tap.stop();
+    } else if (!_tap.isAnimating) {
+      _tap.repeat();
+    }
 
     return Stack(
       key: const ValueKey('tutorial-spotlight'),
@@ -71,6 +125,24 @@ class TutorialSpotlight extends StatelessWidget {
             height: hole.height,
             child: IgnorePointer(child: _Ring(colour: kit.accentBright)),
           ),
+          // **THE TAP ITSELF, where the fingertip meets the button.** The hand
+          // sat dead still under the control pointing at it, which says "this
+          // one" and not "press it" — and a first-time player looking at a
+          // ring, a hand and a card is being shown three static things.
+          // Reported from the couch: it should move as if it is clicking, with
+          // the wave a tap leaves on a screen. Drawn rather than taken from the
+          // Kenney pack — it is two circles and it has to be the kit's own
+          // accent, which no bundled sprite can be.
+          Positioned(
+            key: const ValueKey('tutorial-tap-ripple'),
+            left: hole.center.dx - tapRippleRadius,
+            top: hole.bottom - tapRippleRadius,
+            width: tapRippleRadius * 2,
+            height: tapRippleRadius * 2,
+            child: IgnorePointer(
+              child: _TapRipple(beat: _tap, colour: kit.accentBright),
+            ),
+          ),
           // Under the control, pointing up at it — the JS puts it two pixels
           // below the bottom edge, centred.
           Positioned(
@@ -79,7 +151,7 @@ class TutorialSpotlight extends StatelessWidget {
             top: hole.bottom + 2,
             width: 34,
             height: 40,
-            child: const IgnorePointer(child: _TapHand()),
+            child: IgnorePointer(child: _TapHand(beat: _tap)),
           ),
         ],
         ?child,
@@ -177,13 +249,92 @@ class _RingState extends State<_Ring> with SingleTickerProviderStateMixin {
   );
 }
 
-/// The pointing hand, path for path off `Tutorial.js`'s inline SVG.
+/// The pointing hand, path for path off `Tutorial.js`'s inline SVG — and
+/// tapping, which the JS's does not do.
 class _TapHand extends StatelessWidget {
-  const _TapHand();
+  const _TapHand({required this.beat});
+
+  final Animation<double> beat;
+
+  /// How far up the hand is at [t], as a negative offset: it rises to the
+  /// button, holds nothing, and drops back.
+  static double lift(double t) {
+    if (t < _tapContact) {
+      return -_tapLift * Curves.easeOut.transform(t / _tapContact);
+    }
+    if (t < _tapContact + _tapReturn) {
+      return -_tapLift *
+          (1 - Curves.easeIn.transform((t - _tapContact) / _tapReturn));
+    }
+    return 0;
+  }
 
   @override
-  Widget build(BuildContext context) =>
-      const CustomPaint(painter: _HandPainter());
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: beat,
+    builder: (context, _) => Transform.translate(
+      offset: Offset(0, lift(beat.value)),
+      child: const CustomPaint(painter: _HandPainter()),
+    ),
+  );
+}
+
+/// The wave a tap leaves behind, at the point the fingertip lands.
+class _TapRipple extends StatelessWidget {
+  const _TapRipple({required this.beat, required this.colour});
+
+  final Animation<double> beat;
+  final Color colour;
+
+  /// How far through the ripple's own life [t] is, or null before it starts.
+  static double? progress(double t) {
+    if (t < _tapContact) return null;
+    final p = (t - _tapContact) / _tapSpread;
+    return p > 1 ? null : p;
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: beat,
+    builder: (context, _) {
+      final p = progress(beat.value);
+      if (p == null) return const SizedBox.shrink();
+      return CustomPaint(painter: _RipplePainter(p, colour));
+    },
+  );
+}
+
+class _RipplePainter extends CustomPainter {
+  const _RipplePainter(this.progress, this.colour);
+
+  final double progress;
+  final Color colour;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = size.center(Offset.zero);
+    final radius = 6 + (tapRippleRadius - 6) * progress;
+    final fade = 1 - progress;
+    // A disc under a rim: the wash is the contact and the rim is the wave
+    // leaving it, which is what a tap looks like on a touchscreen.
+    canvas.drawCircle(
+      centre,
+      radius,
+      Paint()..color = colour.withValues(alpha: 0.18 * fade),
+    );
+    canvas.drawCircle(
+      centre,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = colour.withValues(alpha: 0.85 * fade),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RipplePainter old) =>
+      old.progress != progress || old.colour != colour;
 }
 
 class _HandPainter extends CustomPainter {

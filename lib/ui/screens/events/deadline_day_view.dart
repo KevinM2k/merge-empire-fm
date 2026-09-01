@@ -532,7 +532,7 @@ class _DeadlineDayViewState extends ConsumerState<DeadlineDayView> {
       final position = reason.params['position'];
       note =
           ' ${t('event.deadline.$key', position == null ? const {} : {
-                  // "in attack", not "at FWD" — he is a coach, not a spreadsheet.
+                  // "in attack", not "at FWD" - he is a coach, not a spreadsheet.
                   'area': t('area.$position'),
                 })}';
       break;

@@ -28,7 +28,7 @@ import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart'
-    show hudCoinInk, hudEnergyInk, hudGemInk;
+    show hudBadgeColour, hudBadgeInk, hudCoinInk, hudEnergyInk, hudGemInk;
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -373,8 +373,20 @@ class _CycleStrip extends StatelessWidget {
   /// exactly the clubs whose accent it borrowed.
   static const Color _grandInk = Color(0xFFFFC02E);
 
+  /// **AND A DEEPER ONE IN DAYLIGHT.** `#FFC02E` is a night-time gold: at the
+  /// 75% the border wears it, on a white sheet, it is a pale wash — the day
+  /// seven tile lost its edge, its glow and its band all at once, which is half
+  /// of what "the yellow is invisible in light mode" was about. `storeCoinFace`
+  /// is the coin gold this app already prints on light surfaces, so the tile
+  /// keeps the shop's statement rather than inventing a third gold.
+  static Color _grand(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.light
+      ? storeCoinFace
+      : _grandInk;
+
   Widget _tile(BuildContext context, int day, {bool grand = false}) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final gold = _grand(context);
     final reward = getDailyRewardPreview(state, day);
     if (reward == null) return const SizedBox.shrink();
     // **Banked is everything BEFORE today, plus today once claimed.** The cycle
@@ -390,7 +402,7 @@ class _CycleStrip extends StatelessWidget {
     final edge = now
         ? kit.accent
         : grand
-        ? _grandInk.withValues(alpha: 0.75)
+        ? gold.withValues(alpha: 0.75)
         : banked
         ? kit.accent.withValues(alpha: 0.45)
         : kit.border;
@@ -413,7 +425,7 @@ class _CycleStrip extends StatelessWidget {
         boxShadow: grand
             ? [
                 BoxShadow(
-                  color: _grandInk.withValues(alpha: 0.28),
+                  color: gold.withValues(alpha: 0.28),
                   blurRadius: 14,
                   offset: const Offset(0, 4),
                 ),
@@ -433,8 +445,8 @@ class _CycleStrip extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    _grandInk.withValues(alpha: 0.26),
-                    _grandInk.withValues(alpha: 0.04),
+                    gold.withValues(alpha: 0.26),
+                    gold.withValues(alpha: 0.04),
                   ],
                 ),
               ),
@@ -452,14 +464,19 @@ class _CycleStrip extends StatelessWidget {
                   child: Semantics(
                     label: dayRewardLine(reward),
                     child: ExcludeSemantics(
-                      child: Center(
-                        child: _RewardChips(
-                          reward: reward,
-                          today: now,
-                          // The grand prize has a tile half again as tall and
-                          // wider than the rest; chips at the strip's size in it
-                          // would be a big empty box with small print in it.
-                          scale: grand ? 1.25 : 1,
+                      child: Padding(
+                        // The chips run to the tile's width now, so the tile
+                        // owns the gutter rather than each chip owning a margin.
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: Center(
+                          child: _RewardChips(
+                            reward: reward,
+                            today: now,
+                            // The grand prize has a tile half again as tall and
+                            // wider than the rest; chips at the strip's size in
+                            // it would be a big empty box with small print.
+                            scale: grand ? 1.25 : 1,
+                          ),
                         ),
                       ),
                     ),
@@ -481,7 +498,7 @@ class _CycleStrip extends StatelessWidget {
                 fill: now
                     ? kit.accent
                     : grand
-                    ? _grandInk
+                    ? gold
                     : banked
                     ? kit.accent.withValues(alpha: 0.35)
                     : kit.surface2,
@@ -553,7 +570,22 @@ class _DayBand extends StatelessWidget {
 /// into a single 11px line, so a day paying coins, energy and gems asked the
 /// eye to split three figures apart — and the tile has the width for three
 /// small pills. Each one is its wallet's own colour, which is the same coding
-/// the HUD uses: gold is money, violet is energy, cyan is gems.
+/// the HUD uses: gold is money, green is energy, cyan is gems.
+///
+/// **AND THE BADGE CARRIES ITS OWN GROUND, which is the HUD's answer and not a
+/// second one.** These were a 14% wash of the hue with the FIGURE printed in
+/// the hue itself, and gold at 10.5px on the daylight sheet is 1.2:1 — the
+/// coin figure was invisible in light mode, reported from the couch. The bar
+/// spent four rounds on exactly this and landed on a filled badge: `hudBadgeColour`
+/// gives the wallet's shop face and `hudBadgeInk` the lightened print that
+/// carries on it, so a chip says the same thing on a white page as on a black
+/// one. See `hud_chip.dart`.
+///
+/// **And every chip is the same box.** They were sized to their own contents,
+/// so a day paying 2 gems and 500 coins drew a small pill above a wide one and
+/// the strip read as ragged; a stretched box of a fixed height makes the three
+/// wallets a column of equal rows, and the figure shrinks inside it rather
+/// than widening it.
 class _RewardChips extends StatelessWidget {
   const _RewardChips({
     required this.reward,
@@ -576,49 +608,60 @@ class _RewardChips extends StatelessWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Column(
       mainAxisSize: MainAxisSize.min,
+      // Every chip the tile's full width, so the wallets stack as equal rows.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final part in dayRewardParts(reward))
           Padding(
             padding: EdgeInsets.only(top: 3 * scale),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: 5 * scale,
-                vertical: 2 * scale,
-              ),
-              decoration: BoxDecoration(
-                // A wash of the wallet's own hue rather than a second grey: the
-                // tile behind it is already a surface, and a box that is only a
-                // border reads as an empty field.
-                color: (part.ink ?? kit.textMuted).withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: (part.ink ?? kit.border).withValues(alpha: 0.45),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (part.icon case final name?) ...[
-                    // The app's own coin, bolt and gem — the money was an emoji
-                    // money-bag, which is the one glyph in the game that was not
-                    // drawn in the set everything else is drawn in.
-                    GameIcon(name, size: 10 * scale, color: part.ink),
-                    SizedBox(width: 3 * scale),
-                  ],
-                  Text(
-                    part.text,
-                    style: TextStyle(
-                      fontSize: 10.5 * scale,
-                      height: 1.1,
-                      color: part.ink,
-                      fontWeight: today ? FontWeight.w900 : FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            child: _chip(kit, part),
           ),
       ],
+    );
+  }
+
+  Widget _chip(KitTheme kit, DayReward part) {
+    // The two rewards that are not a currency have no wallet and no hue, so
+    // they take the club's accent — the same fallback `HudChip` makes for the
+    // one badge in the bar that is not a wallet either.
+    final fill = part.ink == null ? kit.accent : hudBadgeColour(part.ink!);
+    final ink = part.ink == null ? kit.accentInk : hudBadgeInk(fill);
+    return Container(
+      height: 21 * scale,
+      alignment: Alignment.center,
+      padding: EdgeInsets.symmetric(horizontal: 4 * scale),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      // **THE FIGURE SHRINKS, THE BOX DOES NOT.** A sixth of the strip is about
+      // 44pt across and a seven-figure coin day does not fit in it at 10.5px;
+      // scaling it down keeps the row of boxes even, which is the whole reason
+      // they are a fixed size.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (part.icon case final name?) ...[
+              // The app's own coin, bolt and gem — the money was an emoji
+              // money-bag, which is the one glyph in the game that was not
+              // drawn in the set everything else is drawn in.
+              GameIcon(name, size: 10 * scale, color: ink),
+              SizedBox(width: 3 * scale),
+            ],
+            Text(
+              part.text,
+              style: TextStyle(
+                fontSize: 10.5 * scale,
+                height: 1.1,
+                color: ink,
+                fontWeight: today ? FontWeight.w900 : FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

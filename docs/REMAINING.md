@@ -8,9 +8,103 @@ rough sense of size, not a target.
 
 ---
 
+## Playtest, 1 Sep 2026 — Colin's card, the tutorial, and the daily reward
+
+Reported from the couch during an iOS playthrough, newest session first. Struck
+through means shipped in this session; the open ones are the queue.
+
+**Done and tested (see the commits on `claude/dialog-box-ui-design-7m5199`):**
+
+- ~~Daily reward: yellow invisible in light mode; a box per reward, all one
+  size, in the HUD's colours.~~ Filled badges off `hudBadgeColour`/`hudBadgeInk`.
+- ~~Colin's line types in too fast.~~ 30ms a glyph, 2s ceiling.
+- ~~No TTS.~~ iOS was never asked for an audio session; it is now. **Superseded
+  by the row below — the plugin is going.**
+- ~~No volume for his voice.~~ His own channel in Settings → Audio, under the
+  master sound switch. Neither key is in `createDefaultState`: that map is
+  compared field for field against the JS's.
+- ~~Pro mode's padlock says "prestige", which nobody knows.~~ The gate is
+  winning the Champions League now, and the note says so.
+- ~~Em dashes everywhere.~~ Off at the `t()` boundary; the JS fixture applies
+  the same rule to its own value, since the catalogues are generated and
+  `lib/data`/`lib/engine` copy is what the parity harness compares.
+- ~~"COACH COLIN" should sit above the box, right, in white.~~
+- ~~The card covers the PLAY button on the kick-off step.~~ It lifts to 12pt
+  above whatever the spotlight is pointing at.
+- ~~The scrim behind him is too dark.~~ `black54` → `coachCardScrim`.
+- ~~Loaned players do not say LOANED on the Players tab.~~
+- ~~The HUD is pressable mid-tutorial, and a tap outside drops the card.~~ The
+  input seal is held for the whole script and the cards are not dismissible.
+- ~~The tutorial hand should tap, with a ripple where it lands.~~
+- ~~An emoji floats beside his head on a big card.~~ Gone.
+
+**Also done since:**
+
+- ~~The loan stars should leave with a POOF, or the auto-sell's break, with a
+  sound.~~ They come apart on `CardShatter` — the auto-sell's own effect rather
+  than a second one — and the flight plays `pop` once for the lot.
+- ~~After they go, our own three should sit in slots 1, 2 and 3.~~
+  `returnTutorialPlayers` packs the grid with `closeGridGaps`.
+
+**Open, in the order they were asked for:**
+
+- [ ] **NO home advantage until the Fan Zone is bought**, with the first +1
+      arriving on the purchase. **Blocked on a decision, and worth reading
+      before touching.** The port's `homeAdvantageDisplayFor` pays +1 at tier 0
+      because the JS's does — `../merge-empire-fc/src/engine/matchEngine.js:42`
+      is `Math.round(1 + 3 * clamp(fanTier) / 8)` — so this is a change to the
+      SPEC, not a port bug. Making it in the port alone turns
+      `season_difftest`'s six seasons red: one point on ATK and DEF changes
+      every scoreline, and the harness compares them match by match. The whole
+      change is `fanTier <= 0 ? 0 : …` in both repos plus
+      `node tool/difftest/run.mjs > test/fixtures/season_difftest.json` to
+      re-dump the fixture. Editing the shipped JS was not asked for, so it has
+      not been done.
+- [ ] **Drop `flutter_tts`.** The device voice is horrible. What is wanted in
+      its place: a folder you can drop clips into that is used when a clip is
+      there and silent when it is not. The seam is already the right shape —
+      `VoiceBackend` in `services/voice_service.dart` — so this is a new
+      backend plus an asset folder and a manifest lookup, and the plugin, its
+      pod and its pubspec line come out. Note the cards announce TEXT on the
+      bus today; a clip lookup wants the catalogue KEY, which `CoachCardFrame`
+      already has.
+- [ ] **No three-word club names out of the generator.** "Three Horseshoes
+      Rangers" is 23 characters and wraps to two lines in the table, the
+      fixture card, the pyramid editor and the ticker. **Blocked the same way
+      as the row above, and it has been tried.** The banks are in
+      `lib/engine/team_names.dart` and a name is `<first> <suffix>`, so the fix
+      is the ten two-word entries in `_grassrootsFirst` ('Red Lion', 'Plough
+      Lane', 'Old Oak', 'Mill Street', 'Market Square', 'Heath End', 'Hollow
+      Lane', 'Three Horseshoes', 'Cobble Street', 'Quarry Lane'), plus 'Iron
+      Bridge' in `_semiproFirst` and 'Red Star' in `_proPrefix`. Keeping the
+      bank LENGTHS identical keeps the seeded stream intact — the draw is
+      `randomInt(0, length - 1)` — but the STRINGS are pinned: doing it turned
+      `season_difftest` and three `progression_parity` cases red, because those
+      fixtures are dumped from the JS's own banks and compare club for club.
+      So the same banks have to change in
+      `../merge-empire-fc/src/engine/progressionEngine.js` and the fixtures be
+      re-dumped (`node tool/dump_progression_reference.mjs`,
+      `node tool/difftest/run.mjs`). Not done: editing the shipped JS was not
+      asked for.
+
+- [ ] **A poof/tap sound set worth having.** `pop` is doing the job for the
+      loan departure; it is a 0.1s blip from `sound_defs.dart` and a proper
+      shatter cue would be better. Cosmetic, and nothing is blocked on it.
+
+---
+
 ## Where this queue stands
 
-**Nothing is open. The port is done.**
+**The port is done; what is open is the playtest list above.** Three rows, and
+two of them are blocked on the same question — whether the JS spec may be
+changed so the parity fixtures can be re-dumped. Read those rows before
+touching either: both have been tried, and both turn the harness red for a
+reason that is a feature.
+
+**Branch state:** all of the above is committed on
+`claude/dialog-box-ui-design-7m5199` and **not yet merged into `main`**, which
+has moved on since (PR #15). The merge was asked for and is the next thing to
+do; `flutter analyze` is clean and the suite is green on the branch.
 
 Two rows carried as missing turned out to be STALE and are ticked with what was
 actually there: the boot splash — its face had shipped, its GATE had not, and

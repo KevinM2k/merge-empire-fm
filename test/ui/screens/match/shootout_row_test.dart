@@ -115,7 +115,7 @@ void main() {
           awayScore: 4,
         ),
       );
-      expect(find.text('5 – 4'), findsOneWidget);
+      expect(find.text('5 - 4'), findsOneWidget);
       expect(find.byKey(const ValueKey('shootout-marks-ours')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('shootout-marks-theirs')),

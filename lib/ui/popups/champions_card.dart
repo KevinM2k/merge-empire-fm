@@ -49,6 +49,7 @@ Future<int?> showChampionsCelebration(
 
   final answer = await showDialog<bool>(
     context: context,
+    barrierColor: coachCardScrim,
     builder: (_) => _ChampionsCard(pro: pro, mult: mult),
   );
   // Null is the barrier tap and `champ.defend` is the button; both mean the
@@ -71,7 +72,6 @@ class _ChampionsCard extends StatelessWidget {
     return CoachCardFrame(
       key: const ValueKey('champions-card'),
       title: t('champ.title'),
-      badge: '🏆',
       actions: [
         CoachAction(
           labelKey: 'champ.new_adventure',

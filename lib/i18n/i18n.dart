@@ -86,13 +86,52 @@ final RegExp _htmlInline = RegExp(
   caseSensitive: false,
 );
 
+/// **THE EM DASH COMES OFF EVERY LINE, and it is here for the same reason the
+/// tags are.** 453 entries in English alone are written with one — the JS's
+/// copy leans on it as its default joint between two clauses — and asked for
+/// directly from the couch: it reads as machine-written. A hyphen is what a
+/// person types on a phone, and it is the one substitution that is safe in
+/// every one of the 453 without reading them, including the entries that are a
+/// bare dash standing for "no value" in a stat row.
+///
+/// At the boundary rather than in the catalogues, because they are GENERATED
+/// from the JS and the next `gen_i18n.mjs` run would put all 453 back.
+///
+/// The en dash goes with it: a handful of ranges use one, and two dash
+/// characters that a keyboard cannot type is not a distinction worth keeping.
+final RegExp _longDash = RegExp(r'\s*[—–]\s*');
+
+/// The rule on its own, for the copy that does NOT come out of a catalogue.
+///
+/// A cup's scouting report, a sponsor's pitch, a trait's description and a
+/// product's blurb are Dart constants in `lib/data` and `lib/engine` rather
+/// than catalogue keys, and every one of them is on a screen. They cannot be
+/// edited in place: the parity harness compares those exact strings against the
+/// JS's - `cup_engine_test` diffs a whole bracket, blurbs included - so the
+/// divergence belongs where the words are DRAWN, which is what this is for.
+///
+/// It is also what the JS-vs-port fixture applies to the JS's own value, so the
+/// harness states the divergence in one place rather than failing on it.
+String withoutLongDash(String text) =>
+    !text.contains('—') && !text.contains('–')
+    ? text
+    // The dash keeps whatever spacing it had on either side: ` — ` between two
+    // clauses becomes ` - `, and a bare `—` in a cell becomes `-`.
+    : text.replaceAllMapped(_longDash, (m) {
+        final gap = m[0]!;
+        final lead = gap.trimLeft().length != gap.length ? ' ' : '';
+        final tail = gap.trimRight().length != gap.length ? ' ' : '';
+        return '$lead-$tail';
+      });
+
 String t(String key, [Map<String, Object?> params = const {}]) {
   final raw = _catalog[key] ?? _fallbackCatalog[key] ?? key;
   // The `contains('<')` guard means the common case — a string with no markup
   // in it at all — does no work for either pattern.
-  final template = raw.contains('<')
+  var template = raw.contains('<')
       ? raw.replaceAll(_htmlBreak, '\n').replaceAll(_htmlInline, '')
       : raw;
+  template = withoutLongDash(template);
   if (params.isEmpty) return template;
   // Literal replace, matching the JS split/join: a param with no placeholder is
   // ignored, and a placeholder with no param is left standing. Neither is an

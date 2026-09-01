@@ -123,6 +123,32 @@ void main() {
     await settleSave(tester);
   });
 
+  /// **THE SCRIPT OWNS THE SCREEN UNTIL IT IS OVER.**
+  ///
+  /// A card step used to draw nothing behind its dialog and lean on the
+  /// dialog's own barrier — which is a barrier only while the dialog is up. A
+  /// tap outside dropped the card and left the app fully live, with the HUD,
+  /// the tabs and Add Player all reachable and nothing scheduled to put the
+  /// card back. Reported from the couch twice over: the HUD icons were
+  /// pressable, and clicking off the tutorial should do nothing.
+  testWidgets('A TAP OUTSIDE THE CARD DOES NOTHING AT ALL', (tester) async {
+    await pumpHost(tester, save());
+    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsOneWidget);
+
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+
+    // Still his card, still sealed: the two ways past a step are its own
+    // button and Skip.
+    expect(find.text(t('tut.welcome.title')), findsOneWidget);
+    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsOneWidget);
+
+    await tapFooter(tester, 'tut.skip');
+    await settleSave(tester);
+    // And it lets go the moment the script is over.
+    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsNothing);
+  });
+
   testWidgets('A STEP WAITING ON THE SAVE SAYS SO, and has no button', (
     tester,
   ) async {
@@ -211,7 +237,11 @@ void main() {
     final cells = (after['grid'] as Map<String, dynamic>)['cells'] as List;
     expect(cells.where((x) => (x as Map?)?['borrowed'] == true), isEmpty);
     expect(c.read(loanDepartingProvider), isFalse);
-    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsNothing);
+    // **The seal stays** — it is held for the whole script now, not just for
+    // the flight: a step between cards, or a card a stray tap dropped, used to
+    // leave the HUD, the tabs and Add Player all live. What ended here is the
+    // FLIGHT, which is the line above and the card below.
+    expect(find.byKey(const ValueKey(tutorialInputSeal)), findsOneWidget);
     expect(find.text(t('tut.loan_depart.title')), findsOneWidget);
     expect(
       ((after['resources'] as Map)['fanCoins'] as num).toInt() - before,

@@ -185,6 +185,27 @@ void main() {
       expect(mine, containsAll(['own0', 'own1', 'own2']));
     });
 
+    test('AND THEY ARE IN THE FIRST THREE SLOTS AFTERWARDS', () {
+      // Eleven borrowed cards leaving out of the middle of the grid left the
+      // player's own three wherever the loan had put them, with holes between
+      // — and the card that follows says "now build our team" over it. Asked
+      // for from the couch.
+      final s = save(cards: 3);
+      // Scattered on purpose: a merge or two before the loan is enough.
+      final cells = cellsOf(s);
+      cells[5] = cells[1];
+      cells[1] = null;
+      lendTutorialPlayers(s);
+      returnTutorialPlayers(s);
+      final after = cellsOf(s);
+      expect(
+        [for (var i = 0; i < 3; i++) CardInstance.from(after[i])?.instanceId],
+        ['own0', 'own2', 'own1'],
+        reason: 'packed to the front in the order they were in',
+      );
+      expect(after.skip(3).where((c) => c != null), isEmpty);
+    });
+
     test('THE LINEUP LOSES THE SLOTS THEY WERE IN, and nothing else', () {
       final s = save(cards: 3);
       lendTutorialPlayers(s);

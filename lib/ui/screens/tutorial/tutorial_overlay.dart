@@ -41,6 +41,7 @@ import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart' show matchPopupBlocker;
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'dart:async';
 
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -261,7 +262,7 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
       _track(key);
       return TutorialSpotlight(
         target: _anchor,
-        child: _Tooltip(step: step, onSkip: _skip),
+        child: _Tooltip(step: step, target: _anchor, onSkip: _skip),
       );
     }
 
@@ -286,7 +287,26 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
       _showing = step.id;
       WidgetsBinding.instance.addPostFrameCallback((_) => run(step));
     }
-    return const SizedBox.shrink();
+    // **NOTHING OUTSIDE THE SCRIPT IS PRESSABLE, for the whole of it.**
+    //
+    // A card step drew nothing here and leaned on the dialog's own barrier,
+    // which is a barrier only while the dialog is up. It is not up in three
+    // ordinary windows: between the answer to one step and the opening of the
+    // next, while a tab slides in under `run`, and — the one a player actually
+    // finds — after a tap outside dismisses the card, which left the app fully
+    // live with the HUD, the tabs and Add Player all reachable and the
+    // tutorial waiting for a rebuild that nothing was going to schedule.
+    // Reported from the couch as being able to press the HUD icons mid-script.
+    //
+    // The seal is the same input-eater the loan flight already uses, held for
+    // as long as a step is live. The one thing a player may press is whatever
+    // the step itself puts on screen: the card, which is a route ABOVE this,
+    // or the control inside a spotlight's hole, which is the branch above.
+    return const ModalBarrier(
+      key: ValueKey(tutorialInputSeal),
+      dismissible: false,
+      color: null,
+    );
   }
 
   void _skip() => ref.read(gameProvider).update(skipTutorial);
@@ -339,8 +359,11 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
           ref.read(gameProvider).update(advanceTutorial);
         case null:
           // Dismissed without answering — the step stands, and the next build
-          // puts it back up.
-          _showing = null;
+          // puts it back up. **The rebuild has to be ASKED for**: clearing the
+          // field notifies nothing, so the card stayed down until something
+          // else happened to rebuild this widget, and the seal underneath it
+          // would have been a tutorial with no way forward.
+          if (mounted) setState(() => _showing = null);
       }
     } finally {
       _busy = false;
@@ -356,13 +379,30 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
 /// past a step whose whole point is that the player performs it. `tut.skip` is
 /// still here because a tutorial you cannot leave is a trap.
 class _Tooltip extends ConsumerWidget {
-  const _Tooltip({required this.step, required this.onSkip});
+  const _Tooltip({required this.step, required this.target, required this.onSkip});
 
   final TutorialStep step;
+
+  /// Where the hole is, so the card can get out of its way.
+  final Rect? target;
+
   final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => CoachCardFrame(
+    // **THE CARD MOVES OUT OF THE WAY OF THE HOLE.** Colin stands over a box
+    // along the bottom of the screen now, and the control a spotlight step
+    // points at is often down there too — the kick-off step's PLAY button is,
+    // and the card landed squarely on it. The box eats its own taps, so the
+    // step could not be completed at all: the tutorial was a dead end on the
+    // one screen it cannot afford to be. Reported from the couch.
+    //
+    // **Lifted just clear of it, not thrown to the top.** Sending the card to
+    // the other end of the screen was the first answer and it put the words as
+    // far from the button as they could get. Twelve points above it keeps the
+    // pair together and still leaves the control, its ring and the hand it is
+    // pointed at in the clear. Asked for in those terms.
+    liftedTo: _liftAbove(context),
     title: t(step.titleKey, tutorialParams(ref)),
     body: t(step.bodyKey, tutorialParams(ref)),
     extraLines: const [
@@ -374,6 +414,23 @@ class _Tooltip extends ConsumerWidget {
     // not two answers of equal weight — see [CoachCardFrame.footer].
     footer: CoachAction(labelKey: 'tut.skip', onTap: onSkip),
   );
+
+  /// The bottom inset that puts the box [_gap] above the target, or null when
+  /// the card is already clear of it.
+  ///
+  /// The hole's own position decides it rather than a flag per step, so a step
+  /// pointing at something high up keeps the bottom a dialogue box wants, and a
+  /// step with no target has nothing to avoid.
+  double? _liftAbove(BuildContext context) {
+    final hole = target;
+    if (hole == null) return null;
+    final lift = MediaQuery.sizeOf(context).height - hole.top + _gap;
+    final resting = 10 + MediaQuery.paddingOf(context).bottom;
+    return lift > resting ? lift : null;
+  }
+
+  /// How far above the control the box stops.
+  static const double _gap = 12;
 }
 
 /// Every placeholder any step can ask for, supplied for all of them.
@@ -429,6 +486,12 @@ Future<void> departLoan(WidgetRef ref) async {
     return;
   }
   ref.read(loanDepartingProvider.notifier).state = true;
+  // **And it makes a noise.** Eleven cards coming apart in silence is the one
+  // moment in the script with a real effect on it and nothing to hear. One
+  // pop for the lot rather than one each: the stagger is 40ms and the sound
+  // service collapses anything inside its 70ms retrigger floor anyway, so
+  // eleven would have been two and a rattle. Asked for with the animation.
+  playSoundFrom(ref, 'pop');
   try {
     await Future<void>.delayed(loanDepartureWindow(leaving));
   } finally {
@@ -458,6 +521,15 @@ Future<TutorialAnswer?> showTutorialCard(
     titleKey: titleKey,
     bodyKey: bodyKey,
     bodyParams: tutorialParams(ref),
+    // **A TAP OUTSIDE DOES NOTHING.** The two ways past a step are the button
+    // it offers and Skip; anything else dropped the card and left the player
+    // looking at a sealed app. Asked for directly.
+    barrierDismissible: false,
+    // **SPOKEN.** The walkthrough is the one stretch of the game that is purely
+    // him teaching, on the one run where the player has no idea what any of it
+    // does — and it happens once, so there is no session in which the voice
+    // becomes a thing to sit through twice.
+    speaks: true,
     extraLines: [
       // A step waiting on the save says so, or it reads as a card whose button
       // has failed to load.

@@ -117,8 +117,13 @@ Toast? toastFor(String event, Object? args) {
     // [proLockedAnswer]. Condition first, then what it buys, which is the order
     // the question was asked in.
     case 'prestige:locked':
+      // The condition, then what Pro IS. `prestige.body_pro_hint` used to be the
+      // second half and its "Or prestige into Pro Mode" describes a route that
+      // is no longer the gate; `settings.difficulty.hint` is the same
+      // description with none of the meta-loop in it, and it is what the row
+      // itself prints once the lock is off.
       return _say(
-        '${proLockedAnswer()} ${t('prestige.body_pro_hint')}',
+        '${proLockedAnswer()} ${t('settings.difficulty.hint')}',
         good: false,
       );
 

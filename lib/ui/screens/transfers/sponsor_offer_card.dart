@@ -53,6 +53,7 @@ Future<bool> showSponsorOffer(
   bool? accepted;
   await showDialog<void>(
     context: context,
+    barrierColor: coachCardScrim,
     // No parking, and no accidental dismissal: both answers have consequences
     // and neither of them is "nothing happened".
     barrierDismissible: false,
@@ -189,7 +190,11 @@ class _SponsorOfferCard extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           Text(
-            drawback.msg,
+            // The one piece of copy on this card that is a Dart constant rather
+            // than a catalogue key, so it is the one that needs the dash rule
+            // asked for by hand — `sponsors.dart` is what the parity fixtures
+            // compare, and cannot be edited. See `withoutLongDash`.
+            withoutLongDash(drawback.msg),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, height: 1.5, color: kit.textMuted),
           ),

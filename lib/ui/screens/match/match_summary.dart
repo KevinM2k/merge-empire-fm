@@ -446,7 +446,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                             // the two answers comparable: the difference
                             // between them is exactly what the video is worth.
                             child: Text(
-                              '${t('match.no_thanks')} — '
+                              '${t('match.no_thanks')} - '
                               '${formatCoins(_base + _quests)}',
                             ),
                           ),
@@ -644,7 +644,7 @@ class _Score extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(
-          '$leftGoals–$rightGoals',
+          '$leftGoals-$rightGoals',
           key: const ValueKey('summary-score'),
           style: const TextStyle(
             fontSize: 32,

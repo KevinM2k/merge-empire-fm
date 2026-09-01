@@ -451,7 +451,7 @@ class _Delta extends StatelessWidget {
   Widget build(BuildContext context) {
     if (delta == 0) {
       return Text(
-        '–',
+        '-',
         key: isPlayer ? const ValueKey('summary-table-held') : null,
         style: TextStyle(fontSize: 12, color: glassMuted(context)),
       );

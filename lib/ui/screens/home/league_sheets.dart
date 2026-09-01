@@ -860,7 +860,7 @@ class _FixtureRow extends StatelessWidget {
     } else {
       // An em dash, not `-:-`: a placeholder shaped like a score reads as a
       // score that failed to load.
-      score = '—';
+      score = '-';
       scoreInk = kit.textMuted;
     }
 

@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/popups/welcome_back_card.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
@@ -282,9 +283,14 @@ void main() {
       // `welcome.line` is five lines separated by pipes and was unreachable —
       // the card used `welcome.earned_label` for its title AND its body.
       await pumpCard(tester, (earned: 100, offlineMs: 3600000));
+      // `Text.rich`, not `Text`: his line is TYPED, and the tail that has not
+      // arrived yet is a transparent span rather than an absent one — so the
+      // whole sentence is laid out and readable off the widget from the first
+      // frame. See `CoachTypewriter`.
       final line = tester
           .widget<Text>(find.byKey(const ValueKey('welcome-back-line')))
-          .data!;
+          .textSpan!
+          .toPlainText();
       expect(line, isNot(contains('|')), reason: 'one line, not all five');
       final pool = t('welcome.line', {'duration': proseDuration(3600000)});
       expect(
@@ -322,6 +328,19 @@ void main() {
     testWidgets('a short absence is not', (tester) async {
       await pumpCard(tester, (earned: 100, offlineMs: 60000));
       expect(find.byKey(const ValueKey('welcome-back-capped')), findsNothing);
+    });
+
+    testWidgets('and he arrives through his OWN chrome, not a second one', (
+      tester,
+    ) async {
+      // This was an `AlertDialog` carrying its own disc, its own name plate and
+      // its own type sizes: the one card every single launch opens with was
+      // also the one card Colin turned up in a different window on. It stands
+      // on the shared stage now — the bottom-anchored box he stands behind.
+      await pumpCard(tester, (earned: 100, offlineMs: 3600000));
+      expect(find.byType(CoachStage), findsOneWidget);
+      expect(find.byType(CoachStandee), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
     });
   });
 

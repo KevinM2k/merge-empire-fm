@@ -792,6 +792,8 @@ void main() {
     testWidgets('and the level reel has a row for it', (tester) async {
       // Three numerals and nowhere to put a loss meant a lost spin stopped on
       // a numeral and read as a win. `TraitRoulette.js` carries the dash.
+      // A plain hyphen rather than the JS's em dash: the long dash comes off
+      // everything the player reads now. See `withoutLongDash`.
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
       await scrollSheetTo(tester, 'detail-trait-roll');
@@ -799,7 +801,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('trait-reel-level')),
-          matching: find.text('—'),
+          matching: find.text('-'),
         ),
         findsWidgets,
       );

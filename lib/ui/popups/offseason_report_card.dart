@@ -46,6 +46,7 @@ Future<void> showOffseasonReport(
   SeasonOutcome outcome,
 ) => showDialog<void>(
   context: context,
+  barrierColor: coachCardScrim,
   builder: (_) => OffseasonReportCard(outcome: outcome),
 );
 
@@ -98,7 +99,6 @@ class OffseasonReportCard extends StatelessWidget {
     return CoachCardFrame(
       key: const ValueKey('offseason-report'),
       title: t('offseason.title'),
-      badge: '🏁',
       body: t('offseason.subtitle'),
       actions: [CoachAction(labelKey: 'common.continue', onTap: () {})],
       child: Column(

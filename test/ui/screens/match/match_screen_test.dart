@@ -1130,7 +1130,7 @@ void main() {
       );
       // The score the goal MADE, home side left.
       expect(
-        find.descendant(of: feed, matching: find.text('1–0')),
+        find.descendant(of: feed, matching: find.text('1-0')),
         findsOneWidget,
       );
       // Four in the book plus the one he just scored — the save is not written

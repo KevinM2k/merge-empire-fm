@@ -18,7 +18,8 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
-import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
+import 'package:merge_empire_fc/ui/hud/hud.dart'
+    show hudBadgeColour, hudBadgeInk, hudCoinInk;
 import 'package:merge_empire_fc/ui/popups/daily_reward_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -467,6 +468,10 @@ void main() {
     /// one money glyph in the game not drawn in the set everything else is drawn
     /// in — so it is the app's own coin now, in the coin gold, and each reward
     /// sits in a box of its own.
+    ///
+    /// **AND THE BOX IS FILLED WITH THAT GOLD rather than printed in it.** Gold
+    /// on the daylight sheet is 1.2:1 — the figure was invisible in light mode.
+    /// The badge is the HUD's own, so the assertion is the HUD's own pair.
     testWidgets('and the coins wear the app\'s own coin, in the coin gold', (
       tester,
     ) async {
@@ -480,7 +485,53 @@ void main() {
         find.descendant(of: day, matching: find.byType(GameIcon)),
       );
       expect(coin.name, 'coin');
-      expect(coin.color, hudCoinInk);
+      expect(coin.color, hudBadgeInk(hudBadgeColour(hudCoinInk)));
+      // The chip behind it is the coin's shop face, which is what makes the
+      // pair legible on either theme.
+      final chip = tester.widget<Container>(
+        find
+            .ancestor(
+              of: find.byType(GameIcon).first,
+              matching: find.descendant(of: day, matching: find.byType(Container)),
+            )
+            .first,
+      );
+      expect(
+        (chip.decoration as BoxDecoration).color,
+        hudBadgeColour(hudCoinInk),
+      );
+    });
+
+    /// **EVERY CHIP THE SAME BOX.** They were sized to their own contents, so
+    /// the gem day drew a narrow pill above a wide one.
+    testWidgets('and every reward on a day is the same box', (tester) async {
+      await pumpSheet(tester, save());
+      final chips = tester
+          .widgetList<GameIcon>(
+            find.descendant(
+              of: find.byKey(const ValueKey('daily-day-7')),
+              matching: find.byType(GameIcon),
+            ),
+          )
+          .length;
+      expect(chips, greaterThan(1));
+      final sizes = [
+        for (var i = 0; i < chips; i++)
+          tester.getSize(
+            find
+                .ancestor(
+                  of: find
+                      .descendant(
+                        of: find.byKey(const ValueKey('daily-day-7')),
+                        matching: find.byType(GameIcon),
+                      )
+                      .at(i),
+                  matching: find.byType(Container),
+                )
+                .first,
+          ),
+      ];
+      expect(sizes.toSet(), hasLength(1), reason: 'chips differ in size');
     });
 
     /// **ONE BOX PER REWARD.** The three figures were a single run of text

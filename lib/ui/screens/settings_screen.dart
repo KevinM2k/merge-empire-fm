@@ -337,6 +337,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     var replayTutorial = !soft;
     showDialog<void>(
       context: context,
+      barrierColor: coachCardScrim,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setTick) => CoachCardFrame(
           title: t(soft ? 'reset.title' : 'fullReset.title'),
@@ -390,6 +391,17 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           volumeKey: 'musicVolume',
           // The JS ships music off by default, and the schema agrees.
           defaultEnabled: false,
+        ),
+        // **HIS VOICE IS A CHANNEL, not a corner of the SFX one.** It rode the
+        // sound toggle while it had no label to call itself, so the only way to
+        // stop him talking was to mute the coin sounds with him. `coach.label`
+        // is his own name in ten languages and no new key. See
+        // `providers/voice_providers.dart`.
+        AudioChannelRow(
+          icon: 'megaphone',
+          label: t('coach.label'),
+          enabledKey: 'voiceEnabled',
+          volumeKey: 'voiceVolume',
         ),
       ],
     ),
@@ -478,8 +490,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             // IS, its leading "Or" belongs to the offer it was cut from, and a
             // player reading it under a dead segment learns what they are
             // missing and nothing about how to get it. Reported as the
-            // difficulty needing to show that it is locked and that prestige is
-            // what opens it.
+            // difficulty needing to show that it is locked and what opens it.
             //
             // [proLockedAnswer] is the condition in the game's own shipped
             // words, and the tap adds the description on top of it.
@@ -501,9 +512,9 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                 (
                   label: t('settings.difficulty.hard'),
                   on: hard,
-                  // **LOCKED UNTIL THE FIRST PRESTIGE.** Pro is a whole second
-                  // game and offering it in the first minute is offering a
-                  // difficulty the player has no way to judge — see
+                  // **LOCKED UNTIL THE CHAMPIONS LEAGUE IS WON.** Pro is a
+                  // whole second game and offering it in the first minute is
+                  // offering a difficulty the player has no way to judge — see
                   // [proModeUnlocked]. The row stays visible and dead rather
                   // than disappearing: a control that is not there answers
                   // nothing, and this one has a reason worth reading.
