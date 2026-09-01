@@ -25,14 +25,25 @@ const int matchesPerSeason = opponentsPerSeason * 2;
 const int homeAdvantage = 2;
 const int homeAdvantageDisplay = homeAdvantage * 2;
 
-/// Home advantage scaled by Fan Zone tier: +1 with no Fan Zone, +4 at max.
+/// Home advantage scaled by Fan Zone tier: nothing without one, +1 the moment
+/// one is bought, +4 at max.
 ///
 /// This is the number on the "Home +N" pill, added in full to BOTH ATK and DEF.
 /// Because team star is the FIFA blend of ATK/DEF — translation-invariant —
 /// adding +N to both raises the star by exactly +N too, so the pill, the
 /// ATK/DEF rows and the star all move by the same amount.
-int homeAdvantageDisplayFor([int fanTier = 0]) =>
-    ((1 + (3 * math.max(0, math.min(8, fanTier))) / 8) + 0.5).floor();
+///
+/// **NO CROWD, NO ADVANTAGE.** It paid +1 at tier 0, so a club with no ground
+/// at all had a home advantage and buying the Fan Zone — the one asset whose
+/// whole promise is a crowd — moved the pill by nothing. Asked for from the
+/// couch. **The change is in the SPEC as well as here**, and it had to be: the
+/// difftest harness compares six simulated seasons match by match against the
+/// JS, and a point on ATK and DEF moves every scoreline. See
+/// `../merge-empire-fc/src/engine/matchEngine.js` and the re-dumped
+/// `season_difftest.json`.
+int homeAdvantageDisplayFor([int fanTier = 0]) => fanTier <= 0
+    ? 0
+    : ((1 + (3 * math.min(8, fanTier)) / 8) + 0.5).floor();
 
 /// The per-stat bonus — identical to the pill value, kept as a separate name
 /// for call sites that read "per-stat".

@@ -18,10 +18,15 @@ void main() {
   });
 
   group('home advantage', () {
-    test('scales from +1 with no Fan Zone to +4 at max', () {
+    test('is NOTHING with no Fan Zone, then +1 to +4 as one is built', () {
+      // **The first tier is what turns the pill on.** It paid +1 at tier 0, so
+      // a club with no ground at all had a home advantage and buying the Fan
+      // Zone — the one asset whose whole promise is a crowd — moved the pill by
+      // nothing. Asked for from the couch, and changed in the SPEC too, because
+      // the difftest compares six seasons match by match against it.
       expect(
         List.generate(9, homeAdvantageDisplayFor),
-        [1, 1, 2, 2, 3, 3, 3, 4, 4],
+        [0, 1, 2, 2, 3, 3, 3, 4, 4],
       );
     });
 
@@ -33,7 +38,8 @@ void main() {
     });
 
     test('clamps a tier outside the range', () {
-      expect(homeAdvantageDisplayFor(-5), 1);
+      // A negative tier is no Fan Zone, which is now the same as tier 0.
+      expect(homeAdvantageDisplayFor(-5), 0);
       expect(homeAdvantageDisplayFor(99), 4);
     });
 
