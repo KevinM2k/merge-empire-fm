@@ -264,7 +264,20 @@ class _QuestTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final ink = Theme.of(context).colorScheme.onSurface;
+    // **THE PANE'S OWN MUTED INK, not the page's full-strength one.**
+    // `colorScheme.onSurface` is near-black — rgb(25, 29, 23) in light mode —
+    // while the club's asset hints, which are the same KIND of line (a
+    // sentence saying what a thing asks of you), are `kit.textMuted` at
+    // rgb(91, 97, 107). Reported from the couch: the training-ground copy is
+    // the colour that reads right and the match quests look darker than it.
+    //
+    // `glassMuted` is that same tone arrived at the glass way — `glassText` at
+    // 66% over a pane lands within a few points of `kit.textMuted`, which is
+    // why it is the right answer here rather than the kit colour: this text is
+    // on a pane over the pitch, and the pane is what the alpha is measured
+    // against. Size and weight carry the hierarchy against the fraction beside
+    // it, which is the same tone at 10.5/w900.
+    final ink = glassMuted(context);
     final done = row.completed;
 
     return Padding(

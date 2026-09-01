@@ -14,6 +14,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_shine.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show readableInk;
@@ -213,6 +214,21 @@ class ShopTile extends StatelessWidget {
         child: Stack(
           children: [
             _pane(context, kit, ink, lines),
+            // **LIFE, and most of it on the offers.** Asked for from the
+            // couch: the boxes want to move a little, the special offers
+            // especially. A featured tile is the shopfront window, so it gets
+            // the sweep AND four twinkles; every other tile gets the sweep
+            // alone, because a shelf where all eight sparkle is a fruit
+            // machine. See [TileShine] — it costs one painter and it stops
+            // dead under `disableAnimations`.
+            Positioned.fill(
+              child: TileShine(
+                radius: 14,
+                sparkles: featured ? 4 : 0,
+                seed: tileKey.hashCode,
+                tint: featured ? ink : Colors.white,
+              ),
+            ),
             if (corner case final flash?)
               Positioned(
                 top: 0,

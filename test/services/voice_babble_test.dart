@@ -119,7 +119,18 @@ void main() {
 
       await voice.resume();
       await voice.say('', text: 'get in there');
-      expect(backend.blips, isNotEmpty);
+      // **AND HE IS QUIET AFTER IT TOO, while [babbleMuted] stands.** This
+      // used to assert he started again on resume, which is the behaviour the
+      // suspend/resume pair exists for — and it is still the behaviour, in the
+      // sense that `say` gets all the way to the babble rather than being
+      // turned back at the door. What it cannot do is make a sound, because
+      // the gibberish is parked. Written against the flag rather than deleted,
+      // so clearing it restores the assertion this test was written to make.
+      expect(
+        backend.blips,
+        babbleMuted ? isEmpty : isNotEmpty,
+        reason: babbleMuted ? 'the babble is parked' : 'resume lets him talk',
+      );
     });
   });
 

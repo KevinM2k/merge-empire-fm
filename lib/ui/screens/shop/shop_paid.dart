@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/ui/screens/shop/pack_contents.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_shine.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -682,6 +683,15 @@ class GemPackTile extends ConsumerWidget {
             const Positioned.fill(
               child: _TileWash(ink: Colors.white, radius: 16, stop: 0.45),
             ),
+            // A sweep on every pack and twinkles on the one that is the shelf's
+            // window — see [TileShine].
+            Positioned.fill(
+              child: TileShine(
+                radius: 16,
+                sparkles: hero ? 4 : 0,
+                seed: tile.product.id.hashCode,
+              ),
+            ),
             // **A BANNER, not a rosette.** Both shelves wore a die-cut seal
             // stuck on the corner; asked for again from the couch, with the
             // banner named — a rosette is a sticker somebody slapped on, and
@@ -992,6 +1002,14 @@ class CoinPackTile extends ConsumerWidget {
         // The tier's wash, corner to corner over the tile's own surface and
         // under everything on it — see the note where it used to live.
         Positioned.fill(child: _TileWash(ink: ink, radius: 14)),
+        Positioned.fill(
+          child: TileShine(
+            radius: 14,
+            sparkles: product.popular ? 4 : 0,
+            seed: product.id.hashCode,
+            tint: ink,
+          ),
+        ),
         // Inside the rim, the same as the pack shelves — see the note there.
         if (badge case final flash?)
           Positioned.fill(

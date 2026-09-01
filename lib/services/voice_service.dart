@@ -74,6 +74,18 @@ abstract class VoiceBackend {
 /// be talking over a line that finished long ago. Thirty-six syllables at 55ms
 /// is just under two seconds, which is the same ceiling from the other side.
 const Duration babbleStep = Duration(milliseconds: 55);
+
+/// **HIS VOICE IS PARKED.** Asked for from the couch: drop the gibberish, and
+/// where there is no clip play nothing at all.
+///
+/// A flag rather than a deletion, because there is nothing WRONG with the
+/// mechanism — [animaleseCues] and its bank are tested and behave, and the
+/// complaint is about hearing it under every card in the game rather than
+/// about how it sounds. Clearing this is the whole of turning it back on.
+///
+/// A recorded clip still plays: `say` reaches this only when the key named
+/// none, which is the case the babble was invented to cover.
+const bool babbleMuted = true;
 const int babbleMost = 36;
 
 /// **HIS VOICE, as a run of syllables — the Animal Crossing trick.**
@@ -230,12 +242,20 @@ class VoiceService {
       }
     }
 
-    // **NO CLIP IS NOT SILENCE ANY MORE.** It was, and it was the normal case:
-    // the folder ships empty and half his lines interpolate a name or a fee, so
-    // nothing pre-rendered could ever cover them. He gibbers instead — see
+    // **THE BABBLE IS OFF, and this is the one line that turns it back on.**
+    //
+    // Below is the whole of it: with no clip he gibbers instead — see
     // [animaleseCues] — which needs no recording, no locale and no key, and so
-    // covers every line he has rather than the handful somebody sat down and
-    // read out. A clip still wins where one exists.
+    // covers every line rather than the handful somebody sat down and read
+    // out. It is also the thing that talks over every card in the game, and
+    // it was asked to stop from the couch: no Colin gibberish for now, and no
+    // sound where there is no clip.
+    //
+    // Parked rather than deleted, deliberately. `animaleseCues`, the syllable
+    // bank, `babbleStep` and their tests all stay — the mechanism is sound and
+    // the objection is to hearing it on every line — so bringing it back is
+    // clearing [babbleMuted] rather than writing it again. See its own note.
+    if (babbleMuted) return;
     await _babble(text);
   }
 
