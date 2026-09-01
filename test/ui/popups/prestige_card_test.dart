@@ -152,7 +152,11 @@ void main() {
   group('THE FLOW', () {
     testWidgets('the offer says what the new adventure pays', (tester) async {
       await pumpFlow(tester);
-      expect(find.text(t('prestige.title')), findsOneWidget);
+      // Through `withoutEmoji`: the coach card takes the pictograph off every
+      // string it prints, so asserting the raw catalogue value here is
+      // asserting the one place it does not appear. `coach_card_test` makes
+      // the same call about its own title; this one was left behind.
+      expect(find.text(withoutEmoji(t('prestige.title'))), findsOneWidget);
       expect(
         find.text(t('prestige.body', {'mult': '1.1'})),
         findsOneWidget,

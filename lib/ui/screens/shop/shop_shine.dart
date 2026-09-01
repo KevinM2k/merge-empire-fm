@@ -53,6 +53,7 @@ class TileShine extends StatefulWidget {
     this.sweep = true,
     this.seed = 0,
     this.tint = Colors.white,
+    this.focus = const Rect.fromLTRB(0.08, 0.08, 0.92, 0.92),
   });
 
   /// The corner it is clipped to — the tile's own, or the light spills over
@@ -70,6 +71,15 @@ class TileShine extends StatefulWidget {
   /// The light's colour. White on a dark tile, and the tile's own accent when
   /// white would vanish.
   final Color tint;
+
+  /// Where the twinkles land, in fractions of the tile.
+  ///
+  /// **A SPARKLE IS ABOUT SOMETHING.** Scattered over the whole tile they read
+  /// as dust on the glass; clustered on the pile of coins or the stack of
+  /// diamonds they read as the thing catching the light, which is the point of
+  /// putting them on the treasure shelves at all. Reported from the couch:
+  /// closer to the diamonds, and closer to the coins.
+  final Rect focus;
 
   @override
   State<TileShine> createState() => _TileShineState();
@@ -122,6 +132,7 @@ class _TileShineState extends State<TileShine>
             sweep: widget.sweep,
             seed: widget.seed,
             tint: widget.tint,
+            focus: widget.focus,
           ),
         ),
       ),
@@ -136,6 +147,7 @@ class _ShinePainter extends CustomPainter {
     required this.sweep,
     required this.seed,
     required this.tint,
+    required this.focus,
   }) : super(repaint: t);
 
   /// The controller itself, as the repaint signal — so the painter is rebuilt
@@ -145,6 +157,7 @@ class _ShinePainter extends CustomPainter {
   final bool sweep;
   final int seed;
   final Color tint;
+  final Rect focus;
 
   /// The sweep crosses the face in the first part of the cycle and the rest is
   /// the pause. A band that never stops is a strobe.
@@ -152,6 +165,11 @@ class _ShinePainter extends CustomPainter {
 
   /// How wide the band is, as a fraction of the tile's diagonal travel.
   static const double _bandWidth = 0.26;
+
+  /// How much of its own cycle a sparkle is lit for. Longer than the first cut
+  /// — at a third, three sparkles on a tile meant most frames had one showing
+  /// and some had none, which reads as nothing happening.
+  static const double _litFor = 0.45;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -202,32 +220,48 @@ class _ShinePainter extends CustomPainter {
       // A fixed home for each, so a tile's twinkles do not wander between
       // frames — the RANDOM is seeded and consumed in the same order every
       // paint, which is what makes that true.
-      final x = (0.10 + rng.nextDouble() * 0.80) * size.width;
-      final y = (0.12 + rng.nextDouble() * 0.76) * size.height;
-      final span = 3.0 + rng.nextDouble() * 2.6;
+      final x =
+          (focus.left + rng.nextDouble() * focus.width) * size.width;
+      final y = (focus.top + rng.nextDouble() * focus.height) * size.height;
+      // **BIGGER, because they were specks.** Five to eight and a half points
+      // is a glint on a 180-point tile; reported from the couch as tiny.
+      final span = 9.0 + rng.nextDouble() * 5.0;
       // Each on its own clock, or all of them blink together.
       final own = (phase + rng.nextDouble()) % 1;
-      // Lit for a third of its cycle and dark for the rest: a sparkle is an
+      // Lit for part of its cycle and dark for the rest: a sparkle is an
       // event, and one that is always on is a dot.
-      if (own > 0.34) continue;
-      final k = math.sin(own / 0.34 * math.pi);
-      final paint = Paint()..color = tint.withValues(alpha: 0.85 * k);
-      final r = span * (0.35 + 0.65 * k);
-      // A four-point star, drawn as two tapered slivers — the shape a twinkle
-      // is, and four `lineTo`s rather than a blur or an asset.
+      if (own > _litFor) continue;
+      final k = math.sin(own / _litFor * math.pi);
+      final r = span * (0.4 + 0.6 * k);
+
+      // **A TWINKLE NEEDS A CORE.** The first cut was two crossed slivers at a
+      // 30% waist, which on a 5-point arm is a hairline about one and a half
+      // points wide — drawn, and invisible. Reported from the couch: the
+      // gleam goes across but there are no sparkles. A star reads from the
+      // bright point at its middle; the arms are what say it is a star and not
+      // a dot.
+      canvas.drawCircle(
+        Offset(x, y),
+        r * 0.30,
+        Paint()..color = tint.withValues(alpha: 0.95 * k),
+      );
+      final paint = Paint()..color = tint.withValues(alpha: 0.8 * k);
+      // Four points, as two crossed slivers — the shape a twinkle is, and a
+      // path rather than a blur or an asset.
+      const waist = 0.34;
       final star = Path()
         ..moveTo(x, y - r)
-        ..quadraticBezierTo(x, y, x + r * 0.30, y)
+        ..quadraticBezierTo(x, y, x + r * waist, y)
         ..quadraticBezierTo(x, y, x, y + r)
-        ..quadraticBezierTo(x, y, x - r * 0.30, y)
+        ..quadraticBezierTo(x, y, x - r * waist, y)
         ..quadraticBezierTo(x, y, x, y - r)
         ..close();
       canvas.drawPath(star, paint);
       final across = Path()
         ..moveTo(x - r, y)
-        ..quadraticBezierTo(x, y, x, y - r * 0.30)
+        ..quadraticBezierTo(x, y, x, y - r * waist)
         ..quadraticBezierTo(x, y, x + r, y)
-        ..quadraticBezierTo(x, y, x, y + r * 0.30)
+        ..quadraticBezierTo(x, y, x, y + r * waist)
         ..quadraticBezierTo(x, y, x - r, y)
         ..close();
       canvas.drawPath(across, paint);
@@ -239,5 +273,6 @@ class _ShinePainter extends CustomPainter {
       old.sparkles != sparkles ||
       old.sweep != sweep ||
       old.seed != seed ||
-      old.tint != tint;
+      old.tint != tint ||
+      old.focus != focus;
 }

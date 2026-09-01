@@ -91,7 +91,16 @@ Future<void> openCard(
   // Past the route's own transition, so nothing below is measuring a card that
   // is still sliding in.
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 400));
+  // **IN FRAMES, not one 400ms jump.** The typewriter starts from a post-frame
+  // callback and the voice goes out on its FIRST tick — `_announceOnFirstFrame`
+  // treats a run that arrives at the end without passing through the middle as
+  // a skip, which is right for reduce-motion and for a player tapping to
+  // finish the line. A single pump the length of the whole run is exactly that
+  // shape, so the card was announcing nothing and three tests about what it
+  // says were failing on the harness rather than on the card.
+  for (var i = 0; i < 25; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
 }
 
 
@@ -334,14 +343,22 @@ void main() {
     /// the popup layer never imports a speech engine and a test never touches a
     /// device — see `services/voice_cues.dart`.
     late List<String> said;
+
+    /// The CLIP key each line went out with. Empty means "no recording, just
+    /// his voice" — which is what `speaks` actually gates.
+    late List<String> keys;
     late int silences;
 
     setUp(() {
       said = [];
+      keys = [];
       silences = 0;
       on(coachSpeaksEvent, (args) {
-        final text = args is Map<String, dynamic> ? args['text'] : null;
+        final map = args is Map<String, dynamic> ? args : null;
+        final text = map?['text'];
         if (text is String) said.add(text);
+        final key = map?['key'];
+        if (key is String) keys.add(key);
       });
       on(coachSilenceEvent, (_) => silences++);
       addTearDown(clearBus);
@@ -371,13 +388,21 @@ void main() {
           'went back to is what this is for');
     });
 
-    testWidgets('but a card that does not ask stays silent', (tester) async {
-      // Which is every confirmation, every bid and every sponsor: the default
-      // is off, and the story and information cards opt in.
+    /// **AND A CARD THAT DID NOT ASK STILL TALKS — it just has no CLIP.**
+    ///
+    /// This asserted silence, which was the rule when `speaks` meant "read
+    /// this one out": being read "Sell Nakamura?" aloud on every sell is not a
+    /// gaffer's story beat. The voice stopped being a RECORDING — see the note
+    /// on `_start` — and a gibber needs no key, no locale and no studio, so he
+    /// talks on every card and `speaks` gates the clip instead. The test was
+    /// left behind and had been red ever since.
+    testWidgets('but a card that did not ask carries no clip key', (
+      tester,
+    ) async {
       await openCard(tester);
       await tester.pumpAndSettle();
-      expect(said, isEmpty);
-      expect(silences, 0);
+      expect(said, [longBody], reason: 'he talks on every card');
+      expect(keys, [''], reason: 'and no recording is looked up for it');
     });
   });
 

@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/engine/gem_engine.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart'
     show hudBadgeColour, hudBadgeInk, hudCoinInk;
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -25,6 +27,7 @@ import 'package:merge_empire_fc/ui/screens/minigames/pitch_invaders_screen.dart'
 import 'package:merge_empire_fc/ui/screens/minigames/teamwork_screen.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/through_ball_screen.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -121,45 +124,126 @@ class TrainingView extends ConsumerWidget {
 /// **It only appears when there is something to skip.** A button offering to
 /// clear cooldowns on a sheet where every drill is ready is an offer with no
 /// subject; the row it used to live in had that for free by being per-drill.
-class _SkipAll extends ConsumerWidget {
+/// The mini-game skip's own placement. Keys from `ad_units.dart`, and NOT the
+/// shop's `match_cooldown` — the two were sharing an id until this button got
+/// its video back.
+const String skipCooldownPlacement = 'skip_cooldown';
+
+class _SkipAll extends ConsumerStatefulWidget {
   const _SkipAll();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SkipAll> createState() => _SkipAllState();
+}
+
+class _SkipAllState extends ConsumerState<_SkipAll> {
+  /// Dead while the video is up. Two taps is two videos for one skip.
+  bool _watching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // **WARMED, and `shouldPrefetchSkipAd` finally has a caller.** The engine
+    // has known when to do this since the skip went in — everything the player
+    // owns is cooling down and there is a free video left — and nothing in
+    // `lib/` asked it, so the button always paid the full load on the tap.
+    // Exactly the dead-engine shape `tool/unreached.sh` is for.
+    //
+    // Its own note explains the second half of the condition: past the day's
+    // three the button is a gem purchase and shows no ad, and the plugin
+    // caches ONE rewarded ad globally, so warming this any earlier evicts a
+    // placement the player was likelier to reach.
+    final save = ref.read(gameProvider).state;
+    if (save != null && shouldPrefetchSkipAd(save)) {
+      ref.read(rewardedAdsProvider).prepare(skipCooldownPlacement);
+    }
+  }
+
+  /// **THE VIDEO, which this button never showed.**
+  ///
+  /// It called `skipAllMiniGameCooldowns` straight off the tap, wearing the ad
+  /// tone and the video chip and playing nothing — reported from the couch as
+  /// hitting the ad for cooldowns and no ad coming up. The JS has always shown
+  /// one: `EnergyBar._onSkipAll` runs `showRewardedAd(..., 'skip_cooldown')`
+  /// and only clears the board in the reward callback.
+  ///
+  /// The placement was there and spoken for: `shop_free.dart` had the shop's
+  /// match-cooldown tile pointed at `'skip_cooldown'`, which is the JS's name
+  /// for THIS button. Both ids are in `ad_units.dart` and the shop has its own.
+  Future<void> _watchThenSkip() async {
+    setState(() => _watching = true);
+    final outcome = await ref
+        .read(rewardedAdsProvider)
+        .show(skipCooldownPlacement);
+    if (!mounted) return;
+    setState(() => _watching = false);
+    if (outcome == AdOutcome.rewarded) {
+      // The allowance is re-read INSIDE the update rather than trusted from
+      // the build that painted the button — the JS makes the same point in its
+      // own comment, and a button rendered before the third video must not pay
+      // for a fourth. `skipAllMiniGameCooldowns` returns false and touches
+      // nothing when the day is spent.
+      ref.read(gameProvider).update(skipAllMiniGameCooldowns);
+    } else if (outcome == AdOutcome.unavailable) {
+      emit('toast:info', t('toast.ad_unavailable'));
+    }
+  }
+
+  /// **AND PAST THE DAY'S THREE IT REPRICES, rather than dying.**
+  ///
+  /// `Minigame.skipGemCost`'s own note says so — "past them the button
+  /// reprices to gems rather than dying, so this ends the free ride, not the
+  /// feature" — and the port had it dying: `onTap: null` and a capped label.
+  /// The JS turns the button blue, swaps the "N left" chip for a gem price and
+  /// spends `MINIGAME_SKIP_GEM_COST`.
+  void _buySkip() {
+    var paid = false;
+    ref.read(gameProvider).update((state) {
+      if (!spendGems(state, Minigame.skipGemCost, 'skip_cooldown')) return;
+      paid = true;
+      for (final kind in skipKinds) {
+        resetMiniGameCooldown(state, kind);
+      }
+    });
+    if (!paid) emit('toast:error', t('shop.toast.not_enough_gems'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final resting = ref
         .watch(miniGamesProvider)
         .where((g) => g.unlocked && g.playable && !g.ready)
         .length;
     if (resting == 0) return const SizedBox.shrink();
     final skipsLeft = ref.watch(skipsLeftTodayProvider);
+    final byAd = skipsLeft > 0;
 
     return Padding(
       key: const ValueKey('training-skip-all'),
       padding: const EdgeInsets.only(bottom: 8),
       child: StoreButton(
-        tone: StoreTone.ad,
+        // **BLUE IS A PRICE, YELLOW IS AN AD**, and a purchase must never
+        // carry an ad disclosure — the JS says exactly that on the line that
+        // toggles it. So the tone follows what the tap will actually do.
+        tone: byAd ? StoreTone.ad : StoreTone.gem,
         // **FULL SIZE, like every other rewarded-video control in the game.**
         // `small: true` drew it at 11-point type in a short pill while the
         // shop's ad buttons and the summary's 2× are 14 in a full one — so the
         // one on the screen that actually clears the board looked like a
         // footnote. Reported from the couch, naming the height and the font.
         stretch: true,
+        leading: _watching
+            ? null
+            : GameIcon(byAd ? 'video' : 'gem', size: 14),
         // `minigame.skip_all_left` is "{n} left" — the day's ledger, which the
-        // player has no other way of seeing.
-        label: skipsLeft > 0
+        // player has no other way of seeing. Past it the chip is the price.
+        label: _watching
+            ? t('common.loading')
+            : byAd
             ? '${t('minigame.skip_all_ad')} · '
                   '${t('minigame.skip_all_left', {'n': skipsLeft})}'
-            : t('minigame.skip_all_capped'),
-        // **IT ACTUALLY SKIPS.** The old one was wired to null and waiting on
-        // AdMob. The cap is what bounds it either way — three a day — so
-        // spending one before there is a video to watch costs the player
-        // nothing they were not already owed, and the plumbing the rewarded ad
-        // will hang off is the same call.
-        onTap: skipsLeft > 0
-            ? () => ref
-                  .read(gameProvider)
-                  .update((state) => skipAllMiniGameCooldowns(state))
-            : null,
+            : '${t('minigame.skip_all_ad')} · ${Minigame.skipGemCost}',
+        onTap: _watching ? null : (byAd ? _watchThenSkip : _buySkip),
       ),
     );
   }

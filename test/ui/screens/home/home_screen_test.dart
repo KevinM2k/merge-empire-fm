@@ -359,7 +359,10 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('dock-prestige')));
       await tester.pumpAndSettle();
-      expect(find.text(t('prestige.title')), findsOneWidget);
+      // Through `withoutEmoji`: the coach card takes the pictograph off every
+      // string it prints, so the raw catalogue value is the one thing that is
+      // never on screen. `prestige_card_test` makes the same call.
+      expect(find.text(withoutEmoji(t('prestige.title'))), findsOneWidget);
     });
 
     testWidgets('and he stands just over it, not up the pitch', (tester) async {

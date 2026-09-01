@@ -25,6 +25,21 @@ import 'shop_helpers.dart';
 // property of the screen, so this file borrows it rather than building a second.
 import 'shop_screen_test.dart' show pumpShop;
 
+/// The face a tab actually paints — see the note in the fill test.
+ShopTabFace tabFace(WidgetTester tester, int index) =>
+    tester
+            .widgetList<CustomPaint>(
+              find.descendant(
+                of: find.byKey(
+                  ValueKey('shop-tab-${shopTabSlug(shopTabs[index])}'),
+                ),
+                matching: find.byType(CustomPaint),
+              ),
+            )
+            .map((p) => p.painter)
+            .whereType<ShopTabFace>()
+            .first;
+
 void main() {
   tearDown(resetLocale);
 
@@ -204,29 +219,25 @@ void main() {
       final kit = Theme.of(
         tester.element(find.byType(ShopScreen)),
       ).extension<KitTheme>()!;
-      final fill =
-          (tester
-                      .widget<DecoratedBox>(
-                        find
-                            .descendant(
-                              of: find.byKey(
-                                ValueKey('shop-tab-${shopTabSlug(shopTabs[0])}'),
-                              ),
-                              matching: find.byType(DecoratedBox),
-                            )
-                            .first,
-                      )
-                      .decoration
-                  as BoxDecoration)
-              .color!;
+      // **THE PAINTER, not a `DecoratedBox`.** The tab is a `CustomPaint`:
+      // a `BoxDecoration` rounds only its top corners but then draws its
+      // border all the way round, and the bottom edge is the one that has to
+      // be OPEN into the panel. So the face is a path, and what a test can ask
+      // is the painter what it was handed. See [ShopTabFace].
+      final fill = tabFace(tester, 0).fill;
       expect(
         fill,
-        Color.alphaBlend(
-          shopTabs[0].ink.withValues(alpha: 0.16),
-          shopPanelInk(kit),
-        ),
+        shopTabFill(kit, shopTabs[0].ink),
         reason: 'the selected tab is a different colour from what it opens into',
       );
+      // And the case behind it is filled with exactly the same colour, which
+      // is what makes the shared edge a join rather than a seam.
+      // The keyed box IS the fill; its descendants are the frame (a foreground
+      // decoration with no colour of its own) and the shelf.
+      final panel = tester.widget<DecoratedBox>(
+        find.byKey(const ValueKey('shop-panel')),
+      );
+      expect((panel.decoration as BoxDecoration).color, fill);
     });
 
     testWidgets('AND THE PANEL KEEPS THE STRIP\'S OWN MARGIN', (tester) async {
@@ -251,13 +262,13 @@ void main() {
       final selected = tester.getRect(
         find.descendant(
           of: find.byKey(ValueKey('shop-tab-${shopTabSlug(shopTabs[0])}')),
-          matching: find.byType(DecoratedBox),
+          matching: find.byType(CustomPaint),
         ).first,
       );
       final other = tester.getRect(
         find.descendant(
           of: find.byKey(ValueKey('shop-tab-${shopTabSlug(shopTabs[1])}')),
-          matching: find.byType(DecoratedBox),
+          matching: find.byType(CustomPaint),
         ).first,
       );
       expect(other.top, greaterThan(selected.top));

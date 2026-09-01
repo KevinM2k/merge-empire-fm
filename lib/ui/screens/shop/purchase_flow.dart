@@ -188,12 +188,21 @@ class _PaidConfirmCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
+          // **A REAL-MONEY PRICE IS NOT COIN GOLD.** It was a hardcoded
+          // `0xFFFFD700` — the raw coin yellow, 1.1:1 on the near-white card
+          // this dialog is drawn on, so the one figure the player has to read
+          // before spending actual money was the least readable thing on it.
+          // Reported from the couch with a shot of it.
+          //
+          // And gold is the wrong SIGN as well as the wrong shade: £0.99 buys
+          // gems, it is not paid in coins. The page's own ink says the number
+          // plainly, which is what a price on a confirmation should do.
           Text(
             price,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w900,
-              color: Color(0xFFFFD700),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

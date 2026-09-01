@@ -163,6 +163,7 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
               // different fills is still a seam. Asked from the couch as a
               // question; it is the same [shopTabFill] on both sides now, so
               // the join is only where the frame says it is.
+              key: const ValueKey('shop-panel'),
               decoration: BoxDecoration(
                 color: shopTabFill(kit, shown.ink),
                 // **AND THE BOTTOM CORNERS TURN.** The case was square at the
@@ -281,8 +282,12 @@ const double _tabAccent = 3;
 /// anything laid on top of it has to be clipped by a second `ClipRRect` whose
 /// box is its own rather than the tab's. Both of those were faults on screen;
 /// see the note at the call site.
-class _TabFace extends CustomPainter {
-  const _TabFace({
+/// **PUBLIC so a test can read the face it paints.** The tab used to be a
+/// `DecoratedBox` and three tests reach for one inside the strip; a
+/// `BoxDecoration` cannot draw this shape — see the note below — so what they
+/// have to ask instead is the painter what colours it was given.
+class ShopTabFace extends CustomPainter {
+  const ShopTabFace({
     required this.fill,
     required this.edge,
     required this.accent,
@@ -349,7 +354,7 @@ class _TabFace extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_TabFace old) =>
+  bool shouldRepaint(ShopTabFace old) =>
       old.fill != fill ||
       old.edge != edge ||
       old.accent != accent ||
@@ -499,7 +504,7 @@ class _ShopTabs extends StatelessWidget {
                     // open path: up one side, over the top, down the other, and
                     // it stops.
                     CustomPaint(
-                      painter: _TabFace(
+                      painter: ShopTabFace(
                         fill: i == selected
                             ? shopTabFill(kit, tab.ink)
                             : kit.surface,

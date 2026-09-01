@@ -157,14 +157,14 @@ class LooksSection extends ConsumerWidget {
                           // catalogue label (`customise.tab.*`), so the
                           // summary needs no new copy: two Headwear, one
                           // Accessory, one Celebration.
-                          subtitle: _packContents(tile.packId),
+                          subtitle: packContentsLine(tile.packId),
                           // **AND THE ITEMS THEMSELVES, one row each, with a
                           // TICK against what is already owned.** The
                           // subtitle can only summarise — "two Headwear, one
                           // Accessory" is a count of things the player cannot
                           // see, and the tile with the picture on it is
                           // behind this card. Asked for directly.
-                          body: _PackContents(packId: tile.packId),
+                          body: PackContents(packId: tile.packId),
                           glyph: 'shirt',
                           currency: SpendCurrency.gems,
                           cost: tile.tile.cost,
@@ -194,8 +194,13 @@ class LooksSection extends ConsumerWidget {
 /// note measures twenty of those at 60ms against 18ms for an empty grid — this
 /// card slides up over a shop, and a confirm that lands twelve frames late is
 /// the "customise comes up laggy" defect wearing a different hat.
-class _PackContents extends ConsumerWidget {
-  const _PackContents({required this.packId});
+/// **PUBLIC, because the customiser sells the same pack.** The Style tab's
+/// own "unlock all" ran `offerToBuy` with `body: null` and a bare item COUNT,
+/// so the one screen where the player is looking at what is in a pack showed
+/// them less about it than the shop did. Reported from the couch with the two
+/// dialogs side by side. See `manager_customiser.dart`.
+class PackContents extends ConsumerWidget {
+  const PackContents({required this.packId, super.key});
 
   final String packId;
 
@@ -330,7 +335,9 @@ const Map<String, String> lookAxisIcon = {
 /// either — but `customise.tab.hat` is "Headwear" in all ten languages and has
 /// been since the customiser was built. Order follows the pack's own, so the
 /// summary reads the way the case is laid out.
-String _packContents(String packId) {
+/// The pack's contents as a line — "Hair Colour ×4 · Celebrations". Shared
+/// with the customiser's own offer; see [PackContents].
+String packContentsLine(String packId) {
   final pack = getLookPack(packId);
   if (pack == null) return '';
   final counts = <String, int>{};

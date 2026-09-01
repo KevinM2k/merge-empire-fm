@@ -516,40 +516,25 @@ class GemPackTile extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 1),
-        // **ONE LINE — "5 GEMS", not a 23-point 5 with GEMS under it.** Asked
-        // for directly. The figure keeps its weight and the word rides the
-        // same baseline at the size it always was, so the count still reads as
-        // the number rather than as a sentence. `shop.gems_label` is the
-        // shipped word; there is no `shop.gems_count` to match the coins'.
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              '${tile.product.gems ?? 0}',
-              style: TextStyle(
-                fontSize: hero ? 30 : 23,
-                fontWeight: FontWeight.w900,
-                height: 1.05,
-                color: Colors.white,
-                shadows: const [
-                  Shadow(color: Color(0x61000000), offset: Offset(0, 2)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              t('shop.gems_label').toUpperCase(),
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
-                color: Color(0xB8FFFFFF),
-              ),
-            ),
-          ],
+        const SizedBox(height: 2),
+        // **ONE LINE AT ONE SIZE, and the SAME size as the coin shelf's.**
+        //
+        // It was a 23-point figure with GEMS stacked under it, then a
+        // 23-point figure with a 10-point GEMS beside it — two sizes on a line
+        // the coin tiles set in one ("5,000 coins" at 11). Reported twice from
+        // the couch, the second time with the choice: make them both small or
+        // make the coins big. Small, because the coins are the shelf with four
+        // and five figures in them and a 23-point 150,000 does not fit half a
+        // tile.
+        Text(
+          '${tile.product.gems ?? 0} ${t('shop.gems_label').toUpperCase()}',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.4,
+            color: Color(0xE6FFFFFF),
+          ),
         ),
         SizedBox(height: hero ? 6 : 8),
         // The price reads as a BUTTON, not a caption: it is what the tile is
@@ -683,13 +668,23 @@ class GemPackTile extends ConsumerWidget {
             const Positioned.fill(
               child: _TileWash(ink: Colors.white, radius: 16, stop: 0.45),
             ),
-            // A sweep on every pack and twinkles on the one that is the shelf's
-            // window — see [TileShine].
+            // **EVERY PACK TWINKLES on this shelf, not just the hero.** The
+            // first cut kept sparkles for the shelf's window and gave the rest
+            // the sweep alone — right for the boosts, wrong here: these two
+            // shelves are the treasure, and asked for by name from the couch.
+            // The hero gets more of them because it is bigger.
             Positioned.fill(
               child: TileShine(
                 radius: 16,
-                sparkles: hero ? 4 : 0,
+                sparkles: hero ? 12 : 8,
                 seed: tile.product.id.hashCode,
+                // Over the diamonds, which on the hero sit to the LEFT of the
+                // words and on a half-width tile above them — see the `Row`
+                // and `Column` the tile picks between. Scattered across the
+                // whole face they were dust on the glass.
+                focus: hero
+                    ? const Rect.fromLTRB(0.04, 0.12, 0.46, 0.90)
+                    : const Rect.fromLTRB(0.14, 0.04, 0.86, 0.62),
               ),
             ),
             // **A BANNER, not a rosette.** Both shelves wore a die-cut seal
@@ -1002,12 +997,18 @@ class CoinPackTile extends ConsumerWidget {
         // The tier's wash, corner to corner over the tile's own surface and
         // under everything on it — see the note where it used to live.
         Positioned.fill(child: _TileWash(ink: ink, radius: 14)),
+        // The coin shelf is the other half of the treasure — see the note on
+        // the gem tile. Tinted with the tier's own hue rather than white, so a
+        // Coin Mountain sparkles in its own gold.
         Positioned.fill(
           child: TileShine(
             radius: 14,
-            sparkles: product.popular ? 4 : 0,
+            sparkles: product.popular ? 10 : 8,
             seed: product.id.hashCode,
             tint: ink,
+            // The pile, which sits in a 52-point box at the top of the tile
+            // with the name and the price under it.
+            focus: const Rect.fromLTRB(0.16, 0.04, 0.84, 0.52),
           ),
         ),
         // Inside the rim, the same as the pack shelves — see the note there.

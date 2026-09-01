@@ -24,6 +24,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/main.dart';
@@ -59,6 +60,16 @@ Future<void> beat(WidgetTester tester, [int frames = 12]) async {
 /// the scout button while the previous signing was still in flight: the widget
 /// still said it was pressable, because the frame that would have said
 /// otherwise had not been drawn.
+/// The index of a step by ID.
+///
+/// **THE SCRIPT GREW A STEP and this walkthrough is a list of its indices.**
+/// Every number from the loan on was one out, so the run pressed for a card
+/// that was not up yet and failed on "no tut.loan_boost.btn to press" — which
+/// reads as the tutorial being broken rather than as the fixture being stale.
+/// A walkthrough of ten steps written in ordinals has a shelf life; the ids do
+/// not move.
+int stepAt(String id) => tutorialSteps.indexWhere((s) => s.id == id);
+
 Future<void> until(
   WidgetTester tester,
   bool Function() done, {
@@ -169,7 +180,7 @@ void main() {
     // daily reward used to open on top and swallow this tap.
     expect(find.byType(BottomSheet), findsNothing);
     expect(stepOf(container), 0);
-    await answer('tut.welcome.btn', 1);
+    await answer('tut.welcome.btn', stepAt('scout_1'));
 
     // ── 1 · scout one ──────────────────────────────────────────────────────
     // A spotlight step, not a modal: the hole, the ring and the hand.
@@ -239,21 +250,58 @@ void main() {
     while (cardsOn(container) < 3) {
       await scoutOne();
     }
-    await until(tester, () => stepOf(container) == 3);
+    await until(tester, () => stepOf(container) == stepAt('merge'));
 
-    // ── 3 · the loan ───────────────────────────────────────────────────────
+    // ── 3 · the merge ──────────────────────────────────────────────────────
+    // **THE STEP THIS WALKTHROUGH NEVER HAD.** The script was nine steps when
+    // this was written and `merge` was added between the scouting and the
+    // loan, so every ordinal after it was one out and the run pressed for a
+    // loan card that was not up yet — "no tut.loan_boost.btn to press", which
+    // reads as the tutorial being broken rather than as the walkthrough being
+    // a step behind. Everything is resolved by id now; this is the section
+    // that was missing.
+    //
+    // Answered the way the step asks for it: the drag it spotlights, from
+    // `grid-slot-0` to `grid-slot-2` — see the step's `targetKey` and
+    // `dragToKey`, and `tutorialPairTwin` for why the twin is in the third
+    // square. A long press first, because the grid's cards are
+    // `LongPressDraggable`.
+    await until(
+      tester,
+      () => find.byKey(const ValueKey('grid-slot-0')).evaluate().isNotEmpty,
+      reason: 'the grid never came up for the merge step',
+    );
+    final grab = tester.getCenter(find.byKey(const ValueKey('grid-slot-0')));
+    final onto = tester.getCenter(find.byKey(const ValueKey('grid-slot-2')));
+    final drag = await tester.startGesture(grab);
+    await tester.pump(const Duration(milliseconds: 700));
+    await drag.moveTo(onto);
+    await tester.pump();
+    await drag.up();
+    // Pumped rather than settled: the step's drag CUE is a looping hand, so
+    // `pumpAndSettle` on this step never returns.
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 32));
+    }
+    await until(
+      tester,
+      () => stepOf(container) == stepAt('loan_boost'),
+      reason: 'the merge did not move the script on',
+    );
+
+    // ── 4 · the loan ───────────────────────────────────────────────────────
     // **LONGER, because the loan is WATCHED.** Each borrowed player drops into
     // the grid half a second behind the last and the script waits for the lot
     // — see `loanArrivalWindow`, which is what this budget has to cover.
     await answer(
       'tut.loan_boost.btn',
-      4,
+      stepAt('play_match'),
       frames: loanArrivalWindow(11).inMilliseconds ~/ 100 + 20,
     );
     expect(tutorialOf(container)['borrowedPlayersAdded'], isTrue);
 
     // ── 4 · go and play ────────────────────────────────────────────────────
-    await answer('tut.play_match.btn', 5);
+    await answer('tut.play_match.btn', stepAt('play_match_action'));
 
     // ── 5 · the match ──────────────────────────────────────────────────────
     // Pointed at the play button rather than modal over it, for the same
@@ -295,13 +343,13 @@ void main() {
         'score': '2-1',
       };
     });
-    await until(tester, () => stepOf(container) == 6);
+    await until(tester, () => stepOf(container) == stepAt('match_result_reaction'));
 
     // ── 6, 7, 8 · his reaction, the goodbye, the end ───────────────────────
-    await answer('common.ok', 7);
-    await answer('tut.loan_depart.btn', 8);
+    await answer('common.ok', stepAt('loan_depart'));
+    await answer('tut.loan_depart.btn', stepAt('done'));
     expect(tutorialOf(container)['borrowedPlayersRemoved'], isTrue);
-    await answer('tut.done.btn', 9);
+    await answer('tut.done.btn', tutorialSteps.length);
 
     expect(tutorialOf(container)['done'], isTrue);
     // **And the queue is handed back.** The block is held for the whole script

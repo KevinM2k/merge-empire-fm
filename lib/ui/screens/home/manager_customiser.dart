@@ -42,6 +42,7 @@ import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_looks.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart'
@@ -441,8 +442,13 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     await offerToBuy(context, ref, (
       key: 'pack-$packId',
       title: t('customise.pack.$packId'),
-      subtitle: t('customise.pack.count', {'n': tile.total}),
-      body: null,
+      // **THE SAME CARD THE SHOP SHOWS.** This asked with a bare count — "5
+      // items", things the player cannot see — while the shop's identical
+      // offer names the axes and draws every one of them on the player's own
+      // figure. Reported from the couch with the two side by side. Both halves
+      // come from `shop_looks.dart` now rather than being written twice.
+      subtitle: packContentsLine(packId),
+      body: PackContents(packId: packId),
       glyph: 'shirt',
       currency: SpendCurrency.gems,
       cost: tile.cost,

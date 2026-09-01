@@ -263,11 +263,19 @@ void main() {
   });
 
   group('what the welcome-back card says', () {
+    /// **A SCOPE, because the typewriter reads one.** Colin's line holds while
+    /// anything is over the card and `screenIsCoveredProvider` is what answers
+    /// that, so a card mounted with no `ProviderScope` throws "No ProviderScope
+    /// found" out of `build` — which is what these five were doing. The coach
+    /// card's own harness has carried the same wrapper, and the note saying
+    /// why, since the provider went in.
     Future<void> pumpCard(WidgetTester tester, OfflineEarnings offline) =>
         tester.pumpWidget(
-          MaterialApp(
-            theme: buildAppTheme(kitId: '#4caf50', light: false),
-            home: Scaffold(body: WelcomeBackCard(offline: offline)),
+          ProviderScope(
+            child: MaterialApp(
+              theme: buildAppTheme(kitId: '#4caf50', light: false),
+              home: Scaffold(body: WelcomeBackCard(offline: offline)),
+            ),
           ),
         );
 

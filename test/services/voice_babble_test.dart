@@ -46,9 +46,16 @@ void main() {
 
     test('A FULL STOP IS A LONGER ONE, which is what gives it sentences', () {
       final cues = animaleseCues('ab. cd');
+      // a, b, then the stop's TWO rests, then c, d — and the space after the
+      // stop adds none, because the last cue is already a rest.
+      expect(cues, hasLength(6));
       expect(cues.where((c) => c == null), hasLength(2));
-      expect(cues[1], isNull);
+      // **INDEX 2 AND 3.** This asked for 1 and 2, which is the rest landing
+      // on top of the 'b' — the assertion was simply a place out and had been
+      // red for as long as it has existed.
       expect(cues[2], isNull);
+      expect(cues[3], isNull);
+      expect(cues[1], isNotNull, reason: 'the b still speaks');
     });
 
     test('and it never OPENS on a rest', () {

@@ -16,6 +16,8 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
@@ -27,6 +29,22 @@ import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
+/// Answers the skip button's rewarded video with a reward. The real one is
+/// `RewardedAds`; nothing in a test may reach AdMob.
+class _FakeAds implements RewardedAds {
+  int shown = 0;
+  int prepared = 0;
+
+  @override
+  Future<AdOutcome> show(String placement) async {
+    shown++;
+    return AdOutcome.rewarded;
+  }
+
+  @override
+  void prepare(String placement) => prepared++;
+}
+
 Future<void> pumpTraining(
   WidgetTester tester, {
   void Function(Map<String, dynamic> state)? mutate,
@@ -37,6 +55,10 @@ Future<void> pumpTraining(
 
   /// The container, for a test that has to read the SAVE back after a tap.
   void Function(ProviderContainer container)? onContainer,
+
+  /// The skip button plays a rewarded video now, so a test that taps it has to
+  /// answer one — see `_SkipAllState._watchThenSkip`.
+  RewardedAds? ads,
 }) async {
   final state = createDefaultState();
   mutate?.call(state);
@@ -45,6 +67,7 @@ Future<void> pumpTraining(
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
     ],
   );
   addTearDown(container.dispose);
@@ -144,6 +167,12 @@ void main() {
           }
         },
         onContainer: (c) => container = c,
+        // **THE VIDEO IS THE PRICE, and it never used to be shown.** The
+        // button called the engine straight off the tap while wearing the ad
+        // tone — reported from the couch as hitting the ad and no ad coming
+        // up. The board clears in the reward callback now, so the test has to
+        // answer one.
+        ads: _FakeAds(),
       );
       final state = container.read(gameProvider).state!;
       expect(
@@ -166,9 +195,19 @@ void main() {
       expect(skipAdsLeftToday(state), Minigame.skipCapPerDay - 1);
       // And with nothing left to skip it goes.
       expect(find.byKey(const ValueKey('training-skip-all')), findsNothing);
+      // The skip writes, and every write arms the 2s debounced save — pump
+      // past it or the test ends with a timer pending.
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
     });
 
-    testWidgets('a day with no skips left says so and is dead', (tester) async {
+    /// **A DAY WITH NO VIDEOS LEFT REPRICES, it does not die.**
+    ///
+    /// `Minigame.skipGemCost`'s own note says exactly that — "past them the
+    /// button reprices to gems rather than dying, so this ends the free ride,
+    /// not the feature" — and the port had it dead with a capped label, which
+    /// is a feature switched off three taps into the day. The JS turns the
+    /// button blue, swaps the "N left" chip for a gem price and spends one.
+    testWidgets('a day with no videos left reprices to gems', (tester) async {
       await pumpTraining(tester, mutate: (s) {
         trainingTier(s, 6);
         startMiniGame(s, MiniGameKind.penalty);
@@ -182,8 +221,12 @@ void main() {
           matching: find.byType(StoreButton),
         ),
       );
-      expect(button.onTap, isNull);
-      expect(button.label, t('minigame.skip_all_capped'));
+      expect(button.onTap, isNotNull, reason: 'a price is not a dead end');
+      // **AND IT IS NOT WEARING THE AD TONE**, because a purchase must never
+      // carry an ad disclosure — the JS says so on the line that toggles it.
+      expect(button.tone, StoreTone.gem);
+      expect(button.label, contains('${Minigame.skipGemCost}'));
+      expect(button.label, isNot(t('minigame.skip_all_capped')));
     });
 
     testWidgets('and a sheet with nothing waiting does not offer one', (

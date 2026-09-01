@@ -24,7 +24,14 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// The two placements this shelf spends. Keys from `ad_units.dart`.
-const String cooldownPlacement = 'skip_cooldown';
+///
+/// **`match_cooldown`, not `skip_cooldown`.** This tile is the shop's
+/// match-cooldown ad — the JS shows it against `'match_cooldown'` and keeps
+/// `'skip_cooldown'` for the mini-game skip on the Play tab, which is a
+/// different button with a different cap and its own unit id. Both ids are in
+/// `ad_units.dart`; this one was pointed at the other's, so the two placements
+/// reported as one and the skip button had no placement of its own left.
+const String cooldownPlacement = 'match_cooldown';
 const String luckyBootPlacement = 'lucky_boot';
 
 /// How many rewarded views the daily cap has left, and how long until the next.

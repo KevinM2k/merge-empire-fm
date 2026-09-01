@@ -122,10 +122,19 @@ void main() {
     test('and the match step waits on a SETTLED one', () {
       // `seasonAwardedPlayed`, not `seasonMatchesPlayed`: the counter the
       // rewards move, which is the JS's own choice.
+      //
+      // **BY ID, not by index.** This read `tutorialSteps[5]`, and 5 is
+      // `play_match` — the button step that OPENS the match, whose condition
+      // is `null` — so the test died on a null check rather than on anything
+      // it was written to check. The step that waits is `play_match_action`,
+      // and it moved when the script grew a step. An index into a list of ten
+      // is a fixture that goes stale silently; the id is what the test means.
+      final step = tutorialSteps.firstWhere((s) => s.id == 'play_match_action');
+      expect(step.condition, isNotNull, reason: 'this is the waiting step');
       final s = save();
-      expect(tutorialSteps[5].condition!(s), isFalse);
+      expect(step.condition!(s), isFalse);
       (s['progression'] as Map<String, dynamic>)['seasonAwardedPlayed'] = 1;
-      expect(tutorialSteps[5].condition!(s), isTrue);
+      expect(step.condition!(s), isTrue);
     });
   });
 
@@ -465,19 +474,39 @@ void main() {
       expect(cellsOf(s).where((c) => c != null), hasLength(1));
     });
 
-    test('finishes it and LEAVES WHAT WAS LENT', () {
-      // The step that takes them back also pays the 500, and a player who
-      // skips between the two has been lent eleven men rather than robbed of
-      // them. The JS does the same by never reaching `loan_depart`.
+    test('finishes it and TAKES THE LOAN BACK, paying nothing', () {
+      // **THE SPEC IS EXPLICIT, and this test asserted the reverse.** It said
+      // a skip leaves the eleven lent because "the JS does the same by never
+      // reaching `loan_depart`" — it does not. `Tutorial.js`'s teardown runs
+      // on both routes and says so in as many words: "Always remove any loan
+      // cards — covers both skip and normal completion. Coins are NOT awarded
+      // here; they're only given via loan_depart.onEnter when the player
+      // completes the tutorial normally."
+      //
+      // Which is what `skipTutorial` does — `returnTutorialPlayers(pay:
+      // false)` — so the engine was right and the assertion had been red
+      // against it. A skip costs you the loan AND the 500; finishing pays.
       final s = save(cards: 3, step: 4);
       lendTutorialPlayers(s);
-      final lent =
-          cellsOf(s).where((c) => (c as Map?)?['borrowed'] == true).length;
+      expect(
+        cellsOf(s).where((c) => (c as Map?)?['borrowed'] == true),
+        isNotEmpty,
+        reason: 'nothing was lent to take back',
+      );
+      final coins = (s['resources'] as Map)['fanCoins'] as num;
+
       skipTutorial(s);
+
       expect((s['tutorial'] as Map)['done'], isTrue);
       expect(
-        cellsOf(s).where((c) => (c as Map?)?['borrowed'] == true).length,
-        lent,
+        cellsOf(s).where((c) => (c as Map?)?['borrowed'] == true),
+        isEmpty,
+        reason: 'the loan goes back on a skip too',
+      );
+      expect(
+        (s['resources'] as Map)['fanCoins'] as num,
+        coins,
+        reason: 'and the 500 is only paid by finishing',
       );
     });
   });

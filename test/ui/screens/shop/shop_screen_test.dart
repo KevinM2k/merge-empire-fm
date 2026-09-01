@@ -271,22 +271,22 @@ void main() {
       tester.element(find.byType(ShopScreen)),
     ).extension<KitTheme>()!;
 
+    // **THE PAINTER, not a `DecoratedBox`.** The tab's face is a `CustomPaint`
+    // — a `BoxDecoration` cannot round only the top corners AND leave the
+    // bottom edge open into the panel — so what a test can ask is the painter
+    // what colours it was given. See [ShopTabFace].
     for (final (i, tab) in shopTabs.indexed) {
-      final fill =
-          (tester
-                      .widget<DecoratedBox>(
-                        find
-                            .descendant(
-                              of: find.byKey(
-                                ValueKey('shop-tab-${shopTabSlug(tab)}'),
-                              ),
-                              matching: find.byType(DecoratedBox),
-                            )
-                            .first,
-                      )
-                      .decoration
-                  as BoxDecoration)
-              .color!;
+      final fill = tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byKey(ValueKey('shop-tab-${shopTabSlug(tab)}')),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((p) => p.painter)
+          .whereType<ShopTabFace>()
+          .first
+          .fill;
       expect(fill.a, 1, reason: '${shopTabSlug(tab)} still shows the page');
       // The selected tab keeps its own tint — BLENDED onto the fill rather than
       // laid over the page, so the shelf colours that tell the tabs apart
