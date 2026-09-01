@@ -1670,12 +1670,39 @@ JS number or object did.
 
 ## From playtesting — 1 Sep (does every unlock DO what it says?)
 
-Reported as "I have tier 8 of the Fan Zone but only 30 slots are open in
-players", which is the Fan Zone working exactly as specified — **squad slots are
-the ACADEMY's milestone track, not the Fan Zone's**, and the Fan Zone's own are
-the manager customisations. So the row underneath it is the real one: an audit of
-every club-asset unlock against the code that is supposed to honour it, at all
-eight tiers.
+Reported as "I have tier 8 and only 30 slots are open in players" — the Fan Zone
+first, then corrected to the **Youth Academy**, which is the facility that
+actually sells squad slots. The correction is the whole row: against the Fan Zone
+the report was the game working as specified, and against the Academy it is a
+save-shape bug that withholds all eight slots the player paid for. Both are
+below, because the audit the first reading prompted is what found the other
+three.
+
+- [x] **A TIER THE CARD CAN SEE IS NOT A TIER THE ENGINE GRANTS.** Two functions
+      answer "what tier is this facility" and they disagree about a save that is
+      even slightly off-shape. `assetTier` — the Club card, the tier badge, the
+      ladder sheet, the art path — reads the number straight. `_assetTier` in
+      `idle_engine` — the **roster cap**, the mini-game gate, home advantage —
+      returns ZERO unless `owned` is exactly the boolean `true`. So a save
+      carrying `{tier: 8}` with `owned` missing, or `1`, or the string `"true"`,
+      or plain `false`, shows a maxed Youth Academy on the Club screen and hands
+      over not one of its eight squad slots. Reported in exactly those words.
+      **The invariant is unreachable from the engine** — `buildAsset` writes tier
+      one AND `owned`, `investInAsset` refuses a category that is not owned, and
+      the prestige wipe writes `defaultClubAssets()` — so anything violating it
+      is drift from an older build, a hand-edited save or a cloud doc, and the
+      migration normalises it at the load boundary: `owned` from any shape a
+      flag can be written in, a tier parsed loosely and clamped to the ceiling,
+      the pair made symmetric both ways, `invested` and `tapCount` to ints, and
+      a missing category back-filled. It can only ever ADD what the tier already
+      says was paid for — nothing takes a facility away. **A tier past the
+      ceiling mattered too**: it would have priced its own next tap off the end
+      of the cost table.
+      Nine tests, and all nine fail without it. Anyone hitting this gets their
+      slots back on the next load; there is nothing to re-earn.
+
+Then the audit itself, of every club-asset unlock against the code that is
+supposed to honour it, at all eight tiers.
 
 **The ladder itself came back clean, and it was always going to.**
 `club_asset_tiers.dart` DERIVES every line from the gate function the game runs

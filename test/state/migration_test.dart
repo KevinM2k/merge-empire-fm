@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/club_asset_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart' show getMaxPlayers;
 import 'package:merge_empire_fc/engine/season_end.dart'
     show prestigeMultiplierFor;
 import 'package:merge_empire_fc/state/migration.dart';
@@ -406,6 +408,112 @@ void main() {
 
       final s = migrate(save)!;
       expect(((s['clubAssets'] as Map)['FANZONE'] as Map)['tier'], 2);
+    });
+
+    group('a tier the card can see is a tier the ENGINE grants', () {
+      // Reported as "I have tier 8 of the Youth Academy and I still only have 30
+      // unlocked". Two functions answer "what tier is this facility" and they
+      // disagreed: `assetTier` — the card, the badge, the ladder — reads the
+      // number straight, while `idle_engine`'s reader returns ZERO unless
+      // `owned` is exactly the boolean `true`. So the Club screen said tier 8
+      // and `getMaxPlayers` said 30, which is every one of the Academy's eight
+      // squad slots withheld from a facility that had been paid for in full.
+      Map<String, dynamic> loaded(Map<String, dynamic> academy) => migrate(
+        _legacy({
+          'clubAssets': {
+            for (final c in AssetCategory.all)
+              c: {'owned': false, 'tier': 0, 'invested': 0, 'tapCount': 0},
+            AssetCategory.academy: academy,
+          },
+        }),
+      )!;
+
+      // Every off-shape a save can carry a set flag in. A JSON `1`, a string,
+      // and the key missing altogether all mean "built" to whoever wrote them.
+      const drifted = <String, Map<String, dynamic>>{
+        'owned missing': {'tier': 8},
+        'owned as a number': {'owned': 1, 'tier': 8},
+        'owned as a string': {'owned': 'true', 'tier': 8},
+        'owned plainly false': {'owned': false, 'tier': 8},
+        'the tier as a string': {'owned': true, 'tier': '8'},
+        'the tier as a double': {'owned': true, 'tier': 8.0},
+      };
+
+      for (final entry in drifted.entries) {
+        test('heals ${entry.key}', () {
+          final s = loaded(Map<String, dynamic>.from(entry.value));
+          expect(assetTier(s, AssetCategory.academy), 8, reason: 'the card');
+          expect(isAssetOwned(s, AssetCategory.academy), isTrue);
+          expect(
+            getMaxPlayers(s),
+            Grid.maxPlayers + 8,
+            reason: 'the roster cap disagreed with the card',
+          );
+        });
+      }
+
+      test('and the two readers agree for EVERY facility and tier', () {
+        for (final cat in AssetCategory.all) {
+          for (var tier = 0; tier <= maxAssetTier; tier++) {
+            final s = migrate(
+              _legacy({
+                'clubAssets': {
+                  for (final c in AssetCategory.all)
+                    c: {'owned': false, 'tier': 0, 'invested': 0, 'tapCount': 0},
+                  // The drift itself: a tier with no `owned` beside it.
+                  cat: {'tier': tier},
+                },
+              }),
+            )!;
+            expect(
+              isAssetOwned(s, cat),
+              tier > 0,
+              reason: '$cat at tier $tier',
+            );
+            expect(assetTier(s, cat), tier, reason: '$cat at tier $tier');
+          }
+        }
+      });
+
+      test('owned at tier zero is the same drift the other way round', () {
+        // `buildAsset` writes both halves at once, so owned MEANS tier one.
+        final s = loaded(<String, dynamic>{'owned': true, 'tier': 0});
+        expect(assetTier(s, AssetCategory.academy), 1);
+        expect(getMaxPlayers(s), Grid.maxPlayers + 1);
+      });
+
+      test('a tier past the ceiling is clamped, not priced off the table', () {
+        final s = loaded(<String, dynamic>{'owned': true, 'tier': 99});
+        expect(assetTier(s, AssetCategory.academy), maxAssetTier);
+        expect(getMaxPlayers(s), Grid.maxPlayers + maxAssetTier);
+        // 30 + 8 has to fit the array the grid actually holds.
+        expect(getMaxPlayers(s), lessThanOrEqualTo(Grid.totalCells));
+      });
+
+      test('an unbuilt facility is left unbuilt', () {
+        final s = loaded(<String, dynamic>{
+          'owned': false,
+          'tier': 0,
+          'invested': 0,
+          'tapCount': 0,
+        });
+        expect(isAssetOwned(s, AssetCategory.academy), isFalse);
+        expect(getMaxPlayers(s), Grid.maxPlayers);
+      });
+
+      test('a missing category is back-filled rather than left undefined', () {
+        // ACADEMY is the one that historically went missing outright.
+        final save = _legacy({
+          'clubAssets': {
+            for (final c in AssetCategory.all)
+              if (c != AssetCategory.academy)
+                c: {'owned': false, 'tier': 0, 'invested': 0, 'tapCount': 0},
+          },
+        });
+        final s = migrate(save)!;
+        expect((s['clubAssets'] as Map).keys, containsAll(AssetCategory.all));
+        expect(getMaxPlayers(s), Grid.maxPlayers);
+      });
     });
 
     test('resets inflated tap counts once', () {

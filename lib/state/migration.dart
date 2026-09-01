@@ -52,6 +52,23 @@ void resetMigrationRandom() => _rng = math.Random();
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
 /// Reads a nested map, creating it when absent or the wrong type.
+/// A number in any of the shapes a save can hold one, a numeric STRING included.
+///
+/// `_num` is deliberately strict everywhere else; here at the load boundary a
+/// tier written `"8"` is a facility the club paid for, and reading it as zero
+/// blanks the card rather than refusing the save.
+num? _looseNum(Object? v) => v is num
+    ? v
+    : v is String
+    ? num.tryParse(v)
+    : null;
+
+/// Whether a save's flag reads as SET, in any of the shapes a save can hold one.
+///
+/// A JSON `1`, a string `"true"` and a real `true` all mean the same thing to
+/// whoever wrote them, and the engine's `== true` reads two of the three as no.
+bool _truthy(Object? v) => v == true || v == 1 || v == 'true';
+
 Map<String, dynamic> _ensureMap(Map<String, dynamic> parent, String key) {
   final existing = parent[key];
   if (existing is Map<String, dynamic>) return existing;
@@ -290,6 +307,57 @@ void _migrateClubAssets(Map<String, dynamic> data) {
   }
 
   final assets = _ensureMap(data, 'clubAssets');
+
+  // **A FACILITY WITH A TIER IS A FACILITY THAT WAS BUILT**, and the save has to
+  // say so in the one shape both readers agree on.
+  //
+  // There are TWO functions answering "what tier is the Youth Academy", and they
+  // disagree about a save that is even slightly off-shape. `assetTier` — the
+  // Club card, the tier badge, the ladder sheet, the art path — reads the number
+  // straight. `_assetTier` in `idle_engine` — the ROSTER CAP, the mini-game gate,
+  // home advantage — returns ZERO unless `owned` is exactly the boolean `true`.
+  // So a save carrying `{tier: 8}` with `owned` missing, or `1`, or the string
+  // `"true"`, or plain `false`, shows a maxed Youth Academy on the card and
+  // hands over not one of the eight squad slots it is advertising. Reported in
+  // exactly those words: "I have tier 8 of the Youth Academy and I still only
+  // have 30 unlocked."
+  //
+  // The invariant is unreachable from the engine — `buildAsset` writes tier one
+  // AND `owned`, `investInAsset` refuses a category that is not owned, and the
+  // prestige wipe writes `defaultClubAssets()` — so anything violating it is
+  // drift from an older build, a hand-edited save or a cloud doc, and healing it
+  // is repair rather than a gift. It can only ever ADD what the tier already
+  // says was paid for; nothing here takes a facility away.
+  for (final cat in AssetCategory.all) {
+    final asset = _map(assets[cat]);
+    if (asset == null) {
+      // The category ACADEMY historically went missing altogether, which is the
+      // undefined-vs-unowned drift `defaultClubAssets` was written against.
+      assets[cat] = <String, dynamic>{
+        'owned': false,
+        'tier': 0,
+        'invested': 0,
+        'tapCount': 0,
+      };
+      continue;
+    }
+    // A tier above the ceiling would price its own next tap off the end of the
+    // cost table, and a tier written as a string reads as ZERO to `_num` — which
+    // is the same bug from the other side, the card going blank on a facility
+    // the club has.
+    var tier = (_looseNum(asset['tier'])?.toInt() ?? 0).clamp(0, maxAssetTier);
+    final owned = tier > 0 || _truthy(asset['owned']);
+    // The pair is symmetric, because `buildAsset` writes both halves at once:
+    // owned means tier one, so an owned facility at tier zero is the same drift
+    // read the other way round.
+    if (owned && tier < 1) tier = 1;
+    asset['tier'] = tier;
+    asset['owned'] = owned;
+    // `assetTierProgress` divides by these, so a string here is a facility whose
+    // bar never moves.
+    asset['invested'] = math.max(0, _looseNum(asset['invested'])?.toInt() ?? 0);
+    asset['tapCount'] = math.max(0, _looseNum(asset['tapCount'])?.toInt() ?? 0);
+  }
 
   // Fan Zone: home advantage moved off Stadium onto the new FANZONE asset.
   // Left alone, every existing save would silently drop from up to +4 home
