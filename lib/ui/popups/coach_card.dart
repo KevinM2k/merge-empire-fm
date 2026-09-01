@@ -889,6 +889,53 @@ class _CoachStageState extends State<CoachStage> {
                   // the title he is saying it under; it does not need a mascot.
                   child: const CoachStandee(),
                 ),
+              // **HIS NAME IS OUT ON THE SCENE, not the first line inside the
+              // box.** It sat above the title in the club's accent, which
+              // spends the top of a card that is already short on room saying
+              // something the figure beside it has just said — and put the
+              // game's voice in the middle of his. Above the box and hard
+              // RIGHT it is a nameplate on a dialogue box: he stands on the
+              // left, his name stands opposite him, and the box below is
+              // nothing but what he is saying. Asked for from the couch.
+              //
+              // White rather than the accent, because it is over the scrim and
+              // the page rather than over a surface — with a shadow, since
+              // what is behind it is whatever screen the card interrupted.
+              // The plate needs the height he is standing in — no him, no
+              // plate.
+              if (rise > 0)
+                Positioned(
+                  left: 0,
+                  right: 10,
+                  top: 0,
+                  height: rise,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          t('coachtip.name').toUpperCase(),
+                          key: const ValueKey('coach-card-name'),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                            shadows: [
+                              Shadow(
+                                color: Color(0xB3000000),
+                                blurRadius: 6,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Padding(
                 padding: EdgeInsets.only(top: rise),
                 child: Container(
@@ -909,40 +956,7 @@ class _CoachStageState extends State<CoachStage> {
                     ],
                   ),
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // **HIS NAME IS THE FIRST LINE IN THE BOX**, hard left,
-                      // over what he says.
-                      //
-                      // It was out on the scene above the box and off to the
-                      // right for a while — a nameplate opposite the figure —
-                      // and it has been asked back inside: left-aligned, above
-                      // the box text, which is where a dialogue box puts the
-                      // speaker. The club's accent rather than white now that
-                      // it is on a surface instead of over the page.
-                      Text(
-                        t('coachtip.name').toUpperCase(),
-                        key: const ValueKey('coach-card-name'),
-                        textAlign: TextAlign.left,
-                        style: TextStyle(
-                          color: kit.accentBright,
-                          fontSize: 11.5,
-                          height: 1,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      // **Flexible, or the plate breaks the card's own height
-                      // contract.** What goes in the box shrinks to whatever
-                      // room the box has — see [CoachCardFrame.build] — and a
-                      // second child that takes its natural height on top of
-                      // that overflowed by 208 on the champions card.
-                      Flexible(child: widget.child),
-                    ],
-                  ),
+                  child: widget.child,
                 ),
               ),
               if (widget.minimisable)

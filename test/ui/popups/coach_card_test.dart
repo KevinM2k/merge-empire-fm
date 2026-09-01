@@ -145,34 +145,6 @@ void main() {
     );
   });
 
-  testWidgets('HIS NAME IS THE FIRST LINE IN THE BOX, hard left', (
-    tester,
-  ) async {
-    // It sat out on the scene above the box and off to the right for a while —
-    // a nameplate opposite the figure — and it has been asked back inside:
-    // left-aligned, above what he says. Both halves of that are the report.
-    await openCard(tester);
-    await tester.pumpAndSettle();
-
-    final box = tester.getRect(find.byKey(const ValueKey('coach-box')));
-    final name = tester.getRect(find.byKey(const ValueKey('coach-card-name')));
-    final title = tester.getRect(find.text(t('app.offline_title')));
-
-    expect(box.contains(name.center), isTrue, reason: 'still out on the scene');
-    expect(name.bottom, lessThanOrEqualTo(title.top), reason: 'not above it');
-    // Hard left, which is what makes it a speaker label rather than a heading:
-    // flush against the box's own padding. Measured off the LEFT edge rather
-    // than by comparing the two gaps — the test font is far wider than the
-    // device's, so the run of text very nearly fills the box either way.
-    expect(name.left - box.left, lessThan(24));
-    expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('coach-card-name')))
-          .textAlign,
-      TextAlign.left,
-    );
-  });
-
   testWidgets('and Colin STANDS behind it, overlapping its top edge', (
     tester,
   ) async {
