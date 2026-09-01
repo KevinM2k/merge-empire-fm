@@ -133,16 +133,19 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
         // and the panel ran to both edges of the phone, so the thing the tabs
         // are supposed to be sitting ON was wider than they were — reported
         // from the couch. Same margin, so the join is a join.
+        //
+        // **SQUARE ACROSS THE TOP, and that is the rest of the same fix.** The
+        // panel wore a 14-point radius on its top corners while the tabs above
+        // it are square-shouldered, so at each end of the strip the tab's corner
+        // overhung the curve and the join came apart at exactly the two points
+        // it most needed to hold. Reported from the couch: they do not match up.
+        // A tab and the panel it opens into share one edge, and a shared edge
+        // cannot be rounded on one side only.
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: shopPanelInset),
             child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: shopPanelInk(kit),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(14),
-                ),
-              ),
+              decoration: BoxDecoration(color: shopPanelInk(kit)),
               child: SingleChildScrollView(
                 key: const ValueKey('shop-scroll'),
                 controller: _scroll,
@@ -176,6 +179,94 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
       ],
     );
   }
+}
+
+/// The tab's top corners, and the weight of the accent along its top edge.
+const double _tabRadius = 12;
+const double _tabAccent = 3;
+
+/// One tab's face: fill, accent and edge, all cut by the SAME shape.
+///
+/// A `BoxDecoration` cannot draw this. It rounds only the top corners, which it
+/// can; but its border is `Border.all` or nothing once there is a radius, so the
+/// bottom edge — the one that has to be OPEN into the panel — is drawn too, and
+/// anything laid on top of it has to be clipped by a second `ClipRRect` whose
+/// box is its own rather than the tab's. Both of those were faults on screen;
+/// see the note at the call site.
+class _TabFace extends CustomPainter {
+  const _TabFace({
+    required this.fill,
+    required this.edge,
+    required this.accent,
+    required this.radius,
+    required this.raised,
+  });
+
+  final Color fill;
+  final Color edge;
+
+  /// The band along the top, or null on a tab that is not open.
+  final Color? accent;
+  final double radius;
+  final bool raised;
+
+  Path _shape(Size size) => Path()
+    ..addRRect(
+      RRect.fromRectAndCorners(
+        Offset.zero & size,
+        topLeft: Radius.circular(radius),
+        topRight: Radius.circular(radius),
+      ),
+    );
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final shape = _shape(size);
+    if (raised) {
+      canvas.drawPath(
+        shape.shift(const Offset(0, -1)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+    }
+    canvas.drawPath(shape, Paint()..color = fill);
+    if (accent case final band?) {
+      canvas.save();
+      canvas.clipPath(shape);
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, _tabAccent),
+        Paint()..color = band,
+      );
+      canvas.restore();
+    }
+    // Up one side, over the top, down the other. The half-pixel keeps a
+    // one-point stroke inside the shape rather than straddling it.
+    final w = size.width;
+    final h = size.height;
+    final r = radius;
+    canvas.drawPath(
+      Path()
+        ..moveTo(0.5, h)
+        ..lineTo(0.5, r)
+        ..arcToPoint(Offset(r, 0.5), radius: Radius.circular(r - 0.5))
+        ..lineTo(w - r, 0.5)
+        ..arcToPoint(Offset(w - 0.5, r), radius: Radius.circular(r - 0.5))
+        ..lineTo(w - 0.5, h),
+      Paint()
+        ..color = edge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TabFace old) =>
+      old.fill != fill ||
+      old.edge != edge ||
+      old.accent != accent ||
+      old.radius != radius ||
+      old.raised != raised;
 }
 
 /// The shop's own ground, and the fill the selected tab is continuous with.
@@ -217,7 +308,6 @@ class _ShopTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final rule = kit.textMuted.withValues(alpha: 0.35);
-    const radius = BorderRadius.vertical(top: Radius.circular(12));
     return SizedBox(
       // Two lines of label, because one of them needs two — see below.
       height: 68,
@@ -271,45 +361,45 @@ class _ShopTabs extends StatelessWidget {
                     // onto [shopPanelInk] the join has nothing to show, which
                     // is the only way a tab reads as continuous with what it
                     // opens into.
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: radius,
-                        color: i == selected
+                    // **ONE PATH DRAWS THE WHOLE TAB, and that is what fixes
+                    // the two things a `BoxDecoration` could not.**
+                    //
+                    // The accent was a 3pt bar in its own `ClipRRect` at the
+                    // tab's radius — but an `RRect` scales radii down to fit
+                    // the box it is given, and that box is three points tall,
+                    // so the bar's corners came out at 3 against the tab's 12
+                    // and its square ends stood proud of the rounded corner
+                    // underneath. Reported from the couch as the top border not
+                    // respecting the radius of the tab below it.
+                    //
+                    // And `Border.all` is the only border a rounded
+                    // `BoxDecoration` can have, so the selected tab's edge was
+                    // drawn along its BOTTOM as well — a hairline straight
+                    // across the mouth of the panel, which is the one thing the
+                    // broken baseline exists to avoid. The stroke here is an
+                    // open path: up one side, over the top, down the other, and
+                    // it stops.
+                    CustomPaint(
+                      painter: _TabFace(
+                        fill: i == selected
                             ? Color.alphaBlend(
                                 tab.ink.withValues(alpha: 0.16),
                                 shopPanelInk(kit),
                               )
                             : kit.surface,
-                        border: Border.all(
-                          color: i == selected
-                              ? tab.ink.withValues(alpha: 0.45)
-                              : Colors.transparent,
-                        ),
-                        boxShadow: i == selected
-                            ? [
-                                // The selected tab stands proud of the two
-                                // beside it, so it casts on them.
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.28),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, -1),
-                                ),
-                              ]
-                            : null,
+                        // An unselected tab is a container too. It had a
+                        // TRANSPARENT border, so the three that are not open
+                        // were flat blocks of surface with no edge on them.
+                        edge: i == selected
+                            ? tab.ink.withValues(alpha: 0.55)
+                            : kit.border,
+                        accent: i == selected ? tab.ink : null,
+                        radius: _tabRadius,
+                        // The selected tab stands proud of the two beside it,
+                        // so it casts on them.
+                        raised: i == selected,
                       ),
                     ),
-                    if (i == selected)
-                      // The accent is the tab's own top edge, at the weight a
-                      // frame would be — not a stripe floating under a label.
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: ClipRRect(
-                          borderRadius: radius,
-                          child: Container(height: 3, color: tab.ink),
-                        ),
-                      ),
                     // **THE BASELINE BREAKS UNDER THE SELECTED TAB.** That gap
                     // is what makes the panel below read as this tab's
                     // contents rather than as the next thing down the page,

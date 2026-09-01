@@ -208,9 +208,14 @@ void main() {
       );
     });
 
-    test('trophy polish doubles for its season', () {
-      expect(computeMultiplier({}, {'trophyPolishSeason': 2}, {}, {}, 2), 2.0);
-      expect(computeMultiplier({}, {'trophyPolishSeason': 2}, {}, {}, 3), 1.0);
+    test('trophy polish doubles while its window is open', () {
+      // Half an hour from purchase, not a season — so the season it is read
+      // against no longer comes into it.
+      setClock(() => 1000);
+      expect(computeMultiplier({}, {'trophyPolishUntil': 1001}, {}, {}, 2), 2.0);
+      expect(computeMultiplier({}, {'trophyPolishUntil': 1000}, {}, {}, 2), 1.0);
+      expect(computeMultiplier({}, {'trophyPolishUntil': 1001}, {}, {}, 9), 2.0);
+      resetClock();
     });
 
     test('every source stacks multiplicatively', () {
@@ -221,7 +226,7 @@ void main() {
           'incomeBoostActive': true,
           'incomeBoostEndsAt': 5000,
           'kitSponsorSeason': 1,
-          'trophyPolishSeason': 1,
+          'trophyPolishUntil': 5000,
         },
         {'incomeMultiplier': 1.5},
         {},
@@ -285,7 +290,12 @@ void main() {
 
     test('trophy polish doubles match revenue too', () {
       // It doubles ALL coin income, mirroring the idle multiplier.
-      expect(computeMatchRevenueMultiplier({}, {'trophyPolishSeason': 1}, 1), 2.0);
+      setClock(() => 1000);
+      expect(
+        computeMatchRevenueMultiplier({}, {'trophyPolishUntil': 1001}, 1),
+        2.0,
+      );
+      resetClock();
     });
 
     test('squad traits are multiplicative with the club stack', () {

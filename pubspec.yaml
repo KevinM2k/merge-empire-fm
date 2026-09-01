@@ -189,3 +189,49 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  # **BUNDLED, so a scoreline is the same shape on every phone.** The app ran on
+  # the system face, which is San Francisco on iOS and Roboto on Android — two
+  # different widths for the same table, and a column of figures that fits one
+  # and wraps on the other.
+  #
+  # Barlow carries the UI and Lilita One the headings.
+  #
+  # **The CONDENSED cuts were tried first and rejected from the couch**, twice:
+  # "too condensed", and it does not look like the specimen. It does not,
+  # because the specimen everybody knows is this one — Barlow — and Barlow
+  # Condensed is a genuinely narrow face that reads as squeezed at UI sizes
+  # rather than as tidy. The room a condensed face would have bought is not
+  # worth a screen that looks compressed.
+  #
+  # **ONE WEIGHT, AND THE MISSING ONES ARE THE POINT.**
+  #
+  # `lib/ui` names a weight in several hundred `TextStyle` literals — `w400`
+  # through `w900`, each chosen against the system face this replaced. The call
+  # from the couch was for SemiBold everywhere: the bolds came down to it
+  # ("we are goina be using semi bold anyways"), and then the commentary, which
+  # is an explicit `w400`, was spotted still looking lighter — "ANY that are
+  # w400 should be w600".
+  #
+  # Bundling the one cut is how that holds without editing those hundreds of
+  # literals, and without the next one written being wrong: a family resolves a
+  # weight it does not have to the nearest one it does, and when there is only
+  # one, every request lands on it. Verified rather than assumed —
+  # `test/ui/theme/font_weights_test.dart` measures w100 through w900 and fails
+  # if any of them differs from w600.
+  #
+  # **So a weight is a FILE, not a number in Dart.** Emphasis on this screen is
+  # bought with SIZE and COLOUR, which is what the app was already mostly doing.
+  #
+  # **No CJK or Arabic in either face**, and that is fine: the engine falls back
+  # per GLYPH, so ja/ko/zh/ar keep the platform's own face and only the Latin
+  # runs change. Licences beside the files — both SIL OFL.
+  fonts:
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/Barlow-SemiBold.ttf
+          weight: 600
+    - family: Lilita One
+      fonts:
+        - asset: assets/fonts/LilitaOne-Regular.ttf
+          weight: 400
+

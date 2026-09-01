@@ -30,6 +30,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
@@ -406,6 +407,31 @@ class MergeGridState extends ConsumerState<MergeGrid>
   }
 
   Future<void> _drop(int from, int to) async {
+    final state = ref.read(gameProvider).state;
+    // **THE MERGE STEP TAKES A MERGE AND NOTHING ELSE.** The tutorial's input
+    // seal is one rectangle and it has to hold both cards, so the squares
+    // between them are inside it — and a drag onto one of those is a swap,
+    // which shuffles the board the step is pointing at out from under its own
+    // rings. Left exactly where it was, which is the same answer the game
+    // already gives a card let go over nothing.
+    //
+    // **AND NOTHING HERE FORGIVES THE AIM.** A pass of this did: it completed
+    // the merge wherever a card of the pair was dropped, on the strength of
+    // three reports that dragging the first card onto its twin did nothing
+    // while dragging the twin onto the first one worked. The merge is symmetric
+    // — `mergeTargetsFor` and `attemptMerge` are symmetric in both indices —
+    // and so a rule that merges cards the player did not aim at was never the
+    // fix. The asymmetry was real, and it was in the CUE: it measured
+    // `grid-card-<index>`, which lives inside the card's own
+    // `LongPressDraggable.child`, so the card in the hand could not be measured
+    // and the spotlight lost its hole — which seals the screen with one
+    // full-screen `AbsorbPointer` and eats the drop. Lifting the FIRST card hit
+    // that; lifting the second only dimmed a square. The cue points at
+    // `grid-slot-<index>` now, which no drag can take out of the tree.
+    if (tutorialMergeOnly(state) &&
+        !mergeTargetsFor(state, from).contains(to)) {
+      return;
+    }
     // Set before the update, so the frame that moves the cards is already the
     // frame that knows which of them was carried there by hand.
     _slide = const Duration(milliseconds: 350);
@@ -449,7 +475,18 @@ class MergeGridState extends ConsumerState<MergeGrid>
     // is the only card a merge produces that is worth stopping the grid for, and
     // reusing the scout's reveal is what stops the two drifting apart.
     if (!result.isNewDiscovery) return;
-    final cell = gridCells(game.state)[to];
+    await revealDiscoveryAt(to);
+  }
+
+  /// The turn-over for the card in one square.
+  ///
+  /// **Lifted out of the drag so the SWEEP can use it too** — see
+  /// [revealSweepDiscoveries]. It was inline in `_drop`, which is why Merge All
+  /// never showed one.
+  Future<void> revealDiscoveryAt(int index) async {
+    final cells = gridCells(ref.read(gameProvider).state);
+    if (index < 0 || index >= cells.length) return;
+    final cell = cells[index];
     final view = cardViewFor(cell, proMode: ref.read(proModeProvider));
     if (view == null || !mounted) return;
 
@@ -471,7 +508,7 @@ class MergeGridState extends ConsumerState<MergeGrid>
               badge: null,
               isNewDiscovery: true,
               vanish: false,
-              idx: to,
+              idx: index,
             ),
           ],
           caption: t('grid.new_player_found'),
@@ -483,6 +520,41 @@ class MergeGridState extends ConsumerState<MergeGrid>
       if (pending.isNotEmpty && ref.exists(gridPendingProvider)) {
         ref.read(gridPendingProvider.notifier).state = const {};
       }
+    }
+  }
+
+  /// **EVERY NEW FACE A SWEEP TURNED UP, ONE AFTER THE OTHER.**
+  ///
+  /// A hand merge has shown the scout's reveal for a player nobody has ever seen
+  /// since the two were joined up; Merge All showed nothing at all, so the one
+  /// route that can turn up four new players at once was the one that never
+  /// stopped to show any of them. Reported from the couch, asking for the same
+  /// reveal a merge by hand gives, queued.
+  ///
+  /// **Awaited in turn, and that is the whole of it**: `showScoutReveal` is a
+  /// route, so firing them together would stack four dialogs and the player
+  /// would see the last one. Grid order, so the run reads front to back the same
+  /// way the burst did.
+  ///
+  /// The state is re-read for each card rather than captured up front — the
+  /// reveal itself does not move anything, but it is a route, and a save that
+  /// changed under it would leave a stale view on screen.
+  Future<void> revealSweepDiscoveries(List<int> landedAt) async {
+    final state = ref.read(gameProvider).state;
+    final cells = gridCells(state);
+    final fresh = [
+      for (final index in landedAt.toList()..sort())
+        if (index >= 0 && index < cells.length)
+          if (isFirstSighting(state, cells[index])) index,
+    ];
+    for (final index in fresh) {
+      if (!mounted) return;
+      // Into view first: a reveal that flies its card back into a square off
+      // the bottom of the screen is a card vanishing. `burstSweep` scrolls to
+      // the END of the run, and these walk back up it.
+      await scrollToSlot(index);
+      if (!mounted) return;
+      await revealDiscoveryAt(index);
     }
   }
 
@@ -609,9 +681,23 @@ class MergeGridState extends ConsumerState<MergeGrid>
                                           child: _CardSlot(
                                             cell: cell,
                                             onDrop: _drop,
-                                            mergeable:
-                                                _dragging == null &&
-                                                mergeable.contains(cell.index),
+                                            // **A RING ON THE SQUARE THAT WILL
+                                            // TAKE IT, while the card is in
+                                            // hand.** At rest the gold ring
+                                            // means "there is a pair here"; the
+                                            // moment a card was lifted every
+                                            // ring went out and the only
+                                            // affordance left was that
+                                            // everything ELSE had dimmed — a
+                                            // negative cue, and on a grid where
+                                            // one square in twenty-six is the
+                                            // answer it is the wrong way round.
+                                            // Reported from the couch as no
+                                            // outline on the card being dragged
+                                            // to.
+                                            mergeable: _dragging == null
+                                                ? mergeable.contains(cell.index)
+                                                : _targets.contains(cell.index),
                                             onDragUpdate: _autoScroll,
                                             width: cellW,
                                             height: cellH,
@@ -1077,6 +1163,7 @@ class _CardSlot extends ConsumerWidget {
   final VoidCallback onDragStart;
   final VoidCallback onDragEnd;
   final void Function(Offset globalPosition) onDragUpdate;
+
   final VoidCallback onBurstDone;
 
   @override

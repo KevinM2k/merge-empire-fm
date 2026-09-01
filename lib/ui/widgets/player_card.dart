@@ -13,6 +13,8 @@
 /// the only place a tier's hex becomes a `Color`.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
@@ -99,6 +101,17 @@ class PlayerFace extends StatelessWidget {
   /// A rim, for a face that has to read against a busy row. Null for none.
   final Color? ring;
 
+  /// How thick that rim is, at this size.
+  ///
+  /// **A FIXED 1.4 IS A HAIRLINE ON A BIG ONE.** It was written for the match
+  /// feed, where these are 26 points across and 1.4 is a rim; the goal badge
+  /// draws the same widget at 72 over a live pitch, and the same 1.4 there is a
+  /// line nobody can see — reported from the couch as the scorer's circle having
+  /// no border at all. Four per cent of the diameter is 1.4 at 26 and about 3 at
+  /// 72, so the rows this was tuned for are untouched and anything drawn large
+  /// gets a rim in proportion.
+  double get _rimWidth => math.max(1.4, size * 0.04);
+
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
@@ -109,7 +122,21 @@ class PlayerFace extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: kit.surface,
-        border: rim == null ? null : Border.all(color: rim, width: 1.4),
+        border: rim == null ? null : Border.all(color: rim, width: _rimWidth),
+        // **And a hard edge OUTSIDE it**, because the rim is the club's own
+        // accent and the goal badge stands on grass: a green kit's rim against a
+        // pitch is the one case where a correct colour is an invisible one. A
+        // shadow with no blur is a second ring — the only way a `BoxDecoration`
+        // draws two — and at a third of its thickness it reads as the edge of
+        // the badge rather than as a second border.
+        boxShadow: rim == null
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  spreadRadius: _rimWidth * 0.34,
+                ),
+              ],
       ),
       // Clipped INSIDE the rim: a child filling the box paints over the
       // border's own curve otherwise — the same fault the cards' scrim had.

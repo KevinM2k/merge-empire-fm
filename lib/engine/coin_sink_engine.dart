@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
+import 'package:merge_empire_fc/util/time.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
@@ -28,50 +29,56 @@ Map<String, dynamic> _branch(Map<String, dynamic> owner, String key) {
   return fresh;
 }
 
-/// What an active Trophy Polish is worth. Doubling, so the season's coin income
-/// is doubled outright — the same multiplier is applied to match revenue.
+/// What an active Trophy Polish is worth. Doubling, so coin income is doubled
+/// outright while it runs — the same multiplier is applied to match revenue.
 const double _trophyPolishBonus = 1.0;
 
-/// The polish multiplier for a `boosts` branch read against one season.
+/// How long a Trophy Polish runs for.
 ///
-/// The polish is a ONE-SEASON buff stamped with the season it was bought in, so
-/// it expires at the next season end. An old save's permanent `polishLevel` is
-/// ignored: the permanent form was retired to take out a
-/// pay-for-permanent-advantage.
+/// **HALF AN HOUR, not a season.** It used to be stamped with the SEASON it was
+/// bought in and expire at the next season end — so what eight gems bought
+/// depended entirely on WHEN in the season they were spent: minutes near the
+/// rollover, hours at the start, and nothing on the tile said which one the
+/// player was buying. Half an hour is the same half an hour whenever it is
+/// spent, and it is short enough to be a window you go and play through rather
+/// than a season-long tax break running while the app is shut. Asked for from
+/// the couch, and the spec was changed with it — `coinSinkEngine.js`,
+/// `idleEngine.js`, `gemEngine.js`, `HUD.js` and the copy in all ten locales.
+const int trophyPolishMs = 30 * 60 * 1000;
+
+/// The polish multiplier for a `boosts` branch.
 ///
-/// **Takes the two branches loose rather than the save**, because the two
-/// functions that actually pay the buff out — `computeMultiplier` and
-/// `computeMatchRevenueMultiplier` — are handed `boosts` and a season number,
-/// not the state they came from. Without this shape they cannot call the rule
-/// and end up restating it, which is how there came to be five copies of it:
-/// twice in `idle_engine`, once in `income_breakdown`, once in `gem_engine`'s
-/// shop guard, and here — where the only copy with a NAME was the one nothing
-/// called.
+/// An old save's permanent `polishLevel` is ignored: the permanent form was
+/// retired to take out a pay-for-permanent-advantage. So is the old
+/// `trophyPolishSeason` stamp — a save carrying one simply has no polish, which
+/// is at most half an hour of a buff it was going to lose at the next rollover
+/// anyway.
 ///
-/// They had already drifted. Four read a missing `seasonCount` as no match and
-/// the fifth read it as season one, so a save with no progression branch could
-/// have the shop refusing to sell a polish that nothing was paying out. The
-/// paying engines' reading wins: the shop must never say "already active" about
-/// a buff no multiplier is applying.
-double trophyPolishMultiplierFor(
-  Map<String, dynamic>? boosts,
-  int? seasonCount,
-) {
-  final polishSeason = _num(boosts?['trophyPolishSeason']);
-  if (polishSeason != null &&
-      seasonCount != null &&
-      polishSeason == seasonCount) {
-    return 1 + _trophyPolishBonus;
-  }
-  return 1;
+/// **Takes the branch loose rather than the save**, because the two functions
+/// that actually pay the buff out — `computeMultiplier` and
+/// `computeMatchRevenueMultiplier` — are handed `boosts` rather than the state
+/// it came from. Without this shape they cannot call the rule and end up
+/// restating it, which is how there came to be five copies of it: twice in
+/// `idle_engine`, once in `income_breakdown`, once in `gem_engine`'s shop guard,
+/// and here — where the only copy with a NAME was the one nothing called.
+double trophyPolishMultiplierFor(Map<String, dynamic>? boosts) =>
+    trophyPolishLeftMsFor(boosts) > 0 ? 1 + _trophyPolishBonus : 1;
+
+/// How long is left on the polish, in ms — 0 when it is not running.
+int trophyPolishLeftMsFor(Map<String, dynamic>? boosts) {
+  final until = _num(boosts?['trophyPolishUntil']);
+  if (until == null) return 0;
+  final left = until.toInt() - now();
+  return left > 0 ? left : 0;
 }
 
 /// The polish multiplier for this save right now.
 double trophyPolishMultiplier(Map<String, dynamic>? state) =>
-    trophyPolishMultiplierFor(
-      _map(state?['boosts']),
-      _num(_map(state?['progression'])?['seasonCount'])?.toInt(),
-    );
+    trophyPolishMultiplierFor(_map(state?['boosts']));
+
+/// How long is left on this save's polish, in ms.
+int trophyPolishLeftMs(Map<String, dynamic>? state) =>
+    trophyPolishLeftMsFor(_map(state?['boosts']));
 
 bool isTrophyPolishActive(Map<String, dynamic>? state) =>
     trophyPolishMultiplier(state) > 1;

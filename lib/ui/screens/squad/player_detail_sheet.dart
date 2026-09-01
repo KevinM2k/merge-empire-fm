@@ -1356,6 +1356,31 @@ class TraitBlockState extends ConsumerState<TraitBlock>
     super.dispose();
   }
 
+  /// Where a looping reel has to be told to stop so that it always SPINS.
+  ///
+  /// **`animateToItem` takes an ABSOLUTE index, and the target was written as
+  /// one.** `pool.length * _revolutions + landing` is three laps from the reel's
+  /// STARTING position, so it is three laps only on the first roll — after that
+  /// the reel is already parked out there, and the second and third rolls asked
+  /// it to travel the handful of rows between the old trait and the new one. The
+  /// spin turned into a nudge, on exactly the rolls a player has paid for and is
+  /// watching. Reported from the couch.
+  ///
+  /// So it is measured from where the reel IS: [laps] full turns, plus however
+  /// far round the pool the answer happens to sit from here. Always forward,
+  /// because a reel that can run backwards is a reel that sometimes reads as
+  /// undoing the last roll.
+  static int _reelTarget({
+    required FixedExtentScrollController from,
+    required int rows,
+    required int landing,
+    required int laps,
+  }) {
+    final at = from.hasClients ? from.selectedItem : from.initialItem;
+    final ahead = ((landing - at) % rows + rows) % rows;
+    return at + laps * rows + ahead;
+  }
+
   /// **The ratchet.** `rouletteClick` shipped with the port and NOTHING played
   /// it — a reel that turns in silence is the largest part of why a spin does
   /// not feel like one. The JS fires a click every time a tile boundary passes;
@@ -1436,20 +1461,31 @@ class TraitBlockState extends ConsumerState<TraitBlock>
     // name reel at 58% of the spin; the port had it 120ms early, which is not
     // a beat, it is a rounding error.
     final stopRatchets = [_ratchet(_names), _ratchet(_levels)];
+    // **THE SAME DISTANCE, not the same number of revolutions.** The level reel
+    // has four rows to the name reel's pool, so `_revolutions` laps of it
+    // travelled a fraction as far and barely moved — it read as one reel
+    // spinning beside a number that changed. Matching the ROW COUNT is what
+    // makes both sides visibly roll.
+    final levelLaps =
+        _revolutions * (pool.length / _levelRows.length).ceil();
     await Future.wait([
       _names.animateToItem(
-        pool.length * _revolutions + landing,
+        _reelTarget(
+          from: _names,
+          rows: pool.length,
+          landing: landing,
+          laps: _revolutions,
+        ),
         duration: spin * 0.58,
         curve: _ease,
       ),
       _levels.animateToItem(
-        // **THE SAME DISTANCE, not the same number of revolutions.** The level
-        // reel has three rows to the name reel's pool, so `3 * _revolutions`
-        // travelled a fraction as far and barely moved — it read as one reel
-        // spinning beside a number that changed. Matching the ROW COUNT is what
-        // makes both sides visibly roll, which is what was asked for.
-        _levelRows.length * _revolutions * (pool.length / _levelRows.length).ceil() +
-            (isNone ? _noneRow : (roll.level - 1).clamp(0, 2)),
+        _reelTarget(
+          from: _levels,
+          rows: _levelRows.length,
+          landing: isNone ? _noneRow : (roll.level - 1).clamp(0, 2),
+          laps: levelLaps,
+        ),
         duration: spin,
         curve: _ease,
       ),

@@ -30,7 +30,17 @@ import 'package:merge_empire_fc/services/voice_service.dart';
 
 /// The voice. One per app.
 final voiceServiceProvider = Provider<VoiceService>(
-  (ref) => VoiceService(backend: ClipVoiceBackend()),
+  (ref) => VoiceService(
+    backend: ClipVoiceBackend(
+      // **The syllables come out of the SOUND cache**, which is where every
+      // other rendered effect in the game lives — see `coachBabbleScale`. Wired
+      // here rather than imported inside the voice service, so the two services
+      // stay independent and a test gets silence for free. `overlap` because a
+      // 90ms syllable every 55ms is still ringing when the next lands, and that
+      // overlap is most of what makes a run of them read as a voice.
+      blip: (cue) => ref.read(soundServiceProvider).play(cue, overlap: true),
+    ),
+  ),
 );
 
 /// His two save values, and nothing else's.

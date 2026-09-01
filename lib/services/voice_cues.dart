@@ -43,8 +43,18 @@ void announceCoachSilence() => emit(coachSilenceEvent);
 /// host that forgets this keeps a dead service alive and talking.
 void Function() wireVoiceCues(VoiceService service) {
   void speak(Object? args) {
-    final key = args is Map<String, dynamic> ? args['key'] : null;
-    if (key is String && key.isNotEmpty) service.say(key).ignore();
+    final map = args is Map<String, dynamic> ? args : const <String, dynamic>{};
+    final key = map['key'];
+    final text = map['text'];
+    // **BOTH HALVES GO OVER.** The key names a clip; the TEXT is what he
+    // gibbers when there is no clip — which is nearly always, and is every line
+    // with a name or a fee in it. See `voice_service.dart`.
+    service
+        .say(
+          key is String ? key : '',
+          text: text is String ? text : '',
+        )
+        .ignore();
   }
 
   void silence(Object? _) => service.silence().ignore();

@@ -45,9 +45,29 @@ Map<String, int> countPositions(List<dynamic>? cells) {
 List<seeded.WeightedEntry<String>> buildScoutDrawPool(
   Map<String, dynamic>? state, {
   int? minTier,
+  int? maxTier,
 }) {
   final divisionId = '${_map(state?['progression'])?['currentDivision']}';
   var pool = buildScoutPool(divisionId);
+
+  // **A CEILING, for the tutorial and nothing else.** Sunday League's scout
+  // pool is the bottom TWO tiers and its own `maxPlayerTier` is 2 — so two
+  // tier-2 cards cannot merge, because what they would make is above the
+  // division's cap. A player walked through a merge step holding a pair of
+  // those is being asked for something the grid will refuse. Reported from the
+  // couch, in exactly those terms: they have to all be T1.
+  //
+  // Narrowing rather than replacing: if nothing survives the cap the pool is
+  // left as it was, because a scout that cannot draw at all is worse than one
+  // that draws a card the next step has to work around.
+  if (maxTier != null) {
+    final capped = [
+      for (final e in pool)
+        if (getDefinition(e.item) case final def?)
+          if (def.tier <= maxTier) e,
+    ];
+    if (capped.isNotEmpty) pool = capped;
+  }
 
   // A Guaranteed Scout voucher's floor. Applied FIRST and never relaxed — every
   // filter below may only narrow what is left, so the guarantee cannot be
@@ -146,8 +166,12 @@ Set<String> reachablePlayerDefIds(Map<String, dynamic>? state) {
 /// [minTier] is a Guaranteed Scout voucher's floor — the draw above it still
 /// uses the division's own weights, so a voucher raises the bottom of the roll
 /// without flattening it.
-String? pickScoutDefinition(Map<String, dynamic>? state, {int? minTier}) {
-  final pool = buildScoutDrawPool(state, minTier: minTier);
+String? pickScoutDefinition(
+  Map<String, dynamic>? state, {
+  int? minTier,
+  int? maxTier,
+}) {
+  final pool = buildScoutDrawPool(state, minTier: minTier, maxTier: maxTier);
   if (pool.isEmpty) return null;
   return seeded.weightedPick(pool);
 }

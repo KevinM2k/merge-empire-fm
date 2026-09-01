@@ -303,11 +303,17 @@ int findFirstEmpty(List<dynamic> cells) => cells.indexWhere((c) => c == null);
 /// Places a fresh instance in the first empty slot.
 ({bool ok, int? idx, String? reason}) placeCard(
   String definitionId,
-  List<dynamic> cells,
-) {
+  List<dynamic> cells, {
+  /// Force the gender rather than rolling it.
+  ///
+  /// The tutorial's third scout is a TWIN of one already on the grid — see
+  /// `tutorialPairTwin` — and two cards of one definition in different genders
+  /// swap rather than merge, so the definition alone does not make a pair.
+  bool? preferredFemale,
+}) {
   final idx = findFirstEmpty(cells);
   if (idx == -1) return (ok: false, idx: null, reason: 'grid_full');
-  final card = createInstance(definitionId);
+  final card = createInstance(definitionId, preferredFemale: preferredFemale);
   cells[idx] = card.raw;
   emit('card:placed', {'card': card});
   return (ok: true, idx: idx, reason: null);

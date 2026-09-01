@@ -34,6 +34,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
@@ -244,6 +245,29 @@ Future<void> showScoutReveal(
 }) {
   final overlay = Overlay.of(context, rootOverlay: true);
   final done = Completer<void>();
+
+  // **AND THE APP IS TOLD IT IS COVERED.** This is an `OverlayEntry` rather
+  // than a route, so nothing under it is told anything at all — `TickerMode` is
+  // untouched and `isCurrent` never changes, which is exactly the hole a modal
+  // sheet has and the reason `screenCoveredProvider` exists. Coach Colin
+  // gibbering from behind a card reveal is what found it; the same counter
+  // holds his line until the reveal is done. Guarded the way the sheet's own is:
+  // a reveal that cannot open is worse than one that opens over a live screen.
+  ProviderContainer? container;
+  try {
+    container = ProviderScope.containerOf(context, listen: false);
+    container.read(screenCoveredProvider.notifier).state++;
+  } catch (_) {
+    container = null;
+  }
+  void uncover() {
+    final held = container;
+    if (held == null) return;
+    container = null;
+    final n = held.read(screenCoveredProvider);
+    if (n > 0) held.read(screenCoveredProvider.notifier).state = n - 1;
+  }
+
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (context) => ScoutRevealOverlay(
@@ -251,6 +275,7 @@ Future<void> showScoutReveal(
       landing: landing,
       onDone: () {
         if (entry.mounted) entry.remove();
+        uncover();
         if (!done.isCompleted) done.complete();
       },
     ),

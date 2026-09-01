@@ -48,6 +48,18 @@ List<HudBoost> hudBoostsFor(Map<String, dynamic>? state, {required int nowMs}) {
     final days = ((vipEnds - nowMs) / 86400000).ceil();
     out.add((label: '🌟 VIP', sub: '${days < 1 ? 1 : days}d'));
   }
+
+  // **THE TROPHY POLISH BELONGS HERE, and it could not before.** It is a ×2 on
+  // idle income, which is this row's whole rule — but a pill's sub is a
+  // countdown, and while the polish was a SEASON buff there were no minutes to
+  // put on it. It runs for half an hour now, so eight gems buys something the
+  // player can watch running and watch go. The glyph is the catalogue's own
+  // 🏆, so this needs no copy, which is the other reason the row exists.
+  final polishEnds = _int(boosts['trophyPolishUntil']);
+  if (polishEnds > nowMs) {
+    final mins = ((polishEnds - nowMs) / 60000).ceil();
+    out.add((label: '🏆 ×2', sub: '${mins < 1 ? 1 : mins}m'));
+  }
   return out;
 }
 

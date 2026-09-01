@@ -22,6 +22,8 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsAmberOn, vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
+import 'package:merge_empire_fc/data/quests.dart' show getQuest;
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show displayText;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
@@ -86,6 +88,14 @@ Color verdictInk(
 
 /// The AdMob placement this screen asks for.
 const String doubleMatchPlacement = 'double_match';
+
+/// How long the doubled figure takes to climb — see
+/// [MatchSummaryScreenState._tally].
+///
+/// Long enough to read as counting rather than as a number changing, short
+/// enough that it is not standing between the player and the grid: the screen
+/// is holding open for the whole of it.
+const Duration coinTallyRun = Duration(milliseconds: 900);
 
 /// Show it, and answer the offer. Resolves once the player has continued.
 Future<void> showMatchSummary(
@@ -152,21 +162,67 @@ class MatchSummaryScreen extends ConsumerStatefulWidget {
   ConsumerState<MatchSummaryScreen> createState() => MatchSummaryScreenState();
 }
 
-class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
+class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
+    with SingleTickerProviderStateMixin {
   /// One tap only. A second while the video is opening would double twice.
   bool _answering = false;
+
+  /// **THE FIGURE CLIMBS TO WHAT THE VIDEO JUST BOUGHT.**
+  ///
+  /// The reward used to land with the screen already leaving: the number the
+  /// button had been promising was never once seen. Asked for from the couch —
+  /// show it increasing to the new amount, on the button itself.
+  ///
+  /// On the BUTTON rather than on the plate above it, and deliberately: the
+  /// button is what the player just pressed and where their eye already is, and
+  /// the plate's figure is a strike-through-and-arrow the moment the answer is
+  /// in. The screen holds for exactly this run and then pops.
+  /// **BUILT IN `initState`, NOT LAZILY.** A `late final` initialiser runs on
+  /// first ACCESS, and the first access on a screen nobody doubled anything on
+  /// is `dispose` — which then constructs an `AnimationController` while the
+  /// element is being unmounted, and `SingleTickerProviderStateMixin` looks up
+  /// `TickerMode` to do it: "Looking up a deactivated widget's ancestor is
+  /// unsafe". Caught by the one test that closes this screen without pressing
+  /// anything.
+  late final AnimationController _tally;
+
+  /// Whether the climb has started, so the button knows to print the running
+  /// figure rather than the offer.
+  bool _tallying = false;
+
+  @override
+  void dispose() {
+    _tally.dispose();
+    super.dispose();
+  }
+
+  /// Run the climb, or skip it under reduce-motion — where a count-up is a
+  /// number changing several times for no reason.
+  Future<void> _runTally() async {
+    if (!mounted) return;
+    if (MediaQuery.disableAnimationsOf(context)) return;
+    setState(() => _tallying = true);
+    await _tally.forward();
+  }
 
   /// What the match paid before any doubling — the figure the offer is about.
   late final int _base;
 
-  /// What the three match quests paid, which is already in the bank. Held here
-  /// rather than recomputed per build: the offer doubles the FEE, and both
-  /// answers have to add the same quest money to it.
+  /// What the three match quests paid, which is ALREADY in the bank — a match
+  /// quest pays itself at the whistle. Held here rather than recomputed per
+  /// build, because both answers are totals built out of it.
+  ///
+  /// **And the offer doubles it too now.** It used to double the fee alone,
+  /// which meant the one figure on screen was two figures with different rules
+  /// behind it and no way to tell which the button was about. Asked for from the
+  /// couch: 2× works for both, and then the breakdown that explained the split
+  /// is not needed at all.
   late final int _quests;
 
   @override
   void initState() {
     super.initState();
+    _tally = AnimationController(vsync: this, duration: coinTallyRun);
     _base = _num(widget.result['coinsEarned']).toInt();
     _quests = questCoins(widget.result);
     if (_base > 0) {
@@ -187,7 +243,14 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
         .show(doubleMatchPlacement);
     if (!mounted) return;
     if (outcome == AdOutcome.rewarded) {
-      widget.result['coinsEarned'] = _base * 2;
+      // **THE QUEST MONEY IS PAID A SECOND TIME, which is what doubling it
+      // means.** `settleMatch` already banked one lot at the whistle, and the
+      // caller pays whatever `coinsEarned` says on top — so the player ends on
+      // `2 * (fee + quests)` and this is the half of it still owed.
+      widget.result['coinsEarned'] = _base * 2 + _quests;
+      // Count it up where the offer was, then leave — see [_tally].
+      await _runTally();
+      if (!mounted) return;
     } else if (outcome == AdOutcome.unavailable) {
       // The UI's own refusal line, on the bus the toast host listens to.
       emit('toast:info', t('toast.ad_unavailable'));
@@ -204,7 +267,9 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
     final isHome = result['isHome'] == true;
     final (shownOurs, shownTheirs) = regulationScore(result);
     final trophies = _num(result['trophiesEarned']).toInt();
-    final canDouble = _base > 0;
+    // **THE OFFER IS ABOUT THE WHOLE FIGURE NOW**, so a match whose fee was
+    // nothing but whose quests paid still has something to double.
+    final canDouble = _base + _quests > 0;
     final questRows = result['questResults'];
     final hasQuests = questRows is List && questRows.isNotEmpty;
 
@@ -245,6 +310,14 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                     // bare sky with only the scoreline in a panel — so the four
                     // halves of the same statement, what happened and what it
                     // paid, read as four unrelated notes.
+                    // **THE VERDICT STANDS ON THE SKY, not inside the card.**
+                    // It was the card's own first line, which made the biggest
+                    // word on the screen a label ON a panel — and the panel
+                    // below it already says the same thing in figures. Out
+                    // here it is a headline over the report rather than a row
+                    // in it. Taken from the shot asked for from the couch.
+                    _Verdict(won: won, drawn: drawn),
+                    const SizedBox(height: 10),
                     _ResultCard(
                       won: won,
                       drawn: drawn,
@@ -272,10 +345,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    // **THEIR OWN CARD, so each goal can carry its replay.**
-                    // The scorers were a line inside the result card, which
-                    // left nowhere to put a control beside a name.
-                    _ScorersCard(result: result),
                     // **THE TABLE IS SECOND, and that is the whole ordering
                     // decision on this screen.** It is the one thing here that
                     // MOVES — every club sliding to where the round left it —
@@ -324,8 +393,14 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                             ? MainAxisAlignment.start
                             : MainAxisAlignment.center,
                         children: [
+                          // **WIDER, because he was a stamp.** 120 points
+                          // against a quest panel that had grown tiles read as
+                          // a thumbnail beside a list; the shot asked for from
+                          // the couch gives the cam about a third of the row.
+                          // The pair are still the same height — that is the
+                          // `IntrinsicHeight` above, not a number here.
                           SizedBox(
-                            width: 120,
+                            width: 138,
                             child: _Manager(result: result),
                           ),
                           if (hasQuests) ...[
@@ -393,17 +468,48 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                               // does this cost me?". A rewarded video is
                               // yellow and wears the video chip, here as it
                               // does on the energy sheet and the free shelf.
-                              StoreButton(
-                                key: const ValueKey('summary-double'),
-                                tone: StoreTone.ad,
-                                label: _answering
-                                    ? t('common.loading')
-                                    : '${t('match.double_reward')} → '
-                                          '${formatCoins(_base * 2 + _quests)}',
-                                leading: _answering
-                                    ? null
-                                    : const GameIcon('video', size: 14),
-                                onTap: _answering ? null : _double,
+                              // Rebuilt off the tally so the figure on the face
+                              // climbs — see [_tally]. `AnimatedBuilder` rather
+                              // than `setState` on every tick, so nothing else
+                              // on the report rebuilds sixty times a second.
+                              AnimatedBuilder(
+                                animation: _tally,
+                                builder: (context, _) {
+                                  final single = _base + _quests;
+                                  final both = single * 2;
+                                  final climbing =
+                                      _tallying || _tally.value > 0;
+                                  final shown = climbing
+                                      ? (single +
+                                              (both - single) *
+                                                  Curves.easeOutCubic.transform(
+                                                    _tally.value,
+                                                  ))
+                                          .round()
+                                      : both;
+                                  return StoreButton(
+                                    key: const ValueKey('summary-double'),
+                                    tone: StoreTone.ad,
+                                    // While it climbs the label is the figure
+                                    // and nothing else: the offer has been
+                                    // taken, so "2× Coins" is a description of
+                                    // something that already happened.
+                                    label: climbing
+                                        ? formatCoins(shown)
+                                        : _answering
+                                        ? t('common.loading')
+                                        : '${t('match.double_reward')} → '
+                                              '${formatCoins(both)}',
+                                    leading: climbing
+                                        ? const CoinIcon(size: 14, solid: true)
+                                        : _answering
+                                        ? null
+                                        : const GameIcon('video', size: 14),
+                                    // Dead for the whole of it: the answer is
+                                    // in and the screen is on its way out.
+                                    onTap: _answering ? null : _double,
+                                  );
+                                },
                               ),
                             ],
                           ],
@@ -445,9 +551,21 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
                             // understated it. Totals on both sides also make
                             // the two answers comparable: the difference
                             // between them is exactly what the video is worth.
-                            child: Text(
-                              '${t('match.no_thanks')} - '
-                              '${formatCoins(_base + _quests)}',
+                            // **A FIGURE IN THIS GAME COMES WITH THE GLYPH.**
+                            // Every other coin total on the report wears one
+                            // and this line did not, so the one number the
+                            // player is comparing against the button above it
+                            // was the one that did not say what it was counted
+                            // in. Asked for from the couch, and consistency is
+                            // the whole of the reason.
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('${t('match.no_thanks')} - '),
+                                const CoinIcon(size: 12, onGlass: true),
+                                const SizedBox(width: 3),
+                                Text(formatCoins(_base + _quests)),
+                              ],
                             ),
                           ),
                         ],
@@ -514,14 +632,18 @@ class _ResultCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Verdict(won: won, drawn: drawn),
-          const SizedBox(height: 8),
           _Score(
             left: left,
             right: right,
             leftGoals: leftGoals,
             rightGoals: rightGoals,
           ),
+          // **WHO SCORED IS INSIDE THIS CARD, in a well of its own.** It was
+          // its own panel twelve points below, which is two cards telling one
+          // story: the scoreline and the names that made it. A scoreboard puts
+          // them together and so does the shot this was taken from — one card,
+          // the score across the top, the goals recessed underneath.
+          _ScorersCard(result: result),
           // **WHO SCORED BELONGS UNDER THE SCORE, which is a scoreboard's own
           // convention and not a design choice.** It was its own panel further
           // down with a portrait on every row, which is a second card telling
@@ -595,25 +717,36 @@ class _Verdict extends StatelessWidget {
         : drawn
         ? t('match.draw')
         : t('match.defeat');
+    final ink = verdictInk(context, won: won, drawn: drawn);
     return Text(
       label.toUpperCase(),
       key: const ValueKey('summary-verdict'),
       textAlign: TextAlign.center,
-      style: TextStyle(
-        fontSize: 30,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 2,
-        // **THE RESULT'S OWN COLOUR**, off the green-amber-red scale the form
-        // dots, the pitch tokens and the HUD all read. It wore the kit accent,
-        // which belongs to the CLUB: a side in red was told it had won in the
-        // same red this game uses for a goal against.
-        // **AND THROUGH THE PANE RULE.** The scale's own colours are chosen
-        // against a dark ground; on a light pane over a daylight sky the
-        // winner's green is 2.4:1. `glassAccent` takes any colour down until it
-        // clears the pane, which is what this file is for.
-        color: glassAccent(
-          context,
-          verdictInk(context, won: won, drawn: drawn),
+      // **THE DISPLAY FACE, and this is what it is for.** One word, read at a
+      // glance, at a size where Barlow's `w900` is still a text weight. See
+      // [displayText] — it drops the weight on purpose, because Lilita One
+      // ships one cut and a `fontWeight` beside it is a synthesised smear.
+      style: displayText(
+        TextStyle(
+          fontSize: 38,
+          // Tighter than the 2 it wore: that was spacing chosen to give a
+          // text face some presence, and a display face already has it — at
+          // 38 points the same 2 reads as the letters coming apart.
+          letterSpacing: 1,
+          // **STILL THROUGH THE PANE RULE, even though there is no pane.**
+          // Dropping `glassAccent` here looked right — the card it used to
+          // clear is gone — and `light_mode_contrast_test` caught it at
+          // 2.80:1: the daylight sky is as pale as the pane ever was, so the
+          // scale's own green needs taking down exactly as much out here. The
+          // shadow is on top of that, not instead of it.
+          shadows: [
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              offset: const Offset(0, 2),
+              blurRadius: 6,
+            ),
+          ],
+          color: glassAccent(context, ink),
         ),
       ),
     );
@@ -646,10 +779,14 @@ class _Score extends StatelessWidget {
         child: Text(
           '$leftGoals-$rightGoals',
           key: const ValueKey('summary-score'),
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            fontFeatures: [FontFeature.tabularFigures()],
+          // The other display run on this screen: two digits, read before any
+          // word on the page. Tabular still, so 1-1 and 0-11 sit on the same
+          // centre line.
+          style: displayText(
+            const TextStyle(
+              fontSize: 34,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
           ),
         ),
       ),
@@ -879,26 +1016,40 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
 
     final ink = glassAccent(context, kit.accentBright);
     final clip = _clip;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: GlassPanel(
-        key: const ValueKey('summary-scorers'),
-        density: GlassDensity.deep,
-        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-        child: Column(
+    // **A WELL INSIDE THE RESULT CARD, not a card of its own.** It was a
+    // second `GlassPanel` twelve points below the scoreline; it now sits in the
+    // same card, in a recess — the same whisper-and-a-hairline the home
+    // screen's quest block uses, because a solid wash inside a pane reads as a
+    // hole punched through it rather than as depth.
+    return Container(
+      key: const ValueKey('summary-scorers'),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(10, 2, 2, 2),
+      decoration: BoxDecoration(
+        color: glassInk(context).withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
+      ),
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final g in goals)
               Row(
                 children: [
+                  // **A BALL, so the row reads as a goal before it is read at
+                  // all.** Three names and three minutes in a box is a list of
+                  // something; the glyph is what says of what. Asked for from
+                  // the couch with the rest of the shot.
+                  GameIcon('ball', size: 13, color: ink),
+                  const SizedBox(width: 6),
                   // **THE MINUTE IS A COLUMN, on the left.** It trailed the
                   // name, so with three scorers the names started in three
                   // different places and the list had no left edge to read
                   // down. Fixed width and tabular figures, which is what makes
                   // it a column rather than a prefix.
                   SizedBox(
-                    width: 28,
+                    width: 26,
                     child: Text(
                       "${g.minute}'",
                       style: TextStyle(
@@ -921,13 +1072,39 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
                       ),
                     ),
                   ),
-                  IconButton(
+                  // **THE WORD IS BESIDE THE GLYPH.** A bare ↺ on a row of
+                  // scorers is a guess — it could as easily undo something —
+                  // and this is the one control on the report a player has to
+                  // discover rather than be told about. Asked for from the
+                  // couch: say what the button does.
+                  //
+                  // `match.replay` is real shipped copy in all ten catalogues,
+                  // added to the spec's `en.js` and regenerated, because there
+                  // was no key for it and inventing one here would print
+                  // English to nine other languages.
+                  TextButton.icon(
                     key: ValueKey('summary-replay-${g.minute}'),
-                    visualDensity: VisualDensity.compact,
+                    // A text link, not a moulded button: it sits on a row of
+                    // names, and a face on it would outweigh the goal.
+                    style: TextButton.styleFrom(
+                      foregroundColor: ink,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     icon: Icon(
                       _minute == g.minute ? Icons.stop : Icons.replay,
-                      size: 18,
+                      size: 16,
                       color: ink,
+                    ),
+                    label: Text(
+                      t('match.replay'),
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     onPressed: () => _replay(g.minute, g.name),
                   ),
@@ -961,7 +1138,6 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
               ),
           ],
         ),
-      ),
     );
   }
 }
@@ -974,6 +1150,9 @@ class _Payout extends StatelessWidget {
   });
 
   final int base;
+
+  /// What the three match quests paid — already in the bank, and doubled by the
+  /// same offer the fee is.
   final int quests;
   final bool doubled;
 
@@ -1021,7 +1200,7 @@ class _Payout extends StatelessWidget {
                   const CoinIcon(size: 20, solid: true, color: gameGold),
                   const SizedBox(width: 6),
                   Text(
-                    '+${formatCoins(doubled ? base * 2 + quests : total)}',
+                    '+${formatCoins(doubled ? total * 2 : total)}',
                     key: const ValueKey('summary-coins'),
                     style: const TextStyle(
                       fontSize: 26,
@@ -1034,6 +1213,13 @@ class _Payout extends StatelessWidget {
             ),
           ],
         ),
+        // **NO BREAKDOWN OF THE FIGURE, and that is a consequence rather than
+        // a choice.** There was one — a fee row with a `×2` chip and a quest row
+        // without, because the offer used to double only the fee. Now that it
+        // doubles both there is no split left to explain, and two rows restating
+        // a total they add up to is clutter on a card that already carries a
+        // teaser and a button. Asked for from the couch in exactly that order:
+        // make 2× cover both, then drop the ×2.
         // The teaser is about an offer, so it goes when there is no offer to
         // make: a match that paid no fee still shows its quest money, and
         // "watch to keep 2× coins" under a figure nothing can double is a
@@ -1089,88 +1275,212 @@ class QuestOutcomes extends StatelessWidget {
     // stat row on the report uses.
     final passedInk = vsGreenOn(context);
     final missedInk = vsRedOn(context);
-    return Padding(
+    return Column(
       key: const ValueKey('match-quests'),
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (rule case final ink?) _Rule(ink: ink),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text(
+            t('quests.match').toUpperCase(),
+            key: const ValueKey('match-quests-title'),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: glassMuted(context),
+            ),
+          ),
+        ),
+        // **ONE TILE PER QUEST, and the tile is what does the work.**
+        //
+        // The verdict used to sit on its own line UNDER the ask, because with
+        // the two side by side a long quest wrapped and "✕ Missed" parked
+        // itself against the first of the two lines. That is a real problem and
+        // it had a real cause, but the answer was the wrong one: three asks
+        // each with a result stacked under it is six lines of loose text, and
+        // it was reported twice.
+        //
+        // A tile fixes what the stacking was reaching for. The ask and its
+        // verdict are on ONE line, the verdict right where a column of results
+        // belongs — and when a long ask does take two lines, the fill and the
+        // hairline are what keep the pair reading as one row, with the verdict
+        // centred against both. That is the difference between a wrapped row
+        // and two orphaned lines, and it is the shot this was taken from.
+        for (final row in rows) _QuestTile(row: row, passed: passedInk, missed: missedInk),
+        // **THE TOTAL IS A ROW, label left and figure right.** It was one
+        // right-aligned sentence — "Total reward: 36 coins" — which is a
+        // caption under a list rather than the list's own bottom line. Split,
+        // it lines up with the three rows above it and reads as their sum.
+        if (total > 0)
+          Container(
+            key: const ValueKey('match-quests-total'),
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              // The recess the tiles and the scorers' well wear, not a green
+              // wash: with the figure in gold a green ground under it was two
+              // colours arguing about what the row is.
+              color: glassInk(context).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(
+                color: glassInk(context).withValues(alpha: 0.12),
+              ),
+            ),
+            // The label takes what the figure does not. This panel shares its
+            // row with the dugout cam, so on a narrow phone it is barely a
+            // hundred points wide — and once the figure is a glyph and a number
+            // rather than "36 coins", there is room for the label to have the
+            // rest without either overflowing.
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t('quests.total_reward').toUpperCase(),
+                    maxLines: 2,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                      color: glassMuted(context),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 5),
+                const CoinIcon(size: 12, onGlass: true),
+                const SizedBox(width: 3),
+                // The figure alone, for the same reason the rows dropped it:
+                // the glyph beside it already says coins.
+                Text(
+                  formatCoins(total.toInt()),
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  // Gold, for the same reason the rows are — see above.
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: coinFigureInk(context, onGlass: true),
+                    shadows: coinFigureShadows(context, onGlass: true),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// One quest at full time: what was asked, and how it went.
+///
+/// **The same shape the home screen's block uses** — glyph, ask, then a cell on
+/// the right — so a quest looks like the same object before kick-off and after
+/// the whistle. What changes is only what the right-hand cell holds: a target
+/// there, a verdict here.
+class _QuestTile extends StatelessWidget {
+  const _QuestTile({
+    required this.row,
+    required this.passed,
+    required this.missed,
+  });
+
+  final Map<String, dynamic> row;
+  final Color passed;
+  final Color missed;
+
+  @override
+  Widget build(BuildContext context) {
+    final won = row['passed'] == true;
+    final ink = won ? passed : missed;
+    // The data file names an icon and stays UI-free; this resolves it, the same
+    // way `matchQuestRowsProvider` does. A quest with no definition still gets
+    // a glyph rather than a hole in the row.
+    final glyph = getQuest('${row['id']}')?.icon ?? 'target';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: glassInk(context).withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        // **CENTRED, and that is what makes a two-line ask survive.** Against
+        // the top, a verdict beside a wrapped ask sticks to its first line and
+        // the row comes apart — which is exactly the fault that drove the
+        // verdict onto its own line last time.
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          if (rule case final ink?) _Rule(ink: ink),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+          // A passed quest wears the tick rather than its own glyph: it has
+          // already paid, and what it asked for no longer matters. The home
+          // block makes the same trade for a completed row.
+          GameIcon(won ? 'check' : glyph, size: 14, color: ink),
+          const SizedBox(width: 7),
+          Expanded(
             child: Text(
-              t('quests.match').toUpperCase(),
-              key: const ValueKey('match-quests-title'),
+              // Per-division text, interpolated off the target the quest was
+              // set at rather than today's — a quest is judged on what it asked
+              // for when it was drawn.
+              t('quest.${row['id']}', {'n': row['target'] ?? 0}),
+              // Two, for the one translated ask that cannot make a line even
+              // with the whole width, and at the SAME size as every other row.
+              // Ellipsising is not an option: a report that says the player
+              // missed something without saying what is the fault this was all
+              // for.
+              maxLines: 2,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: glassMuted(context),
+                color: won
+                    ? glassText(context)
+                    : glassText(context).withValues(alpha: 0.8),
+                fontSize: 11.5,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          for (final row in rows)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      // Per-division text, interpolated off the target the quest
-                      // was set at rather than today's — a quest is judged on
-                      // what it asked for when it was drawn.
-                      t('quest.${row['id']}', {'n': row['target'] ?? 0}),
+          const SizedBox(width: 6),
+          // **THE RIGHT-HAND CELL IS GLYPHS AND A FIGURE, not a sentence.**
+          //
+          // It read "✓ 18 coins" and "✕ Missed", and in a cell this narrow both
+          // wrapped onto two lines — so a column whose whole job is to be
+          // scanned was the wordiest thing on the row. Asked for from the
+          // couch: the coin glyph instead of the word "coins", and the cross on
+          // its own instead of "Missed".
+          //
+          // **Nothing is lost by dropping them.** The coin is the currency and
+          // says so better than the noun; a red ✕ against three rows where the
+          // others show money is unambiguous. Both are also translation-free,
+          // which is how this cell stopped needing two lines in any language.
+          Row(
+            key: ValueKey('match-quest-${row['id']}'),
+            mainAxisSize: MainAxisSize.min,
+            children: won
+                ? [
+                    const CoinIcon(size: 11, onGlass: true),
+                    const SizedBox(width: 3),
+                    Text(
+                      formatCoins(((row['coins'] as num?) ?? 0).toInt()),
+                      maxLines: 1,
+                      // **GOLD, NOT THE VERDICT'S GREEN — always.** It took the
+                      // pass colour, so the one coin figure on the report drawn
+                      // in green sat two inches from four drawn in gold.
+                      // Reported from the couch: coins are the yellow, always.
+                      // The tick beside it is what says the quest passed; the
+                      // figure says what it paid, and a currency does not change
+                      // colour with the news. Same `coinFigureInk` every other
+                      // total on this screen reads.
                       style: TextStyle(
-                        color: row['passed'] == true
-                            ? glassText(context)
-                            : glassText(context).withValues(alpha: 0.8),
-                        fontSize: 12,
-                        height: 1.25,
+                        color: coinFigureInk(context, onGlass: true),
+                        shadows: coinFigureShadows(context, onGlass: true),
+                        fontSize: 11.5,
                       ),
-                      // **IT WRAPS, and is not cut off.** "Keep a clean sh…"
-                      // and "Score inside 20 mi…" is the full-time report
-                      // telling the player they missed something without
-                      // saying what — and the verdict beside it is the widest
-                      // thing on the row, so on a narrow phone every ask lost
-                      // its end. The same call `_QuestTile` on the next-match
-                      // card already makes about the same sentences: this is a
-                      // column that can grow a line, so there is nothing to
-                      // protect by clipping it.
-                      softWrap: true,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    row['passed'] == true
-                        ? '✓ ${t('quests.reward_coins', {'n': row['coins'] ?? 0})}'
-                        : '✕ ${t('quests.missed')}',
-                    key: ValueKey('match-quest-${row['id']}'),
-                    style: TextStyle(
-                      color: row['passed'] == true ? passedInk : missedInk,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (total > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${t('quests.total_reward')}: '
-                '${t('quests.reward_coins', {'n': total.toInt()})}',
-                key: const ValueKey('match-quests-total'),
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: passedInk,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
+                  ]
+                : [Icon(Icons.close_rounded, size: 15, color: ink)],
+          ),
         ],
       ),
     );
   }
+
 }

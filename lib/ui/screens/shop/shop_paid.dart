@@ -18,7 +18,6 @@ import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_owned.dart';
-import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/gem_pack_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/pack_contents.dart';
@@ -26,7 +25,6 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
-import 'package:merge_empire_fc/ui/screens/shop/value_seal.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -628,21 +626,25 @@ class GemPackTile extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [art, const SizedBox(height: 2), words],
                 ),
-              // The same seal the coin shelf wears, so a value claim is one
-              // object in this shop rather than two that happen to say similar
-              // things. It was a gold tab notched into the corner, which is the
-              // tile's own furniture wearing the claim rather than something
-              // stuck onto it.
+              // **A BANNER, not a rosette.** Both shelves wore a die-cut seal
+              // stuck on the corner; asked for again from the couch, with the
+              // banner named — a rosette is a sticker somebody slapped on, and
+              // on a tile this small it sat over the pile it was recommending
+              // and pushed the crown off its own corner. The corner flash is
+              // the shop's own device, already on the offers hero, and it is
+              // part of the tile rather than something on top of it.
               if (tile.bonus case final bonus?)
-                Positioned(
-                  top: -16,
-                  right: -12,
-                  child: ValueSeal(
-                    key: ValueKey('shop-seal-${tile.product.id}'),
-                    text: bonus,
-                    ink: const Color(0xFFFFC02E),
-                    onInk: const Color(0xFF4A2C00),
-                    size: hero ? 54 : 46,
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: CornerBanner(
+                        key: ValueKey('shop-seal-${tile.product.id}'),
+                        text: bonus,
+                        ink: const Color(0xFFFFC02E),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -840,10 +842,17 @@ class CoinPackTile extends ConsumerWidget {
                         ? t('shop.division_mult', {'mult': coinMult})
                         : ''),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                // **YELLOW ON WHITE, WHICH IS NOT A COLOUR.** This was the raw
+                // `coinGold` — `#FFD700`, 1.1:1 on the near-white surface a
+                // light-mode tile is built from, so the one line saying what the
+                // bundle actually pays was invisible. Reported from the couch.
+                // `coinFigureInk` is the pair the rest of the game answers this
+                // with: money stays yellow and the SHADE moves, which is the
+                // JS's own light-block `--color-gold`.
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: coinGold,
+                  color: coinFigureInk(context),
                   height: 1.3,
                 ),
               ),
@@ -883,26 +892,28 @@ class CoinPackTile extends ConsumerWidget {
             ],
           ),
         ),
-        // **A SEAL, STUCK ON THE CORNER — not a pill straddling the top edge.**
-        // Asked for from the couch against a shelf of reference shots, where
-        // every value claim in the set is a die-cut rosette in the top-right.
-        // A rounded rectangle centred on the edge is what a STATUS looks like
-        // — Owned, Active — and this is the shelf shouting, which is a
-        // different thing and wants a different shape. See [ValueSeal].
-        Positioned(
-          top: -12,
-          right: -10,
-          child: badge == null
-              ? const SizedBox.shrink()
-              : ValueSeal(
+        // **A BANNER ACROSS THE CORNER — not a rosette stuck on it.** Asked for
+        // from the couch, with the banner named: the seal is a sticker on top of
+        // the tile, and on one this size it sat over the pile and shoved the
+        // crown across to the other corner to make room. A corner flash is the
+        // tile's own furniture, and it is what the offers hero already wears —
+        // one device for a value claim in this shop rather than two.
+        if (badge case final flash?)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: CornerBanner(
                   key: ValueKey('shop-badge-${product.id}'),
-                  text: badge.text,
-                  ink: badge.popular ? kit.accentBright : const Color(0xFFFF9800),
-                  onInk: badge.popular
-                      ? kit.accentBrightInk
-                      : const Color(0xFF171717),
+                  text: flash.text,
+                  ink: flash.popular
+                      ? kit.accentBright
+                      : const Color(0xFFFF9800),
                 ),
-        ),
+              ),
+            ),
+          ),
       ],
     );
   }

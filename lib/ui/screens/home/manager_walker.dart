@@ -2458,7 +2458,15 @@ class _WalkerPainter extends CustomPainter {
       return;
     }
 
-    // FAR limbs first, so the near ones overlap them.
+    // **FAR limbs first, so the near ones overlap them — AND THE TORSO HIDES
+    // THE FAR ARM ON PURPOSE.**
+    //
+    // Drawing it over the body instead was tried, on a report that the dugout
+    // cam's arms looked odd with one behind him and one in front. It is much
+    // worse: the far arm comes out from behind his chest and he plainly has two
+    // arms in front of him, which was reported straight back. The occlusion is
+    // the depth — a figure this flat has nothing else to say which arm is
+    // further away — so if a cam pose reads wrong, the POSE is what to change.
     _leg(canvas, near: false);
     _arm(canvas, near: false);
     _body(canvas);

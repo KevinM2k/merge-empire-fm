@@ -424,9 +424,9 @@ GemPurchase buyGemItem(Map<String, dynamic> state, String itemId) {
     case 'energy_refill':
       _applyEnergyRefill(state);
     case 'trophy_polish_gem':
-      // Stamped with the current season so it expires at the next season end.
-      _branch(state, 'boosts')['trophyPolishSeason'] =
-          _num(_map(state['progression'])?['seasonCount'])?.toInt() ?? 1;
+      // Half an hour from now, so what it buys does not depend on how much of
+      // the season happens to be left — see [trophyPolishMs].
+      _branch(state, 'boosts')['trophyPolishUntil'] = now() + trophyPolishMs;
       emit('boosts:changed');
     default:
       break; // a dormant permanent has no effect wired yet, and isn't live

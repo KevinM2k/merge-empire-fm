@@ -9,6 +9,7 @@ import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/income_breakdown.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
+import 'package:merge_empire_fc/util/time.dart';
 
 Map<String, dynamic> _card(String id, {int seasonsPlayed = 0, String? defId}) => {
   'instanceId': id,
@@ -23,7 +24,7 @@ Map<String, dynamic> _state({
   int slots = 12,
   List<dynamic>? lineup,
   int seasonCount = 1,
-  int? trophyPolishSeason,
+  int? trophyPolishUntil,
 }) {
   final grid = <dynamic>[...?cells];
   while (grid.length < slots) {
@@ -38,7 +39,7 @@ Map<String, dynamic> _state({
     'grid': <String, dynamic>{'cells': grid},
     'squad': <String, dynamic>{'lineup': lineup, 'formation': '4-4-2'},
     'clubAssets': defaultClubAssets(),
-    'boosts': <String, dynamic>{'trophyPolishSeason': ?trophyPolishSeason},
+    'boosts': <String, dynamic>{'trophyPolishUntil': ?trophyPolishUntil},
     'club': <String, dynamic>{},
   };
 }
@@ -47,17 +48,36 @@ void main() {
   setUp(() => seeded.setSeed(1234));
   tearDown(clearBus);
 
+  /// **IT IS HALF AN HOUR NOW, NOT A SEASON.**
+  ///
+  /// Stamped with the season it was bought in, what eight gems bought depended
+  /// entirely on WHEN in the season they were spent: minutes near the rollover,
+  /// hours at the start, and nothing on the tile said which. Asked for from the
+  /// couch, and the spec was changed with it.
   group('the trophy polish', () {
-    test('doubles the season it was bought in', () {
-      final state = _state(seasonCount: 4, trophyPolishSeason: 4);
+    setUp(() => setClock(() => 1000000));
+    tearDown(resetClock);
+
+    test('doubles while its window is open', () {
+      final state = _state(trophyPolishUntil: 1000000 + trophyPolishMs);
       expect(trophyPolishMultiplier(state), 2.0);
       expect(isTrophyPolishActive(state), isTrue);
+      expect(trophyPolishLeftMs(state), trophyPolishMs);
     });
 
-    test('expires at the season boundary', () {
-      final state = _state(seasonCount: 5, trophyPolishSeason: 4);
-      expect(trophyPolishMultiplier(state), 1.0);
-      expect(isTrophyPolishActive(state), isFalse);
+    test('and it runs for THIRTY MINUTES', () {
+      expect(trophyPolishMs, 30 * 60 * 1000);
+    });
+
+    test('expires on the clock, whatever season it is', () {
+      final spent = _state(seasonCount: 4, trophyPolishUntil: 999999);
+      expect(trophyPolishMultiplier(spent), 1.0);
+      expect(isTrophyPolishActive(spent), isFalse);
+      expect(trophyPolishLeftMs(spent), 0);
+      // And a season rollover does not touch a window that is still open, which
+      // is the whole change: it used to be the only thing that ended it.
+      final live = _state(seasonCount: 99, trophyPolishUntil: 1000001);
+      expect(trophyPolishMultiplier(live), 2.0);
     });
 
     test('a save with none is unaffected', () {
@@ -73,6 +93,17 @@ void main() {
       expect(trophyPolishMultiplier(state), 1.0);
     });
 
+    test("and so is an old save's SEASON stamp", () {
+      // A save mid-flight when this changed carries `trophyPolishSeason` and no
+      // deadline. It simply has no polish — at most half an hour of a buff it
+      // was going to lose at the next rollover anyway, and the alternative is
+      // reading a season number as a timestamp.
+      final state = _state(seasonCount: 4);
+      (state['boosts'] as Map<String, dynamic>)['trophyPolishSeason'] = 4;
+      expect(trophyPolishMultiplier(state), 1.0);
+      expect(gemItemBlocked(state, 'trophy_polish_gem'), isNot('already_held'));
+    });
+
     test('is ONE rule, and everything that pays it out reads it', () {
       // It had been written out five times — twice in `idle_engine`, once in
       // `income_breakdown`, once in `gem_engine`'s shop guard and once here,
@@ -80,8 +111,9 @@ void main() {
       // the four surviving readers against it rather than against the number 2,
       // because a bonus that changes size is exactly when five copies would be
       // found to have drifted.
-      final boosts = <String, dynamic>{'trophyPolishSeason': 4};
-      final live = trophyPolishMultiplierFor(boosts, 4);
+      final until = 1000000 + trophyPolishMs;
+      final boosts = <String, dynamic>{'trophyPolishUntil': until};
+      final live = trophyPolishMultiplierFor(boosts);
       expect(live, greaterThan(1));
 
       // Idle income, and match revenue, which mirrors it.
@@ -91,28 +123,30 @@ void main() {
       // The books say what the multiplier is doing, and the row has to carry
       // the same figure or the list stops multiplying out to the total.
       final polish = incomeBreakdown(
-        _state(seasonCount: 4, trophyPolishSeason: 4),
+        _state(seasonCount: 4, trophyPolishUntil: until),
       ).factors.where((f) => f.key == 'hud.income.trophy_polish');
       expect(polish, hasLength(1));
       expect(polish.first.x, live);
 
       // And the shop's "already active" is the same question.
       expect(
-        gemItemBlocked(_state(seasonCount: 4, trophyPolishSeason: 4), 
-            'trophy_polish_gem'),
+        gemItemBlocked(
+          _state(seasonCount: 4, trophyPolishUntil: until),
+          'trophy_polish_gem',
+        ),
         'already_held',
       );
     });
 
-    test('a save with no season pays nobody, and is sold one anyway', () {
-      // The five copies disagreed here: four read a missing `seasonCount` as no
-      // match and `gem_engine`'s guard read it as season one. The paying
-      // engines win — a shop that refuses to sell a buff nothing is applying is
-      // the one failure a player cannot argue their way out of.
-      final orphan = _state(trophyPolishSeason: 1);
+    test('a save with no season is no longer a special case at all', () {
+      // The five copies used to disagree here — four read a missing
+      // `seasonCount` as no match and `gem_engine`'s guard read it as season
+      // one, so the shop could refuse to sell a buff nothing was applying. The
+      // season is not in the rule any more, so the question cannot be asked.
+      final orphan = _state(trophyPolishUntil: 1000000 + trophyPolishMs);
       (orphan['progression'] as Map<String, dynamic>).remove('seasonCount');
-      expect(trophyPolishMultiplier(orphan), 1.0);
-      expect(gemItemBlocked(orphan, 'trophy_polish_gem'), isNot('already_held'));
+      expect(trophyPolishMultiplier(orphan), 2.0);
+      expect(gemItemBlocked(orphan, 'trophy_polish_gem'), 'already_held');
     });
   });
 

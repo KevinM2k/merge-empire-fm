@@ -133,12 +133,11 @@ LiveStats liveStatsFor({
   // hard one way — because of a tactic it knew about — while the chances went
   // on falling the other. `restingPossessionHome` is the one of it; the swing
   // is what this caller knows and the kickoff weighting cannot.
-  final homePct =
-      restingPossessionHome(
-        ratingDiffHome: ratingDiffHome.toDouble(),
-        possessionBiasHome: stratBiasHome,
-      ) +
-      swing * 22;
+  final resting = restingPossessionHome(
+    ratingDiffHome: ratingDiffHome.toDouble(),
+    possessionBiasHome: stratBiasHome,
+  );
+  final homePct = resting + swing * 22;
 
   // **THE ARROW'S OWN FIGURE, off the same ratings the chances are.** Plus the
   // counter exception, which is what stops it reading as a foregone
@@ -155,11 +154,29 @@ LiveStats liveStatsFor({
     counterHome: isHome ? ourCounter : theirCounter,
     counterAway: isHome ? theirCounter : ourCounter,
   );
-  final dangerHome =
-      (danger.home / (danger.home + danger.away) * 100 + swing * 12).clamp(
-        20.0,
-        80.0,
-      );
+  // **AND THE TACTIC HAS TO BE IN IT, or the arrow cannot answer the one
+  // question it is on the pitch to answer.** The chance weights come off the
+  // RATINGS and the counter lean alone, so switching between High Press and
+  // Park the Bus moved possession by twenty points and moved the arrow by
+  // almost nothing — reported from the couch as the pressure arrow not making
+  // sense and giving no read on whether the tactics are working.
+  //
+  // Weighting the CHANCES on possession is the change that broke thirty-two
+  // rows of `match_orchestration_parity_test`, and that is still off the table:
+  // the feed is the JS's. This is the ARROW's own figure and nothing else reads
+  // it — the statboard prints possession, shots and corners, not this — so the
+  // blend lives here, which is what this file's own note above meant by "the
+  // arrow moved, not the engine".
+  //
+  // Two thirds chances, one third territory: where the ball is IS pressure, and
+  // it is the half a manager can change in the next ten seconds. `resting` is
+  // the possession picture without the swing, so the run of play is still
+  // counted once.
+  final chanceShare = danger.home / (danger.home + danger.away) * 100;
+  final dangerHome = (chanceShare * 0.68 + resting * 0.32 + swing * 14).clamp(
+    20.0,
+    80.0,
+  );
   // Clamped hard: a 72/28 split is already a rout, and the numbers stop reading
   // as football past it.
   final possHome = homePct.clamp(28.0, 72.0).round();

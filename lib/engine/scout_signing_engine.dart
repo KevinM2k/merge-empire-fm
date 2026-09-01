@@ -8,6 +8,7 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'package:merge_empire_fc/data/player_art.dart' show isVariantFemale;
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'dart:math' as math;
 
@@ -145,10 +146,31 @@ Signing signPlayer(Map<String, dynamic> state, {int batchSize = 1}) {
   final free = floor != null || _freeScoutReady(state);
   final cost = free ? 0 : scoutCost(state);
 
-  final defId = pickScoutDefinition(state, minTier: floor);
+  final defId = pickScoutDefinition(
+    state,
+    minTier: floor,
+    // **THE TUTORIAL SCOUTS TIER ONE.** Sunday League draws the bottom two
+    // tiers and caps merges at tier 2, so a pair of tier-2 cards is a pair that
+    // cannot merge — and the step after this asks the player to merge. A
+    // voucher's floor still wins, because a floor is something somebody paid
+    // for; nothing holds one this early.
+    maxTier: floor == null ? tutorialScoutMaxTier(state) : null,
+  );
   if (defId == null) return _fail('no_candidate');
 
-  final placed = placeCard(defId, _cells(state));
+  // **THE TUTORIAL'S THIRD CARD IS A TWIN**, because the step after it asks the
+  // player to merge two. The draw above still happens and is still consumed, so
+  // the seeded sequence every later roll in the game depends on is untouched;
+  // what changes is which definition lands. Null for everybody else, which is
+  // every scout after the third. See `tutorialPairTwin`.
+  final twin = tutorialPairTwin(state);
+  final placed = placeCard(
+    twin?.definitionId ?? defId,
+    _cells(state),
+    preferredFemale: twin == null
+        ? null
+        : isVariantFemale((twin.raw['variant'] as num?)?.toInt() ?? 0),
+  );
   if (!placed.ok) return _fail(placed.reason ?? 'grid_full');
 
   // Spend the voucher AHEAD of the plain free scout, so holding both never

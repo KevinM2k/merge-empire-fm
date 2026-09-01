@@ -46,6 +46,14 @@ enum CoinPackArt {
 
 /// The metal the containers are drawn in. Deliberately NOT the kit's: these are
 /// pictures of money, and money is the same colour in every club's colours.
+/// The lit face and the shaded one, either side of [coinGold].
+///
+/// Two members of the same gold rather than white and black: a highlight that
+/// goes to white is a plastic bead, and a shadow that goes to grey takes the
+/// metal out of it.
+const Color _coinLit = Color(0xFFFFF3B0);
+const Color _coinDeep = Color(0xFFB8860B);
+
 const Color _leather = Color(0xFF6B4A2F);
 const Color _leatherDark = Color(0xFF4A3220);
 const Color _steel = Color(0xFF5A6472);
@@ -94,10 +102,42 @@ class _PackPainter extends CustomPainter {
   }
 
   /// A coin, face on, in the 100-box's units.
+  ///
+  /// **METAL, not a yellow disc.** It was one flat fill of [coinGold] under a
+  /// black rim, four pictures' worth of it, and a flat circle is what reads as
+  /// generated — reported from the couch about this shelf's artwork. A struck
+  /// coin is a raised disc: light off the top-left, the face falling away to a
+  /// deeper gold at the bottom-right, and a bright arc along the lit rim where
+  /// the milling catches. Three paints, and it is the same light source every
+  /// moulded control in this game is lit by.
   void _coin(Canvas canvas, double cx, double cy, double r) {
-    canvas.drawCircle(Offset(cx, cy), r, Paint()..color = coinGold);
+    final at = Offset(cx, cy);
     canvas.drawCircle(
-      Offset(cx, cy),
+      at,
+      r,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.45, -0.5),
+          radius: 1.1,
+          colors: [_coinLit, coinGold, _coinDeep],
+          stops: [0, 0.52, 1],
+        ).createShader(Rect.fromCircle(center: at, radius: r)),
+    );
+    // The milled edge, caught on the lit side only — a rim that is bright all
+    // the way round is a ring rather than a light.
+    canvas.drawArc(
+      Rect.fromCircle(center: at, radius: r * 0.92),
+      math.pi * 1.05,
+      math.pi * 0.8,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.11
+        ..strokeCap = StrokeCap.round
+        ..color = _coinLit.withValues(alpha: 0.75),
+    );
+    canvas.drawCircle(
+      at,
       r,
       Paint()
         ..style = PaintingStyle.stroke
@@ -127,9 +167,22 @@ class _PackPainter extends CustomPainter {
   /// of, and what makes a heap read as a heap rather than as a bag of discs.
   void _edge(Canvas canvas, double cx, double cy, double rx) {
     final ry = rx * 0.34;
+    final box = Rect.fromCenter(
+      center: Offset(cx, cy),
+      width: rx * 2,
+      height: ry * 2,
+    );
+    // Lit along the top of the rim and shaded under it, so a stack of these has
+    // thickness rather than being a run of identical yellow ellipses.
     canvas.drawOval(
-      Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2),
-      Paint()..color = coinGold,
+      box,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_coinLit, coinGold, _coinDeep],
+          stops: [0, 0.45, 1],
+        ).createShader(box),
     );
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2),

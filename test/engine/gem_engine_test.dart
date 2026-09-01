@@ -6,6 +6,7 @@ import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/engine/coin_sink_engine.dart' show trophyPolishMs;
 import 'package:merge_empire_fc/util/time.dart';
 
 int _clock = 1700000000000;
@@ -412,20 +413,24 @@ void main() {
       expect(gemItemBlocked(state, 'scout_voucher_gem'), isNull);
     });
 
-    test("this season's trophy polish blocks another", () {
+    test('a RUNNING trophy polish blocks another', () {
+      setClock(() => 1000);
+      addTearDown(resetClock);
       final state = _state(
         gems: 20,
         seasonCount: 4,
-        boosts: {'trophyPolishSeason': 4},
+        boosts: {'trophyPolishUntil': 1000 + trophyPolishMs},
       );
       expect(gemItemBlocked(state, 'trophy_polish_gem'), 'already_held');
     });
 
-    test('last season\'s does not — it expired at the season end', () {
+    test('a spent one does not — the window ran out', () {
+      setClock(() => 1000);
+      addTearDown(resetClock);
       final state = _state(
         gems: 20,
-        seasonCount: 5,
-        boosts: {'trophyPolishSeason': 4},
+        seasonCount: 4,
+        boosts: {'trophyPolishUntil': 1000},
       );
       expect(gemItemBlocked(state, 'trophy_polish_gem'), isNull);
     });
@@ -502,16 +507,23 @@ void main() {
       expect(rawEnergy(instance), greaterThan(5.0));
     });
 
-    test('the trophy polish is stamped with the season it was bought in', () {
+    test('the trophy polish is stamped with a HALF-HOUR DEADLINE', () {
+      // It used to be stamped with the SEASON, so what eight gems bought
+      // depended on how much of the season happened to be left.
+      setClock(() => 1000);
+      addTearDown(resetClock);
       final state = _state(gems: 20, seasonCount: 6);
       var announced = false;
       on('boosts:changed', (_) => announced = true);
       buyGemItem(state, 'trophy_polish_gem');
-      expect(state['boosts']['trophyPolishSeason'], 6);
+      expect(state['boosts']['trophyPolishUntil'], 1000 + trophyPolishMs);
+      expect(state['boosts']['trophyPolishSeason'], isNull);
       expect(announced, isTrue);
     });
 
-    test('and so cannot be bought twice in the same season', () {
+    test('and so cannot be bought twice inside one window', () {
+      setClock(() => 1000);
+      addTearDown(resetClock);
       final state = _state(gems: 40, seasonCount: 6);
       expect(buyGemItem(state, 'trophy_polish_gem').ok, isTrue);
       final second = buyGemItem(state, 'trophy_polish_gem');

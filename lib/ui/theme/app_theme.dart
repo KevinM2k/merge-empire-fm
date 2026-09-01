@@ -197,6 +197,96 @@ double uiAccentMinContrast({required bool light}) => light ? 4.5 : 3.0;
 const String lightPaneHex = '#eef0f3';
 const String darkPaneHex = '#151a15';
 
+/// **THE FACE THE WHOLE APP IS SET IN**, bundled rather than the platform's.
+///
+/// It ran on the system font, which is San Francisco on iOS and Roboto on
+/// Android: two different widths for the same league table, so a column of
+/// figures that fitted on one wrapped on the other and no screen could be
+/// trusted to look the way it was built. Asked for from the couch, in exactly
+/// those terms.
+///
+/// **AND IT IS THE NORMAL WIDTH, not one of the condensed cuts.** Barlow
+/// Condensed and Semi Condensed were both tried on the device and both came
+/// back "too condensed" — a narrow face saves a couple of characters a line and
+/// spends the whole screen looking compressed to do it. Barlow proper is the
+/// grotesk the specimen everybody recognises actually is.
+const String uiFontFamily = 'Barlow';
+
+/// **AND A SECOND, HEAVIER FACE FOR THE THINGS THAT SHOUT.**
+///
+/// "VICTORY!", a scoreline, a payout — one word or one number, read at a
+/// glance, where Barlow's `w900` is still a text weight rather than a poster
+/// one. Lilita One is a single weight by design, so it is never asked for a
+/// bold it does not have: see [displayText].
+const String displayFontFamily = 'Lilita One';
+
+/// Set a run in the display face — see [displayFontFamily].
+///
+/// **It carries its own weight**, because Lilita One ships ONE and a
+/// `fontWeight` beside it is a synthesised smear rather than a heavier cut. So
+/// this drops whatever weight the caller's style asked for; that is the point
+/// of it rather than an oversight.
+TextStyle displayText(TextStyle style) =>
+    style.copyWith(fontFamily: displayFontFamily, fontWeight: FontWeight.w400);
+
+/// **THE WEIGHT EVERY TEXT STYLE STARTS AT, when it does not say.**
+///
+/// Barlow's `w400` is lighter than the system faces it replaced — San Francisco
+/// and Roboto both carry more weight at the same nominal 400 — so swapping the
+/// family made the whole app read thinner at a stroke. Medium was the first
+/// answer and it was still light; this is the second nudge, and both were asked
+/// for from the couch in the same words: slightly bolder.
+///
+/// **It is a real cut, not a synthesised one.** `Barlow-SemiBold` is one of the
+/// six weights in `pubspec.yaml`. Asking for a weight that is NOT bundled makes
+/// the engine smear the nearest one, which is what makes a fake bold look
+/// muddy — so this constant may only ever name a file that exists.
+///
+/// One place, because the next nudge should be one number.
+const FontWeight uiBaseWeight = FontWeight.w600;
+
+/// Raise every theme text style that never chose a weight to [uiBaseWeight].
+///
+/// **Only the styles that never said.** Anything already heavier is left exactly
+/// as it is — the several hundred explicit `w700`/`w800`/`w900` literals in
+/// `lib/ui` were each chosen against something, and dragging them up too would
+/// flatten the difference between a heading and its body. That is also why this
+/// raises rather than shifts: a delta saturates at `w900` and quietly closes the
+/// gap at the top end.
+///
+/// Written out field by field because `TextTheme.apply` has no
+/// `fontWeightDelta` — `TextStyle.apply` does, and it asserts on a null weight,
+/// which is precisely the case this has to handle. Compared on `value` rather
+/// than `index`: the numeric weight is the thing being reasoned about, and
+/// `index` is deprecated for exactly that reason.
+TextTheme _atBaseWeight(TextTheme base) {
+  TextStyle? up(TextStyle? style) {
+    if (style == null) return null;
+    final weight = style.fontWeight ?? FontWeight.w400;
+    return weight.value >= uiBaseWeight.value
+        ? style
+        : style.copyWith(fontWeight: uiBaseWeight);
+  }
+
+  return TextTheme(
+    displayLarge: up(base.displayLarge),
+    displayMedium: up(base.displayMedium),
+    displaySmall: up(base.displaySmall),
+    headlineLarge: up(base.headlineLarge),
+    headlineMedium: up(base.headlineMedium),
+    headlineSmall: up(base.headlineSmall),
+    titleLarge: up(base.titleLarge),
+    titleMedium: up(base.titleMedium),
+    titleSmall: up(base.titleSmall),
+    bodyLarge: up(base.bodyLarge),
+    bodyMedium: up(base.bodyMedium),
+    bodySmall: up(base.bodySmall),
+    labelLarge: up(base.labelLarge),
+    labelMedium: up(base.labelMedium),
+    labelSmall: up(base.labelSmall),
+  );
+}
+
 ThemeData buildAppTheme({required String kitId, required bool light}) {
   final s = buildKitSurfaces(kitId: kitId, light: light);
   final kit = KitTheme(
@@ -214,9 +304,19 @@ ThemeData buildAppTheme({required String kitId, required bool light}) {
     background: _backgroundFor(kitId, s, light),
   );
   final brightness = light ? Brightness.light : Brightness.dark;
-  return ThemeData(
+  final theme = ThemeData(
     useMaterial3: true,
     brightness: brightness,
+    // **ONE PLACE, and it reaches every `Text` in the app.** A bare
+    // `TextStyle(fontSize: 12)` inherits the family from the ambient
+    // `DefaultTextStyle`, which this is the root of — so none of the several
+    // hundred style literals in `lib/ui` had to name a font.
+    //
+    // No fallback list is declared on purpose: the engine already falls back
+    // per GLYPH to the platform's own face, which is what keeps ja/ko/zh/ar
+    // readable in a Latin-only family. Naming iOS's and Android's CJK faces
+    // here would be two more strings to be wrong about.
+    fontFamily: uiFontFamily,
     scaffoldBackgroundColor: kit.bg,
     colorScheme: ColorScheme.fromSeed(
       seedColor: kit.accent,
@@ -264,4 +364,8 @@ ThemeData buildAppTheme({required String kitId, required bool light}) {
       ),
     ),
   );
+  // Applied after the fact rather than inline: the weights being bumped are
+  // the ones `ThemeData` itself just derived from `Typography`, so there is
+  // nothing to shift until it has.
+  return theme.copyWith(textTheme: _atBaseWeight(theme.textTheme));
 }

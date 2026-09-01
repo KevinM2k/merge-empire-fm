@@ -20,6 +20,8 @@
 /// tap mid-reveal would draw over the batch being turned over.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_grid.dart'
     show MergeGridState;
@@ -426,10 +428,18 @@ class _MergeAllButton extends ConsumerWidget {
                       (s) => runMergeAll(s, maxTier: maxTier),
                     );
                     if (!run.ok) return;
-                    context.findAncestorStateOfType<MergeGridState>()?.burstSweep(
-                      run.landedAt,
-                      maxTier,
-                    );
+                    final grid = context
+                        .findAncestorStateOfType<MergeGridState>();
+                    grid?.burstSweep(run.landedAt, maxTier);
+                    // **AND EVERY NEW FACE IT TURNED UP, one after the other.**
+                    // A merge by hand has shown the scout's reveal for a player
+                    // nobody has ever seen since the two were joined up, and
+                    // the sweep — the one route that can turn up four at once —
+                    // showed none of them. Reported from the couch. Queued
+                    // rather than fired together: the reveal is a route, so
+                    // four at once would stack four dialogs.
+                    unawaited(grid?.revealSweepDiscoveries(run.landedAt) ??
+                        Future<void>.value());
                   },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,

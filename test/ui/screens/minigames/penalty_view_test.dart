@@ -257,6 +257,36 @@ void main() {
       }
     });
 
+    test('AND HIS ELBOWS ARE OUTSIDE HIM, not buried in his chest', () {
+      // The elbow bowed toward his FEET, and for an arm hanging down-and-out
+      // that direction resolves inward: measured, the elbow sat 0.1 units off
+      // his centreline with the glove 0.4 out — inside the 0.30-wide torso
+      // stroke. So the upper arm disappeared into his chest and the forearm
+      // surfaced out of his ribs, which is the standing pose reported from the
+      // couch.
+      final rig = keeperRigFor(
+        KeeperPose(hand: Vec3(0, 0, keeperStandZ), dive: 0, side: 0),
+        view,
+      )!;
+      for (final (joint, elbow) in [
+        (rig.leadJoint, rig.leadElbow),
+        (rig.trailJoint, rig.trailElbow),
+      ]) {
+        // Further out than the shoulder it hangs off, and well clear of the
+        // torso stroke's own half-width.
+        expect(
+          (elbow.dx - rig.shoulder.dx).abs(),
+          greaterThan((joint.dx - rig.shoulder.dx).abs()),
+          reason: 'the elbow bows inward',
+        );
+        expect(
+          (elbow.dx - rig.shoulder.dx).abs(),
+          greaterThan(rig.unit * 0.15),
+          reason: 'the elbow is inside the torso',
+        );
+      }
+    });
+
     test('a keeper at rest has his gloves at his HIPS, not out at 90', () {
       // Fifty-two degrees from straight up is a man signalling a touchdown, and
       // two full-reach limbs held above the shoulders is most of what read as
@@ -520,13 +550,13 @@ void main() {
       // The kicking leg ran 0.80 to 1.05 units across the strike — a 31% stretch
       // arriving exactly when the eye is on it. A leg swings; it does not grow.
       //
-      // Measured on the BONES, which is where the invariant belongs. It used to
-      // be measured hip-to-boot, because the leg was one rigid segment — and
-      // pinning that distance is exactly what forced the bones to stretch once
-      // there was a knee between them. A folded leg is a SHORTER leg; a thigh is
-      // a thigh whatever the knee is doing.
-      final thighs = <double>{};
-      final shins = <double>{};
+      // Measured on the BONES, which is where the invariant belongs — and as a
+      // CEILING rather than as a constant, because a leg folding away from the
+      // lens foreshortens and both bones get shorter on screen with it. Pinning
+      // the drawn lengths instead is what pushed the knee out sideways to make
+      // the difference up, which is the crossing below.
+      var longestThigh = 0.0;
+      var longestShin = 0.0;
       for (final t in moments) {
         final rig = takerRigFor(t, view);
         if (rig == null) continue;
@@ -534,18 +564,42 @@ void main() {
           (rig.plantHip, rig.plantKnee, rig.plantBoot),
           (rig.kickHip, rig.kickKnee, rig.kickBoot),
         ]) {
-          thighs.add(
-            double.parse(((knee - hip).distance / rig.unit).toStringAsFixed(5)),
+          longestThigh = math.max(
+            longestThigh,
+            (knee - hip).distance / rig.unit,
           );
-          shins.add(
-            double.parse(
-              ((boot - knee).distance / rig.unit).toStringAsFixed(5),
-            ),
+          longestShin = math.max(
+            longestShin,
+            (boot - knee).distance / rig.unit,
           );
         }
       }
-      expect(thighs, hasLength(1), reason: 'a thigh changed length: $thighs');
-      expect(shins, hasLength(1), reason: 'a shin changed length: $shins');
+      // The bones' own lengths, plus the outward bow the knee is allowed.
+      expect(longestThigh, lessThan(0.50), reason: 'a thigh grew');
+      expect(longestShin, lessThan(0.47), reason: 'a shin grew');
+    });
+
+    /// The knees drew a full X and then swapped over at mid-run.
+    ///
+    /// The boots were pulled onto their own sides of the pelvis and the KNEES
+    /// were left where a two-bone solve put them — which, with the boot lifted
+    /// and the hip almost above it, is a third of a metre out to the wrong side.
+    /// Measured before the fix: the plant knee at +0.04 with its boot at −0.10,
+    /// the kick knee at −0.18 with its boot at +0.10. Reported from the couch as
+    /// the legs crossing over.
+    test('AND HIS KNEES DO NOT CROSS EITHER', () {
+      for (var t = 0.02; t < 0.82; t += 0.01) {
+        final rig = takerRigFor(t, view);
+        if (rig == null) continue;
+        expect(
+          rig.kickKnee.dx,
+          greaterThan(rig.plantKnee.dx),
+          reason: 'the knees swapped sides at t=$t',
+        );
+        // And each stays on the side of the pelvis its own boot is on.
+        expect(rig.kickKnee.dx, greaterThan(rig.hip.dx));
+        expect(rig.plantKnee.dx, lessThan(rig.hip.dx));
+      }
     });
 
     test('HE COCKS THE LEG BEFORE HE SWINGS IT', () {
@@ -759,6 +813,84 @@ void main() {
           );
         }
       }
+    });
+  });
+
+  /// **The ball never came back on its own.**
+  ///
+  /// The frame the hold expires is the frame the kick is dropped and the mesh
+  /// reset — and the ticker then returned WITHOUT a `setState`, because it had
+  /// just made itself idle. So the last thing painted was the ball in the net,
+  /// and the next repaint came from the player's own touch. Reported from the
+  /// couch as having to click to get the ball back, with nothing ever saying so.
+  group('THE BALL COMES BACK BY ITSELF', () {
+    testWidgets('after a shot, without anything being touched', (tester) async {
+      tester.view.physicalSize = const Size(420 * 3, 900 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      var results = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 400,
+                height: 700,
+                child: PenaltyView(
+                  readChance: 0,
+                  kit: keeperKits.first,
+                  turf: const Color(0xFF3A8C41),
+                  rng: math.Random(7),
+                  onResult: (_, _, _) => results++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      Vec3 ball() => tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(PenaltyView),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((c) => c.painter)
+          .whereType<PenaltyPainter>()
+          .single
+          .frame
+          .ball;
+
+      final spot = ball();
+      expect(spot.y, closeTo(-spotDistance, 1e-6), reason: 'not on the spot');
+
+      // One swipe, hard and straight — the drag has to clear the tap guard.
+      final centre = tester.getCenter(find.byType(PenaltyView));
+      final gesture = await tester.startGesture(centre + const Offset(0, 220));
+      await tester.pump(const Duration(milliseconds: 16));
+      await gesture.moveTo(centre + const Offset(0, 40));
+      await tester.pump(const Duration(milliseconds: 16));
+      await gesture.moveTo(centre + const Offset(0, -140));
+      await tester.pump(const Duration(milliseconds: 16));
+      await gesture.up();
+      await tester.pump();
+
+      // The run-up, the flight and the hold, one frame at a time and with NO
+      // further gesture: what is being asked is whether the scene puts itself
+      // back, so a pump that included a touch would answer the wrong question.
+      for (var i = 0; i < 400; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(results, 1, reason: 'the kick never resolved');
+      expect(
+        ball().y,
+        closeTo(spot.y, 1e-6),
+        reason: 'the ball is still where it finished',
+      );
+      expect(ball().x, closeTo(spot.x, 1e-6));
     });
   });
 

@@ -101,8 +101,98 @@ void _sweep(
 /// How long a sound is, and what it is.
 typedef SoundDef = ({double seconds, void Function(Render r) build});
 
+/// **THE LOAN ARRIVING, one rung per player.**
+///
+/// The tutorial's borrowed side drops into the grid half a second apart, and it
+/// did it in silence — the departure has had its `pop` since the cards started
+/// coming apart, and the arrival, which is the longer and better-looking of the
+/// two, had nothing. Asked for from the couch: a small beep per star, rising.
+///
+/// **A SCALE, not a formula.** Pitching one cue by a ratio per card is what
+/// makes a rising run sound like a modem: nine equal steps land on intervals
+/// nothing in the game is tuned to. This is a major pentatonic — the one scale
+/// with no semitone in it, so any run up it is consonant however far it gets and
+/// whatever it is played over. Twelve rungs, which is more than the loan can
+/// ever be (the eleven-man target minus at least one of the player's own).
+///
+/// The rungs are their own effects rather than one retriggered, and they have to
+/// be: `retriggerFloor` collapses two requests for the SAME name inside 70ms,
+/// which is exactly what a rising run is.
+const List<double> loanStarScale = [
+  659.25, // E5
+  740.00, // F#5
+  880.00, // A5
+  987.77, // B5
+  1108.73, // C#6
+  1318.51, // E6
+  1480.00, // F#6
+  1760.00, // A6
+  1975.53, // B6
+  2217.46, // C#7
+  2637.02, // E7
+  2960.00, // F#7
+];
+
+/// The cue for the [index]th star in, clamped to the top rung.
+String loanStarCue(int index) =>
+    'loanStar${index < 0 ? 0 : (index >= loanStarScale.length ? loanStarScale.length - 1 : index)}';
+
+/// **COLIN'S VOICE, as a bank of syllables.**
+///
+/// The device voice went first and a folder of clips replaced it; the folder
+/// ships empty, so in practice he has been silent. Asked for from the couch:
+/// gibberish, the way Animal Crossing does it — a short blip per letter, pitched
+/// off the letter, running under the line as it types in.
+///
+/// **Which is a bank, not a pitch-shifted sample.** There is no sample: every
+/// effect in this game is synthesised from these recipes, and the renderer has
+/// no rate control — so a "voice" is a set of pre-rendered syllables and the
+/// text picks between them. Twelve rungs over a speaking range, which is enough
+/// that a sentence does not repeat itself and few enough that it still sounds
+/// like one person.
+///
+/// The step is a semitone-ish rather than the loan stars' pentatonic, and that
+/// is the difference between the two: a rising RUN wants consonance, and speech
+/// wants the opposite — a voice that only ever moved in thirds would sing.
+const List<double> coachBabbleScale = [
+  330, 356, 384, 415, 448, 484, 522, 564, 609, 658, 710, 767,
+];
+
+/// The cue for one syllable, clamped to the bank.
+String coachBabbleCue(int rung) =>
+    'coachBabble${rung < 0 ? 0 : (rung >= coachBabbleScale.length ? coachBabbleScale.length - 1 : rung)}';
+
 /// The catalogue. Keys are the JS's own names so the two can be diffed.
 final Map<String, SoundDef> soundDefs = {
+  // See [coachBabbleScale]. A sawtooth under a sine an octave up, both gone
+  // inside 60ms: the saw is what gives it the buzzy, VOICED quality a pure tone
+  // has none of — the renderer has sine, triangle and saw, and of the three it
+  // is the only one with enough harmonics to read as a voice — and the octave
+  // is the formant that stops it reading as a beep. Quiet, because a line is
+  // thirty of these in a row.
+  for (var i = 0; i < coachBabbleScale.length; i++)
+    coachBabbleCue(i): (
+      seconds: 0.09,
+      build: (r) {
+        _osc(r, Wave.sawtooth, coachBabbleScale[i], 0, 0.055, 0.030);
+        _osc(r, Wave.sine, coachBabbleScale[i] * 2, 0, 0.045, 0.018);
+      },
+    ),
+  // **Not in the JS's `DEFS`, and deliberately so.** These are the port's own —
+  // the arrival animation they belong to is the JS's, but its sound is not, and
+  // a cue invented here is named so a diff of the two catalogues shows it as an
+  // addition rather than as drift. See [loanStarScale].
+  for (var i = 0; i < loanStarScale.length; i++)
+    loanStarCue(i): (
+      seconds: 0.14,
+      // A short triangle blip with its own fifth a hair behind it, which is what
+      // stops a bare tone reading as a test signal. Quiet: nine of these in a row
+      // at the volume of a merge would be an alarm.
+      build: (r) {
+        _osc(r, Wave.triangle, loanStarScale[i], 0, 0.10, 0.09);
+        _osc(r, Wave.sine, loanStarScale[i] * 1.5, 0.012, 0.07, 0.04);
+      },
+    ),
   'scout': (
     seconds: 0.55,
     build: (r) {

@@ -208,18 +208,29 @@ class _PackContents extends ConsumerWidget {
     final owned = ownedLookItems(state);
     final all = hasStyleVault(state);
 
-    return Column(
+    // **ACROSS, NOT DOWN — the shape the customiser already uses.** The items
+    // were a COLUMN: one 54pt picture per row with its name beside it and the
+    // rest of the card empty to the right, so a four-item pack was four short
+    // lines down a wide sheet and the pictures — the whole reason this list was
+    // drawn rather than written — were the smallest thing on it. The customiser
+    // lays the same choices out as a grid of chips with the name UNDER each
+    // one, which is what a player has already learned to read, and it is what
+    // was asked for from the couch.
+    return Wrap(
       key: ValueKey('pack-contents-$packId'),
-      mainAxisSize: MainAxisSize.min,
+      alignment: WrapAlignment.center,
+      spacing: 10,
+      runSpacing: 10,
       children: [
         for (final item in pack.items)
           () {
             final axis = item.split(':').first;
             final id = item.split(':').last;
             final has = all || owned.contains(item);
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
+            return SizedBox(
+              width: _chipWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // **A PICTURE OF IT, not a glyph for its category.** The
                   // row used to be a shirt icon and a word — "Bucket",
@@ -229,55 +240,66 @@ class _PackContents extends ConsumerWidget {
                   // item before unlocking it. Same [LookPreview], on the
                   // player's OWN figure with this one choice swapped in, so a
                   // hat is previewed over their hair in their colours.
-                  // **BIG ENOUGH TO SEE, AND IN A BOX.** Thirty points square
-                  // with nothing round it is a thumbnail of a thumbnail — the
-                  // whole reason the preview is here is so the item can be
-                  // judged before it is paid for. The customiser's chips are
-                  // the reference: a bordered, tinted square with the drawing
-                  // filling it, which is what a player has already learned to
-                  // read these as.
-                  Container(
-                    width: 54,
-                    height: 54,
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: kit.bg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: has ? kit.accentBright : kit.border,
-                      ),
-                    ),
-                    child: _previewOf(axis, id, ref) ??
-                        GameIcon(
-                          lookAxisIcon[axis] ?? 'shirt',
-                          size: 22,
-                          color: has ? kit.accentBright : kit.textMuted,
+                  Stack(
+                    children: [
+                      Container(
+                        width: _chipWidth,
+                        height: _chipWidth,
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: kit.bg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: has ? kit.accentBright : kit.border,
+                            width: has ? 2 : 1,
+                          ),
                         ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      // The catalogue's key scheme is not one scheme — see
-                      // [lookItemLabel]. Asking for `customise.<axis>.<id>` and
-                      // tidying the id when it missed meant "Sunhat" where the
-                      // catalogue says "Sun Hat", in English and in nothing
-                      // else.
-                      lookItemLabel(axis, id),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: has ? FontWeight.w800 : FontWeight.w600,
-                        color: has ? kit.accentBright : null,
+                        child: _previewOf(axis, id, ref) ??
+                            GameIcon(
+                              lookAxisIcon[axis] ?? 'shirt',
+                              size: 22,
+                              color: has ? kit.accentBright : kit.textMuted,
+                            ),
                       ),
+                      // **A TICK, not a lock.** What the player is deciding is
+                      // what this pack still has to give them, so the ones they
+                      // have are the marked ones — a padlock on the rest would
+                      // read as the pack being unavailable. In the corner now
+                      // rather than at the end of a row, because there is no
+                      // row any more.
+                      if (has)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: Icon(
+                            Icons.check_circle,
+                            size: 15,
+                            color: kit.accentBright,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    // The catalogue's key scheme is not one scheme — see
+                    // [lookItemLabel]. Asking for `customise.<axis>.<id>` and
+                    // tidying the id when it missed meant "Sunhat" where the
+                    // catalogue says "Sun Hat", in English and in nothing
+                    // else.
+                    lookItemLabel(axis, id),
+                    textAlign: TextAlign.center,
+                    // Two lines, because these are translated names under a
+                    // 64pt chip: "Sun Hat" fits on one and its German is not
+                    // going to.
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.15,
+                      fontWeight: has ? FontWeight.w800 : FontWeight.w600,
+                      color: has ? kit.accentBright : kit.textMuted,
                     ),
                   ),
-                  // **A TICK, not a lock.** What the player is deciding is what
-                  // this pack still has to give them, so the ones they have are
-                  // the marked ones — a padlock on the rest would read as the
-                  // pack being unavailable.
-                  if (has)
-                    Icon(Icons.check, size: 15, color: kit.accentBright),
                 ],
               ),
             );
@@ -286,6 +308,9 @@ class _PackContents extends ConsumerWidget {
     );
   }
 }
+
+/// One contents chip's side, matching the customiser's own grid.
+const double _chipWidth = 64;
 
 /// The line-art glyph for each wardrobe axis, for [_PackContents].
 const Map<String, String> lookAxisIcon = {
@@ -706,15 +731,31 @@ class _PackPill extends StatelessWidget {
 }
 
 
-/// The drawn preview for one pack item, or null for an axis the customiser
-/// shows as a swatch rather than a figure — a skin tone or a hair colour IS a
-/// colour, and a head drawn to show one is a worse look at it.
+/// The drawn preview for one pack item, or null for an axis with no figure to
+/// draw — a skin tone IS a colour, and no pack contains one anyway.
+///
+/// **A HAIR COLOUR GETS A HEAD.** It was excluded alongside skin, on the
+/// customiser's reasoning that a colour is better looked at as a colour — but
+/// the customiser then draws a SWATCH, and the shop had no swatch branch, so
+/// what a player buying a colour pack actually saw was `GameIcon('star')`, four
+/// times over, one per colour. A star is not a worse look at a colour; it is no
+/// look at one. Reported from the couch. The head crop is already what
+/// `_regionFor('color')` returns, so this is the customiser's own picture.
+///
+/// **And the hat comes off for it**, which the customiser never has to think
+/// about because its swatch shows the colour whatever he is wearing. A manager
+/// in a bucket hat previewing four hair colours would be four identical hats,
+/// which is the sixteen-identical-managers defect the emote poses exist to fix.
 Widget? _previewOf(String axisKind, String id, WidgetRef ref) {
   final axis = lookAxes.where((a) => a.kind == axisKind).firstOrNull;
-  if (axis == null || axisKind == 'skin' || axisKind == 'color') return null;
+  if (axis == null || axisKind == 'skin') return null;
   final look = ref.read(managerLookProvider) ?? defaultManagerLook;
   return LookPreview(
     axis: axis,
-    look: <String, dynamic>{...look, axis.field: id},
+    look: <String, dynamic>{
+      ...look,
+      if (axisKind == 'color') 'hat': 'none',
+      axis.field: axisKind == 'color' ? hairColorValue(id) : id,
+    },
   );
 }

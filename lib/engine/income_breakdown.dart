@@ -170,7 +170,7 @@ List<IncomeFactor> _factorsOf(Map<String, dynamic>? state) {
   // print the row: this list has to multiply out to the total underneath it,
   // and a hardcoded x2 beside a rule that owns the size is how it stops doing
   // that.
-  final polish = trophyPolishMultiplierFor(boosts, season);
+  final polish = trophyPolishMultiplierFor(boosts);
   if (polish > 1) {
     out.add((key: 'hud.income.trophy_polish', params: const {}, x: polish));
   }

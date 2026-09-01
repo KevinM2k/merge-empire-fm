@@ -141,7 +141,7 @@ double computeMultiplier(
   // Trophy Polish: x2 idle income for the bought-for season. The same x2 is
   // applied to match revenue below, so the buff doubles ALL coin income — and
   // both read the one rule rather than restating the stamp comparison.
-  multiplier *= trophyPolishMultiplierFor(boosts, seasonCount);
+  multiplier *= trophyPolishMultiplierFor(boosts);
 
   return multiplier;
 }
@@ -229,7 +229,7 @@ double computeMatchRevenueMultiplier(
   }
 
   // Trophy Polish mirrors the x2 applied to idle income, off the same rule.
-  mult *= trophyPolishMultiplierFor(boosts, seasonCount);
+  mult *= trophyPolishMultiplierFor(boosts);
 
   // Squad traits are additive among themselves and multiplicative with the
   // club and boost stack, so a Commanding keeper is worth more once the Stadium

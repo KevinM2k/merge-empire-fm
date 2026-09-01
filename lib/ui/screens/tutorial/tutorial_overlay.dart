@@ -37,6 +37,7 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/data/sound_defs.dart' show loanStarCue;
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart' show matchPopupBlocker;
@@ -135,6 +136,11 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
   /// anything else draws.
   Rect? _anchor;
   TutorialAnchor? _anchorFor;
+
+  /// And where a DRAG step's gesture finishes — see [TutorialStep.dragToKey].
+  /// Null for every step answered by pressing something.
+  Rect? _dragAnchor;
+  TutorialAnchor? _dragAnchorFor;
   bool _tracking = false;
 
   /// The match closing is what lets a held card go up. Nothing else on the bus
@@ -184,10 +190,14 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
   ///
   /// Cheap because [TutorialAnchor] walks the tree once and then re-measures
   /// the render box it found.
-  void _track(String key) {
+  void _track(String key, {String? dragTo}) {
     if (_anchorFor?.id != key) {
       _anchorFor = TutorialAnchor(key);
       _anchor = null;
+    }
+    if (_dragAnchorFor?.id != dragTo) {
+      _dragAnchorFor = dragTo == null ? null : TutorialAnchor(dragTo);
+      _dragAnchor = null;
     }
     if (_tracking) return;
     _tracking = true;
@@ -198,7 +208,15 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_tracking) return;
       final rect = _anchorFor?.measure();
-      if (rect != _anchor) setState(() => _anchor = rect);
+      // **Both in ONE setState**, or a drag step rebuilds twice a frame and the
+      // hand is handed a stale end for one of them.
+      final drag = _dragAnchorFor?.measure();
+      if (rect != _anchor || drag != _dragAnchor) {
+        setState(() {
+          _anchor = rect;
+          _dragAnchor = drag;
+        });
+      }
       _scheduleMeasure();
     });
   }
@@ -207,6 +225,8 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
     _tracking = false;
     _anchorFor = null;
     _anchor = null;
+    _dragAnchorFor = null;
+    _dragAnchor = null;
   }
 
   /// Hold the queue while the script is running, and let go the moment it is
@@ -257,12 +277,38 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
       if (step.id != _showing) {
         _showing = step.id;
         _anchor = null;
+        _dragAnchor = null;
         WidgetsBinding.instance.addPostFrameCallback((_) => _openTab(step));
       }
-      _track(key);
+      // **THE CUE POINTS AT THE PAIR THE GRID ACTUALLY HAS.** The step names
+      // squares 0 and 2 — where the forced twin lands in the ordinary case, and
+      // only there. A twin forced onto the SECOND card, which is what happens
+      // when the first is at the division's ceiling, makes the pair 0 and 1: the
+      // rings went round the wrong two cards and the hand mimed a drag that is a
+      // SWAP, so the player did exactly what they were shown and nothing merged.
+      // Reported from the couch, twice. `tutorialMergePair` asks the grid.
+      final pair = step.dragToKey == null
+          ? null
+          : tutorialMergePair(ref.read(gameProvider).state);
+      // Addressed by SQUARE — see the step's own `targetKey`. A card in the
+      // player's hand is not in the tree to be measured.
+      _track(
+        pair == null ? key : 'grid-slot-${pair.from}',
+        dragTo: pair == null ? step.dragToKey : 'grid-slot-${pair.to}',
+      );
       return TutorialSpotlight(
         target: _anchor,
-        child: _Tooltip(step: step, target: _anchor, onSkip: _skip),
+        dragTo: _dragAnchor,
+        // **The card avoids the WHOLE cue, not just its start.** On a drag step
+        // the hole covers both squares, and a tooltip placed off the first one
+        // alone would sit over the second.
+        child: _Tooltip(
+          step: step,
+          target: _dragAnchor == null
+              ? _anchor
+              : _anchor?.expandToInclude(_dragAnchor!),
+          onSkip: _skip,
+        ),
       );
     }
 
@@ -309,7 +355,29 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
     );
   }
 
-  void _skip() => ref.read(gameProvider).update(skipTutorial);
+  /// Give up on the script — and send the loan home the way it goes home.
+  ///
+  /// **THEY BREAK, THEY DO NOT BLINK OUT.** The skip used to leave the borrowed
+  /// side on the grid entirely, which hands the early game to anyone who taps
+  /// Skip at a moment the script itself walks them to; taking them out of the
+  /// save fixed that and replaced it with eleven cards vanishing between two
+  /// frames. Reported from the couch: they should come apart the way an
+  /// auto-sold card does, with a noise.
+  ///
+  /// [departLoan] is that, and it is already written — the same `CardShatter`
+  /// the auto-sell uses, the same `pop`, the same stagger — so the skip runs it
+  /// rather than growing a second one. `skipTutorial` still calls
+  /// `returnTutorialPlayers` itself and that is not belt and braces: it is what
+  /// guarantees the loan cannot survive a skip taken from a screen where the
+  /// flight never got to run.
+  Future<void> _skip() async {
+    // **NO FAREWELL FOR A SKIP.** The 500 belongs to `loan_depart`, the step
+    // that says the club is taking them back and thanks you for it; paying it
+    // out here made skipping the tutorial the fastest money in the game.
+    await departLoan(ref, pay: false);
+    if (!mounted) return;
+    ref.read(gameProvider).update(skipTutorial);
+  }
 
   /// The tab the step belongs on, so the card — or the hole — is over the thing
   /// it is talking about.
@@ -352,7 +420,7 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
       if (!mounted) return;
       switch (answered) {
         case TutorialAnswer.skipped:
-          ref.read(gameProvider).update(skipTutorial);
+          unawaited(_skip());
         case TutorialAnswer.next:
           await applyStepEffects(ref, step);
           if (!mounted) return;
@@ -416,11 +484,17 @@ class _Tooltip extends ConsumerWidget {
     // APP's. Skipping from a spotlight step took the game's own route off the
     // stack and left a black screen; reported from the couch in one line. What
     // takes this card down is the script ending, which `onSkip` does.
-    footer: CoachAction(
-      labelKey: 'tut.skip',
-      onTap: onSkip,
-      dismisses: false,
-    ),
+    //
+    // **And not on the LAST step**, which is not a step: it is the script saying
+    // it is over, and a way out beside "done" costs the player the farewell the
+    // loan step just earned them. See the other footer.
+    footer: step.id == tutorialSteps.last.id
+        ? null
+        : CoachAction(
+            labelKey: 'tut.skip',
+            onTap: onSkip,
+            dismisses: false,
+          ),
   );
 }
 
@@ -453,8 +527,46 @@ Future<void> applyStepEffects(WidgetRef ref, TutorialStep step) async {
       final lent = ref.read(gameProvider).update(lendTutorialPlayers);
       // Reduce-motion has nothing to wait for: the cards are simply there.
       if (lent == 0 || MediaQuery.disableAnimationsOf(ref.context)) return;
-      await Future<void>.delayed(loanArrivalWindow(lent));
+      await _chimeLoanIn(ref, lent);
   }
+}
+
+/// **A BEEP PER STAR, RISING**, over the whole of the arrival.
+///
+/// The loan drops in half a second apart and did it in silence — the departure
+/// has had its `pop` since the cards started coming apart, and the arrival,
+/// which is the longer and better-looking of the two, had nothing. Asked for
+/// from the couch.
+///
+/// One cue per rung of [loanStarScale] rather than one retriggered, because
+/// `retriggerFloor` collapses two requests for the same name inside 70ms and a
+/// rising run is precisely that.
+///
+/// **Awaited rather than timed**, and that is what keeps it safe: the step was
+/// already holding for [loanArrivalWindow], so the beeps run inside the wait
+/// the caller was doing anyway and cannot outlive the screen. The total is the
+/// same window it always was.
+Future<void> _chimeLoanIn(WidgetRef ref, int lent) async {
+  // **ON THE FRAME EACH CARD STARTS FALLING** — `_loanArrivals` in
+  // `merge_grid.dart` hands card `i` a delay of `loanArrivalStagger * i` off
+  // the same save write this function is called on, so the two clocks share a
+  // zero and the beeps are simply that same ladder.
+  //
+  // **The first cut waited a whole [loanArrivalDuration] first**, on the
+  // reasoning that a beep belongs on the LANDING rather than on the drop. That
+  // is 1200ms against a 500ms stagger — two and a half cards of head start — so
+  // the run began as the third gold player came in and the last two beeps
+  // sounded after every card had arrived. Reported from the couch in exactly
+  // those terms. A card is visible from the moment it starts falling; the beep
+  // goes with its arrival on screen, not with the end of its overshoot.
+  for (var i = 0; i < lent; i++) {
+    playSoundFrom(ref, loanStarCue(i));
+    await Future<void>.delayed(loanArrivalStagger);
+  }
+  // Whatever is left of the window the caller used to wait out in one go — the
+  // last card is still settling when the last beep has sounded.
+  final tail = loanArrivalWindow(lent) - loanArrivalStagger * lent;
+  if (tail > Duration.zero) await Future<void>.delayed(tail);
 }
 
 /// **The loan leaves BEFORE the card that says it has, not after.**
@@ -469,11 +581,11 @@ Future<void> applyStepEffects(WidgetRef ref, TutorialStep step) async {
 /// So this is the step's entrance, and it is three things in order — show the
 /// grid, empty it, take the loan out of the save. The card follows in [run].
 /// Returns once the grid is actually empty.
-Future<void> departLoan(WidgetRef ref) async {
+Future<void> departLoan(WidgetRef ref, {bool pay = true}) async {
   final leaving = ref.read(loanCardIdsProvider).length;
   if (leaving == 0) return;
   if (MediaQuery.disableAnimationsOf(ref.context)) {
-    ref.read(gameProvider).update(returnTutorialPlayers);
+    ref.read(gameProvider).update((s) => returnTutorialPlayers(s, pay: pay));
     return;
   }
   ref.read(loanDepartingProvider.notifier).state = true;
@@ -489,7 +601,7 @@ Future<void> departLoan(WidgetRef ref) async {
     // **The save is rewritten and the flag dropped in that order**, and never
     // one without the other: a flag left set would spend the rest of the
     // session flying every future loan card off the grid.
-    ref.read(gameProvider).update(returnTutorialPlayers);
+    ref.read(gameProvider).update((s) => returnTutorialPlayers(s, pay: pay));
     ref.read(loanDepartingProvider.notifier).state = false;
   }
 }
@@ -539,13 +651,19 @@ Future<TutorialAnswer?> showTutorialCard(
           result: TutorialAnswer.next,
         ),
     ],
-    // **Skippable at every step.** A tutorial you cannot leave is a trap, and
-    // the JS puts this in the CORNER of every one of them — a way out, not an
-    // answer.
-    footer: CoachAction(
-      labelKey: 'tut.skip',
-      onTap: () {},
-      result: TutorialAnswer.skipped,
-    ),
+    // **Skippable at every step BUT THE LAST.** A tutorial you cannot leave is
+    // a trap, and the JS puts a way out in the corner of every one of them —
+    // but the last card is not a step, it is the script SAYING it is over, and
+    // its only button finishes. A skip beside it is a second way to answer
+    // "well done" that costs the player the farewell the loan step just earned
+    // them: `skipTutorial` does not pay it, deliberately, because paying a walk-
+    // out made skipping the fastest money in the game. Reported from the couch.
+    footer: step.id == tutorialSteps.last.id
+        ? null
+        : CoachAction(
+            labelKey: 'tut.skip',
+            onTap: () {},
+            result: TutorialAnswer.skipped,
+          ),
   );
 }

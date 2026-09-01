@@ -38,8 +38,16 @@ const Color momentumTheirs = Color(0xFF1C4A22);
 /// who is on top.
 double momentumBias({required double dangerHome, required bool isHome}) {
   final ourShare = isHome ? dangerHome : 100 - dangerHome;
-  return ((ourShare - 50) / 22).clamp(-1.0, 1.0);
+  return ((ourShare - 50) / _biasSpan).clamp(-1.0, 1.0);
 }
+
+/// **EIGHTEEN, not twenty-two.** `dangerHome` is clamped to 20–80, so a
+/// denominator of 22 asked for the very edge of that range before the arrow
+/// went anywhere near full pressure — and a real match sits inside about ±12 of
+/// level, which came out as a third of the arrow's travel. Reported from the
+/// couch as needing to move left and right a good deal more. Eighteen puts a
+/// 68/32 spell of chances at full stretch, which is a side genuinely on top.
+const double _biasSpan = 18;
 
 /// The arrow, and the glide between two readings.
 ///
@@ -101,7 +109,13 @@ class _ArrowPainter extends CustomPainter {
   /// How far off the halfway line the arrow gets at full pressure, as a share
   /// of the pitch. Kept short of the box, so at its furthest it is still a
   /// reading of territory rather than a marker on the goal.
-  static const double travel = 0.26;
+  ///
+  /// **0.26 was not enough to read as movement**, and it compounded with the
+  /// bias's own span: a realistic spell gave about half a bias, and half of 26%
+  /// of the pitch is a shift of a dozen points on a phone — an arrow that
+  /// technically moves. Reported from the couch. See [_biasSpan] for the other
+  /// half of it.
+  static const double travel = 0.34;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -125,11 +139,19 @@ class _ArrowPainter extends CustomPainter {
     // coming at our goal, and when we take over it turns round and goes back
     // up the pitch at theirs.
     final dir = right ? 1.0 : -1.0;
-    final cx = size.width / 2 + dir * size.width * travel * strength;
     // Never nothing. A dead-level game is still a game being played, and an
     // empty pitch reads as a screen that has stopped working — so the arrow
     // has a floor length and grows with the swing.
     final span = size.width * (0.16 + 0.20 * strength);
+    // **AND THE POINT STAYS ON THE PITCH.** With [travel] opened up, a full
+    // spell put the tip past the goal line — an arrow half off the grass reads
+    // as a drawing error rather than as pressure. It presses right up to the
+    // six-yard box and stops.
+    final room = size.width * 0.97 - span / 2;
+    final cx = (size.width / 2 + dir * size.width * travel * strength).clamp(
+      size.width - room,
+      room,
+    );
     final head = span * 0.36;
     final top = size.height * 0.16;
     final bottom = size.height - top;

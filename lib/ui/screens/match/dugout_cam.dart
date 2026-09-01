@@ -949,7 +949,34 @@ class _CamFrame extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(11),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [view, bar]),
+        // **THE BAR IS LAST, AND THE SCENE TAKES WHAT IS LEFT.**
+        //
+        // Both children used to size themselves, so an inline frame stretched
+        // taller than they wanted — which is every full-time report, where the
+        // quest panel beside it decides the row's height — left a band of empty
+        // backdrop under the label. Reported from the couch: use the whole
+        // space, label at the bottom, him in the rest of it.
+        //
+        // **The scene stays an `AspectRatio` inside that `Expanded`, and that
+        // is the whole subtlety.** The obvious move is a `SizedBox.expand`, and
+        // it takes the report down: this frame sits under the report's
+        // `IntrinsicHeight`, an expanding box has no intrinsic height to
+        // report, so the query walks on into the scene and hits a
+        // `LayoutBuilder` — "does not support returning intrinsic dimensions",
+        // and then `RenderBox was not laid out` for the rest of the page.
+        // `AspectRatio` answers the intrinsic pass from the width, and when it
+        // is later handed tight constraints it simply fills them. Both
+        // questions, one widget.
+        //
+        // Only inline has a bounded height to expand into; the float sizes
+        // itself from that same aspect and must keep its own shape.
+        child: Column(
+          mainAxisSize: inline ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            if (inline) Expanded(child: view) else view,
+            bar,
+          ],
+        ),
       ),
     );
   }

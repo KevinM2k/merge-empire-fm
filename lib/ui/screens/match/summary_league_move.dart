@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart' show nightSceneOf;
@@ -62,6 +63,21 @@ final double _slideEnd = _liftEnd + _share(leagueMoveSlide);
 /// rows are POSITIONED rather than laid out in a column, which is what lets two
 /// of them pass each other.
 const double leagueMoveRowHeight = 34;
+
+/// **THE THREE FIGURE COLUMNS, and one set of widths for the heads and the
+/// rows.** They are declared once because a header that is laid out separately
+/// from its rows is a header that drifts out of line the first time either side
+/// is touched.
+const double _colPlayed = 20;
+const double _colDiff = 30;
+const double _colPts = 26;
+
+/// The gap between the club name and the first figure.
+const double _colGap = 6;
+
+/// Wider than the other two: this head is a word in most locales — "GD", but
+/// "Diff" in French and "الفارق" in Arabic — and the figure under it carries a
+/// sign, so it is the widest thing in the three columns either way.
 
 class LeagueMove extends ConsumerStatefulWidget {
   const LeagueMove({super.key});
@@ -147,16 +163,30 @@ class LeagueMoveState extends ConsumerState<LeagueMove>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // **THE DIVISION AND THE COLUMN HEADS ARE ONE ROW.** Three columns
+          // of bare figures is a table nobody can read: the points were the
+          // only number here and they were legible because they were the ONLY
+          // number. Played and goal difference arrive with the shot asked for
+          // from the couch, and a figure column with no head is a riddle.
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 8),
-            child: Text(
-              ref.watch(divisionNameProvider).toUpperCase(),
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: glassMuted(context),
-              ),
+            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    ref.watch(divisionNameProvider).toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      color: glassMuted(context),
+                    ),
+                  ),
+                ),
+                _Head(width: _colPlayed, label: t('table.col_played')),
+                _Head(width: _colDiff, label: t('table.col_gd')),
+                _Head(width: _colPts, label: t('table.col_pts')),
+              ],
             ),
           ),
           SizedBox(
@@ -369,12 +399,41 @@ class _MoveRow extends StatelessWidget {
     final carried = kit.accent.withValues(alpha: 0.92);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: DecoratedBox(
+      // **CLIPPED, because our row wears a bar down its left edge** and a
+      // `BoxDecoration` cannot round a corner over a one-sided border — it
+      // asserts on it. So the bar is a child painted into the corner instead,
+      // and the clip is what rounds it.
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(9),
           color: !row.isPlayer ? null : Color.lerp(rest, carried, lift),
         ),
-        child: Padding(
+        // **EXPANDED, or the row's text rides high in it.** A `Stack` puts a
+        // non-positioned child at its TOP-LEFT at that child's own intrinsic
+        // size — so the padded row sat eighteen points tall at the top of a
+        // thirty-point slot, and every figure in the table was off centre.
+        // Reported off the screen the moment the bar went in. `expand` hands
+        // the row the whole slot, and the `Row` centres inside it.
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // **A BAR, not just a wash.** The tinted row alone is what the
+            // table had, and on the lighter panes it is nearly nothing; the
+            // shot asked for from the couch marks the club with a rule down
+            // the edge, which reads at any opacity. It sits inside the 8-point
+            // gutter, so it moves no figure out of its column.
+            if (row.isPlayer)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 3,
+                child: ColoredBox(
+                  color: glassAccent(context, kit.accentBright),
+                ),
+              ),
+            Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
@@ -408,6 +467,11 @@ class _MoveRow extends StatelessWidget {
                   ),
                 ),
               ),
+              // **THE ARROW STAYS, and it stays LEFT of the figures.** It is
+              // the whole point of this block — who the result moved you past
+              // — and it is not a column: it appears only once the row has
+              // settled. Inside the figure columns it would push them out of
+              // line with their heads every time it faded in.
               if (delta != null)
                 AnimatedOpacity(
                   duration: still
@@ -416,27 +480,108 @@ class _MoveRow extends StatelessWidget {
                   opacity: showDelta ? 1 : 0,
                   child: _Delta(delta: delta!, isPlayer: row.isPlayer),
                 ),
-              const SizedBox(width: 8),
-              Text(
-                '${row.pts}',
-                key: row.isPlayer ? const ValueKey('summary-table-pts') : null,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  // **THE PANE'S OWN INK, not the coin gold.** Points are not
-                  // money, and the gold went bronze on a light pane — reported
-                  // as not liking the bronze. Bold is what makes them the
-                  // figure that matters on the row.
-                  color: ink,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+              const SizedBox(width: _colGap),
+              _Figure(
+                width: _colPlayed,
+                text: '${row.played}',
+                colour: glassMuted(context),
+              ),
+              _Figure(
+                width: _colDiff,
+                // Signed, always: a goal difference of 6 and one of −6 are the
+                // same digit and opposite seasons, so the sign is the figure.
+                text: row.gd > 0 ? '+${row.gd}' : '${row.gd}',
+                // The same green-or-red scale the stat rows and the verdict
+                // read. Level is neither, so it takes the muted ink.
+                colour: row.gd == 0
+                    ? glassMuted(context)
+                    : glassAccent(
+                        context,
+                        row.gd > 0 ? vsGreenOn(context) : vsRedOn(context),
+                      ),
+              ),
+              _Figure(
+                width: _colPts,
+                text: '${row.pts}',
+                textKey: row.isPlayer
+                    ? const ValueKey('summary-table-pts')
+                    : null,
+                size: 15,
+                // **THE PANE'S OWN INK, not the coin gold.** Points are not
+                // money, and the gold went bronze on a light pane — reported
+                // as not liking the bronze. Bold is what makes them the
+                // figure that matters on the row.
+                colour: ink,
               ),
             ],
           ),
         ),
+          ],
+        ),
+        ),
       ),
     );
   }
+}
+
+/// One column head, over the figures it names — see [_colPlayed].
+class _Head extends StatelessWidget {
+  const _Head({required this.width, required this.label});
+
+  final double width;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: width,
+    child: Text(
+      label.toUpperCase(),
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.6,
+        color: glassMuted(context),
+      ),
+    ),
+  );
+}
+
+/// One figure in a fixed column, right-aligned and tabular.
+///
+/// **Tabular is what makes it a column.** These are stacked four deep and slide
+/// past each other; proportional digits would have the ones column wandering as
+/// a 1 replaced a 9.
+class _Figure extends StatelessWidget {
+  const _Figure({
+    required this.width,
+    required this.text,
+    required this.colour,
+    this.size = 12,
+    this.textKey,
+  });
+
+  final double width;
+  final String text;
+  final Color colour;
+  final double size;
+  final Key? textKey;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: width,
+    child: Text(
+      text,
+      key: textKey,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: size,
+        fontWeight: FontWeight.w900,
+        color: colour,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    ),
+  );
 }
 
 /// Climbed, fell or held — the green-amber-red scale the form dots read, so a

@@ -18,6 +18,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart'
+    show displayText, uiFontFamily;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/boot_gate.dart' show bootGateTimeout;
 
@@ -46,10 +48,33 @@ class BootSplash extends StatefulWidget {
     this.window = splashWindow,
     this.gate,
     this.gateTimeout = bootGateTimeout,
+    this.onLift,
+    this.onCover,
     super.key,
   });
 
   final Widget child;
+
+  /// Called once, the moment the splash stops covering the app.
+  ///
+  /// **The one thing a full-screen cover has to be able to say.** The splash is
+  /// a sibling of the app rather than a route — the JS's `#splash` is a sibling
+  /// of `#app` — so nothing under it is told it has stopped being looked at:
+  /// `TickerMode` is untouched and a dialog on the navigator carries on as if
+  /// it were on screen. Coach Colin's gibberish was the first thing to notice,
+  /// and it noticed loudly: a card built behind the splash talked over it.
+  /// Reported from the couch.
+  ///
+  /// A callback rather than a provider, because this widget covers the loading
+  /// of the theme, the locale and the save and must not depend on any of them.
+  final VoidCallback? onLift;
+
+  /// Called once, on the first frame, when the splash goes UP.
+  ///
+  /// The other half of [onLift], and it is a pair on purpose: a caller that
+  /// silences something for the splash's sake has one place to do it and one
+  /// place to undo it, and neither of them is a `build`.
+  final VoidCallback? onCover;
 
   /// Zero shows no splash at all, which is what a driver test wants.
   final Duration window;
@@ -99,8 +124,19 @@ class _BootSplashState extends State<BootSplash>
       duration: const Duration(milliseconds: 1800),
     );
     _fade = AnimationController(vsync: this, duration: _splashFade);
+    // Post-frame, never inline: this is `initState` and a caller writing a
+    // provider from here is the "setState during build" the file's own note
+    // below was written about.
+    if (widget.window != Duration.zero) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => widget.onCover?.call(),
+      );
+    }
     if (widget.window == Duration.zero) {
       _gone = true;
+      // Nothing was ever covered, so nothing is uncovered — but the caller is
+      // told either way, or a driver test's app boots with the voice held.
+      WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLift?.call());
       return;
     }
     _pulse.repeat(reverse: true);
@@ -124,6 +160,7 @@ class _BootSplashState extends State<BootSplash>
       // `el.remove()`, and a transparent full-screen layer would still be
       // swallowing every tap.
       setState(() => _gone = true);
+      widget.onLift?.call();
     });
   }
 
@@ -211,7 +248,11 @@ class _SplashFace extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     t('common.loading').toUpperCase(),
+                    // Named for the same reason the title is: nothing on this
+                    // screen inherits the app's theme. The UI face, though —
+                    // this is a caption under a wordmark, not a second one.
                     style: const TextStyle(
+                      fontFamily: uiFontFamily,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 4,
@@ -239,21 +280,32 @@ class _SplashTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return FittedBox(
       fit: BoxFit.scaleDown,
+      // **THE DISPLAY FACE, NAMED RATHER THAN INHERITED.** The splash is a
+      // SIBLING of the app rather than a route — that is what lets it cover the
+      // boot — so `Theme.of` never reaches it and a bare `TextStyle` here gets
+      // the platform's own font instead of the app's. It was the one screen
+      // still in San Francisco after the swap. Asked for from the couch.
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 2,
-          height: 1.15,
-          color: _splashInk,
-          shadows: [
-            Shadow(
-              blurRadius: 8,
-              offset: Offset(0, 2),
-              color: Color(0x80000000),
-            ),
-          ],
+        style: displayText(
+          const TextStyle(
+            fontSize: 26,
+            // **AND THE TRACKING COMES DOWN.** Two points was chosen to give a
+            // text face some presence at this size; Lilita One is heavy and
+            // tight by design, and the same two reads as the wordmark coming
+            // apart. `displayText` drops the `w800` with it — the face has one
+            // weight, and asking for another synthesises a smear.
+            letterSpacing: 1,
+            height: 1.15,
+            color: _splashInk,
+            shadows: [
+              Shadow(
+                blurRadius: 8,
+                offset: Offset(0, 2),
+                color: Color(0x80000000),
+              ),
+            ],
+          ),
         ),
       ),
     );

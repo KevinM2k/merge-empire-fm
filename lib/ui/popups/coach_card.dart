@@ -46,7 +46,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/ui/screens/shop/coin_cluster.dart' show coinGold;
 import 'package:merge_empire_fc/ui/widgets/store_button.dart' show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -624,7 +626,7 @@ const int _maxTypeMs = 2000;
 ///
 /// It finishes on a tap ([CoachTypingSkip]), and it does not run at all under
 /// reduce-motion.
-class CoachTypewriter extends StatefulWidget {
+class CoachTypewriter extends ConsumerStatefulWidget {
   const CoachTypewriter({
     required this.text,
     this.style,
@@ -657,10 +659,11 @@ class CoachTypewriter extends StatefulWidget {
   final Key? textKey;
 
   @override
-  State<CoachTypewriter> createState() => _CoachTypewriterState();
+  ConsumerState<CoachTypewriter> createState() =>
+      _CoachTypewriterState();
 }
 
-class _CoachTypewriterState extends State<CoachTypewriter>
+class _CoachTypewriterState extends ConsumerState<CoachTypewriter>
     with SingleTickerProviderStateMixin {
   late final AnimationController _run = AnimationController(vsync: this);
 
@@ -678,17 +681,118 @@ class _CoachTypewriterState extends State<CoachTypewriter>
   }
 
   void _start() {
-    _glyphs = widget.text.characters.toList();
+    _glyphs = withoutEmoji(widget.text).characters.toList();
     // At the START of the line, not the end of it: the voice and the typing are
     // the same delivery, and a sentence read out after it has finished
     // appearing is a second telling rather than the same one.
-    if (widget.speaks) announceCoachLine(widget.text, key: widget.speaksKey);
+    //
+    // **EVERY CARD, not only the ones that asked to be spoken.** `speaks` was
+    // a switch about RECORDINGS — being read the words "Sell Nakamura?" out
+    // loud every time you tap sell is not the same thing as a gaffer's story
+    // beat — and the voice is gibberish now, which is not a reading. It is the
+    // sound of him talking, and he talks on every card. Asked for from the
+    // couch. `speaks` still gates the CLIP, which is what it was for: see
+    // [speaksKey], handed over only when the card wanted a recording.
+    //
+    // **ON THE FIRST FRAME THAT ACTUALLY TYPES, not in `initState`.** A card
+    // BUILT is not a card being read: one constructed behind a scout reveal
+    // announced its line the moment it existed, so he gibbered from behind a
+    // route the player was looking at something else on. Reported from the
+    // couch. An `AnimationController` on a `SingleTickerProviderStateMixin`
+    // respects `TickerMode`, so a covered route's typewriter never advances —
+    // which makes "has it typed a character yet" exactly the question worth
+    // asking, and it answers itself again when the card comes back to the top.
+    _announced = false;
     _run
       ..duration = Duration(
         milliseconds: math.min(_maxTypeMs, math.max(1, _glyphs.length * _msPerGlyph)),
       )
-      ..value = 0
-      ..forward();
+      ..value = 0;
+    // **`build` IS WHAT STARTS IT, and that is not a stylistic choice.**
+    // `_coveredUp` asks `ModalRoute.of`, which registers an inherited
+    // dependency — illegal from `initState`, which is where `_start` runs, and
+    // it threw on every coach card in a debug build. The post-frame callback in
+    // `build` already asks the same question every frame the card is uncovered,
+    // so a line whose text changes under it starts typing on the very next
+    // frame either way.
+    // **AND IT STOPS WHEN THE TYPING DOES.** The babble runs on its own clock
+    // — see `babbleStep` — and the two are close but not the same, so a short
+    // line finished talking after it had finished appearing. The typewriter is
+    // the thing on screen, so the typewriter says when he is done.
+    //
+    // Removed first: `_start` runs again for a card whose line changes under
+    // it, and a listener added per line would hush him once per line he has
+    // ever said.
+    _run
+      ..removeStatusListener(_hushAtEnd)
+      ..addStatusListener(_hushAtEnd)
+      ..removeListener(_announceOnFirstFrame)
+      ..addListener(_announceOnFirstFrame);
+  }
+
+  /// Whether this line has been announced. See [_start].
+  bool _announced = false;
+
+  void _announceOnFirstFrame() {
+    if (_announced || _run.value <= 0) return;
+    // **A run that arrives at the end without passing through the middle is a
+    // SKIP** — reduce-motion, or the player tapping to finish the line — and a
+    // voice for a line that never typed is a voice with nothing to run under.
+    if (_run.value >= 1) {
+      _announced = true;
+      return;
+    }
+    // **HELD, NOT DROPPED, while something is over the card.** Two things put a
+    // line in front of a player who is looking at something else: the boot
+    // splash, which is a SIBLING of the app rather than a route so nothing
+    // under it is ever told it is covered; and the scout reveal, which is a
+    // route but not an opaque one, so `TickerMode` under it keeps running and
+    // the card behind it types itself out. Reported from the couch — first as
+    // him talking over both, then, once the voice was simply muted for the
+    // splash, as the line being SKIPPED rather than heard.
+    //
+    // So this is a wait rather than a mute. `_announced` is not set until the
+    // line actually goes out, and the controller is ticking, so the question is
+    // asked again every frame until either the card is on top or the line has
+    // finished typing — and a line that finished behind something was never
+    // heard, which is right.
+    if (_coveredUp) return;
+    _announced = true;
+    announceCoachLine(
+      _glyphs.join(),
+      key: widget.speaks ? widget.speaksKey : '',
+    );
+  }
+
+  /// **THE LINE DOES NOT TYPE BEHIND SOMETHING.**
+  ///
+  /// Holding only the VOICE was half the fix and it showed: the card still typed
+  /// itself out behind the boot splash, so by the time the splash lifted the
+  /// text was already sitting there finished, and the voice — held until the
+  /// card was on top — got the tail of a run that was nearly over. One beep, and
+  /// then it stopped. Reported from the couch.
+  ///
+  /// The whole delivery waits. `build` watches the same counter, so the moment
+  /// the splash or the reveal goes the line starts from the first character with
+  /// its voice under it, which is what a line arriving is.
+  void _maybeType() {
+    if (_run.isAnimating || _run.value >= 1) return;
+    if (_coveredUp) return;
+    _run.forward();
+  }
+
+  /// Is anything sitting over this card?
+  ///
+  /// The shell's own counter — bumped by every bottom sheet, and by the boot
+  /// splash, which has nothing else that can say so — and the route test, which
+  /// is what answers a reveal pushed on top of a coach card.
+  bool get _coveredUp {
+    if (ref.read(screenIsCoveredProvider)) return true;
+    return ModalRoute.of(context)?.isCurrent == false;
+  }
+
+  void _hushAtEnd(AnimationStatus status) {
+    if (status == AnimationStatus.completed) announceCoachSilence();
   }
 
   @override
@@ -714,13 +818,24 @@ class _CoachTypewriterState extends State<CoachTypewriter>
   void dispose() {
     // The card has gone, so the line goes with it — a coach still talking over
     // the screen you went back to is the thing this is for.
-    if (widget.speaks) announceCoachSilence();
-    _run.dispose();
+    announceCoachSilence();
+    _run
+      ..removeStatusListener(_hushAtEnd)
+      ..removeListener(_announceOnFirstFrame)
+      ..dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Watched, not read: the point is that the line starts the moment whatever
+    // is over the card goes away. Post-frame, because starting a controller
+    // inside a build is a frame the framework is already in the middle of.
+    if (!ref.watch(screenIsCoveredProvider)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybeType();
+      });
+    }
     return AnimatedBuilder(
       animation: _run,
       builder: (context, _) {
@@ -1180,7 +1295,7 @@ class CoachCardFrame extends StatelessWidget {
                   // His name is on the SCENE now, above the box and off to the
                   // right — see [CoachStage]. The box opens with the subject.
                   Text(
-                    title,
+                    withoutEmoji(title),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 17,

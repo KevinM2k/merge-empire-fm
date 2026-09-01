@@ -73,6 +73,15 @@ route:
       loan departure; it is a 0.1s blip from `sound_defs.dart` and a proper
       shatter cue would be better. Cosmetic, and nothing is blocked on it —
       it needs audio, not code.
+- [ ] **BLOCKED ON `en.js`: a goal-difference column head.** The full-time
+      table now carries played, goal difference and points, headed
+      `table.col_played`, `±` and `table.col_pts`. There is no `table.col_gd`
+      in the catalogues and one cannot be added from this repo, so the middle
+      column is headed with the symbol. `±` over a signed column needs no
+      translation, which is why it is the stand-in rather than a compromise —
+      but the word belongs there, and it is one line of `en.js` away.
+      `LeagueRow.gd` was shipped data with no reader anywhere in `lib/` until
+      this screen printed it, which is the usual tell.
 
 ---
 

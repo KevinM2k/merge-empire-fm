@@ -175,8 +175,33 @@ class _LoanDepartureState extends State<LoanDeparture>
   @override
   void initState() {
     super.initState();
+    _begin();
+  }
+
+  /// **AND AGAIN WHEN THE DELAY ARRIVES, which is the whole of this animation
+  /// ever running.**
+  ///
+  /// [LoanArrival] reads its delay once in `initState` and is right to: an
+  /// arriving card is a NEW card, so its element is new and `initState` is
+  /// exactly when it is told. A DEPARTING card is not — it has been sitting on
+  /// the grid for the whole tutorial, its `LoanDeparture` was built with a null
+  /// delay long ago, and `initState` is never going to run again. So the flight
+  /// was never started: the pop played, the save write landed a beat later, and
+  /// eleven cards vanished between two frames. Reported from the couch.
+  ///
+  /// The transition is null → a duration, once, when `loanDepartingProvider`
+  /// goes up. Guarded on the controller rather than on the value so a rebuild
+  /// mid-flight — and the grid rebuilds every second, because idle income ticks
+  /// — cannot restart it.
+  @override
+  void didUpdateWidget(LoanDeparture old) {
+    super.didUpdateWidget(old);
+    if (old.delay == null && widget.delay != null) _begin();
+  }
+
+  void _begin() {
     final delay = widget.delay;
-    if (delay == null) return;
+    if (delay == null || _leave != null) return;
     final leave = _leave = AnimationController(
       vsync: this,
       duration: loanDepartureDuration,

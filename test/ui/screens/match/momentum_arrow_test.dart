@@ -24,6 +24,25 @@ void main() {
       expect(momentumBias(dangerHome: 50, isHome: false), 0);
     });
 
+    /// **IT HAS TO ACTUALLY MOVE.**
+    ///
+    /// `dangerHome` is clamped to 20–80 and the bias divided by 22, so full
+    /// pressure needed the very edge of that range — a real spell sits inside
+    /// about ±12 of level and came out at a third of the arrow's travel.
+    /// Reported from the couch as needing to move left and right a good deal
+    /// more.
+    test('AND A REAL SPELL IS MOST OF THE TRAVEL, not a third of it', () {
+      // Two thirds of the way to the clamp is a side well on top, and it should
+      // read as one.
+      expect(
+        momentumBias(dangerHome: 62, isHome: true),
+        greaterThan(0.6),
+        reason: 'a 62/38 spell of chances barely moves the arrow',
+      );
+      // And the edge of what the board can hand it is full stretch.
+      expect(momentumBias(dangerHome: 80, isHome: true), 1.0);
+    });
+
     test('it never leaves the pitch', () {
       // The board clamps possession to 28–72, but the arrow must hold even if
       // that ever loosens.

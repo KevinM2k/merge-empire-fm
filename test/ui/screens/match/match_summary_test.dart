@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart' show CoinIcon;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -244,11 +245,12 @@ void main() {
       final text = tester.widget<Text>(
         find.byKey(const ValueKey('summary-verdict')),
       );
-      // **Through the pane rule.** The scale's colours are chosen against a
-      // dark ground; on a light pane over a daylight sky the winner's green is
-      // 2.4:1, and light mode draws light panes now. `glassAccent` takes any
-      // colour down until it clears the pane and returns it untouched in dark,
-      // so the SCALE is still what decides the hue.
+      // **Through the pane rule, and it still is out on the sky.** The scale's
+      // colours are chosen against a dark ground. Taking `glassAccent` off when
+      // the verdict left the result card looked right and was not:
+      // `light_mode_contrast_test` put the winner's green at 2.80:1 on a
+      // daylight sky, which is as pale as the pane it used to sit on. The SCALE
+      // still decides the hue; this only takes it down far enough to be read.
       final element = tester.element(
         find.byKey(const ValueKey('summary-verdict')),
       );
@@ -257,24 +259,57 @@ void main() {
         glassAccent(element, verdictInk(element, won: won, drawn: drawn)),
         reason: 'won: $won, drawn: $drawn',
       );
+      expect(
+        text.style?.shadows,
+        isNotEmpty,
+        reason: 'nothing else is holding it off a daylight sky',
+      );
     }
   });
 
-  testWidgets('WHAT HAPPENED IS ONE BOX, and the score is in it', (
+  testWidgets('WHAT HAPPENED IS ONE BOX, and the scorers are in it', (
     tester,
   ) async {
-    // The verdict and the score are one statement and share one pane; the
-    // money and the quests used to be in there with them and are not any more.
-    // See the two tests below for where each went and why.
-    await pumpSummary(tester, result());
+    // **The score and the names that made it share one pane.** The scorers were
+    // their own card twelve points below, which is two cards telling one story;
+    // the money and the quests were in there once too and are not any more.
+    //
+    // **The VERDICT is deliberately not**: it is a headline over the report
+    // rather than a row in it, so it stands on the sky above this box.
+    await pumpSummary(
+      tester,
+      result(
+        events: const [
+          {
+            'minute': 22,
+            'type': 'goal',
+            'team': 'home',
+            'scorer': 'Bobby',
+            'scorerInstanceId': 'gone',
+          },
+        ],
+      ),
+    );
     final card = find.ancestor(
-      of: find.byKey(const ValueKey('summary-verdict')),
+      of: find.byKey(const ValueKey('summary-score')),
       matching: find.byType(GlassPanel),
     );
     expect(card, findsOneWidget);
     expect(
-      find.descendant(of: card, matching: find.byKey(const ValueKey('summary-score'))),
+      find.descendant(
+        of: card,
+        matching: find.byKey(const ValueKey('summary-scorers')),
+      ),
       findsOneWidget,
+      reason: 'the goals are a well inside the result card',
+    );
+    expect(
+      find.ancestor(
+        of: find.byKey(const ValueKey('summary-verdict')),
+        matching: find.byType(GlassPanel),
+      ),
+      findsNothing,
+      reason: 'the verdict is a headline on the sky, not a row in a card',
     );
   });
 
@@ -512,13 +547,110 @@ void main() {
         find.byKey(const ValueKey('match-quest-match_clean_sheet')),
         findsOneWidget,
       );
-      // Prefixed with its mark — a miss is red with a cross, a win green with
-      // a tick — so the word is inside the row's text rather than all of it.
-      expect(find.textContaining(t('quests.missed')), findsOneWidget);
+      // **A MISS IS A CROSS AND NOTHING ELSE, and a win is the coin glyph and
+      // a figure.** Both cells used to spell it out — "✕ Missed", "✓ 18 coins"
+      // — and both wrapped onto two lines in a cell this narrow. Asked for from
+      // the couch: the coin instead of the word, the cross on its own. So what
+      // is asserted is the SHAPE of each cell, since neither carries copy any
+      // more.
+      final missed = find.descendant(
+        of: find.byKey(const ValueKey('match-quest-match_win_margin')),
+        matching: find.byIcon(Icons.close_rounded),
+      );
+      expect(missed, findsOneWidget, reason: 'a miss is the cross alone');
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('match-quest-match_win_margin')),
+          matching: find.byType(Text),
+        ),
+        findsNothing,
+        reason: 'and carries no words at all',
+      );
+      // The one that paid shows its figure, without the noun.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('match-quest-match_clean_sheet')),
+          matching: find.text(formatCoins(120)),
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining(t('quests.missed')), findsNothing);
       expect(
         find.byKey(const ValueKey('match-quests-total')),
         findsOneWidget,
         reason: 'one of them paid',
+      );
+    });
+
+    /// **THE ASK AND ITS VERDICT ARE ONE ROW, on a tile.**
+    ///
+    /// This row has now been wrong three ways, and each fix caused the next:
+    ///
+    ///  1. An `Expanded` ask wrapping with the verdict beside it, so "Score
+    ///     inside 20 minutes" broke over two lines with "✕ Missed" parked
+    ///     against the first of them.
+    ///  2. The ask squeezed into the room the verdict left, which printed a
+    ///     long quest SMALLER than a short one — three rows in three type
+    ///     sizes.
+    ///  3. The verdict moved to its own line underneath, which is six loose
+    ///     lines of text for three quests. Reported twice.
+    ///
+    /// So what is pinned here is the shape that answers all three: one line
+    /// each where it fits, the verdict in a column on the right, ONE type size
+    /// down the list, nothing ellipsised — and a tile, which is what lets a
+    /// long ask take a second line without the row coming apart.
+    ///
+    /// **And nothing measures itself.** A `Wrap` sized off a `LayoutBuilder`
+    /// took the whole report BLACK: this row is inside the reaction row's
+    /// `IntrinsicHeight`, and a `LayoutBuilder` cannot answer an intrinsic
+    /// pass. See the note at the call site.
+    testWidgets('EACH ASK KEEPS ITS OWN ROW, AND ONE TYPE SIZE', (
+      tester,
+    ) async {
+      // A narrow phone, which is where every one of the three faults came from.
+      tester.view.physicalSize = const Size(320 * 3, 720 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      await pumpSummary(tester, result(questResults: outcomes()));
+      await scrollReport(tester, const ValueKey('match-quests'));
+
+      final sizes = <double?>{};
+      for (final row in outcomes()) {
+        final ask = find.text(t('quest.${row['id']}', {'n': row['target']}));
+        expect(ask, findsOneWidget, reason: '${row['id']} is not on screen');
+        final widget = tester.widget<Text>(ask);
+        sizes.add(widget.style?.fontSize);
+        // **NEVER CUT.** A report that says the player missed something without
+        // saying what is the fault the whole row was rebuilt for.
+        expect(
+          widget.overflow,
+          isNot(TextOverflow.ellipsis),
+          reason: '${row['id']} is being cut off',
+        );
+
+        // The verdict sits BESIDE the ask, to its right, and level with it.
+        final verdict = find.byKey(ValueKey('match-quest-${row['id']}'));
+        expect(verdict, findsOneWidget);
+        final askBox = tester.getRect(ask);
+        final verdictBox = tester.getRect(verdict);
+        expect(
+          verdictBox.left,
+          greaterThanOrEqualTo(askBox.right),
+          reason: '${row['id']} verdict is not in the right-hand column',
+        );
+        // Centred against the ask rather than stuck to its first line — which
+        // is what makes a two-line ask read as one row.
+        expect(
+          verdictBox.center.dy,
+          closeTo(askBox.center.dy, 4),
+          reason: '${row['id']} verdict is not level with its ask',
+        );
+      }
+      expect(
+        sizes,
+        hasLength(1),
+        reason: 'three rows in three type sizes was fault (2)',
       );
     });
 
@@ -532,39 +664,55 @@ void main() {
     testWidgets('AND THE MONEY THEY PAID IS IN WHAT THE SCREEN CLAIMS', (
       tester,
     ) async {
-      // A match quest auto-pays at the whistle, so it never passes through the
-      // offer or through `applyMatchRewards` — and the screen was quoting the
-      // fee alone. The player walked away with 420 while being told 300, on
-      // the one line whose job is to say what declining is worth.
+      // A match quest auto-pays at the whistle, so it never passes through
+      // `applyMatchRewards` — and the screen was quoting the fee alone. The
+      // player walked away with 420 while being told 300, on the one line whose
+      // job is to say what declining is worth.
       await pumpSummary(
         tester,
         result(coins: 300, questResults: outcomes()),
         ads: FakeAds(AdOutcome.rewarded),
       );
+      // **THE DECLINE LINE CARRIES THE GLYPH**, so it is split into pieces
+      // rather than one string: every other figure on the report wears a coin
+      // and this one did not.
+      final noThanks = find.byKey(const ValueKey('summary-no-thanks'));
       expect(
-        find.text('${t('match.no_thanks')} - ${formatCoins(420)}'),
+        find.descendant(of: noThanks, matching: find.byType(CoinIcon)),
+        findsOneWidget,
+        reason: 'a figure in this game comes with the glyph',
+      );
+      expect(
+        find.descendant(of: noThanks, matching: find.text(formatCoins(420))),
         findsOneWidget,
         reason: 'declining understated what the player keeps',
       );
-      // And both answers are totals, so the difference between them is
-      // exactly what the video is worth.
+      // **AND THE OFFER IS ON THE WHOLE FIGURE.** It used to double the fee
+      // alone — 300 → 600, plus 120 of quest money, so 720 — which meant one
+      // number on screen had two rules behind it. Both sources double now, so
+      // the button is simply twice what declining pays.
       expect(
-        find.text('${t('match.double_reward')} → ${formatCoins(720)}'),
+        find.text('${t('match.double_reward')} → ${formatCoins(840)}'),
         findsOneWidget,
       );
       expect(find.text('+${formatCoins(420)}'), findsOneWidget);
     });
 
-    testWidgets('a match that paid no fee still shows the quest money', (
+    testWidgets('a match that paid NO FEE can still double its quest money', (
       tester,
     ) async {
-      // No offer to make and money to report: the two are independent, and a
-      // teaser under a figure nothing can double is a button that is not there.
+      // **The offer follows the figure, not the fee.** It was gated on the fee
+      // alone, so a match whose quests paid and whose result did not had money
+      // on screen and no way to double it — which stopped being defensible the
+      // moment 2× started covering both. Asked for from the couch.
       await pumpSummary(tester, result(coins: 0, questResults: outcomes()));
       expect(find.byKey(const ValueKey('summary-payout')), findsOneWidget);
       expect(find.text('+${formatCoins(120)}'), findsOneWidget);
-      expect(find.text(t('match.double_teaser')), findsNothing);
-      expect(find.byKey(const ValueKey('summary-double')), findsNothing);
+      expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
+      expect(
+        find.text('${t('match.double_reward')} → ${formatCoins(240)}'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('a track where nothing came off has no total', (tester) async {

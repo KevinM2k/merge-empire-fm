@@ -11,6 +11,7 @@ import 'package:merge_empire_fc/providers/game_host.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/providers/voice_providers.dart';
+import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/ui/popups/achievement_unlock.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
@@ -67,6 +68,26 @@ Future<void> main() async {
       child: Consumer(
         builder: (context, ref, child) => BootSplash(
           gate: ref.read(bootGateProvider).settled,
+          // **AND NOTHING UNDER IT IS RUNNING.** The splash is a sibling of the
+          // app rather than a route — the JS's `#splash` is a sibling of `#app`
+          // — so nothing beneath it is ever told it has stopped being looked
+          // at: `TickerMode` is untouched and a dialog on the navigator carries
+          // on as if it were on screen. Coach Colin's gibberish was the first
+          // thing to notice and it noticed loudly, from behind the loading
+          // screen.
+          //
+          // `screenCoveredProvider` is the counter the shell already keeps for
+          // exactly this question — a modal sheet is the other thing that
+          // covers the app without telling it — so the splash joins it rather
+          // than muting one service by hand. Muting was tried first and it
+          // traded the fault for a worse one: the line was announced, dropped
+          // on the floor, and never heard at all. A card HOLDS its line while
+          // this is up; see `CoachTypewriter`.
+          onCover: () => ref.read(screenCoveredProvider.notifier).state++,
+          onLift: () {
+            final n = ref.read(screenCoveredProvider);
+            if (n > 0) ref.read(screenCoveredProvider.notifier).state = n - 1;
+          },
           child: child!,
         ),
         child: const MergeEmpireApp(),

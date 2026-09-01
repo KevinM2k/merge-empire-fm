@@ -19,8 +19,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart'
-    show hudCoinInk, hudEnergyInk, hudGemInk;
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+    show hudBadgeColour, hudBadgeInk, hudCoinInk, hudEnergyInk, hudGemInk;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -103,12 +102,33 @@ class PackContentsRow extends StatelessWidget {
   }
 }
 
+/// The chip's FACE, in the HUD's own terms.
+///
+/// **A BADGE CONTROLS ITS GROUND, which is the whole argument `hud_chip.dart`
+/// settled.** These were a wash of the wallet's hue over `kit.surface2` with the
+/// glyph in the vivid hue on top — so the ground was the PAGE's and the coin
+/// chip was gold-on-near-white in light mode, which is the failure the HUD spent
+/// four rounds on before it filled the chip instead. Reported from the couch in
+/// the HUD's own terms: the same yellow background for coins, the same for
+/// energy, dark ground and light print.
+///
+/// [hudBadgeColour] answers the shop's deep gold, the shop's gem blue and the
+/// card's own greens — the wallets that already have a face. The three items
+/// that are not wallets (the VIP clock, the wardrobe, the Director's crown) come
+/// back unchanged and are chosen BRIGHT, because they used to be a glyph on a
+/// pale ground; a bright face cannot carry a lightened ink, so anything the HUD
+/// does not know is taken down until it can.
+Color packChipFace(Color hue) {
+  final mapped = hudBadgeColour(hue);
+  return mapped == hue ? Color.lerp(hue, Colors.black, 0.46)! : mapped;
+}
+
 /// One item, in a box of its own.
 ///
-/// A rounded square in the wallet's own hue, with the count on a dark strip
-/// along the bottom — the count is a different KIND of thing from the glyph
-/// above it, and stacking them without the strip makes a two-digit figure read
-/// as part of the picture.
+/// A rounded square FILLED with the wallet's own badge colour and printed in a
+/// lightened tint of it, with the count on a deeper strip along the bottom — the
+/// count is a different KIND of thing from the glyph above it, and stacking them
+/// without the strip makes a two-digit figure read as part of the picture.
 class _Chip extends StatelessWidget {
   const _Chip({required this.item, required this.size});
 
@@ -117,8 +137,12 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final radius = BorderRadius.circular(size * 0.26);
+    final face = packChipFace(item.ink);
+    final ink = hudBadgeInk(face);
+    // The strip under the count, and the rim: the face's own shade rather than
+    // flat black, so the chip stays one object in one colour.
+    final deep = Color.lerp(face, Colors.black, 0.34)!;
     return Container(
       width: size,
       height: size,
@@ -127,12 +151,10 @@ class _Chip extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color.alphaBlend(item.ink.withValues(alpha: 0.34), kit.surface2),
-            Color.alphaBlend(item.ink.withValues(alpha: 0.16), kit.surface),
-          ],
+          // Lit from the top, like every other moulded face in the game.
+          colors: [Color.lerp(face, Colors.white, 0.12)!, face],
         ),
-        border: Border.all(color: item.ink.withValues(alpha: 0.55)),
+        border: Border.all(color: deep),
         boxShadow: const [
           BoxShadow(color: Color(0x3D000000), blurRadius: 3, offset: Offset(0, 1)),
         ],
@@ -146,7 +168,7 @@ class _Chip extends StatelessWidget {
             // count does not sit on its feet.
             Padding(
               padding: EdgeInsets.only(bottom: item.count == null ? 0 : size * 0.26),
-              child: GameIcon(item.icon, size: size * 0.52, color: item.ink),
+              child: GameIcon(item.icon, size: size * 0.52, color: ink),
             ),
             if (item.count case final count?)
               Positioned(
@@ -154,7 +176,7 @@ class _Chip extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.42),
+                  color: deep,
                   padding: const EdgeInsets.symmetric(vertical: 0.5),
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -166,7 +188,7 @@ class _Chip extends StatelessWidget {
                           fontSize: size * 0.27,
                           height: 1.1,
                           fontWeight: FontWeight.w900,
-                          color: Colors.white,
+                          color: ink,
                         ),
                       ),
                     ),

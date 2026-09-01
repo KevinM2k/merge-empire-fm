@@ -22,6 +22,9 @@ import 'package:merge_empire_fc/util/event_bus.dart';
 class FakeVoice implements VoiceBackend {
   final List<String> played = [];
   final List<double> volumes = [];
+
+  /// The gibberish syllables, in the order they were asked for.
+  final List<String> blips = [];
   int stops = 0;
 
   @override
@@ -29,6 +32,10 @@ class FakeVoice implements VoiceBackend {
     played.add(asset);
     volumes.add(volume);
   }
+
+  @override
+  Future<void> blip(String cue, {required double volume}) async =>
+      blips.add(cue);
 
   @override
   Future<void> stop() async => stops++;

@@ -250,6 +250,26 @@ void resetMiniGameCooldown(Map<String, dynamic> state, String kind) {
   mg[key] = 0;
 }
 
+/// Spend one of the day's free skips and clear EVERY cooldown.
+///
+/// **One skip clears the lot, which is what the ledger always meant.**
+/// [skipKinds] has said so since M1 — "every kind one skip clears" — and the
+/// only caller was a per-row button that cleared one drill and was wired to
+/// nothing anyway. A skip that takes a drill off the clock and leaves the other
+/// six on it is a wait the player has to sit through six more times, and the day
+/// only has [Minigame.skipCapPerDay] of them. Reported from the couch.
+///
+/// Returns false when the day's skips are gone, so the caller can leave the save
+/// alone rather than clearing cooldowns for free.
+bool skipAllMiniGameCooldowns(Map<String, dynamic> state, [String? today]) {
+  if (skipAdsLeftToday(state, today) <= 0) return false;
+  recordSkipAd(state, today);
+  for (final kind in skipKinds) {
+    resetMiniGameCooldown(state, kind);
+  }
+  return true;
+}
+
 /// Is every game the player can actually PLAY cooling down?
 ///
 /// Unlocked only. A locked game has never been played, so it reads as ready

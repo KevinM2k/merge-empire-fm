@@ -824,6 +824,9 @@ class CutawayGame extends FlameGame with HasTimeScale {
       keeper.target = attackers[carrier].position.clone();
     }
 
+    // How hard it was hit, which is the whole of what a keeper can do about it —
+    // see [_rebound].
+    _shotSpeed = style.speed;
     _flight = _Flight(
       from: ball.position.clone(),
       to: target,
@@ -953,6 +956,77 @@ class CutawayGame extends FlameGame with HasTimeScale {
   static const double _goalOutro = 2.6;
   static const double _missOutro = 1.0;
 
+  /// How hard the shot was struck, from [finishStyles].
+  double _shotSpeed = 150;
+
+  /// Whether the ball has already come back off the frame or off a glove.
+  ///
+  /// The rebound's own arrival lands here again, so this is what stops it
+  /// bouncing for ever.
+  bool _rebounded = false;
+
+  /// Below this, in the finish styles' own units, the gloves KEEP it.
+  ///
+  /// The two soft finishes — a header at 100 and a rounded finish at 120 — are
+  /// gathered; a placed shot at 150, a volley at 175 and a long shot at 200 are
+  /// pushed away. That is the same split `penalty_physics.dart` makes at
+  /// `_holdSpeed`, for the same reason: what a keeper can do with a shot is
+  /// decided by how hard it arrives.
+  static const double _gloveHold = 140;
+
+  /// What the ball does after it has been stopped, or null when it stops dead.
+  ///
+  /// **A SHOT DOES NOT END ON THE WOODWORK OR IN HIS HANDS.** Both outcomes
+  /// froze every figure on the pitch with the ball parked on the point it
+  /// arrived at, so the one thing a player is watching stopped mid-air on the
+  /// frame it got interesting — reported from the couch as wanting the ball to
+  /// come off the post and wanting a save to be a catch or a parry.
+  _Flight? _rebound() {
+    final goalMouth = _at((p: 1.04, q: 0.5));
+    // Back up the pitch, away from the goal it was struck at.
+    final back = attackingRight ? -1.0 : 1.0;
+    final from = ball.position.clone();
+
+    Vector2 onPitch(Vector2 v) => Vector2(
+      v.x.clamp(2.0, pitchWidth - 2),
+      v.y.clamp(2.0, pitchHeight - 2),
+    );
+
+    switch (outcome) {
+      case CutawayOutcome.post:
+        // Off the upright and back across the face. It carries most of its pace
+        // — woodwork gives nothing back and takes little away — and it comes
+        // out on the side it struck, which is what makes the post look like a
+        // post rather than a wall.
+        final side = from.y < goalMouth.y ? -1.0 : 1.0;
+        return _Flight(
+          from: from,
+          to: onPitch(from + Vector2(back * 26, side * 9)),
+          style: (speed: _shotSpeed * 0.62, air: 0.18, bend: 0),
+          onArrive: _finish,
+        );
+      case CutawayOutcome.saved:
+        // **CAUGHT, and there is nothing to draw.** He has it; the ball sits in
+        // his gloves and the whistle-to-nothing that follows is the clip
+        // stopping, which is what it already did.
+        if (_shotSpeed < _gloveHold) return null;
+        // Parried: away from his own goal and out toward the touchline, because
+        // a keeper who cannot hold one pushes it where nobody is.
+        final side = keeper.position.y < pitchHeight / 2 ? -1.0 : 1.0;
+        return _Flight(
+          from: from,
+          to: onPitch(from + Vector2(back * 11, side * 24)),
+          style: (speed: _shotSpeed * 0.34, air: 0.3, bend: 0),
+          onArrive: _finish,
+        );
+      case CutawayOutcome.goal:
+      case CutawayOutcome.wide:
+      case CutawayOutcome.over:
+      case CutawayOutcome.tackled:
+        return null;
+    }
+  }
+
   void _finish() {
     _flight = null;
     verdict.value = outcome;
@@ -961,6 +1035,20 @@ class CutawayGame extends FlameGame with HasTimeScale {
       _celebrate();
       _outro = _goalOutro;
       return;
+    }
+
+    // The ball comes off the frame, or off a glove — see [_rebound]. The
+    // verdict is already up, because what the ball does afterwards does not
+    // change what happened; nobody is frozen yet, so the defence plays it out.
+    if (!_rebounded) {
+      final rebound = _rebound();
+      if (rebound != null) {
+        _rebounded = true;
+        // He has got a hand to it and that is the end of his part in it.
+        keeper.frozen = true;
+        _flight = rebound;
+        return;
+      }
     }
 
     for (final m in [...attackers, ...defenders, keeper]) {

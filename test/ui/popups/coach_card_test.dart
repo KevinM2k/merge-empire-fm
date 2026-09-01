@@ -19,6 +19,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/services/voice_cues.dart';
@@ -53,7 +54,12 @@ Future<void> openCard(
   List<CoachAction> actions = const [],
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
+    // **A SCOPE, because the typewriter reads one now.** His line holds while
+    // anything is over the card, and `screenIsCoveredProvider` is what answers
+    // that — so a card mounted with no `ProviderScope` throws "No ProviderScope
+    // found" out of `build` rather than failing an assertion anyone can read.
+    ProviderScope(
+      child: MaterialApp(
       theme: buildAppTheme(kitId: '#4caf50', light: false),
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(
@@ -77,6 +83,7 @@ Future<void> openCard(
             ),
           ),
         ),
+      ),
       ),
     ),
   );
@@ -104,7 +111,9 @@ Future<void> pumpFrameWithSkip(
   String body = longBody,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
+    // See `openCard` — the typewriter reads a provider.
+    ProviderScope(
+      child: MaterialApp(
       theme: buildAppTheme(kitId: '#4caf50', light: false),
       home: Scaffold(
         body: Stack(
@@ -119,6 +128,7 @@ Future<void> pumpFrameWithSkip(
             ),
           ],
         ),
+      ),
       ),
     ),
   );
@@ -306,7 +316,17 @@ void main() {
 
   testWidgets('the title is NOT typed — only what he says', (tester) async {
     await openCard(tester);
-    expect(find.text(t('app.offline_title')), findsOneWidget);
+    // **Whole, and on the first frame** — that is the point of this: the
+    // typewriter is for the line he speaks, and a heading that assembled itself
+    // a letter at a time would be a second thing moving on the card.
+    //
+    // Through `withoutEmoji`, because the card's own title is: the pictograph
+    // comes off every string on this card, so asserting the raw catalogue value
+    // here would be asserting the one place it does not.
+    expect(
+      find.text(withoutEmoji(t('app.offline_title'))),
+      findsOneWidget,
+    );
   });
 
   group('and some cards are SPOKEN', () {

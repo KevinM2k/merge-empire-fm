@@ -982,6 +982,68 @@ void main() {
       await settleSave(tester);
     });
 
+    /// **THE SECOND ROLL BARELY MOVED.**
+    ///
+    /// `animateToItem` takes an ABSOLUTE index and the target was written as
+    /// one: `pool.length * _revolutions + landing` is three laps from where the
+    /// reel STARTED, so it is three laps on the first roll only. After that the
+    /// reel is already parked out there and the next roll asked it to travel the
+    /// handful of rows between the old trait and the new one. Reported from the
+    /// couch: on the second and third go they hardly spin, they just move to the
+    /// new one.
+    testWidgets('EVERY ROLL SPINS FULLY, not just the first', (tester) async {
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait-roll');
+      await tester.pumpAndSettle();
+
+      double offsetOf(String key) => tester
+          .widget<ListWheelScrollView>(find.byKey(ValueKey(key)))
+          .controller!
+          .offset;
+
+      /// One roll, and how far each reel actually travelled through it.
+      Future<({double name, double level})> roll() async {
+        final nameFrom = offsetOf('trait-reel-name');
+        final levelFrom = offsetOf('trait-reel-level');
+        await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
+        await tester.pump();
+        await tester.pump(
+          TraitBlockState.spin + const Duration(milliseconds: 400),
+        );
+        await tester.pumpAndSettle();
+        await tester.pump(
+          TraitBlockState.flash + const Duration(milliseconds: 400),
+        );
+        await tester.pumpAndSettle();
+        return (
+          name: (offsetOf('trait-reel-name') - nameFrom).abs(),
+          level: (offsetOf('trait-reel-level') - levelFrom).abs(),
+        );
+      }
+
+      final first = await roll();
+      final second = await roll();
+      final third = await roll();
+
+      // Not "the same as the first" — the residue round the pool is whatever the
+      // two traits happen to be. What has to hold is that every roll is still
+      // three full laps of travel, which is what makes it a spin.
+      for (final (n, run) in [(1, first), (2, second), (3, third)]) {
+        expect(
+          run.name,
+          greaterThan(first.name * 0.6),
+          reason: 'roll $n nudged the name reel instead of spinning it',
+        );
+        expect(
+          run.level,
+          greaterThan(first.level * 0.6),
+          reason: 'roll $n nudged the level reel',
+        );
+      }
+      await settleSave(tester);
+    });
+
     test('and the spin runs for the SPEC\'s five seconds', () {
       // `ANIM_MS = 5000` in `TraitRoulette.js`, with the name reel stopping at
       // 58% of it — so the answer lands at 2.9s, which is the ~3s of roll that

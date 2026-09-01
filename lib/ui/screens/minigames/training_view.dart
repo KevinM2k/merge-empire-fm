@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
+import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/home/sub_tab_coach_line.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
@@ -94,10 +96,63 @@ class TrainingView extends ConsumerWidget {
           title: t('training.title'),
           padding: const EdgeInsets.fromLTRB(0, 16, 0, 12),
         ),
+        const _SkipAll(),
         for (final game in games) _GameRow(game: game),
         // Room at the foot for the corner to sit over.
         const SizedBox(height: 76),
       ],
+      ),
+    );
+  }
+}
+
+/// One skip, above all seven drills.
+///
+/// **A SKIP IS FOR THE WHOLE SHEET, not for one row.** It was a per-drill button
+/// in each resting row's trailing slot, so clearing the wait on the penalty game
+/// left the other six still on the clock — and the day only has
+/// [Minigame.skipCapPerDay] skips to spend. The engine has said so since M1:
+/// `skipKinds` is documented as "every kind one skip clears" and had no caller
+/// at all, alongside `resetMiniGameCooldown`, `recordSkipAd` and the two shipped
+/// strings this now prints. Reported from the couch.
+///
+/// **It only appears when there is something to skip.** A button offering to
+/// clear cooldowns on a sheet where every drill is ready is an offer with no
+/// subject; the row it used to live in had that for free by being per-drill.
+class _SkipAll extends ConsumerWidget {
+  const _SkipAll();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resting = ref
+        .watch(miniGamesProvider)
+        .where((g) => g.unlocked && g.playable && !g.ready)
+        .length;
+    if (resting == 0) return const SizedBox.shrink();
+    final skipsLeft = ref.watch(skipsLeftTodayProvider);
+
+    return Padding(
+      key: const ValueKey('training-skip-all'),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: StoreButton(
+        tone: StoreTone.ad,
+        small: true,
+        // `minigame.skip_all_left` is "{n} left" — the day's ledger, which the
+        // player has no other way of seeing.
+        label: skipsLeft > 0
+            ? '${t('minigame.skip_all_ad')} · '
+                  '${t('minigame.skip_all_left', {'n': skipsLeft})}'
+            : t('minigame.skip_all_capped'),
+        // **IT ACTUALLY SKIPS.** The old one was wired to null and waiting on
+        // AdMob. The cap is what bounds it either way — three a day — so
+        // spending one before there is a video to watch costs the player
+        // nothing they were not already owed, and the plumbing the rewarded ad
+        // will hang off is the same call.
+        onTap: skipsLeft > 0
+            ? () => ref
+                  .read(gameProvider)
+                  .update((state) => skipAllMiniGameCooldowns(state))
+            : null,
       ),
     );
   }
@@ -132,6 +187,12 @@ class _GameRow extends ConsumerWidget {
     return null;
   }
 
+  /// A drill that is unlocked, built, and only waiting on the clock.
+  ///
+  /// The one no that has a way out — see [_SkipAll], which is where the way out
+  /// now lives.
+  bool get _resting => game.unlocked && game.playable && !game.ready;
+
   void _open(BuildContext context) {
     final screen = switch (game.kind) {
       MiniGameKind.bootRoom => const BootRoomScreen(),
@@ -147,17 +208,10 @@ class _GameRow extends ConsumerWidget {
     );
   }
 
-  /// A drill that is unlocked, built, and only waiting on the clock.
-  ///
-  /// The one no that has a way out — which is what the skip is for, and why the
-  /// button appears here and nowhere else.
-  bool get _resting => game.unlocked && game.playable && !game.ready;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final reason = _reason;
-    final skipsLeft = ref.watch(skipsLeftTodayProvider);
 
     final tint = drillTint(kit.accent, game.kind);
     final open = reason == null;
@@ -261,13 +315,6 @@ class _GameRow extends ConsumerWidget {
                     ),
                 ],
               ),
-        // **A WAIT GETS AN OFFER; A LOCK DOES NOT.** The skip is only ever shown
-        // on a drill that is resting — there is nothing to skip on one that has
-        // no screen, and nothing to skip on one the Training Ground has not
-        // reached. Dead until AdMob lands, and shown rather than hidden for the
-        // same reason the Shop's own ad tiles are: an offer that appears the day
-        // it starts working is a surprise, and one that explains itself is a
-        // feature that is coming.
         trailing: reason == null
             // **WHITE IN DARK MODE.** The little arrow took the drill's own
             // hue, and a hue that reads on a light card is a hue that sinks
@@ -278,17 +325,6 @@ class _GameRow extends ConsumerWidget {
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.white
                     : tint,
-              )
-            : _resting
-            ? StoreButton(
-                key: ValueKey('training-skip-${game.kind}'),
-                tone: StoreTone.ad,
-                small: true,
-                stretch: false,
-                label: skipsLeft > 0
-                    ? t('minigame.skip_ad')
-                    : t('minigame.skip_all_capped'),
-                onTap: null,
               )
             : null,
         enabled: reason == null,

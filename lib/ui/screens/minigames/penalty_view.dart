@@ -831,8 +831,17 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
     final glove = joint + way * span;
     final reach = (span * span + upper * upper - fore * fore) / (2 * span);
     final drop = math.sqrt(math.max(0, upper * upper - reach * reach));
+    // **THE ELBOW BOWS AWAY FROM HIM, NOT INTO HIM.** It bowed toward his feet,
+    // and with a resting arm hanging down-and-out that direction resolves
+    // INWARD: measured, the elbow sat 0.1 units off his centreline while the
+    // glove was 0.4 out — inside the 0.30-wide torso stroke, so the upper arm
+    // vanished into his chest and the forearm surfaced out of his ribs. That is
+    // the standing pose reported from the couch. Bowing to the arm's own side
+    // gives elbows out and gloves in, which is a keeper set to save; on the
+    // dive the arm is nearly straight and the bow is a couple of pixels either
+    // way.
     var perp = Offset(-way.dy, way.dx);
-    if (perp.dy < 0) perp = -perp;
+    if (perp.dx * side < 0) perp = -perp;
     return (joint, joint + way * reach + perp * drop, glove);
   }
 
@@ -983,10 +992,9 @@ const double _takerArmFold = 0.85;
 ///
 /// **A KICK IS A KNEE**, and the leg had none: one rigid segment from hip to
 /// boot, pivoting through 45 degrees, which is what was reported as an odd
-/// swing. These are what bend, and they are what may never change length —
-/// unlike the hip-to-boot distance, which SHOULD change, because a folded leg is
-/// a shorter leg. That is the difference between the two-bone solve here and the
-/// fixed-length stick it replaces.
+/// swing. These are where the bend is, and their SHARE of the leg is what puts
+/// the knee — the hip-to-boot distance shortens as the leg folds away from the
+/// lens, and both bones foreshorten with it. See [kneeBetween].
 const double _takerThigh = 0.47;
 const double _takerShin = _takerLeg - _takerThigh;
 
@@ -1069,33 +1077,39 @@ typedef TakerRig = ({
 
 double _mix(double a, double b, double t) => a + (b - a) * t;
 
+/// How much of a folded knee is SEEN, as a fraction of the hip-to-boot span.
+///
+/// **A LEG FOLDS IN DEPTH, AND FROM BEHIND THAT IS FORESHORTENING, NOT A
+/// SIDEWAYS KINK.** The solve pinned both bones' SCREEN lengths and put the knee
+/// wherever the two circles met — and with the boot lifted and the hip almost
+/// straight above it, that point is a third of a metre out to the side. Measured
+/// across the run-up: the plant knee sat at +0.04 with its own boot at −0.10 and
+/// the kick knee at −0.18 with its boot at +0.10, so the legs drew a full X, and
+/// at mid-run the two swapped sides in a frame. Reported from the couch as the
+/// legs crossing over.
+///
+/// A bone turned away from the lens is SHORTER on screen; holding its drawn
+/// length fixed is what forced the knee out sideways to make up the difference.
+/// So the knee sits at the thigh's share of the line, and what is left across
+/// the frame is the small outward bow a knee actually has. The invariant that
+/// matters — a bone never GROWS, which is the 31% stretch this rig was rebuilt
+/// to kill — is untouched: nothing here can exceed the bone's own length.
+const double _kneeBow = 0.10;
+
 /// Where the knee goes, given a hip and a boot.
 ///
-/// **A two-bone solve, which is the only way both bones keep their length.**
-/// The thigh and the shin are fixed at [_takerThigh] and [_takerShin]; the
-/// distance between hip and boot is what varies, because a folded leg is a
-/// shorter leg. Turning that round — pinning hip to boot and letting the bones
-/// stretch — is what the old rig did, and it is what a leg growing 31% across a
-/// strike looks like.
-///
-/// The knee sits along the hip-to-boot line at the point where the two circles
-/// meet, offset square to it. [bow] picks which side, and it is the direction
-/// the leg is swinging: seen from directly behind him a knee's own forward bend
-/// projects to nearly nothing, so the kink that reads is the one in the plane of
-/// the swing.
-Offset kneeBetween(Offset hip, Offset boot, double unit, double bow) {
-  final thigh = unit * _takerThigh;
-  final shin = unit * _takerShin;
+/// [outward] is the leg's own side of the pelvis, −1 or 1, and it is the way the
+/// bow goes: knees track slightly out, never across.
+Offset kneeBetween(Offset hip, Offset boot, double outward) {
   final line = boot - hip;
-  // Never quite locked and never folded past the bones: a leg at full stretch
-  // still has a knee in it, and one that cannot reach has to stop somewhere.
-  final span = line.distance.clamp((thigh - shin).abs() + 1e-6, thigh + shin);
+  final span = line.distance;
   if (span <= 0) return hip;
-  final along = line / line.distance;
-  final reach = (span * span + thigh * thigh - shin * shin) / (2 * span);
-  final drop = math.sqrt(math.max(0, thigh * thigh - reach * reach));
-  final side = bow.isNegative ? -1.0 : 1.0;
-  return hip + along * reach + Offset(-along.dy, along.dx) * drop * side;
+  final along = line / span;
+  // Square to the leg, pointing to its own side when it hangs down.
+  final perp = Offset(along.dy, -along.dx);
+  return hip +
+      line * (_takerThigh / (_takerThigh + _takerShin)) +
+      perp * (span * _kneeBow * (outward.isNegative ? -1 : 1));
 }
 
 TakerRig? takerRigFor(double t, Size view) {
@@ -1239,11 +1253,10 @@ TakerRig? takerRigFor(double t, Size view) {
     head: hip + Offset(0, -torso - unit * _takerNeck),
     plantBoot: plantBoot,
     kickBoot: kickBoot,
-    // Bowed the way the leg is SWINGING: from directly behind him a knee's own
-    // forward bend projects to almost nothing, and what the eye reads is the
-    // kink in the plane of the swing.
-    plantKnee: kneeBetween(plantHip, plantBoot, unit, plantAngle),
-    kickKnee: kneeBetween(kickHip, kickBoot, unit, kickAngle),
+    // Bowed to the leg's OWN side of the pelvis, so the knees can never swap
+    // over — see [_kneeBow].
+    plantKnee: kneeBetween(plantHip, plantBoot, -1),
+    kickKnee: kneeBetween(kickHip, kickBoot, 1),
     plantHip: plantHip,
     kickHip: kickHip,
     leftJoint: leftJoint,
@@ -1894,6 +1907,99 @@ class PenaltyPainter extends CustomPainter {
   /// the classic panel pattern (a centre pentagon with five around it), and the
   /// pattern TURNING — the roll comes from the physics, so the ball spins at the
   /// rate it is actually travelling.
+  /// The twelve black pentagons of a football, as unit vectors.
+  ///
+  /// They are the vertices of an icosahedron, which is where a truncated
+  /// icosahedron's pentagons sit — so the spacing is the real ball's rather than
+  /// five points on a circle.
+  static final List<(double, double, double)> _ballPanels = () {
+    const phi = 1.618033988749895;
+    final n = math.sqrt(1 + phi * phi);
+    final out = <(double, double, double)>[];
+    for (final a in [-1.0, 1.0]) {
+      for (final b in [-phi, phi]) {
+        out.add((0, a / n, b / n));
+        out.add((a / n, b / n, 0));
+        out.add((b / n, 0, a / n));
+      }
+    }
+    return out;
+  }();
+
+  /// How wide one pentagon is, in radians of arc from its own centre.
+  ///
+  /// A ball's pentagons do not touch — the white hexagons run between them — so
+  /// this is under half the 63.4 degrees that separates two centres.
+  static const double _ballPanelArc = 0.40;
+
+  /// The pattern, turned by [roll] and laid on the sphere.
+  void _paintBallPanels(Canvas canvas, double radius, double roll) {
+    // It rolls end over end as it flies away, so the turn is about the screen's
+    // horizontal — the axis a ball struck with backspin actually spins on.
+    final cr = math.cos(roll);
+    final sr = math.sin(roll);
+    // The same light the sphere's gradient is lit by, so a panel on the shaded
+    // side is a shaded panel rather than the same flat black all over.
+    const lx = -0.40, ly = -0.45, lz = 0.80;
+    const lit = Color(0xFF2B333D);
+    const shade = Color(0xFF12171D);
+    final edge = math.sin(_ballPanelArc);
+
+    for (final c in _ballPanels) {
+      // Toward the camera is +z; +y is down the screen, as the canvas has it.
+      final vy = c.$2 * cr - c.$3 * sr;
+      final vz = c.$2 * sr + c.$3 * cr;
+      final vx = c.$1;
+      if (vz < -edge) continue;
+
+      // A tangent frame at the panel's centre. The pole it is built from is
+      // swapped near the axis so the cross product never collapses.
+      final (ax, ay, az) = vz.abs() < 0.9 ? (0.0, 0.0, 1.0) : (0.0, 1.0, 0.0);
+      var t1x = ay * vz - az * vy;
+      var t1y = az * vx - ax * vz;
+      var t1z = ax * vy - ay * vx;
+      final t1n = math.sqrt(t1x * t1x + t1y * t1y + t1z * t1z);
+      if (t1n <= 0) continue;
+      t1x /= t1n;
+      t1y /= t1n;
+      t1z /= t1n;
+      final t2x = vy * t1z - vz * t1y;
+      final t2y = vz * t1x - vx * t1z;
+      final t2z = vx * t1y - vy * t1x;
+
+      final cosA = math.cos(_ballPanelArc);
+      final sinA = edge;
+      final path = Path();
+      for (var i = 0; i < 5; i++) {
+        final a = i * 2 * math.pi / 5;
+        final ca = math.cos(a) * sinA;
+        final sa = math.sin(a) * sinA;
+        final px = vx * cosA + t1x * ca + t2x * sa;
+        final py = vy * cosA + t1y * ca + t2y * sa;
+        final pz = vz * cosA + t1z * ca + t2z * sa;
+        // Orthographic. A corner that has gone round the back is pinned to the
+        // silhouette instead of folding across the face of the ball.
+        var sx = px;
+        var sy = py;
+        if (pz < 0) {
+          final len = math.sqrt(px * px + py * py);
+          if (len > 0) {
+            sx = px / len;
+            sy = py / len;
+          }
+        }
+        i == 0
+            ? path.moveTo(sx * radius, sy * radius)
+            : path.lineTo(sx * radius, sy * radius);
+      }
+      final lambert = (vx * lx + vy * ly + vz * lz).clamp(-1.0, 1.0);
+      canvas.drawPath(
+        path..close(),
+        Paint()..color = Color.lerp(shade, lit, (lambert + 1) / 2)!,
+      );
+    }
+  }
+
   void _paintBall(Canvas canvas, Size size) {
     final at = project(frame.ball, size);
     if (at == null) return;
@@ -1928,34 +2034,23 @@ class PenaltyPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: at, radius: radius)),
     );
 
-    // The panels, turned by how far it has rolled. Clipped to the sphere so the
-    // pattern wraps rather than sitting on top of it.
+    // **THE PANELS ARE ON A SPHERE, not stamped on a disc.** Six flat pentagons
+    // at fixed sizes — one in the middle and five at 0.72 of the radius — is a
+    // pattern printed on a circle, and it is what reads as generated: the outer
+    // ones stayed round and full-sized right at the rim, where a ball's panels
+    // are slivers, and the whole set spun as one rigid picture. Reported from
+    // the couch.
+    //
+    // [_ballPanels] is the twelve pentagon centres of an actual football, and
+    // each is drawn as a cap on the sphere and projected — so a panel
+    // foreshortens into the limb, panels come round the back and go, and the
+    // roll turns the BALL rather than the drawing.
     canvas.save();
     canvas.clipPath(
       Path()..addOval(Rect.fromCircle(center: at, radius: radius)),
     );
     canvas.translate(at.dx, at.dy);
-    canvas.rotate(frame.roll * 0.3);
-    final panel = Paint()..color = const Color(0xFF222A33);
-    void pentagon(Offset centre, double r, double turn) {
-      final path = Path();
-      for (var i = 0; i < 5; i++) {
-        final a = turn + i * 2 * math.pi / 5;
-        final p = centre + Offset(math.cos(a) * r, math.sin(a) * r);
-        i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
-      }
-      canvas.drawPath(path..close(), panel);
-    }
-
-    pentagon(Offset.zero, radius * 0.30, -math.pi / 2);
-    for (var i = 0; i < 5; i++) {
-      final a = -math.pi / 2 + i * 2 * math.pi / 5;
-      pentagon(
-        Offset(math.cos(a) * radius * 0.72, math.sin(a) * radius * 0.72),
-        radius * 0.24,
-        a + math.pi / 5,
-      );
-    }
+    _paintBallPanels(canvas, radius, frame.roll * 0.55);
     canvas.restore();
 
     // The rim last, over the panels, so the silhouette stays clean.
@@ -2240,11 +2335,18 @@ class PenaltyViewState extends State<PenaltyView>
     // is the work.
     // A drag counts as live: the dashes march while the thumb is down.
     final live = _kick != null || _hold > 0 || _net.moving || _dragFrom != null;
+    // **THE LAST FRAME IS THE ONE THAT PUTS THE BALL BACK, so it has to be
+    // DRAWN.** The frame the hold expires is the frame `_kick` goes null and the
+    // mesh is reset — and it then returned without a `setState`, because it had
+    // just made `live` false. So the screen kept the ball in the net and the net
+    // dented, and the next repaint came from the player's own touch: reported
+    // from the couch as having to click to get the ball back, with nothing ever
+    // saying so. Paint, then stop.
+    if (mounted) setState(() {});
     if (!live) {
       _ticker?.stop();
       return;
     }
-    if (mounted) setState(() {});
   }
 
   void _shoot(Size view) {

@@ -330,7 +330,19 @@ class ShopTile extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
+                  // **THE WORDS KEEP OUT OF THE FLASH'S WAY.** The corner banner
+                  // is drawn as a sibling of this pane, and the hero's words
+                  // start at the art's right shoulder and run to the tile's own
+                  // edge — so "MOST POPULAR" was laid straight across the name
+                  // of the thing it was recommending. Reported from the couch.
+                  // Only this row is inset: the price line beneath it is well
+                  // clear of the corner and a button pushed 48pt off the right
+                  // edge would read as unfinished.
+                  Padding(
+                  padding: EdgeInsets.only(
+                    right: corner == null ? 0 : CornerBanner.clearance,
+                  ),
+                  child: Row(
                     // **THE ART IS CENTRED AGAINST THE WORDS, not hung off the
                     // top of them.** The spec's hero is one `align-items:center`
                     // flex row; the port started it, so a 64pt picture sat level
@@ -376,6 +388,7 @@ class ShopTile extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
                   ),
                   const SizedBox(height: 12),
                   // **THE CONTENTS AND THE PRICE SHARE A LINE.** The button was
@@ -472,10 +485,36 @@ class CornerBanner extends StatelessWidget {
   /// small and high-contrast or it is not a banner.
   final Color ink;
 
-  /// How far down the corner the bar sits, and how long it is. The bar has to
-  /// be longer than the diagonal of the square it is cut out of.
+  /// The corner it is cut out of, how far down the DIAGONAL its centre-line
+  /// sits, how thick the band is, and how long.
+  ///
+  /// **THE TEXT WAS NOT IN THE MIDDLE OF THE BANNER, and the geometry says why.**
+  /// The bar was placed by its top edge, `_drop` pixels down the box, and then
+  /// rotated about its own centre — so where it ended up depended on how tall
+  /// the text happened to render. Measured, its centre landed 12pt up the band
+  /// from the middle of the part that is actually VISIBLE: the visible run is the
+  /// chord across the corner, and the chord's midpoint is the foot of the
+  /// perpendicular from the corner, which is nowhere near the box's own centre.
+  /// Reported from the couch.
+  ///
+  /// So the band is placed by that foot instead — [_reach] down the diagonal
+  /// from the corner — and the text, centred in the band, is therefore centred
+  /// on what is seen. [_bar] only has to be longer than the chord.
   static const double _box = 96;
-  static const double _drop = 22;
+  static const double _reach = 34;
+  static const double _thick = 17;
+  static const double _bar = 150;
+
+  /// How much of the tile's top-right the flash covers, which is what a tile
+  /// carrying one has to keep clear. The band's far edge, projected back onto
+  /// the edges it crosses.
+  ///
+  /// **The flash ran straight across the hero's title.** It is drawn as a
+  /// sibling of the pane and the hero's words start at the art's right shoulder
+  /// and run to the tile's edge, so "MOST POPULAR" was laid over the name of the
+  /// thing it was recommending. A tile that wears one insets its own words by
+  /// this. See [ShopTile].
+  static const double clearance = (_reach + _thick / 2) * 1.4143;
 
   @override
   Widget build(BuildContext context) {
@@ -487,6 +526,9 @@ class CornerBanner extends StatelessWidget {
     final onInk = 1.05 / (l + 0.05) >= (l + 0.05) / 0.0575
         ? Colors.white
         : adOfferOnInk;
+    // The foot of the perpendicular from the corner, which is the middle of the
+    // chord the band is seen through.
+    const along = _reach / 1.4143;
     return IgnorePointer(
       child: SizedBox(
         width: _box,
@@ -495,14 +537,14 @@ class CornerBanner extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              top: _drop,
-              left: -_box * 0.32,
-              right: -_box * 0.32,
+              left: _box - along - _bar / 2,
+              top: along - _thick / 2,
+              width: _bar,
+              height: _thick,
               child: Transform.rotate(
                 angle: math.pi / 4,
                 child: Container(
                   alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 3),
                   color: ink,
                   child: Text(
                     text.toUpperCase(),

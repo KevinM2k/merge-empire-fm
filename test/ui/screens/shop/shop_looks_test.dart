@@ -299,7 +299,7 @@ void main() {
 
       final ticks = find.descendant(
         of: find.byKey(ValueKey('pack-contents-${pack.id}')),
-        matching: find.byIcon(Icons.check),
+        matching: find.byIcon(Icons.check_circle),
       );
       expect(ticks, findsOneWidget, reason: 'one owned, one tick');
     });
@@ -320,6 +320,88 @@ void main() {
     await tester.tap(tile);
     await tester.pumpAndSettle();
     expect(find.byType(LookPreview), findsWidgets);
+  });
+
+  /// **A HAIR COLOUR IS NOT A STAR.**
+  ///
+  /// The colour axes were excluded from the preview on the customiser's
+  /// reasoning that a colour is better looked at as a colour — but the
+  /// customiser then draws a SWATCH, and the shop has no swatch branch, so a
+  /// player buying a colour pack saw `GameIcon('star')`, once per colour.
+  /// Reported from the couch, asking for the head. A star is not a worse look at
+  /// a colour; it is no look at one.
+  testWidgets('AND A HAIR COLOUR IS SHOWN ON A HEAD', (tester) async {
+    final pack = lookPacks.firstWhere(
+      (p) => p.items.any((i) => i.startsWith('color:')),
+      orElse: () => lookPacks.first,
+    );
+    final colours = pack.items.where((i) => i.startsWith('color:')).length;
+    if (colours == 0) return;
+
+    await pumpShopWidget(tester, (_) {}, LooksSection.new);
+    final tile = find.byKey(
+      ValueKey('shop-tile-pack-${pack.id}'),
+      skipOffstage: false,
+    );
+    await tester.scrollUntilVisible(tile, 80);
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+
+    final previews = tester
+        .widgetList<LookPreview>(find.byType(LookPreview))
+        .where((p) => p.axis.kind == 'color')
+        .toList();
+    expect(
+      previews,
+      hasLength(colours),
+      reason: 'a colour still has no picture of itself',
+    );
+    // Each is a DIFFERENT head, which is the whole point — and the hat comes
+    // off, or a manager in a bucket hat previews four identical hats.
+    expect(
+      previews.map((p) => p.look['hair']).toSet(),
+      hasLength(colours),
+      reason: 'every colour drew the same head',
+    );
+    for (final preview in previews) {
+      expect(preview.look['hat'], 'none');
+    }
+  });
+
+  /// **ACROSS, NOT DOWN.**
+  ///
+  /// The items were a column of 54pt pictures with their names beside them and
+  /// the rest of a wide sheet empty to the right, so the pictures — the whole
+  /// reason the list is drawn rather than written — were the smallest thing on
+  /// it. The customiser lays the same choices out as a grid with the name under
+  /// each one, which is what was asked for.
+  testWidgets('AND THEY SIT SIDE BY SIDE, name under picture', (tester) async {
+    final pack = lookPacks.firstWhere((p) => p.items.length > 1);
+    await pumpShopWidget(tester, (_) {}, LooksSection.new);
+    final tile = find.byKey(
+      ValueKey('shop-tile-pack-${pack.id}'),
+      skipOffstage: false,
+    );
+    await tester.scrollUntilVisible(tile, 80);
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+
+    final first = pack.items.first.split(':');
+    final second = pack.items[1].split(':');
+    final a = tester.getRect(find.text(lookItemLabel(first.first, first.last)));
+    final b = tester.getRect(
+      find.text(lookItemLabel(second.first, second.last)),
+    );
+    expect(a.center.dy, closeTo(b.center.dy, 1), reason: 'still a column');
+    expect(b.center.dx, greaterThan(a.center.dx));
+
+    // And the name is UNDER its own picture rather than beside it.
+    final pictures = tester
+        .widgetList<LookPreview>(find.byType(LookPreview))
+        .toList();
+    expect(pictures, isNotEmpty);
+    final art = tester.getRect(find.byWidget(pictures.first));
+    expect(a.top, greaterThanOrEqualTo(art.bottom - 1));
   });
 
   group('A PACK TILE IS AN OBJECT ON THE PAGE', () {

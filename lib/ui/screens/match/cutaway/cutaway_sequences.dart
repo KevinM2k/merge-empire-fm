@@ -472,6 +472,97 @@ const List<CutawaySequence> cutawaySequences = [
       Finish('longshot', firstTime: true),
     ],
   ),
+
+  // ── Six more, asked for from the couch: dribbling, heading, volleying. ─────
+  //
+  // **The shape of the twenty-nine above is the brief for these.** Nearly all
+  // of them are three or four beats ending in a shot from about the same
+  // distance, so a run of clips reads as one passage with the numbers moved
+  // about. What each of these adds is a MOMENT the set had none of: a nutmeg
+  // and a shot on the turn, a header back across goal from a corner, a scissor
+  // volley from the edge, a keeper's throw breaking three men clear, a byline
+  // rabona-angle cutback met on the half-volley, and a defender striding out of
+  // his own half with nobody willing to close him.
+  //
+  // Added to `SEQUENCES` in `ChanceCutaway.js` in the same commit, because the
+  // JS is the spec and a passage that exists on one side only is the drift this
+  // repo's fixtures exist to catch.
+
+  // Beaten twice in the same three yards, then a shot on the turn.
+  CutawaySequence(
+    id: 'nutmeg_turn',
+    weight: 1.1,
+    play: [
+      Start((p: 0.46, q: 0.36)),
+      Dribble((p: 0.62, q: 0.40), beats: true),
+      Dribble((p: 0.74, q: 0.44), beats: true),
+      Dribble((p: 0.80, q: 0.52), beats: true),
+      Finish('placed'),
+    ],
+  ),
+  // A corner: hung to the back post, headed BACK across the six-yard box and
+  // nodded in. Two headers, which nothing else here has.
+  CutawaySequence(
+    id: 'corner_back_post',
+    weight: 1.3,
+    play: [
+      Start((p: 1.02, q: 0.98)),
+      Pass((p: 0.95, q: 0.14), kind: 'cross', run: (p: 0.86, q: 0.20)),
+      Pass((p: 0.965, q: 0.48), kind: 'lofted', run: (p: 0.90, q: 0.40),
+          firstTime: true),
+      Finish('header', firstTime: true),
+    ],
+  ),
+  // Half-cleared to the edge and hit back through the crowd on the volley.
+  CutawaySequence(
+    id: 'edge_scissor_volley',
+    weight: 1.1,
+    play: [
+      Start((p: 0.88, q: 0.30)),
+      Pass((p: 0.66, q: 0.50), kind: 'lofted', run: (p: 0.60, q: 0.46)),
+      Finish('volley', firstTime: true),
+    ],
+  ),
+  // The keeper's throw, three passes, and it is a two-on-one before they have
+  // turned round. The longest passage in the set, on purpose: it is the one
+  // that reads as a BREAK rather than as a move.
+  CutawaySequence(
+    id: 'keeper_throw_break',
+    weight: 1.0,
+    play: [
+      Start((p: 0.06, q: 0.50)),
+      Pass((p: 0.30, q: 0.80), kind: 'through', run: (p: 0.16, q: 0.86)),
+      Dribble((p: 0.64, q: 0.86)),
+      Pass((p: 0.86, q: 0.58), kind: 'cutback', run: (p: 0.58, q: 0.52)),
+      Finish('oneonone'),
+    ],
+  ),
+  // To the byline the hard way, cut back off the deck and met on the drop.
+  CutawaySequence(
+    id: 'byline_half_volley',
+    weight: 1.2,
+    play: [
+      Start((p: 0.58, q: 0.16)),
+      Dribble((p: 0.86, q: 0.05), beats: true),
+      Dribble((p: 1.00, q: 0.08)),
+      Pass((p: 0.90, q: 0.52), kind: 'cutback', run: (p: 0.70, q: 0.46)),
+      Finish('volley', firstTime: true),
+    ],
+  ),
+  // A centre-half walks it out of his own half because nobody will go to him,
+  // and hits it from thirty. The one passage that starts behind the halfway
+  // line with the ball at somebody's feet.
+  CutawaySequence(
+    id: 'defender_stride_out',
+    weight: 0.9,
+    play: [
+      Start((p: 0.10, q: 0.44)),
+      Dribble((p: 0.34, q: 0.46)),
+      Dribble((p: 0.56, q: 0.50)),
+      Dribble((p: 0.70, q: 0.52), beats: true),
+      Finish('longshot'),
+    ],
+  ),
 ];
 
 /// Pick a passage, weighted.

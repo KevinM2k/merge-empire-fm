@@ -153,19 +153,55 @@ double stageBandHeight({
 /// stadium at dusk, so three empty outlines read as holes cut in the page.
 /// Asked for directly.
 ///
+/// **AND THE THREE ARE NOT ONE CONTROL.** They all wore `kit.surface2`, so the
+/// speed toggle, the substitution and the give-up button were three identical
+/// grey slabs — reported from the couch as just grey, wanting the themed
+/// colours and wanting them to mean something. [face] is what each one is FOR:
+///
+/// - the speed toggle is a STATE, so it lights in the club's accent when 2× is
+///   on and sits neutral when it is not — the one control on the page whose
+///   colour is information;
+/// - Subs is the green a substitution is drawn in everywhere else in this game
+///   ([vsGreenPlate], the ATK/DEF green the stat rows and the HUD's chips use),
+///   because it is the only decision in the row;
+/// - Skip stays neutral, and that is the point of the other two: it is giving up
+///   on watching, and a control for that should be the quiet one.
+///
 /// Through `mouldedButtonStyle` rather than `styleFrom`, because a moulded
 /// button's face is painted in a `backgroundBuilder` over a transparent
 /// Material — `backgroundColor:` colours the layer underneath it and fails
 /// silently. `architecture_test.dart` checks exactly this.
-ButtonStyle matchControlStyle(BuildContext context) {
+Color _onFace(Color face) {
+  final l = face.computeLuminance();
+  return 1.05 / (l + 0.05) >= (l + 0.05) / 0.0575
+      ? Colors.white
+      : const Color(0xFF10141A);
+}
+
+ButtonStyle matchControlStyle(BuildContext context, {Color? face}) {
   final kit = Theme.of(context).extension<KitTheme>()!;
+  final fill = face ?? kit.surface2;
   return mouldedButtonStyle(
-    face: kit.surface2,
-    edge: kit.border,
-    ink: Theme.of(context).colorScheme.onSurface,
+    face: fill,
+    // The edge is the face's own shade, so a coloured button is one object
+    // rather than a colour inside a grey frame.
+    edge: face == null ? kit.border : Color.lerp(fill, Colors.black, 0.3)!,
+    // Whichever of the two reads better on the face, MEASURED — the same pick
+    // `CornerBanner` makes, because a brightness guess is what puts white on a
+    // mid green at 2.9:1. The neutral face keeps the page's own body colour.
+    ink: face == null
+        ? Theme.of(context).colorScheme.onSurface
+        : _onFace(fill),
     dead: kit.surface2,
     deadInk: kit.textMuted,
     border: kit.border,
+  ).copyWith(
+    // **THE SAME SIZE AS THE PAGE, not a point bigger.** `mouldedButtonStyle`
+    // sets 14 for every button in the app; on this row that is a point over the
+    // commentary directly under it, and with one weight everywhere the size was
+    // the only thing making these three shout. Reported from the couch — not
+    // liking them being bigger, bold is fine.
+    textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 13)),
   );
 }
 
@@ -1606,7 +1642,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                         ),
                         child: Padding(
                           key: const ValueKey('match-commentary'),
-                          padding: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+                          // **NOTHING OF ITS OWN.** Six points of air over the
+                          // first line, on top of the [matchGap] the band above
+                          // already ends in — see the ListView's own padding for
+                          // the other half of this.
+                          padding: EdgeInsets.zero,
                           child: Stack(
                             children: [
                           Column(
@@ -1614,12 +1654,18 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 Expanded(
                                     child: ListView.builder(
                                       key: const ValueKey('match-feed'),
-                                      padding: const EdgeInsets.fromLTRB(
-                                        12,
-                                        0,
-                                        12,
-                                        12,
-                                      ),
+                                      // **THE BAND'S INSET IS PAID ONCE.**
+                                      // [feedInset] went to nothing and
+                                      // [feedBandInset] became [matchInset] so
+                                      // the commentary would line up with the
+                                      // tactic strip above it — and this twelve
+                                      // was left putting it straight back, so a
+                                      // line still started 25 points in against
+                                      // the strip's 13. Reported again from the
+                                      // couch as too much margin at the top and
+                                      // down both sides. The bottom stays: it is
+                                      // what keeps the last line off the buttons.
+                                      padding: const EdgeInsets.only(bottom: 12),
                                       // NEWEST FIRST. `reverse: true` put index 0 at the bottom, so the
                                       // newest line arrived at the foot of the list and everything
                                       // worth reading was off the bottom of a long match. A line should
@@ -1747,7 +1793,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               // silently. See `store_button.dart`.
                               OutlinedButton(
                                 key: const ValueKey('match-speed'),
-                                style: matchControlStyle(context),
+                                // **THE COLOUR IS THE STATE.** It is a toggle
+                                // that said which speed it was on in text
+                                // alone, in the same grey either way.
+                                style: matchControlStyle(
+                                  context,
+                                  face: _fast
+                                      ? Theme.of(
+                                          context,
+                                        ).extension<KitTheme>()!.accent
+                                      : null,
+                                ),
                                 onPressed: toggleSpeed,
                                 child: Text(_fast ? '2×' : '1×'),
                               ),
@@ -1758,7 +1814,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               Expanded(
                                 child: OutlinedButton(
                                   key: const ValueKey('match-subs'),
-                                  style: matchControlStyle(context),
+                                  style: matchControlStyle(
+                                    context,
+                                    face: vsGreenPlate,
+                                  ),
                                   onPressed: openSubs,
                                   child: Text(t('match.subs')),
                                 ),
@@ -2539,38 +2598,79 @@ class _FeedLine extends StatelessWidget {
             ring: isGoal ? glassAccent(context, kit.accentBright) : kit.border,
           );
 
-    final row = Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    // **THE HEAD ROW, and what it is allowed to say.**
+    //
+    // A minute, and the KIND of thing that happened when there is a word for
+    // it. Only three types have one in the catalogues — half time, full time
+    // and an injury — and the two that make up most of the feed, commentary and
+    // a chance, have none. So this is null far more often than not, and a line
+    // with no action is a minute over a sentence. Inventing "Corner" or
+    // "Chance" here would print English in ten languages.
+    final action = switch (line.type) {
+      'halftime' => t('match.half_time'),
+      'fulltime' => t('match.full_time'),
+      'injury' => t('match.subs.injured'),
+      _ => null,
+    };
+
+    // **TIME OVER DESCRIPTION, not beside it.** Every line was a minute in a
+    // 30-point gutter with the sentence flowing off it, so a long line wrapped
+    // back under the gutter and the column the feed is scanned by stopped being
+    // a column. Asked for from the couch as a card: the time and what happened
+    // on one line, what was said underneath.
+    final card = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 30,
-          child: Text(
-            "${line.minute}'",
-            // **READABLE.** It was `textMuted` at 11 over a pane with a
-            // gradient behind it, which is the one column a player scans the
-            // feed by.
-            style: TextStyle(
-              color: kit.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()],
+        Row(
+          children: [
+            Text(
+              "${line.minute}'",
+              // **READABLE.** It was `textMuted` at 11 over a pane with a
+              // gradient behind it, which is the one column a player scans the
+              // feed by.
+              style: TextStyle(
+                color: kit.textMuted,
+                fontSize: 11,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
-          ),
+            if (action case final label?) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 0.8,
+                    color: glassAccent(context, kit.accentBright),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-        // The face stands IN FOR the ball glyph rather than beside it: two marks
-        // in front of one sentence is a row with two subjects. A GOAL never
-        // reaches this row — it is a card, and its head carries both.
-        if (face != null)
-          Padding(padding: const EdgeInsets.only(right: 8), child: face),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isGoal ? FontWeight.w700 : FontWeight.w400,
-              color: isGoal ? glassAccent(context, kit.accentBright) : null,
+        const SizedBox(height: 5),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // The face stands IN FOR the ball glyph rather than beside it: two
+            // marks in front of one sentence is a row with two subjects. A GOAL
+            // never reaches here — it is its own card, and its head carries
+            // both.
+            if (face != null)
+              Padding(padding: const EdgeInsets.only(right: 8), child: face),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isGoal ? glassAccent(context, kit.accentBright) : null,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );
@@ -2719,23 +2819,31 @@ class _FeedLine extends StatelessWidget {
                   // passage is rebuilt from the minute rather than recorded —
                   // so asking for it again costs nothing but the chip.
                   //
-                  // No label on it, and that is deliberate: the catalogues are
-                  // generated from the JS's own `en.js`, which has never had a
-                  // word for this, and inventing a key would print English in
-                  // ten languages. The glyph is the control.
+                  // **AND IT SAYS SO NOW.** It was the glyph alone because the
+                  // catalogues had no word for it — they are generated from the
+                  // JS's `en.js` and inventing a key here would print English
+                  // in ten languages. `match.replay` was added to the spec and
+                  // regenerated for the full-time report's own goal list, so
+                  // the two controls that do the same thing can read the same.
                   if (onReplay case final replay?)
-                    SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: IconButton(
-                        key: ValueKey('feed-replay-${line.minute}'),
-                        padding: EdgeInsets.zero,
-                        iconSize: 17,
+                    TextButton.icon(
+                      key: ValueKey('feed-replay-${line.minute}'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: goal.ours
+                            ? glassAccent(context, kit.accentBright)
+                            : conceded,
                         visualDensity: VisualDensity.compact,
-                        color: goal.ours ? glassAccent(context, kit.accentBright) : conceded,
-                        icon: const Icon(Icons.replay),
-                        onPressed: replay,
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        minimumSize: const Size(0, 30),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
+                      icon: const Icon(Icons.replay, size: 15),
+                      label: Text(
+                        t('match.replay'),
+                        maxLines: 1,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      onPressed: replay,
                     ),
                 ],
               ),
@@ -2751,17 +2859,21 @@ class _FeedLine extends StatelessWidget {
     // what makes a line a line, and it gives the minute down the left a ground
     // to be read off.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 2),
+      // **MORE AIR, inside and out.** Asked for from the couch: a bit more
+      // padding for the entries. Nine and seven inside a two-point gap read as
+      // a stack of strips rather than a stack of cards, and the two-row shape
+      // above needs the room to hold together as one entry.
+      padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 3),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(9, 7, 9, 7),
+        padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
         decoration: BoxDecoration(
           color: glassInk(context).withValues(alpha: feedPlateFill),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: glassInk(context).withValues(alpha: feedPlateEdge),
           ),
         ),
-        child: row,
+        child: card,
       ),
     );
   }

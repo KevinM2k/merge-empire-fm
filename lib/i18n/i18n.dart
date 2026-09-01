@@ -229,3 +229,51 @@ String tName(String prefix, Object? idOrObj) {
   final key = '$prefix.$id';
   return _catalog[key] ?? _fallbackCatalog[key] ?? fallback;
 }
+
+/// **NO EMOJI IN WHAT COLIN SAYS.**
+///
+/// Asked for from the couch. The catalogues are generated from the JS and a good
+/// deal of the copy opens with a pictograph — `tut.merge.title` is "🔀 Hold &
+/// Drag to Merge", the milestone tips carry a trophy or a hospital — which reads
+/// as a sticker on a card that is already a drawn man standing behind a
+/// dialogue box, and reads worse still with a nameplate over it.
+///
+/// **Applied where it is DRAWN rather than inside [t], which is the same rule
+/// the markup strip follows and for the opposite reason.** `<br>` and
+/// `<strong>` are DOM affordances no Dart string can carry, so they come off for
+/// everybody; an emoji is a character the rest of the game uses on purpose — the
+/// drill tiles, the gem shelf's 🏆, the trait badges are all glyph and nothing
+/// else. So this is a coach-card rule and it lives at that boundary.
+///
+/// The ranges are the pictographic ones only. Arrows and the general punctuation
+/// block are left alone: an em dash is not an emoji, and a "→" between two
+/// halves of a sentence is a word.
+String withoutEmoji(String text) {
+  final out = StringBuffer();
+  var space = false;
+  for (final unit in text.runes) {
+    if (_isEmoji(unit)) {
+      // The gap it leaves is swallowed rather than left behind: "🔀 Hold" with
+      // the glyph taken out is a line that starts with a space.
+      space = true;
+      continue;
+    }
+    if (space && out.isEmpty && (unit == 32 || unit == 9)) continue;
+    space = false;
+    out.writeCharCode(unit);
+  }
+  return out.toString().trim();
+}
+
+bool _isEmoji(int unit) =>
+    // Miscellaneous symbols, dingbats, and the supplemental blocks above them.
+    (unit >= 0x2600 && unit <= 0x27BF) ||
+    (unit >= 0x2B00 && unit <= 0x2BFF) ||
+    (unit >= 0x1F000 && unit <= 0x1FAFF) ||
+    // The joiners and modifiers that hang off one: a variation selector left
+    // behind by a stripped glyph is an invisible character in the middle of a
+    // word.
+    unit == 0xFE0F ||
+    unit == 0x200D ||
+    unit == 0x20E3 ||
+    (unit >= 0x1F3FB && unit <= 0x1F3FF);
