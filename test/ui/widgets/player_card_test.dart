@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -260,13 +261,18 @@ void main() {
       trait: null,
     ));
     expect(find.byIcon(Icons.healing), findsOneWidget);
-    expect(find.byIcon(Icons.swap_horiz), findsOneWidget);
+    // **AND THE LOAN SAYS SO IN WORDS.** It was a pair of arrows and nothing
+    // else — a glyph a player has to be taught, on the one card on the grid
+    // that is not theirs to keep. Reported from the couch as the loaned
+    // players not saying LOANED.
+    expect(find.byKey(const ValueKey('card-loaned')), findsOneWidget);
+    expect(find.text(t('squad.detail.loaned_badge')), findsOneWidget);
   });
 
   testWidgets('a fit card shows no markers', (tester) async {
     await pumpCard(tester, _view);
     expect(find.byIcon(Icons.healing), findsNothing);
-    expect(find.byIcon(Icons.swap_horiz), findsNothing);
+    expect(find.byKey(const ValueKey('card-loaned')), findsNothing);
   });
 
   testWidgets('a tap is reported', (tester) async {

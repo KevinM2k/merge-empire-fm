@@ -155,6 +155,14 @@ int benchColumns(double width) {
 /// The width one bench card wants before another column is worth having.
 const double benchColumnWidth = 132;
 
+/// The colour a loan is marked in, on the card and on the sheet it opens.
+///
+/// The detail sheet's own badge, so a borrowed player carries the same teal
+/// wherever he is looked at rather than a blue on the grid and a teal one tap
+/// later. Fixed rather than kit-derived for the reason the wallet hues are: it
+/// is a STATUS, and a status that changes colour with the club is not one.
+const Color loanBadge = Color(0xFF26A69A);
+
 /// Everything the card paints, resolved by the caller.
 ///
 /// A record rather than the save's card map: the widget should not know how a
@@ -461,12 +469,33 @@ class PlayerCard extends StatelessWidget {
                                       size: 12,
                                       color: chipRed,
                                     ),
-                                  if (view.onLoan)
-                                    const Icon(
-                                      Icons.swap_horiz,
-                                      size: 12,
-                                      color: Colors.lightBlueAccent,
+                                  // **A LOAN SAYS SO IN WORDS.** It was a pair
+                                  // of 12px arrows and nothing else, which on
+                                  // the Players tab is a glyph a player has to
+                                  // be taught — and a borrowed card is the one
+                                  // thing on that grid that is not theirs to
+                                  // keep, so it is worth a word. Reported from
+                                  // the couch as the loaned players not saying
+                                  // LOANED.
+                                  //
+                                  // `squad.detail.loaned_badge` is that word,
+                                  // shipped in ten languages, and the teal is
+                                  // the detail sheet's own badge colour — the
+                                  // sheet a tap on this card opens says the
+                                  // same thing in the same colour, and the
+                                  // direction of the loan with it.
+                                  if (view.onLoan) ...[
+                                    if (view.injured) const SizedBox(width: 3),
+                                    Flexible(
+                                      child: _Chip(
+                                        key: const ValueKey('card-loaned'),
+                                        label: t('squad.detail.loaned_badge'),
+                                        background: loanBadge,
+                                        foreground: Colors.white,
+                                        bold: true,
+                                      ),
                                     ),
+                                  ],
                                 ],
                               ],
                             ),
