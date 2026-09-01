@@ -2241,40 +2241,57 @@ class _HeadPainter extends CustomPainter {
     // The lobe, hanging a little proud at the bottom of the C.
     canvas.drawCircle(const Offset(60.5, 52.4), 0.7, Paint()..color = shade);
 
-    // A soft shadow in the crease under the nose, which is what gives it
-    // relief now that it is the same fill as the face rather than a lighter
-    // shape stuck on.
-    canvas.save();
-    canvas.clipPath(skull);
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(73.4, 51.8), width: 5, height: 2.6),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.13)
-        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 1.2) : null,
-    );
-    // The cheekbone, and the shadow under it. Two soft marks and the face has
-    // structure — without them the skin is a flat disc whatever shape it is cut
-    // to.
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(68.4, 50.6), width: 9, height: 5),
-      Paint()
-        ..color = Colors.white.withValues(alpha: 0.10)
-        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 2) : null,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(66.6, 56.4), width: 11, height: 5.5),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.12)
-        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 2.4) : null,
-    );
-    // The neck's own shadow across the jaw, so the head sits ON the shoulders.
-    canvas.drawOval(
-      Rect.fromCenter(center: const Offset(60, 61.6), width: 15, height: 5),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.16)
-        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 2.2) : null,
-    );
-    canvas.restore();
+    // **THESE FOUR ARE THE BLUR, and without it they are not shading.**
+    //
+    // Each is a low-alpha oval that only reads as modelling because a
+    // `MaskFilter` spreads it — and [soft] is off for the customiser's grid,
+    // which drew them as HARD ovals instead. The two over the jaw are the
+    // problem: the cheekbone's shadow at (66.6, 56.4) and the neck's at
+    // (60, 61.6) overlap across the chin, and at a combined quarter of black
+    // on a mid skin tone that is a brown patch exactly where a beard goes.
+    // Reported from the couch with a shot of the None chip: no facial hair
+    // selected, stubble on his face.
+    //
+    // So a still does without them. Turning the blur back on instead would
+    // work — the chips are snapshotted, so it is paid once rather than per
+    // frame — but eighteen blurred rigs rasterising on the frame a tab opens
+    // is a hitch, and this shading is worth less than that. A face with no
+    // modelling on an 80-point chip is a clean face; a face with hard ovals on
+    // it has a beard it was not given.
+    if (soft) {
+      canvas.save();
+      canvas.clipPath(skull);
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(73.4, 51.8), width: 5, height: 2.6),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.13)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+      );
+      // The cheekbone, and the shadow under it. Two soft marks and the face
+      // has structure — without them the skin is a flat disc whatever shape it
+      // is cut to.
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(68.4, 50.6), width: 9, height: 5),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.10)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(66.6, 56.4), width: 11, height: 5.5),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.12)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.4),
+      );
+      // The neck's own shadow across the jaw, so the head sits ON the
+      // shoulders.
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(60, 61.6), width: 15, height: 5),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.16)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2),
+      );
+      canvas.restore();
+    }
 
 
     canvas.restore();
