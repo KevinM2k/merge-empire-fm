@@ -8,6 +8,64 @@ rough sense of size, not a target.
 
 ---
 
+## Playtest, 1 Sep 2026 — Colin's card, the tutorial, and the daily reward
+
+Reported from the couch during an iOS playthrough, newest session first. Struck
+through means shipped in this session; the open ones are the queue.
+
+**Done and tested (see the commits on `claude/dialog-box-ui-design-7m5199`):**
+
+- ~~Daily reward: yellow invisible in light mode; a box per reward, all one
+  size, in the HUD's colours.~~ Filled badges off `hudBadgeColour`/`hudBadgeInk`.
+- ~~Colin's line types in too fast.~~ 30ms a glyph, 2s ceiling.
+- ~~No TTS.~~ iOS was never asked for an audio session; it is now. **Superseded
+  by the row below — the plugin is going.**
+- ~~No volume for his voice.~~ His own channel in Settings → Audio, under the
+  master sound switch. Neither key is in `createDefaultState`: that map is
+  compared field for field against the JS's.
+- ~~Pro mode's padlock says "prestige", which nobody knows.~~ The gate is
+  winning the Champions League now, and the note says so.
+- ~~Em dashes everywhere.~~ Off at the `t()` boundary; the JS fixture applies
+  the same rule to its own value, since the catalogues are generated and
+  `lib/data`/`lib/engine` copy is what the parity harness compares.
+- ~~"COACH COLIN" should sit above the box, right, in white.~~
+- ~~The card covers the PLAY button on the kick-off step.~~ It lifts to 12pt
+  above whatever the spotlight is pointing at.
+- ~~The scrim behind him is too dark.~~ `black54` → `coachCardScrim`.
+- ~~Loaned players do not say LOANED on the Players tab.~~
+- ~~The HUD is pressable mid-tutorial, and a tap outside drops the card.~~ The
+  input seal is held for the whole script and the cards are not dismissible.
+- ~~The tutorial hand should tap, with a ripple where it lands.~~
+- ~~An emoji floats beside his head on a big card.~~ Gone.
+
+**Open, in the order they were asked for:**
+
+- [ ] **The loan stars should leave with a POOF**, or the shatter the auto-tier
+      sell uses (`break into parts`), with a sound to go with it. Today they
+      fly off the grid on `loanDepartureWindow` and simply stop existing. The
+      animation to reuse is the auto-sell one rather than a second effect; the
+      cue wants a `sound_defs.dart` entry.
+- [ ] **After they go, our own three players should sit in slots 1, 2 and 3.**
+      Nothing compacts the grid when `returnTutorialPlayers` empties the
+      borrowed cells, so the three the player started with are wherever the
+      loan left them. Low risk now that the tutorial seals input — Sort cannot
+      be reached mid-script — but it is not guaranteed.
+- [ ] **Drop `flutter_tts`.** The device voice is horrible. What is wanted in
+      its place: a folder you can drop clips into that is used when a clip is
+      there and silent when it is not. The seam is already the right shape —
+      `VoiceBackend` in `services/voice_service.dart` — so this is a new
+      backend plus an asset folder and a manifest lookup, and the plugin, its
+      pod and its pubspec line come out. Note the cards announce TEXT on the
+      bus today; a clip lookup wants the catalogue KEY, which `CoachCardFrame`
+      already has.
+- [ ] **No three-word club names out of the pyramid generator.** "Three
+      Horseshoes Rangers" wraps to two lines nearly everywhere it is drawn.
+      `lib/engine/pyramid_names_engine.dart`, and mind the parity fixtures —
+      the generator is compared against the JS's, so check what
+      `season_difftest` and `pyramid_names` pin before changing draw order.
+
+---
+
 ## Where this queue stands
 
 **Nothing is open. The port is done.**

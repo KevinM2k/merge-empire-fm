@@ -415,7 +415,6 @@ Future<T?> showCoachCard<T>(
   List<CoachLine> extraLines = const [],
   List<String> extraTexts = const [],
   int? coins,
-  String? badge,
   bool minimisable = false,
   CoachAction? footer,
   bool speaks = false,
@@ -423,9 +422,19 @@ Future<T?> showCoachCard<T>(
   /// Already-resolved body text, for a caller whose line comes out of a pool or
   /// carries a name the catalogue cannot know.
   String? body,
+
+  /// Whether a tap outside closes it without answering.
+  ///
+  /// **The tutorial's cards say no.** Everywhere else parking a card is a real
+  /// answer — the offer stands, the tip comes back — but a tutorial step
+  /// dismissed by a stray tap leaves a player mid-script with nothing on
+  /// screen telling them what to do. Skip is on every one of those cards for
+  /// the player who genuinely wants out. Asked for directly.
+  bool barrierDismissible = true,
 }) {
   return showDialog<T>(
     context: context,
+    barrierDismissible: barrierDismissible,
     barrierColor: coachCardScrim,
     builder: (dialogContext) => _CoachCard<T>(
       titleKey: titleKey,
@@ -437,7 +446,6 @@ Future<T?> showCoachCard<T>(
       extraTexts: extraTexts,
       coins: coins,
       actions: actions,
-      badge: badge,
       minimisable: minimisable,
       footer: footer,
       speaks: speaks,
@@ -456,7 +464,6 @@ class _CoachCard<T> extends StatelessWidget {
     required this.extraTexts,
     required this.coins,
     required this.actions,
-    required this.badge,
     this.minimisable = false,
     this.footer,
     this.speaks = false,
@@ -478,7 +485,6 @@ class _CoachCard<T> extends StatelessWidget {
   final List<String> extraTexts;
   final int? coins;
   final List<CoachAction> actions;
-  final String? badge;
 
   @override
   Widget build(BuildContext context) => CoachCardFrame(
@@ -488,7 +494,6 @@ class _CoachCard<T> extends StatelessWidget {
     extraTexts: extraTexts,
     coins: coins,
     actions: actions,
-    badge: badge,
     minimisable: minimisable,
     footer: footer,
     speaks: speaks,
@@ -710,9 +715,8 @@ class CoachStage extends StatefulWidget {
   const CoachStage({
     required this.child,
     this.dialogKey,
-    this.badge,
     this.minimisable = false,
-    this.alignment = Alignment.bottomCenter,
+    this.liftedTo,
     super.key,
   });
 
@@ -722,14 +726,11 @@ class CoachStage extends StatefulWidget {
   /// The key the dialog itself carries — each caller's own.
   final Key? dialogKey;
 
-  /// A subject badge up beside his head. See [CoachCardFrame.badge].
-  final String? badge;
-
   /// See [CoachCardFrame.minimisable].
   final bool minimisable;
 
-  /// See [CoachCardFrame.alignment].
-  final Alignment alignment;
+  /// See [CoachCardFrame.liftedTo].
+  final double? liftedTo;
 
   @override
   State<CoachStage> createState() => _CoachStageState();
@@ -749,10 +750,9 @@ class _CoachStageState extends State<CoachStage> {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final standee = coachStandeeHeightOn(context);
     final rise = standee - _coachStandeeSink;
-    final atTop = widget.alignment.y < 0;
     return Dialog(
       key: widget.dialogKey,
-      alignment: widget.alignment,
+      alignment: Alignment.bottomCenter,
       backgroundColor: Colors.transparent,
       elevation: 0,
       // **The top inset does NOT reserve room for him — his own padding already
@@ -761,12 +761,11 @@ class _CoachStageState extends State<CoachStage> {
       // overflowed it by twelve.
       insetPadding: EdgeInsets.fromLTRB(
         10,
-        // The status bar is only ours to clear when the card is up against it.
-        16 + (atTop ? MediaQuery.paddingOf(context).top : 0),
+        16,
         10,
         // `Dialog` folds in the keyboard's inset and nothing else, so the
         // gesture bar is ours to clear.
-        10 + MediaQuery.paddingOf(context).bottom,
+        widget.liftedTo ?? 10 + MediaQuery.paddingOf(context).bottom,
       ),
       child: CoachTypingSkip(
         notifier: _skips,
@@ -783,31 +782,13 @@ class _CoachStageState extends State<CoachStage> {
                 left: 0,
                 right: 0,
                 height: standee,
-                child: Stack(
-                  children: [
-                    const Positioned.fill(child: CoachStandee()),
-                    // The milestone, in the space he is NOT standing in — the
-                    // far corner, since he is hard over to the near one.
-                    if (widget.badge case final badge?)
-                      Align(
-                        alignment: const Alignment(0.72, -0.45),
-                        child: Text(
-                          badge,
-                          key: const ValueKey('coach-card-badge'),
-                          style: const TextStyle(
-                            fontSize: 28,
-                            shadows: [
-                              Shadow(
-                                color: Color(0x80000000),
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                // **AND NOTHING BESIDE HIM.** A milestone tip used to hang its
+                // subject emoji in the air over his shoulder — a hospital, a
+                // trophy, a pair of lungs — which on a card that is a man
+                // standing behind a box reads as a sticker floating in the
+                // room. Asked for from the couch. The subject is in the title
+                // he is saying it under; it does not need a mascot.
+                child: const CoachStandee(),
               ),
               // **HIS NAME IS OUT ON THE SCENE, not the first line inside the
               // box.** It sat above the title in the club's accent, which
@@ -930,7 +911,7 @@ class _MinimiseButton extends StatelessWidget {
 class CoachCardFrame extends StatelessWidget {
   const CoachCardFrame({
     super.key,
-    this.alignment = Alignment.bottomCenter,
+    this.liftedTo,
     required this.title,
     this.body,
     this.child,
@@ -938,7 +919,6 @@ class CoachCardFrame extends StatelessWidget {
     this.extraTexts = const [],
     this.coins,
     this.actions = const [],
-    this.badge,
     this.minimisable = false,
     this.footer,
     this.speaks = false,
@@ -979,14 +959,6 @@ class CoachCardFrame extends StatelessWidget {
 
   final String title;
 
-  /// A subject badge on the card's corner, beside his head.
-  ///
-  /// **The one place an emoji is right in this app.** Everything else is drawn
-  /// in the app's own line art, but a milestone tip's badge is a hospital, a
-  /// trophy, a stadium or a pair of lungs — sixteen unrelated subjects used once
-  /// each, which is not the same trade as drawing an icon set.
-  final String? badge;
-
   /// What he says. Shown immediately.
   final String? body;
 
@@ -1012,20 +984,23 @@ class CoachCardFrame extends StatelessWidget {
 
   final List<CoachAction> actions;
 
-  /// Which end of the screen the box opens against.
+  /// How far off the bottom the box sits, when the default is not enough.
   ///
-  /// **The bottom, unless the card would cover the thing it is talking about.**
-  /// A dialogue box belongs where a thumb already is, and every card in the
-  /// game opens there — except a tutorial step, whose whole job is to point at
-  /// a control the player then has to press. The kick-off step points at the
-  /// PLAY button, which is at the bottom of the screen: the card landed on top
+  /// **The card belongs at the bottom, and it must not cover what it is
+  /// pointing at.** Every card in the game opens against the bottom edge, which
+  /// is where a thumb already is — except a tutorial step, whose whole job is
+  /// to point at a control the player then has to press. The kick-off step
+  /// points at the PLAY button, which is down there too: the card landed on top
   /// of it, and since the box eats its own taps the tutorial could not be
-  /// finished at all. Reported from the couch as being unable to complete the
-  /// play step.
+  /// finished at all. Reported from the couch.
   ///
-  /// See `tutorial_overlay.dart`, which is the one caller that passes anything
-  /// but the default.
-  final Alignment alignment;
+  /// Sending it to the TOP was the first answer and it threw the box across the
+  /// screen from the thing it was talking about. This is the inset instead — it
+  /// lifts the same card just clear of the control, so nothing moves further
+  /// than it has to.
+  ///
+  /// See `tutorial_overlay.dart`, the one caller that passes it.
+  final double? liftedTo;
 
   @override
   Widget build(BuildContext context) {
@@ -1033,9 +1008,8 @@ class CoachCardFrame extends StatelessWidget {
 
     return CoachStage(
       dialogKey: const ValueKey('coach-card'),
-      badge: badge,
       minimisable: minimisable,
-      alignment: alignment,
+      liftedTo: liftedTo,
       // **THE READING MATTER SCROLLS; THE ANSWERS DO NOT.**
       //
       // What he says is a sentence in whichever of ten languages the

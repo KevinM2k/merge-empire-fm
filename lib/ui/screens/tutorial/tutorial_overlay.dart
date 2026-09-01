@@ -286,7 +286,26 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
       _showing = step.id;
       WidgetsBinding.instance.addPostFrameCallback((_) => run(step));
     }
-    return const SizedBox.shrink();
+    // **NOTHING OUTSIDE THE SCRIPT IS PRESSABLE, for the whole of it.**
+    //
+    // A card step drew nothing here and leaned on the dialog's own barrier,
+    // which is a barrier only while the dialog is up. It is not up in three
+    // ordinary windows: between the answer to one step and the opening of the
+    // next, while a tab slides in under `run`, and — the one a player actually
+    // finds — after a tap outside dismisses the card, which left the app fully
+    // live with the HUD, the tabs and Add Player all reachable and the
+    // tutorial waiting for a rebuild that nothing was going to schedule.
+    // Reported from the couch as being able to press the HUD icons mid-script.
+    //
+    // The seal is the same input-eater the loan flight already uses, held for
+    // as long as a step is live. The one thing a player may press is whatever
+    // the step itself puts on screen: the card, which is a route ABOVE this,
+    // or the control inside a spotlight's hole, which is the branch above.
+    return const ModalBarrier(
+      key: ValueKey(tutorialInputSeal),
+      dismissible: false,
+      color: null,
+    );
   }
 
   void _skip() => ref.read(gameProvider).update(skipTutorial);
@@ -339,8 +358,11 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
           ref.read(gameProvider).update(advanceTutorial);
         case null:
           // Dismissed without answering — the step stands, and the next build
-          // puts it back up.
-          _showing = null;
+          // puts it back up. **The rebuild has to be ASKED for**: clearing the
+          // field notifies nothing, so the card stayed down until something
+          // else happened to rebuild this widget, and the seal underneath it
+          // would have been a tutorial with no way forward.
+          if (mounted) setState(() => _showing = null);
       }
     } finally {
       _busy = false;
@@ -374,11 +396,12 @@ class _Tooltip extends ConsumerWidget {
     // step could not be completed at all: the tutorial was a dead end on the
     // one screen it cannot afford to be. Reported from the couch.
     //
-    // The hole's own position decides it, rather than a flag per step: a step
-    // whose target sits in the bottom half opens the card at the TOP, and
-    // everything else keeps the bottom that a dialogue box wants. A step with
-    // no target has nothing to avoid.
-    alignment: _clearOf(context) ? Alignment.topCenter : Alignment.bottomCenter,
+    // **Lifted just clear of it, not thrown to the top.** Sending the card to
+    // the other end of the screen was the first answer and it put the words as
+    // far from the button as they could get. Twelve points above it keeps the
+    // pair together and still leaves the control, its ring and the hand it is
+    // pointed at in the clear. Asked for in those terms.
+    liftedTo: _liftAbove(context),
     title: t(step.titleKey, tutorialParams(ref)),
     body: t(step.bodyKey, tutorialParams(ref)),
     extraLines: const [
@@ -391,11 +414,22 @@ class _Tooltip extends ConsumerWidget {
     footer: CoachAction(labelKey: 'tut.skip', onTap: onSkip),
   );
 
-  bool _clearOf(BuildContext context) {
+  /// The bottom inset that puts the box [_gap] above the target, or null when
+  /// the card is already clear of it.
+  ///
+  /// The hole's own position decides it rather than a flag per step, so a step
+  /// pointing at something high up keeps the bottom a dialogue box wants, and a
+  /// step with no target has nothing to avoid.
+  double? _liftAbove(BuildContext context) {
     final hole = target;
-    if (hole == null) return false;
-    return hole.center.dy > MediaQuery.sizeOf(context).height / 2;
+    if (hole == null) return null;
+    final lift = MediaQuery.sizeOf(context).height - hole.top + _gap;
+    final resting = 10 + MediaQuery.paddingOf(context).bottom;
+    return lift > resting ? lift : null;
   }
+
+  /// How far above the control the box stops.
+  static const double _gap = 12;
 }
 
 /// Every placeholder any step can ask for, supplied for all of them.
@@ -480,6 +514,10 @@ Future<TutorialAnswer?> showTutorialCard(
     titleKey: titleKey,
     bodyKey: bodyKey,
     bodyParams: tutorialParams(ref),
+    // **A TAP OUTSIDE DOES NOTHING.** The two ways past a step are the button
+    // it offers and Skip; anything else dropped the card and left the player
+    // looking at a sealed app. Asked for directly.
+    barrierDismissible: false,
     // **SPOKEN.** The walkthrough is the one stretch of the game that is purely
     // him teaching, on the one run where the player has no idea what any of it
     // does — and it happens once, so there is no session in which the voice

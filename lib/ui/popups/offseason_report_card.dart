@@ -99,7 +99,6 @@ class OffseasonReportCard extends StatelessWidget {
     return CoachCardFrame(
       key: const ValueKey('offseason-report'),
       title: t('offseason.title'),
-      badge: '🏁',
       body: t('offseason.subtitle'),
       actions: [CoachAction(labelKey: 'common.continue', onTap: () {})],
       child: Column(

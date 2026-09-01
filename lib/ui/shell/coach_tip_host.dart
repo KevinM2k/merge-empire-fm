@@ -102,9 +102,6 @@ class _CoachTipHostState extends ConsumerState<CoachTipHost> {
       bodyKey: tip.bodyKey,
       bodyParams:
           tip.bodyParams?.call(ref.read(gameProvider).state) ?? const {},
-      // The milestone's badge, and Colin's name, both come off the frame — the
-      // emoji rides the card's corner the way the JS's does.
-      badge: tip.emoji,
       // **SPOKEN.** A milestone tip is the case the voice was added for: he is
       // telling you something rather than asking you something, it fires once
       // per milestone rather than on a timer, and its copy is fixed — no name,

@@ -244,7 +244,6 @@ class _TransferOfferCard extends ConsumerWidget {
     return CoachCardFrame(
       key: const ValueKey('transfer-offer'),
       title: t('transfer.card_title', {'club': offer['fromTeam'] ?? ''}),
-      badge: '💸',
       // **What a bid MEANS, once ever.** A paragraph inside the offer rather
       // than a coach tip stacked on top of it — the JS makes that point twice,
       // and it is why `coachtip.transfer_offer.*` exists and still turns up in

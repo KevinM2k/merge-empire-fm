@@ -72,7 +72,6 @@ class _ChampionsCard extends StatelessWidget {
     return CoachCardFrame(
       key: const ValueKey('champions-card'),
       title: t('champ.title'),
-      badge: '🏆',
       actions: [
         CoachAction(
           labelKey: 'champ.new_adventure',
