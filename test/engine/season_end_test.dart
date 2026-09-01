@@ -699,6 +699,26 @@ void main() {
       expect(canPrestige(championState()), isTrue);
     });
 
+    test('AND WINNING IT IS WHAT UNLOCKS PRO, not prestiging', () {
+      // The gate used to be a prestige, and the fault was not the difficulty:
+      // nobody knows what prestige is. The padlock's whole explanation was
+      // "Prestige for the first time", which answers an unknown control with
+      // an unknown word. Winning the Champions League is the same achievement
+      // one step earlier, in the language of the game.
+      expect(proModeUnlocked(_state()), isFalse);
+      expect(proModeUnlocked(championState()), isTrue);
+    });
+
+    test('and a player on their SECOND adventure keeps it', () {
+      // A prestige resets `progression`, `wonChampionsCup` with it — so
+      // without the level in the condition the difficulty a player earned
+      // would be taken back off them at the reset.
+      final state = championState();
+      performPrestige(state);
+      expect(canPrestige(state), isFalse, reason: 'the flag really is gone');
+      expect(proModeUnlocked(state), isTrue);
+    });
+
     test('re-gates itself, so it cannot be spammed', () {
       // Without this the flag survives every reset, so the option stays
       // permanently unlocked and the level inflates with no matches played.

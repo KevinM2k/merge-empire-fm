@@ -63,10 +63,18 @@ void main() {
       // This used to be `prestige.body_pro_hint` alone — a fragment of the
       // prestige card's offer, which describes Pro and never says how it opens.
       // The condition leads it now, in the game's own shipped words.
+      //
+      // **AND THE CONDITION IS THE CHAMPIONS LEAGUE, not prestige.** Nobody
+      // knows what prestige is: it was the gate AND the whole of the
+      // explanation, so the padlock was answered with a second unknown word.
+      // The hint that follows is `settings.difficulty.hint` for the same
+      // reason — `prestige.body_pro_hint` opens with "Or prestige into Pro
+      // Mode", which is no longer the route.
       final toast = toastFor('prestige:locked', null)!;
       expect(toast.text, startsWith(proLockedAnswer()));
-      expect(toast.text, contains(t('ach.desc.prestige_level_1')));
-      expect(toast.text, contains(t('prestige.body_pro_hint')));
+      expect(toast.text, contains(t('champ.subtitle')));
+      expect(toast.text, isNot(contains(t('ach.desc.prestige_level_1'))));
+      expect(toast.text, contains(t('settings.difficulty.hint')));
       expect(toast.good, isFalse);
     });
 

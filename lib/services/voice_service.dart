@@ -21,11 +21,12 @@
 /// competition with a cup in it is the point, and being read the words "Sell
 /// Nakamura?" every time you tap sell is not. See `ui/popups/coach_card.dart`.
 ///
-/// **IT FOLLOWS THE SOUND SETTING, because it cannot have its own yet.** A
-/// switch of its own needs a label, and a label needs a key in `en.js` and a
-/// `gen_i18n.mjs` run — which is in the spec repo, not here. Riding the existing
-/// sound toggle is the honest interim: muting the game mutes him, and nothing
-/// invents copy. **A settings row of its own is owed.**
+/// **HE HAS HIS OWN CHANNEL, under the master sound switch.** He rode the SFX
+/// toggle at first, for want of a label - and that meant the only way to stop
+/// him talking was to mute the coin sounds with him. `voiceEnabled` and
+/// `voiceVolume` are his; muting the game still mutes him. The row is labelled
+/// with `coach.label`, his own name, because no new `t()` key can be added
+/// here. See `providers/voice_providers.dart`.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -181,6 +182,51 @@ class FlutterTtsBackend implements VoiceBackend {
   /// as the last one does not pay for the round trip.
   String? _set;
 
+  /// **iOS SAYS NOTHING UNTIL THE SESSION IS ASKED FOR, which is why he was
+  /// silent.** `flutter_tts` leaves the audio session alone unless
+  /// `setSharedInstance(true)` is called, and what it falls back to is silenced
+  /// by the ring switch and by whatever the game's own player has already
+  /// activated - so on a phone that is playing coin sounds perfectly well, the
+  /// voice is inaudible and nothing throws.
+  ///
+  /// The session it asks for is the one `sound_service.dart` already argued
+  /// for: PLAYBACK so the ring switch does not silence a line the card is
+  /// waiting on, MIXED so the player's podcast keeps running, and DUCKED so
+  /// what is playing drops under him instead of burying him. `voicePrompt` is
+  /// the mode Apple documents for exactly this - a synthesised line spoken over
+  /// other audio.
+  ///
+  /// Once, lazily, and never fatal: a device with no speech engine at all
+  /// throws from whichever call comes first, and a coach card must still open.
+  bool _sessionAsked = false;
+
+  /// **Its own try, and only where the calls exist.** Both are iOS/macOS
+  /// methods: Android's plugin has no handler for either, so an unguarded pair
+  /// here throws a `MissingPluginException` out of the first line of `speak`
+  /// and takes the whole utterance with it - the one platform that was working
+  /// would have stopped talking to fix the one that was not.
+  Future<void> _session() async {
+    if (_sessionAsked) return;
+    _sessionAsked = true;
+    if (defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.macOS) {
+      return;
+    }
+    try {
+      await _tts.setSharedInstance(true);
+      await _tts.setIosAudioCategory(
+        IosTextToSpeechAudioCategory.playback,
+        [
+          IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+          IosTextToSpeechAudioCategoryOptions.duckOthers,
+        ],
+        IosTextToSpeechAudioMode.voicePrompt,
+      );
+    } catch (e) {
+      debugPrint('voice session: $e');
+    }
+  }
+
   @override
   Future<void> speak(
     String text, {
@@ -195,6 +241,7 @@ class FlutterTtsBackend implements VoiceBackend {
     // call happens to be first. A coach card must not fail to open because the
     // phone cannot talk.
     try {
+      await _session();
       if (_set != locale) {
         await _tts.setLanguage(locale);
         _set = locale;

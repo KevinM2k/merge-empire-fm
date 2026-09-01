@@ -7,15 +7,23 @@
 /// does; and **the lifecycle half is not a nicety**, because an app that is put
 /// away mid-sentence otherwise finishes it into a locked phone.
 ///
-/// **It rides the SOUND setting.** A switch of its own needs a label, a label
-/// needs a key in the spec repo's `en.js`, and that repo is not on disk here.
-/// See the note in `services/voice_service.dart` — a settings row is owed.
+/// **AND HE HAS HIS OWN CHANNEL NOW.** He rode the SFX toggle, on the reasoning
+/// that a switch of his own needs a label and a label needs a key in the spec
+/// repo's `en.js` - which is not on disk here. That was the wrong trade: riding
+/// the SFX toggle means the only way to stop him talking is to mute the coin
+/// sounds too, and a voice is the one channel a player most wants to turn off
+/// on its own. `coach.label` is his name, shipped in ten languages, and beside
+/// a megaphone in the audio list it names the channel without a new key.
+///
+/// The debt that is left is real and smaller: the row is labelled with his NAME
+/// rather than with the word "voice".
 library;
 
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/services/voice_cues.dart';
 import 'package:merge_empire_fc/services/voice_service.dart';
@@ -25,13 +33,43 @@ final voiceServiceProvider = Provider<VoiceService>(
   (ref) => VoiceService(backend: FlutterTtsBackend()),
 );
 
-/// Carries the sound settings into it. Watched, never read: the point is that a
+/// His two save values, and nothing else's.
+///
+/// **Absent by default, and that is deliberate.** `createDefaultState` is
+/// compared field for field against the JS's by `game_state_test`, and that
+/// fixture cannot be regenerated from this repo - so a port-only setting that
+/// reads correctly when it is MISSING has no business being written into the
+/// schema. Both do: unset means on, at full volume, and the row writes a key
+/// the first time it is touched.
+final voiceSettingsProvider = savePick<({bool voice, double volume})>((s) {
+  final settings = s['settings'];
+  final map = settings is Map<String, dynamic>
+      ? settings
+      : const <String, dynamic>{};
+  return (
+    voice: map['voiceEnabled'] != false,
+    volume: map['voiceVolume'] is num
+        ? (map['voiceVolume'] as num).toDouble().clamp(0.0, 1.0)
+        : 1.0,
+  );
+});
+
+/// Carries them into the service. Watched, never read: the point is that a
 /// later change arrives too.
+///
+/// **The master SFX switch still silences him**, which is not the same thing as
+/// riding it: a player who has muted the game has muted the game, and a gaffer
+/// talking out of a phone that is supposed to be silent is the one outcome
+/// nobody wants. His own switch turns him off without touching the rest.
 final voiceSyncProvider = Provider<void>((ref) {
-  final settings = ref.watch(soundSettingsProvider);
+  final sound = ref.watch(soundSettingsProvider);
+  final mine = ref.watch(voiceSettingsProvider);
   final voice = ref.watch(voiceServiceProvider);
   unawaited(
-    voice.apply(enabled: settings.sound, volume: settings.soundVolume),
+    voice.apply(
+      enabled: sound.sound && mine.voice,
+      volume: mine.volume,
+    ),
   );
 });
 

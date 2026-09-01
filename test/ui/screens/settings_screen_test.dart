@@ -415,6 +415,38 @@ void main() {
       final container = await pumpSettings(tester, SettingsTab.audio);
       expect(settingsOf(container)['musicEnabled'], isNot(true));
     });
+
+    /// **COLIN IS A THIRD CHANNEL.** His voice rode the SFX toggle while it had
+    /// no label of its own, so the only way to stop him talking was to mute the
+    /// coin sounds with him. `coach.label` is his name in ten languages, which
+    /// is the whole budget: no new key can be added from this repo.
+    testWidgets('and Colin has a channel of his own', (tester) async {
+      final container = await pumpSettings(tester, SettingsTab.audio);
+      expect(find.text(t('coach.label')), findsOneWidget);
+      // Nothing is written until it is touched — the key is deliberately not in
+      // `createDefaultState`, which is compared against the JS's.
+      expect(settingsOf(container)['voiceEnabled'], isNull);
+      await tester.tap(find.byKey(const ValueKey('setting-voiceEnabled')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(settingsOf(container)['voiceEnabled'], isFalse);
+      // And the game's own sound is untouched by it, which is the point.
+      expect(settingsOf(container)['soundEnabled'], isTrue);
+    });
+
+    testWidgets('and his own volume', (tester) async {
+      final container = await pumpSettings(tester, SettingsTab.audio);
+      await tester.drag(
+        find.byKey(const ValueKey('setting-voiceVolume')),
+        const Offset(-200, 0),
+      );
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      final value = settingsOf(container)['voiceVolume'] as num;
+      expect(value, lessThan(1));
+      expect(value, greaterThanOrEqualTo(0));
+      expect(settingsOf(container)['soundVolume'], 1);
+    });
   });
 
   group('the match tab', () {
@@ -493,11 +525,18 @@ void main() {
       // **AND THE NOTE NAMES THE CONDITION.** It used to print
       // `prestige.body_pro_hint`, which describes what Pro IS and never says
       // the control is unavailable or what opens it — reported as the row
-      // needing to show that it is locked and that prestige is the key.
-      // `ach.desc.prestige_level_1` is that condition in shipped words.
+      // needing to show that it is locked and what opens it.
+      //
+      // **AND THE CONDITION IS THE CHAMPIONS LEAGUE.** It was "Prestige for
+      // the first time", which answers a padlock with a word the game invented
+      // for its own meta-loop: a player who has not met prestige learns
+      // nothing from being told to do one. `champ.subtitle` is the same
+      // achievement in the language of the game, and it is the gate itself —
+      // see `proModeUnlocked`.
       expect(find.text(proLockedAnswer()), findsOne);
       expect(find.text(t('prestige.body_pro_hint')), findsNothing);
-      expect(proLockedAnswer(), contains(t('ach.desc.prestige_level_1')));
+      expect(proLockedAnswer(), contains(t('champ.subtitle')));
+      expect(proLockedAnswer(), isNot(contains(t('ach.desc.prestige_level_1'))));
       // **AND IT WEARS A PADLOCK.** A dead segment does not say it is locked,
       // and the note underneath is a sentence nobody reads until they have
       // worked out there is something to read about. Asked for directly.
