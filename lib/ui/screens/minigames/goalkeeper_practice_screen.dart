@@ -33,10 +33,12 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
-import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
+import 'package:merge_empire_fc/ui/hud/hud.dart'
+    show hudBadgeColour, hudBadgeInk, hudCoinInk, hudEnergyInk;
 import 'package:merge_empire_fc/ui/screens/minigames/keeper_view.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -352,26 +354,36 @@ class GoalkeeperPracticeScreenState
                     const SizedBox(height: 10),
                     _WatchBar(kit: kit, pct: pct),
                     const SizedBox(height: 10),
-                    // **A GOAL IS WIDER THAN IT IS TALL.** The stage used to
-                    // be whatever height was left in the column, which on a
-                    // phone is a portrait box — so the frame the posts make
-                    // was a doorway rather than a goal. It is a window of its
-                    // own shape now and the height it gives up goes back to
-                    // the column, which centres it: letterboxed, which is what
-                    // football on a screen looks like anyway.
+                    // **THE GOAL KEEPS ITS SHAPE; THE SURPLUS BECOMES SCENE.**
+                    //
+                    // The stage is `keeperStageAspect` and always was, because
+                    // the frame IS the goal — `_paintFrame` runs the uprights
+                    // from the bar to the foot of the box, so a stage given
+                    // the whole column stretches the mouth into a doorway.
+                    // That was tried and reported straight back: the goal is
+                    // the wrong size.
+                    //
+                    // What was actually wrong is what surrounded it. A tall
+                    // phone left the surplus as two bands of PAGE, over and
+                    // under the pitch — reported before that, with the fix
+                    // named: sky above, grass below. So the bands take the
+                    // scene's own colours and the goal is untouched. See
+                    // [_StageSurround].
                     Expanded(
-                      child: Center(
-                        child: AspectRatio(
-                          aspectRatio: keeperStageAspect,
-                          child: _Stage(
-                            kit: kit,
-                            drill: _drill,
-                            flash: _flash,
-                            flashGood: _flashGood,
-                            idleText: _appeared == 0
-                                ? t('mg.warming_up')
-                                : t('mg.keep_going'),
-                            onHit: _hitDrill,
+                      child: _StageSurround(
+                        child: Center(
+                          child: AspectRatio(
+                            aspectRatio: keeperStageAspect,
+                            child: _Stage(
+                              kit: kit,
+                              drill: _drill,
+                              flash: _flash,
+                              flashGood: _flashGood,
+                              idleText: _appeared == 0
+                                  ? t('mg.warming_up')
+                                  : t('mg.keep_going'),
+                              onHit: _hitDrill,
+                            ),
                           ),
                         ),
                       ),
@@ -512,7 +524,18 @@ class _Stage extends StatelessWidget {
                 Center(
                   child: Text(
                     idleText,
-                    style: TextStyle(fontSize: 14, color: kit.textMuted),
+                    // **WHITE, because the stage is not the page.** This took
+                    // `kit.textMuted`, which is chosen against a surface — on
+                    // the floodlit pitch behind it that is grey on green.
+                    // Reported from the couch.
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(color: Color(0x8C000000), blurRadius: 3),
+                      ],
+                    ),
                   ),
                 ),
               if (flash != null)
@@ -700,20 +723,24 @@ class _Summary extends StatelessWidget {
           _Stat(
             kit: kit,
             label: t('game.training.coins'),
-            value: '+${formatCoins(coins)} 💰',
+            value: '+${formatCoins(coins)}',
+            icon: 'coin',
             valueKey: const ValueKey('train-reward'),
             colour: hudCoinInk,
           ),
           // Zero today: the only energy this game pays is the streak
-          // milestone's, so the block is hidden rather than showing "+0⚡".
+          // milestone's, so the block is hidden rather than showing "+0".
           if (energy > 0) ...[
             const SizedBox(width: 18),
             _Stat(
               kit: kit,
               label: t('game.training.energy'),
-              value: '+$energy⚡',
+              value: '+$energy',
+              icon: 'bolt',
+              // The HUD's energy green, not the club accent: this is a wallet,
+              // and a wallet's colour does not change with the kit.
               valueKey: const ValueKey('train-energy'),
-              colour: kit.accentBright,
+              colour: hudEnergyInk,
             ),
           ],
         ],
@@ -731,33 +758,110 @@ class _Summary extends StatelessWidget {
   );
 }
 
+/// Sky over the stage and grass under it, so the letterbox is not the page.
+///
+/// **THE BANDS WERE THE FAULT, NOT THE RATIO.** The goal has to keep its own
+/// shape — the uprights run from the bar to the foot of the stage, so a stage
+/// stretched to the column's height is a doorway — and a phone taller than
+/// `keeperStageAspect` therefore has height left over. It used to show the
+/// page through it, two grey strips clamping the pitch. Asked for from the
+/// couch: keep the goal's proper height, put a sky above it and grass below.
+///
+/// The split is where the stage's own horizon lands, so the turf behind the
+/// bottom band continues the turf inside the picture and the seam is only
+/// where the stage's rounded corner is.
+class _StageSurround extends StatelessWidget {
+  const _StageSurround({required this.child});
+
+  final Widget child;
+
+  /// The scene's own sky, taken from the top of the forest backdrop the stage
+  /// draws — a band in a different blue would read as a second picture.
+  static const Color _sky = Color(0xFF9FC7E8);
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      // Where the stage sits once it has taken its own shape, and therefore
+      // where its horizon lands in the taller box.
+      final stageH = math.min(box.maxHeight, box.maxWidth / keeperStageAspect);
+      final top = (box.maxHeight - stageH) / 2;
+      final horizon = top + keeperHorizon * stageH;
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: Column(
+              children: [
+                SizedBox(height: horizon, child: const ColoredBox(color: _sky)),
+                const Expanded(child: ColoredBox(color: drillTurf)),
+              ],
+            ),
+          ),
+          Positioned.fill(child: child),
+        ],
+      );
+    },
+  );
+}
+
+/// One figure the session paid, in its wallet's own badge.
+///
+/// **A BADGE, not a coloured number with an emoji after it.** It printed
+/// `+175 💰` in `hudCoinInk`, which on a light page is the deep bronze
+/// `coinFigureInk` answers — reported from the couch as a horrible bronze, and
+/// the emoji is a second currency mark beside the app's own. `hudBadgeColour`
+/// fills the chip in the wallet's colour and `hudBadgeInk` prints on it, which
+/// is what the bar, the pack contents and the season quests all wear.
 class _Stat extends StatelessWidget {
   const _Stat({
     required this.kit,
     required this.label,
     required this.value,
+    required this.icon,
     required this.valueKey,
     required this.colour,
   });
 
   final KitTheme kit;
   final String label, value;
+
+  /// A `gameIcons` name — the app's own line art, in place of the emoji.
+  final String icon;
   final Key valueKey;
   final Color colour;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
-      Text(
-        value,
-        key: valueKey,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w900,
-          color: colour,
+  Widget build(BuildContext context) {
+    final face = hudBadgeColour(colour);
+    final ink = hudBadgeInk(face);
+    return Column(
+      children: [
+        Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
+        const SizedBox(height: 3),
+        Container(
+          padding: const EdgeInsets.fromLTRB(9, 3, 11, 3),
+          decoration: BoxDecoration(
+            color: face,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GameIcon(icon, size: 15, color: ink),
+              const SizedBox(width: 5),
+              Text(
+                value,
+                key: valueKey,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }

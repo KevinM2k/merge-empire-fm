@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -233,31 +234,37 @@ void main() {
         icon.color,
     ];
 
-    testWidgets('every drill quotes its ceiling in the coin gold', (
+    /// **AND THE FIGURE IS IN A BADGE NOW, in both themes.**
+    ///
+    /// It was `coinFigureInk` — bright gold in the dark theme and the deep
+    /// bronze `gameGoldLight` on a light page, which is right for gold ON
+    /// WHITE and was reported from the couch as horrible on this list. Every
+    /// other figure in the game fills the chip in the wallet's colour and
+    /// prints in a tint of it; so does this one, so the ink no longer moves
+    /// with the theme at all.
+    testWidgets('every drill quotes its ceiling in the coin badge', (
       tester,
     ) async {
-      await pumpTraining(
-        tester,
-        light: false,
-        mutate: (s) => trainingTier(s, 6),
-      );
-      final inks = coinInks(tester);
-      expect(inks, isNotEmpty, reason: 'no drill said what it pays');
-      expect(inks, everyElement(gameGold));
+      for (final light in [false, true]) {
+        await pumpTraining(
+          tester,
+          light: light,
+          mutate: (s) => trainingTier(s, 6),
+        );
+        final inks = coinInks(tester);
+        expect(inks, isNotEmpty, reason: 'no drill said what it pays');
+        expect(
+          inks,
+          everyElement(hudBadgeInk(hudBadgeColour(hudCoinInk))),
+          reason: 'light=$light',
+        );
+        // The two shades the bare figure used to take, neither of which is a
+        // colour on a filled chip.
+        expect(inks, isNot(contains(gameGold)));
+        expect(inks, isNot(contains(gameGoldLight)));
+      }
     });
 
-    testWidgets('and the light theme gets its own shade of the same yellow', (
-      tester,
-    ) async {
-      await pumpTraining(
-        tester,
-        light: true,
-        mutate: (s) => trainingTier(s, 6),
-      );
-      // Bright gold is 1.1:1 on a near-white card; `gameGoldLight` is the JS's
-      // own light-block `--color-gold`.
-      expect(coinInks(tester), everyElement(gameGoldLight));
-    });
 
     testWidgets('and the little arrows are white in dark mode', (tester) async {
       await pumpTraining(

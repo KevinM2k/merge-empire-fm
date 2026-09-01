@@ -5,6 +5,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart'
+    show hudBadgeColour, hudBadgeInk, hudCoinInk;
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
@@ -290,19 +292,15 @@ class _GameRow extends ConsumerWidget {
                   // money in seven colours and the ones that landed near the
                   // card's own surface could not be read at all. Reported as
                   // not being able to see the money on the training sessions.
-                  // `coinFigureInk` is the pair the rest of the game uses and
-                  // carries its own light-theme shade.
+                  // **AND IT IS A BADGE, not a bare figure.** `coinFigureInk`
+                  // answers a deep bronze on a light page — right for gold on
+                  // white and reported from the couch as horrible on this
+                  // list. The rest of the game fills the chip in the wallet's
+                  // colour and prints on it instead: `hudBadgeColour` /
+                  // `hudBadgeInk`, which is what the bar, the pack contents,
+                  // the season quests and the session summary all wear.
                   if (best != null) ...[
-                    GameIcon('coin', size: 11, color: coinFigureInk(context)),
-                    const SizedBox(width: 3),
-                    Text(
-                      formatCoins(best),
-                      style: TextStyle(
-                        color: coinFigureInk(context),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    _CoinBadge(amount: best),
                     if (reason != null)
                       Text(
                         ' · ',
@@ -334,6 +332,44 @@ class _GameRow extends ConsumerWidget {
             : null,
         enabled: reason == null,
         onTap: reason != null ? null : () => _open(context),
+      ),
+    );
+  }
+}
+
+/// What a drill pays, in the coin wallet's own badge.
+///
+/// One chip rather than a glyph and a figure loose on the row — see the note
+/// at the call site for why the bare figure had to go.
+class _CoinBadge extends StatelessWidget {
+  const _CoinBadge({required this.amount});
+
+  final int amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final face = hudBadgeColour(hudCoinInk);
+    final ink = hudBadgeInk(face);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 1.5, 7, 1.5),
+      decoration: BoxDecoration(
+        color: face,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GameIcon('coin', size: 11, color: ink),
+          const SizedBox(width: 4),
+          Text(
+            formatCoins(amount),
+            style: TextStyle(
+              color: ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
