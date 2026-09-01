@@ -379,6 +379,50 @@ void main() {
     expect(rect.width, lessThan(tile.width));
   });
 
+  testWidgets('HE COMES OUT OF THE HOLE, and only his feet are behind it', (
+    tester,
+  ) async {
+    // **THE HOLE WAS DRAWN OVER A QUARTER OF HIM.** `upBottom` was fed straight
+    // to an `Align`, whose y positions the glyph's BOX in the space left over
+    // rather than putting its bottom edge anywhere — so the figure sat a sixth
+    // of a tile lower than the constant claimed and the near half of the mouth
+    // was painted across his shins. What that reads as is the hole being in
+    // front of the thing in it. Reported from the couch in those words.
+    await pumpGame(tester);
+    await advance(tester, Whack.leadInMs + 100);
+    final s = stateOf(tester);
+    var up = -1;
+    for (var i = 0; i < 60 && up < 0; i++) {
+      up = s.holes.indexWhere((h) => h != null);
+      if (up < 0) await advance(tester, 100);
+    }
+    expect(up, greaterThanOrEqualTo(0), reason: 'nothing ever came up');
+    await advance(tester, 200);
+
+    final tile = tester.getRect(find.byKey(ValueKey('pi-hole-$up')));
+    final figure = tester.getRect(find.byKey(ValueKey('pi-figure-$up')));
+    // The occluder — the turf band and the mouth's near half over it — starts
+    // at the mouth's waist, measured from the tile's bottom.
+    final waist = tile.bottom - occludeTop * tile.height;
+    final hidden = (figure.bottom - waist) / figure.height;
+
+    expect(
+      hidden,
+      greaterThan(0),
+      reason: 'nothing of him is behind the rim — he is standing ON the grass',
+    );
+    expect(
+      hidden,
+      lessThan(0.15),
+      reason: 'the near rim is across his shins rather than his ankles',
+    );
+    // And most of him is above the hole's own top edge, which is what "out of
+    // it" looks like.
+    final rim = tile.bottom - (mouthBottom + mouthHeight) * tile.height;
+    expect((rim - figure.top) / figure.height, greaterThan(0.5));
+    await closeGame(tester);
+  });
+
   testWidgets('AND A TILE IS MOST OF THE WIDTH IT CAN BE', (tester) async {
     // A tile is a target you have seven hundred milliseconds to hit, and the
     // board was sharing what the instructions, the score row and the timer left

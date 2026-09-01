@@ -87,8 +87,30 @@ const double mouthInset = 0.12;
 /// shows at all.
 const double occludeTop = mouthBottom + mouthHeight / 2;
 
-/// A figure stands with its feet just inside the mouth.
-const double upBottom = occludeTop + 0.02;
+/// Where a figure's FEET sit, as a fraction of the tile measured from the
+/// bottom — just inside the mouth, so the arc cuts across his ankles.
+///
+/// **THE HOLE WAS DRAWN OVER A QUARTER OF HIM.** This was `occludeTop + 0.02`
+/// and it was not the feet at all: it was fed straight to an `Align`, whose y
+/// positions the glyph's BOX inside the leftover space rather than putting its
+/// bottom edge anywhere in particular. Measured, the figure's box ran to 0.89 of
+/// the tile while the occluder starts at 0.73 — so the near half of the mouth
+/// was painted across his shins, and what that reads as is the hole being in
+/// front of the thing in it rather than the thing coming out of the hole.
+/// Reported from the couch in exactly those words.
+///
+/// Below the waist line rather than above it, because the cut has to happen: a
+/// figure whose feet clear the arc entirely is standing ON the grass.
+const double upFeet = occludeTop - 0.05;
+
+/// The `Align` y that puts a glyph box [glyph] tall (as a fraction of the tile)
+/// with its BOTTOM on [upFeet].
+///
+/// `Align` centres the child in what is left over, so the two are not the same
+/// number and the difference is what put him a sixth of a tile too low. Derived
+/// from the glyph's real height, because the font size is capped on a big tile.
+double figureAlign(double glyph) =>
+    (2 * ((1 - upFeet) - glyph) / (1 - glyph) - 1).clamp(-1.0, 1.0);
 
 /// The tile's turf gradient, top to bottom.
 const List<Color> turfStops = [
@@ -684,18 +706,20 @@ class _Hole extends StatelessWidget {
                     child: AnimatedScale(
                       scale: struck && occupant == null ? 0.7 : 1,
                       duration: const Duration(milliseconds: 110),
-                      child: Align(
-                        alignment: const Alignment(0, 1 - upBottom * 2),
-                        child: Text(
-                          occupant?.emoji ?? '',
-                          key: ValueKey('pi-figure-$index'),
-                          style: TextStyle(
-                            // It stands IN the mouth, so it is sized off the
-                            // mouth rather than off the tile.
-                            fontSize: math.min(96, w * 0.62),
-                            height: 1,
-                          ),
-                        ),
+                      child: Builder(
+                        builder: (context) {
+                          // It stands IN the mouth, so it is sized off the
+                          // mouth rather than off the tile.
+                          final glyph = math.min(96.0, w * 0.62);
+                          return Align(
+                            alignment: Alignment(0, figureAlign(glyph / h)),
+                            child: Text(
+                              occupant?.emoji ?? '',
+                              key: ValueKey('pi-figure-$index'),
+                              style: TextStyle(fontSize: glyph, height: 1),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
