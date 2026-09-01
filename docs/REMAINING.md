@@ -38,18 +38,28 @@ through means shipped in this session; the open ones are the queue.
 - ~~The tutorial hand should tap, with a ripple where it lands.~~
 - ~~An emoji floats beside his head on a big card.~~ Gone.
 
+**Also done since:**
+
+- ~~The loan stars should leave with a POOF, or the auto-sell's break, with a
+  sound.~~ They come apart on `CardShatter` — the auto-sell's own effect rather
+  than a second one — and the flight plays `pop` once for the lot.
+- ~~After they go, our own three should sit in slots 1, 2 and 3.~~
+  `returnTutorialPlayers` packs the grid with `closeGridGaps`.
+
 **Open, in the order they were asked for:**
 
-- [ ] **The loan stars should leave with a POOF**, or the shatter the auto-tier
-      sell uses (`break into parts`), with a sound to go with it. Today they
-      fly off the grid on `loanDepartureWindow` and simply stop existing. The
-      animation to reuse is the auto-sell one rather than a second effect; the
-      cue wants a `sound_defs.dart` entry.
-- [ ] **After they go, our own three players should sit in slots 1, 2 and 3.**
-      Nothing compacts the grid when `returnTutorialPlayers` empties the
-      borrowed cells, so the three the player started with are wherever the
-      loan left them. Low risk now that the tutorial seals input — Sort cannot
-      be reached mid-script — but it is not guaranteed.
+- [ ] **NO home advantage until the Fan Zone is bought**, with the first +1
+      arriving on the purchase. **Blocked on a decision, and worth reading
+      before touching.** The port's `homeAdvantageDisplayFor` pays +1 at tier 0
+      because the JS's does — `../merge-empire-fc/src/engine/matchEngine.js:42`
+      is `Math.round(1 + 3 * clamp(fanTier) / 8)` — so this is a change to the
+      SPEC, not a port bug. Making it in the port alone turns
+      `season_difftest`'s six seasons red: one point on ATK and DEF changes
+      every scoreline, and the harness compares them match by match. The whole
+      change is `fanTier <= 0 ? 0 : …` in both repos plus
+      `node tool/difftest/run.mjs > test/fixtures/season_difftest.json` to
+      re-dump the fixture. Editing the shipped JS was not asked for, so it has
+      not been done.
 - [ ] **Drop `flutter_tts`.** The device voice is horrible. What is wanted in
       its place: a folder you can drop clips into that is used when a clip is
       there and silent when it is not. The seam is already the right shape —

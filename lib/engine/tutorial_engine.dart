@@ -27,7 +27,8 @@ library;
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
-import 'package:merge_empire_fc/engine/merge_engine.dart' show createInstance;
+import 'package:merge_empire_fc/engine/merge_engine.dart'
+    show closeGridGaps, createInstance;
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 
@@ -366,6 +367,13 @@ int returnTutorialPlayers(Map<String, dynamic> state) {
       taken++;
     }
   }
+  // **And the player's own three slide back to the front.** Eleven borrowed
+  // cards leaving out of the middle of a grid leaves the three the player
+  // started with wherever the loan happened to put them, with holes in
+  // between — and the card that follows says "now build our team" over it.
+  // `closeGridGaps` is the same pack the grid already does after a merge:
+  // order kept, gaps closed, nothing reordered. Asked for from the couch.
+  closeGridGaps(cells);
 
   final kept = {
     for (final raw in cells)

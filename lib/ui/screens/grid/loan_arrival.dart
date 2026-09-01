@@ -16,6 +16,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/grid/card_shatter.dart';
 
 /// The gap between one card starting and the next. The JS's `STAGGER_MS`, and
 /// the figure the step was described by: about half a second each, so they flow
@@ -132,8 +133,17 @@ class _LoanArrivalState extends State<LoanArrival>
 /// of the arrival's stagger, because they LEAVE together and arrive one by one.
 const Duration loanDepartureStagger = Duration(milliseconds: 40);
 
-/// How long one card takes to go. `loan-card-exit` is `0.35s ease-in`.
-const Duration loanDepartureDuration = Duration(milliseconds: 350);
+/// How long one card takes to go.
+///
+/// **They BREAK now rather than shrinking away.** `loan-card-exit` was a 0.35s
+/// lift-and-fade, which is a card being deleted quietly — and the game already
+/// owns the right effect for a card leaving the grid: the auto-sell's
+/// [CardShatter], which comes apart into pieces of its own face. Asked for from
+/// the couch, naming that one. So the window is the break's, plus the fray its
+/// slowest piece runs on.
+const Duration loanDepartureDuration = Duration(
+  milliseconds: 520 + cardShatterFrayMs,
+);
 
 /// The JS's `animDuration`: how long to hold the save still for.
 ///
@@ -142,9 +152,6 @@ const Duration loanDepartureDuration = Duration(milliseconds: 350);
 /// deleted from.
 Duration loanDepartureWindow(int cards) =>
     cards <= 0 ? Duration.zero : loanDepartureDuration + loanDepartureStagger * cards;
-
-/// Where `loan-card-exit` hands over from its first keyframe to its second.
-const double _liftAt = 0.4;
 
 /// One card flying away, [delay] after the ones before it.
 ///
@@ -206,21 +213,22 @@ class _LoanDepartureState extends State<LoanDeparture>
       // answer a drag.
       child: IgnorePointer(child: widget.child),
       builder: (context, child) {
-        final t = leave.value;
-        final lifting = t <= _liftAt;
-        final e = Curves.easeIn.transform(
-          lifting ? t / _liftAt : (t - _liftAt) / (1 - _liftAt),
-        );
-        final opacity = lifting ? 1.0 : (1 - e).clamp(0.0, 1.0);
-        final dy = lifting ? -6 * e : -6 + 46 * e;
-        final scale = lifting ? 1 + 0.08 * e : 1.08 - 0.68 * e;
-
-        return Opacity(
-          opacity: opacity,
-          child: Transform.translate(
-            offset: Offset(0, dy),
-            child: Transform.scale(scale: scale, child: child),
-          ),
+        // **The break's own progress, not the controller's.** The pieces run to
+        // slightly different lengths (see [cardShatterFrayMs]) and the last of
+        // them is still in the air when the first has finished, so the figure
+        // handed over deliberately runs past 1 — capping it freezes the slow
+        // ones in mid-flight. The controller covers the fray; this scales back
+        // out of it.
+        final t =
+            leave.value *
+            loanDepartureDuration.inMilliseconds /
+            (loanDepartureDuration.inMilliseconds - cardShatterFrayMs);
+        return CardShatter(
+          progress: t,
+          // Each card has to come apart its OWN way or eleven of them break in
+          // formation. The stagger is unique per card and already to hand.
+          seed: widget.delay!.inMilliseconds,
+          child: child!,
         );
       },
     );

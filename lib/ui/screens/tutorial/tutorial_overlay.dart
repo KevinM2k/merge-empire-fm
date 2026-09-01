@@ -41,6 +41,7 @@ import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart' show matchPopupBlocker;
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'dart:async';
 
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -485,6 +486,12 @@ Future<void> departLoan(WidgetRef ref) async {
     return;
   }
   ref.read(loanDepartingProvider.notifier).state = true;
+  // **And it makes a noise.** Eleven cards coming apart in silence is the one
+  // moment in the script with a real effect on it and nothing to hear. One
+  // pop for the lot rather than one each: the stagger is 40ms and the sound
+  // service collapses anything inside its 70ms retrigger floor anyway, so
+  // eleven would have been two and a rattle. Asked for with the animation.
+  playSoundFrom(ref, 'pop');
   try {
     await Future<void>.delayed(loanDepartureWindow(leaving));
   } finally {
