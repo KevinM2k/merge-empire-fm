@@ -13,12 +13,25 @@ library;
 
 import 'package:merge_empire_fc/util/random.dart';
 
+/// **EVERY ENTRY IS ONE WORD.** A name is `<first> <suffix>`, so a two-word
+/// first name makes a three-word club: "Three Horseshoes Rangers" is 23
+/// characters and wrapped to two lines in the league table, the fixture card,
+/// the pyramid editor and the ticker. Reported from the couch. Ten of these,
+/// one in [_semiproFirst] and one in [_proPrefix] were pub and street names,
+/// and they are single words now.
+///
+/// **The bank LENGTHS are load-bearing** — the draw is `randomInt(0, length -
+/// 1)` — so nothing was added or removed, only rewritten. And the STRINGS are
+/// pinned: `progression_parity` and the season difftest are dumped from the
+/// JS's own banks and compare club for club, so the same twelve changed in
+/// `../merge-empire-fc/src/engine/progressionEngine.js` and both fixtures were
+/// re-dumped.
 const List<String> _grassrootsFirst = [
-  'Red Lion', 'Crown', 'Anchor', 'Plough Lane', 'Old Oak', 'Mill Street',
-  'Park', 'Valley', 'Borough', 'County', 'Riverside', 'Market Square',
-  'Heath End', 'Hollow Lane', 'Brambleside', 'Three Horseshoes', 'Wheatsheaf',
+  'Redlands', 'Crown', 'Anchor', 'Ploughfield', 'Elmgrove', 'Millbrook',
+  'Park', 'Valley', 'Borough', 'County', 'Riverside', 'Marketgate',
+  'Heathside', 'Hollowbrook', 'Brambleside', 'Horseshoe', 'Wheatsheaf',
   'Railway', 'Gasworks', 'Churchyard', 'Crossroads', 'Bluebell', 'Taproom',
-  'Hillside', 'Meadow', 'Cobble Street', 'Brickfield', 'Quarry Lane',
+  'Hillside', 'Meadow', 'Cobblegate', 'Brickfield', 'Quarryside',
   'Greenfield', 'Lakewood', 'Birchwood', 'Coppice', 'Fernhill', 'Oakdale',
 ];
 
@@ -27,13 +40,13 @@ const List<String> _semiproFirst = [
   'Northbank', 'Riverbend', 'Clearwater', 'Highfield', 'Coalport', 'Ferndale',
   'Briarwood', 'Moorland', 'Hillcrest', 'Stonegate', 'Ashwick', 'Broadfield',
   'Clifton', 'Dunesbury', 'Eastvale', 'Fairmont', 'Greendale', 'Kingsmere',
-  'Lockwood', 'Mapleton', 'Penwick', 'Harrowgate', 'Bridgetown', 'Iron Bridge',
+  'Lockwood', 'Mapleton', 'Penwick', 'Harrowgate', 'Bridgetown', 'Ironbridge',
   'Westport', 'Redfield', 'Thornbury', 'Aldermoor', 'Colston', 'Havenwick',
 ];
 
 const List<String> _proPrefix = [
   'Real', 'Dynamo', 'Athletic', 'Sporting', 'Club', 'FC', 'Inter',
-  'Red Star', 'Atlético', 'Olympique', 'Estrella', 'Union',
+  'Rapid', 'Atlético', 'Olympique', 'Estrella', 'Union',
 ];
 
 const List<String> _proNoun = [
