@@ -37,6 +37,11 @@ class PayingAds implements RewardedAds {
 
   @override
   void prepare(String placement) {}
+
+
+  @override
+
+  void refresh() {}
 }
 
 Future<ProviderContainer> pumpShell(

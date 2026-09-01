@@ -98,17 +98,77 @@ void main() {
       );
     });
 
-    test('AND IT NO LONGER FALLS BACK, which is the point of wiring it', () {
-      // The regression this guards is a null creeping back in: the fallback is
-      // silent, serves ads, and looks identical on the shelf.
-      expect(
-        rewardedUnitFor('ios', 'cosmetic_pack'),
-        isNot(fallbackRewardedUnit('ios')),
-      );
-      expect(
-        rewardedUnitFor('android', 'cosmetic_pack'),
-        isNot(fallbackRewardedUnit('android')),
-      );
+  });
+
+  /// **THE TABLES ABOVE ARE THE SPEC'S RECORD; THIS IS WHAT SERVES.** Every
+  /// rewarded placement resolves to one unit per platform so that a warmed ad
+  /// can be shown wherever the player taps first — see the head of
+  /// `data/ad_units.dart`. The per-placement ids stay because
+  /// `ad_units_parity_test` pins them against the JS fixture, and because a
+  /// console that still holds them is a decision that can be reversed.
+  group('THE GLOBAL REWARDED UNIT', () {
+    test('every placement resolves to it, on both platforms', () {
+      for (final placement in rewardedByPlacementAndroid.keys) {
+        expect(
+          rewardedUnitFor('android', placement),
+          globalRewardedUnitAndroid,
+          reason: placement,
+        );
+        expect(
+          rewardedUnitFor('ios', placement),
+          globalRewardedUnitIos,
+          reason: placement,
+        );
+      }
+    });
+
+    test('and so does a placement nobody has heard of', () {
+      // There is no fallback left to get wrong: an unknown placement is the
+      // same unit as a known one, and only the analytics differ.
+      expect(rewardedUnitFor('android', 'not_a_placement'), globalRewardedUnitAndroid);
+      expect(rewardedUnitFor('ios', 'not_a_placement'), globalRewardedUnitIos);
+    });
+
+    test('the two platforms do not share it', () {
+      // AdMob rejects cross-platform traffic outright, and the mistake looks
+      // exactly like an ad network having no inventory.
+      expect(globalRewardedUnitAndroid, isNot(globalRewardedUnitIos));
+      expect(globalRewardedUnit('web'), globalRewardedUnitAndroid);
+    });
+
+    test('it is ours, and it is a UNIT id rather than an APP id', () {
+      for (final id in [globalRewardedUnitAndroid, globalRewardedUnitIos]) {
+        expect(id, startsWith('ca-app-pub-0386196346828968/'));
+        expect(id, isNot(contains('~')), reason: 'that is an APP id');
+      }
+    });
+
+    test('AND IT IS NOT ONE OF THE PER-PLACEMENT UNITS', () {
+      // A global unit that is secretly `energy_pip`'s would put every
+      // placement's impressions on one historical revenue line and read as
+      // energy suddenly earning elevenfold.
+      final perPlacement = {
+        for (final table in [rewardedByPlacementAndroid, rewardedByPlacementIos])
+          for (final v in table.values) ?v,
+      };
+      expect(perPlacement, isNot(contains(globalRewardedUnitAndroid)));
+      expect(perPlacement, isNot(contains(globalRewardedUnitIos)));
+    });
+
+    test('and it is not an interstitial or a native unit either', () {
+      // Format is not a label: a rewarded unit rendered as a banner is a policy
+      // problem rather than a mislabelled revenue line.
+      final other = {
+        for (final table in [
+          interstitialByDivisionAndroid,
+          interstitialByDivisionIos,
+          nativeByPlacementAndroid,
+          nativeByPlacementIos,
+        ])
+          for (final v in table.values) ?v,
+      };
+      expect(other, isNot(contains(globalRewardedUnitAndroid)));
+      expect(other, isNot(contains(globalRewardedUnitIos)));
     });
   });
 
@@ -148,16 +208,13 @@ void main() {
       expect(interstitialByDivision('web'), same(interstitialByDivisionAndroid));
     });
 
-    test('a known placement resolves to its own unit', () {
+    test('a known placement no longer resolves to its OWN unit', () {
+      // The per-placement id is still on record and is no longer what serves —
+      // see the global unit group above.
       expect(
         rewardedUnitFor('android', 'lucky_boot'),
-        rewardedByPlacementAndroid['lucky_boot'],
+        isNot(rewardedByPlacementAndroid['lucky_boot']),
       );
-    });
-
-    test('an unknown placement falls back to the longest-lived unit', () {
-      expect(rewardedUnitFor('ios', 'not_a_placement'), fallbackRewardedUnit('ios'));
-      expect(fallbackRewardedUnit('ios'), rewardedByPlacementIos['energy_pip']);
     });
 
     test('a known division resolves to its own interstitial', () {

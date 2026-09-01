@@ -304,9 +304,6 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// celebration, which is the one thing that tab is for.
   final ValueNotifier<GestureCue?> _preview = ValueNotifier<GestureCue?>(null);
 
-  /// One video in flight at a time — a double tap is two videos and one grant.
-  bool _adInFlight = false;
-
   /// **A LOCKED ITEM BEING TRIED ON, and the offer standing beside it.**
   ///
   /// A player who taps a locked hat wants to see the hat. Writing it would be
@@ -340,7 +337,6 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   /// they had already pointed at — the spec's own argument, and the reason the
   /// pack sheet stays in the Shop where the gem price is sold.
   Future<void> _watchForItem(String kind, String id) async {
-    if (_adInFlight) return;
     final why = lockedReason(_save, kind, id);
     if (!isPackLocked(_save, kind, id)) {
       if (why != null) emit('toast:info', why);
@@ -352,9 +348,10 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
       }));
       return;
     }
-    _adInFlight = true;
-    final outcome = await ref.read(rewardedAdsProvider).show(lookPackPlacement);
-    _adInFlight = false;
+    // One video in flight at a time — a double tap is two videos and one
+    // grant — and the flag is app-wide now rather than this sheet's own. See
+    // `watchRewardedAd`.
+    final outcome = await watchRewardedAd(ref, lookPackPlacement);
     if (outcome != AdOutcome.rewarded) {
       if (outcome == AdOutcome.unavailable) {
         emit('toast:error', t('customise.pack.ad_failed'));

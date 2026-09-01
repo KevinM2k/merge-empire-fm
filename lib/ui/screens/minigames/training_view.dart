@@ -172,9 +172,7 @@ class _SkipAllState extends ConsumerState<_SkipAll> {
   /// for THIS button. Both ids are in `ad_units.dart` and the shop has its own.
   Future<void> _watchThenSkip() async {
     setState(() => _watching = true);
-    final outcome = await ref
-        .read(rewardedAdsProvider)
-        .show(skipCooldownPlacement);
+    final outcome = await watchRewardedAd(ref, skipCooldownPlacement);
     if (!mounted) return;
     setState(() => _watching = false);
     if (outcome == AdOutcome.rewarded) {

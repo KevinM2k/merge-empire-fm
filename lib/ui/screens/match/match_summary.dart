@@ -238,9 +238,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
   Future<void> _double() async {
     if (_answering) return;
     setState(() => _answering = true);
-    final outcome = await ref
-        .read(rewardedAdsProvider)
-        .show(doubleMatchPlacement);
+    final outcome = await watchRewardedAd(ref, doubleMatchPlacement);
     if (!mounted) return;
     if (outcome == AdOutcome.rewarded) {
       // **THE QUEST MONEY IS PAID A SECOND TIME, which is what doubling it

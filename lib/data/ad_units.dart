@@ -4,11 +4,19 @@
 /// They live in `lib/data/` rather than beside the engine because the code that
 /// uses them is a platform adapter, and the engine has to stay Flutter-free.
 ///
-/// Separate units per placement are what make the AdMob dashboard readable —
+/// Separate units per placement are what made the AdMob dashboard readable —
 /// "2× match coins earned £180/day, Lucky Boot earned £6/day" rather than one
-/// lumped total. Separate units per division do the same for season-end
-/// interstitials: if Continental players stop watching while Elite players
-/// don't, that is a churn signal with a division attached to it.
+/// lumped total. **The rewarded tables no longer serve** and are kept as the
+/// spec's record: every rewarded placement now resolves to
+/// [globalRewardedUnitAndroid] / [globalRewardedUnitIos] so that one warm ad
+/// can answer whichever offer the player taps. The reason, and what was given
+/// up for it, is on those constants.
+///
+/// Separate units per division still do the readable-dashboard job for
+/// season-end interstitials: if Continental players stop watching while Elite
+/// players don't, that is a churn signal with a division attached to it. An
+/// interstitial is a different format and cannot be served from a rewarded
+/// unit, so nothing below the rewarded tables changed.
 ///
 /// The ids are platform-specific because AdMob requires it — an Android unit
 /// rejects iOS traffic and the other way about.
@@ -29,7 +37,11 @@ const Map<String, String?> rewardedByPlacementAndroid = {
   // does.** It fell back to `energy_pip` for as long as it was null, which
   // served ads and filed the revenue under the wrong placement — and, worse,
   // shared `energy_pip`'s frequency cap, so a look unlocked ate into the energy
-  // budget. Not sharing that cap is the whole point of a separate unit.
+  // budget.
+  //
+  // Both halves of that are now deliberate and account-wide: every placement
+  // shares one unit and one cap, and the revenue line it lost is a Firebase
+  // dimension instead. See [globalRewardedUnitAndroid].
   //
   // Supplied from the AdMob console rather than the spec: `energyEngine.js` has
   // no row for this placement, which is why `ad_units_parity_test` now pins it
@@ -113,16 +125,38 @@ Map<String, String?> rewardedByPlacement(String platform) =>
 Map<String, String> interstitialByDivision(String platform) =>
     platform == 'ios' ? interstitialByDivisionIos : interstitialByDivisionAndroid;
 
-/// The unit an unknown placement falls back to — the longest-lived one.
-String? fallbackRewardedUnit(String platform) =>
-    rewardedByPlacement(platform)['energy_pip'];
-
 String? fallbackInterstitialUnit(String platform) =>
     interstitialByDivision(platform)['champions_cup'];
 
-/// The unit for [placement], falling back when it is unknown or not yet wired.
+/// **THE ONE REWARDED UNIT EVERY PLACEMENT NOW SERVES FROM.**
+///
+/// The tables above are the spec's record and are no longer what a request is
+/// made against. **A rewarded ad object is one showing and takes seconds to
+/// load**, so the only way a tap opens a video immediately is for one to be
+/// warm already — and with eleven units there is no such thing as "warm": the
+/// ad the player would have used is the one warmed for a placement they did not
+/// tap. One unit means one warm ad, and whichever offer they reach first takes
+/// it.
+///
+/// **The cost is a shared frequency cap and the loss of per-placement eCPM**,
+/// which is what the `cosmetic_pack` note above was written to avoid. That was
+/// the right trade while a placement's unit was the only record of where an
+/// impression happened; it is not any more, because every outcome is reported
+/// to Firebase with its `placement` — see `_report` in `services/admob_ads.dart`.
+/// Placement reporting moved rather than disappeared.
+const String globalRewardedUnitAndroid = 'ca-app-pub-0386196346828968/9634499745';
+const String globalRewardedUnitIos = 'ca-app-pub-0386196346828968/4270492423';
+
+/// Anything that is not iOS takes the Android id, as the tables do.
+String globalRewardedUnit(String platform) =>
+    platform == 'ios' ? globalRewardedUnitIos : globalRewardedUnitAndroid;
+
+/// The unit for [placement] — the global one, whatever the placement is.
+///
+/// [placement] is kept because it is still the analytics dimension and because
+/// a per-placement unit is one console change away from being wanted again.
 String? rewardedUnitFor(String platform, String placement) =>
-    rewardedByPlacement(platform)[placement] ?? fallbackRewardedUnit(platform);
+    globalRewardedUnit(platform);
 
 /// The unit for a division's season-end interstitial, with the same fallback.
 String? interstitialUnitFor(String platform, String? divisionId) =>

@@ -34,6 +34,7 @@ import 'package:merge_empire_fc/services/leaderboard_service.dart';
 import 'package:merge_empire_fc/services/feedback_service.dart';
 import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/services/weather_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/util/region.dart';
@@ -289,6 +290,12 @@ class _GameHostState extends ConsumerState<GameHost>
         // the game interrupting itself.
         unawaited(clearNotices());
         unawaited(flushFeedbackQueue());
+        // **AND THE WARM AD HAS GONE OFF while the phone was in a pocket.**
+        // AdMob expires a loaded rewarded ad about an hour after it loads and
+        // says nothing; it fails at the tap, as a dismissal nobody made. A slot
+        // that is still fresh is left alone, so this is free when it is not
+        // needed — which is why there is no timer.
+        ref.read(rewardedAdsProvider).refresh();
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:

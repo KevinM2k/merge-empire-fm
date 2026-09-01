@@ -44,6 +44,11 @@ class FakeAds implements RewardedAds {
 
   @override
   void prepare(String placement) => prepared++;
+
+
+  @override
+
+  void refresh() {}
 }
 
 Map<String, dynamic> result({

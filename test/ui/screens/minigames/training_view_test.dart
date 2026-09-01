@@ -43,6 +43,11 @@ class _FakeAds implements RewardedAds {
 
   @override
   void prepare(String placement) => prepared++;
+
+
+  @override
+
+  void refresh() {}
 }
 
 Future<void> pumpTraining(

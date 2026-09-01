@@ -76,7 +76,7 @@ class FreeShelfSection extends ConsumerWidget {
     required void Function(Map<String, dynamic>) grant,
     required String toast,
   }) async {
-    final outcome = await ref.read(rewardedAdsProvider).show(placement);
+    final outcome = await watchRewardedAd(ref, placement);
     if (outcome == AdOutcome.rewarded) {
       ref.read(gameProvider).update(grant);
       emit('toast:success', toast);

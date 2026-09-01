@@ -33,6 +33,11 @@ class _Ads implements RewardedAds {
 
   @override
   void prepare(String placement) {}
+
+
+  @override
+
+  void refresh() {}
 }
 
 /// A container with a save and a stand-in SDK, and a `ref` to reach them by.

@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/ui/popups/achievement_unlock.dart';
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
 import 'package:merge_empire_fc/ui/popups/toast_host.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
+import 'package:merge_empire_fc/ui/shell/ad_wait_host.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/shell/orientation_lock.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -115,6 +116,17 @@ class MergeEmpireApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Merge Empire Football Manager',
+      // **ABOVE THE NAVIGATOR, which is what `builder` is for.** The ad wait
+      // has to cover the routes that ask for a video and stay open across it —
+      // the daily reward sheet, the post-match card — so it cannot live in
+      // `AppShell`'s stack under them. See `ui/shell/ad_wait_host.dart`.
+      // `expand`, not the default: a Stack loosens the constraints on a child
+      // that is not `Positioned`, and the Navigator sizing to its content
+      // instead of to the window is not a thing that fails loudly.
+      builder: (context, child) => Stack(
+        fit: StackFit.expand,
+        children: [?child, const AdWaitHost()],
+      ),
       theme: ref.watch(appThemeProvider),
       // iOS-style bounce everywhere: Android's clamp-and-stretch read as
       // "not native" on the squad, shop, club and settings lists.

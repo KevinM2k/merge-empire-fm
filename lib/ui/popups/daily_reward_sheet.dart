@@ -114,7 +114,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
   /// Claim at double, if the video is watched to the end.
   Future<void> _claimDoubled() async {
     setState(() => _busy = true);
-    final outcome = await ref.read(rewardedAdsProvider).show(dailyDoublePlacement);
+    final outcome = await watchRewardedAd(ref, dailyDoublePlacement);
     if (!mounted) return;
     setState(() => _busy = false);
     if (outcome == AdOutcome.unavailable) {
@@ -134,9 +134,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
   /// Put the streak back, if the video is watched to the end.
   Future<void> _repairStreak() async {
     setState(() => _busy = true);
-    final outcome = await ref
-        .read(rewardedAdsProvider)
-        .show(streakRepairPlacement);
+    final outcome = await watchRewardedAd(ref, streakRepairPlacement);
     if (!mounted) return;
     setState(() => _busy = false);
     if (outcome == AdOutcome.unavailable) {

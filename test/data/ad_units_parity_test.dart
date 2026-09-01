@@ -82,4 +82,21 @@ void main() {
     expect(android.containsKey('cosmetic_pack'), isFalse);
     expect(ios.containsKey('cosmetic_pack'), isFalse);
   });
+
+  test('AND SERVING ONE UNIT FOR ALL OF THEM IS A DIVERGENCE, said out loud', () {
+    // **The tables above are still the JS's, byte for byte, and are no longer
+    // what a request is made against.** `showRewardedAd` picks the placement's
+    // own unit; the port picks one for every placement so that a single warm ad
+    // can answer whichever offer is tapped first. The divergence is at the
+    // point of USE rather than in the data the harness compares, which is what
+    // CLAUDE.md asks of one — regenerating this fixture must not have to
+    // reckon with a decision the console made.
+    for (final placement in [...android.keys, 'cosmetic_pack', 'nonesuch']) {
+      expect(rewardedUnitFor('android', placement), globalRewardedUnitAndroid);
+      expect(rewardedUnitFor('ios', placement), globalRewardedUnitIos);
+    }
+    // And the fixture has never heard of it, which is what makes it ours.
+    expect(android.values, isNot(contains(globalRewardedUnitAndroid)));
+    expect(ios.values, isNot(contains(globalRewardedUnitIos)));
+  });
 }

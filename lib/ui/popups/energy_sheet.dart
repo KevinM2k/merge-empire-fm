@@ -45,7 +45,7 @@ const String energyPlacement = 'energy_pip';
 /// fitness back rather than three of a currency that does not exist. The JS
 /// branches on exactly this and so does the toast.
 Future<void> watchEnergyAd(WidgetRef ref) async {
-  final outcome = await ref.read(rewardedAdsProvider).show(energyPlacement);
+  final outcome = await watchRewardedAd(ref, energyPlacement);
   if (outcome == AdOutcome.unavailable) {
     emit('toast:info', t('toast.no_ad'));
     return;
