@@ -16,9 +16,11 @@ void main() {
   Set<String> placeholders(String s) =>
       placeholder.allMatches(s).map((m) => m.group(0)!).toSet();
 
-  test('ten catalogues, 2656 keys each', () {
+  test('ten catalogues, 2657 keys each', () {
     expect(catalogs.length, 10);
-    expect(en.length, 2656);
+    // `mg.foul` is the newest: the cutaway gives free kicks and had no word for
+    // one. Bump this WITH the generator run, never instead of it.
+    expect(en.length, 2657);
   });
 
   test('the shipped catalogues match the list the detector narrows to', () {

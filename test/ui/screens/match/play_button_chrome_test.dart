@@ -22,8 +22,40 @@
 /// ```
 library;
 
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
+import 'package:merge_empire_fc/util/kit_theme.dart'
+    show contrastRatio, whiteInkMinContrast;
+
+/// Real club kits, off `club_art.g.dart` — the reds and yellows the report was
+/// about, the greens and blues that must not change, and the pale and grey ends
+/// where a light label cannot survive.
+const List<Color> kitAccents = [
+  Color(0xFFF44336), Color(0xFFD32F2F), Color(0xFF8B0000), Color(0xFFE91E63),
+  Color(0xFF9C27B0), Color(0xFF4A148C), Color(0xFF1A237E), Color(0xFF0D47A1),
+  Color(0xFF2196F3), Color(0xFF00BCD4), Color(0xFF4CAF50), Color(0xFF1B5E20),
+  Color(0xFF8BC34A), Color(0xFFAED581), Color(0xFF827717), Color(0xFFFFEB3B),
+  Color(0xFFFFD700), Color(0xFFFFCA28), Color(0xFFFF9800), Color(0xFFFF5722),
+  Color(0xFF795548), Color(0xFF9E9E9E), Color(0xFF37474F), Color(0xFF1a1a1a),
+  Color(0xFFE8F5E9), Color(0xFFFFF9C4), Color(0xFF87CEEB),
+];
+
+/// The worst of the label's two contrasts: the face is a gradient, so it has
+/// to hold against both stops.
+double labelGap(Color accent) {
+  final ink = playButtonInk(accent).computeLuminance();
+  return playButtonFace(accent)
+      .map((stop) => contrastRatio(stop.computeLuminance(), ink))
+      .reduce(math.min);
+}
+
+/// Whether the label is lighter than the face it is printed on.
+bool labelIsLighter(Color accent) =>
+    playButtonInk(accent).computeLuminance() >
+    playButtonFace(accent).map((c) => c.computeLuminance()).reduce(math.max);
 
 void main() {
   test('THREE SHADOWS, not one, and the tight one is first', () {
@@ -63,5 +95,80 @@ void main() {
 
   test('and the label clears the gradient at the stylesheet\'s own alpha', () {
     expect(playButtonLabelShadowAlpha, 0.45);
+  });
+
+  /// **A LIGHTER SHADE OF THE CLUB, and darker only where that cannot read.**
+  ///
+  /// Reported from the couch on a light-mode red club: the label came out
+  /// black. The flip was `HSL lightness > 0.5`, and a mid red sits at 0.51
+  /// while a pure yellow sits at 0.50 — the same number for two colours that
+  /// are nothing like as bright as each other.
+  group('the label is the club colour', () {
+    test('A RED CLUB GETS A LIGHTER RED, not a near-black', () {
+      for (final accent in [
+        const Color(0xFFF44336),
+        const Color(0xFFD32F2F),
+        const Color(0xFF8B0000),
+      ]) {
+        expect(labelIsLighter(accent), isTrue, reason: '$accent');
+        final ink = HSLColor.fromColor(playButtonInk(accent));
+        expect(
+          ink.hue,
+          closeTo(HSLColor.fromColor(accent).hue, 1),
+          reason: '$accent: the label stopped being red',
+        );
+        expect(
+          ink.saturation,
+          greaterThan(0.2),
+          reason: '$accent: a label walked all the way to white',
+        );
+      }
+    });
+
+    test('and a YELLOW one gets a darker yellow', () {
+      // The one exception that was asked for by name, and the oranges and
+      // cyans go with it: white disappears on all of them.
+      for (final accent in [
+        const Color(0xFFFFEB3B),
+        const Color(0xFFFFD700),
+        const Color(0xFFFF9800),
+        const Color(0xFF00BCD4),
+      ]) {
+        expect(labelIsLighter(accent), isFalse, reason: '$accent');
+        final ink = HSLColor.fromColor(playButtonInk(accent));
+        expect(ink.hue, closeTo(HSLColor.fromColor(accent).hue, 1));
+        expect(ink.lightness, greaterThan(0.05), reason: '$accent: black');
+      }
+    });
+
+    test('the direction is the house rule, measured off the FACE', () {
+      // `whiteInkMinContrast` — white unless white genuinely disappears — is
+      // the same test the HUD, the tab bar and every filled button use.
+      for (final accent in kitAccents) {
+        final lit = playButtonFace(accent)
+            .map((c) => c.computeLuminance())
+            .reduce(math.max);
+        expect(
+          labelIsLighter(accent),
+          contrastRatio(lit, 1) >= whiteInkMinContrast,
+          reason: '$accent went the wrong way',
+        );
+      }
+    });
+
+    test('and every kit reads on its own button', () {
+      for (final accent in kitAccents) {
+        // A light label on a mid face is the low end, and it is what the
+        // label's drop shadow is for; a dark one is asked for more.
+        final least = labelIsLighter(accent)
+            ? 1.9
+            : playButtonInkDarkContrast;
+        expect(
+          labelGap(accent),
+          greaterThanOrEqualTo(least),
+          reason: '$accent: ${labelGap(accent).toStringAsFixed(2)}',
+        );
+      }
+    });
   });
 }

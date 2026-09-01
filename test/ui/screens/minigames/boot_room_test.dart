@@ -182,6 +182,19 @@ void main() {
   /// **THE BOARD HAS FACES ON IT.** Six flat colour blocks is a board you
   /// decode rather than read, and the JS has always used six kit emoji whose
   /// silhouettes are as distinct as their tints.
+  /// **A BOOT DRAWN TALL ON A TALL PHONE.** The board filled whatever height
+  /// the column had left, so every tile was stretched by the leftovers — the
+  /// pieces of a match-three board, whose whole job is to be recognised at a
+  /// glance, were a different shape on every device. Asked for from the couch:
+  /// square, and smaller on screen for it.
+  testWidgets('THE TILES ARE SQUARE, whatever is left over', (tester) async {
+    await pumpBootRoom(tester, saveWith());
+    for (final i in [0, BootRoom.cols - 1, BootRoom.cols * BootRoom.rows - 1]) {
+      final tile = tester.getSize(find.byKey(ValueKey('tile-$i')));
+      expect(tile.width, closeTo(tile.height, 0.5), reason: 'tile $i');
+    }
+  });
+
   testWidgets('every tile wears its kit, not just a colour', (tester) async {
     await pumpBootRoom(tester, saveWith());
     final board = stateOf(tester).board;

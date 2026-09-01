@@ -489,49 +489,63 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen>
                       ]),
                     ),
                   ),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF241A12), Color(0xFF15100B)],
-                      ),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: AnimatedBuilder(
-                        animation: Listenable.merge([_swap, _pop, _fall]),
-                        builder: (context, _) => Column(
-                          key: const ValueKey('boot-room-board'),
-                          children: [
-                            for (var y = 0; y < BootRoom.rows; y++) ...[
-                              if (y > 0) const SizedBox(height: 4),
-                              Expanded(
-                                child: Row(
-                                  // stretch, or each row sizes to its tallest
-                                  // child and a childless box has no height.
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    for (var x = 0; x < BootRoom.cols; x++) ...[
-                                      // **THE GUTTER IS BETWEEN THE COLUMNS**,
-                                      // not inside each `Expanded` — see Pairs
-                                      // and Pitch Invaders for what that did.
-                                      if (x > 0) const SizedBox(width: 4),
-                                      Expanded(
-                                        child: _tileAt(
-                                          idxOf(BootRoom.cols, x, y),
-                                          kit,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
+                  // **THE TILES ARE SQUARE.** The board took the whole of
+                  // whatever height the column had left, so a boot on a tall
+                  // phone was drawn tall and the same boot on a short one was
+                  // drawn wide — a match-three board whose pieces are not the
+                  // shape of the thing on them. The board is its own square
+                  // now and the room it gives back is the column's; rows and
+                  // cols are equal, and the gutters and the padding are
+                  // symmetric, so one aspect covers all of it. Asked for from
+                  // the couch, smaller on screen included.
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: BootRoom.cols / BootRoom.rows,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF241A12), Color(0xFF15100B)],
+                          ),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: AnimatedBuilder(
+                            animation: Listenable.merge([_swap, _pop, _fall]),
+                            builder: (context, _) => Column(
+                              key: const ValueKey('boot-room-board'),
+                              children: [
+                                for (var y = 0; y < BootRoom.rows; y++) ...[
+                                  if (y > 0) const SizedBox(height: 4),
+                                  Expanded(
+                                    child: Row(
+                                      // stretch, or each row sizes to its tallest
+                                      // child and a childless box has no height.
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        for (var x = 0; x < BootRoom.cols; x++) ...[
+                                          // **THE GUTTER IS BETWEEN THE COLUMNS**,
+                                          // not inside each `Expanded` — see Pairs
+                                          // and Pitch Invaders for what that did.
+                                          if (x > 0) const SizedBox(width: 4),
+                                          Expanded(
+                                            child: _tileAt(
+                                              idxOf(BootRoom.cols, x, y),
+                                              kit,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),

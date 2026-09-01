@@ -503,6 +503,15 @@ class _CutawayStageState extends State<CutawayStage> {
                         ),
                       ),
                     ),
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: game.foul,
+                          builder: (context, called, _) =>
+                              _Foul(shown: called),
+                        ),
+                      ),
+                    ),
                     if (widget.scorer case final scorer?)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -614,8 +623,37 @@ class _Verdict extends StatelessWidget {
   };
 
   @override
+  Widget build(BuildContext context) => _Headline(word: _word);
+}
+
+/// **FOUL, before the free kick.** The ball stopped in midfield, a wall formed
+/// and a second later it flew — which from the couch reads as the ball doing
+/// something odd rather than as a man being brought down. The word is up for
+/// the wait the wall needs, which is the same beat that shows where it
+/// happened. Asked for in those terms.
+///
+/// The referee's own yellow, and not the miss's amber: this is a decision being
+/// given, not a chance being missed.
+class _Foul extends StatelessWidget {
+  const _Foul({required this.shown});
+
+  final bool shown;
+
+  @override
+  Widget build(BuildContext context) => _Headline(
+    word: shown ? (key: 'mg.foul', ink: const Color(0xFFFFE04D)) : null,
+  );
+}
+
+/// One word, sprung in over the grass.
+class _Headline extends StatelessWidget {
+  const _Headline({required this.word});
+
+  final ({String key, Color ink})? word;
+
+  @override
   Widget build(BuildContext context) {
-    final word = _word;
+    final word = this.word;
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 260),
       // Springs in and holds. It is on screen for a second at most, so a fade

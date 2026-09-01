@@ -377,6 +377,19 @@ void main() {
     expect(view.onLoan, isFalse);
   });
 
+  test('AND A TUTORIAL LOANEE IS ON LOAN, flag or no flag', () {
+    // The tutorial lends eleven men with `borrowed: true` and no
+    // `loanMatchesLeft` — the loan engine's own discriminator — so the first
+    // cards a new player ever sees earned an income line on screen and never
+    // said LOANED. `idle_engine` has paid that flag nothing all along.
+    final view = cardViewFor(
+      {..._card(_baseDefId, 'a'), 'borrowed': true},
+      state: createDefaultState(),
+    )!;
+    expect(view.onLoan, isTrue);
+    expect(view.incomePerSec, isNull, reason: 'a borrowed man earns us nothing');
+  });
+
   group('THE TRAIT REACHES THE CARD', () {
     // The badge is only worth drawing if a real save can fill it: the trait
     // lives on the card instance as `{id, level}`, and the view is where every

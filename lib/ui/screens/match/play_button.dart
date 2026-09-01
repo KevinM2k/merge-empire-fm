@@ -7,6 +7,8 @@ library;
 
 import 'dart:async';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
@@ -18,6 +20,8 @@ import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show minSquadPlayers;
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/util/kit_theme.dart'
+    show contrastRatio, whiteInkMinContrast;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
@@ -147,20 +151,70 @@ List<Color> playButtonFace(Color accent) {
   ];
 }
 
-/// **The label: the same hue, at the far end of the scale.**
+/// **The label: the club's own hue, LIGHTER than the face it sits on** — and
+/// darker only where a light label would disappear.
 ///
-/// Not white — invisible on a yellow club — and not the measured black either,
-/// which is legible and reads as harsh. A deep bronze on a yellow button and a
-/// pale rose on a claret one are both still the club's colour, which is what
-/// was asked for, and both clear the large-text bar against the face by a wide
-/// margin because they are most of the scale away from it.
+/// Not white (invisible on a yellow club) and not the measured black either,
+/// which is legible and reads as harsh.
+///
+/// **Which way it goes is [whiteInkMinContrast]'s decision, not HSL's.** It
+/// used to flip on `lightness > 0.5`, and HSL lightness is not brightness: a
+/// mid red sits at 0.51 and a pure yellow at 0.50, so the reds came out with a
+/// near-black label — reported from the couch on a light-mode red club, along
+/// with what to do instead. The app has had the right test since the kit
+/// themes went in: white unless white genuinely disappears, measured, off the
+/// surface the ink is printed on. That keeps the reds, greens, blues and
+/// purples light and sends the yellows, oranges, cyans and greys the other
+/// way, which is exactly the exception that was asked for.
+///
+/// Then it walks the hue away from the face until it clears the bar, and stops
+/// there rather than at the end of the scale: the label is meant to still read
+/// as the club's colour, so it goes no further from it than it has to.
 Color playButtonInk(Color accent) {
   final hsl = HSLColor.fromColor(accent);
   final saturation = (hsl.saturation * 0.85).clamp(0.0, 1.0);
-  return hsl.lightness > 0.5
-      ? hsl.withLightness(0.14).withSaturation(saturation).toColor()
-      : hsl.withLightness(0.94).withSaturation(saturation).toColor();
+  final face = playButtonFace(accent);
+  // The face's LIGHTER stop is the hard one for a light label and its darker
+  // one for a dark label — the gradient runs bright at the top.
+  final lit = math.max(
+    face.first.computeLuminance(),
+    face.last.computeLuminance(),
+  );
+  final dim = math.min(
+    face.first.computeLuminance(),
+    face.last.computeLuminance(),
+  );
+  final light = contrastRatio(lit, 1) >= whiteInkMinContrast;
+
+  Color at(double l) =>
+      hsl.withLightness(l).withSaturation(saturation).toColor();
+  final most = light ? playButtonInkLightest : playButtonInkDarkest;
+  final ground = light ? lit : dim;
+  final want = light ? whiteInkMinContrast : playButtonInkDarkContrast;
+  for (var l = light ? 0.62 : 0.44; ; l += light ? 0.02 : -0.02) {
+    final stop = light ? l >= most : l <= most;
+    final ink = at(stop ? most : l);
+    if (stop || contrastRatio(ground, ink.computeLuminance()) >= want) {
+      return ink;
+    }
+  }
 }
+
+/// How far the label may go from the club's colour, either way.
+///
+/// A light label stops short of white and a dark one short of black, because
+/// past that it is not the club's colour any more — it is white text on a
+/// coloured button, which is the look this replaced. What it loses in measured
+/// contrast the label's own drop shadow puts back; see
+/// [playButtonLabelShadowAlpha].
+const double playButtonInkLightest = 0.94;
+const double playButtonInkDarkest = 0.12;
+
+/// What a DARK label has to clear, which is more than a light one is asked for.
+///
+/// It is only ever chosen for a face bright enough that white failed, and a
+/// dark ink on a bright face clears this without going anywhere near black.
+const double playButtonInkDarkContrast = 4;
 
 class PlayMatchButton extends ConsumerWidget {
   const PlayMatchButton({super.key});

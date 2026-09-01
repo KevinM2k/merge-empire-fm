@@ -503,6 +503,33 @@ void main() {
       }
     });
 
+    test('AND THERE IS SKY OVER THE BAR AND GRASS IN FRONT OF THE LINE', () {
+      // **The window was a slot.** 1.85 with the bar 2% of the width below the
+      // rim put the crossbar ON the top edge and left the near grass a strip,
+      // so the ball arrived out of a letterbox. Asked for from the couch: a lot
+      // more above and below, even though the ball only ever goes into the
+      // goal — the picture is the point. One lens off the WIDTH is what makes
+      // that free: the goal is drawn the same size either way.
+      for (final width in [260.0, 284.0, 320.0, 384.0, 412.0, 600.0]) {
+        final v = stageOf(width);
+        expect(
+          keeperBarDrop * v.width,
+          greaterThan(0.06 * v.height),
+          reason: 'at $width: nothing over the bar to be a stand',
+        );
+        expect(
+          keeperBarBottom * v.width,
+          lessThan(keeperHorizon * v.height),
+          reason: 'at $width: a bar 2.44m up is above a keeper\'s eye',
+        );
+        expect(
+          (1 - keeperHorizon) * v.height,
+          greaterThan(0.45 * v.width),
+          reason: 'at $width: the grass a shot crosses is the bigger half',
+        );
+      }
+    });
+
     test('and the bar is the same aluminium as the posts', () {
       // Sizing one off the width and the other off the height made the bar
       // thinner than the posts by whatever the stage's aspect was — the same

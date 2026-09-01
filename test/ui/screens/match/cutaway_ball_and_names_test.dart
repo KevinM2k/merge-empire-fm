@@ -120,6 +120,47 @@ void main() {
     }
   });
 
+  /// **A FREE KICK WITH NOTHING TO SAY IT WAS ONE.** The ball stopped dead in
+  /// midfield, four defenders lined up and a second later it flew — which from
+  /// the couch reads as the ball doing something odd rather than as a man being
+  /// brought down. Asked for: the word, before the kick, so the spot can be
+  /// seen. `mg.foul` is new copy in all ten catalogues.
+  testWidgets('FOUL GOES UP BEFORE THE KICK, and comes down when it is struck', (
+    tester,
+  ) async {
+    final game = await loaded(
+      tester,
+      sequence: cutawaySequences.firstWhere((s) => s.id == 'fk_center'),
+      seed: 5,
+    );
+    expect(game.foul.value, isFalse, reason: 'nothing has happened yet');
+
+    const step = 1 / 60;
+    var t = 0.0;
+    var said = false;
+    var withTheWord = 0.0;
+    while (!game.finished && t < 30) {
+      game.update(step);
+      t += step;
+      if (game.foul.value) {
+        said = true;
+        withTheWord += step;
+        expect(
+          game.freeKickPending,
+          isTrue,
+          reason: 'the word outlived the wait it is for',
+        );
+      }
+    }
+    expect(said, isTrue, reason: 'a free-kick clip that never gave a foul');
+    expect(
+      withTheWord,
+      greaterThan(1),
+      reason: 'a beat nobody has time to look at the spot in is not a beat',
+    );
+    expect(game.foul.value, isFalse, reason: 'and it comes down again');
+  });
+
   testWidgets('AND THE MAN WHO TAKES A FREE KICK IS STANDING OVER IT', (
     tester,
   ) async {

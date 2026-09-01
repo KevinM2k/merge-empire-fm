@@ -58,7 +58,15 @@ CardView? cardViewFor(
   if (def == null) return null;
   // A borrowed player earns nothing for us, so his card carries no rate — the
   // JS hides the line on one for the same reason.
-  final borrowed = card.raw['loanMatchesLeft'] != null;
+  //
+  // **EITHER KIND OF BORROWED.** `loanMatchesLeft` is the discriminator the
+  // loan engine cares about — see its own note on why — and the tutorial lends
+  // a side with nothing but `borrowed: true` on it. `idle_engine` has always
+  // paid that flag nothing, so the card was quietly earning on screen and
+  // never said LOANED, on the eleven cards a brand new player looks at first.
+  // Reported from the couch.
+  final borrowed =
+      card.raw['loanMatchesLeft'] != null || card.raw['borrowed'] == true;
   return (
     name: getCardName(_map(raw), def.name),
     tier: def.tier,

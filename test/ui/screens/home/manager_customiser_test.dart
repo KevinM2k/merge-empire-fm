@@ -221,20 +221,31 @@ void main() {
         findsNWidgets(2),
         reason: 'the preview is still flat colour behind him',
       );
-      // **AND IT FILLS THE STAGE.** At 86% of the height there was a hard edge
-      // across it where the picture stopped and the sheet's own sky took over —
-      // two skies meeting, which reads as the image being cut off.
+      // **AND THE TREELINE STANDS ON THE GRASS.** It filled the stage
+      // top-anchored, which put the drawing's own ground line below the bottom
+      // edge and left its hedges cut off by the turf strip — shrubs growing out
+      // of the ground rather than standing behind it, reported with a
+      // screenshot. `cover` cannot fix that at any alignment; the art is PLACED
+      // instead, the same way the penalty screen and Goalkeeper Practice lay
+      // these four Kenney drawings behind their own ground.
       final art = tester.getRect(
         find.byKey(const ValueKey('customise-backdrop')).first,
       );
-      expect(art.top, closeTo(stage.top, 0.5));
-      expect(art.bottom, closeTo(stage.bottom, 0.5));
-      // **AND ITS WIDTH.** Top and bottom matched while the drawing was a
-      // 190px square centred in the slot: a `Row` hands a loose height and an
-      // image with none sizes to its own aspect. What slid past him was a
-      // patch with the sheet's sky either side of it.
-      expect(art.left, closeTo(stage.left, 0.5));
-      expect(art.width, closeTo(stage.width, 0.5));
+      final grass = tester.getRect(
+        find.byKey(const ValueKey('customise-grass')),
+      );
+      // 0.62 is where the Kenney backdrops put their own ground line.
+      expect(
+        art.top + 0.62 * art.height,
+        closeTo(grass.top, 0.5),
+        reason: 'the horizon and the turf disagree',
+      );
+      // And it still leaves no gap round the box: the surplus goes off the top,
+      // which is sky, and off the sides, which is more of the same treeline.
+      expect(art.top, lessThanOrEqualTo(stage.top + 0.5));
+      expect(art.left, lessThanOrEqualTo(stage.left + 0.5));
+      expect(art.width, greaterThanOrEqualTo(stage.width - 0.5));
+      expect(art.bottom, greaterThanOrEqualTo(grass.top - 0.5));
       // And the stage carries the same side margins as the controls under it.
       expect(stage.left, greaterThanOrEqualTo(10));
       expect(stage.right, lessThanOrEqualTo(box.right + 0.5));

@@ -162,11 +162,19 @@ class SquadHeader extends ConsumerWidget {
       padding: EdgeInsets.fromLTRB(14, hudClearanceOf(context), 14, 11),
       child: Column(
         children: [
-          // One glass panel, matching the next-match card's.
+          // One panel, matching the next-match card's.
+          //
+          // **AND IT IS A PANEL, not a 4% wash.** The band above deliberately
+          // has no ground of its own so the turf runs behind the strip — and
+          // the two things standing ON it were nearly clear glass, so the
+          // rating, the bar and the numbers were read against mown grass.
+          // Reported from the couch as being see-through. The surface the rest
+          // of the app's panels use is what these wanted all along; the turf
+          // is still there, around them.
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: kit.surface,
               border: Border.all(color: kit.border),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -231,7 +239,7 @@ class SquadHeader extends ConsumerWidget {
                 child: _Chip(
                   chipKey: 'squad-formation',
                   onTap: () => showFormationPicker(context, ref),
-                  fill: Colors.white.withValues(alpha: 0.04),
+                  fill: kit.surface,
                   edge: kit.border,
                   label: t('squad.formation.label'),
                   value: formationId,
@@ -245,7 +253,12 @@ class SquadHeader extends ConsumerWidget {
                 child: _Chip(
                   chipKey: 'squad-tactic',
                   onTap: () => showTacticPicker(context, ref),
-                  fill: tacticTint(context, tacticId, 10),
+                  // Its tint, over the panel surface rather than over the
+                  // grass — the colour is the point, the transparency was not.
+                  fill: Color.alphaBlend(
+                    tacticTint(context, tacticId, 10),
+                    kit.surface,
+                  ),
                   edge: tacticTint(context, tacticId, 55),
                   icon: tacticIconName(tacticId),
                   iconColor: tacticColor(context, tacticId),

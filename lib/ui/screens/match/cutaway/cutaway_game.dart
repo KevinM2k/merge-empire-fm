@@ -228,6 +228,17 @@ class Mover extends PositionComponent {
 
     final step = _velocity * dt;
     position.add(step);
+    // **AND HE STAYS ON THE PITCH.** The camera shows exactly the 200x120, so
+    // off the field is off the screen — and a run to the corner overshoots,
+    // because the velocity eases in and out rather than stopping on the spot.
+    // Men vanished into the surround on the way to a flag; reported from the
+    // couch. Clamped rather than steered: the scripts want him AT the corner,
+    // and a body that cannot cross the touchline is what a touchline is. His
+    // own width, so the FIGURE stays in frame and not just his centre.
+    position.setValues(
+      position.x.clamp(size.x / 2, pitchWidth - size.x / 2),
+      position.y.clamp(size.y / 2, pitchHeight - size.y / 2),
+    );
     // One stride per ~4.2 units covered.
     _stride = (_stride + step.length / 4.2) % 1;
 
@@ -880,12 +891,19 @@ class CutawayGame extends FlameGame with HasTimeScale {
     // The last man stays alive as a runner in the box.
     defenders.last.target = goalMouth - toGoal * 12;
 
-    // A beat of stillness before it is struck, so the wall is seen to form.
-    _freeKickDelay = 0.9;
+    // A beat of stillness before it is struck, so the wall is seen to form —
+    // and the word is up for all of it. Longer than the 0.9 it was: a beat
+    // nobody has time to look at the spot in is not a beat.
+    _freeKickDelay = freeKickWait;
+    foul.value = true;
   }
 
   bool _freeKickTaken = false;
   double _freeKickDelay = 0;
+
+  /// How long the ball is spotted before it is struck, and how long the word is
+  /// up for.
+  static const double freeKickWait = 1.4;
 
   /// Whether the ball is spotted for a free kick and not yet struck.
   bool get freeKickPending => _freeKickDelay > 0;
@@ -904,6 +922,16 @@ class CutawayGame extends FlameGame with HasTimeScale {
   /// answer twice. Paired with [verdict], the two beats a shot has — struck, and
   /// arrived — are both watchable from outside the game.
   final ValueNotifier<int> struck = ValueNotifier(0);
+
+  /// Whether a foul has just been given and the kick not yet taken.
+  ///
+  /// **A FREE KICK ARRIVED WITH NOTHING TO SAY IT WAS ONE.** The ball stopped
+  /// dead in midfield, four defenders lined up, and a second later it flew:
+  /// from the couch that reads as the ball doing something odd rather than as a
+  /// man being fouled. The word goes up for the wait the wall needs, which is
+  /// also the beat that shows WHERE it happened. Watched by the stage, like
+  /// [verdict], because a headline wants the app's own type.
+  final ValueNotifier<bool> foul = ValueNotifier(false);
 
   /// The verdict, once the ball has arrived. Watched by the stage, which draws
   /// the banner in Flutter rather than in Flame — a headline wants the app's own
@@ -1011,6 +1039,7 @@ class CutawayGame extends FlameGame with HasTimeScale {
         // On his feet the instant he has struck it: the plant is for the WAIT,
         // and a scorer who cannot run is a celebration that does not happen.
         attackers[carrier].frozen = false;
+        foul.value = false;
         // Curled, and harder than open play — that is what a free kick is.
         _shoot(const Finish('longshot'));
       }

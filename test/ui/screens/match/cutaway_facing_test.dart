@@ -110,6 +110,37 @@ void main() {
     );
   });
 
+  testWidgets('AND NOBODY LEAVES THE PITCH, in any sequence', (tester) async {
+    // The camera shows exactly the 200x120, so off the field is off the screen.
+    // A run to the corner flag overshoots — the velocity eases in and out — and
+    // men were walking into the surround on the way there. Reported from the
+    // couch.
+    for (var i = 0; i < cutawaySequences.length; i++) {
+      final game = await loaded(
+        tester,
+        sequence: cutawaySequences[i],
+        seed: 17 + i,
+      );
+      var t = 0.0;
+      while (!game.finished && t < 30) {
+        game.update(1 / 60);
+        t += 1 / 60;
+        for (final man in [...game.attackers, ...game.defenders, game.keeper]) {
+          expect(
+            man.position.x,
+            inInclusiveRange(0, pitchWidth),
+            reason: '${cutawaySequences[i].id} at ${t}s',
+          );
+          expect(
+            man.position.y,
+            inInclusiveRange(0, pitchHeight),
+            reason: '${cutawaySequences[i].id} at ${t}s',
+          );
+        }
+      }
+    }
+  });
+
   testWidgets('AND NOBODY RUNS SIDEWAYS, in any sequence', (tester) async {
     // The whole cast, every frame of every script. **Measured on a SETTLED
     // run**: a body turns at [MoverTuning.turnRate], so a man given a new

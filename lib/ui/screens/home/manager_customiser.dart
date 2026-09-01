@@ -44,6 +44,8 @@ import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart'
+    show backdropRectFor;
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
@@ -636,6 +638,11 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
 /// it and the two must not be able to disagree.
 const double _stageHeight = 190;
 
+/// How much of the stage is grass — and so where the HORIZON is, which the
+/// backdrop has to stand on. Named for the same reason the height is: the strip
+/// and the treeline cannot be allowed to disagree.
+const double _grassShare = 0.2;
+
 /// How big he is drawn on it, against the art's own 120×170.
 ///
 /// **Asked for — "the body needs to be slightly more zoomed out".** At full
@@ -713,19 +720,19 @@ class _PreviewStage extends StatelessWidget {
                 // this stage — because two clocks in one box is the drift
                 // `walk_ramp.dart` exists to stop.
                 //
-                // **THE WHOLE BOX, and anchored to the TOP of the drawing.** Two
-                // faults, and both were the same mistake. At 86% of the height
-                // there was a hard horizontal edge across the stage where the
-                // picture stopped and the sheet's own sky gradient took over —
-                // two skies meeting, which reads as the image being cut off. It
-                // fills the box now, so there is nothing to meet.
+                // **AND IT IS PLACED, not fitted.** The picture filled the box
+                // top-anchored, which left the drawing's own ground line below
+                // the bottom edge and its hedges cut off by the grass strip —
+                // shrubs growing out of the turf rather than standing behind
+                // it, reported from the couch with a screenshot. `cover` cannot
+                // fix that at any alignment: the slice it shows is decided by
+                // the box, so the seam lands wherever the arithmetic puts it.
                 //
-                // And anchoring it to the BOTTOM was backwards. `cover` on a
-                // square drawing in a wide box shows a horizontal slice, so
-                // bottom anchoring shows the GROUND — which puts the treeline at
-                // the top of the slice, up near his head. Anchored to the top the
-                // slice is sky and the treeline falls to the foot of it, which is
-                // where a horizon belongs.
+                // [backdropRectFor] is the placement the penalty screen and
+                // Goalkeeper Practice already use on these same four Kenney
+                // drawings, for this same fault seen down the pitch: size the
+                // art so ITS ground line is the seam, and let the surplus go off
+                // the top, which is sky.
                 const Positioned.fill(child: _ScrollingBackdrop()),
                 // **THE GRASS HAD NO WIDTH, so he was walking in the sky.**
                 // `FractionallySizedBox` with a `heightFactor` and no
@@ -741,7 +748,7 @@ class _PreviewStage extends StatelessWidget {
                   bottom: 0,
                   // A shallower strip than it was: too much of the box was grass
                   // and not enough of it was the world behind him.
-                  height: _stageHeight * 0.2,
+                  height: _stageHeight * _grassShare,
                   child: DecoratedBox(
                     key: const ValueKey('customise-grass'),
                     decoration: BoxDecoration(
@@ -791,56 +798,50 @@ class _ScrollingBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final beat = WalkBeat.maybeOf(context);
-    final art = ArtImage(
-      key: const ValueKey('customise-backdrop'),
-      path: backdropPath(Backdrop.grass),
-      fit: BoxFit.cover,
-      // TOP, so the visible slice is sky and the treeline lands low — see the
-      // note at the call site.
-      alignment: Alignment.topCenter,
-      fallback: const SizedBox.shrink(),
-    );
-    if (beat == null) return art;
     return LayoutBuilder(
-      builder: (context, constraints) => ClipRect(
-        child: ValueListenableBuilder<double>(
-          valueListenable: beat,
-          builder: (context, halfStrides, _) {
-            final world = halfStrides * halfStridePx();
-            return Transform.translate(
+      builder: (context, box) {
+        final view = Size(box.maxWidth, box.maxHeight);
+        // Sized and offset so the drawing's own ground line is the top of the
+        // grass strip — see the note at the call site.
+        final laid = backdropRectFor(view.height * (1 - _grassShare), view);
+        // **Both dimensions, or it is a square in the middle.** A `Row` hands
+        // its children a LOOSE height, and an image with no height sizes itself
+        // to its own aspect.
+        final art = SizedBox(
+          width: laid.width,
+          height: laid.height,
+          child: ArtImage(
+            key: const ValueKey('customise-backdrop'),
+            path: backdropPath(Backdrop.grass),
+            fit: BoxFit.cover,
+            fallback: const SizedBox.shrink(),
+          ),
+        );
+        // The pair, slid by how far the world has gone. Two tiles of the art's
+        // own width cover the view at every offset, because the placement never
+        // makes it narrower than the box.
+        Widget pair(double travelled) => Transform.translate(
+          offset: Offset(laid.left - travelled, laid.top),
+          child: OverflowBox(
+            alignment: Alignment.topLeft,
+            maxWidth: laid.width * 2,
+            maxHeight: laid.height,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [art, art]),
+          ),
+        );
+
+        if (beat == null) return ClipRect(child: pair(0));
+        return ClipRect(
+          child: ValueListenableBuilder<double>(
+            valueListenable: beat,
+            builder: (context, halfStrides, _) {
+              final world = halfStrides * halfStridePx();
               // Right to left: the world moves past him, he walks in place.
-              offset: Offset(
-                -(world % _period) / _period * constraints.maxWidth,
-                0,
-              ),
-              child: OverflowBox(
-                alignment: Alignment.centerLeft,
-                maxWidth: constraints.maxWidth * 2,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                  // **Both dimensions, or it is a square in the middle.** A
-                  // `Row` hands its children a LOOSE height, and an image with
-                  // no height sizes itself to its own aspect — so the drawing
-                  // was a 190px square centred in a 362px slot, and what slid
-                  // past him was a patch with the sky gradient either side.
-                    SizedBox(
-                      width: constraints.maxWidth,
-                      height: constraints.maxHeight,
-                      child: art,
-                    ),
-                    SizedBox(
-                      width: constraints.maxWidth,
-                      height: constraints.maxHeight,
-                      child: art,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
+              return pair((world % _period) / _period * laid.width);
+            },
+          ),
+        );
+      },
     );
   }
 }

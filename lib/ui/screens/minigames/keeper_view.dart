@@ -77,11 +77,18 @@ const double keeperHorizon = 0.42;
 ///
 /// A real one is three to one. The frame cannot be that and still hold a ball
 /// the thumb can hit, because the ball has to be about a third of the mouth's
-/// height to be a 56-point target — so the window is 1.85, the mouth inside it
-/// works out at about 1.9, and what it is NOT is taller than wide. The height
-/// it gives up goes back to the column, which centres it: a letterboxed view
-/// is what football on a screen looks like anyway.
-const double keeperStageAspect = 1.85;
+/// height to be a 56-point target — so the mouth inside the window works out at
+/// about 1.9, and what the window is NOT is taller than wide.
+///
+/// **But 1.85 was a slot, not a view.** One lens, fixed off the WIDTH, means
+/// the goal is drawn the same size whatever height the window has — so the
+/// height buys sky over the bar and grass in front of the line and nothing
+/// else. At 1.85 there was barely any of either: a letterbox with a goal
+/// wedged in it, and the ball arrived out of a strip. Reported from the couch
+/// as wanting a lot more above and below even though the ball only ever goes
+/// into the goal — it is the picture that is the point. The height it still
+/// gives up goes back to the column, which centres it.
+const double keeperStageAspect = 1.25;
 
 /// Where the eye is above the turf, in metres. A keeper's, standing.
 const double keeperEyeHeight = 1.75;
@@ -167,7 +174,14 @@ const double keeperPostWidth = 0.030;
 const double keeperBarThick = 0.030;
 
 /// How far the bar hangs below the top edge, as a fraction of the width.
-const double keeperBarDrop = 0.020;
+///
+/// **There has to be something ABOVE the bar.** At 0.02 the bar was the top
+/// edge of the picture: a taller window bought grass at the bottom and no sky
+/// at all, and the goal read as a slot the ball came out of rather than a goal
+/// with a stand behind it. This drops it clear of the rim — the bar still sits
+/// above the horizon, which is where a bar 2.44m up belongs seen from a
+/// keeper's eye.
+const double keeperBarDrop = 0.09;
 
 /// Where the bar's underside sits, as a fraction of the WIDTH: the ceiling a
 /// drill must stay under.

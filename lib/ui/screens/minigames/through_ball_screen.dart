@@ -45,6 +45,14 @@ const double markerHalfPx = 3;
 /// How long a hit or a miss stays up before the next round starts.
 const Duration throughBallFeedback = Duration(milliseconds: 700);
 
+/// One lane's band, and the most air that goes between two of them.
+///
+/// The gap is shared out of whatever the page has left over — see the stack in
+/// `build` — and capped, because five lanes spread the full height of a tall
+/// phone stop being one thing to read down.
+const double laneHeight = 34;
+const double laneGapMost = 30;
+
 /// Where the marker is, as a percentage of the track, [elapsedMs] into a sweep.
 ///
 /// A triangle wave: 0 → 100 → 0 over one [sweepMs], which is a ping-pong rather
@@ -336,35 +344,56 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
                 // the green shrinks 100% → 85% → 70% → 55% → 40% down the
                 // stack, so the last lane's sliver is on screen while the first
                 // one is still being aimed at.
+                //
+                // **AND THE SPARE ROOM GOES BETWEEN THEM.** Five 34pt bands
+                // with a 12pt gap is 218pt of a 500pt space, dead centre — the
+                // lanes read as one striped block and the screen keeps the rest
+                // of the room for nothing. The gap is worked out from what is
+                // actually there and the stack sits above centre, which is
+                // where the eye is while a marker is running. Asked for from
+                // the couch.
                 Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (
-                            var lane = 0;
-                            lane < ThroughBall.rounds;
-                            lane++
-                          ) ...[
-                            if (lane > 0) const SizedBox(height: 12),
-                            _Track(
-                              kit: kit,
-                              lane: lane,
-                              marker: lane == _round ? _markerPct : null,
-                              settledAt: _settled[lane],
-                              zoneLo: _zones[lane].lo,
-                              zoneWidth: _zones[lane].width,
-                              hit:
-                                  _settled[lane] != null &&
-                                  _settled[lane]! >= _zones[lane].lo &&
-                                  _settled[lane]! <= _zones[lane].hi,
-                              live: lane == _round && !_over,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final spare =
+                          box.maxHeight - ThroughBall.rounds * laneHeight;
+                      final gap = (spare / (ThroughBall.rounds + 1)).clamp(
+                        12.0,
+                        laneGapMost,
+                      );
+                      return Align(
+                        alignment: const Alignment(0, -0.4),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (
+                                var lane = 0;
+                                lane < ThroughBall.rounds;
+                                lane++
+                              ) ...[
+                                if (lane > 0) SizedBox(height: gap),
+                                _Track(
+                                  kit: kit,
+                                  lane: lane,
+                                  marker: lane == _round
+                                      ? _markerPct
+                                      : null,
+                                  settledAt: _settled[lane],
+                                  zoneLo: _zones[lane].lo,
+                                  zoneWidth: _zones[lane].width,
+                                  hit:
+                                      _settled[lane] != null &&
+                                      _settled[lane]! >= _zones[lane].lo &&
+                                      _settled[lane]! <= _zones[lane].hi,
+                                  live: lane == _round && !_over,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -474,7 +503,7 @@ class _Track extends StatelessWidget {
         return Center(
           child: SizedBox(
             key: ValueKey('tb-lane-$lane'),
-            height: 34,
+            height: laneHeight,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
