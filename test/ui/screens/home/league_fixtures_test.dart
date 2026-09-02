@@ -12,17 +12,22 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/cups.dart';
+import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
+    show cupDueAfterMatches;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Future<void> pumpFixtures(
   WidgetTester tester, {
   bool dropOpponentRatings = false,
+  void Function(Map<String, dynamic> save)? mutate,
 }) async {
   tester.view.physicalSize = const Size(420 * 3, 900 * 3);
   tester.view.devicePixelRatio = 3;
@@ -42,6 +47,7 @@ Future<void> pumpFixtures(
   if (dropOpponentRatings) {
     (save['progression'] as Map<String, dynamic>).remove('seasonOpponentRatings');
   }
+  mutate?.call(save);
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -109,6 +115,87 @@ void main() {
       expect(row.tip, t('fixtures.opp_rating_est', {'rating': n}));
       expect(row.tip, isNot(t('fixtures.opp_rating', {'rating': n})));
     }
+  });
+
+
+  /// A quarter-final due next, with the bracket drawn and nothing played of it.
+  /// The shape the screenshot was taken in.
+  void cupDueNext(Map<String, dynamic> save) {
+    final prog = save['progression'] as Map<String, dynamic>;
+    final cup = cups.first;
+    prog['currentDivision'] = divisions[cup.unlocksAtDivisionIdx].id;
+    prog['seasonMatchesPlayed'] = cupDueAfterMatches.first;
+    prog['cups'] = <String, dynamic>{
+      'availableThisSeason': false,
+      'active': <String, dynamic>{
+        'cupId': cup.id,
+        'round': 0,
+        'opponents': [for (final r in cup.rounds) 'Everton $r'],
+        'opponentMeta': [
+          for (final _ in cup.rounds)
+            <String, dynamic>{
+              'divId': prog['currentDivision'],
+              'rating': 60,
+              'attackRatio': 0.5,
+            },
+        ],
+        'contexts': <dynamic>[],
+        'results': <dynamic>[],
+        'startedAt': 0,
+        'startedSeason': 1,
+      },
+      'history': <dynamic>[],
+    };
+  }
+
+  testWidgets('A DUE TIE NAMES THE CLUB, and it is the one marked next', (
+    tester,
+  ) async {
+    // Reported with a screenshot: a Continental Cup quarter-final due, the tie
+    // on the sheet reading only "Quarter-Final / Continental Cup", and NEXT
+    // MATCH sitting over the LEAGUE game underneath it. "My next match is a cup
+    // game vs Everton but if you look at fixtures, you can see Everton nowhere
+    // and you can see it thinks my next match is Rangers."
+    await pumpFixtures(tester, mutate: cupDueNext);
+
+    // The club is on the tie.
+    expect(
+      find.textContaining('Everton'),
+      findsWidgets,
+      reason: 'the bracket knew who it was the whole time',
+    );
+
+    // And NEXT MATCH is said once, immediately above the tie rather than above
+    // a league fixture that is not next.
+    final headings = find.text(t('play.nextMatch').toUpperCase());
+    expect(headings, findsOneWidget);
+
+    final list = tester.widget<ListView>(
+      find.byKey(const ValueKey('league-fixtures')),
+    );
+    final children = (list.childrenDelegate as SliverChildListDelegate).children;
+    final headingAt = children.indexWhere(
+      (w) => tester.any(find.descendant(
+        of: find.byWidget(w),
+        matching: find.text(t('play.nextMatch').toUpperCase()),
+      )),
+    );
+    expect(headingAt, greaterThan(-1));
+    // The row DIRECTLY under the heading is the tie — its round and its club,
+    // not a league fixture.
+    final under = find.byWidget(children[headingAt + 1]);
+    expect(
+      find.descendant(of: under, matching: find.text(cups.first.rounds.first)),
+      findsOneWidget,
+      reason: 'NEXT MATCH heads the tie, not the league game after it',
+    );
+    expect(
+      find.descendant(
+        of: under,
+        matching: find.textContaining('Everton'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('and it is in the player\'s language', (tester) async {

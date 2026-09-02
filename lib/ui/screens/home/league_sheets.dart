@@ -740,21 +740,36 @@ class FixturesView extends ConsumerWidget {
     // Three headings, in the order the season runs: what has happened, what is
     // next, and what is left. A heading is emitted at the point the group
     // changes rather than by splitting the list, so the rows stay one column.
+    // **A DUE TIE IS WHAT NEXT MATCH POINTS AT.** `OurFixture.isNext` is the
+    // next LEAGUE game, and the heading was hung off it unconditionally — so on
+    // a cup week the sheet put NEXT MATCH over a club the manager was not about
+    // to play, with the tie that WAS next sitting unlabelled above it.
+    // Reported with a screenshot: a Continental Cup quarter-final due, and the
+    // sheet announcing Rangers.
+    //
+    // The tie does not take a fixture slot, so the league game it displaces is
+    // not played out of turn — it just is not next any more, and heads COMING
+    // UP instead.
+    final cupIsNext = ties.values.any((tie) => tie.isNext);
     var comingUpShown = false;
     final rows = <Widget>[];
     for (final fixture in fixtures) {
+      final isNext = fixture.isNext && !cupIsNext;
       if (fixture.matchNum == 0 && fixture.played) {
         rows.add(_When(kit: kit, text: t('play.previousMatches')));
       }
-      if (fixture.isNext) {
+      if (isNext) {
         rows.add(_When(kit: kit, text: t('play.nextMatch')));
       }
-      if (!fixture.played && !fixture.isNext && !comingUpShown) {
+      if (!fixture.played && !isNext && !comingUpShown) {
         rows.add(_When(kit: kit, text: t('play.comingUp')));
         comingUpShown = true;
       }
-      rows.add(_FixtureRow(fixture: fixture));
-      if (ties[fixture.matchNum] case final tie?) rows.add(_CupRow(tie: tie));
+      rows.add(_FixtureRow(fixture: fixture, isNext: isNext));
+      if (ties[fixture.matchNum] case final tie?) {
+        if (tie.isNext) rows.add(_When(kit: kit, text: t('play.nextMatch')));
+        rows.add(_CupRow(tie: tie));
+      }
     }
 
     // **HE IS IN THE CORNER, not at the head of the list.** A portrait and two
@@ -832,8 +847,16 @@ class _CupRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    // Once it has been played the OPPONENT is the fact worth
-                    // having; before that, the competition is.
+                    // **The club, whether or not it has been played.** This
+                    // read `tie.opponent ?? tie.competition` on the reasoning
+                    // that "once it has been played the opponent is the fact
+                    // worth having; before that, the competition is" — which
+                    // had it right about which fact matters and backwards about
+                    // when. Nobody needs telling twice which cup they are in:
+                    // the round above says it and the caption over the card
+                    // says it. Who you are playing is the thing that was
+                    // missing, and it was missing from exactly the row a player
+                    // opens the sheet to find.
                     tie.opponent ?? tie.competition,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -881,9 +904,13 @@ class _When extends StatelessWidget {
 }
 
 class _FixtureRow extends StatelessWidget {
-  const _FixtureRow({required this.fixture});
+  const _FixtureRow({required this.fixture, required this.isNext});
 
   final OurFixture fixture;
+
+  /// Whether this row is the one to play next — which is NOT `fixture.isNext`
+  /// on a cup week, because a due tie comes first. See the list's own note.
+  final bool isNext;
 
   @override
   Widget build(BuildContext context) {
@@ -904,7 +931,7 @@ class _FixtureRow extends StatelessWidget {
           : fixture.drawn
           ? kit.textMuted
           : Colors.redAccent;
-    } else if (fixture.isNext) {
+    } else if (isNext) {
       score = t('common.vs');
       scoreInk = kit.accentBright;
     } else {
@@ -938,13 +965,13 @@ class _FixtureRow extends StatelessWidget {
       // The card wants a gap of its own; the rows are separated by a hairline
       // and want the air INSIDE them rather than between them.
       margin: EdgeInsets.symmetric(
-        horizontal: fixture.isNext ? 8 : 0,
-        vertical: fixture.isNext ? 6 : 0,
+        horizontal: isNext ? 8 : 0,
+        vertical: isNext ? 6 : 0,
       ),
       decoration: BoxDecoration(
-        color: fixture.isNext ? kit.accentBright.withValues(alpha: 0.1) : null,
-        borderRadius: BorderRadius.circular(fixture.isNext ? 10 : 0),
-        border: fixture.isNext
+        color: isNext ? kit.accentBright.withValues(alpha: 0.1) : null,
+        borderRadius: BorderRadius.circular(isNext ? 10 : 0),
+        border: isNext
             ? Border.all(color: kit.accentBright.withValues(alpha: 0.5))
             // A hairline under every other row, so a season of them is a list
             // of fixtures rather than a paragraph of club names.
@@ -956,7 +983,7 @@ class _FixtureRow extends StatelessWidget {
       // names and a scoreline is a list nobody can pick a line out of —
       // reported as needing more padding between the fixtures.
       padding: EdgeInsets.symmetric(
-        horizontal: fixture.isNext ? 8 : 12,
+        horizontal: isNext ? 8 : 12,
         vertical: 12,
       ),
       child: Row(
@@ -992,7 +1019,7 @@ class _FixtureRow extends StatelessWidget {
               fixture.opponent,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontWeight: fixture.isNext ? FontWeight.w800 : FontWeight.w600,
+                fontWeight: isNext ? FontWeight.w800 : FontWeight.w600,
               ),
             ),
           ),

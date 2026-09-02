@@ -590,15 +590,18 @@ void main() {
         expect(first.won, isTrue);
       });
 
-      testWidgets('and one that has not been played names the COMPETITION', (
+      testWidgets('and one that has not been played STILL NAMES THE CLUB', (
         tester,
       ) async {
-        // Before it is played the opponent is not known; the interesting fact
-        // is which round it is and in what.
+        // This asserted `opponent` was null on an unplayed tie, on the premise
+        // that "before it is played the opponent is not known". The premise was
+        // the bug: the bracket is drawn when the run starts, so the club has
+        // been sitting in `opponents` the whole time — and the row a player
+        // opens the sheet to read named a competition and a round and nobody.
         final container = await pumpHome(tester, mutate: withCup);
         final second = container.read(ourCupTiesProvider)[1];
         expect(second.played, isFalse);
-        expect(second.opponent, isNull);
+        expect(second.opponent, 'Beeches', reason: 'round 1 of the bracket');
         expect(second.competition, isNotEmpty);
         expect(second.isNext, isTrue, reason: 'it is due now');
       });

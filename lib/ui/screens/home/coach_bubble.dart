@@ -29,6 +29,8 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/manager_hint_engine.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart'
+    show opponentAtkDefFromShare;
 import 'package:merge_empire_fc/engine/squad_state_engine.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -108,11 +110,20 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
     //
     // `{when}` is a phrase inside a sentence, so the engine hands back the key
     // for it and the catalogue layer finishes the job here.
-    final history = fixtureHintPool(
-      s,
-      opponent,
-      currentSeason: _num(_map(s['progression'])?['seasonCount']).toInt(),
-    );
+    //
+    // **And not on a cup week**, for the same reason the grudge is not: there
+    // is no head-to-head record against a club drawn out of a bracket, and the
+    // record he WAS reading out belonged to the league game sitting behind the
+    // tie. Reported from the couch: "coach tips are mentioning Everton as well
+    // as the Rangers game — the Rangers game shouldn't matter until this cup
+    // game is out of the way."
+    final history = cupTie != null
+        ? null
+        : fixtureHintPool(
+            s,
+            opponent,
+            currentSeason: _num(_map(s['progression'])?['seasonCount']).toInt(),
+          );
     if (history != null) {
       // **POOLED copy, and `t()` would have printed the whole pool.** Every
       // `streak.*` and `last_meeting.*` string is three or four sentences
@@ -243,7 +254,12 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
 /// different piece of advice.
 final coachTipKeyProvider = savePick<String>((s) {
   final preview = previewFixture(s);
-  final opponent = preview?.opponentName ?? '';
+  // The club he is talking ABOUT — the tie when one is due, or he would go on
+  // showing the same read through a whole cup round.
+  final opponent =
+      (cupDue(s) ? previewCupTie(s)?.opponentName : null) ??
+      preview?.opponentName ??
+      '';
   final rating = preview?.effectiveSquadRating.round() ?? 0;
   final matches = _num(_map(s['progression'])?['matchesPlayed']).toInt();
   return '$opponent|$rating|$matches';
@@ -267,12 +283,27 @@ final coachTacticPickProvider = savePick<String?>(coachTacticPick);
 String? coachTacticPick(Map<String, dynamic> s) {
   final preview = previewFixture(s);
   if (preview == null) return null;
+  // **The side he is about to face, which on a cup week is not the league
+  // one.** `previewFixture` only knows the league schedule, so a due tie had
+  // him picking a tactic against a club the manager was not playing — and the
+  // header states that pick as his read. A tie is neutral ground and carries no
+  // home advantage either way, so the opponent's split comes straight off the
+  // bracket's rating.
+  final cupTie = cupDue(s) ? previewCupTie(s) : null;
+  final oppRatio = cupTie?.oppAttackRatio ?? preview.oppAttackRatio;
+  final oppSplit = cupTie == null
+      ? null
+      : opponentAtkDefFromShare(cupTie.opponentRating, cupTie.oppAttackRatio);
   return suggestTactic(
     preview.effAttack,
     preview.effDefence,
-    preview.effOppAttackRating ?? preview.effAttack,
-    preview.effOppDefenceRating ?? preview.effDefence,
-    oppAttackRatio: preview.oppAttackRatio,
+    oppSplit?.attack.toDouble() ??
+        preview.effOppAttackRating ??
+        preview.effAttack,
+    oppSplit?.defence.toDouble() ??
+        preview.effOppDefenceRating ??
+        preview.effDefence,
+    oppAttackRatio: oppRatio,
   ).id;
 }
 
