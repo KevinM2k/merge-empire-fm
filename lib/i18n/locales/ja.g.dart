@@ -1722,6 +1722,7 @@ const Map<String, String> jaCatalog = <String, String>{
   'play.pill.home': 'ホーム',
   'play.pill.grudge': '因縁',
   'play.pill.battle': '決戦',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}。勝利というより宣言だ。{opp}は完全に解体された。|4点差、それも余裕を残して。{opp}はハイライトを見たくないだろう。|額に入れたい午後だった。{opp}に{ours}-{theirs}、一秒も危なげがなかった。',
   'report.win.comfortable': '{ours}-{theirs}、しかも余裕をもって。{opp}は終わる前に折れていた。|{opp}に3点差。ラスト20分は消化試合だった。|本物の勝利だ — {ours}-{theirs} — {opp}に答えはなかった。',
   'report.win.clear': '{opp}に{ours}-{theirs}。2点は最低限の結果だ。|{opp}に完勝、{ours}-{theirs}。終盤を楽しむ余裕まであった。|{opp}に2点差。スコアは我々より相手に優しい。',

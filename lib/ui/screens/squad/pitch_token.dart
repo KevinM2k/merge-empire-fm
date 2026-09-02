@@ -25,7 +25,8 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
-import 'package:merge_empire_fc/ui/widgets/player_card.dart' show TraitBadge;
+import 'package:merge_empire_fc/ui/widgets/player_card.dart'
+    show TraitBadge, formGlyph, formInk;
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
 /// The wrapper's width. The token fills it; the empty slot is inset inside it.
@@ -385,6 +386,41 @@ class PitchToken extends StatelessWidget {
                               level: trait.level,
                               title: trait.title,
                               size: 8,
+                            ),
+                          ),
+                        // **AND HIS FORM, which the bench has had all along.**
+                        // A card in bad form is genuinely a point worse — the
+                        // rating chip above already includes it — so the eleven
+                        // has to say the same thing the bench says about the
+                        // same player. Reported from the couch: form should
+                        // show on the squad page too.
+                        //
+                        // Bottom-RIGHT: the trait badge owns bottom-left and
+                        // the two chips own the top corners, so this is the one
+                        // corner free on every token.
+                        if (card.form != 0)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: Text(
+                              formGlyph(card.form),
+                              key: const ValueKey('token-form'),
+                              // The word, not the glyph: an arrow read aloud is
+                              // a shape rather than a fact.
+                              semanticsLabel: t(
+                                card.form > 0
+                                    ? 'squad.form.good'
+                                    : 'squad.form.bad',
+                              ),
+                              style: TextStyle(
+                                fontSize: 9,
+                                height: 1,
+                                fontWeight: FontWeight.w900,
+                                color: formInk(card.form),
+                                shadows: const [
+                                  Shadow(blurRadius: 2, color: Colors.black54),
+                                ],
+                              ),
                             ),
                           ),
                         if (slot.seasons > 0)

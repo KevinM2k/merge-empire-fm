@@ -20,6 +20,9 @@
 /// seeded off the fixture, so re-reading it does not rewrite it.
 library;
 
+import 'package:merge_empire_fc/i18n/i18n.dart' show getLocale;
+import 'package:merge_empire_fc/util/format.dart' show ordinalSuffix;
+
 /// One sentence of the report, as a key and its parameters.
 typedef ReportBeat = ({String key, Map<String, Object?> params});
 
@@ -27,6 +30,13 @@ typedef ReportBeat = ({String key, Map<String, Object?> params});
 typedef ReportFacts = ({
   int ours,
   int theirs,
+
+  /// **THE WRITE-UP NAMES BOTH CLUBS.** It was written in the first person —
+  /// "we", "us", "our back line" — and was asked to be a third party's account
+  /// of the match instead: "its like an independent summary of the game." So
+  /// every beat carries the club as well as the opponent, and none of them says
+  /// "us".
+  String clubName,
   String opponentName,
   bool isHome,
   bool isCup,
@@ -85,6 +95,7 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   beats.add((
     key: headline,
     params: {
+      'club': f.clubName,
       'opp': f.opponentName,
       'ours': f.ours,
       'theirs': f.theirs,
@@ -107,7 +118,10 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     (false, false) => '',
   };
   if (shape.isNotEmpty) {
-    beats.add((key: shape, params: {'opp': f.opponentName}));
+    beats.add((
+      key: shape,
+      params: {'club': f.clubName, 'opp': f.opponentName},
+    ));
   }
 
   // ── 3. Who scored ────────────────────────────────────────────────────────
@@ -124,32 +138,32 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     if (best.value >= 3) {
       beats.add((
         key: 'report.scorers.hat_trick',
-        params: {'player': best.key, 'n': best.value},
+        params: {'club': f.clubName, 'player': best.key, 'n': best.value},
       ));
     } else if (best.value == 2) {
       beats.add((
         key: 'report.scorers.brace',
-        params: {'player': best.key},
+        params: {'club': f.clubName, 'player': best.key},
       ));
     } else if (tally.length >= 3) {
       beats.add((
         key: 'report.scorers.spread',
-        params: {'n': tally.length},
+        params: {'club': f.clubName, 'n': tally.length},
       ));
     } else {
       beats.add((
         key: 'report.scorers.one',
-        params: {'player': tally.keys.first},
+        params: {'club': f.clubName, 'player': tally.keys.first},
       ));
     }
   } else if (f.ours == 0) {
-    beats.add((key: 'report.scorers.none', params: const {}));
+    beats.add((key: 'report.scorers.none', params: {'club': f.clubName}));
   }
 
   // A clean sheet is worth a line of its own, and only when it was actually
   // worked for — nil-nil already said it in the headline.
   if (f.theirs == 0 && f.ours > 0) {
-    beats.add((key: 'report.clean_sheet', params: const {}));
+    beats.add((key: 'report.clean_sheet', params: {'club': f.clubName}));
   }
 
   // ── 4. The referee ───────────────────────────────────────────────────────
@@ -160,12 +174,18 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   if (f.ourReds > 0) {
     beats.add((
       key: f.ourReds > 1 ? 'report.cards.our_reds' : 'report.cards.our_red',
-      params: {'n': f.ourReds},
+      params: {'club': f.clubName, 'n': f.ourReds},
     ));
   } else if (f.ourYellows >= 2) {
-    beats.add((key: 'report.cards.our_yellows', params: {'n': f.ourYellows}));
+    beats.add((
+      key: 'report.cards.our_yellows',
+      params: {'club': f.clubName, 'n': f.ourYellows},
+    ));
   } else if (f.theirReds > 0) {
-    beats.add((key: 'report.cards.their_red', params: {'opp': f.opponentName}));
+    beats.add((
+      key: 'report.cards.their_red',
+      params: {'club': f.clubName, 'opp': f.opponentName},
+    ));
   }
 
   // ── 5. Where it leaves us ────────────────────────────────────────────────
@@ -182,7 +202,19 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
           : delta < 0
           ? 'report.table.dropped'
           : 'report.table.held',
-      params: {'pos': pos, 'pts': pts, 'n': delta.abs()},
+      // **THE ORDINAL IS PART OF THE VALUE, not part of the sentence.** The
+      // English copy said `{pos}th`, which prints "1th" — reported from the
+      // couch. Moving the suffix into the string would need a second
+      // placeholder that only one language uses, and the catalogue test is
+      // right to refuse that; the suffix is also not a suffix in most of them
+      // (German writes "Rang 4.", Chinese "第4"). So the value carries it, and
+      // only where the language has one.
+      params: {
+        'club': f.clubName,
+        'pos': ordinalOf(pos),
+        'pts': pts,
+        'n': delta.abs(),
+      },
     ));
   }
 
@@ -191,7 +223,7 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   if (next != null && next.isNotEmpty) {
     beats.add((
       key: f.nextIsHome ? 'report.next.home' : 'report.next.away',
-      params: {'opp': next},
+      params: {'club': f.clubName, 'opp': next},
     ));
   }
 
@@ -223,3 +255,11 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   }
   return (wasBehind: behind, wasAhead: ahead);
 }
+
+/// A league position as the reader's language writes one.
+///
+/// English is the only catalogue whose sentences read as "4th"; the rest set
+/// the number in their own furniture — "Rang 4.", "4º", "第4" — and appending
+/// an English suffix to any of them would be worse than the bug it fixes.
+String ordinalOf(int pos) =>
+    getLocale() == 'en' ? '$pos${ordinalSuffix(pos)}' : '$pos';

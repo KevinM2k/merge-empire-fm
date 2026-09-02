@@ -22,6 +22,7 @@ void main() {
   }) => (
     ours: ours,
     theirs: theirs,
+    clubName: 'Testville',
     opponentName: 'Ayton',
     isHome: true,
     isCup: isCup,
@@ -59,6 +60,9 @@ void main() {
       expect(beat.params['ours'], 3);
       expect(beat.params['theirs'], 1);
       expect(beat.params['opp'], 'Ayton');
+      // **AND THE CLUB, because nothing here says "us".** Asked for from the
+      // couch: the write-up is a third party's account of the match.
+      expect(beat.params['club'], 'Testville');
     });
   });
 

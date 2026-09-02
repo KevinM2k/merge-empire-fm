@@ -1722,6 +1722,7 @@ const Map<String, String> koCatalog = <String, String>{
   'play.pill.home': '홈',
   'play.pill.grudge': '라이벌전',
   'play.pill.battle': '혈투',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}. 승리가 아니라 선언입니다. {opp}는 완전히 해체됐습니다.|4골 차, 그것도 여유가 남았습니다. {opp}는 하이라이트를 보고 싶지 않을 겁니다.|액자에 걸 만한 오후였습니다. {opp}에 {ours}-{theirs}, 한순간도 위태롭지 않았습니다.',
   'report.win.comfortable': '{ours}-{theirs}, 그것도 여유롭게. {opp}는 종료 훨씬 전에 무너졌습니다.|{opp}에 3골 차. 마지막 20분은 형식적인 시간이었습니다.|진짜 승리입니다 — {ours}-{theirs} — {opp}에게는 답이 없었습니다.',
   'report.win.clear': '{opp}에 {ours}-{theirs}, 2골은 최소한의 결과였습니다.|{opp}를 확실히 눌렀습니다, {ours}-{theirs}. 마무리를 즐길 여유까지 있었습니다.|{opp}가 2골 차로 졌지만, 스코어는 우리보다 그들에게 후합니다.',

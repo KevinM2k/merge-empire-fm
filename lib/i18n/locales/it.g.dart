@@ -1722,6 +1722,7 @@ const Map<String, String> itCatalog = <String, String>{
   'play.pill.home': 'Casa',
   'play.pill.grudge': 'Rivincita',
   'play.pill.battle': 'Scontro',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}. Non è una vittoria, è un messaggio: il {opp} è stato smontato.|Quattro gol di scarto, e non solo. Il {opp} non vorrà rivedere gli highlight.|Un pomeriggio da incorniciare: {ours}-{theirs} contro il {opp}, mai in discussione.',
   'report.win.comfortable': '{ours}-{theirs}, e con comodità. Il {opp} era battuto molto prima della fine.|Tre gol sopra il {opp}, e gli ultimi venti minuti sono stati una formalità.|Una vittoria vera — {ours}-{theirs} — e il {opp} non ha avuto risposte.',
   'report.win.clear': '{ours}-{theirs} contro il {opp}, e due gol erano il minimo.|Vittoria netta sul {opp}, {ours}-{theirs}, con margine per godersi il finale.|{opp} battuto di due, e il risultato è più generoso con loro che con noi.',

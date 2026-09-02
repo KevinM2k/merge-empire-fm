@@ -1722,6 +1722,7 @@ const Map<String, String> ptCatalog = <String, String>{
   'play.pill.home': 'Casa',
   'play.pill.grudge': 'Rivalidade',
   'play.pill.battle': 'Batalha',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}. Isto não é uma vitória, é um recado: o {opp} foi desmontado.|Quatro de vantagem, e mais. O {opp} não vai querer ver o resumo.|Uma tarde para emoldurar: {ours}-{theirs} contra o {opp}, e nunca esteve em dúvida.',
   'report.win.comfortable': '{ours}-{theirs}, e com folga. O {opp} estava batido muito antes do fim.|Três golos acima do {opp}, e os últimos vinte minutos foram formalidade.|Uma vitória a sério — {ours}-{theirs} — e o {opp} não teve resposta.',
   'report.win.clear': '{ours}-{theirs} contra o {opp}, e dois golos era o mínimo.|Vitória clara sobre o {opp}, {ours}-{theirs}, com margem para gozar o final.|{opp} batido por dois, e o resultado favorece-os mais do que a nós.',

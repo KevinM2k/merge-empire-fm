@@ -1722,6 +1722,7 @@ const Map<String, String> esCatalog = <String, String>{
   'play.pill.home': 'Casa',
   'play.pill.grudge': 'Venganza',
   'play.pill.battle': 'Batalla',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}. Eso no es una victoria, es una declaración: {opp} quedaron desarmados.|Cuatro de ventaja, y aún más. {opp} no querrán ver el resumen.|Una tarde para enmarcar: {ours}-{theirs} ante {opp}, y nunca hubo dudas.',
   'report.win.comfortable': '{ours}-{theirs}, y con comodidad. {opp} estaban vencidos mucho antes del final.|Tres goles por encima del {opp}, y los últimos veinte minutos fueron un trámite.|Una victoria de verdad — {ours}-{theirs} — y {opp} no tuvieron respuesta.',
   'report.win.clear': '{ours}-{theirs} ante {opp}, y dos goles era lo mínimo que merecía.|Victoria clara sobre {opp}, {ours}-{theirs}, con margen para disfrutar el final.|{opp} superados por dos, y el resultado les favorece más que a nosotros.',

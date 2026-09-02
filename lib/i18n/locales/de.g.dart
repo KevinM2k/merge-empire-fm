@@ -1722,6 +1722,7 @@ const Map<String, String> deCatalog = <String, String>{
   'play.pill.home': 'Heim',
   'play.pill.grudge': 'Rivalität',
   'play.pill.battle': 'Schlacht',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}:{theirs}. Das ist kein Sieg, das ist eine Ansage — {opp} wurden auseinandergenommen.|Vier klare Tore Vorsprung und mehr. {opp} werden sich die Zusammenfassung nicht ansehen wollen.|Ein Nachmittag zum Einrahmen: {ours}:{theirs} gegen {opp}, und keine Sekunde in Gefahr.',
   'report.win.comfortable': '{ours}:{theirs}, und das souverän. {opp} waren lange vor dem Ende geschlagen.|Drei Tore Vorsprung auf {opp}, die letzten zwanzig Minuten waren Formsache.|Ein richtiger Sieg — {ours}:{theirs} — und {opp} hatten keine Antwort darauf.',
   'report.win.clear': '{ours}:{theirs} gegen {opp}, und zwei Tore waren das Minimum.|Ein klarer Sieg über {opp}, {ours}:{theirs}, mit genug Luft für einen ruhigen Schluss.|{opp} um zwei geschlagen, und das Ergebnis schmeichelt ihnen mehr als uns.',

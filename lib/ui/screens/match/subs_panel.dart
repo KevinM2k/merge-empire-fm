@@ -518,22 +518,21 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
               ? t('match.subs.pick_off')
               : t('match.subs.pick_on'),
         ),
-        // **THE FILTER, AND THE LEGEND FOR THE ARROWS, on one row.** That is
-        // where `SquadScreen.js` puts both — see its bench sheet — and the
-        // legend is `squad.form.good` / `squad.form.bad`, translated in ten
-        // catalogues and until now unreachable in the port.
-        Row(
-          children: [
-            Expanded(
-              child: PositionFilterBar(
-                value: line,
-                keyPrefix: 'subs-bench-filter',
-                onChanged: (next) => setState(() => _line = next),
-              ),
-            ),
-            const _FormLegend(),
-            const SizedBox(width: 12),
-          ],
+        // **THE FILTER, AND THEN THE LEGEND UNDER IT.** They shared a row —
+        // which is where `SquadScreen.js` puts both — and on a phone the four
+        // filter pills and two glyph-and-word pairs do not fit one line, so the
+        // legend sat on top of the buttons. Reported from the couch.
+        //
+        // The legend is `squad.form.good` / `squad.form.bad`, translated in ten
+        // catalogues and until recently unreachable in the port.
+        PositionFilterBar(
+          value: line,
+          keyPrefix: 'subs-bench-filter',
+          onChanged: (next) => setState(() => _line = next),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 2, 12, 0),
+          child: Align(alignment: Alignment.centerRight, child: _FormLegend()),
         ),
         if (bench.isEmpty)
           Padding(
@@ -675,21 +674,21 @@ class _FormLegend extends StatelessWidget {
         ),
       ],
     );
-    // It shares a row with a scrolling filter bar on a phone, so it gives way
-    // rather than pushing the chips off the end.
-    return Flexible(
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerRight,
-        child: Row(
-          key: const ValueKey('subs-form-legend'),
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            half(1, 'squad.form.good', '+1'),
-            const SizedBox(width: 8),
-            half(-1, 'squad.form.bad', '-1'),
-          ],
-        ),
+    // **A LINE OF ITS OWN**, so it never has to give way. It shared a row with
+    // the filter bar and there is not room for both on a phone — the legend sat
+    // over the pills. The `Flexible` that was managing that is gone with the
+    // row it belonged to; a bare one outside a `Flex` is an assertion.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerRight,
+      child: Row(
+        key: const ValueKey('subs-form-legend'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          half(1, 'squad.form.good', '+1'),
+          const SizedBox(width: 8),
+          half(-1, 'squad.form.bad', '-1'),
+        ],
       ),
     );
   }

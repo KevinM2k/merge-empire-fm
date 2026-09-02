@@ -1722,6 +1722,7 @@ const Map<String, String> arCatalog = <String, String>{
   'play.pill.home': 'أرضنا',
   'play.pill.grudge': 'ثأر',
   'play.pill.battle': 'معركة',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}. هذا ليس فوزاً، بل بيان: {opp} تفكك تماماً.|أربعة أهداف فارقاً وأكثر. {opp} لن يرغب في مشاهدة الملخص.|أصيل يستحق التأطير: {ours}-{theirs} على {opp}، ولم يكن في خطر لحظة.',
   'report.win.comfortable': '{ours}-{theirs}، وبأريحية. {opp} كان مهزوماً قبل النهاية بكثير.|ثلاثة أهداف فوق {opp}، والعشرون دقيقة الأخيرة كانت إجراءً شكلياً.|فوز حقيقي — {ours}-{theirs} — ولم يجد {opp} أي رد.',
   'report.win.clear': '{ours}-{theirs} على {opp}، وهدفان كانا الحد الأدنى.|فوز واضح على {opp}، {ours}-{theirs}، مع هامش يسمح بالاستمتاع بالنهاية.|{opp} خسر بهدفين، والنتيجة أرحم بهم منها بنا.',

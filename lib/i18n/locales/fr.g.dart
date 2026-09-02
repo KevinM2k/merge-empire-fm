@@ -1722,6 +1722,7 @@ const Map<String, String> frCatalog = <String, String>{
   'play.pill.home': 'Domicile',
   'play.pill.grudge': 'Rivalité',
   'play.pill.battle': 'Bataille',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}. Ce n\'est pas une victoire, c\'est une démonstration — {opp} ont été démontés.|Quatre buts d\'écart, et même plus. {opp} n\'auront pas envie de revoir le résumé.|Un après-midi à encadrer : {ours}-{theirs} contre {opp}, sans une seconde de doute.',
   'report.win.comfortable': '{ours}-{theirs}, et tranquillement. {opp} étaient battus bien avant la fin.|Trois buts d\'avance sur {opp}, et les vingt dernières minutes n\'étaient qu\'une formalité.|Une vraie victoire — {ours}-{theirs} — et {opp} n\'avaient aucune réponse.',
   'report.win.clear': '{ours}-{theirs} contre {opp}, et deux buts était le minimum.|Une victoire nette sur {opp}, {ours}-{theirs}, avec de la marge pour finir sereinement.|{opp} battus de deux, et le score les flatte plus que nous.',

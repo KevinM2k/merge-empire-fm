@@ -2086,14 +2086,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                       itemBuilder: (context, i) {
                                         if (f.finished) {
                                           if (i == 0) {
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 12,
-                                                bottom: 4,
-                                              ),
-                                              child: MatchReportCard(
-                                                result: widget.result,
-                                              ),
+                                            // **NO PADDING OF ITS OWN.** The
+                                            // card already carries the feed
+                                            // plate's own vertical inset, and a
+                                            // wrapper on top of it put a second
+                                            // margin under the band above —
+                                            // reported from the couch as the
+                                            // summary being double-margined
+                                            // once the tactic strip had gone.
+                                            return MatchReportCard(
+                                              result: widget.result,
                                             );
                                           }
                                           i -= 1;

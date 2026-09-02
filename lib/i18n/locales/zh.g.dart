@@ -1722,6 +1722,7 @@ const Map<String, String> zhCatalog = <String, String>{
   'play.pill.home': '主场',
   'play.pill.grudge': '宿敌',
   'play.pill.battle': '对决',
+  'match.report_head': 'Summary',
   'report.win.rout': '{ours}-{theirs}。这不是胜利，是宣告——{opp}被彻底拆散了。|净胜四球，还有余力。{opp}不会想看这场的集锦。|值得装框的一个下午：{ours}-{theirs}击败{opp}，一秒钟都没有悬念。',
   'report.win.comfortable': '{ours}-{theirs}，而且轻松。{opp}在终场哨前很久就垮了。|净胜{opp}三球，最后二十分钟只是走完流程。|一场真正的胜利——{ours}-{theirs}——{opp}毫无对策。',
   'report.win.clear': '{ours}-{theirs}击败{opp}，两球是最低限度。|完胜{opp}，{ours}-{theirs}，还有余量享受收尾。|{opp}输两球，比分对他们比对我们客气。',

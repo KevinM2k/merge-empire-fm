@@ -21,6 +21,8 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
     show cardDisplayName;
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart'
     show regulationScore;
+import 'package:merge_empire_fc/ui/screens/match/match_screen.dart'
+    show feedInset, feedPlateEdge, feedPlateFill;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -62,36 +64,62 @@ class MatchReportCard extends ConsumerWidget {
       for (final beat in beats) tPoolStable(beat.key, seed, beat.params),
     ].join(' ');
 
-    return GlassPanel(
+    // **THE SAME CARD AS THE ROWS UNDER IT.** It arrived as a `GlassPanel` —
+    // blurred, rimmed, a component borrowed from the report screen — sitting on
+    // top of a list of feed plates. Reported from the couch twice: not the
+    // glass, and then the same card the rest of the commentary sits in. So it
+    // is literally that plate: `feedPlateFill` over `feedPlateEdge`, at the
+    // feed's own inset.
+    return Padding(
       key: const ValueKey('summary-report'),
-      density: GlassDensity.deep,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 3),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
+        decoration: BoxDecoration(
+          color: glassInk(context).withValues(alpha: feedPlateFill),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: glassInk(context).withValues(alpha: feedPlateEdge),
+          ),
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            // `match.tab.commentary` is what the feed's own heading calls
-            // this — the report IS the commentary, told once and in order —
-            // and no new copy key can be invented for a heading when a
-            // shipped one already names the thing.
-            t('match.tab.commentary').toUpperCase(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.6,
-              color: glassMuted(context),
-            ),
+          // **A CLOCK BESIDE THE HEAD, because every other row has a minute
+          // there.** The feed is a column of times down its left edge and this
+          // row has none — it is about the whole ninety — so a full-time clock
+          // stands where the minute would be and keeps the column reading as a
+          // column. Asked for from the couch.
+          Row(
+            children: [
+              Icon(
+                Icons.schedule,
+                size: 13,
+                color: glassMuted(context),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                t('match.report_head').toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                  color: glassMuted(context),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
           Text(
             prose,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12.5,
               height: 1.45,
               color: glassInk(context),
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -171,6 +199,7 @@ ReportFacts? reportFactsFor(
   return (
     ours: ours,
     theirs: theirs,
+    clubName: '${result['clubName'] ?? ''}',
     opponentName: '${result['opponentName'] ?? ''}',
     isHome: result['isHome'] == true,
     isCup: result['isCup'] == true,
