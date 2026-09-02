@@ -397,6 +397,19 @@ class _MoveRow extends StatelessWidget {
         ? ink.withValues(alpha: 0.11)
         : Colors.white.withValues(alpha: 0.45);
     final carried = kit.accent.withValues(alpha: 0.92);
+    // **AND THE INK HAS TO COME WITH IT.** The lifted row is painted in the
+    // club's own accent at 92%, and its text stayed `accentBright` — a lighter
+    // member of the SAME hue — so the one row the block exists to pull out was
+    // the one that could go dark-on-dark or light-on-light depending on the
+    // kit. Reported from the couch, and in exactly those terms: the font colour
+    // has to change as it is pulled out. `kit.accentInk` is what the theme
+    // already measured for text on a filled accent, so this is the app's own
+    // answer rather than a second one.
+    Color lifted(Color atRest) =>
+        row.isPlayer ? Color.lerp(atRest, kit.accentInk, lift)! : atRest;
+    final nameInk = lifted(
+      row.isPlayer ? glassAccent(context, kit.accentBright) : ink,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       // **CLIPPED, because our row wears a bar down its left edge** and a
@@ -445,9 +458,11 @@ class _MoveRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: row.isPlayer
-                        ? glassAccent(context, kit.accentBright)
-                        : glassMuted(context),
+                    color: lifted(
+                      row.isPlayer
+                          ? glassAccent(context, kit.accentBright)
+                          : glassMuted(context),
+                    ),
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -463,7 +478,7 @@ class _MoveRow extends StatelessWidget {
                     fontWeight: row.isPlayer
                         ? FontWeight.w900
                         : FontWeight.w600,
-                    color: row.isPlayer ? glassAccent(context, kit.accentBright) : ink,
+                    color: nameInk,
                   ),
                 ),
               ),
@@ -484,7 +499,7 @@ class _MoveRow extends StatelessWidget {
               _Figure(
                 width: _colPlayed,
                 text: '${row.played}',
-                colour: glassMuted(context),
+                colour: lifted(glassMuted(context)),
               ),
               _Figure(
                 width: _colDiff,
@@ -493,8 +508,10 @@ class _MoveRow extends StatelessWidget {
                 text: row.gd > 0 ? '+${row.gd}' : '${row.gd}',
                 // The same green-or-red scale the stat rows and the verdict
                 // read. Level is neither, so it takes the muted ink.
+                // Green and red survive the lift — they are the only two
+                // figures on the row whose COLOUR is the information.
                 colour: row.gd == 0
-                    ? glassMuted(context)
+                    ? lifted(glassMuted(context))
                     : glassAccent(
                         context,
                         row.gd > 0 ? vsGreenOn(context) : vsRedOn(context),
@@ -511,7 +528,7 @@ class _MoveRow extends StatelessWidget {
                 // money, and the gold went bronze on a light pane — reported
                 // as not liking the bronze. Bold is what makes them the
                 // figure that matters on the row.
-                colour: ink,
+                colour: lifted(ink),
               ),
             ],
           ),

@@ -16,12 +16,12 @@ void main() {
   Set<String> placeholders(String s) =>
       placeholder.allMatches(s).map((m) => m.group(0)!).toSet();
 
-  test('ten catalogues, 2664 keys each', () {
+  test('ten catalogues, 2665 keys each', () {
     expect(catalogs.length, 10);
     // `settings.theme.*` is the newest: the theme setting became light/dark/system
     // and one switch called "Light Mode" could not say that. Bump this WITH the
     // generator run, never instead of it.
-    expect(en.length, 2664);
+    expect(en.length, 2665);
   });
 
   test('the shipped catalogues match the list the detector narrows to', () {

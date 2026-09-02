@@ -2058,6 +2058,7 @@ const Map<String, String> frCatalog = <String, String>{
   'shop.owned_regranted': '✓ Possédé — réattribué à chaque réinitialisation',
   'shop.toast.purchases_unlocked': 'Achats débloqués ! Touchez de nouveau Acheter.',
   'game.penalty.instructions': 'Touchez n\'importe où — visez les lucarnes ou risquez de toucher les poteaux !',
+  'game.penalty.instructions_swipe': 'Glisse pour tirer — plus le geste est long, plus la frappe est forte ; incurve-le pour brosser le ballon.',
   'game.keepy.balloon': 'Ballon de baudruche',
   'game.keepy.football': 'Ballon de foot',
   'game.keepy.cannonball': 'Boulet de canon',

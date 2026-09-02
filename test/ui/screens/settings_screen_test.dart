@@ -937,14 +937,15 @@ void main() {
     tester,
   ) async {
     await pumpSettings(tester, SettingsTab.general);
-    for (final key in [
-      'club-name-row',
-      'team-names-btn',
-      'rate-btn',
-      'privacy-btn',
-    ]) {
+    for (final key in ['club-name-row', 'team-names-btn', 'rate-btn']) {
       expect(find.byKey(ValueKey(key)), findsOne, reason: key);
     }
+    // **PRIVACY IS THE ONE THAT DEPENDS ON WHERE YOU ARE.** It appears only
+    // where consent applies, which a test binding is not: `adConsentAvailable`
+    // is the UMP SDK's own `privacyOptionsRequired` and is false with no SDK
+    // behind it. A control whose only possible outcome is "not required in your
+    // region" is not a control.
+    expect(find.byKey(const ValueKey('privacy-btn')), findsNothing);
   });
 
   testWidgets('TEAM NAMES OPENS THE PYRAMID EDITOR', (tester) async {

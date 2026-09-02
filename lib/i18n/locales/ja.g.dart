@@ -2058,6 +2058,7 @@ const Map<String, String> jaCatalog = <String, String>{
   'shop.owned_regranted': '✓ 所有済み — リセットごとに再付与',
   'shop.toast.purchases_unlocked': '購入がアンロックされました!もう一度購入をタップ。',
   'game.penalty.instructions': 'どこでもタップ — コーナーを狙うか、ポストに当てるリスクを取れ!',
+  'game.penalty.instructions_swipe': 'スワイプでシュート — 長いほど強く、曲げるとボールも曲がる。',
   'game.keepy.balloon': '風船',
   'game.keepy.football': 'サッカーボール',
   'game.keepy.cannonball': '砲弾',

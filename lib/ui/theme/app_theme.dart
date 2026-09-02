@@ -348,6 +348,19 @@ ThemeData buildAppTheme({required String kitId, required bool light}) {
     // here would be two more strings to be wrong about.
     fontFamily: uiFontFamily,
     scaffoldBackgroundColor: kit.bg,
+    // **A BAR THAT CHANGES COLOUR WHEN YOU SCROLL IS MATERIAL 3's IDEA, NOT
+    // OURS.** `AppBar` tints itself with the primary colour the moment content
+    // passes UNDER it — so the Settings header sat white at rest and went a
+    // tinted lilac on the first scroll, for no reason a player could connect to
+    // anything they did. Reported from the couch as exactly that. The app draws
+    // its own grounds everywhere else and nothing in it lifts on scroll, so the
+    // bar is pinned to the page it heads.
+    appBarTheme: AppBarTheme(
+      backgroundColor: kit.bg,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+      elevation: 0,
+    ),
     colorScheme: ColorScheme.fromSeed(
       seedColor: kit.accent,
       brightness: brightness,

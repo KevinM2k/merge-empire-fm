@@ -2058,6 +2058,7 @@ const Map<String, String> koCatalog = <String, String>{
   'shop.owned_regranted': '✓ 보유 중 — 초기화 때마다 재지급',
   'shop.toast.purchases_unlocked': '구매가 활성화되었습니다! 구매 버튼을 다시 누르세요.',
   'game.penalty.instructions': '아무 곳이나 탭하세요 — 구석을 노리거나 골대를 맞힐 위험을 감수하세요!',
+  'game.penalty.instructions_swipe': '스와이프로 슛 — 길게 밀수록 강하고, 휘어서 밀면 공도 휜다.',
   'game.keepy.balloon': '풍선',
   'game.keepy.football': '축구공',
   'game.keepy.cannonball': '포탄',

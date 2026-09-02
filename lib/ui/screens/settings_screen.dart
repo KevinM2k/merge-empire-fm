@@ -245,26 +245,31 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         // which is `adConsentAvailable`, cached at boot so this can decide
         // synchronously: a row that arrives a second after the screen is worse
         // than one that is always there.
-        // **ONE ROW, ALWAYS LIVE, and that is the spec's.** The port hid it
-        // behind `adConsentAvailable` and put a dead "coming soon" in its place
-        // everywhere else — so a player outside the EEA tapped a control that
-        // said the feature was unfinished, when the truth is that there is
-        // nothing to consent to where they are. `SettingsScreen.js` shows the
-        // button unconditionally and toasts when the form comes back
-        // unavailable, and `settings.consent_not_required` — "Consent not
-        // required in your region" — is that sentence, shipped in ten languages
-        // with no caller. Reported as privacy options not linking to the right
-        // place the way it does in the shipped app.
-        SettingsAction(
-          key: const ValueKey('privacy-btn'),
-          icon: 'lock',
-          label: t('settings.privacyOptions'),
-          onTap: () async {
-            final result = await showAdConsentForm();
-            if (result == AdConsentFormResult.shown) return;
-            emit('consent:unavailable');
-          },
-        ),
+        // **AND ONLY WHERE THERE IS SOMETHING TO CONSENT TO.**
+        //
+        // The row went through a dead "coming soon" (wrong: it said the feature
+        // was unfinished) to always-live-and-toast, matching `SettingsScreen.js`
+        // — which is right about the WEB, where the same page is served to every
+        // region and the button cannot know in advance. A store build does know:
+        // `adConsentAvailable` is the UMP SDK's own `privacyOptionsRequired`,
+        // cached at boot, so this can decide synchronously and a player outside
+        // the EEA is not offered a control whose only possible outcome is a
+        // toast saying it does not apply to them. Asked for from the couch.
+        //
+        // Google's requirement is that consent can be REVOKED at any time — and
+        // it is, wherever consent was given. Where none was, there is nothing to
+        // revoke.
+        if (adConsentAvailable)
+          SettingsAction(
+            key: const ValueKey('privacy-btn'),
+            icon: 'lock',
+            label: t('settings.privacyOptions'),
+            onTap: () async {
+              final result = await showAdConsentForm();
+              if (result == AdConsentFormResult.shown) return;
+              emit('consent:unavailable');
+            },
+          ),
       ],
     ),
     SettingsGroup(head: t('settings.language'), child: _LanguageGrid()),

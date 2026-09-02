@@ -2058,6 +2058,7 @@ const Map<String, String> esCatalog = <String, String>{
   'shop.owned_regranted': '✓ Adquirido: se concede de nuevo en cada reinicio',
   'shop.toast.purchases_unlocked': '¡Compras desbloqueadas! Toca Comprar de nuevo.',
   'game.penalty.instructions': 'Toca en cualquier sitio: apunta a las escuadras o arriesga a dar en el palo.',
+  'game.penalty.instructions_swipe': 'Desliza para chutar: cuanto más largo, más fuerte; si lo curvas, el balón se comba.',
   'game.keepy.balloon': 'Globo',
   'game.keepy.football': 'Balón',
   'game.keepy.cannonball': 'Bala de cañón',

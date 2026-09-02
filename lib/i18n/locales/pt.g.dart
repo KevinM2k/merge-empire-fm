@@ -2058,6 +2058,7 @@ const Map<String, String> ptCatalog = <String, String>{
   'shop.owned_regranted': '✓ Adquirido — concedido novamente a cada reset',
   'shop.toast.purchases_unlocked': 'Compras desbloqueadas! Toque em Comprar de novo.',
   'game.penalty.instructions': 'Toque em qualquer lugar — mire nos cantos ou arrisque acertar a trave!',
+  'game.penalty.instructions_swipe': 'Deslize para chutar — quanto maior o gesto, mais forte; curve-o para dar efeito à bola.',
   'game.keepy.balloon': 'Balão',
   'game.keepy.football': 'Bola de Futebol',
   'game.keepy.cannonball': 'Bala de Canhão',

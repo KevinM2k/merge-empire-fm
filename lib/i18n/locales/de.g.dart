@@ -2058,6 +2058,7 @@ const Map<String, String> deCatalog = <String, String>{
   'shop.owned_regranted': '✓ Im Besitz — bei jedem Reset neu gewährt',
   'shop.toast.purchases_unlocked': 'Käufe freigeschaltet! Tippe erneut auf Kaufen.',
   'game.penalty.instructions': 'Tippe irgendwohin — ziele auf die Ecken oder riskiere den Pfosten!',
+  'game.penalty.instructions_swipe': 'Wische zum Schießen — je länger der Wisch, desto härter; ein Bogen lässt den Ball kurven.',
   'game.keepy.balloon': 'Ballon',
   'game.keepy.football': 'Fußball',
   'game.keepy.cannonball': 'Kanonenkugel',

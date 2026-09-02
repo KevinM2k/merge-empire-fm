@@ -12,7 +12,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart'
+    show hudBadgeColour, hudBadgeInk, hudCoinInk;
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
+import 'package:merge_empire_fc/util/format.dart' show formatCoins;
 
 /// `fill="none" stroke="currentColor"`, at the weight the whole set shares.
 const _stroke =
@@ -476,6 +479,90 @@ List<InlineSpan> withCoinGlyph(String line, {double size = 11}) {
 /// The same line with the slot taken out and the space it left closed up.
 String withoutCoinGlyph(String line) =>
     line.replaceAll(coinSlot, '').replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+
+/// **A COIN FIGURE IN THE BADGE THE HUD ALREADY WEARS.**
+///
+/// One filled pill in the wallet's shop face with the lightened print on it —
+/// `hudBadgeColour` and `hudBadgeInk`, the pair `HudChip` and the daily
+/// reward's chips both use. It says the same thing on a daylit page as on a
+/// night one, which a `#FFD700` figure does not.
+///
+/// **It replaces gold text with a halo behind it** — [coinFigureInk] plus
+/// [coinFigureShadows] — which is the trick for a bright hue on glass, and
+/// which the full-time report and the sell sheet both leaned on. Reported from
+/// the couch twice: the coins are hard to read in light mode. It is the same
+/// answer taken all the way — you cannot make a yellow legible on a bright
+/// pane, so the pill carries its own dark-enough ground with it and the figure
+/// stops depending on what is behind it.
+///
+/// **The badge is also why a screen does not need a dark PLATE for its money.**
+/// The sell sheet was a hardcoded near-black panel in both themes for exactly
+/// this reason, and once the price carries its own ground the panel is free to
+/// be the theme's own surface again.
+///
+/// It lives here, beside [CoinIcon], because it is what most callers of that
+/// pair actually wanted: a glyph and a figure that read together anywhere.
+///
+/// [fontSize] and [iconSize] are the whole of the difference between a payout
+/// badge and a row's — the padding and the gap come off the glyph, so a pill at
+/// any size is the same object rather than a second one tuned by hand.
+class CoinBadge extends StatelessWidget {
+  const CoinBadge({
+    super.key,
+    required this.amount,
+    this.textKey,
+    this.fontSize = 26,
+    this.iconSize = 20,
+    this.sign = '+',
+  });
+
+  final int amount;
+  final Key? textKey;
+  final double fontSize;
+  final double iconSize;
+
+  /// What goes in front of the figure. `'+'` on money the match ADDED; empty on
+  /// a line stating a total, where a plus claims an addition that is not one.
+  final String sign;
+
+  @override
+  Widget build(BuildContext context) {
+    final face = hudBadgeColour(hudCoinInk);
+    final ink = hudBadgeInk(face);
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        iconSize * 0.5,
+        iconSize * 0.12,
+        iconSize * 0.6,
+        iconSize * 0.12,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: face,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CoinIcon(size: iconSize, solid: true, color: ink),
+          SizedBox(width: iconSize * 0.3),
+          Text(
+            '$sign${formatCoins(amount)}',
+            key: textKey,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w900,
+              color: ink,
+              // Tabular so a column of pills has its digits under each other
+              // rather than drifting by a comma.
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// A cluster of [n] coins, for the shop's coin-bundle tiles.
 ///

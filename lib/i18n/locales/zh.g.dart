@@ -2058,6 +2058,7 @@ const Map<String, String> zhCatalog = <String, String>{
   'shop.owned_regranted': '✓ 已拥有 — 每次重置后重新发放',
   'shop.toast.purchases_unlocked': '购买已解锁！再次点击购买。',
   'game.penalty.instructions': '点击任意位置 — 瞄准死角,或冒险击中门框！',
+  'game.penalty.instructions_swipe': '滑动射门 — 滑得越长力量越大，划出弧线球也会弯。',
   'game.keepy.balloon': '气球',
   'game.keepy.football': '足球',
   'game.keepy.cannonball': '炮弹',

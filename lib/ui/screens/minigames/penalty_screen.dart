@@ -198,8 +198,17 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
               // Not `finished`: that is the BANKING, and it is true from the
               // moment the fifth ball is struck. See [lastShotDwell].
               if (!_summary) ...[
+                // **THE PORT'S PENALTY IS A SWIPE, and the line still said
+                // tap.** `PenaltyGame.js` is shoot-on-tap — "Tap anywhere — aim
+                // for corners" is true THERE — and this rig is not: the drag's
+                // LENGTH is the power and its hook is the curl, so the one
+                // instruction on screen described neither of the two things the
+                // gesture controls. Reported from the couch. A divergence in
+                // the mechanic needs a divergence in the copy, so this is its
+                // own key rather than an edit to the JS's, which is still right
+                // about the JS.
                 Text(
-                  t('game.penalty.instructions'),
+                  t('game.penalty.instructions_swipe'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: kit.textMuted, fontSize: 12),
                 ),

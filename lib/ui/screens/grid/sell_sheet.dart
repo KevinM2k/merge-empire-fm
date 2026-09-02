@@ -28,14 +28,21 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart'
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/market_offer.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
-import 'package:merge_empire_fc/util/format.dart';
 
-/// The offer plate. Dark in BOTH themes, because the figure on it is gold and
-/// gold has to sit on something.
-const Color _plate = Color(0xFF14171B);
+/// The offer plate's ground.
+///
+/// **IT WAS A NEAR-BLACK SLAB IN BOTH THEMES**, `#14171B`, because the figure on
+/// it is gold and gold has to sit on something. That was the right answer to the
+/// wrong question: what needed a dark ground was the PRICE, not the panel, and
+/// buying it with the panel meant a sheet that ignored light mode entirely —
+/// reported from the couch as exactly that. [CoinBadge] carries its own ground
+/// now, so the panel goes back to being a surface of the sheet it is on.
+Color _plate(BuildContext context) =>
+    Theme.of(context).extension<KitTheme>()!.surface2;
 
-/// Its small print, at a readable weight on that plate.
-const Color _plateInk = Color(0xFFB6BCC4);
+/// Its small print.
+Color _plateInk(BuildContext context) =>
+    Theme.of(context).extension<KitTheme>()!.textMuted;
 
 /// Why a card cannot be sold, in copy that already ships.
 ///
@@ -157,7 +164,7 @@ Future<void> showSellSheet(
                         // contrast comes from underneath it, the way a
                         // scoreboard does it.
                         decoration: BoxDecoration(
-                          color: _plate,
+                          color: _plate(sheetContext),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Column(
@@ -168,8 +175,8 @@ Future<void> showSellSheet(
                                 Text(
                                   t(tier.labelKey).toUpperCase(),
                                   key: const ValueKey('sell-tier'),
-                                  style: const TextStyle(
-                                    color: _plateInk,
+                                  style: TextStyle(
+                                    color: _plateInk(sheetContext),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.8,
@@ -180,8 +187,8 @@ Future<void> showSellSheet(
                                 Text(
                                   t('squad.refresh_in', {'n': offer.secsLeft}),
                                   key: const ValueKey('sell-refresh'),
-                                  style: const TextStyle(
-                                    color: _plateInk,
+                                  style: TextStyle(
+                                    color: _plateInk(sheetContext),
                                     fontSize: 10,
                                   ),
                                 ),
@@ -196,47 +203,30 @@ Future<void> showSellSheet(
                             // and the JS draws exactly this.
                             MarketBar(mult: offer.mult),
                             const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // The disc takes the FIGURE's ink, so the pair is one
-                                // currency on a light page — see `coinFigureInk`.
-                                CoinIcon(
-                                  size: 20,
-                                  solid: true,
-                                  color: coinFigureInk(
-                                    sheetContext,
-                                    onGlass: true,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  formatCoins(offer.price),
-                                  key: const ValueKey('sell-price'),
-                                  style: TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                    // **THE BRIGHT gold, because this sheet is
-                                    // DARK in both themes.** `coinFigureInk`
-                                    // swaps to the deep light-mode gold off the
-                                    // theme, which is right on a card and wrong
-                                    // here — the price came out a bronze on a
-                                    // near-black sheet. Reported directly.
-                                    color: coinFigureInk(
-                                      sheetContext,
-                                      onGlass: true,
-                                    ),
-                                    shadows: coinFigureShadows(sheetContext),
-                                  ),
-                                ),
-                              ],
+                            // **THE PRICE IN THE WALLET'S OWN BADGE.** It was a
+                            // gold figure that needed the panel under it to be
+                            // dark — first a halo, then the bright gold, then a
+                            // near-black plate in both themes to hold it. The
+                            // badge is the answer the HUD and the full-time
+                            // report already reached: the money brings its own
+                            // ground, so nothing around it has to be built for
+                            // it. Asked for from the couch in those terms.
+                            Center(
+                              child: CoinBadge(
+                                // On the FIGURE, not the pill: `sell-price` is
+                                // what the quote is read back through, and what
+                                // a sale is checked against.
+                                textKey: const ValueKey('sell-price'),
+                                amount: offer.price,
+                                sign: '',
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               t('sell.market_note'),
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: _plateInk,
+                              style: TextStyle(
+                                color: _plateInk(sheetContext),
                                 fontSize: 11,
                               ),
                             ),

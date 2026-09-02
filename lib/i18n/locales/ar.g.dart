@@ -2058,6 +2058,7 @@ const Map<String, String> arCatalog = <String, String>{
   'shop.owned_regranted': '✓ مملوك — يُمنح مع كل إعادة ضبط',
   'shop.toast.purchases_unlocked': 'تم فتح المشتريات! اضغط شراء مجددًا.',
   'game.penalty.instructions': 'اضغط في أي مكان — صوّب نحو الزوايا أو خاطر بإصابة القائم!',
+  'game.penalty.instructions_swipe': 'اسحب للتسديد — كلما طال السحب زادت القوة، وانحناء السحب يقوّس الكرة.',
   'game.keepy.balloon': 'بالون',
   'game.keepy.football': 'كرة قدم',
   'game.keepy.cannonball': 'قذيفة مدفع',

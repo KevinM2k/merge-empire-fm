@@ -40,8 +40,6 @@ import 'package:merge_empire_fc/ui/screens/match/summary_league_move.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
-import 'package:merge_empire_fc/ui/hud/hud.dart'
-    show hudBadgeColour, hudBadgeInk, hudCoinInk;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -573,7 +571,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text('${t('match.no_thanks')} - '),
-                                      _CoinBadge(
+                                      CoinBadge(
                                         amount: _base + _quests,
                                         fontSize: 12,
                                         iconSize: 11,
@@ -1227,7 +1225,7 @@ class _Payout extends StatelessWidget {
               // fills it in the wallet's shop face and `hudBadgeInk` prints on
               // that, so the coins a match pays look like the coins in the
               // cluster they are about to land in.
-              _CoinBadge(
+              CoinBadge(
                 amount: doubled ? total * 2 : total,
                 textKey: const ValueKey('summary-coins'),
               ),
@@ -1285,83 +1283,6 @@ class _Payout extends StatelessWidget {
   }
 }
 
-/// **EVERY COIN FIGURE ON THIS SCREEN, in the badge the HUD already wears.**
-///
-/// One filled pill in the wallet's shop face with the lightened print on it —
-/// `hudBadgeColour` and `hudBadgeInk`, the pair `HudChip` and the daily
-/// reward's chips both use. It says the same thing on a daylit page as on a
-/// night one, which a `#FFD700` figure does not.
-///
-/// **And that is why the small figures wear it too now.** They were gold text
-/// with a halo behind it — [coinFigureInk] plus [coinFigureShadows] — which is
-/// the trick for a bright hue on glass and which the split rows, the quest
-/// tiles and the quest total all leaned on. Reported from the couch: the coins
-/// on the full-time screen are hard to read in light mode, and the fix is the
-/// badge the bar already uses. It is the same answer, taken all the way: you
-/// cannot make a yellow legible on a bright pane, so the pill carries its own
-/// dark-enough ground with it and the figure stops depending on what is behind
-/// it.
-///
-/// [fontSize] and [iconSize] are the whole of the difference between the payout
-/// badge and a row's — the padding and the gap come off the glyph, so a pill at
-/// any size is the same object rather than a second one tuned by hand.
-class _CoinBadge extends StatelessWidget {
-  const _CoinBadge({
-    required this.amount,
-    this.textKey,
-    this.fontSize = 26,
-    this.iconSize = 20,
-    this.sign = '+',
-  });
-
-  final int amount;
-  final Key? textKey;
-  final double fontSize;
-  final double iconSize;
-
-  /// What goes in front of the figure. `'+'` on money the match ADDED; empty on
-  /// a line stating a total, where a plus claims an addition that is not one.
-  final String sign;
-
-  @override
-  Widget build(BuildContext context) {
-    final face = hudBadgeColour(hudCoinInk);
-    final ink = hudBadgeInk(face);
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        iconSize * 0.5,
-        iconSize * 0.12,
-        iconSize * 0.6,
-        iconSize * 0.12,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: face,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CoinIcon(size: iconSize, solid: true, color: ink),
-          SizedBox(width: iconSize * 0.3),
-          Text(
-            '$sign${formatCoins(amount)}',
-            key: textKey,
-            maxLines: 1,
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w900,
-              color: ink,
-              // Tabular so a column of pills has its digits under each other
-              // rather than drifting by a comma.
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// One half of the payout, named.
 ///
 /// Muted and small against the gold total above it: this is the working, and
@@ -1394,7 +1315,7 @@ class _Split extends StatelessWidget {
           //
           // And in the BADGE, for the same reason the payout is: gold text on
           // a light pane is the thing that was reported. See [_CoinBadge].
-          _CoinBadge(amount: amount, fontSize: 12, iconSize: 11),
+          CoinBadge(amount: amount, fontSize: 12, iconSize: 11),
         ],
       ),
     );
@@ -1516,7 +1437,7 @@ class QuestOutcomes extends StatelessWidget {
                 // it rather than money being added to them. In the badge, for
                 // the same reason every other total on the screen is; see
                 // [_CoinBadge].
-                _CoinBadge(
+                CoinBadge(
                   amount: total.toInt(),
                   fontSize: 11.5,
                   iconSize: 11,
@@ -1623,7 +1544,7 @@ class _QuestTile extends StatelessWidget {
                     // figure says what it paid, and a currency does not change
                     // colour with the news. The same badge every other figure
                     // on this screen wears — see [_CoinBadge].
-                    _CoinBadge(
+                    CoinBadge(
                       amount: ((row['coins'] as num?) ?? 0).toInt(),
                       fontSize: 11,
                       iconSize: 10,

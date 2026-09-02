@@ -2171,6 +2171,7 @@ const Map<String, String> enCatalog = <String, String>{
   'shop.owned_regranted': '✓ Owned — re-granted every reset',
   'shop.toast.purchases_unlocked': 'Purchases unlocked! Tap Buy again.',
   'game.penalty.instructions': 'Tap anywhere — aim for corners or risk hitting the woodwork!',
+  'game.penalty.instructions_swipe': 'Swipe to shoot — a longer swipe hits harder, and hooking it bends the ball.',
   'game.keepy.balloon': 'Balloon',
   'game.keepy.football': 'Football',
   'game.keepy.cannonball': 'Cannonball',

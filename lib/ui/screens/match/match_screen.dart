@@ -2686,23 +2686,23 @@ class _FeedLine extends StatelessWidget {
     // to reach one of them.
     final goal = line.goal;
     if (goal != null) {
+      // **GREEN FOR OURS AND RED FOR THEIRS — the SEMANTIC green, not the
+      // kit's.** Theirs has been red since the goal card went in; ours took
+      // `kit.accent`, which is derived from the club's own strip. A club
+      // playing in red therefore drew both goals in red, and the one pair of
+      // rows on the screen whose whole job is to be told apart at a glance were
+      // the same colour. Reported from the couch. `vsGreenOn` is the green
+      // every stat row and every quest verdict already uses for "this went well
+      // for us", and it is a colour rather than a kit.
+      final scored = goal.ours ? vsGreenOn(context) : conceded;
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 4),
         child: Container(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
-          // **THEIRS IS RED.** The kit's green is what the game uses for a thing
-          // going well for US; a goal against wearing it read as a goal for.
           decoration: BoxDecoration(
-            color: (goal.ours ? kit.accent : conceded).withValues(
-              alpha: goal.ours ? 0.13 : 0.12,
-            ),
+            color: scored.withValues(alpha: goal.ours ? 0.15 : 0.13),
             borderRadius: BorderRadius.circular(12),
-            border: Border(
-              left: BorderSide(
-                color: goal.ours ? glassAccent(context, kit.accentBright) : conceded,
-                width: 3,
-              ),
-            ),
+            border: Border(left: BorderSide(color: scored, width: 3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2718,32 +2718,27 @@ class _FeedLine extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // The ball marks OUR goal in the head. Theirs is headed by
-                  // their name, which is mark enough for a goal that is not
-                  // being celebrated.
-                  if (goal.ours) ...[
-                    Icon(
-                      Icons.sports_soccer,
-                      size: 14,
-                      color: glassAccent(context, kit.accentBright),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
+                  // **THE BALL AND THE WORD, on BOTH.** Theirs used to be
+                  // headed by their NAME on the reasoning that we hold no card
+                  // for their players — but the head is the row's ACTION, not
+                  // its subject, and every other row in the feed uses it that
+                  // way. `commentary.opp_goal` already names them in the
+                  // sentence directly underneath, so the head was spending the
+                  // one slot that says WHAT HAPPENED on a repeat. Reported from
+                  // the couch: it should still say GOAL, the colour is what
+                  // says whose.
+                  Icon(Icons.sports_soccer, size: 14, color: scored),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      // Theirs carries their NAME instead of the word — we
-                      // hold no card for their players, so the head is the
-                      // only place left to say whose goal it was.
-                      goal.ours
-                          ? t('match.goal_card.title')
-                          : '${line.params['them'] ?? ''}',
+                      t('match.goal_card.title'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.6,
-                        color: goal.ours ? glassAccent(context, kit.accentBright) : conceded,
+                        color: scored,
                       ),
                     ),
                   ),
@@ -2769,7 +2764,7 @@ class _FeedLine extends StatelessWidget {
                       tier: def.tier,
                       variant: about.variant,
                       size: 34,
-                      ring: glassAccent(context, kit.accentBright),
+                      ring: scored,
                     ),
                     const SizedBox(width: 9),
                     Expanded(

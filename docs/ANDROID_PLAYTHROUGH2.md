@@ -6,7 +6,7 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**19 done, 7 open.** The nine that are done were each a real defect with a
+**37 done, 15 open.** The nine that are done were each a real defect with a
 mechanism behind it, and three of them were shipped code doing nothing: a
 `strategyId` nothing ever wrote, a `skyPaneTint` with no caller, and a turf band
 whose whole job was hiding a seam it was itself making.
@@ -217,6 +217,118 @@ rather than a change.
       with no quest TRACK has no rows at all, and would otherwise show no figure
       whatsoever.)
 
+
+### Session two — the couch queue
+
+- [x] **Every coin figure on the full-time report is in the badge.** (The
+      payout badge had it; the split rows, the quest tiles and the quest total
+      were gold text with a halo — `coinFigureInk` plus `coinFigureShadows` —
+      which is the trick for a bright hue on glass and is not enough on a bright
+      pane. `CoinBadge` moved out of `match_summary.dart` into
+      `widgets/game_icon.dart` on the way, because the sell sheet wanted it too.)
+
+- [x] **No replay control in the match popup.** (`MatchPopup.js` tags a goal's
+      feed item with `feed-replay-icon` and the port carried it over. A control
+      that stops the clock to replay a passage you are still in the middle of is
+      the wrong offer at the wrong moment; the full-time report keeps its own.
+      `_replayClip`, `replayClipFor`, `replayGoal` and `_goalAt` went with it.)
+
+- [x] **Half time says what the score MEANS.** (It printed `match.half_time` —
+      the same key the row's own HEAD prints — so the interval read "45' HALF
+      TIME" over the words "Half Time" and said nothing. `_processEvent` picks
+      between `commentary.halftime_ahead`, `_behind` and `_level` off the score
+      as the feed has told it; all three were translated in ten catalogues with
+      no caller.)
+
+- [x] **Their substitutions reach the feed.** (`buildMatchResult` pushes one
+      `opp_sub` per entry in the AI's rotation plan, key and parameters written
+      onto the event. `feedOf` had no case for it, so it fell through to
+      `default` and the only changes a player ever saw in ninety minutes were
+      their own. `commentary.opp_sub`, ten catalogues, no caller.)
+
+- [x] **A commentary line keeps the parameters it was written with.**
+      (`TimelineEvent` had no field for `textParams`, so the engine wrote them
+      and nothing read them — a grudge match opened by printing the literal
+      `{opp}` to the player. `commentary.snub` is the one that reached a screen.)
+
+- [x] **Every feed row says what KIND of thing happened.** (Only half time,
+      full time and an injury had a head. `match.subs` heads both substitutions,
+      `match.tab.tactics` — shipped copy left with no caller when the tab bar
+      came off this screen — heads a tactic change, and `match.chance` went into
+      the spec's `en.js` for the one word the catalogues did not have.)
+
+- [x] **A goal against still says GOAL.** (Theirs was headed by their NAME on
+      the reasoning that we hold no card for their players — but the head is the
+      row's ACTION and `commentary.opp_goal` names them in the sentence below
+      it, so the one slot that says what happened was spending itself on a
+      repeat.)
+
+- [x] **And ours is GREEN.** (Theirs has been red since the goal card went in;
+      ours took `kit.accent`, which is derived from the club's own strip — so a
+      club playing in red drew both goals in red, and the one pair of rows on
+      the screen whose whole job is to be told apart at a glance were the same
+      colour. `vsGreenOn` is a colour rather than a kit.)
+
+- [x] **The club's "Needs x more" button wears the app's coin.** (The last
+      emoji on a priced control, left there on the reasoning that a `String`
+      cannot carry a widget. True, and beside the point: `{coin}` sits mid
+      sentence and moves with the language, so what it needed was a SLOT —
+      `coinSlot` and `withCoinGlyph`, with `StoreButton.labelSpans` to carry
+      them.)
+
+- [x] **A club card's effect moves on every tap.** (The engine has paid the
+      continuous effects per tap since `fractionalAssetTier` — twenty clicks for
+      ten per cent is half a per cent a click — but the card and the totals
+      panel both read the whole rung, so every tap bought something they refused
+      to admit to. `_pct` went to two decimals for the same reason. The Kit
+      Sponsor's fatigue half and the Academy's scout discount were still
+      stepping against the engine's own documented rule; both now do not. Home
+      advantage stays whole: it is rating POINTS.)
+
+- [x] **The funding bar fills, and the figure flashes.** (`_AssetBar` tweens,
+      and snaps on a tier-up rather than draining backwards through the reset.
+      `_FlashOnChange` lights the line in the facility's own tier colour, and
+      only when the rendered text actually changed — a Fan Zone tap mostly moves
+      nothing and must not pretend to.)
+
+- [x] **Light / Dark / System.** (One switch called "Light Mode" can only ever
+      disagree with the phone. `themeMode` is the new key and `lightMode` stays
+      written beside it, because it is the one every existing save carries and
+      the only one the JS build reads. `systemBrightnessProvider` is kept in
+      step off `MediaQuery` — following the device means REACTING to it.)
+
+- [x] **The penalty screen says swipe.** (`PenaltyGame.js` is shoot-on-tap and
+      this rig is not: the drag's LENGTH is the power and its hook is the curl,
+      so the one instruction on screen described neither of the two things the
+      gesture controls. `game.penalty.instructions_swipe` is its own key — the
+      JS's line is still right about the JS.)
+
+- [x] **The settings header stops changing colour on scroll.** (Material 3's
+      `AppBar` tints itself the moment content passes under it. Nothing else in
+      the app lifts on scroll, so the bar is pinned to the page it heads —
+      fixed in `appBarTheme` rather than on the one screen.)
+
+- [x] **Every settings row is one height.** (A segment is a bordered pill and a
+      toggle is not; the theme setting becoming a three-way segment is what made
+      it obvious. The switch rows came UP to the segment's height.)
+
+- [x] **Privacy options only where consent applies.** (It went from a dead
+      "coming soon" to always-live-and-toast, matching `SettingsScreen.js` —
+      which is right about the WEB, where one page is served to every region. A
+      store build knows: `adConsentAvailable` is the UMP SDK's own
+      `privacyOptionsRequired`, cached at boot.)
+
+- [x] **The sell sheet is not a dark slab any more.** (It was `#14171B` in both
+      themes because the figure on it is gold and gold has to sit on something —
+      the right answer to the wrong question. `CoinBadge` carries its own
+      ground, so the panel went back to `kit.surface2`.)
+
+- [x] **The league move's row keeps its ink when it lifts.** (The row is painted
+      in the club's accent at 92% and its text stayed `accentBright`, a lighter
+      member of the same hue — so the one row the block exists to pull out could
+      go dark-on-dark or light-on-light depending on the kit. It lerps to
+      `kit.accentInk`, which the theme already measured for exactly this.)
+
 ---
 
 ## Open
@@ -310,6 +422,49 @@ separately would mean doing the hard part three times.
 
 - [ ] **A poof/tap sound worth having.** Carried over from `REMAINING.md` — `pop`
       is a 0.1s blip doing the job of a shatter cue. Needs audio, not code.
+
+
+### Session two — still open
+
+- [ ] **Commentary should tell a little story.** Two or three lines, with a lot
+      more variation, so a passage reads like a passage rather than a label:
+      "*<player> has looked lively down the left and drives towards goal, knocks
+      it beyond the defender who nudges him in the back…*". Asked for with the
+      caveat that it must stay READABLE — not every line, a good few of them.
+      **The pools are the JS's**, and `match_orchestration_reference.json` pins
+      363 commentary lines field for field, so the engine emits what it always
+      emitted and any new writing has to arrive as copy in `en.js` plus a
+      screen-side pick. `openingFillMinutes` is the precedent for that shape.
+
+- [ ] **Full time waits for a CONTINUE button.** The three buttons at the foot
+      of the match popup become one, and the end-game screen comes up when it is
+      pressed — so a player can read back the ninety minutes first. Their own
+      answer to their own question, and it is the right one: it also fixes the
+      1,400ms `_cue` that currently decides for them.
+
+- [ ] **The coach's 30s cooldown should start when the player is back from the
+      end-game screen**, not when the match ends behind it.
+
+- [ ] **Energy and gems fly to the HUD like coins do.** `coin_flight.dart`
+      exists and is wired for one currency; the bolt and the gem land nowhere.
+
+- [ ] **The next-match card's modifiers align INWARD.** The left team's sit
+      right-aligned and the right team's left-aligned, so one modifier reads as
+      belonging to a side rather than floating at the page edge.
+
+- [ ] **The daily reward's price boxes are too heavy.** They make it hard to see
+      which day gives what.
+
+- [ ] **FORM IS INVISIBLE.** It does affect ratings — `getEffectiveRating` adds
+      `card.form`, ±1 — and `squad.form.good` / `squad.form.bad` are shipped in
+      ten catalogues with no caller. Port `Card.js`'s glyph onto `CardView` /
+      `PlayerCard` and the bench legend. Do NOT port `Form.ratingPctPerLevel`:
+      it is dead in both repos.
+
+- [ ] **The subs bench needs a position filter and a comparison.** GK/DEF/MID/ATK,
+      pre-set from the outgoing player's slot, with ATK/DEF coloured red or green
+      against the man coming off. `PositionFilterBar` already exists and is on
+      every other bench; `vsGreenOn`/`vsRedOn` are the colours.
 
 ---
 

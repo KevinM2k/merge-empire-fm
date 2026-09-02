@@ -2058,6 +2058,7 @@ const Map<String, String> itCatalog = <String, String>{
   'shop.owned_regranted': '✓ Posseduto — riassegnato a ogni reset',
   'shop.toast.purchases_unlocked': 'Acquisti sbloccati! Tocca di nuovo Compra.',
   'game.penalty.instructions': 'Tocca ovunque — mira agli angoli o rischia di colpire il palo!',
+  'game.penalty.instructions_swipe': 'Scorri per tirare — più lungo è il gesto, più forte è il tiro; curvalo per dare effetto.',
   'game.keepy.balloon': 'Palloncino',
   'game.keepy.football': 'Pallone',
   'game.keepy.cannonball': 'Palla di cannone',

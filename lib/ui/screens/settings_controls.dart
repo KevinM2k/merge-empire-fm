@@ -201,22 +201,31 @@ class SettingsRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              GameIcon(icon, size: 20, color: kit.accentBright),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+          // **ONE HEIGHT FOR EVERY ROW, set by the tallest control.** A segment
+          // is a bordered pill and a toggle is not, so a card mixing the two
+          // had rows of two different heights down it — and the theme setting
+          // becoming a three-way segment is what made that obvious enough to
+          // report. The floor is the segment's own height, so nothing moved:
+          // the switch rows came UP to meet it.
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: settingsRowContentHeight),
+            child: Row(
+              children: [
+                GameIcon(icon, size: 20, color: kit.accentBright),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              trailing,
-            ],
+                const SizedBox(width: 10),
+                trailing,
+              ],
+            ),
           ),
           if (note != null)
             Padding(
@@ -355,6 +364,14 @@ class SettingSwitch extends ConsumerWidget {
 /// selected value, because the JS's pitch-view pair is two independent flags
 /// drawn as a segment: the cutaway can be on for both sides, one, or neither. A
 /// single-choice group is the same widget with the caller doing the comparison.
+/// The height every settings row's content stands at.
+///
+/// The tallest control on the page sets it: a [SettingsSegment] is a bordered
+/// pill — 30 points of choice plus its 1-point rule top and bottom — and a
+/// [SettingsToggle] is shorter. Rows are measured against this rather than each
+/// against its own trailing widget.
+const double settingsRowContentHeight = 32;
+
 class SettingsSegment extends StatelessWidget {
   const SettingsSegment({super.key, required this.choices});
 
