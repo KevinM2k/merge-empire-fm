@@ -382,4 +382,58 @@ void main() {
       expect(t('common.cancel'), isNot(contains('\n')));
     });
   });
+
+  group('NEVER THE SAME LINE TWICE IN ONE RUN', () {
+    // `tPoolStable` hashes a seed to an index, so two chances a quarter of an
+    // hour apart can land on the same sentence — and a feed of thirty lines can
+    // print a story line twice. Asked for from the couch in those words.
+    test('a pool gives every line once before it gives any of them again', () {
+      final used = <String, Set<int>>{};
+      const key = 'commentary.forces_save';
+      final pool = t(key).split('|');
+      expect(pool.length, greaterThan(3), reason: 'nothing to repeat');
+
+      final said = [
+        for (var i = 0; i < pool.length; i++)
+          tPoolUnused(key, 'seed-$i', used, const {'who': 'Us'}),
+      ];
+      expect(
+        said.toSet(),
+        hasLength(pool.length),
+        reason: 'the pool repeated itself before it was spent',
+      );
+
+      // And once it IS spent it starts again rather than falling silent.
+      final next = tPoolUnused(key, 'seed-again', used, const {'who': 'Us'});
+      expect(next, isNotEmpty);
+      expect(said, contains(next));
+    });
+
+    test('and the STABLE pick is still the first answer', () {
+      // Nothing moves when a line is picked once — the no-repeat rule only ever
+      // walks forward from a collision, so a match with one chance in it reads
+      // exactly as it did before.
+      const key = 'commentary.forces_save';
+      expect(
+        tPoolUnused(key, 'abc', <String, Set<int>>{}, const {'who': 'Us'}),
+        tPoolStable(key, 'abc', const {'who': 'Us'}),
+      );
+    });
+
+    test('two pools do not compete for the same memory', () {
+      // Two different sentences saying different things is not repetition.
+      final used = <String, Set<int>>{};
+      tPoolUnused('commentary.forces_save', 'x', used, const {'who': 'Us'});
+      expect(
+        tPoolUnused('commentary.shot_wide', 'x', used, const {'who': 'Us'}),
+        tPoolStable('commentary.shot_wide', 'x', const {'who': 'Us'}),
+      );
+    });
+
+    test('a pool of one is still that one', () {
+      final used = <String, Set<int>>{};
+      final first = tPoolUnused('match.half_time', 'a', used);
+      expect(tPoolUnused('match.half_time', 'b', used), first);
+    });
+  });
 }

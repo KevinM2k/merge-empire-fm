@@ -199,6 +199,41 @@ String tPoolStableOf(
   return lines[stableIndex(seed, lines.length)];
 }
 
+/// Pooled copy, seeded AND unrepeated within one run.
+///
+/// **A MATCH MUST NOT SAY THE SAME THING TWICE**, and [tPoolStable] on its own
+/// cannot promise that: it hashes a seed to an index, so two chances a quarter
+/// of an hour apart can land on the same sentence and a feed of thirty lines
+/// can print a story line twice. Asked for from the couch, in those words.
+///
+/// [used] is the run's own memory — the indices this pool has already given out.
+/// The stable pick is still the FIRST answer, so nothing moves when a line is
+/// picked once; a collision walks forward from it. When the pool is exhausted
+/// the memory clears and it starts again, because saying every line once and
+/// then repeating is the best a finite pool can do.
+///
+/// Keyed by the pool's own key rather than globally: two pools repeating each
+/// other is not repetition, it is two different sentences.
+String tPoolUnused(
+  String key,
+  String seed,
+  Map<String, Set<int>> used, [
+  Map<String, Object?> params = const {},
+]) {
+  final raw = t(key, params);
+  final lines = raw == key ? <String>[] : raw.split('|');
+  if (lines.isEmpty) return key;
+  if (lines.length == 1) return lines.first;
+  final seen = used.putIfAbsent(key, () => <int>{});
+  if (seen.length >= lines.length) seen.clear();
+  var i = stableIndex(seed, lines.length);
+  for (var step = 0; step < lines.length && seen.contains(i); step++) {
+    i = (i + 1) % lines.length;
+  }
+  seen.add(i);
+  return lines[i];
+}
+
 /// The JS's `_pickStable` index — `h * 31 + charCode` truncated to 32 signed
 /// bits — so the two runtimes pick the same entry out of the same list.
 ///

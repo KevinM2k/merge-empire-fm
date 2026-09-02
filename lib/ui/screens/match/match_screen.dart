@@ -347,6 +347,22 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// the timeline alone cannot answer "what did I actually see".
   final List<TimelineEvent> _retold = [];
 
+  /// **WHAT EACH LINE ACTUALLY SAID, by its seed.**
+  ///
+  /// The feed rebuilds on every tick of the clock, so the sentence for a given
+  /// line has to be decided ONCE — that is what `tPoolStable` was for. It is
+  /// also what stops a no-repeat rule from working, because a rule that
+  /// remembers what it has said cannot be re-run sixty times a minute against
+  /// the same lines. So the pick happens here, once per line, and the answer is
+  /// kept: stable across rebuilds because it is cached, and unrepeated because
+  /// [_poolUsed] is the match's own memory.
+  final Map<String, String> _lineText = {};
+
+  /// Which variants each pool has already given out this match — see
+  /// [tPoolUnused]. Asked for from the couch: never the same story twice in one
+  /// match.
+  final Map<String, Set<int>> _poolUsed = {};
+
   /// A replay the PLAYER asked for, rather than the clock cutting away.
   ///
   /// The dugout cam reacts to a clip when it ends; a replay of a goal from ten
@@ -2038,6 +2054,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// something that was never played is a control that does nothing.
   Widget _feedLine(FeedLine line) => _FeedLine(
     line: line,
+    text: _textFor(line),
     state: ref.read(gameProvider).state,
     // **AND ONLY ON THE LINE THAT IS ABOUT IT.** The gate was the minute
     // alone, and two things can land on the same one — a tactic change made
@@ -2054,6 +2071,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// The two kinds of feed row the 2D pitch ever retells.
   static const Set<String> _replayableLine = {'goal', 'chance'};
+
+  /// What this line says, decided once — see [_lineText].
+  String _textFor(FeedLine line) => _lineText.putIfAbsent(
+    '${line.type}-${line.seed}',
+    () => tPoolUnused(line.key, line.seed, _poolUsed, line.params),
+  );
 
   /// **PLAY A RETOLD MOMENT AGAIN, on the same grass.**
   ///
@@ -2668,9 +2691,20 @@ class _Scoreboard extends StatelessWidget {
 
 
 class _FeedLine extends StatelessWidget {
-  const _FeedLine({required this.line, required this.state, this.onReplay});
+  const _FeedLine({
+    required this.line,
+    required this.text,
+    required this.state,
+    this.onReplay,
+  });
 
   final FeedLine line;
+
+  /// The sentence, already picked. **Handed in rather than resolved here**: the
+  /// feed rebuilds on every tick and the pick has to survive that AND never
+  /// repeat within a match, which is a decision only the screen can make once.
+  /// See [MatchScreenState._lineText].
+  final String text;
 
   /// Play this moment again on the pitch, or null when there is nothing to play
   /// — every line during the match, and any line at full time the 2D pitch
@@ -2693,10 +2727,7 @@ class _FeedLine extends StatelessWidget {
     // untranslated strings from the engine on the one screen a player watches
     // for ninety minutes.
     //
-    // `tPoolStable` rather than `tPool`: a goal has nine ways of being
-    // described and the feed rebuilds on every tick of the clock, so an
-    // unseeded pick would reroll the sentence under the reader.
-    final text = tPoolStable(line.key, line.seed, line.params);
+    // The sentence arrives already picked — see [text].
     if (text.isEmpty) return const SizedBox.shrink();
 
     // **A LINE NAMING A PLAYER, BESIDE THE ART OF THE PLAYER IT NAMES.** The

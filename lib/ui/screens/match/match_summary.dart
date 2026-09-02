@@ -1559,66 +1559,23 @@ class _QuestTile extends StatelessWidget {
           // pass — two different KINDS of answer to one question, so the column
           // could not be scanned for pass-or-fail without reading the figures.
           // Asked for from the couch: a tick or a cross on every row.
-          // **AND THE CELL SHRINKS RATHER THAN OVERFLOWING** — but it should
-          // almost never have to, and that is why the coin glyph came out of it
-          // below. A tick, a coin and a seven-figure payout do not fit a tile
-          // that shares its row with the dugout cam, so the fit was scaling the
-          // figure down and this block came out visibly smaller than the
-          // modifier badge on the next-match card. Reported from the couch as
-          // exactly that question: which of the two is the minimum?
+          // **THE VERDICT IS A TICK OR A CROSS, and nothing else.**
           //
-          // Neither was wrong — both are declared at 13 — but one was being
-          // SCALED and the other was not. The floor is about what a player
-          // reads, so the answer is to make it fit rather than to shrink it.
-          // **`Flexible` BOUNDS THE FIT, and the FIT is what right-aligns.**
+          // It carried the money too — a tick, a coin and the figure, in a cell
+          // barely thirty points wide on a tile that shares its row with the
+          // dugout cam. Three marks in that space had to be scaled to fit,
+          // which is how this block came to read smaller than the badges beside
+          // it, and the scaling is what pushed the tick off the right edge.
           //
-          // A `FittedBox` sizes to its child unless something bounds it, which
-          // is why the cell is flexible at all. But a `Flexible` takes a SHARE
-          // of the row, so the box is wider than its contents — and a tick
-          // centred in that box landed in the middle of the tile rather than at
-          // its right edge. Reported from the couch with a screenshot. The
-          // Flexible is the LAST child, so its own right edge IS the row's:
-          // aligning the fit to it is all that was missing.
-          Flexible(
-            child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: Row(
+          // Reported from the couch, and the fix is the simpler shape: the
+          // TOTAL REWARD row underneath already says what the track paid, and
+          // saying it again on the one row that earned it is the same figure
+          // twice. What a player reads down this column is pass or fail.
+          Icon(
+            won ? Icons.check_rounded : Icons.close_rounded,
             key: ValueKey('match-quest-${row['id']}'),
-            mainAxisSize: MainAxisSize.min,
-            children: won
-                ? [
-                    Icon(Icons.check_rounded, size: 15, color: ink),
-                    const SizedBox(width: 4),
-                    // **GOLD, NOT THE VERDICT'S GREEN — always.** It took the
-                    // pass colour, so the one coin figure on the report drawn
-                    // in green sat two inches from four drawn in gold.
-                    // Reported from the couch: coins are the yellow, always.
-                    // The tick beside it is what says the quest passed; the
-                    // figure says what it paid, and a currency does not change
-                    // colour with the news. The same badge every other figure
-                    // on this screen wears — see [_CoinBadge].
-                    //
-                    // **DECLARED AT 13, like the next-match card's badge.** It
-                    // was 12 — the floor — and the two were compared from the
-                    // couch: the `+2` on a modifier is bigger than the `2`
-                    // here, so which one is the minimum? Neither was under it;
-                    // the difference is that this cell is inside a `FittedBox`
-                    // and gets SCALED, because a tile sharing its row with the
-                    // dugout cam cannot hold a two-line ask and a full-size
-                    // verdict at once. Matching the declared size is what
-                    // closes most of the gap; the rest is the tile's width and
-                    // the fit is the app's own answer to that.
-                    CoinBadge(
-                      amount: ((row['coins'] as num?) ?? 0).toInt(),
-                      fontSize: 13,
-                      iconSize: 11,
-                      sign: '',
-                    ),
-                  ]
-                : [Icon(Icons.close_rounded, size: 15, color: ink)],
-              ),
-            ),
+            size: 17,
+            color: ink,
           ),
         ],
       ),

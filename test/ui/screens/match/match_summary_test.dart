@@ -668,29 +668,37 @@ void main() {
         find.byKey(const ValueKey('match-quest-match_clean_sheet')),
         findsOneWidget,
       );
-      // **A MISS IS A CROSS AND NOTHING ELSE, and a win is the coin glyph and
-      // a figure.** Both cells used to spell it out — "✕ Missed", "✓ 18 coins"
-      // — and both wrapped onto two lines in a cell this narrow. Asked for from
-      // the couch: the coin instead of the word, the cross on its own. So what
-      // is asserted is the SHAPE of each cell, since neither carries copy any
-      // more.
-      final missed = find.descendant(
-        of: find.byKey(const ValueKey('match-quest-match_win_margin')),
-        matching: find.byIcon(Icons.close_rounded),
+      // **A TICK OR A CROSS, and nothing else on either.**
+      //
+      // Both cells used to spell it out — "✕ Missed", "✓ 18 coins" — and both
+      // wrapped onto two lines in a cell this narrow, so the words went first.
+      // Then the winning cell kept the coin and the figure, which is three
+      // marks in thirty points: it had to be scaled to fit, which made the
+      // block read smaller than the badges beside it and pushed the tick off
+      // the right edge. Reported from the couch with a screenshot.
+      //
+      // The TOTAL REWARD row underneath already says what the track paid, so
+      // saying it again on the one row that earned it is the same figure twice.
+      // What a player reads down this column is pass or fail.
+      final tile = find.byKey(const ValueKey('match-quest-match_win_margin'));
+      expect(
+        tile,
+        findsOneWidget,
+        reason: 'a miss is the cross alone',
       );
-      expect(missed, findsOneWidget, reason: 'a miss is the cross alone');
+      expect(tester.widget<Icon>(tile).icon, Icons.close_rounded);
+      expect(
+        tester
+            .widget<Icon>(
+              find.byKey(const ValueKey('match-quest-match_clean_sheet')),
+            )
+            .icon,
+        Icons.check_rounded,
+      );
+      // And the figure is in the total, not on the row that earned it.
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('match-quest-match_win_margin')),
-          matching: find.byType(Text),
-        ),
-        findsNothing,
-        reason: 'and carries no words at all',
-      );
-      // The one that paid shows its figure, without the noun.
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('match-quest-match_clean_sheet')),
+          of: find.byKey(const ValueKey('match-quests-total')),
           matching: find.text(formatCoins(120)),
         ),
         findsOneWidget,
