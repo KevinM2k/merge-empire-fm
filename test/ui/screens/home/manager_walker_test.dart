@@ -1061,22 +1061,235 @@ void main() {
     // He still moved: the painter reads the beat without the widget rebuilding.
     expect(find.byType(ManagerWalker), findsOneWidget);
   });
-  testWidgets('THE HEAD IS ONE CACHED LAYER WHILE HE MOVES, and none at rest', (
+  group('HIS HAIR MOVES', () {
+    // **Asked for directly: "I want to be able to animate hair, and we need to
+    // ensure it's not expensive and doesn't slow things down."** Both halves
+    // are pinned — the shape of the motion here, and the cost by the banding
+    // test below it: the hair is a matrix on a layer that is already
+    // rasterised, so a swinging fringe repaints nothing at all.
+    test('it LAGS the bob rather than riding it', () {
+      // **A mass that arrives at the same instant the head does is painted
+      // on.** The bob is `walkerHipRise`, twice a stride; the hair is a quarter
+      // of that cycle behind it. Measured as the two peaks rather than asserted
+      // on the formula, so the claim is about the motion.
+      double argMax(double Function(double) f) {
+        var best = 0.0;
+        var at = 0.0;
+        for (var i = 0; i < 1000; i++) {
+          final t = i / 1000;
+          if (f(t) > best) {
+            best = f(t);
+            at = t;
+          }
+        }
+        return at;
+      }
+
+      final bobPeak = argMax(walkerHipRise);
+      final hairPeak = argMax((t) => hairSwayAt(t, tilt: 0));
+      // Both loops run twice a stride, so a quarter of a cycle is 0.125 in t.
+      final lag = (hairPeak - bobPeak).abs() % 0.5;
+      expect(
+        lag < 0.5 ? lag : 0.5 - lag,
+        closeTo(0.125, 0.01),
+        reason: 'bob peaks at $bobPeak, hair at $hairPeak',
+      );
+      // Twice a stride, so half a cycle later it is back where it was.
+      expect(hairSwayAt(0.5, tilt: 0), closeTo(hairSwayAt(0.0, tilt: 0), 0.001));
+    });
+
+    test('and it NEVER leaves the skull it is drawn against', () {
+      // **This is a reported bug, not a precaution.** The tilt term was
+      // unbounded and a GESTURE's head angle is not small — a facepalm and a
+      // hands-on-head are twenty degrees and more — so the swing could reach
+      // three times what the constant allows, which on a long style swings the
+      // mass clean off the skull and shows the back of his head through his
+      // own hair. Screenshotted from the couch.
+      //
+      // So the range is checked against every head angle the rig can actually
+      // produce, not just the small ones.
+      for (var i = 0; i <= 40; i++) {
+        for (final tilt in [-90.0, -40.0, -8.0, 0.0, 8.0, 40.0, 90.0]) {
+          final at = hairSwayAt(i / 40, tilt: tilt);
+          expect(
+            at.abs(),
+            lessThanOrEqualTo(hairSwayDegrees),
+            reason: 'phase ${i / 40} tilt $tilt',
+          );
+        }
+      }
+    });
+
+    test('a head that DROPS leaves its hair behind', () {
+      // The other half of a lag, and the half that reads when he is not
+      // walking: the hair takes a share of the head's own angle, the other way.
+      // Small angles only — see the settle test below.
+      expect(hairSwayAt(0, tilt: 6), lessThan(hairSwayAt(0, tilt: -6)));
+    });
+
+    test('BUT A POSED HEAD HAS SETTLED HAIR, which is the screenshot', () {
+      // **Reported with a picture: bowed forward, and the hair had swung far
+      // enough to show the back of his head through it.** The clamp bounds the
+      // angle and does not fix the case — 3.2 degrees of follow-through on a
+      // long style with his chin on his chest still opens a parting on the
+      // side of his skull. It is also wrong: hair follows a head that is
+      // MOVING, and a head held in a gesture has settled.
+      //
+      // A facepalm, a bow and a hands-on-head are all well past this.
+      for (final tilt in [-90.0, -40.0, -28.0, 28.0, 40.0, 90.0]) {
+        for (var i = 0; i <= 8; i++) {
+          expect(
+            hairSwayAt(i / 8, tilt: tilt),
+            0,
+            reason: 'still swinging at tilt $tilt',
+          );
+        }
+      }
+      // And an ordinary carriage — the mood's few degrees, the idle's
+      // one-degree scan — is untouched.
+      expect(hairSwayAt(0.375, tilt: 2).abs(), greaterThan(1));
+    });
+
+    test('and a figure that is not moving has hair that hangs', () {
+      // The customiser's twenty chips, and reduced motion.
+      for (var i = 0; i <= 8; i++) {
+        expect(hairSwayAt(i / 8, tilt: 5, amount: 0), 0);
+      }
+    });
+
+    test('A CROP DOES NOT MOVE, and a ponytail does', () {
+      // **Asked for directly: the whole hair section should not sway — only
+      // the bits that would.** A close crop, a buzz, a shaved head and a
+      // slicked-back style are solid against the skull and must not move by a
+      // hair; a ponytail, a mullet and dreads hang and swing their full travel.
+      for (final still in ['crop', 'buzz', 'shaved', 'slick']) {
+        expect(hairSwayFor(still), (0, 0), reason: still);
+      }
+      for (final hangs in ['pony', 'mullet', 'dreads']) {
+        expect(hairSwayFor(hangs).$1, 1, reason: hangs);
+      }
+      // A tied-back style is scraped flat at the FRONT even while its tail
+      // swings — one number for the whole style would flap at his forehead.
+      expect(hairSwayFor('pony').$2, lessThan(0.2));
+      // And an id this build has never heard of hangs still rather than
+      // flapping: a look off a newer save should degrade quietly.
+      expect(hairSwayFor('somethingnew'), (0, 0));
+      expect(hairSwayFor(null), (0, 0));
+    });
+
+    test('every style DECIDES, and nothing else is in the table', () {
+      // The same rule `hatCrownY` keeps: add a style without deciding and the
+      // build stops, rather than defaulting it to something plausible.
+      for (final id in hairStyleIds) {
+        expect(
+          hairSwayFactor.containsKey(id),
+          isTrue,
+          reason: '$id does not say how much of it moves',
+        );
+      }
+      for (final id in hairSwayFactor.keys) {
+        expect(hairStyleIds, contains(id), reason: '$id is not a hairstyle');
+      }
+      for (final entry in hairSwayFactor.entries) {
+        expect(entry.value.$1, inInclusiveRange(0, 1), reason: entry.key);
+        expect(entry.value.$2, inInclusiveRange(0, 1), reason: entry.key);
+      }
+    });
+
+    test('and the HEAD gives a little too, on the same clock', () {
+      // A neck is not a bracket, and a rigid head is most of why the hair had
+      // to carry the whole effect. Smaller than the hair's, because this joint
+      // already carries the mood's carriage and the idle's scan.
+      expect(headSwayDegrees, lessThan(hairSwayDegrees / 2));
+      double argMax(double Function(double) f) {
+        var best = double.negativeInfinity;
+        var at = 0.0;
+        for (var i = 0; i < 1000; i++) {
+          if (f(i / 1000) > best) {
+            best = f(i / 1000);
+            at = i / 1000;
+          }
+        }
+        return at;
+      }
+
+      // One motion, so the two peak together.
+      expect(
+        argMax((t) => headSwayAt(t)),
+        closeTo(argMax((t) => hairSwayAt(t, tilt: 0)), 0.01),
+      );
+      expect(headSwayAt(0.3, amount: 0), 0);
+    });
+
+    testWidgets('a crop\'s hair layer is not wrapped in a turn at all', (
+      tester,
+    ) async {
+      // The cheapest proof that nought means nought: no transform, so nothing
+      // to composite and nothing to cache.
+      await pumpWalker(
+        tester,
+        reduceMotion: false,
+        look: {'style': 'crop', 'outfit': 'kit', 'build': 'regular'},
+      );
+      final turned = tester
+          .widgetList<Transform>(
+            find.descendant(
+              of: find.byType(ManagerWalker),
+              matching: find.byType(Transform),
+            ),
+          )
+          .where((w) => w.alignment == hairPivot);
+      expect(turned, isEmpty, reason: 'a crop is swinging');
+    });
+
+    testWidgets('the hair turns about the CROWN, not the face', (tester) async {
+      // About the skull's centre it would slide the parting down his forehead;
+      // about the box it would swing the whole head.
+      expect(hairPivot.y, lessThan(0), reason: 'the pivot is below the crown');
+      await pumpWalker(
+        tester,
+        reduceMotion: false,
+        look: {'style': 'pony', 'outfit': 'kit', 'build': 'regular'},
+      );
+      final turned = tester
+          .widgetList<Transform>(
+            find.descendant(
+              of: find.byType(ManagerWalker),
+              matching: find.byType(Transform),
+            ),
+          )
+          .where((w) => w.alignment == hairPivot);
+      expect(turned, isNotEmpty, reason: 'no hair layer is turning');
+    });
+  });
+
+  testWidgets('THE HEAD IS CACHED IN BANDS WHILE HE MOVES, and none at rest', (
     tester,
   ) async {
     // Six SVGs, two skull clips and eight blurred shadows tilt by the same
     // angle, and each used to be its own `_Tilt` — so a frame of walking
-    // re-rasterised all of them at 3x. One boundary under one tilt makes the
-    // tilt a layer transform. And NOT for a still (the customiser's twenty
-    // chips), where a layer each is memory for nothing.
+    // re-rasterised all of them at 3x. One boundary under one tilt made the
+    // tilt a layer transform.
+    //
+    // **It is FOUR bands now, and that reverses the "one boundary" half.** The
+    // hair moves — see `hairSwayAt` — and a fringe turning inside a single
+    // boundary drags the skull, the beard, the glasses and the hat into a
+    // repaint with it, which is exactly the saving the one boundary bought.
+    // Split by draw order — hair behind, skull and paint, fringe, features and
+    // what is worn over them — the two that move are matrices on their own
+    // layers and the two that do not are never touched.
+    //
+    // And NOT for a still (the customiser's twenty chips), where a layer each
+    // is memory for nothing.
     await pumpWalker(tester, reduceMotion: false);
-    expect(
-      find.descendant(
-        of: find.byType(ManagerWalker),
-        matching: find.byType(RepaintBoundary),
-      ),
-      findsOneWidget,
+    final boundaries = find.descendant(
+      of: find.byType(ManagerWalker),
+      matching: find.byType(RepaintBoundary),
     );
+    // Two fixed bands, plus a layer for each hair mass this look actually has
+    // — several styles have no back piece at all.
+    expect(boundaries, findsAtLeastNWidgets(2));
+    expect(boundaries.evaluate().length, lessThanOrEqualTo(4));
     await pumpWalker(tester, reduceMotion: true);
     expect(
       find.descendant(

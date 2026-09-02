@@ -119,6 +119,52 @@ const Map<String, double?> hatCrownY = {
 /// which is what hair does under a hat. The JS's `BACK_HAIR_AT_CROWN`.
 const Set<String> hairAtCrown = {'bun'};
 
+/// **HOW MUCH OF EACH HAIRSTYLE ACTUALLY MOVES**, as a share of the full swing.
+///
+/// **A whole head of hair does not sway, and a crop does not sway at all.**
+/// Asked for in as many words: only the bits that would — a ponytail, something
+/// hanging out — and never the top of the head. So the sway is a factor per
+/// STYLE rather than one number for the rig, and the two ends of the range are
+/// the ones that make it obviously right: `crop`, `buzz`, `shaved` and `slick`
+/// are 0 and do not move by a hair; `pony`, `flow` and `dreads` are 1 and swing
+/// their full travel.
+///
+/// The pair is `(back, front)`, mirroring `managerHair`'s own split, because the
+/// two halves of a style rarely behave alike: a ponytail's TAIL hangs off the
+/// back of the head while its front is scraped flat off the face, and a set of
+/// curtains is the reverse. Getting that wrong is what would make a tied-back
+/// style flap at the forehead.
+///
+/// Product is the other axis and it is why `slick`, `spikes` and `fauxhawk` are
+/// near nothing: gel is a solid. A `bun` is tied, an `afro` is a mass anchored
+/// all round, and `braids` are bound — all three give a little at the ends and
+/// no more.
+///
+/// A decision per style, and `manager_looks_test` stops the build if a style is
+/// added without one.
+const Map<String, (double back, double front)> hairSwayFactor = {
+  'crop': (0, 0),
+  'buzz': (0, 0),
+  'shaved': (0, 0),
+  'slick': (0, 0),
+  'spikes': (0.1, 0.1),
+  'fauxhawk': (0.1, 0.1),
+  'bun': (0.15, 0.1),
+  'mohawk': (0.2, 0.2),
+  'afro': (0.3, 0.25),
+  'braids': (0.5, 0.35),
+  'curtains': (0.45, 0.75),
+  'mullet': (1, 0.25),
+  'pony': (1, 0.1),
+  'flow': (0.9, 0.7),
+  'dreads': (1, 0.8),
+};
+
+/// How much this style's back mass and fringe move. An unknown id does not move
+/// — a style off a newer save should hang still rather than flap.
+(double back, double front) hairSwayFor(String? styleId) =>
+    hairSwayFactor[styleId ?? ''] ?? (0, 0);
+
 /// Above this, the hair is not drawn. Null leaves it alone.
 ///
 /// An unknown id hides nothing: a look off a newer save naming a hat this build

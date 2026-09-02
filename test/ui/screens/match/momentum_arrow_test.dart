@@ -133,7 +133,7 @@ void main() {
           .widget<CustomPaint>(find.byKey(const ValueKey('match-momentum')))
           .painter!;
 
-      await pump(tester, leftEnd: 'Testville', rightEnd: 'Ayton');
+      await pump(tester, leftEnd: 'HOME', rightEnd: 'AWAY');
       await tester.pumpAndSettle();
       final named = tester
           .widget<CustomPaint>(find.byKey(const ValueKey('match-momentum')))
@@ -141,12 +141,15 @@ void main() {
       expect(named.shouldRepaint(bare), isTrue);
     });
 
-    testWidgets('AND IT IS THE DEFENDING SIDE AT EACH END', (tester) async {
-      // The invariant that matters, stated where a reader will find it: the
-      // match screen passes `home ? us : them` on the left and its mirror on
-      // the right — the SAME two expressions `_Scoreboard` takes — so the board
-      // and the grass cannot disagree about which way we are kicking. Pinned
-      // here as a painted picture: the left name is drawn in the left half.
+    testWidgets('AND IT IS THE END LABEL THAT LANDS AT THAT END', (
+      tester,
+    ) async {
+      // The match screen paints HOME at the left goal and AWAY at the right —
+      // the same order the scoreboard reads, so the board and the grass say the
+      // same thing rather than being two things to cross-reference. Two short
+      // words rather than the club names, which have to be shrunk to fit a
+      // goalmouth. Pinned as a painted picture: the left label is drawn in the
+      // left half and nothing is drawn at the end that has none.
       final key = GlobalKey();
       await tester.pumpWidget(
         MaterialApp(
@@ -163,7 +166,7 @@ void main() {
                   attackingRight: true,
                   ours: momentumOurs,
                   theirs: momentumTheirs,
-                  leftEnd: 'Testville',
+                  leftEnd: 'HOME',
                 ),
               ),
             ),

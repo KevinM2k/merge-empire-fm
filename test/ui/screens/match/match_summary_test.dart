@@ -447,13 +447,18 @@ void main() {
       find.descendant(of: card, matching: find.text('+${formatCoins(120)}')),
       findsOneWidget,
     );
-    // And the total is still the answer above the working.
+    // **AND THERE IS NO TOTAL ABOVE THE WORKING ANY MORE.** There was, and with
+    // the two rows under it that made the money three figures an inch apart: a
+    // total, then the two parts that add up to it. Reported from the couch with
+    // a screenshot — Match Prizes and Match Quests are already there, and that
+    // is enough. The rows carry the coin glyph instead, because they are now
+    // the whole of the money on the card.
     expect(
       find.descendant(
         of: card,
         matching: find.byKey(const ValueKey('summary-coins')),
       ),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
@@ -811,7 +816,13 @@ void main() {
         find.text('${t('match.double_reward')} → ${formatCoins(840)}'),
         findsOneWidget,
       );
-      expect(find.text('+${formatCoins(420)}'), findsOneWidget);
+      // **AND THE TOTAL IS THE TWO ROWS, not a badge over them.** It was
+      // `+420` in a gold pill with `+300` and `+120` an inch under it — three
+      // figures for one payout. Reported from the couch: Match Prizes and
+      // Match Quests are enough.
+      expect(find.text('+${formatCoins(300)}'), findsOneWidget);
+      expect(find.text('+${formatCoins(120)}'), findsOneWidget);
+      expect(find.byKey(const ValueKey('summary-coins')), findsNothing);
     });
 
     testWidgets('a match that paid NO FEE can still double its quest money', (
@@ -823,12 +834,13 @@ void main() {
       // moment 2× started covering both. Asked for from the couch.
       await pumpSummary(tester, result(coins: 0, questResults: outcomes()));
       expect(find.byKey(const ValueKey('summary-payout')), findsOneWidget);
-      // The TOTAL by its key, not by its text: the breakdown under it prints
-      // the same figure on the quest row when the fee is the part that is zero.
+      // Off the quest ROW, since the total badge over it has gone: this match
+      // has a track, so it has rows, and the rows are where the money is.
       expect(
-        tester.widget<Text>(find.byKey(const ValueKey('summary-coins'))).data,
-        '+${formatCoins(120)}',
+        find.byKey(ValueKey('summary-split-${t('quests.match')}')),
+        findsOneWidget,
       );
+      expect(find.text('+${formatCoins(120)}'), findsWidgets);
       expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
       expect(
         find.text('${t('match.double_reward')} → ${formatCoins(240)}'),

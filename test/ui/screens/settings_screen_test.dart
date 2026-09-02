@@ -416,36 +416,30 @@ void main() {
       expect(settingsOf(container)['musicEnabled'], isNot(true));
     });
 
-    /// **COLIN IS A THIRD CHANNEL.** His voice rode the SFX toggle while it had
+    /// **AND COLIN HAS NO CHANNEL, which reverses a decision.**
+    ///
+    /// He had one, and the reason was good: his voice rode the SFX toggle with
     /// no label of its own, so the only way to stop him talking was to mute the
-    /// coin sounds with him. `coach.label` is his name in ten languages, which
-    /// is the whole budget: no new key can be added from this repo.
-    testWidgets('and Colin has a channel of his own', (tester) async {
-      final container = await pumpSettings(tester, SettingsTab.audio);
-      expect(find.text(t('coach.label')), findsOneWidget);
-      // Nothing is written until it is touched — the key is deliberately not in
-      // `createDefaultState`, which is compared against the JS's.
-      expect(settingsOf(container)['voiceEnabled'], isNull);
-      await tester.tap(find.byKey(const ValueKey('setting-voiceEnabled')));
-      await tester.pumpAndSettle();
-      await settleSave(tester);
-      expect(settingsOf(container)['voiceEnabled'], isFalse);
-      // And the game's own sound is untouched by it, which is the point.
-      expect(settingsOf(container)['soundEnabled'], isTrue);
-    });
-
-    testWidgets('and his own volume', (tester) async {
-      final container = await pumpSettings(tester, SettingsTab.audio);
-      await tester.drag(
-        find.byKey(const ValueKey('setting-voiceVolume')),
-        const Offset(-200, 0),
-      );
-      await tester.pumpAndSettle();
-      await settleSave(tester);
-      final value = settingsOf(container)['voiceVolume'] as num;
-      expect(value, lessThan(1));
-      expect(value, greaterThanOrEqualTo(0));
-      expect(settingsOf(container)['soundVolume'], 1);
+    /// coin sounds with him. Then `flutter_tts` was dropped for
+    /// `ClipVoiceBackend`, which plays `assets/voice/<locale>/<key>.mp3` when a
+    /// clip is there and is silent when it is not — and there are no clips.
+    /// `assets/voice/` holds a README. So the row was a switch and a slider
+    /// that changed nothing a player could hear, which is worse than no row.
+    /// Asked for from the couch.
+    ///
+    /// The KEYS are untouched and still read by `voice_providers.dart`, so
+    /// dropping the clips in is all it takes; what comes back with them is the
+    /// row.
+    testWidgets('COLIN HAS NO CHANNEL — there is nothing for it to do', (
+      tester,
+    ) async {
+      await pumpSettings(tester, SettingsTab.audio);
+      expect(find.text(t('coach.label')), findsNothing);
+      expect(find.byKey(const ValueKey('setting-voiceEnabled')), findsNothing);
+      expect(find.byKey(const ValueKey('setting-voiceVolume')), findsNothing);
+      // The two the player can actually hear are still there.
+      expect(find.byKey(const ValueKey('setting-soundEnabled')), findsOneWidget);
+      expect(find.byKey(const ValueKey('setting-musicEnabled')), findsOneWidget);
     });
   });
 

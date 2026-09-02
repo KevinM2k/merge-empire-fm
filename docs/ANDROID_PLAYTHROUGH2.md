@@ -6,17 +6,17 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**15 done, 7 open.** The nine that are done were each a real defect with a
+**19 done, 7 open.** The nine that are done were each a real defect with a
 mechanism behind it, and three of them were shipped code doing nothing: a
 `strategyId` nothing ever wrote, a `skyPaneTint` with no caller, and a turf band
 whose whole job was hiding a seam it was itself making.
 
-The seven still open split into two piles and the split is worth keeping. Four
+The seven still open split into two piles and the split is worth keeping. Three
 are **one job**: the scene is painted by a handful of very large `paint()`
 methods, and animating hair, stopping the customiser stuttering and fixing the
 dugout's hanging arms are all downstream of taking that apart into layers — with
 the Spine question sitting on top of the same work. The other three are
-ordinary and independent, and two of those three need a device or a recording
+ordinary and independent, and two of those four need a device or a recording
 rather than a change.
 
 ---
@@ -175,14 +175,56 @@ rather than a change.
       deck gets its own pass of haze, because what actually sits a tier back is
       the air in front of it.)
 
+- [x] **The hair moves, and the head with it.** (Asked for, and the constraints
+      came with it. The head group was ONE cached raster, so a fringe turning
+      inside it would have dragged the skull, the beard, the glasses and the hat
+      into a repaint every frame; it is four cached bands now, in the order it
+      has always drawn in, and a swinging fringe is a matrix on a layer that is
+      already rasterised — no painting, no SVG, no clip re-run. The motion is a
+      quarter-cycle lag on the bob, about the CROWN rather than the skull's
+      centre. **And only the parts that would**: `hairSwayFactor` is a decision
+      per style AND per half of it — a crop, a buzz, a shaved head and a slicked
+      back style are nought and do not move by a hair; a ponytail's tail is one
+      while its front is scraped flat off the face — with the same
+      build-stopping completeness rule `hatCrownY` keeps. The head takes a third
+      of the travel on the same clock, so the hair reads as follow-through. Two
+      guards, both from the same screenshot: the swing is CLAMPED to the tuned
+      maximum, because a gesture's head angle is twenty degrees and more and the
+      tilt term alone could treble it; and it TAPERS to nothing past 14° of
+      tilt, because a head held in a pose has settled hair and 3.2° of
+      follow-through with his chin on his chest still opens a parting on the
+      side of his skull.)
+
+- [x] **Colin's audio channel is gone from Settings.** (It controlled nothing.
+      It was added when his voice rode the SFX toggle, then `flutter_tts` was
+      dropped for `ClipVoiceBackend`, which plays a clip when one is there and
+      is silent when it is not — and `assets/voice/` holds a README and nothing
+      else. A switch and a slider that change nothing a player can hear are
+      worse than no row. The keys and the backend stay, so dropping the clips in
+      is all it takes; what comes back with them is the row.)
+
+- [x] **The pitch ends say HOME and AWAY.** (Two words that fit a goalmouth at
+      any club, where a name has to be shrunk or clipped — and the louder
+      answer, because the board above already reads home-side-left, so the grass
+      repeats the board rather than being a second thing to cross-reference.
+      `play.home` / `play.away` are already the words it uses for the venue.)
+
+- [x] **The match summary's gold coin badge is gone.** (Screenshotted: `+10` in
+      a gold pill with Match Prizes `+10` and Match Quests `+0` an inch under
+      it — three figures for one payout. The rows are the better place for it,
+      because they say which part the ninety minutes earned, so the badge went
+      and the rows took the coin glyph. It survives in one case only: a match
+      with no quest TRACK has no rows at all, and would otherwise show no figure
+      whatsoever.)
+
 ---
 
 ## Open
 
 ### One job: the scene is one big `paint()`
 
-These four are the same piece of work seen from four angles, and doing them
-separately would mean doing the hard part four times.
+These three are the same piece of work seen from three angles, and doing them
+separately would mean doing the hard part three times.
 
 - [ ] **Draw the background in LAYERS, not one `paint()`.** **Half done** — the
       STADIUM TIERS are layers now (see Done), and the rest of this row is the
@@ -197,8 +239,6 @@ separately would mean doing the hard part four times.
       "convert SVG to Dart Path to avoid parsing" buys the first frame only.
       What is genuinely left is the MANAGER's layering, which is what the hair
       row below needs.
-- [ ] **Animate the hair** — which is what the split is for, and it has to cost
-      nothing.
 - [ ] **DECIDE ON SPINE.** Asked for directly: the manager is too static and a
       bit boring, the dugout cam with him, and the shop's coins and gems could
       use something better. Researched rather than guessed — see **Spine** at
@@ -233,6 +273,41 @@ separately would mean doing the hard part four times.
       difference left is that the `ScoutActionBar` sits OUTSIDE the scroller, so
       the top of the tab does not respond to a drag at all. Wants a device to
       confirm before moving the bar.
+- [ ] **FORM IS INVISIBLE, and it should not be.** Raised from the couch — *"we
+      say form is down, and I think it does affect ratings? but we need to check
+      that, and we also need to show that on the squad/player pages/popups."*
+      **Checked, and yes: `getEffectiveRating` adds `card.form` straight into
+      the composed rating**, clamped to −1…+1, so a player in form is worth a
+      point more and one out of it a point less. That is also exactly what the
+      JS's own legend claims — `SquadScreen.js` prints "▲ good form +1 ▼ bad
+      form −1" — so the arithmetic here is right and matches the spec.
+      **What is missing is every trace of it on screen**, and the usual tell is
+      all over it: `squad.form.good` and `squad.form.bad` are translated in ten
+      catalogues with no caller in `lib/`, and `squad.subtext` says in as many
+      words "▲▲ good form · ▼▼ poor form — affects squad rating" while nothing
+      draws an arrow. The JS puts it in two places and both are ported shapes:
+      `Card.js` hangs a ▲/▼ on any card with non-zero form, and the bench sheet
+      carries the legend. So: a form glyph on `CardView`/`PlayerCard` — which
+      the squad, the bench, the pickers and the detail sheet all already read —
+      plus the legend.
+      One thing NOT to port: `Form.ratingPctPerLevel` (±5% per level) has no
+      caller here and **none in the JS either**. It is a stale constant in both
+      repos, not a missing feature; the ±1 is the rule.
+
+- [ ] **THE SUBS BENCH NEEDS A POSITION FILTER AND A COMPARISON.** Asked for
+      from the couch: a quick GK/DEF/MID/ATK filter, **pre-set to the position
+      of the player coming off** so the right candidates are the ones on screen;
+      and the ATK/DEF figures coloured against the man being replaced — green
+      where the sub is better, red where he is worse.
+      **Both halves already exist in this repo and neither is wired here**,
+      which is the reuse rule this project keeps: `PositionFilterBar`
+      (`squad_screen.dart`) is the JS's own `_benchFilterDefs()` ported, and it
+      is already on the squad bench and the pickers — the subs panel is the one
+      bench without it. And `benchForSlotProvider(slotPosition)` already ORDERS
+      by the slot's position, so the panel knows which position is being
+      replaced; it just never says so. For the colours, `vsGreenOn` / `vsRedOn`
+      in `match_stat_rows.dart` are the app's own better/worse pair.
+
 - [ ] **A poof/tap sound worth having.** Carried over from `REMAINING.md` — `pop`
       is a 0.1s blip doing the job of a shatter cue. Needs audio, not code.
 

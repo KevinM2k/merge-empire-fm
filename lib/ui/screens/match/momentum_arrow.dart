@@ -90,11 +90,15 @@ class MomentumArrow extends StatelessWidget {
   /// unreadable is reported as an arrow that is wrong, which is exactly what
   /// happened.
   ///
-  /// So each goal is named, and the two are passed in the SAME expressions the
-  /// scoreboard uses for its own two sides — `home ? us : them` and its mirror
-  /// — which is what makes it impossible for the board and the pitch to
-  /// disagree. Null on both draws nothing, which is what the goal replay and
-  /// the summary want.
+  /// So each goal is named. **HOME and AWAY rather than the two clubs**, asked
+  /// for from the couch and better than the names on both counts: two short
+  /// words fit inside a goalmouth at any club, where a name has to be shrunk or
+  /// clipped; and the scoreboard above already reads home-side-left, so the
+  /// same two words in the same order is the board's own statement repeated on
+  /// the grass rather than a second thing to cross-reference.
+  ///
+  /// Null on both draws nothing, which is what the goal replay and the summary
+  /// want.
   final String? leftEnd;
   final String? rightEnd;
 
@@ -225,7 +229,7 @@ class _ArrowPainter extends CustomPainter {
     }
   }
 
-  /// The defending club's name, painted on the turf behind its own goal.
+  /// Which end this is, painted on the turf behind its own goal.
   ///
   /// **On the GRASS, in the grass's own colours** — the lighter mown shade, at
   /// the size a sponsor's name is painted on a real pitch. It is a caption on

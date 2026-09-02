@@ -400,17 +400,21 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           // The JS ships music off by default, and the schema agrees.
           defaultEnabled: false,
         ),
-        // **HIS VOICE IS A CHANNEL, not a corner of the SFX one.** It rode the
-        // sound toggle while it had no label to call itself, so the only way to
-        // stop him talking was to mute the coin sounds with him. `coach.label`
-        // is his own name in ten languages and no new key. See
-        // `providers/voice_providers.dart`.
-        AudioChannelRow(
-          icon: 'megaphone',
-          label: t('coach.label'),
-          enabledKey: 'voiceEnabled',
-          volumeKey: 'voiceVolume',
-        ),
+        // **COLIN'S CHANNEL IS GONE, and the reason is that it controlled
+        // nothing.** It was added when his voice rode the SFX toggle — the only
+        // way to stop him talking was to mute the coin sounds with him — and
+        // then `flutter_tts` was dropped for `ClipVoiceBackend`, which plays
+        // `assets/voice/<locale>/<key>.mp3` when a clip is there and is silent
+        // when it is not. There are no clips: `assets/voice/` holds a README
+        // and nothing else. So the row was a switch and a slider that changed
+        // nothing a player could hear, which is worse than no row at all.
+        // Asked for from the couch.
+        //
+        // **The machinery stays**, and deliberately: `voiceEnabled` and
+        // `voiceVolume` are still read by `providers/voice_providers.dart` and
+        // still default to on, so dropping a folder of clips in is all it takes
+        // for him to speak — see `assets/voice/README.md`. What comes back with
+        // the clips is this row.
       ],
     ),
   ];

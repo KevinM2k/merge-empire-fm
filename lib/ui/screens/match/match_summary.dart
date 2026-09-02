@@ -1184,36 +1184,52 @@ class _Payout extends StatelessWidget {
     return Column(
       key: const ValueKey('summary-payout'),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (doubled) ...[
-              Text(
-                '+${formatCoins(total)}',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: kit.textMuted,
-                  decoration: TextDecoration.lineThrough,
+        // **THE BIG BADGE ONLY WHEN THERE IS NOTHING TO BREAK IT DOWN INTO.**
+        //
+        // It used to be there always, and with the two rows under it that made
+        // the money three figures: a total, then the two parts that add up to
+        // it, one inch apart. Reported from the couch with a screenshot —
+        // Match Prizes and Match Quests are already there, and that is enough.
+        //
+        // The rows are also the BETTER place for it, which is why the badge
+        // goes rather than the rows: they say which part the ninety minutes
+        // earned, and the total says nothing the arithmetic does not.
+        //
+        // But a match with no quest TRACK has no rows at all — see [hasQuests]
+        // — so it keeps the badge, or a player who has just won a cup tie is
+        // shown no figure whatsoever. Same for the `2×` strike-through, which
+        // is a before-and-after on a single total and has nowhere to be once
+        // the rows carry the doubling themselves.
+        if (!hasQuests)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (doubled) ...[
+                Text(
+                  '+${formatCoins(total)}',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: kit.textMuted,
+                    decoration: TextDecoration.lineThrough,
+                  ),
                 ),
+                const SizedBox(width: 8),
+                Text('➜', style: TextStyle(color: kit.textMuted)),
+                const SizedBox(width: 8),
+              ],
+              // **THE HUD'S OWN BADGE, not a second gold.** This was a dark
+              // plate carrying `gameGold` on a light page and a 12% gold wash
+              // on a dark one — two grounds and a vivid `#FFD700` figure, which
+              // the bar itself gave up on four rounds ago. `hudBadgeColour`
+              // fills it in the wallet's shop face and `hudBadgeInk` prints on
+              // that, so the coins a match pays look like the coins in the
+              // cluster they are about to land in.
+              _CoinBadge(
+                amount: doubled ? total * 2 : total,
+                textKey: const ValueKey('summary-coins'),
               ),
-              const SizedBox(width: 8),
-              Text('➜', style: TextStyle(color: kit.textMuted)),
-              const SizedBox(width: 8),
             ],
-            // **THE HUD'S OWN BADGE, not a second gold.** This was a dark
-            // plate carrying `gameGold` on a light page and a 12% gold wash on
-            // a dark one — two grounds and a vivid `#FFD700` figure, which the
-            // bar itself gave up on four rounds ago. Reported from the couch as
-            // the payout being dark-with-yellow rather than the bar's gold.
-            // `hudBadgeColour` fills it in the wallet's shop face and
-            // `hudBadgeInk` prints on that, so the coins a match pays look like
-            // the coins in the cluster they are about to land in.
-            _CoinBadge(
-              amount: doubled ? total * 2 : total,
-              textKey: const ValueKey('summary-coins'),
-            ),
-          ],
-        ),
+          ),
         // **THE FIGURE IS TWO THINGS, so it says which.** The breakdown came
         // off when `2×` stopped applying to the fee alone: with no split left
         // in the OFFER, two rows adding up to the total above them looked like
@@ -1232,7 +1248,6 @@ class _Payout extends StatelessWidget {
         // quests missed — was the one that showed no breakdown at all.
         // Reported from a live save with that exact screen.
         if (hasQuests) ...[
-          const SizedBox(height: 8),
           _Split(
             // **THE SAME WORDS WHATEVER HAPPENED.** This read the verdict —
             // "Won", "Drew", "Lost" — which says a third time what the banner
@@ -1334,10 +1349,18 @@ class _Split extends StatelessWidget {
         children: [
           Expanded(child: Text(label, style: style)),
           const SizedBox(width: 8),
+          // **THE COIN COMES DOWN HERE WITH THE FIGURE.** These rows are the
+          // whole of the money on this card now — the badge over them has gone
+          // — so they are the ones that have to say what the number IS. Asked
+          // for from the couch in those terms. `onGlass`, because the card is
+          // a pane rather than a plate.
+          const CoinIcon(size: 12, onGlass: true),
+          const SizedBox(width: 4),
           Text(
             '+${formatCoins(amount)}',
             style: style.copyWith(
-              color: glassText(context),
+              color: coinFigureInk(context, onGlass: true),
+              shadows: coinFigureShadows(context, onGlass: true),
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),

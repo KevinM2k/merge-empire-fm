@@ -1650,18 +1650,25 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                   ours: momentumOurs,
                                   theirs: momentumTheirs,
                                   // **WHOSE END IS WHICH, painted on the
-                                  // grass.** The SAME two expressions the
-                                  // scoreboard uses for its own sides — see
-                                  // `_Scoreboard`'s `left:`/`right:` above —
-                                  // so the board and the pitch cannot disagree
-                                  // about which way we are kicking. That
-                                  // disagreement is not hypothetical: the
-                                  // arrow was reported as pointing the wrong
-                                  // way when it was pointing the right way,
-                                  // because the markings are symmetric and
-                                  // nothing on them said.
-                                  leftEnd: home ? us : them,
-                                  rightEnd: home ? them : us,
+                                  // grass.** The markings are symmetric, so
+                                  // "pointing right" carries no information
+                                  // unless you already know which end you are
+                                  // attacking — which is why the arrow was
+                                  // reported as pointing the wrong way when it
+                                  // was pointing the right way.
+                                  //
+                                  // **HOME and AWAY rather than the club
+                                  // names.** Two words that fit the goalmouth
+                                  // at any club, against a name that has to be
+                                  // shrunk or clipped — asked for from the
+                                  // couch. They are also the LOUDER answer:
+                                  // the board above reads home-side-left, so
+                                  // the two words say the same thing the board
+                                  // does in the same order, and `play.home` /
+                                  // `play.away` are already the words it uses
+                                  // for the venue.
+                                  leftEnd: t('play.home'),
+                                  rightEnd: t('play.away'),
                                 ),
                                 onDone: (_) {
                                   if (!mounted) return;

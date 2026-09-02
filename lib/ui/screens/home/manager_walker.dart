@@ -633,6 +633,91 @@ const Offset skullOnScreen = Offset(
   _skullArtY - _headLift,
 );
 
+/// **HAIR LAGS.** How far it swings behind the head, in degrees.
+///
+/// The one thing a rig this size can do that reads as hair rather than as a
+/// painted-on shape: a mass that does not arrive at the same instant the head
+/// does. It is a LAYER TRANSFORM on a raster that is already cached — the hair
+/// is drawn once and turned, so a swinging fringe costs a matrix and no
+/// repainting at all. That is the whole reason it can be afforded, and it is
+/// why the hair had to come out of the head group's own cache to get it: inside
+/// it, a moving fringe would have re-rasterised the skull, the beard, the
+/// glasses and the hat every frame along with it.
+///
+/// Small, because the art is a solid silhouette rather than strands: past about
+/// four degrees the fringe visibly leaves the skull it is drawn against and you
+/// can see daylight at the parting.
+///
+/// **And this is the FULL swing, which almost nothing takes.** How much of it a
+/// given style actually uses is `hairSwayFactor` in `data/manager_looks.dart` —
+/// a crop is nought and a ponytail is one — because a whole head of hair does
+/// not sway and a close crop does not move at all.
+const double hairSwayDegrees = 3.2;
+
+/// Which way the hair is hanging, in degrees, for a figure at walk phase [t].
+///
+/// **Behind the bob, not with it.** The body rises and falls twice a stride and
+/// the hair follows a beat later — which is what a lag IS, and a quarter-cycle
+/// shift is the cheapest honest one: no spring, no state, no extra clock, and
+/// on a loop a phase offset and a damped follower are indistinguishable at this
+/// size.
+///
+/// [tilt] is the head's own angle, and the hair takes a share of it in the
+/// OPPOSITE direction: a head that drops leaves its hair behind for a moment.
+/// [amount] is 0 for a figure that is not moving at all, so the customiser's
+/// stills and a reduced-motion scene get a fringe that hangs still.
+double hairSwayAt(double t, {required double tilt, double amount = 1}) {
+  if (amount <= 0) return 0;
+  final bob = math.sin((t - 0.25) * 4 * math.pi) * hairSwayDegrees;
+  // **CLAMPED, AND THE CLAMP IS THE WHOLE OF A REPORTED BUG.** The tilt term
+  // was unbounded and a GESTURE's head angle is not small — a facepalm and a
+  // hands-on-head are twenty degrees and more — so `tilt * 0.35` alone could
+  // be twice the swing the constant allows, and the two together three times
+  // it. On a long style that swings the mass clean off the skull and you see
+  // the back of his head through his own hair. Reported from the couch with a
+  // screenshot of exactly that.
+  //
+  // [hairSwayDegrees] is the most the art can take whatever is driving it,
+  // so it is enforced here rather than trusted to every caller.
+  //
+  // **AND IT TAPERS TO NOTHING ON A HEAD THAT IS BEING POSED.** The clamp
+  // alone bounds the angle and does not fix the case: a facepalm holds the
+  // head right down, and 3.2 degrees of follow-through on a long style at that
+  // angle is still a parting opening on the side of his skull. It is also
+  // wrong — hair follows a head that is MOVING, and a head held in a pose has
+  // settled. Past [_hairSettleAt] the hair simply rides with him.
+  final settled = (1 - (tilt.abs() - _hairSettleAt) / _hairSettleAt)
+      .clamp(0.0, 1.0);
+  return ((bob - tilt * 0.35) * amount * settled)
+      .clamp(-hairSwayDegrees, hairSwayDegrees);
+}
+
+/// The head angle past which hair stops swinging, in degrees.
+///
+/// It fades from here and is gone by twice it, so an ordinary carriage — the
+/// mood's own few degrees, the idle's one-degree scan — is untouched, and a
+/// gesture that puts his chin on his chest gets a head of hair that has
+/// settled with him.
+const double _hairSettleAt = 14;
+
+/// How much a HEAD moves on top of the hair, in degrees.
+///
+/// **A neck is not a bracket.** The head was rigid on a bobbing body, which is
+/// most of why the hair had to carry the whole effect on its own; a degree of
+/// give on the same lag makes the hair's own swing read as follow-through
+/// rather than as the one thing on him that is alive. Asked for alongside the
+/// hair: the head may also sway a bit.
+///
+/// A third of the hair's travel and no more. This composes with the mood's own
+/// head carriage and with the idle's scan, both of which are already degrees of
+/// the same joint, so it has to be the smallest of the three.
+const double headSwayDegrees = 1.1;
+
+/// The head's own give, on the hair's clock so the two read as one motion.
+double headSwayAt(double t, {double amount = 1}) => amount <= 0
+    ? 0
+    : math.sin((t - 0.25) * 4 * math.pi) * headSwayDegrees * amount;
+
 /// How far the whole head group is lifted, in art units.
 ///
 /// **There was nowhere for a neck to be.** The skull is a circle at (62, 48.5)
@@ -1135,9 +1220,6 @@ class _ManagerWalkerState extends State<ManagerWalker>
   }
 
   /// A cached layer while he moves; the bare tree while he stands still.
-  static Widget _cached(bool on, Widget child) =>
-      on ? RepaintBoundary(child: child) : child;
-
   @override
   void dispose() {
     _clock.dispose();
@@ -1221,6 +1303,11 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // aside, an empty `overTorso` means a second arm pass for nothing. And
         // not while [handsOverHead], which already draws it later still.
         final armOverTorso = !handsOverHead && parts.overTorso.isNotEmpty;
+        // **AND THE HAIR HANGS BEHIND IT.** See [hairSwayAt]: the amount is
+        // the whole of "does he move at all" — a standing figure's hair still
+        // drifts with his breath and his weight rock, a still one's does not.
+        // Reduced motion is already handled, because a stopped clock holds
+        // [t] and the sway with it.
         // **ONE angle for every head layer.** Hair, skull and hat are three
         // widgets and one head; give them separate numbers and the face slides
         // out from under its own hat.
@@ -1240,6 +1327,31 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // one calculation and cannot drift apart.
         final rise = standing ? 0.0 : walkerHipRise(t);
         final span = standing ? _standSpan : _footSpan(t);
+        // A planted man's hair moves less than a walking one's, and a figure
+        // that is not moving at all — the customiser's chips, which pass
+        // `walking: false` — has hair that hangs. See [hairSwayAt].
+        final moving = widget.walking ? 1.0 : (standing ? 0.45 : 0.0);
+        // **AND ONLY THE PARTS THAT WOULD.** `hairSwayFactor` is a decision per
+        // STYLE and per HALF of it — a crop is nought either way, a ponytail's
+        // tail is one while its front is scraped flat off the face. One number
+        // for the whole rig would flap a shaved head.
+        // **AND THE HEAD ITSELF GIVES A LITTLE**, on the same clock, so the
+        // hair's swing reads as follow-through rather than as the one thing on
+        // him that is alive. See [headSwayAt] — a third of the hair's travel,
+        // because this joint already carries the mood's carriage and the
+        // idle's scan.
+        final drawnTilt = headTilt + headSwayAt(t, amount: moving);
+        final (swayBack, swayFront) = hairSwayFor(look['style'] as String?);
+        final hairBackSway = hairSwayAt(
+          t,
+          tilt: headTilt,
+          amount: moving * swayBack,
+        );
+        final hairFrontSway = hairSwayAt(
+          t,
+          tilt: headTilt,
+          amount: moving * swayFront,
+        );
 
         // **THE RIG, AS A PAINTER — and it is asked for four times.** The
         // whole figure, then the near arm alone over the coat, over the face,
@@ -1377,38 +1489,98 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // chips): a layer each for twenty stills is memory for
                     // nothing.
                     _Tilt(
-                      degrees: headTilt,
+                      degrees: drawnTilt,
                       child: _SetBack(
-                        child: _cached(
-                          _animating(context),
-                          Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              for (final layer in parts.behindHead)
-                                _HeadArt(layer: layer),
-                              CustomPaint(
-                                painter: _HeadPainter(
-                                  soft: widget.soft,
-                                  skin: parts.skin,
-                                  blink: _blink,
-                                ),
+                        // **FOUR CACHED BANDS, not one cached head.**
+                        //
+                        // It was one boundary round the whole group, and that
+                        // was right while every part of the head was static:
+                        // the tilt became a layer transform and only a blink or
+                        // a new look repainted it. The hair moves now — see
+                        // [hairSwayAt] — and a fringe turning inside a single
+                        // boundary drags the skull, the beard, the glasses and
+                        // the hat into a repaint with it, which is the whole
+                        // saving thrown away.
+                        //
+                        // So the head is a STACK of layers, in the order it has
+                        // always been drawn in, each cached on its own: hair
+                        // behind, the skull and the paint on it, the fringe,
+                        // then the features and everything worn over them. The
+                        // two hair bands turn; the other two never do, so
+                        // turning a fringe is a matrix on one layer and nothing
+                        // repaints at all.
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                              // **THE HAIR IS ITS OWN LAYER, and it MOVES.**
+                              // Both masses hang off the crown and swing behind
+                              // the head — see [hairSwayAt]. They are lifted
+                              // out of the group's shared raster into two of
+                              // their own, because a fringe that turned inside
+                              // it would re-rasterise the skull, the beard, the
+                              // glasses and the hat every frame with it; on
+                              // their own the turn is a matrix on a picture
+                              // that is already drawn, which is what makes a
+                              // moving fringe free.
+                              //
+                              // The ORDER is untouched, and it is the whole of
+                              // this head: hair behind, skull, paint on the
+                              // skin, fringe, features, then everything worn
+                              // over the top.
+                            for (final layer in parts.behindHead)
+                              _Hair(
+                                degrees: hairBackSway,
+                                animating: _animating(context),
+                                layer: layer,
                               ),
-                              for (final layer in parts.onSkin)
-                                _HeadArt(layer: layer),
-                              for (final layer in parts.overHair)
-                                _HeadArt(layer: layer),
-                              CustomPaint(
-                                painter: _HeadPainter(
-                                  soft: widget.soft,
-                                  skin: parts.skin,
-                                  blink: _blink,
-                                  features: true,
-                                ),
+                            // The skull and anything painted ON it. One band,
+                            // because a blink repaints both and nothing else
+                            // repaints either.
+                            cachedLayer(
+                              _animating(context),
+                              Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  CustomPaint(
+                                    painter: _HeadPainter(
+                                      soft: widget.soft,
+                                      skin: parts.skin,
+                                      blink: _blink,
+                                    ),
+                                  ),
+                                  for (final layer in parts.onSkin)
+                                    _HeadArt(layer: layer),
+                                ],
                               ),
-                              for (final layer in parts.overHead)
-                                _HeadArt(layer: layer),
-                            ],
-                          ),
+                            ),
+                            for (final layer in parts.overHair)
+                              _Hair(
+                                degrees: hairFrontSway,
+                                animating: _animating(context),
+                                layer: layer,
+                              ),
+                            // The features and everything worn over them —
+                            // beard, glasses, hat, mouth. Never moved by the
+                            // hair, which is the point of the split.
+                            cachedLayer(
+                              _animating(context),
+                              Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  CustomPaint(
+                                    painter: _HeadPainter(
+                                      soft: widget.soft,
+                                      skin: parts.skin,
+                                      blink: _blink,
+                                      features: true,
+                                    ),
+                                  ),
+                                  for (final layer in parts.overHead)
+                                    _HeadArt(layer: layer),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -2883,3 +3055,59 @@ class _WalkerPainter extends CustomPainter {
       old.pose != pose ||
       old.soft != soft;
 }
+
+/// A layer worth caching, or the layer itself.
+///
+/// `RepaintBoundary` is not free — it is a texture — so it goes on the things
+/// that are actually redrawn against something that moves, and comes off a
+/// figure that is not moving at all. Twenty stills in a grid want a layer each
+/// about as much as they want a clock each.
+Widget cachedLayer(bool on, Widget child) =>
+    on ? RepaintBoundary(child: child) : child;
+
+/// One mass of hair, hung off the crown and free to swing.
+///
+/// **Its own raster, which is the point.** The head group is boundary-cached
+/// and only repaints on a blink or a change of look — see `_cached` — and a
+/// fringe turning inside that cache would drag the skull, the beard, the
+/// glasses and the hat into a repaint on every frame with it. Given a boundary
+/// of its own, a swinging fringe is a matrix applied to a picture that is
+/// already drawn: no painting, no SVG, no clip re-run.
+///
+/// It turns about the CROWN — the top of the skull — because that is where hair
+/// is attached. About the skull's centre it would slide the parting down the
+/// forehead; about the box it would swing the whole head.
+class _Hair extends StatelessWidget {
+  const _Hair({
+    required this.degrees,
+    required this.animating,
+    required this.layer,
+  });
+
+  final double degrees;
+
+  /// Whether a boundary is worth its memory here — the same bargain the head
+  /// group strikes. Twenty stills in a grid want a layer each about as much as
+  /// they want a clock each.
+  final bool animating;
+
+  final HeadLayer layer;
+
+  @override
+  Widget build(BuildContext context) {
+    final art = _HeadArt(layer: layer);
+    if (degrees == 0) return art;
+    return Transform.rotate(
+      angle: degrees * math.pi / 180,
+      alignment: hairPivot,
+      child: cachedLayer(animating, art),
+    );
+  }
+}
+
+/// The crown, as an `Alignment` in the walker's own box — where hair is
+/// attached, which is the top of the skull rather than its centre.
+final Alignment hairPivot = Alignment(
+  skullOnScreen.dx / (walkerWidth / 2) - 1,
+  (skullOnScreen.dy - skullRadius) / (walkerHeight / 2) - 1,
+);
