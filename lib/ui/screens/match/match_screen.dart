@@ -2039,10 +2039,21 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   Widget _feedLine(FeedLine line) => _FeedLine(
     line: line,
     state: ref.read(gameProvider).state,
-    onReplay: !frame.finished || !retoldMinutes.contains(line.minute)
+    // **AND ONLY ON THE LINE THAT IS ABOUT IT.** The gate was the minute
+    // alone, and two things can land on the same one — a tactic change made
+    // during a goal's own minute came out carrying that goal's Replay,
+    // reported from the couch. A passage belongs to the row that describes it,
+    // which is the goal or the chance.
+    onReplay:
+        !frame.finished ||
+            !_replayableLine.contains(line.type) ||
+            !retoldMinutes.contains(line.minute)
         ? null
         : () => replayMoment(line.minute),
   );
+
+  /// The two kinds of feed row the 2D pitch ever retells.
+  static const Set<String> _replayableLine = {'goal', 'chance'};
 
   /// **PLAY A RETOLD MOMENT AGAIN, on the same grass.**
   ///

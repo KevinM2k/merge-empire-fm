@@ -511,9 +511,16 @@ class PitchStatOverlay extends StatelessWidget {
         //
         // **And then not quite so wide.** At 14 the rows ran almost to the
         // touchlines and the panel stopped reading as something ON the pitch;
-        // ten more a side puts the grass back round it. Reported from the couch
-        // in exactly that measure.
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        // ten more a side put the grass back round it.
+        //
+        // **And then wider still, to clear the goalmouths.** `MomentumArrow`
+        // paints HOME and AWAY on the grass at either end — the two words that
+        // say which way the match was being played — and the panel was sitting
+        // over both of them. Asked for from the couch: enough margin that the
+        // labels come through, and then ten back the other way once they did.
+        // The vertical went up with it, because a panel that has stopped being
+        // full-width should not still be full-height.
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
         child: LayoutBuilder(
           builder: (context, box) => Center(
             child: FittedBox(
