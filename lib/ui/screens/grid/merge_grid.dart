@@ -620,10 +620,25 @@ class MergeGridState extends ConsumerState<MergeGrid>
                     SliverPersistentHeader(
                       pinned: true,
                       delegate: _ActionBarHeader(
+                        // **THE SAME TWELVE AS EVERY OTHER SEAM.** It was on
+                        // `underBar: false`, which drops [hudBottomMargin]
+                        // entirely — that variant is for the Play tab, where
+                        // the cluster floats over a diorama and there is no bar
+                        // to clear. This tab HAS the bar, so the buttons sat
+                        // against the glass with nothing between them.
+                        // Reported from the couch with a shot, naming the
+                        // number: twelve, like everywhere else.
+                        //
+                        // Written as the bare clearance plus [_hudGap] rather
+                        // than as `underBar: true`, because that would give the
+                        // HUD's own ten and the seam this is matching is the
+                        // page's.
                         height: hudClearanceOf(context, underBar: false) +
+                            _hudGap +
                             _barHeight +
-                            _pad,
-                        top: hudClearanceOf(context, underBar: false),
+                            _hudGap,
+                        top: hudClearanceOf(context, underBar: false) + _hudGap,
+                        bottom: _hudGap,
                         background: Theme.of(context).scaffoldBackgroundColor,
                       ),
                     ),
@@ -1536,13 +1551,18 @@ class _ActionBarHeader extends SliverPersistentHeaderDelegate {
   const _ActionBarHeader({
     required this.height,
     required this.top,
+    required this.bottom,
     required this.background,
   });
 
   final double height;
 
-  /// The HUD's own clearance, so the bar clears the glass above it.
+  /// The HUD's own clearance plus the page's seam, so the bar clears the glass
+  /// above it by the same twelve every other band uses.
   final double top;
+
+  /// And the same gap under it, before the first row of cards.
+  final double bottom;
 
   /// What the pinned bar sits on once the grid has scrolled under it. Without
   /// a ground the cards run straight through the buttons.
@@ -1558,15 +1578,28 @@ class _ActionBarHeader extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
       Container(
         color: background,
-        padding: EdgeInsets.fromLTRB(_pad, top, _pad, _pad),
+        padding: EdgeInsets.fromLTRB(_pad, top, _pad, bottom),
         alignment: Alignment.topCenter,
         child: const ScoutActionBar(),
       );
 
   @override
   bool shouldRebuild(_ActionBarHeader old) =>
-      old.height != height || old.top != top || old.background != background;
+      old.height != height ||
+      old.top != top ||
+      old.bottom != bottom ||
+      old.background != background;
 }
+
+/// The air above and below the action bar.
+///
+/// **Six, and it got there from both directions.** It was nothing — the bar sat
+/// against the HUD glass — then twelve, which is the seam the rest of the app
+/// uses between bands and which read as too much here with a shot to prove it.
+/// The difference is that this bar is not a band: it is a strip of two buttons
+/// between two things that are already busy, so it wants a gap rather than a
+/// margin. Halved from both sides, which is what was asked for.
+const double _hudGap = 6;
 
 /// `ScoutActionBar` at its natural height, measured.
 ///

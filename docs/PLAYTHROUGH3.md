@@ -6,9 +6,9 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**27 done, 3 open.** Two of the open five are features rather than faults — a
-gesture contract for every popup, and a commentary pass — and the other three are
-small.
+**30 done, 3 open**, and all three of the open ones are features rather than
+faults: a gesture contract for every popup, commentary matched to the cutaway,
+and the register of the full-time write-up.
 
 The pattern in this batch is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
@@ -106,11 +106,6 @@ them were something being said that was not true.
       so a roll can land on nothing. Drawing it put a badge on the card
       announcing that the card has no badge.)
 
-- [x] **The MAX ribbon holds the type floor.** (It moved into the gap between
-      the rating and position chips, and the `FittedBox` that let it give way to
-      them was scaling it below anything readable. It ellipsises now, which is
-      what the chips beside it do.)
-
 - [x] **A caution is a remark, not an interruption.** (It went through a full
       card, then through a small bespoke bubble, and both were wrong the same
       way: it paused the match, lost his head, narrowed the bubble and carried a
@@ -172,6 +167,33 @@ them were something being said that was not true.
       a fixed pair, so a long localised term takes its own line instead of being
       squeezed.)
 
+- [x] **A goal line no longer describes a goal that did not happen that way.**
+      (Two reports, one cause: "not had a shot in twenty minutes" seven minutes
+      after they scored, and a keeper spilling it over a free-kick cutaway. The
+      pools are picked by bucket and minute and know nothing about the match, so
+      the twenty story lines I had added — every one of which asserted a manner
+      or a count — were each a coin flip against the clip. They are gone from
+      all ten catalogues. The spec's own short lines stay: they are
+      impressionistic rather than specific, and they have always been there.)
+
+- [x] **Same-minute lines keep their order.** (`timelineOf` sorted with
+      `List.sort`, which is not stable, so two events on one minute — a booking
+      and a goal, the grudge line and the kick-off line — could come out either
+      way round and CHANGE between rebuilds. Stable now, tie-broken on arrival:
+      the engine's events, then the port's bookings.)
+
+- [x] **The MAX ribbon says MAX.** (Third go. A `FittedBox` scaled it below
+      anything readable; ellipsis cut `T2 MAX` to `T2 M`; and the cause of both
+      was the `Flexible` around it, which hands a child the space that is LEFT
+      rather than the space it needs. It is the shortest and least divisible
+      thing in that row, so the two chips beside it are the ones that give.)
+
+- [x] **The Add Player row clears the HUD by twelve.** (It was on
+      `hudClearanceOf(underBar: false)`, which drops the bar's own margin
+      entirely — that variant is for the Play tab, where the cluster floats over
+      a diorama and there is no bar. This tab has one, so the buttons sat
+      against the glass.)
+
 ---
 
 ## Open
@@ -184,14 +206,16 @@ them were something being said that was not true.
       be joined into prose that names both sides and explains rather than
       labels. **English first**; the nine locales inherit the shape afterwards.
 
-- [ ] **The commentary contradicts the match.** Two reports, one cause: a goal
-      line said "not had a shot in twenty minutes" when they had scored seven
-      minutes earlier, and a line describing a keeper spilling it played over a
-      free-kick cutaway. The pools are picked by BUCKET and minute and know
-      nothing about what has actually happened, so a line can assert a drought
-      that did not happen or a manner of goal the cutaway then contradicts.
-      The half of it that WAS a lookup is done — see "an atmosphere line may not
-      claim a booking" under Done.
+- [ ] **Commentary matched to the CUTAWAY, so a line can describe how a goal
+      was scored again.** The contradictions are gone — see the two rows under
+      Done — but they went by removing the twenty story lines that described a
+      manner, because a line picked by bucket and minute cannot know that the
+      clip is about to show a free kick. The richer answer is to pick the line
+      from the passage: `cutaway_sequences.dart` has thirty-four of them and
+      they fall into about six shapes (header, free kick, solo, cutback, long
+      range, one-on-one), so a pool per shape would let the words describe what
+      the player is actually watching. Worth doing; it is a feature rather than
+      a fix.
 
 - [ ] **A gesture contract for every popup.** Swipe up → full screen; swipe up
       again → scroll. Swipe down → scroll to the top; again → back to the small

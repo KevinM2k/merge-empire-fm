@@ -695,12 +695,16 @@ class PlayerCard extends StatelessWidget {
                       // exactly right: that gap is empty on every card and this
                       // is the one thing that wants it.
                       //
-                      // `Flexible` with a `FittedBox` inside the ribbon's own
-                      // build, so a long localised label gives way to the two
-                      // chips rather than pushing either off the card.
+                      // **NOT `Flexible`, and that is the third go at this.**
+                      // Inside one it was clipped to `T2 M` on a row with room
+                      // to spare — reported from the couch — because a flexible
+                      // child is handed the space that is left rather than the
+                      // space it needs. The RIBBON is the shortest thing in
+                      // this row and the least divisible: `★ MAX ★` means
+                      // nothing cut in half. The two chips beside it are the
+                      // ones that give, and they already do.
                       if (view.maxed || view.atCap)
-                        Flexible(
-                          child: _Ribbon(
+                        _Ribbon(
                             label: view.maxed
                                 ? t('card.max_ribbon')
                                 : t('card.tier_locked', {'tier': view.tier}),
@@ -711,10 +715,9 @@ class PlayerCard extends StatelessWidget {
                             background: view.maxed
                                 ? const Color(0xFFF9A825)
                                 : const Color(0xFF37474F),
-                            foreground: view.maxed
-                                ? const Color(0xFF241C00)
-                                : Colors.white,
-                          ),
+                          foreground: view.maxed
+                              ? const Color(0xFF241C00)
+                              : Colors.white,
                         ),
                       const SizedBox(width: 2),
                       Flexible(
@@ -936,22 +939,21 @@ class _Ribbon extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 4)],
       ),
-      // **IT DOES NOT SHRINK BELOW THE FLOOR.** The `FittedBox` was there so a
-      // long localised label gave way to the two chips beside it — and on a
-      // bench card it was scaling `★ MAX ★` down to something nobody could
-      // read. Reported from the couch: the badge should use the minimum size
-      // font always. It ellipsises instead, which is what the chips do.
-      child: ClipRect(
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: minFontSize,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.4,
-            color: foreground,
-          ),
+      // **NEITHER SHRUNK NOR CLIPPED.** It began inside a `FittedBox`, which
+      // scaled `★ MAX ★` below anything readable on a bench card; it then
+      // ellipsised, which cut `T2 MAX` off on a row with room to spare.
+      // Reported from the couch both times. It is neither now — the label is
+      // as wide as the words and the `Flexible` around it in the chip row is
+      // what yields if a language ever genuinely runs out of space.
+      child: Text(
+        label,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontSize: minFontSize,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.4,
+          color: foreground,
         ),
       ),
     ),

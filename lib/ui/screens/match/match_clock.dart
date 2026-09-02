@@ -15,6 +15,7 @@ library;
 // filling around cannot disagree about how many lines the bucket holds. Pure
 // Dart, like this file: nothing here reaches for Flutter.
 import 'package:merge_empire_fc/engine/booking_engine.dart' show cardYellow;
+import 'package:merge_empire_fc/util/sorting.dart' show stableSorted;
 import 'package:merge_empire_fc/engine/match_events.dart' show commentaryPools;
 
 /// One thing that happened, ready to show.
@@ -128,7 +129,7 @@ List<TimelineEvent> timelineOf(
 }) {
   final raw = result['events'];
   if (raw is! List) return const [];
-  return [
+  return _byMinute([
     for (final e in [...raw, ...bookings])
       if (e is Map<String, dynamic>)
         (
@@ -151,8 +152,22 @@ List<TimelineEvent> timelineOf(
                 }
               : const {},
         ),
-  ]..sort((a, b) => a.minute.compareTo(b.minute));
+  ]);
 }
+
+/// The events in the order the feed shows them.
+///
+/// **A STABLE sort, which `List.sort` is not.** Two things can land on the same
+/// minute — a booking and a goal, the grudge line and the kick-off line — and
+/// an unstable sort is free to put them either way round and to CHANGE ITS MIND
+/// between rebuilds, so a pair of lines could swap places while the player was
+/// reading them. Reported from the couch: whichever appeared first should stay
+/// first. The tie-break is the order they arrived in, which for the merged list
+/// is the engine's own events followed by the port's bookings.
+List<TimelineEvent> _byMinute(List<TimelineEvent> events) => stableSorted(
+  events,
+  (TimelineEvent a, TimelineEvent b) => a.minute.compareTo(b.minute),
+);
 
 /// The match as it stood at [minute].
 ///
