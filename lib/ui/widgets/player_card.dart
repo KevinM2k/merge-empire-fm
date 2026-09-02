@@ -277,14 +277,9 @@ class PlayerCard extends StatelessWidget {
     this.onTap,
     this.selected = false,
     this.kitColor,
-    this.onIncomeCycle,
   });
 
   final CardView view;
-
-  /// Fired once per fill of the income bar — one payout. The grid floats the
-  /// coins off it; every other caller leaves it null.
-  final VoidCallback? onIncomeCycle;
 
   /// Light mode swaps the BODY for a pale tint of the same rarity. The chips
   /// stay dark so their bright rarity text stays readable on top.
@@ -665,7 +660,6 @@ class PlayerCard extends StatelessWidget {
                       ink: view.onLoan ? incomeOutInk : incomeInInk,
                       track: captionTrack,
                       drains: view.onLoan,
-                      onCycle: onIncomeCycle,
                     ),
                   ),
                 Positioned(
@@ -961,11 +955,9 @@ class _IncomeBar extends StatefulWidget {
     required this.ink,
     required this.track,
     required this.drains,
-    this.onCycle,
   });
 
   final double ratePerSec;
-  final VoidCallback? onCycle;
   final Color ink;
   final Color track;
 
@@ -979,17 +971,12 @@ class _IncomeBar extends StatefulWidget {
 
 class _IncomeBarState extends State<_IncomeBar>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _fill = AnimationController(vsync: this)
-    ..addListener(_onTick);
-
-  /// `repeat()` never reports completed, so a wrap is the cycle's end.
-  double _lastFill = 0;
-
-  void _onTick() {
-    final v = _fill.value;
-    if (v < _lastFill) widget.onCycle?.call();
-    _lastFill = v;
-  }
+  /// **NO LISTENER.** The painter repaints off the controller directly — see
+  /// `_FillPainter`'s `repaint:` — so a Dart callback on every frame of every
+  /// bar bought nothing but the per-cycle float, and the float has gone. On a
+  /// full grid that was sixteen listeners running at sixty hertz behind a
+  /// scrolling list.
+  late final AnimationController _fill = AnimationController(vsync: this);
 
   Duration get _cycle => Duration(
     milliseconds: (incomeBarCycleSec(widget.ratePerSec) * 1000).round(),

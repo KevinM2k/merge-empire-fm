@@ -28,7 +28,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
-import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
@@ -37,7 +36,6 @@ import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
-import 'package:merge_empire_fc/ui/screens/grid/coin_tick_float.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
 import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
@@ -1187,18 +1185,18 @@ class _CardSlot extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final card = cell.card!;
     final light = Theme.of(context).brightness == Brightness.light;
-    // One bar cycle = one payout. Cycle rounded to 2dp BEFORE the multiply, as
-    // the JS does, so the float claims exactly what the visible cycle earns.
-    final rate = card.incomePerSec ?? 0;
-    final perCycle = rate > 0
-        ? rate * ((incomeBarCycleSec(rate) * 100).round() / 100)
-        : 0.0;
-
-    return CoinTickHost(
-      amount: perCycle,
-      enabled: !dimmed,
-      builder: (onCycle) => _target(context, ref, card, light, onCycle),
-    );
+    // **THE PER-CARD "+66" IS GONE.** One rising label per card per bar cycle
+    // is up to sixteen animation controllers being built and torn down on a
+    // grid the thumb is already dragging, and it is the least valuable thing on
+    // the tile: the bar itself says money is coming and the HUD counter says
+    // how much arrived. Asked for from the couch — the Players tab felt choppy
+    // and the float was named as the thing to drop.
+    //
+    // **And the widget goes with it**, rather than being left unreachable: the
+    // grid was its only caller, and shipped code nothing can print is precisely
+    // what this repo's sweeps exist to find. The JS's `floatCoinTick` is
+    // therefore a deliberate divergence, written down in `docs/REMAINING.md`.
+    return _target(context, ref, card, light);
   }
 
   Widget _target(
@@ -1206,12 +1204,10 @@ class _CardSlot extends ConsumerWidget {
     WidgetRef ref,
     CardView card,
     bool light,
-    VoidCallback onCycle,
   ) {
     final tile = PlayerCard(
       view: card,
       light: light,
-      onIncomeCycle: onCycle,
       // A tap opens the sell sheet; the DRAG is the merge. Two gestures, two
       // meanings, and the arena keeps them apart.
       onTap: () {
