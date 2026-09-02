@@ -68,12 +68,21 @@ Future<ProviderContainer> pumpGridAnimated(
   // save with evidence of play now — there is a tutorial to be in the middle
   // of — so the default has to say what these tests actually mean.
   bool tutorialDone = true,
+
+  /// How many cards Add Player signs in one press. The coins go with it — see
+  /// `availableScoutBatchSizes`, which caps the offer at what the wallet and
+  /// the free slots will actually carry.
+  int batch = 1,
 }) async {
   final state = createDefaultState();
   final cells =
       (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
   cards.forEach((i, card) => cells[i] = card);
   (state['tutorial'] as Map<String, dynamic>)['done'] = tutorialDone;
+  if (batch > 1) {
+    (state['settings'] as Map<String, dynamic>)['scoutBatch'] = batch;
+    (state['resources'] as Map<String, dynamic>)['fanCoins'] = 500000;
+  }
 
   final container = ProviderContainer(
     overrides: [
@@ -1359,6 +1368,38 @@ void main() {
         hasLength(1),
         reason: 'and then it is there',
       );
+      await settleSave(tester);
+    });
+
+    testWidgets('AND A BATCH FLIES ALL OF THEM, not just the first', (
+      tester,
+    ) async {
+      // Reported from the couch: buying more than one player and only seeing
+      // one card travel. `_landingRects` resolves a rect per index and
+      // `_capture` turns each into a flight, so what is asserted is the COUNT —
+      // one journey per keeper, and a batch of two is two.
+      await pumpGridAnimated(tester, batch: 2);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pump();
+      await tester.pump(scoutRevealSkipAfter + const Duration(milliseconds: 32));
+
+      final overlay = find.byType(ScoutRevealOverlay);
+      expect(overlay, findsOneWidget, reason: 'no reveal to fly out of');
+      final state = tester.state<ScoutRevealOverlayState>(overlay);
+      final kept = state.widget.reveal.cards.where((c) => !c.vanish).length;
+      expect(kept, 2, reason: 'the batch did not place two keepers');
+
+      await tester.tap(find.byKey(const ValueKey('scout-reveal')));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        state.flyingHome,
+        kept,
+        reason: 'only some of the batch travelled',
+      );
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 32));
+      }
       await settleSave(tester);
     });
 
