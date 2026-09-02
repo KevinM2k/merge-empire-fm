@@ -230,6 +230,7 @@ const Map<String, String> frCatalog = <String, String>{
   'play.squad_tired': 'EFFECTIF ÉPUISÉ',
   'match.dugout_cam': 'Caméra du banc',
   'match.replay': 'Ralenti',
+  'match.chance': 'Occasion',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

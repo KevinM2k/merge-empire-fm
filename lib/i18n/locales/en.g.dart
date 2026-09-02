@@ -233,6 +233,7 @@ const Map<String, String> enCatalog = <String, String>{
   'play.squad_tired': 'SQUAD TOO TIRED',
   'match.dugout_cam': 'Dugout cam',
   'match.replay': 'Replay',
+  'match.chance': 'Chance',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

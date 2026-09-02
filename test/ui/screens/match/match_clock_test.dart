@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/match_events.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 
 Map<String, dynamic> resultWith({
@@ -168,6 +169,7 @@ void main() {
       shotResult: null,
       big: false,
       xg: 0,
+      params: const {},
       player: null,
     );
 
@@ -253,6 +255,7 @@ void main() {
             big: true,
             xg: 0.4,
             player: null,
+            params: {},
           ),
           ours: true,
           nameOf: onTheGrid,
@@ -274,6 +277,7 @@ void main() {
       String? scorerId,
       String? player,
       String? textKey,
+      Map<String, Object?> params = const {},
     }) => (
       minute: minute,
       type: type,
@@ -285,10 +289,106 @@ void main() {
       big: big,
       xg: xg,
       player: player,
+      params: params,
     );
 
     List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
         feedOf(events, ourName: 'Us', theirName: 'Them', isHome: isHome);
+
+    test('and the timeline is what carries them off the result', () {
+      // The record had no field for `textParams`, so the engine wrote them and
+      // nothing read them.
+      final events = timelineOf({
+        'events': [
+          {
+            'minute': 1,
+            'type': 'commentary',
+            'textKey': 'commentary.snub',
+            'textParams': {'opp': 'Ayton'},
+          },
+        ],
+      });
+      expect(events.single.params['opp'], 'Ayton');
+    });
+
+    group('MORE THAN GOALS HAPPENS IN NINETY MINUTES', () {
+      // Asked for from the couch: the feed should carry the other things a
+      // match is made of, not only what went in. Every line below was already
+      // written and translated ten times over — what was missing was the case
+      // in `feedOf` that reaches it.
+
+      test('THE BREAK SAYS WHAT THE SCORE MEANS', () {
+        // It was `match.half_time`, which is the word the row's own HEAD
+        // prints, so the interval read its own name twice and said nothing.
+        String at(List<TimelineEvent> before) => feed([
+          ...before,
+          ev('halftime', minute: 45),
+        ]).last.key;
+
+        expect(at(const []), 'commentary.halftime_level');
+        expect(
+          at([ev('goal', minute: 20, team: 'home')]),
+          'commentary.halftime_ahead',
+        );
+        expect(
+          at([ev('goal', minute: 20, team: 'away')]),
+          'commentary.halftime_behind',
+        );
+      });
+
+      test('and it is the score AS THE FEED HAS TOLD IT', () {
+        // A goal after the whistle cannot change what the verdict at the break
+        // was — the running tally is what half time is judged on.
+        final lines = feed([
+          ev('goal', minute: 20, team: 'home'),
+          ev('halftime', minute: 45),
+          ev('goal', minute: 70, team: 'away'),
+          ev('goal', minute: 80, team: 'away'),
+        ]);
+        expect(
+          lines.firstWhere((l) => l.type == 'halftime').key,
+          'commentary.halftime_ahead',
+        );
+      });
+
+      test('THEIR SUBSTITUTIONS REACH THE FEED', () {
+        // `buildMatchResult` pushes one `opp_sub` per entry in the AI's
+        // rotation plan, key and parameters written onto the event. `feedOf`
+        // had no case for it, so it fell through to `default` and the only
+        // changes a player ever saw were their own.
+        final lines = feed([
+          ev(
+            'opp_sub',
+            minute: 60,
+            textKey: 'commentary.opp_sub',
+            params: const {'opp': 'Ayton'},
+          ),
+        ]);
+        expect(lines, hasLength(1));
+        expect(lines.single.type, 'opp_sub');
+        expect(lines.single.key, 'commentary.opp_sub');
+        expect(lines.single.params['opp'], 'Ayton');
+      });
+
+      test('AND A LINE KEEPS THE PARAMETERS IT WAS WRITTEN WITH', () {
+        // The grudge line is the one that reached a screen: `commentary.snub`
+        // takes `{opp}`, the feed handed `t()` an empty map, and a grudge match
+        // opened by printing that brace to the player.
+        final lines = feed([
+          ev(
+            'commentary',
+            minute: 1,
+            textKey: 'commentary.snub',
+            params: const {'opp': 'Ayton'},
+          ),
+        ]);
+        expect(lines.single.params['opp'], 'Ayton');
+        expect(
+          t(lines.single.key, lines.single.params),
+          isNot(contains('{opp}')),
+        );
+      });
+    });
 
     group('THE OPENING IS NOT SILENT', () {
       // `commentaryPools` says one line at minute 1 and the next anywhere in

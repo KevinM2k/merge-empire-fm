@@ -547,7 +547,11 @@ class _AssetPanel extends ConsumerWidget {
               key: ValueKey('club-action-${tile.key}'),
               tone: tile.maxed ? StoreTone.neutral : StoreTone.coin,
               small: true,
-              label: _actionLabel(),
+              // The plain reading stays the `label`: it is what the button
+              // announces to a screen reader, and the slot is not a character
+              // anyone should hear.
+              label: withoutCoinGlyph(_actionLabel()),
+              labelSpans: _actionSpans(),
               leading: _actionGlyph(),
               onTap: !buildable ? null : () => _buy(context, ref, game),
               // **HOLD TO KEEP INVESTING.** Filling tier one takes ten taps and
@@ -579,7 +583,9 @@ class _AssetPanel extends ConsumerWidget {
     _ when tile.maxed => t('club.maxed'),
     'needs_player' => t('club.sign_player_first'),
     'insufficient_coins' when tile.shortBy > 0 => t('club.need_more', {
-      'coin': '💰',
+      // Not an emoji — a slot the app's own coin is drawn into. See
+      // [_actionSpans] and `withCoinGlyph`.
+      'coin': coinSlot,
       'amount': formatCoins(tile.shortBy),
     }),
     // A refusal the engine has but this screen has no words for. It should not
@@ -597,10 +603,11 @@ class _AssetPanel extends ConsumerWidget {
   /// player presses most, wearing a 💰 where every other priced control in the
   /// app wears `GameIcon('coin')`.
   ///
-  /// **`club.need_more` keeps its emoji and has to.** Its `{coin}` sits mid
-  /// sentence — "Need {coin} {amount} more" — and moves with the language, so
-  /// there is no position on the button for a widget to take. A `String` cannot
-  /// carry one, which is the same limit `t()` states about `<strong>`.
+  /// **`club.need_more` gets its coin INSIDE the words**, which is the one
+  /// case a leading glyph cannot serve. Its `{coin}` sits mid sentence — "Need
+  /// {coin} {amount} more" — and moves with the language, so there is no
+  /// position in front of the label for it to take. It wore a 💰 for that
+  /// reason; the answer is [_actionSpans], not an emoji.
   Widget? _actionGlyph() => switch (tile.blocked) {
     _ when tile.maxed => const GameIcon('star', size: 12),
     'needs_player' => null,
@@ -608,6 +615,16 @@ class _AssetPanel extends ConsumerWidget {
     null || 'insufficient_coins' => const GameIcon('coin', size: 12),
     _ => null,
   };
+
+  /// The label as spans, when the coin has to sit inside the sentence.
+  ///
+  /// Null everywhere else, and then the button prints the plain string — this
+  /// is the shortfall line and nothing else. Asked for from the couch: the
+  /// "Needs x more" button was the last coin bag left on a priced control.
+  List<InlineSpan>? _actionSpans() {
+    final label = _actionLabel();
+    return label.contains(coinSlot) ? withCoinGlyph(label) : null;
+  }
 }
 
 /// The facility's artwork, and the two badges on it: what tier it is at, and

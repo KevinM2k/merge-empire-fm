@@ -99,6 +99,7 @@ class StoreButton extends StatefulWidget {
     super.key,
     required this.tone,
     required this.label,
+    this.labelSpans,
     required this.onTap,
     this.leading,
     this.small = false,
@@ -116,6 +117,16 @@ class StoreButton extends StatefulWidget {
   /// Null is dead: flat, faded, and it keeps its label. A button that vanishes
   /// when you cannot afford it takes away the price you needed to see.
   final VoidCallback? onTap;
+
+  /// **The label as SPANS, for a glyph that belongs INSIDE the sentence.**
+  ///
+  /// [leading] puts a glyph in front of the words, which is where most priced
+  /// controls want one. `club.need_more` does not: "Need {coin} {amount} more"
+  /// names the currency mid-line and moves it with the language, so the only
+  /// place the coin can go is where the translator put it. Build these with
+  /// `withCoinGlyph`, and leave [label] as the plain-text reading of the same
+  /// line — it is what the button's semantics announce.
+  final List<InlineSpan>? labelSpans;
 
   /// A glyph before the label — a coin, a gem. Takes the button's ink, so a
   /// caller must not colour it.
@@ -260,16 +271,37 @@ class _StoreButtonState extends State<StoreButton> {
             const SizedBox(width: 4),
           ],
           Flexible(
-            child: Text(
-              widget.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: ink,
-                fontSize: widget.small ? 11 : 14,
-                fontWeight: FontWeight.w900,
-              ),
+            child: Builder(
+              builder: (context) {
+                final style = TextStyle(
+                  color: ink,
+                  fontSize: widget.small ? 11 : 14,
+                  fontWeight: FontWeight.w900,
+                );
+                // A glyph inside the words comes through as a `WidgetSpan`, and
+                // it reads the AMBIENT ink rather than being handed one — the
+                // caller has no way to know what colour this face prints in.
+                final spans = widget.labelSpans;
+                if (spans == null) {
+                  return Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: style,
+                  );
+                }
+                return DefaultTextStyle.merge(
+                  style: style,
+                  child: Text.rich(
+                    TextSpan(children: spans),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: style,
+                  ),
+                );
+              },
             ),
           ),
           if (widget.tone == StoreTone.ad && !dead) ...[

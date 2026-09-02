@@ -230,6 +230,7 @@ const Map<String, String> arCatalog = <String, String>{
   'play.squad_tired': 'الفريق منهك',
   'match.dugout_cam': 'كاميرا مقاعد البدلاء',
   'match.replay': 'إعادة',
+  'match.chance': 'فرصة',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

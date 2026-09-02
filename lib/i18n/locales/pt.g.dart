@@ -230,6 +230,7 @@ const Map<String, String> ptCatalog = <String, String>{
   'play.squad_tired': 'PLANTEL EXAUSTO',
   'match.dugout_cam': 'Câmara do banco',
   'match.replay': 'Repetição',
+  'match.chance': 'Chance',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

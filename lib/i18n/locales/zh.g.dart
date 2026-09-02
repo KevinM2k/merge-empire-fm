@@ -230,6 +230,7 @@ const Map<String, String> zhCatalog = <String, String>{
   'play.squad_tired': '全队过度疲劳',
   'match.dugout_cam': '教练席镜头',
   'match.replay': '回放',
+  'match.chance': '机会',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

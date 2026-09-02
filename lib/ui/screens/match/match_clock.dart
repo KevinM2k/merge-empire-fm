@@ -41,6 +41,16 @@ typedef TimelineEvent = ({
 
   /// Who went down, on an injury.
   String? player,
+
+  /// **THE PARAMETERS THAT CAME WITH [textKey], and they were being dropped.**
+  ///
+  /// Two of the engine's own events write a `textParams` alongside their key —
+  /// `commentary.snub` (`{opp}`) and `commentary.opp_sub` (`{opp}`) — and this
+  /// record had nowhere to put them, so the feed handed `t()` an empty map. The
+  /// snub line is the one that reached a screen: a grudge match opened with the
+  /// literal text `{opp} are furious at the snub` in every language that has
+  /// one.
+  Map<String, Object?> params,
 });
 
 /// The name to force onto the shooter's dot for a clip, or null for no name.
@@ -106,6 +116,12 @@ List<TimelineEvent> timelineOf(Map<String, dynamic> result) {
           big: e['big'] == true,
           xg: (e['xg'] as num?)?.toDouble() ?? 0,
           player: e['player'] as String?,
+          params: e['textParams'] is Map
+              ? {
+                  for (final entry in (e['textParams'] as Map).entries)
+                    '${entry.key}': entry.value,
+                }
+              : const {},
         ),
   ]..sort((a, b) => a.minute.compareTo(b.minute));
 }
@@ -400,11 +416,24 @@ List<FeedLine> feedOf(
           ));
         }
       case 'halftime':
+        // **THE VERDICT AT THE BREAK, which was three shipped strings nothing
+        // could reach.** The line was `match.half_time` — the same key the row's
+        // own HEAD prints — so the interval read "45' HALF TIME" over the words
+        // "Half Time", the one row in the feed that said its own name twice and
+        // nothing else. `_processEvent` in `MatchPopup.js` picks between
+        // `commentary.halftime_ahead`, `_behind` and `_level` off the score as
+        // the feed has told it, and all three are translated in ten catalogues
+        // with no caller in the port.
         out.add((
           minute: e.minute,
           type: e.type,
-          key: 'match.half_time',
-          params: const {},
+          key: ours > theirs
+              ? 'commentary.halftime_ahead'
+              : theirs > ours
+              ? 'commentary.halftime_behind'
+              : 'commentary.halftime_level',
+          // `halftime_level` takes none, and a spare parameter is ignored.
+          params: {'us': ourName},
           seed: 'ht',
           goal: null,
           aboutId: null,
@@ -425,7 +454,10 @@ List<FeedLine> feedOf(
             minute: e.minute,
             type: e.type,
             key: e.textKey!,
-            params: const {},
+            // The engine's own — see [TimelineEvent.params]. Empty on the flow
+            // pools, which take none; `{opp}` on the grudge line, which was
+            // printing that brace to players.
+            params: e.params,
             seed: '${e.minute}-c',
             goal: null,
             aboutId: null,
@@ -470,6 +502,26 @@ List<FeedLine> feedOf(
           key: shown ?? 'commentary.forces_save',
           params: {'who': mine ? ourName : theirName},
           seed: '${e.minute}-ch',
+          goal: null,
+          aboutId: null,
+        ));
+      // **THEIR CHANGES, which the port dropped on the floor.**
+      //
+      // `buildMatchResult` pushes one `opp_sub` per entry in the AI's rotation
+      // plan — the same plan the simulation consumed, so the line, the badge
+      // bump and the maths describe one reality — and it writes the key and the
+      // parameters onto the event itself. This fell through to `default` and
+      // said nothing, so `commentary.opp_sub` was translated in ten catalogues
+      // and unreachable, and the only substitutions a player ever saw in ninety
+      // minutes were their own. Asked for from the couch, in exactly those
+      // terms: a feed with substitutions in it.
+      case 'opp_sub':
+        out.add((
+          minute: e.minute,
+          type: e.type,
+          key: e.textKey ?? 'commentary.opp_sub',
+          params: e.params,
+          seed: '${e.minute}-oppsub',
           goal: null,
           aboutId: null,
         ));

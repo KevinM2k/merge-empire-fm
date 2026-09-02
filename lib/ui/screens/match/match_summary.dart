@@ -573,9 +573,12 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text('${t('match.no_thanks')} - '),
-                                      const CoinIcon(size: 12, onGlass: true),
-                                      const SizedBox(width: 3),
-                                      Text(formatCoins(_base + _quests)),
+                                      _CoinBadge(
+                                        amount: _base + _quests,
+                                        fontSize: 12,
+                                        iconSize: 11,
+                                        sign: '',
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1282,24 +1285,55 @@ class _Payout extends StatelessWidget {
   }
 }
 
-/// The match payout, in the coin badge the HUD already wears.
+/// **EVERY COIN FIGURE ON THIS SCREEN, in the badge the HUD already wears.**
 ///
 /// One filled pill in the wallet's shop face with the lightened print on it —
 /// `hudBadgeColour` and `hudBadgeInk`, the pair `HudChip` and the daily
 /// reward's chips both use. It says the same thing on a daylit page as on a
 /// night one, which a `#FFD700` figure does not.
+///
+/// **And that is why the small figures wear it too now.** They were gold text
+/// with a halo behind it — [coinFigureInk] plus [coinFigureShadows] — which is
+/// the trick for a bright hue on glass and which the split rows, the quest
+/// tiles and the quest total all leaned on. Reported from the couch: the coins
+/// on the full-time screen are hard to read in light mode, and the fix is the
+/// badge the bar already uses. It is the same answer, taken all the way: you
+/// cannot make a yellow legible on a bright pane, so the pill carries its own
+/// dark-enough ground with it and the figure stops depending on what is behind
+/// it.
+///
+/// [fontSize] and [iconSize] are the whole of the difference between the payout
+/// badge and a row's — the padding and the gap come off the glyph, so a pill at
+/// any size is the same object rather than a second one tuned by hand.
 class _CoinBadge extends StatelessWidget {
-  const _CoinBadge({required this.amount, this.textKey});
+  const _CoinBadge({
+    required this.amount,
+    this.textKey,
+    this.fontSize = 26,
+    this.iconSize = 20,
+    this.sign = '+',
+  });
 
   final int amount;
   final Key? textKey;
+  final double fontSize;
+  final double iconSize;
+
+  /// What goes in front of the figure. `'+'` on money the match ADDED; empty on
+  /// a line stating a total, where a plus claims an addition that is not one.
+  final String sign;
 
   @override
   Widget build(BuildContext context) {
     final face = hudBadgeColour(hudCoinInk);
     final ink = hudBadgeInk(face);
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 2, 12, 2),
+      padding: EdgeInsets.fromLTRB(
+        iconSize * 0.5,
+        iconSize * 0.12,
+        iconSize * 0.6,
+        iconSize * 0.12,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: face,
@@ -1307,15 +1341,19 @@ class _CoinBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CoinIcon(size: 20, solid: true, color: ink),
-          const SizedBox(width: 6),
+          CoinIcon(size: iconSize, solid: true, color: ink),
+          SizedBox(width: iconSize * 0.3),
           Text(
-            '+${formatCoins(amount)}',
+            '$sign${formatCoins(amount)}',
             key: textKey,
+            maxLines: 1,
             style: TextStyle(
-              fontSize: 26,
+              fontSize: fontSize,
               fontWeight: FontWeight.w900,
               color: ink,
+              // Tabular so a column of pills has its digits under each other
+              // rather than drifting by a comma.
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ],
@@ -1352,18 +1390,11 @@ class _Split extends StatelessWidget {
           // **THE COIN COMES DOWN HERE WITH THE FIGURE.** These rows are the
           // whole of the money on this card now — the badge over them has gone
           // — so they are the ones that have to say what the number IS. Asked
-          // for from the couch in those terms. `onGlass`, because the card is
-          // a pane rather than a plate.
-          const CoinIcon(size: 12, onGlass: true),
-          const SizedBox(width: 4),
-          Text(
-            '+${formatCoins(amount)}',
-            style: style.copyWith(
-              color: coinFigureInk(context, onGlass: true),
-              shadows: coinFigureShadows(context, onGlass: true),
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
+          // for from the couch in those terms.
+          //
+          // And in the BADGE, for the same reason the payout is: gold text on
+          // a light pane is the thing that was reported. See [_CoinBadge].
+          _CoinBadge(amount: amount, fontSize: 12, iconSize: 11),
         ],
       ),
     );
@@ -1481,20 +1512,15 @@ class QuestOutcomes extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 5),
-                const CoinIcon(size: 12, onGlass: true),
-                const SizedBox(width: 3),
-                // The figure alone, for the same reason the rows dropped it:
-                // the glyph beside it already says coins.
-                Text(
-                  formatCoins(total.toInt()),
-                  textAlign: TextAlign.right,
-                  maxLines: 1,
-                  // Gold, for the same reason the rows are — see above.
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: coinFigureInk(context, onGlass: true),
-                    shadows: coinFigureShadows(context, onGlass: true),
-                  ),
+                // The figure alone — no `+`: this is the sum of the rows above
+                // it rather than money being added to them. In the badge, for
+                // the same reason every other total on the screen is; see
+                // [_CoinBadge].
+                _CoinBadge(
+                  amount: total.toInt(),
+                  fontSize: 11.5,
+                  iconSize: 11,
+                  sign: '',
                 ),
               ],
             ),
@@ -1589,24 +1615,19 @@ class _QuestTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: won
                 ? [
-                    const CoinIcon(size: 11, onGlass: true),
-                    const SizedBox(width: 3),
-                    Text(
-                      formatCoins(((row['coins'] as num?) ?? 0).toInt()),
-                      maxLines: 1,
-                      // **GOLD, NOT THE VERDICT'S GREEN — always.** It took the
-                      // pass colour, so the one coin figure on the report drawn
-                      // in green sat two inches from four drawn in gold.
-                      // Reported from the couch: coins are the yellow, always.
-                      // The tick beside it is what says the quest passed; the
-                      // figure says what it paid, and a currency does not change
-                      // colour with the news. Same `coinFigureInk` every other
-                      // total on this screen reads.
-                      style: TextStyle(
-                        color: coinFigureInk(context, onGlass: true),
-                        shadows: coinFigureShadows(context, onGlass: true),
-                        fontSize: 11.5,
-                      ),
+                    // **GOLD, NOT THE VERDICT'S GREEN — always.** It took the
+                    // pass colour, so the one coin figure on the report drawn
+                    // in green sat two inches from four drawn in gold.
+                    // Reported from the couch: coins are the yellow, always.
+                    // The tick beside it is what says the quest passed; the
+                    // figure says what it paid, and a currency does not change
+                    // colour with the news. The same badge every other figure
+                    // on this screen wears — see [_CoinBadge].
+                    _CoinBadge(
+                      amount: ((row['coins'] as num?) ?? 0).toInt(),
+                      fontSize: 11,
+                      iconSize: 10,
+                      sign: '',
                     ),
                   ]
                 : [Icon(Icons.close_rounded, size: 15, color: ink)],

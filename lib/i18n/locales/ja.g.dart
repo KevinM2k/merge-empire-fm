@@ -230,6 +230,7 @@ const Map<String, String> jaCatalog = <String, String>{
   'play.squad_tired': 'スカッドが疲労困憊',
   'match.dugout_cam': 'ベンチカメラ',
   'match.replay': 'リプレイ',
+  'match.chance': 'チャンス',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

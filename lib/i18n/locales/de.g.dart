@@ -230,6 +230,7 @@ const Map<String, String> deCatalog = <String, String>{
   'play.squad_tired': 'KADER ZU MÜDE',
   'match.dugout_cam': 'Trainerbank-Kamera',
   'match.replay': 'Wiederholung',
+  'match.chance': 'Chance',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

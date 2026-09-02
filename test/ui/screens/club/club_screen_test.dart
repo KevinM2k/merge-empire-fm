@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
@@ -695,15 +696,26 @@ void main() {
       expect(find.textContaining(t('club.build')), findsWidgets);
     });
 
-    testWidgets('BUT `club.need_more` KEEPS ITS EMOJI, and has to', (
-      tester,
-    ) async {
-      // Its `{coin}` sits mid sentence — "Need {coin} {amount} more" — and
-      // moves with the language, so there is no position on the button for a
-      // widget to take. A `String` cannot carry one, which is the same limit
-      // `t()` states about `<strong>`.
+    testWidgets('AND SO DOES THE SHORTFALL, mid-sentence', (tester) async {
+      // The last coin bag on a priced control, and it was left there on the
+      // reasoning that a `String` cannot carry a widget. True, and beside the
+      // point: `{coin}` sits mid sentence — "Need {coin} {amount} more" — and
+      // moves with the language, so what it needed was not a leading glyph but
+      // a SLOT the coin is drawn into where the translator put it. Reported
+      // from the couch.
       await pumpClub(tester, coins: 0);
-      expect(find.textContaining('💰'), findsWidgets);
+      final button = find.byKey(const ValueKey('club-action-$_key'));
+      expect(button, findsOneWidget);
+      expect(find.textContaining('💰'), findsNothing);
+      // The slot itself must never reach a reader, or a screen reader.
+      expect(find.textContaining(coinSlot), findsNothing);
+      // And the coin is a real one, inside the label rather than in front of
+      // it: nothing was handed to `leading`.
+      expect(tester.widget<StoreButton>(button).leading, isNull);
+      expect(
+        find.descendant(of: button, matching: find.byType(CoinIcon)),
+        findsOneWidget,
+      );
     });
   });
 }

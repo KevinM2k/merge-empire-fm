@@ -230,6 +230,7 @@ const Map<String, String> koCatalog = <String, String>{
   'play.squad_tired': '스쿼드 과로',
   'match.dugout_cam': '벤치 카메라',
   'match.replay': '다시 보기',
+  'match.chance': '찬스',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

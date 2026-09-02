@@ -437,6 +437,46 @@ class CoinIcon extends StatelessWidget {
   );
 }
 
+/// **THE SLOT A COIN GLYPH GOES INTO, inside a sentence.**
+///
+/// Some copy names the currency mid-line rather than in front of it —
+/// `club.need_more` is "Need {coin} {amount} more" — and WHERE it names it
+/// moves with the language: first word in English and German, mid-sentence in
+/// Portuguese, Japanese and Chinese. So there is no fixed position on the
+/// control for a leading widget to take, and a `String` cannot carry a widget.
+/// That is the same limit `t()` states about `<strong>`, and it is why the
+/// button wore a 💰 while every other priced control in the app wore the set's
+/// own coin.
+///
+/// Fill the placeholder with this instead of an emoji, then hand the line to
+/// [withCoinGlyph]. A NUL cannot appear in translated copy, so the split can
+/// never cut a sentence in the wrong place.
+const String coinSlot = '\u0000';
+
+/// That line as spans, with the app's coin where the translator put it.
+///
+/// The plain-text reading is [withoutCoinGlyph], which is what a control's
+/// semantics and a `find.text` want.
+List<InlineSpan> withCoinGlyph(String line, {double size = 11}) {
+  final parts = line.split(coinSlot);
+  return [
+    for (var i = 0; i < parts.length; i++) ...[
+      if (i > 0)
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          // No colour: `GameIcon` falls back to the ambient text style, so the
+          // glyph takes whatever ink the control prints its label in.
+          child: CoinIcon(size: size),
+        ),
+      if (parts[i].isNotEmpty) TextSpan(text: parts[i]),
+    ],
+  ];
+}
+
+/// The same line with the slot taken out and the space it left closed up.
+String withoutCoinGlyph(String line) =>
+    line.replaceAll(coinSlot, '').replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+
 /// A cluster of [n] coins, for the shop's coin-bundle tiles.
 ///
 /// The four bundles used to carry a bag, a gem, a bank and a crown, which said

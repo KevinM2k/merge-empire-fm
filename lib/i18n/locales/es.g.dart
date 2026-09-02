@@ -230,6 +230,7 @@ const Map<String, String> esCatalog = <String, String>{
   'play.squad_tired': 'PLANTILLA AGOTADA',
   'match.dugout_cam': 'Cámara del banquillo',
   'match.replay': 'Repetición',
+  'match.chance': 'Ocasión',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',

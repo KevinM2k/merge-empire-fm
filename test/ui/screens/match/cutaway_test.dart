@@ -35,6 +35,7 @@ TimelineEvent _event(
   big: big,
   xg: xg,
   player: null,
+  params: const {},
 );
 
 void main() {

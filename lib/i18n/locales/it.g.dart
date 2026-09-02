@@ -230,6 +230,7 @@ const Map<String, String> itCatalog = <String, String>{
   'play.squad_tired': 'ROSA ESAUSTA',
   'match.dugout_cam': 'Camera panchina',
   'match.replay': 'Replay',
+  'match.chance': 'Occasione',
   'match.subs': 'Subs',
   'match.subs.done': 'Back to match',
   'match.subs.on_pitch': 'On the pitch',
