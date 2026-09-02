@@ -276,7 +276,7 @@ const double coachTailTipX = 1.5;
 /// rest. His LINE is 13 and always was; this is the name above it.
 TextStyle coachLabelStyle(BuildContext context) => TextStyle(
   color: Theme.of(context).extension<KitTheme>()!.accentBright,
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: FontWeight.w800,
   letterSpacing: 0.5,
 );

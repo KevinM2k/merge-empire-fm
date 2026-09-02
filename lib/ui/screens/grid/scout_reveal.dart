@@ -43,6 +43,7 @@ import 'package:merge_empire_fc/ui/screens/grid/merge_burst.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 
 /// One card being turned over.
 typedef ScoutRevealCard = ({
@@ -1046,7 +1047,7 @@ class _CardBack extends StatelessWidget {
                   'MERGE EMPIRE FC',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: (size * 0.072).clamp(6, 12),
+                    fontSize: (size * 0.072).clamp(minFontSize, 14),
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.5,
                     color: Colors.white.withValues(alpha: 0.4),
@@ -1084,7 +1085,7 @@ class _Pill extends StatelessWidget {
         // card down to one in a two-by-two.
         style: TextStyle(
           color: kit.accentBright,
-          fontSize: (size * 0.08).clamp(8, 13),
+          fontSize: (size * 0.08).clamp(minFontSize, 14),
           fontWeight: FontWeight.w900,
           letterSpacing: 0.5,
         ),

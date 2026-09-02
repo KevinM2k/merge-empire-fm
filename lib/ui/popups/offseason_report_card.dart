@@ -187,7 +187,7 @@ class _VeteranRow extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(note, style: TextStyle(fontSize: 11, color: tone)),
+              Text(note, style: TextStyle(fontSize: 12, color: tone)),
             ],
           ),
         ),
@@ -208,7 +208,7 @@ class _Heading extends StatelessWidget {
     child: Text(
       text.toUpperCase(),
       style: TextStyle(
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.8,
         color: Theme.of(context).extension<KitTheme>()!.textMuted,

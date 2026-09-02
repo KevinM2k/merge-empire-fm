@@ -108,7 +108,7 @@ class LeaderboardView extends ConsumerWidget {
                       ),
                       Text(
                         me.division,
-                        style: TextStyle(fontSize: 11, color: kit.textMuted),
+                        style: TextStyle(fontSize: 12, color: kit.textMuted),
                       ),
                     ],
                   ),
@@ -118,7 +118,7 @@ class LeaderboardView extends ConsumerWidget {
                   children: [
                     Text(
                       t('leaderboard.your_rank_label'),
-                      style: TextStyle(fontSize: 10, color: kit.textMuted),
+                      style: TextStyle(fontSize: 12, color: kit.textMuted),
                     ),
                     Text(
                       // **THE BOARD'S ANSWER, not a dash.** This printed
@@ -162,7 +162,7 @@ class LeaderboardView extends ConsumerWidget {
               t('leaderboard.guest_footer'),
               key: const ValueKey('leaderboard-guest'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: kit.textMuted),
+              style: TextStyle(fontSize: 12, color: kit.textMuted),
             ),
           ],
         ],

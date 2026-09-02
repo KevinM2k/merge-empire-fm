@@ -374,14 +374,22 @@ class PosChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
         ),
-        child: Row(
+        // **THE WHOLE CHIP SHRINKS RATHER THAN OVERFLOWING.** The type floor
+        // took this row from 10 to 12, and in Arabic — where `play.pos_label`
+        // is a word rather than an abbreviation — the pair no longer fitted the
+        // 102 points the card gives it. A chip is a fixed slot in a row of
+        // them, so the thing that gives is the type inside it, not the layout
+        // around it. Same trick the ratings' modifier band uses.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               '${t('play.pos_label')}:',
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.6,
                 color: Theme.of(
@@ -396,7 +404,7 @@ class PosChip extends StatelessWidget {
                   TextSpan(
                     text: '$pos',
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: Theme.of(
                         context,
@@ -411,7 +419,7 @@ class PosChip extends StatelessWidget {
                     child: Text(
                       ordinalSuffix(pos),
                       style: TextStyle(
-                        fontSize: 7.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                         color: Theme.of(
                           context,
@@ -441,6 +449,7 @@ class PosChip extends StatelessWidget {
               ),
             ],
           ],
+          ),
         ),
       ),
     );
@@ -486,7 +495,7 @@ class _Name extends StatelessWidget {
             note!,
             key: const ValueKey('nm-bonus-note'),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 9, color: glassMuted(context)),
+            style: TextStyle(fontSize: 12, color: glassMuted(context)),
           ),
       ],
     );
@@ -514,7 +523,7 @@ class _TacticChip extends ConsumerWidget {
     final id = ref.watch(strategyIdProvider);
     final hue = tacticColor(context, id);
     const style = TextStyle(
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: FontWeight.w800,
       letterSpacing: 0.6,
       height: 1.1,

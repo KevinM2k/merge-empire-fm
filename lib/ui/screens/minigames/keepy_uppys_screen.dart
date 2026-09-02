@@ -222,7 +222,7 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
                     '${stage.emoji ?? '⚫'} ${t(stage.labelKey)}'
                     '${stage.rewardMult > 1 ? ' ×${stage.rewardMult}' : ''}',
                     key: const ValueKey('ku-stage'),
-                    style: TextStyle(fontSize: 11, color: kit.textMuted),
+                    style: TextStyle(fontSize: 12, color: kit.textMuted),
                   ),
                 ],
               ),
@@ -384,7 +384,7 @@ class _Arena extends StatelessWidget {
                       t('game.keepy.hint'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: Colors.white70,
                       ),
@@ -541,7 +541,7 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
+      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 12)),
       Text(
         value,
         key: valueKey,

@@ -579,19 +579,21 @@ double tuftLengthBoost(int tier) =>
 /// standing water; at and above it the groundsman has been.
 const int firstKeptPitchTier = 2;
 
-/// How big he renders. 1.2 → 1.5 → 1.35 → 1.22: at 1.2 he was a detail in a wide
-/// shot and the gestures, kit and look packs did not read; 1.5 read but crowded
-/// the frame on a notched phone.
+/// How big he renders. 1.2 → 1.5 → 1.35 → 1.22 → 1.34: at 1.2 he was a detail in
+/// a wide shot and the gestures, kit and look packs did not read; 1.5 read but
+/// crowded the frame on a notched phone.
 ///
-/// **Back down to 1.22 now the stadium is worth looking at.** 1.35 was the settled
-/// middle when the terrace was a strip along the top of the frame and he was the
-/// only thing on the screen with any detail on it; with the horizon down and the
-/// stand in the middle of the picture, he was competing with it. The figure is
-/// also a better drawing than it was, so it survives being smaller.
+/// It went down to 1.22 when the stadium became worth looking at — with the
+/// horizon down and the stand in the middle of the picture, a 1.35 manager was
+/// competing with it. **And that turned out to be a step too far**: asked for
+/// from the couch as about ten per cent bigger, which lands almost exactly back
+/// on the middle the earlier rounds had settled on. The stand has since gained
+/// its own depth layers and its own haze, so it holds its place in the frame
+/// without the figure having to give ground for it.
 ///
 /// The ground speed follows him — [groundSpeedPxPerSec] multiplies his stride by
-/// this — so a smaller man takes smaller steps and the grass slows to match.
-const double walkerScale = 1.22;
+/// this — so a bigger man takes bigger steps and the grass speeds up to match.
+const double walkerScale = 1.34;
 
 /// How far up he stands, measured from the footer rather than off a percentage of
 /// the page, so the bottom of the screen reads as one group however tall the

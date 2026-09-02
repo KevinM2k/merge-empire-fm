@@ -177,7 +177,7 @@ Future<void> showSellSheet(
                                   key: const ValueKey('sell-tier'),
                                   style: TextStyle(
                                     color: _plateInk(sheetContext),
-                                    fontSize: 10,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.8,
                                   ),
@@ -189,7 +189,7 @@ Future<void> showSellSheet(
                                   key: const ValueKey('sell-refresh'),
                                   style: TextStyle(
                                     color: _plateInk(sheetContext),
-                                    fontSize: 10,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],
@@ -227,7 +227,7 @@ Future<void> showSellSheet(
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: _plateInk(sheetContext),
-                                fontSize: 11,
+                                fontSize: 12,
                               ),
                             ),
                           ],

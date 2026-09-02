@@ -386,7 +386,7 @@ class _GameRow extends ConsumerWidget {
                     if (reason != null)
                       Text(
                         ' · ',
-                        style: TextStyle(color: kit.textMuted, fontSize: 11),
+                        style: TextStyle(color: kit.textMuted, fontSize: 12),
                       ),
                   ],
                   if (reason != null)
@@ -395,7 +395,7 @@ class _GameRow extends ConsumerWidget {
                         reason,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: kit.textMuted, fontSize: 11),
+                        style: TextStyle(color: kit.textMuted, fontSize: 12),
                       ),
                     ),
                 ],
@@ -447,7 +447,7 @@ class _CoinBadge extends StatelessWidget {
             formatCoins(amount),
             style: TextStyle(
               color: ink,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
           ),

@@ -183,7 +183,7 @@ class WelcomeBackCardState extends State<WelcomeBackCard> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: kit.textMuted,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.6,
                     ),
@@ -218,7 +218,7 @@ class WelcomeBackCardState extends State<WelcomeBackCard> {
                             t('welcome.note_capped', {'hours': offlineCapHours}),
                             style: TextStyle(
                               color: kit.textMuted,
-                              fontSize: 11,
+                              fontSize: 12,
                               height: 1.35,
                             ),
                           ),

@@ -568,9 +568,10 @@ void main() {
     testWidgets('AND EACH BADGE SAYS WHICH WALLET IT IS', (tester) async {
       // A badge is a colour, a glyph and a figure; which of the three wallets
       // it is was left to the player to know, and a first-week player does not.
-      // Asked for from the couch, in caps, under the badge. Every word is
-      // shipped copy — the receipt on this same sheet and the two shop
-      // sections.
+      // Asked for from the couch, under the badge. Every word is shipped copy
+      // — the receipt on this same sheet and the two shop sections. Not in
+      // caps: at the app's minimum type size a spaced-out capital legend reads
+      // as a heading rather than as a caption.
       await pumpSheet(tester, save());
       final seventh = find.byKey(const ValueKey('daily-day-7'));
       for (final key in [
@@ -579,7 +580,7 @@ void main() {
         'shop.section.gems',
       ]) {
         expect(
-          find.descendant(of: seventh, matching: find.text(t(key).toUpperCase())),
+          find.descendant(of: seventh, matching: find.text(t(key))),
           findsOneWidget,
           reason: key,
         );

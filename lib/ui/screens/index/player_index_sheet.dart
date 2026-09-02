@@ -370,7 +370,7 @@ class _Dropdown<T> extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 11, color: kit.textMuted),
+            style: TextStyle(fontSize: 12, color: kit.textMuted),
           ),
           selectedItemBuilder: (context) => [
             for (final (optionValue, optionLabel) in options)
@@ -380,12 +380,12 @@ class _Dropdown<T> extends StatelessWidget {
                   optionValue == null ? label : optionLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
           ],
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
             color: active ? kit.accentBright : kit.textMuted,
           ),
@@ -395,7 +395,7 @@ class _Dropdown<T> extends StatelessWidget {
                 value: optionValue,
                 child: Text(
                   optionValue == null ? label : optionLabel,
-                  style: const TextStyle(fontSize: 11),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
           ],
@@ -570,7 +570,7 @@ class _IndexCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w900,
                         color: discovered
                             ? (light ? captionInk : Colors.white)
@@ -582,7 +582,7 @@ class _IndexCard extends StatelessWidget {
                           ? '${entry.def.position} · T${entry.def.tier}'
                           : 'T${entry.def.tier}',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         // `accentLight` is a PALE tier colour — it is the tier
                         // read off a black scrim. On a white one it is the
@@ -619,7 +619,7 @@ class _Badge extends StatelessWidget {
     child: Text(
       text,
       style: TextStyle(
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: FontWeight.w900,
         height: 1.4,
         color: color,
@@ -713,7 +713,7 @@ class _RecipeDialog extends StatelessWidget {
                           entry.female
                               ? '♀ ${t('pi.gender_female')}'
                               : '♂ ${t('pi.gender_male')}',
-                          style: TextStyle(fontSize: 11, color: kit.textMuted),
+                          style: TextStyle(fontSize: 12, color: kit.textMuted),
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -721,7 +721,7 @@ class _RecipeDialog extends StatelessWidget {
                               ? '✓ ${t('pi.discovered')}'
                               : '✗ ${t('pi.not_found')}',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: discovered
                                 ? kit.accentBright
@@ -786,7 +786,7 @@ class _RecipeDialog extends StatelessWidget {
                         child: Text(
                           tName('division', id),
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -801,7 +801,7 @@ class _RecipeDialog extends StatelessWidget {
                   Text(
                     t('pi.tier9_note'),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       height: 1.5,
                       color: kit.textMuted,
                     ),
@@ -836,7 +836,7 @@ class _SectionTitle extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
           color: kit.textMuted,
@@ -881,7 +881,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label.toUpperCase(),
-              style: TextStyle(fontSize: 9, color: kit.textMuted),
+              style: TextStyle(fontSize: 12, color: kit.textMuted),
             ),
           ],
         ),

@@ -594,7 +594,7 @@ class _DayBand extends StatelessWidget {
       fit: BoxFit.scaleDown,
       child: Text(
         label,
-        style: TextStyle(color: ink, fontSize: 11, fontWeight: FontWeight.w900),
+        style: TextStyle(color: ink, fontSize: 12, fontWeight: FontWeight.w900),
       ),
     ),
   );
@@ -631,13 +631,17 @@ class _DayBand extends StatelessWidget {
 /// ragged against the day beside it — but the colour now covers a figure rather
 /// than a row.
 ///
-/// **AND ONE SIZE ON EVERY DAY.** Day seven's tile is taller and wider, so its
-/// badges were drawn up 25% to match it. That is right for a tile and wrong for
-/// a FIGURE: the strip is read across, and a bigger number on the last rung
-/// makes the six beside it look like small print rather than making the seventh
-/// look like the prize. Asked for from the couch. What says day seven is
-/// special is its size, its gold and its glow — it does not also need a
-/// different typeface.
+/// **AND ONE SIZE ON EVERY DAY — DAY SEVEN'S.** Its tile is taller and wider,
+/// so its badges were drawn up 25% to match it and the other six stayed at the
+/// base size. The strip is read ACROSS, so that made the six look like small
+/// print rather than making the seventh look like the prize. Asked for from the
+/// couch, and asked for in the direction that matters: the big one was the one
+/// that read, so every day is at that size now and none of them is at the old
+/// one. What still says day seven is special is its size, its gold and its
+/// glow — it does not also need a different typeface.
+///
+/// A narrow tile with a seven-figure payout still shrinks to fit, which is what
+/// `FittedBox` is there for; what has changed is where it shrinks FROM.
 
 /// The air over the first chip, between each pair, and under the last — one
 /// number, because a strip whose outer gap is not its inner gap reads as the
@@ -743,8 +747,8 @@ class _RewardChips extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: 5,
-                vertical: 1.5,
+                horizontal: 6,
+                vertical: 2,
               ),
               decoration: BoxDecoration(
                 color: fill,
@@ -757,13 +761,13 @@ class _RewardChips extends StatelessWidget {
                     // The app's own coin, bolt and gem — the money was an emoji
                     // money-bag, which is the one glyph in the game that was
                     // not drawn in the set everything else is drawn in.
-                    GameIcon(name, size: 10, color: ink),
-                    const SizedBox(width: 3),
+                    GameIcon(name, size: 12.5, color: ink),
+                    const SizedBox(width: 4),
                   ],
                   Text(
                     part.text,
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 13,
                       height: 1.1,
                       color: ink,
                       fontWeight: today ? FontWeight.w900 : FontWeight.w700,
@@ -778,14 +782,21 @@ class _RewardChips extends StatelessWidget {
             // from the couch, in caps, under the badge. Quiet and small — it is
             // a legend, not a second figure. See [DayReward.label].
             if (part.label case final name?) ...[
-              const SizedBox(height: 1.5),
+              const SizedBox(height: 2),
+              // **NOT IN CAPS, and not because caps are wrong here.** It was
+              // `COINS` at a caption's size, and once the app's minimum type
+              // size came up to the sheet's own 12 that caption was suddenly as
+              // loud as the figure over it — reported from the couch as too
+              // big. Caps and a letter-spacing are what make a small label read
+              // as a legend, and at 12 they make it read as a heading. So the
+              // word goes back to its own case and takes the weight down
+              // instead; the badge above it is still the thing being read.
               Text(
-                name.toUpperCase(),
+                name,
                 style: TextStyle(
-                  fontSize: 6.5,
+                  fontSize: 12,
                   height: 1,
-                  letterSpacing: 0.5,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   color: kit.textMuted,
                 ),
               ),

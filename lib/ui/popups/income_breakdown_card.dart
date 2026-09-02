@@ -152,7 +152,7 @@ class _IncomeCard extends StatelessWidget {
                       t('hud.income.wages_capped'),
                       key: const ValueKey('income-capped'),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         height: 1.45,
                         color: vsRedOn(context),
                       ),
@@ -178,7 +178,7 @@ class _Heading extends StatelessWidget {
     child: Text(
       text.toUpperCase(),
       style: TextStyle(
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.8,
         color: Theme.of(context).extension<KitTheme>()!.textMuted,

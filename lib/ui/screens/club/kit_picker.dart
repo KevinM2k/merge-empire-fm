@@ -113,7 +113,7 @@ class KitRedesignRow extends ConsumerWidget {
                 ),
                 Text(
                   t('club.kit_design_hint'),
-                  style: TextStyle(fontSize: 11, color: kit.textMuted),
+                  style: TextStyle(fontSize: 12, color: kit.textMuted),
                 ),
               ],
             ),
@@ -129,7 +129,7 @@ class KitRedesignRow extends ConsumerWidget {
             ),
             child: Text(
               t('club.redesign'),
-              style: const TextStyle(fontSize: 11),
+              style: const TextStyle(fontSize: 12),
             ),
           ),
         ],
@@ -365,7 +365,7 @@ class _Swatch extends StatelessWidget {
                       softWrap: false,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 9,
+                        fontSize: 12,
                         height: 1,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,

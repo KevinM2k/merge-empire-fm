@@ -895,7 +895,7 @@ class _CamBar extends StatelessWidget {
 
   static const TextStyle _label = TextStyle(
     color: Color(0xFFCFE4D2),
-    fontSize: 8.5,
+    fontSize: 12,
     fontWeight: FontWeight.w800,
     letterSpacing: 0.95,
     height: 1.2,

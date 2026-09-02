@@ -17,6 +17,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 
 /// The two shades the arrow is drawn in, both taken off `PitchBackdrop.turf`
 /// (`#2D6A2D`). Ours reads as a lit stripe, theirs as a shadow on the same
@@ -244,7 +245,7 @@ class _ArrowPainter extends CustomPainter {
       text: TextSpan(
         text: name.toUpperCase(),
         style: TextStyle(
-          fontSize: math.max(7, size.height * 0.11),
+          fontSize: math.max(minFontSize, size.height * 0.11),
           fontWeight: FontWeight.w900,
           letterSpacing: 1.2,
           // The mown stripe's own lighter green, kept well under the arrow's:

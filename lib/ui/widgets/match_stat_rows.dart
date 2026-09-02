@@ -572,7 +572,7 @@ class _StatRow extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 9.5,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.8,
               // The WELL's ink, not the pane's — see [vividWellInk].
@@ -946,7 +946,7 @@ class _Mod extends StatelessWidget {
                   Text(
                     '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       height: 1,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,

@@ -144,7 +144,7 @@ class _PyramidPagerState extends ConsumerState<_PyramidPager> {
             t('table.swipe_to_cycle'),
             key: const ValueKey('league-swipe-hint'),
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.4,
               color: kit.textMuted,
@@ -332,7 +332,7 @@ class _ZoneLabel extends StatelessWidget {
         Text(
           text.toUpperCase(),
           style: TextStyle(
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             letterSpacing: 1,
             color: colour,
@@ -405,7 +405,7 @@ class _LastSeasonLegend extends StatelessWidget {
           Text(
             t('table.last_season').toUpperCase(),
             style: TextStyle(
-              fontSize: 9,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
               color: kit.textMuted,
@@ -418,13 +418,13 @@ class _LastSeasonLegend extends StatelessWidget {
                 children: [
                   Text(
                     m.glyph,
-                    style: TextStyle(fontSize: 11, color: m.colour),
+                    style: TextStyle(fontSize: 12, color: m.colour),
                   ),
                   const SizedBox(width: 3),
                   Text(
                     t(m.legendKey),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: kit.textMuted,
                     ),
@@ -539,7 +539,7 @@ class _TableRow extends StatelessWidget {
                         child: Text(
                           m.glyph,
                           key: ValueKey('league-last-season-$position'),
-                          style: TextStyle(fontSize: 11, color: m.colour),
+                          style: TextStyle(fontSize: 12, color: m.colour),
                         ),
                       ),
                     ],
@@ -580,7 +580,7 @@ class _TableRow extends StatelessWidget {
               Text.rich(
                 TextSpan(
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: kit.textMuted,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -648,7 +648,7 @@ class _FormDot extends StatelessWidget {
       child: Text(
         result,
         style: TextStyle(
-          fontSize: 8.5,
+          fontSize: 12,
           height: 1,
           fontWeight: FontWeight.w900,
           color: colour,
@@ -798,7 +798,7 @@ class _CupRow extends StatelessWidget {
                     tie.opponent ?? tie.competition,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10, color: kit.textMuted),
+                    style: TextStyle(fontSize: 12, color: kit.textMuted),
                   ),
                 ],
               ),
@@ -833,7 +833,7 @@ class _When extends StatelessWidget {
       text.toUpperCase(),
       style: TextStyle(
         color: kit.textMuted,
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: FontWeight.w800,
         letterSpacing: 1,
       ),
@@ -939,7 +939,7 @@ class _FixtureRow extends StatelessWidget {
                 t(fixture.isHome ? 'play.home' : 'play.away'),
                 key: ValueKey('fixture-venue-${fixture.matchNum}'),
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0.5,
                   color: fixture.isHome ? kit.accentBright : kit.textMuted,
@@ -985,7 +985,7 @@ class _FixtureRow extends StatelessWidget {
                     : '${fixture.rating}',
                 key: ValueKey('fixture-rating-${fixture.matchNum}'),
                 textAlign: TextAlign.right,
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
+                style: TextStyle(color: kit.textMuted, fontSize: 12),
               ),
             ),
           ),

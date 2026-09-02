@@ -1405,7 +1405,7 @@ class _Chip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: locked ? kit.textMuted : null,
               ),
@@ -1508,7 +1508,7 @@ class _LockedOfferBar extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xCCFFFFFF),
-                        fontSize: 10,
+                        fontSize: 12,
                       ),
                     ),
                   ],

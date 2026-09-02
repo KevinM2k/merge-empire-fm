@@ -412,7 +412,7 @@ class _EnergyOption extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: kit.textMuted, fontSize: 10, height: 1.3),
+                  style: TextStyle(color: kit.textMuted, fontSize: 12, height: 1.3),
                 ),
               ],
               if (note != null) ...[
@@ -422,7 +422,7 @@ class _EnergyOption extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: kit.textMuted, fontSize: 10),
+                  style: TextStyle(color: kit.textMuted, fontSize: 12),
                 ),
               ],
               // **AND IT ENDS IN A BUTTON, in the currency's own colour.** The

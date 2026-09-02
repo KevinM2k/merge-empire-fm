@@ -121,7 +121,7 @@ class PitchEmptySlot extends StatelessWidget {
                 Text(
                   position,
                   style: const TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                     color: Color(0x99FFFFFF),

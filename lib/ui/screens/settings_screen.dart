@@ -872,7 +872,7 @@ class _LanguageTile extends StatelessWidget {
               // semantics, so a screen reader still gets the language's name.
               lang.id.toUpperCase(),
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 12,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                 letterSpacing: 0.3,
                 color: selected ? kit.accentInk : kit.textMuted,

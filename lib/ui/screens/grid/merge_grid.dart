@@ -930,7 +930,7 @@ class _Pill extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: ink,
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
                 ),

@@ -316,7 +316,7 @@ class _CupRound extends ConsumerWidget {
                     child: Text(
                       roundName.toUpperCase(),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                         color: kit.textMuted,
@@ -326,7 +326,7 @@ class _CupRound extends ConsumerWidget {
                   Text(
                     _favouredLabel(ourName, ourRating, opponent, theirRating),
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 12,
                       letterSpacing: 0.5,
                       color: kit.textMuted,
                     ),
@@ -425,7 +425,7 @@ class _SideBlock extends StatelessWidget {
       Text(
         '⭐ ${rating ?? '?'}',
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w900,
           color: Color(0xFFFFD700),
         ),
@@ -482,7 +482,7 @@ class _CoachRead extends StatelessWidget {
                 Text(
                   t('event.cup.coach_on', {'team': opponent}).toUpperCase(),
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                     color: kit.accentBright,
@@ -635,7 +635,7 @@ class _CupResults extends StatelessWidget {
           Text(
             t('event.cup.results').toUpperCase(),
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
               color: kit.textMuted,

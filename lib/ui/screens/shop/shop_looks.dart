@@ -112,7 +112,7 @@ class LooksSection extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: kit.textMuted,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.3,
                       ),
@@ -299,7 +299,7 @@ class PackContents extends ConsumerWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       height: 1.15,
                       fontWeight: has ? FontWeight.w800 : FontWeight.w600,
                       color: has ? kit.accentBright : kit.textMuted,
@@ -448,7 +448,7 @@ class _VaultHero extends ConsumerWidget {
                         vault.desc,
                         style: TextStyle(
                           color: kit.textMuted,
-                          fontSize: 11,
+                          fontSize: 12,
                           height: 1.3,
                         ),
                       ),
@@ -456,7 +456,7 @@ class _VaultHero extends ConsumerWidget {
                         const SizedBox(height: 3),
                         Text(
                           why,
-                          style: TextStyle(color: kit.textMuted, fontSize: 11),
+                          style: TextStyle(color: kit.textMuted, fontSize: 12),
                         ),
                       ],
                     ],
@@ -470,7 +470,7 @@ class _VaultHero extends ConsumerWidget {
                     t('shop.owned'),
                     style: TextStyle(
                       color: kit.accentBright,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -653,7 +653,7 @@ class _LookTile extends StatelessWidget {
                     })
                   : t('customise.pack.count', {'n': tile.total}),
               textAlign: TextAlign.center,
-              style: TextStyle(color: kit.textMuted, fontSize: 10),
+              style: TextStyle(color: kit.textMuted, fontSize: 12),
             ),
             const Spacer(),
             const SizedBox(height: 6),

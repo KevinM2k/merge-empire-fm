@@ -253,7 +253,7 @@ class MatchStatboard extends StatelessWidget {
               Text(
                 t('match.stats_label'),
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
                   color: kit.textMuted,
@@ -323,7 +323,7 @@ class _TeamLabel extends StatelessWidget {
       text,
       textAlign: align,
       style: TextStyle(
-        fontSize: 9,
+        fontSize: 12,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.5,
         color: ours ? kit.accentBright : kit.textMuted,
@@ -360,7 +360,7 @@ class _StatRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: kit.textMuted,
             ),

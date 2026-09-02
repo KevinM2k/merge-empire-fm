@@ -1066,7 +1066,7 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
                     child: Text(
                       "${g.minute}'",
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                         color: ink.withValues(alpha: 0.75),
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -1115,7 +1115,7 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
                       t('match.replay'),
                       maxLines: 1,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1275,7 +1275,7 @@ class _Payout extends StatelessWidget {
           Text(
             t('match.double_teaser'),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: kit.textMuted),
+            style: TextStyle(fontSize: 12, color: kit.textMuted),
           ),
         ],
       ],
@@ -1371,7 +1371,7 @@ class QuestOutcomes extends StatelessWidget {
             t('quests.match').toUpperCase(),
             key: const ValueKey('match-quests-title'),
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.2,
               color: glassMuted(context),
@@ -1425,7 +1425,7 @@ class QuestOutcomes extends StatelessWidget {
                     t('quests.total_reward').toUpperCase(),
                     maxLines: 2,
                     style: TextStyle(
-                      fontSize: 9.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.8,
                       color: glassMuted(context),
@@ -1439,7 +1439,7 @@ class QuestOutcomes extends StatelessWidget {
                 // [_CoinBadge].
                 CoinBadge(
                   amount: total.toInt(),
-                  fontSize: 11.5,
+                  fontSize: 12,
                   iconSize: 11,
                   sign: '',
                 ),
@@ -1512,7 +1512,7 @@ class _QuestTile extends StatelessWidget {
                 color: won
                     ? glassText(context)
                     : glassText(context).withValues(alpha: 0.8),
-                fontSize: 11.5,
+                fontSize: 12,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
               ),
@@ -1546,7 +1546,7 @@ class _QuestTile extends StatelessWidget {
                     // on this screen wears — see [_CoinBadge].
                     CoinBadge(
                       amount: ((row['coins'] as num?) ?? 0).toInt(),
-                      fontSize: 11,
+                      fontSize: 12,
                       iconSize: 10,
                       sign: '',
                     ),

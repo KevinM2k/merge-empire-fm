@@ -166,7 +166,7 @@ class _SaveCard extends StatelessWidget {
             badge,
             style: TextStyle(
               color: kit.textMuted,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
             ),
@@ -189,7 +189,7 @@ class _SaveCard extends StatelessWidget {
           if (time.isNotEmpty)
             Text(
               time,
-              style: TextStyle(color: kit.textMuted, fontSize: 11),
+              style: TextStyle(color: kit.textMuted, fontSize: 12),
             ),
           const SizedBox(height: 10),
           StoreButton(

@@ -530,7 +530,7 @@ class GemPackTile extends ConsumerWidget {
           '${tile.product.gems ?? 0} ${t('shop.gems_label').toUpperCase()}',
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.4,
             color: Color(0xE6FFFFFF),
@@ -946,7 +946,7 @@ class CoinPackTile extends ConsumerWidget {
                 // with: money stays yellow and the SHADE moves, which is the
                 // JS's own light-block `--color-gold`.
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: coinFigureInk(context),
                   height: 1.3,
@@ -982,7 +982,7 @@ class CoinPackTile extends ConsumerWidget {
                   child: Text(
                     why,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                    style: TextStyle(color: kit.textMuted, fontSize: 12),
                   ),
                 ),
             ],

@@ -167,7 +167,7 @@ class _ChallengeRow extends StatelessWidget {
                         t('event.challenge.reward', {
                           'coins': formatCoins(row.reward),
                         }),
-                        style: TextStyle(fontSize: 11, color: kit.textMuted),
+                        style: TextStyle(fontSize: 12, color: kit.textMuted),
                       ),
                     ),
                 ],
@@ -185,7 +185,7 @@ class _ChallengeRow extends StatelessWidget {
                 t('event.challenge.claimed'),
                 key: ValueKey('event-challenge-claimed-${row.id}'),
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: kit.textMuted,
                 ),

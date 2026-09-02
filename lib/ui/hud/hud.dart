@@ -390,7 +390,7 @@ class Hud extends ConsumerWidget {
                           TextSpan(
                             text: '/${ref.watch(energyMaxProvider)}',
                             style: valueStyle.copyWith(
-                              fontSize: 10,
+                              fontSize: 12,
                               color: hudCapInk,
                               // **Quiet, not invisible.** It was `glassMuted`,
                               // which ramps with the pane like the figures used
@@ -649,7 +649,7 @@ class HudPrestige extends ConsumerWidget {
               '×$level',
               style: TextStyle(
                 color: ink,
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
               ),
             ),

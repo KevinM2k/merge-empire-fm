@@ -312,7 +312,7 @@ class _NegotiateSheetState extends ConsumerState<_NegotiateSheet> {
                                 ? t('event.deadline.your_ask')
                                 : t('event.deadline.cash_offer'),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               color: kit.textMuted,
                             ),
                           ),
@@ -344,7 +344,7 @@ class _NegotiateSheetState extends ConsumerState<_NegotiateSheet> {
                 Text(
                   t('event.deadline.add_players').toUpperCase(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.5,
                     color: kit.textMuted,
@@ -418,7 +418,7 @@ class _NegotiateSheetState extends ConsumerState<_NegotiateSheet> {
                         child: Text(
                           t('event.deadline.offer_unknown'),
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 12,
                             color: kit.textMuted,
                           ),
                         ),
@@ -431,7 +431,7 @@ class _NegotiateSheetState extends ConsumerState<_NegotiateSheet> {
                             'amount': formatCoins(wallet),
                           }),
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFFEF5350),
                           ),
@@ -611,17 +611,17 @@ class _SwapTile extends StatelessWidget {
               // Selection is a RING and the dimming is on the ART only: both
               // states leave the FIGURES at full contrast, which is the only
               // way the comparison colours mean anything.
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 2),
             Text(
               formatCoins(playerValue(state, card)),
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
             ),
             Text(
               '★${stats.rating.round()}',
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
                 color: Color(0xFFFFD700),
               ),
@@ -665,7 +665,7 @@ class DeadlineSummaryView extends ConsumerWidget {
               Text(
                 t('event.deadline.shut_body'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11.5, color: kit.textMuted),
+                style: TextStyle(fontSize: 12, color: kit.textMuted),
               ),
               if (summary != null) ...[
                 const SizedBox(height: 12),
@@ -812,7 +812,7 @@ class DeadlineHistory extends StatelessWidget {
           Text(
             t('event.deadline.past_windows').toUpperCase(),
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
               color: kit.accentBright,

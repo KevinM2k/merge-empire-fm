@@ -454,7 +454,7 @@ class _CoachLabel extends ConsumerWidget {
           Text(
             t('coach.label').toUpperCase(),
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
               color: kit.accentBright,
@@ -467,7 +467,7 @@ class _CoachLabel extends ConsumerWidget {
             // treatments of one sentence.
             t('coach.suggestion_label').toUpperCase(),
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
               color: kit.textMuted,
@@ -485,7 +485,7 @@ class _CoachLabel extends ConsumerWidget {
               Text(
                 t('strategy.$suggested.name').toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
                   color: tacticColor(context, suggested),

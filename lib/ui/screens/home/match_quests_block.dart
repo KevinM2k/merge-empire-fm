@@ -184,7 +184,7 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                           t('quests.match').toUpperCase(),
                           softWrap: true,
                           style: TextStyle(
-                            fontSize: 9.5,
+                            fontSize: 12,
                             height: 1.2,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.8,
@@ -215,7 +215,7 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                     '+${formatCoins(total)}',
                     key: const ValueKey('match-quests-header-total'),
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       // GOLD, not the kit accent. A coin figure in green asks
                       // the player to work out which currency it is, and the
@@ -307,7 +307,7 @@ class _QuestTile extends StatelessWidget {
               // the one on the busier card was the smaller. Reported from the
               // couch, naming both.
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 height: 1.3,
                 fontWeight: FontWeight.w700,
                 color: done ? kit.accentBright : ink,
@@ -321,7 +321,7 @@ class _QuestTile extends StatelessWidget {
             Text(
               '${row.progress.toInt()}/${row.target.toInt()}',
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
                 color: glassMuted(context),
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -335,7 +335,7 @@ class _QuestTile extends StatelessWidget {
             Text(
               formatCoins(row.reward),
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
                 color: coinFigureInk(context, onGlass: true),
                 shadows: coinFigureShadows(context, onGlass: true),

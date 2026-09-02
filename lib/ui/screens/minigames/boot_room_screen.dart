@@ -426,7 +426,7 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen>
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: kit.textMuted,
-                  fontSize: 11,
+                  fontSize: 12,
                   height: 1.45,
                 ),
               ),

@@ -127,7 +127,7 @@ class FixtureCaption extends ConsumerWidget {
             Text(
               '·',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: inkSoft.withValues(alpha: 0.55),
                 shadows: shadows,
@@ -138,7 +138,7 @@ class FixtureCaption extends ConsumerWidget {
               label.round.toUpperCase(),
               softWrap: false,
               style: TextStyle(
-                fontSize: 9.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.1,
                 color: inkSoft,

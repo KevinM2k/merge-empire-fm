@@ -117,7 +117,7 @@ class AssetLadderSheetState extends ConsumerState<AssetLadderSheet> {
             t('club.upgrade_path').toUpperCase(),
             style: TextStyle(
               color: kit.textMuted,
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.8,
             ),
@@ -235,7 +235,7 @@ class _LadderRow extends StatelessWidget {
                                 Text(
                                   unlock.text,
                                   style: TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 12,
                                     height: 1.4,
                                     color: kit.accentBright,
                                   ),
@@ -260,7 +260,7 @@ class _LadderRow extends StatelessWidget {
                 child: Text(
                   t('club.ladder.now'),
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.6,
                     color: kit.accentInk,

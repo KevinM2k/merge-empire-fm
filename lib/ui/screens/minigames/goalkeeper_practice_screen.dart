@@ -461,7 +461,7 @@ class _WatchBar extends StatelessWidget {
                 '${pct.floor()}%',
                 key: const ValueKey('train-bar-label'),
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
@@ -836,7 +836,7 @@ class _Stat extends StatelessWidget {
     final ink = hudBadgeInk(face);
     return Column(
       children: [
-        Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
+        Text(label, style: TextStyle(color: kit.textMuted, fontSize: 12)),
         const SizedBox(height: 3),
         Container(
           padding: const EdgeInsets.fromLTRB(9, 3, 11, 3),

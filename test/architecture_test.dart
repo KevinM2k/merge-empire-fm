@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 
 /// The spec requires the game logic to stay Flutter-free so it runs under plain
 /// `dart test` and ports cleanly — the same discipline the JS side enforces by
@@ -72,6 +73,60 @@ void main() {
   ///
   /// `foregroundColor:` is fine and deliberately not caught: it is the label's
   /// ink and it resolves normally.
+  /// **NOTHING IS DECLARED SMALLER THAN [minFontSize].**
+  ///
+  /// The UI had drifted to 246 sizes under it — a spread of 7.5, 8, 8.5, 9,
+  /// 9.5, 10, 10.5, 11 and 11.5 — because every tight slot was solved by taking
+  /// a point off the type, and nothing anywhere said stop. Asked for from the
+  /// couch by pointing at a line that was legible and saying that size is the
+  /// floor.
+  ///
+  /// It is checked rather than trusted for the same reason the moulded style
+  /// below it is: the next tight slot will want a 10 too, and a rule that lives
+  /// only in a doc comment loses that argument every time. The way to fit type
+  /// into a slot that cannot hold it is `FittedBox`, which shrinks at DRAW time
+  /// and only where it is actually needed.
+  test('no text is declared below the type floor', () {
+    // **EVERY LITERAL ON THE LINE, not just one straight after the colon.**
+    // The first cut matched `fontSize: 11` and missed `fontSize: small ? 11 :
+    // 14` — which is the Invest button, one of the most-pressed controls in the
+    // game, and it was reported as still being the small one while the sweep
+    // said the app was clean. A ternary is the shape this fault takes.
+    //
+    // A number that is being MULTIPLIED or divided is a ratio rather than a
+    // size — `size * 0.27` on a pack tile — so those are skipped; what such a
+    // line needs is a `clamp`, and the clamp's own floor is a literal this does
+    // check.
+    final line = RegExp(r'fontSize:([^,;]*)');
+    // The ratios come out FIRST — `size * 0.27`, `h / 3` — because Dart has no
+    // variable-length lookbehind to spot them in place. What is left is the
+    // sizes proper, including a clamp's own floor.
+    final ratio = RegExp(r'([*/]\s*\d+(?:\.\d+)?)|(\d+(?:\.\d+)?\s*[*/])');
+    final literal = RegExp(r'\b(\d+(?:\.\d+)?)\b');
+    final offenders = <String>[];
+    for (final file in Directory('lib').listSync(recursive: true)) {
+      if (file is! File || !file.path.endsWith('.dart')) continue;
+      final lines = file.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        for (final m in line.allMatches(lines[i])) {
+          final expr = m.group(1)!.replaceAll(ratio, ' ');
+          for (final n in literal.allMatches(expr)) {
+            if (double.parse(n.group(1)!) < minFontSize) {
+              offenders.add('${file.path}:${i + 1} —${m.group(1)}');
+            }
+          }
+        }
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'Text below ${minFontSize}pt. Use FittedBox to fit a slot rather '
+          'than a smaller literal:\n${offenders.join('\n')}',
+    );
+  });
+
   test('no button colours its face through styleFrom', () {
     // The three that carry a moulded style. `TextButton` is left alone by the
     // theme on purpose — it is a text link — so it may style itself freely.

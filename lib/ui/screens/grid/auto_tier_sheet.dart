@@ -157,7 +157,7 @@ class _AutoTierSheet extends ConsumerWidget {
           t('settings.autoTier.top_safe'),
           style: TextStyle(
             color: kit.textMuted,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             height: 1.5,
           ),
@@ -209,7 +209,7 @@ class _TierRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     t('settings.autoTier.worth', {'coins': worth}),
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                    style: TextStyle(color: kit.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -238,7 +238,7 @@ class AutoTierRow extends ConsumerWidget {
       title: Text(t('settings.autoTier')),
       subtitle: Text(
         t('settings.autoTier.hint'),
-        style: TextStyle(color: kit.textMuted, fontSize: 11),
+        style: TextStyle(color: kit.textMuted, fontSize: 12),
       ),
       trailing: Text(
         '${ref.watch(autoTierSummaryProvider)} ›',

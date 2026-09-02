@@ -287,7 +287,7 @@ class _Picker extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: kit.textMuted,
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.4,
           ),
@@ -343,7 +343,7 @@ class _Picker extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               note!,
-              style: TextStyle(color: kit.textMuted, fontSize: 10),
+              style: TextStyle(color: kit.textMuted, fontSize: 12),
             ),
           ),
       ],
@@ -421,7 +421,7 @@ class _Rows extends StatelessWidget {
             key: const ValueKey('leaderboard-opted-out'),
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               color: Theme.of(context).extension<KitTheme>()!.textMuted,
             ),
           ),
@@ -500,7 +500,7 @@ class _Row extends StatelessWidget {
                 ),
                 Text(
                   tName('division', {'id': entry.division, 'name': ''}),
-                  style: TextStyle(color: kit.textMuted, fontSize: 10),
+                  style: TextStyle(color: kit.textMuted, fontSize: 12),
                 ),
               ],
             ),

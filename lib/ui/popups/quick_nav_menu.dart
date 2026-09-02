@@ -124,7 +124,7 @@ class _QuickNavMenu extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: kit.textMuted,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5,
                       ),
@@ -270,7 +270,7 @@ class _QuickNavTile extends StatelessWidget {
                   textAlign: TextAlign.center,
                   softWrap: false,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.4,
                     height: 1.2,

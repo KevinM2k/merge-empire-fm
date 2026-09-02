@@ -257,7 +257,7 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
           Text(
             t('squad.detail.no_traits_on_loan'),
             key: const ValueKey('detail-trait-loanee'),
-            style: TextStyle(fontSize: 11, color: kit.textMuted),
+            style: TextStyle(fontSize: 12, color: kit.textMuted),
           )
         else if (outOnLoan)
           Text(
@@ -266,7 +266,7 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
               'team': '${_map(card.loanedOut)?['toTeam'] ?? ''}',
             }),
             key: const ValueKey('detail-trait-away'),
-            style: TextStyle(fontSize: 11, color: kit.textMuted),
+            style: TextStyle(fontSize: 12, color: kit.textMuted),
           )
         else
           TraitBlock(
@@ -666,7 +666,7 @@ class _HeaderPlate extends StatelessWidget {
             label.toUpperCase(),
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 9,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2,
               color: Color(0xFFD8D8D8),
@@ -692,7 +692,7 @@ class _HeaderPlate extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 9,
+                          fontSize: 12,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.6,
                           color: Color(0xFFBFBFBF),
@@ -953,7 +953,7 @@ class _Fitness extends StatelessWidget {
               child: Text(
                 t('squad.fitness.label').toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.4,
                   color: kit.textMuted,
@@ -1086,7 +1086,7 @@ class _CareerStats extends StatelessWidget {
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 9.5, color: kit.textMuted),
+                        style: TextStyle(fontSize: 12, color: kit.textMuted),
                       ),
                     ],
                   ),
@@ -1166,7 +1166,7 @@ class _LoaneeBlock extends StatelessWidget {
               ],
             ),
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
             ),
@@ -1174,7 +1174,7 @@ class _LoaneeBlock extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             t('squad.detail.loan_games_left', {'n': left, 'total': total}),
-            style: TextStyle(fontSize: 11.5, color: kit.textMuted),
+            style: TextStyle(fontSize: 12, color: kit.textMuted),
           ),
           const SizedBox(height: 10),
           OutlinedButton(
@@ -1223,7 +1223,7 @@ class _RecallBlock extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             t('squad.detail.recall_warning', {'team': team}),
-            style: TextStyle(fontSize: 10.5, height: 1.5, color: kit.textMuted),
+            style: TextStyle(fontSize: 12, height: 1.5, color: kit.textMuted),
           ),
           const SizedBox(height: 9),
           OutlinedButton(
@@ -1595,7 +1595,7 @@ class TraitBlockState extends ConsumerState<TraitBlock>
                   t('squad.trait').toUpperCase(),
                   style: TextStyle(
                     color: held == null ? kit.textMuted : kit.accentBright,
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.2,
                   ),
@@ -1800,7 +1800,7 @@ class TraitBlockState extends ConsumerState<TraitBlock>
                 t('game.trait.need_coins', {'cost': formatCoins(cost)}),
                 key: const ValueKey('detail-trait-blocked'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: kit.textMuted),
+                style: TextStyle(fontSize: 12, color: kit.textMuted),
               ),
             ),
         ],
@@ -1927,7 +1927,7 @@ class _TraitDisc extends StatelessWidget {
                 key: const ValueKey('detail-trait-level'),
                 style: TextStyle(
                   color: levelInk ?? Colors.white,
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0.6,
                 ),
@@ -1983,7 +1983,7 @@ class _TraitEffects extends StatelessWidget {
                 // as a cost rather than as a smaller gift.
                 '${row.label} ${row.value >= 0 ? '+' : '−'}${row.value.abs()}',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0.4,
                   color: kit.accentBright,
@@ -2047,7 +2047,7 @@ class _TraitBadge extends StatelessWidget {
                 traitDesc(trait),
                 key: const ValueKey('detail-trait-desc'),
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   height: 1.35,
                   color: kit.textMuted,
                 ),

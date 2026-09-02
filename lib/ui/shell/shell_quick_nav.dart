@@ -229,7 +229,7 @@ class _TablePositionBadge extends ConsumerWidget {
               child: Text(
                 ordinalSuffix(pos),
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: colour,
                 ),

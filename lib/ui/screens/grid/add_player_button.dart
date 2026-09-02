@@ -253,7 +253,7 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
                           '${counted.filled}/${counted.max}',
                           style: TextStyle(
                             color: ink.withValues(alpha: 0.85),
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w800,
                           ),
                         )
@@ -560,7 +560,7 @@ class _Price extends StatelessWidget {
           formatCoins(value),
           style: TextStyle(
             color: ink,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -600,7 +600,7 @@ class _FreeChip extends StatelessWidget {
                 t('players.free'),
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -618,7 +618,7 @@ class _FreeChip extends StatelessWidget {
                   '+ ',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
                 ),

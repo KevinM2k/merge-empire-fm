@@ -373,7 +373,7 @@ class _Words extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
-          fontSize: 10,
+          fontSize: 12,
           height: 1,
           fontWeight: FontWeight.w900,
           letterSpacing: 1.5,
@@ -399,7 +399,7 @@ class _Words extends StatelessWidget {
           unlock.description,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 11, height: 1.35, color: _goldInk),
+          style: const TextStyle(fontSize: 12, height: 1.35, color: _goldInk),
         ),
       ],
       if (unlock.coinsRewarded > 0) ...[
@@ -427,7 +427,7 @@ class _Words extends StatelessWidget {
           '×${unlock.count}',
           key: const ValueKey('achievement-unlock-count'),
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             color: _gold,
           ),

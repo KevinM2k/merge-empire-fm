@@ -71,7 +71,7 @@ class MiniGameStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 11)),
+      Text(label, style: TextStyle(color: kit.textMuted, fontSize: 12)),
       Text(
         value,
         key: valueKey,

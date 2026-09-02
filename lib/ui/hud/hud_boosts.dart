@@ -100,7 +100,7 @@ class HudBoosts extends ConsumerWidget {
                       boost.label,
                       style: const TextStyle(
                         color: hudBoostInk,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                         height: 1.3,
                       ),
@@ -113,7 +113,7 @@ class HudBoosts extends ConsumerWidget {
                       boost.sub,
                       style: TextStyle(
                         color: kit.textMuted,
-                        fontSize: 9,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                         height: 1.4,
                       ),

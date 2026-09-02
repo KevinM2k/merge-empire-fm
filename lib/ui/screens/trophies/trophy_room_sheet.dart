@@ -235,7 +235,7 @@ class _SectionLabel extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: TextStyle(
-          fontSize: muted ? 12 : 11,
+          fontSize: minFontSize,
           fontWeight: muted ? FontWeight.w700 : FontWeight.w800,
           letterSpacing: muted ? 0.5 : 1,
           color: muted ? kit.textMuted : kit.accentBright,
@@ -275,7 +275,7 @@ class _BadgeRow extends StatelessWidget {
                 Text(
                   t('trophy.badge_title').toUpperCase(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                     color: kit.textMuted,
@@ -422,7 +422,7 @@ class _TrophyCard extends StatelessWidget {
                         // the band is opaque here and there is nothing to
                         // separate from.
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w900,
                           color: readableInk(context, colour),
                           shadows: captionShadow(context),
@@ -434,7 +434,7 @@ class _TrophyCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 10, color: kit.textMuted),
+                          style: TextStyle(fontSize: 12, color: kit.textMuted),
                         ),
                     ],
                   ),
@@ -466,7 +466,7 @@ class _CountPill extends StatelessWidget {
       '×$count',
       style: const TextStyle(
         color: Colors.black,
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: FontWeight.w900,
       ),
     ),
@@ -579,7 +579,7 @@ class _AchievementTile extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w800,
                             color: unlocked
                                 ? readableInk(context, trophyGold)
@@ -608,7 +608,7 @@ class _AchievementTile extends ConsumerWidget {
                             progress.$2,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 9, color: kit.textMuted),
+                            style: TextStyle(fontSize: 12, color: kit.textMuted),
                           ),
                         ],
                       ],
@@ -774,7 +774,7 @@ class _AchievementDetail extends ConsumerWidget {
                   ? t('trophy.date_unknown')
                   : formatDate(stamp),
             }),
-            style: TextStyle(fontSize: 11, color: kit.accentBright),
+            style: TextStyle(fontSize: 12, color: kit.accentBright),
           ),
           if (count >= 2)
             Padding(
@@ -782,7 +782,7 @@ class _AchievementDetail extends ConsumerWidget {
               child: Text(
                 t('trophy.earned_across_resets', {'n': count}),
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: trophyGold,
                 ),
@@ -796,7 +796,7 @@ class _AchievementDetail extends ConsumerWidget {
     if (progress == null) {
       return Text(
         t('trophy.locked'),
-        style: TextStyle(fontSize: 11, color: kit.textMuted),
+        style: TextStyle(fontSize: 12, color: kit.textMuted),
       );
     }
     return Column(
@@ -813,7 +813,7 @@ class _AchievementDetail extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(progress.$2, style: TextStyle(fontSize: 11, color: kit.textMuted)),
+        Text(progress.$2, style: TextStyle(fontSize: 12, color: kit.textMuted)),
       ],
     );
   }
@@ -843,7 +843,7 @@ class _AvailabilityPill extends StatelessWidget {
       child: Text(
         '⏳ ${label.toUpperCase()}',
         style: const TextStyle(
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.4,
           color: trophyGold,

@@ -145,7 +145,7 @@ class _ConnectBodyState extends ConsumerState<_ConnectBody> {
         // paragraph rather than a line and a button under it.
         Text.rich(
           TextSpan(
-            style: TextStyle(color: kit.textMuted, fontSize: 11, height: 1.5),
+            style: TextStyle(color: kit.textMuted, fontSize: 12, height: 1.5),
             children: [
               TextSpan(text: '${t('auth.terms_prefix')} '),
               WidgetSpan(
@@ -157,7 +157,7 @@ class _ConnectBodyState extends ConsumerState<_ConnectBody> {
                     t('auth.terms_link'),
                     style: TextStyle(
                       color: kit.accentBright,
-                      fontSize: 11,
+                      fontSize: 12,
                       height: 1.5,
                       decoration: TextDecoration.underline,
                       decorationColor: kit.accentBright,

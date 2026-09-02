@@ -225,7 +225,7 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                         key: const ValueKey('season-end-title'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.3,
                           color: kit.textMuted,
@@ -253,7 +253,7 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                               key: const ValueKey('season-end-division'),
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1,
                                 color: kit.textMuted,
@@ -420,7 +420,7 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                           child: Text(
                             t('season.end.quests_autopay'),
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 12,
                               height: 1.35,
                               color: kit.textMuted,
                             ),
@@ -589,7 +589,7 @@ class _SeasonCard extends StatelessWidget {
                           child: Text(
                             head.toUpperCase(),
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
                               color: kit.textMuted,
@@ -714,7 +714,7 @@ class _Stat extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 9,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
               color: kit.textMuted,
@@ -825,7 +825,7 @@ class _TableRow extends StatelessWidget {
           Text(
             '${row.played}',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               color: kit.textMuted,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),

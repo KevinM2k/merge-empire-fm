@@ -176,7 +176,7 @@ class LeagueMoveState extends ConsumerState<LeagueMove>
                   child: Text(
                     ref.watch(divisionNameProvider).toUpperCase(),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.2,
                       color: glassMuted(context),
@@ -555,7 +555,7 @@ class _Head extends StatelessWidget {
       label.toUpperCase(),
       textAlign: TextAlign.right,
       style: TextStyle(
-        fontSize: 9,
+        fontSize: 12,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.6,
         color: glassMuted(context),

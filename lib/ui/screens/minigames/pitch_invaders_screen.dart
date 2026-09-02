@@ -434,7 +434,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: kit.textMuted,
-                  fontSize: 11,
+                  fontSize: 12,
                   height: 1.35,
                 ),
               ),

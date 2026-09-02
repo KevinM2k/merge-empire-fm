@@ -350,7 +350,7 @@ class _TickerState extends State<_Ticker> with SingleTickerProviderStateMixin {
 
   static const double _leadPad = 22;
   static const TextStyle _style = TextStyle(
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: FontWeight.w600,
     height: 1.35,
     color: Color(0xDBFFFFFF),
@@ -405,7 +405,7 @@ class _TickerState extends State<_Ticker> with SingleTickerProviderStateMixin {
               child: Text(
                 t('event.news.chip'),
                 style: const TextStyle(
-                  fontSize: 9,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
                   color: Colors.white,

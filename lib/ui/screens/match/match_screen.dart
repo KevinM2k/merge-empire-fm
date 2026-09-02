@@ -2090,7 +2090,7 @@ class _ScorerBadge extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w900,
             letterSpacing: 0.3,
             color: Colors.white,
@@ -2256,7 +2256,7 @@ class _TacticButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   height: 1.2,
                   fontWeight: active ? FontWeight.w900 : FontWeight.w700,
                   color: active ? tacticInk(context, id) : kit.textMuted,
@@ -2534,7 +2534,7 @@ class _Scoreboard extends StatelessWidget {
                   t('match.full_time').toUpperCase(),
                   key: const ValueKey('match-full-time'),
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.6,
                     color: glassAccent(context, kit.accentBright),
@@ -2656,7 +2656,7 @@ class _FeedLine extends StatelessWidget {
               // feed by.
               style: TextStyle(
                 color: kit.textMuted,
-                fontSize: 11,
+                fontSize: 12,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -2668,7 +2668,7 @@ class _FeedLine extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     letterSpacing: 0.8,
                     color: glassAccent(context, kit.accentBright),
                   ),
@@ -2738,7 +2738,7 @@ class _FeedLine extends StatelessWidget {
                     "${line.minute}'",
                     style: TextStyle(
                       color: kit.textMuted,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -2815,7 +2815,7 @@ class _FeedLine extends StatelessWidget {
                                 {'n': total},
                               ),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: kit.textMuted,
                               ),
                             ),

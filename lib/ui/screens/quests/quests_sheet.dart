@@ -211,7 +211,7 @@ class _TrackPrize extends ConsumerWidget {
                 Text(
                   t('quests.capstone_title').toUpperCase(),
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1,
                     color: kit.textMuted,
@@ -312,7 +312,7 @@ class _RewardChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               color: print,
             ),
@@ -365,7 +365,7 @@ class _RerollRow extends ConsumerWidget {
                 t('quests.reroll_note_free', {'n': reroll.free}),
                 key: const ValueKey('quests-reroll-free'),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: kit.textMuted, fontSize: 11),
+                style: TextStyle(color: kit.textMuted, fontSize: 12),
               ),
             ),
         ],
@@ -456,7 +456,7 @@ class _QuestTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${quest.progress.toInt()} / ${quest.target.toInt()}',
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                    style: TextStyle(color: kit.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -482,7 +482,7 @@ class _QuestTile extends StatelessWidget {
                   Text(
                     t('quests.done'),
                     key: ValueKey('quest-done-$track-${quest.id}'),
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                    style: TextStyle(color: kit.textMuted, fontSize: 12),
                   )
                 else if (onClaim != null)
                   ElevatedButton(
@@ -493,7 +493,7 @@ class _QuestTile extends StatelessWidget {
                 else
                   Text(
                     quest.completed ? t('quests.done') : t('quests.live'),
-                    style: TextStyle(color: kit.textMuted, fontSize: 11),
+                    style: TextStyle(color: kit.textMuted, fontSize: 12),
                   ),
                 if (quest.coins > 0) ...[
                   const SizedBox(height: 4),
@@ -565,7 +565,7 @@ class _QuestDial extends StatelessWidget {
           Text(
             '${(pct * 100).round()}%',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               color: ink,
               fontFeatures: const [FontFeature.tabularFigures()],

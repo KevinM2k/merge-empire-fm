@@ -217,7 +217,7 @@ class _FeatureUnlockState extends State<_FeatureUnlock>
                         ? '⬆ ${t('feature.tier_up')}'
                         : '🔓 ${t('feature.unlocked')}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 2.5,
                       color: widget.accent,

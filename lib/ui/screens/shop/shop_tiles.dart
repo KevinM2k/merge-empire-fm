@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show readableInk;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 
 /// The gold a shopfront puts round the thing in the window. Fixed rather than
 /// the club's accent: a featured offer is the STORE speaking, not the club, and
@@ -180,7 +181,7 @@ class ShopTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: skin == null ? kit.textMuted : _skinInk,
-            fontSize: featured ? 12.5 : 11,
+            fontSize: featured ? 12.5 : minFontSize,
             height: 1.35,
           ),
         ),
@@ -188,7 +189,7 @@ class ShopTile extends StatelessWidget {
         Text(
           badge!,
           textAlign: align,
-          style: TextStyle(color: kit.accentBright, fontSize: 11),
+          style: TextStyle(color: kit.accentBright, fontSize: 12),
         ),
       if (disabledReason != null)
         Text(
@@ -196,7 +197,7 @@ class ShopTile extends StatelessWidget {
           textAlign: align,
           style: TextStyle(
             color: warnReason ? dangerInk : kit.textMuted,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: warnReason ? FontWeight.w700 : null,
           ),
         ),
@@ -257,7 +258,7 @@ class ShopTile extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        fontSize: 9,
+        fontSize: 12,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.6,
         color: ink,
@@ -589,7 +590,7 @@ class CornerBanner extends StatelessWidget {
                         key: const ValueKey('shop-corner-banner'),
                         maxLines: 1,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 12,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.6,
                           color: onInk,

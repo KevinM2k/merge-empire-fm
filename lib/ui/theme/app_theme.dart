@@ -245,6 +245,25 @@ TextStyle displayText(TextStyle style) =>
 /// One place, because the next nudge should be one number.
 const FontWeight uiBaseWeight = FontWeight.w600;
 
+/// **NOTHING IN THIS APP IS SMALLER THAN THIS.**
+///
+/// The UI had drifted to 246 declared sizes under it — a spread of 7.5, 8, 8.5,
+/// 9, 9.5, 10, 10.5, 11 and 11.5 — because every tight slot was solved by taking
+/// a point off the type. On a phone that is a caption nobody reads, and a wall
+/// of them is a screen nobody reads. Asked for from the couch, by pointing at a
+/// line that was legible — the daily reward's "come back tomorrow" — and saying
+/// that size is the floor everywhere.
+///
+/// **The escape hatch is `FittedBox`, not a smaller literal.** A slot that
+/// genuinely cannot hold twelve points of type in every language — a chip in a
+/// row of chips, a badge on a tile — shrinks what is in it at DRAW time, so the
+/// declared size stays honest and the shrinking happens only where and when it
+/// is actually needed. The position chip and the ratings' modifier band both do
+/// this, and the type floor is what drove them to.
+///
+/// `architecture_test.dart` fails the build on a literal under it.
+const double minFontSize = 12;
+
 /// A control's OWN text style, for the one place a style does not inherit.
 ///
 /// **A `ButtonStyle.textStyle` REPLACES the ambient style rather than merging

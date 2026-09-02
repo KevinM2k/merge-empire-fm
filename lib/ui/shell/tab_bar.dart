@@ -201,7 +201,7 @@ class _TabButton extends StatelessWidget {
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: colour,
                   shadows: shadows,
                 ),

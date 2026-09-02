@@ -532,7 +532,7 @@ class PlayerCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: captionInk,
                               ),
@@ -753,7 +753,7 @@ class _Chip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: bold ? 13 : 10,
+            fontSize: bold ? 13 : minFontSize,
             fontWeight: bold ? FontWeight.w700 : uiBaseWeight,
             color: foreground,
           ),
@@ -790,7 +790,7 @@ class _Ribbon extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 8,
+          fontSize: 12,
           fontWeight: FontWeight.w900,
           letterSpacing: 0.4,
           color: foreground,
@@ -835,7 +835,7 @@ class _IncomeRate extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           softWrap: false,
           style: TextStyle(
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: FontWeight.w900,
             color: ink,
           ),

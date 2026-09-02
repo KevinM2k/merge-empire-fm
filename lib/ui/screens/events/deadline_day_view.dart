@@ -307,13 +307,13 @@ class _DeadlineDayViewState extends ConsumerState<DeadlineDayView> {
             Expanded(
               child: Text(
                 t('event.deadline.budget'),
-                style: TextStyle(fontSize: 11, color: kit.textMuted),
+                style: TextStyle(fontSize: 12, color: kit.textMuted),
               ),
             ),
             Text(
               key: const ValueKey('dd-coins'),
               formatCoins(ref.watch(coinsProvider)),
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
             ),
           ],
         ),
@@ -352,7 +352,7 @@ class _DeadlineDayViewState extends ConsumerState<DeadlineDayView> {
                   : t('event.deadline.missed_while_away', {'n': missed}),
               key: const ValueKey('dd-missed'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, height: 1.5, color: kit.textMuted),
+              style: TextStyle(fontSize: 12, height: 1.5, color: kit.textMuted),
             ),
           ),
       ],
@@ -581,7 +581,7 @@ class _LiveHead extends StatelessWidget {
                   child: Text(
                     '● ${t('event.deadline.live').toUpperCase()}',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1,
                       color: kit.accentBright,
@@ -726,7 +726,7 @@ class _SideTabs extends StatelessWidget {
                     '$count',
                     key: ValueKey('dd-count-${id.name}'),
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: on ? kit.accentInk : null,
                     ),
@@ -913,7 +913,7 @@ class DeadlineListingCard extends StatelessWidget {
                       child: Text(
                         '${listing['fromTeam'] ?? ''}',
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, color: kit.textMuted),
+                        style: TextStyle(fontSize: 12, color: kit.textMuted),
                       ),
                     ),
                   ],
@@ -977,7 +977,7 @@ class DeadlineListingCard extends StatelessWidget {
                               '${listing['tierName'] ?? ''} · '
                               '${listing['position'] ?? ''}',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: kit.textMuted,
                               ),
                             ),
@@ -988,7 +988,7 @@ class DeadlineListingCard extends StatelessWidget {
                                 Text(
                                   'ATK ${stats.attack.round()}',
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
@@ -996,7 +996,7 @@ class DeadlineListingCard extends StatelessWidget {
                                 Text(
                                   'DEF ${stats.defence.round()}',
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
@@ -1010,7 +1010,7 @@ class DeadlineListingCard extends StatelessWidget {
                                 // is an English literal. See `trait_copy.dart`.
                                 '⚡ ${traitName(trait)}',
                                 style: const TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFFCE93D8),
                                 ),
@@ -1022,7 +1022,7 @@ class DeadlineListingCard extends StatelessWidget {
                               child: Text(
                                 terms,
                                 style: TextStyle(
-                                  fontSize: 10.5,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w800,
                                   color: style.ink,
                                 ),
@@ -1040,7 +1040,7 @@ class DeadlineListingCard extends StatelessWidget {
                       t('event.deadline.blocked_$blocked'),
                       key: ValueKey('dd-blocked-${listing['listingId']}'),
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFFEF5350),
                       ),
@@ -1056,7 +1056,7 @@ class DeadlineListingCard extends StatelessWidget {
                       t('event.deadline.counter_title'),
                       key: ValueKey('dd-counter-${listing['listingId']}'),
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: style.ink,
                       ),
@@ -1073,7 +1073,7 @@ class DeadlineListingCard extends StatelessWidget {
                           isBid
                               ? t('event.deadline.reject')
                               : t('event.deadline.pass'),
-                          style: const TextStyle(fontSize: 11.5),
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                     ),
@@ -1104,7 +1104,7 @@ class DeadlineListingCard extends StatelessWidget {
                             isBid
                                 ? t('event.deadline.ask_more')
                                 : t('event.deadline.make_offer'),
-                            style: const TextStyle(fontSize: 11.5),
+                            style: const TextStyle(fontSize: 12),
                           ),
                         ),
                       ),
@@ -1142,7 +1142,7 @@ class DeadlineListingCard extends StatelessWidget {
                         child: Text(
                           acceptLabel,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11.5),
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                     ),
@@ -1235,7 +1235,7 @@ class _Chip extends StatelessWidget {
     child: Text(
       label.toUpperCase(),
       style: TextStyle(
-        fontSize: 9.5,
+        fontSize: 12,
         fontWeight: FontWeight.w900,
         // Both of these are printed straight onto the card, so they take the
         // same light-mode treatment the kind's ink does.
@@ -1301,7 +1301,7 @@ class _Fuse extends StatelessWidget {
             child: Text(
               _fuseClock(remaining),
               key: ValueKey('dd-fuse-${listing['listingId']}-$clockRevision'),
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
             ),
           ),
         ],

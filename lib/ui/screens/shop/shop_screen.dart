@@ -569,7 +569,7 @@ class _ShopTabs extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 9.5,
+                              fontSize: 12,
                               height: 1.15,
                               fontWeight: FontWeight.w800,
                               color: i == selected

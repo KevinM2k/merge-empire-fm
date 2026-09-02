@@ -246,7 +246,7 @@ class _PyramidEditorState extends ConsumerState<PyramidEditor> {
               Text(
                 t('pyramid.presets').toUpperCase(),
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
                   color: kit.accentBright,

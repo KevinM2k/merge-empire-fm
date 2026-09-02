@@ -240,7 +240,7 @@ class _PaidConfirmCard extends StatelessWidget {
                   )
                 : t('shop.payment_disclaimer'),
             textAlign: TextAlign.center,
-            style: TextStyle(color: kit.textMuted, fontSize: 10, height: 1.4),
+            style: TextStyle(color: kit.textMuted, fontSize: 12, height: 1.4),
           ),
         ),
       ],

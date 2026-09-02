@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 import 'package:merge_empire_fc/util/format.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 
 /// One facility, resolved — including WHAT IT GIVES, which the card had never
 /// said. [perk] is what the club has at this tier and [next] is only what the
@@ -501,7 +502,7 @@ class _AssetPanel extends ConsumerWidget {
             // had no caller at all. An unbuilt facility shows its hint instead:
             // there is no perk yet to state.
             SizedBox(
-              height: 29,
+              height: assetLineBox,
               child: _FlashOnChange(
                 // Only the live numbers flash. A hint is not a figure and does
                 // not change under the player.
@@ -512,8 +513,10 @@ class _AssetPanel extends ConsumerWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
-                    height: 1.3,
+                    fontSize: minFontSize,
+                    // The same leading as the next-tier line under it, so one
+                    // box height serves both — see [assetLineBox].
+                    height: 1.35,
                     color: tile.owned ? null : kit.textMuted,
                   ),
                 ),
@@ -532,7 +535,7 @@ class _AssetPanel extends ConsumerWidget {
               // where it goes, because leaving the row blank punched a hole
               // between the full bar and the button.
               SizedBox(
-                height: 27,
+                height: assetLineBox,
                 child: Text(
                   tile.maxed
                       ? '${t('club.tier_n', {'n': maxAssetTier})} · ${t('club.maxed')}'
@@ -541,7 +544,7 @@ class _AssetPanel extends ConsumerWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: minFontSize,
                     height: 1.35,
                     color: kit.textMuted,
                   ),
@@ -743,7 +746,7 @@ class _Art extends StatelessWidget {
                               ? t('club.maxed')
                               : t('club.tier_n', {'n': tile.tier}),
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             height: 1.4,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.3,
@@ -803,6 +806,19 @@ class _Art extends StatelessWidget {
 abstract final class AssetGridColumns {
   static int at(double width) => _AssetGrid.columnsAt(width);
 }
+
+/// Room for TWO FULL LINES of a card's perk or next-tier line.
+///
+/// **The type floor is what made this a constant.** Both boxes were fixed at 29
+/// and 27 — two lines of 11pt and 10pt copy with a couple of points to spare —
+/// and when nothing in the app was allowed under twelve any more, the second
+/// line of both was clipped through the middle. Reported from the couch with a
+/// screenshot of a Kit Sponsor whose "fatigue" was cut in half.
+///
+/// Derived rather than nudged: two lines at [minFontSize] and the 1.35 line
+/// height these two share, plus a point so a descender is not shaved. A
+/// hardcoded 34 would be wrong again the next time either number moves.
+const double assetLineBox = minFontSize * 1.35 * 2 + 1;
 
 /// The funding bar, FILLING rather than jumping.
 ///

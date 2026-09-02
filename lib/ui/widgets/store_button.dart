@@ -275,7 +275,7 @@ class _StoreButtonState extends State<StoreButton> {
               builder: (context) {
                 final style = TextStyle(
                   color: ink,
-                  fontSize: widget.small ? 11 : 14,
+                  fontSize: widget.small ? minFontSize : 14,
                   fontWeight: FontWeight.w900,
                 );
                 // A glyph inside the words comes through as a `WidgetSpan`, and
@@ -352,7 +352,7 @@ class _AdChip extends StatelessWidget {
       'AD',
       style: TextStyle(
         color: Colors.white,
-        fontSize: 9,
+        fontSize: 12,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.5,
         height: 1.4,

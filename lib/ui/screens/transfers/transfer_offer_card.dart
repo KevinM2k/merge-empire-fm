@@ -385,7 +385,7 @@ class _TransferOfferCard extends ConsumerWidget {
                             t(band.key),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w900,
                               color: plateBand,
                             ),
@@ -530,7 +530,7 @@ class BidTargetMark extends ConsumerWidget {
               shape: BoxShape.circle,
               border: Border.all(color: kit.surface, width: 1.5),
             ),
-            child: const Text('💸', style: TextStyle(fontSize: 11)),
+            child: const Text('💸', style: TextStyle(fontSize: 12)),
           ),
         ),
       ],

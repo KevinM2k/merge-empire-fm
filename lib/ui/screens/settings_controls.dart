@@ -155,7 +155,7 @@ class SettingsGroup extends StatelessWidget {
             child: Text(
               head.toUpperCase(),
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.6,
                 color: danger ? dangerInk : kit.textMuted,
@@ -686,7 +686,7 @@ class SettingsFooterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final meta = TextStyle(fontSize: 11, color: kit.textMuted, height: 1.5);
+    final meta = TextStyle(fontSize: 12, color: kit.textMuted, height: 1.5);
     return Container(
       margin: const EdgeInsets.fromLTRB(13, 6, 13, 20),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),

@@ -222,7 +222,7 @@ class ClubNameCardState extends ConsumerState<ClubNameCard> {
               child: Text(
                 _error!,
                 key: const ValueKey('club-name-error'),
-                style: const TextStyle(fontSize: 11, color: dangerInk),
+                style: const TextStyle(fontSize: 12, color: dangerInk),
               ),
             ),
         ],

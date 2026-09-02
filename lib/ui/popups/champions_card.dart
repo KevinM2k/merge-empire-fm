@@ -162,7 +162,7 @@ class _Teaser extends StatelessWidget {
           Text(
             heading.toUpperCase(),
             style: TextStyle(
-              fontSize: 10.5,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 1,
               color: tone,

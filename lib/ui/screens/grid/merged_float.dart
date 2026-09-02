@@ -106,7 +106,7 @@ class _MergedFloatState extends State<MergedFloat>
                     softWrap: false,
                     style: const TextStyle(
                       color: mergedFloatInk,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       shadows: [
                         Shadow(color: Color(0xCC000000), blurRadius: 6),

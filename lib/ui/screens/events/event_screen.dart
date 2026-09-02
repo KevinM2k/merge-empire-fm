@@ -192,7 +192,7 @@ class _ClosedViewState extends ConsumerState<_ClosedView> {
               Text(
                 t('event.banner.coming_up').toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.7,
                   color: kit.accentBright,
@@ -229,7 +229,7 @@ class _ClosedViewState extends ConsumerState<_ClosedView> {
           Text(
             t('event.deadline.tonight_title').toUpperCase(),
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
               color: kit.accentBright,
@@ -247,7 +247,7 @@ class _ClosedViewState extends ConsumerState<_ClosedView> {
           Text(
             t('event.deadline.intro_title').toUpperCase(),
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
               color: kit.accentBright,

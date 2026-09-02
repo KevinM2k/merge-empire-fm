@@ -117,7 +117,7 @@ class AudioChannelRow extends ConsumerWidget {
               '${(volume * 100).round()}%',
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: on
                     ? kit.textMuted

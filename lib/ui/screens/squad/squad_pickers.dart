@@ -361,7 +361,7 @@ class _TacticRow extends StatelessWidget {
                     Text(
                       t('strategy.${strategy.id}.desc'),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         height: 1.45,
                         color: kit.textMuted,
                       ),
@@ -477,7 +477,7 @@ class _Pill extends StatelessWidget {
     child: Text(
       text,
       style: TextStyle(
-        fontSize: 9.5,
+        fontSize: 12,
         fontWeight: heavy ? FontWeight.w900 : FontWeight.w800,
         color: ink,
       ),
@@ -557,7 +557,7 @@ class _PickCard extends StatelessWidget {
                             subtitle,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               fontWeight: FontWeight.w800,
                               color: subtitleColor,
                             ),
@@ -801,7 +801,7 @@ class PositionFilterBar extends StatelessWidget {
                   key: ValueKey('$keyPrefix-$line'),
                   label: Text(
                     line == 'ALL' ? t('pi.filter.all') : t('pos.$line'),
-                    style: const TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 12),
                   ),
                   selected: value == line,
                   onSelected: (_) => onChanged(line),

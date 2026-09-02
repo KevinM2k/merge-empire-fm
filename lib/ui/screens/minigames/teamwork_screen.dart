@@ -320,7 +320,7 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
                 t('game.teamwork.instructions'),
                 style: TextStyle(
                   color: kit.textMuted,
-                  fontSize: 11,
+                  fontSize: 12,
                   height: 1.4,
                 ),
               ),
@@ -535,7 +535,7 @@ class _Back extends StatelessWidget {
         Text(
           'MEFC',
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: FontWeight.w900,
             letterSpacing: 2,
             color: Color(0xFFFFD700),
