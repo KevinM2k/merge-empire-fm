@@ -393,3 +393,72 @@ VacatedSlot? removeInjuredFromLineup(
   }
   return null;
 }
+
+/// Put the kickoff eleven back at full time, keeping the cover a manager
+/// actually chose.
+///
+/// **A substitution is a change for THIS match**, so the manager's 70th-minute
+/// gamble must not quietly become next week's team — that is the JS's rule and
+/// it is why the eleven is restored at all. But it is not the whole rule, and
+/// the half that was missing is what got reported: *"an injured player should
+/// be replaced with the sub player; if we only subbed and not injured then you
+/// should keep the original team."*
+///
+/// So a slot is treated by what it held AT KICKOFF:
+///
+/// - **It held somebody** — an ordinary swap. He goes back in, and whoever came
+///   on for him returns to the bench.
+/// - **It held nobody** — the sim vacated it before the screen opened, which is
+///   an injury (or a side that started a man light). Whoever the manager put
+///   there STAYS. Reverting that slot threw away the one decision the panel
+///   exists to make and left the hole for [refillLineupFromBench] to fill with
+///   somebody else.
+///
+/// And nobody comes back INJURED. `cleanLineup` drops a card that is
+/// unavailable — loaned out, listed — and deliberately does not drop an injured
+/// one, because being hurt is not a reason to lose your place in the squad
+/// screen's eleven. At full time it is: the man cannot play the next fixture,
+/// and leaving him in the side is how a manager kicks off with ten and no
+/// warning. That is the JS's `hurtToday`, generalised — it applies to a player
+/// hurt by a tactic change's re-rolled injury too, which lands AFTER the
+/// snapshot was taken.
+///
+/// [kickoff] is `{slotId: cardInstanceId}` as the lineup stood at the first
+/// whistle; a slot the formation no longer has is skipped. Returns true when
+/// the saved lineup changed, so a caller can skip a write for nothing.
+bool restoreKickoffLineup(
+  Map<String, dynamic> state,
+  Map<String, String?> kickoff,
+) {
+  final squad = state['squad'];
+  if (squad is! Map) return false;
+  final lineup = squad['lineup'];
+  if (lineup is! List) return false;
+
+  final grid = state['grid'];
+  final rawCells = grid is Map ? grid['cells'] : null;
+  final fit = <String>{
+    if (rawCells is List)
+      for (final c in rawCells)
+        if (CardInstance.from(c) case final card? when card.isSelectable)
+          card.instanceId,
+  };
+
+  var changed = false;
+  for (final row in lineup) {
+    if (row is! Map) continue;
+    final slotId = row['slotId'];
+    final was = kickoff.containsKey(slotId) ? kickoff[slotId] : row['cardInstanceId'];
+    // A hole at kickoff keeps whoever is in it now; every other slot goes back
+    // to the man who started there.
+    final want = was ?? row['cardInstanceId'];
+    final next = want is String && fit.contains(want) ? want : null;
+    if (row['cardInstanceId'] != next) {
+      row['cardInstanceId'] = next;
+      changed = true;
+    }
+  }
+  // Whatever is still open — a hole nobody covered, or a slot just emptied by
+  // the rule above — is filled from the bench now the whistle has gone.
+  return refillLineupFromBench(state) || changed;
+}

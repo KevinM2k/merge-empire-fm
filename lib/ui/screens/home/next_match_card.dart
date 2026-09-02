@@ -246,6 +246,13 @@ class NextMatchCard extends ConsumerWidget {
         GlassPanel(
           key: const ValueKey('next-match-card'),
           density: GlassDensity.deep,
+          // **THINNER THAN THE DEEP DENSITY, and it is the only pane that is.**
+          // Every other deep panel stands on a page; this one stands on the
+          // SCENE, and at 43% it read as a slab laid over the pitch rather than
+          // as glass the pitch is behind. Reported from the couch. The
+          // material was already written and had no caller — see [skyPaneTint],
+          // which is the usual tell.
+          tint: skyPaneTintFor(context),
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
           child: _body(context, ref, match),
         ),

@@ -17,6 +17,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart' show GlassPanel;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
@@ -115,6 +116,20 @@ void main() {
       await pumpCard(tester);
       expect(find.byKey(const ValueKey('next-match-card')), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('IS THINNER THAN A DEEP PANEL — the pitch shows through', (
+      tester,
+    ) async {
+      // **Reported from the couch: the card can be a little more
+      // transparent.** It stands on the SCENE rather than on a page, and at the
+      // deep density's 43% it read as a slab laid over the pitch.
+      await pumpCard(tester);
+      final pane = tester.widget<GlassPanel>(
+        find.byKey(const ValueKey('next-match-card')),
+      );
+      expect(pane.tint, isNotNull, reason: 'it took the density it was given');
+      expect(pane.tint!.first.a, lessThan(0.30));
     });
 
     testWidgets('names both clubs and rates both sides', (tester) async {

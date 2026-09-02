@@ -2208,7 +2208,7 @@ const Map<String, String> jaCatalog = <String, String>{
   'settings.autoTier.off': 'オフ',
   'settings.autoTier.count': '{count}ティア',
   'settings.autoTier.worth': '売値 {coins}',
-  'settings.autoTier.top_safe': 'WORLD CLASSとICONの選手が自動売却されることはありません。',
+  'settings.autoTier.top_safe': 'World ClassとIconの選手が自動売却されることはありません。',
   'settings.pitchView': '2Dピッチビュー',
   'settings.pitchView.ours': '自分',
   'settings.pitchView.opp': '相手',

@@ -2208,7 +2208,7 @@ const Map<String, String> ptCatalog = <String, String>{
   'settings.autoTier.off': 'Desligado',
   'settings.autoTier.count': '{count} níveis',
   'settings.autoTier.worth': 'Vende por {coins}',
-  'settings.autoTier.top_safe': 'Jogadores WORLD CLASS e ICON nunca são vendidos automaticamente.',
+  'settings.autoTier.top_safe': 'Jogadores World Class e Icon nunca são vendidos automaticamente.',
   'settings.pitchView': 'Vista 2D do campo',
   'settings.pitchView.ours': 'A tua',
   'settings.pitchView.opp': 'Adversário',

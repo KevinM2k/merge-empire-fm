@@ -2208,7 +2208,7 @@ const Map<String, String> zhCatalog = <String, String>{
   'settings.autoTier.off': '关闭',
   'settings.autoTier.count': '{count} 个等级',
   'settings.autoTier.worth': '售价 {coins}',
-  'settings.autoTier.top_safe': 'WORLD CLASS 与 ICON 球员永远不会被自动出售。',
+  'settings.autoTier.top_safe': 'World Class 与 Icon 球员永远不会被自动出售。',
   'settings.pitchView': '2D球场视图',
   'settings.pitchView.ours': '己方',
   'settings.pitchView.opp': '对手',

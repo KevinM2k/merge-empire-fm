@@ -171,32 +171,48 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
     if (coming == null || !coming.isSelectable) return false;
     final going = offId == null ? null : _cardById(state, offId);
 
-    // **The shipped line, not a new one.** `match.subs.feed` already says
+    // **HE SHOWS THE SWAP, he does not just name it.** The card was a
+    // `showCoachCard` — the heading `match.subs` over the FEED line, which is
+    // the sentence written for the commentary after the change has happened —
+    // so a confirmation that decides who plays the rest of the match read as
+    // "Subs" and a caption. Reported from the couch as the coach not confirming
+    // who you are swapping.
+    //
+    // Two faces and an arrow between them is the answer: the manager has been
+    // picking from cards for the whole journey here, and the two cards are what
+    // they picked. The line stays underneath — `match.subs.feed` already says
     // "{off} off, {on} on." in ten languages and `match.subs.feed_on` covers
-    // the hole — the buttons carry the question, which is what Confirm and
-    // Cancel are for.
-    final ok = await showCoachCard<bool>(
-      context,
-      titleKey: 'match.subs',
-      bodyKey: going == null ? 'match.subs.feed_on' : 'match.subs.feed',
-      bodyParams: {
-        if (going != null) 'off': going.name(),
-        'on': coming.name(),
-      },
-      actions: [
-        CoachAction(
-          labelKey: 'common.confirm',
-          tone: CoachTone.confirm,
-          onTap: () {},
-          result: true,
+    // the hole, and no new key can be added from this repo — and the buttons
+    // carry the question, which is what Confirm and Cancel are for.
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierColor: coachCardScrim,
+      builder: (dialogContext) => CoachCardFrame(
+        key: const ValueKey('subs-confirm'),
+        title: t('match.subs'),
+        body: t(
+          going == null ? 'match.subs.feed_on' : 'match.subs.feed',
+          {
+            if (going != null) 'off': going.name(),
+            'on': coming.name(),
+          },
         ),
-        CoachAction(
-          labelKey: 'common.cancel',
-          tone: CoachTone.decline,
-          onTap: () {},
-          result: false,
-        ),
-      ],
+        actions: [
+          CoachAction(
+            labelKey: 'common.confirm',
+            tone: CoachTone.confirm,
+            onTap: () {},
+            result: true,
+          ),
+          CoachAction(
+            labelKey: 'common.cancel',
+            tone: CoachTone.decline,
+            onTap: () {},
+            result: false,
+          ),
+        ],
+        child: _SwapPreview(going: going, coming: coming),
+      ),
     );
     if (ok != true || !mounted) return false;
 
@@ -411,7 +427,7 @@ class _BenchSheet extends ConsumerWidget {
                 ),
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
-                childAspectRatio: 0.78,
+                childAspectRatio: benchCardAspect,
               ),
               itemCount: bench.length,
               itemBuilder: (context, i) {
@@ -462,3 +478,87 @@ CardInstance? _cardById(Map<String, dynamic>? state, String instanceId) {
   }
   return null;
 }
+
+/// The two cards a substitution swaps, side by side, with the arrow between
+/// them pointing at the man coming on.
+///
+/// **The one bit of the confirmation that is not words**, and the reason the
+/// card exists at all: a manager confirms a swap by looking at it. The faces
+/// are the same [PlayerCard] the bench sheet was just tapped in, so the card
+/// under the thumb and the card on the confirmation are the same object.
+///
+/// A hole has nobody going off — an injury, or a slot that started empty — so
+/// the left half is dropped rather than drawn as a blank card.
+class _SwapPreview extends ConsumerWidget {
+  const _SwapPreview({required this.going, required this.coming});
+
+  final CardInstance? going;
+  final CardInstance coming;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    // Pro mode's per-player fitness bar. The bench cards behind this one carry
+    // it, so the confirmation must too or the swap loses the number the whole
+    // decision was made on.
+    final pro = isProMode(ref.watch(gameProvider).state);
+    final off = going == null ? null : cardViewFor(going!.raw, proMode: pro);
+    final on = cardViewFor(coming.raw, proMode: pro);
+    if (on == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (off != null) ...[
+            // Dimmed, because he is the half of the swap that is ENDING. The
+            // bench sheet dims an unavailable card at the same 0.45; this is
+            // the same statement about the same kind of card.
+            Flexible(
+              child: Opacity(
+                opacity: 0.55,
+                child: SizedBox(
+                  width: _swapCardWidth,
+                  height: _swapCardWidth / benchCardAspect,
+                  child: PlayerCard(
+                    key: const ValueKey('subs-confirm-off'),
+                    view: off,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Icon(
+                Icons.arrow_forward_rounded,
+                size: 20,
+                color: kit.textMuted,
+              ),
+            ),
+          ],
+          Flexible(
+            child: SizedBox(
+              width: _swapCardWidth,
+              height: _swapCardWidth / benchCardAspect,
+              child: PlayerCard(
+                key: const ValueKey('subs-confirm-on'),
+                view: on,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Narrower than the bench's own cards: two of them and an arrow have to sit
+/// inside a coach card, which is narrower than the sheet they were picked in.
+const double _swapCardWidth = 96;
+
+/// The bench grid's own `childAspectRatio`. A [PlayerCard] fills the box it is
+/// given and has an `Expanded` in it, so a width with no height is an unbounded
+/// column — the shape has to come from somewhere, and it comes from the grid
+/// the cards were just tapped in so both look the same.
+const double benchCardAspect = 0.78;

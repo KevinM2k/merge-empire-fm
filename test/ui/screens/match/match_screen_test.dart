@@ -1473,6 +1473,67 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    group('AND IT OPENS ON THE TACTIC THE CARD WAS SET TO', () {
+      // **Reported from the couch: "when I choose a tactic in the drop down
+      // it's not filtering through to the game, I have to repick in game".**
+      // `playMatch` never stamps a `strategyId` — the JS's does not either —
+      // so reading the result alone made every kickoff Balanced.
+      Map<String, dynamic> savedAs(String id) {
+        final s = squadSave();
+        (s['squad'] as Map<String, dynamic>)['strategyId'] = id;
+        return s;
+      }
+
+      /// The result as `playMatch` actually leaves it: no `strategyId` on it.
+      Map<String, dynamic> asPlayed() =>
+          playable()..remove('strategyId');
+
+      testWidgets('the strip lights the SAVE\'s tactic', (tester) async {
+        await pumpMatch(tester, asPlayed(), save: savedAs('parkTheBus'));
+        expect(stateOf(tester).strategy, 'parkTheBus');
+        stateOf(tester).skipToEnd();
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('and switching still counts as a change', (tester) async {
+        // The whole point of opening on it: picking the one already on is a
+        // no-op, so a screen that opened on the wrong one turned the player's
+        // FIRST pick into the switch.
+        final result = asPlayed();
+        await pumpMatch(tester, result, save: savedAs('parkTheBus'));
+        await tester.pump(minuteDurationFor(20));
+        stateOf(tester).applyStrategy('parkTheBus');
+        await tester.pump();
+        expect(
+          result['strategyChanged'],
+          isFalse,
+          reason: 'repicking what the card already set counted as a switch',
+        );
+        stateOf(tester).skipToEnd();
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('and a result that HAS one still wins', (tester) async {
+        // A screen re-entered after a switch: `reSimulateRemainder` has
+        // written the field and it is newer than the save's.
+        final result = playable()..['strategyId'] = 'highPress';
+        await pumpMatch(tester, result, save: savedAs('parkTheBus'));
+        expect(stateOf(tester).strategy, 'highPress');
+        stateOf(tester).skipToEnd();
+        await tester.pumpAndSettle();
+      });
+
+      test('and the helper answers with no save at all', () {
+        expect(kickoffStrategy(const {}, null), 'balanced');
+        expect(
+          kickoffStrategy(const {}, {
+            'squad': {'strategyId': 'counterAttack'},
+          }),
+          'counterAttack',
+        );
+      });
+    });
+
     testWidgets('AT FULL TIME THE STRIP IS GONE', (tester) async {
       // There is no remainder to re-decide, and a live control over a finished
       // match is a control that lies.
@@ -1539,6 +1600,67 @@ void main() {
       await confirmSub(tester);
       return (off: slot.cardInstanceId!, on: bench.instanceId);
     }
+
+    testWidgets('THE CONFIRMATION SHOWS THE SWAP, not just a heading', (
+      tester,
+    ) async {
+      // **Reported from the couch: "I assume the coach is meant to confirm who
+      // you are swapping? Right now it just says subs with nothing in it".**
+      // It was the heading `match.subs` over the FEED line — the sentence
+      // written for the commentary after the change — and nothing on the card
+      // was the two players it decides between.
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      await openSubs(tester);
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      final bench = container.read(benchProvider).first;
+      await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
+      await tester.pumpAndSettle();
+
+      final card = find.byKey(const ValueKey('subs-confirm'));
+      expect(card, findsOneWidget);
+      // BOTH cards, so the swap is a picture and not a caption.
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byKey(const ValueKey('subs-confirm-off')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byKey(const ValueKey('subs-confirm-on')),
+        ),
+        findsOneWidget,
+      );
+      // And the line under them still names them both.
+      final off = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotId == slot.slotId)
+          .card!;
+      expect(
+        find.text(
+          t('match.subs.feed', {'off': off.name, 'on': bench.card.name}),
+        ),
+        findsOneWidget,
+      );
+
+      await confirmSub(tester);
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
 
     testWidgets('THE PANEL IS THE SAME PITCH, and the bench comes up on a tap', (
       tester,

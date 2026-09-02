@@ -2208,7 +2208,7 @@ const Map<String, String> arCatalog = <String, String>{
   'settings.autoTier.off': 'إيقاف',
   'settings.autoTier.count': '{count} فئات',
   'settings.autoTier.worth': 'يُباع بـ {coins}',
-  'settings.autoTier.top_safe': 'لا يتم بيع لاعبي WORLD CLASS وICON تلقائيًا أبدًا.',
+  'settings.autoTier.top_safe': 'لا يتم بيع لاعبي World Class وIcon تلقائيًا أبدًا.',
   'settings.pitchView': 'عرض الملعب ثنائي الأبعاد',
   'settings.pitchView.ours': 'فريقك',
   'settings.pitchView.opp': 'الخصم',

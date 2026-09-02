@@ -110,17 +110,27 @@ const Color _lightChipB = Color(0xADE4EFF8);
 const Color _lightDeepA = Color(0x57FCFEFF);
 const Color _lightDeepB = Color(0x42DCEAF5);
 
-/// **A pane standing on a bright SKY, in light mode.**
+/// **A PANE STANDING ON THE SKY ITSELF**, thinner than the density it would
+/// otherwise take.
 ///
-/// The HUD's trough and the next-match card both do, and both carry ink chosen
-/// for a dark ground — the wallet hues, and the card's red and green. So both
-/// are dark glass whatever the theme is. At the ordinary dark stops that came
-/// out as two slabs cut out of a daylit sky, reported as too dark, twice.
+/// The next-match card is the case: it fills most of the Play page, it sits
+/// directly on the scene rather than on any chrome, and at the deep density's
+/// 43% it reads as a slab laid over the pitch rather than as something the
+/// pitch is behind. Reported from the couch — the card can be a little more
+/// transparent.
 ///
 /// About half. Enough of a ground under a mint green and a gold for them to be
 /// themselves, little enough that the sky is still visibly behind it — which is
-/// the difference between smoked glass and a hole.
+/// the difference between smoked glass and a hole. Use [skyPaneTintFor] rather
+/// than either list, so the pane still follows the theme.
 const List<Color> skyPaneTint = [Color(0x3D141E2C), Color(0x2E090F18)];
+
+/// The same material in daylight — the deep light stops, thinned to match.
+const List<Color> skyPaneTintLight = [Color(0x3DFCFEFF), Color(0x2EE4EFF8)];
+
+/// [skyPaneTint] or [skyPaneTintLight], whichever the scene is.
+List<Color> skyPaneTintFor(BuildContext context) =>
+    nightSceneOf(context) ? skyPaneTint : skyPaneTintLight;
 
 /// How much the backdrop's colour is pushed under the pane.
 ///

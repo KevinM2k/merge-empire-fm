@@ -2208,7 +2208,7 @@ const Map<String, String> koCatalog = <String, String>{
   'settings.autoTier.off': '끄기',
   'settings.autoTier.count': '{count}개 등급',
   'settings.autoTier.worth': '판매가 {coins}',
-  'settings.autoTier.top_safe': 'WORLD CLASS 및 ICON 선수는 절대 자동 판매되지 않습니다.',
+  'settings.autoTier.top_safe': 'World Class 및 Icon 선수는 절대 자동 판매되지 않습니다.',
   'settings.pitchView': '2D 피치 뷰',
   'settings.pitchView.ours': '내 팀',
   'settings.pitchView.opp': '상대',

@@ -2208,7 +2208,7 @@ const Map<String, String> deCatalog = <String, String>{
   'settings.autoTier.off': 'Aus',
   'settings.autoTier.count': '{count} Stufen',
   'settings.autoTier.worth': 'Bringt {coins}',
-  'settings.autoTier.top_safe': 'WORLD CLASS- und ICON-Spieler werden nie automatisch verkauft.',
+  'settings.autoTier.top_safe': 'World Class- und Icon-Spieler werden nie automatisch verkauft.',
   'settings.pitchView': '2D-Spielfeldansicht',
   'settings.pitchView.ours': 'Dein Team',
   'settings.pitchView.opp': 'Gegner',

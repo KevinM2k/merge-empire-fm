@@ -141,12 +141,74 @@ void main() {
       }
     });
 
+    test('AND THE TOP LEAGUE IS PLAYABLE — the window is not one frame', () {
+      // **Reported from the couch: "it's essentially impossible in top
+      // league".** The marker covers 200% of the bar per sweep, so the window
+      // on a zone `w`% wide is `w / 200 * sweepMs`. At 12% and 700ms the last
+      // round of a Champions Cup session was 16.8ms, which is one frame at
+      // 60Hz. The whole point of this test is the arithmetic, not the numbers:
+      // whatever the constants become, the hardest round has to leave a human
+      // something to aim at.
+      double windowMs(({double zonePct, double sweepMs}) d, int round) =>
+          throughBallZone(round, d.zonePct, 0.5).width / 200 * d.sweepMs;
+
+      final top = throughBallDifficulty(divisions.length - 1);
+      final last = windowMs(top, ThroughBall.rounds - 1);
+      expect(
+        last,
+        greaterThan(50),
+        reason: 'the hardest round is inside a frame or two',
+      );
+      // And it is still HARDER than the bottom, or the fix has flattened the
+      // curve instead of moving it.
+      final sunday = throughBallDifficulty(0);
+      expect(last, lessThan(windowMs(sunday, ThroughBall.rounds - 1) * 0.75));
+    });
+
     test('is TIGHTER and the sweep QUICKER as you climb', () {
       final sunday = throughBallDifficulty(0);
       final champions = throughBallDifficulty(divisions.length - 1);
       expect(champions.zonePct, lessThan(sunday.zonePct));
       expect(champions.sweepMs, lessThan(sunday.sweepMs));
     });
+  });
+
+  testWidgets('THE MARKER IS VISIBLE ON A DAYLIT PAGE', (tester) async {
+    // **A flat `Colors.white` bar on `kit.surface2`.** On a light page that is
+    // very nearly white, so the one thing the player aims with was invisible
+    // for most of every sweep and only appeared as it crossed the green zone.
+    // Reported from the couch.
+    await pumpGame(tester, saveWith());
+    expect(
+      Theme.of(tester.element(find.byType(ThroughBallScreen))).brightness,
+      Brightness.light,
+      reason: 'this test is only about the daylit page',
+    );
+    final lane = find.byKey(const ValueKey('tb-lane-0'));
+    final track = tester
+        .widgetList<DecoratedBox>(
+          find.descendant(of: lane, matching: find.byType(DecoratedBox)),
+        )
+        .first
+        .decoration as BoxDecoration;
+    final marker = tester.widget<DecoratedBox>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('tb-marker-0')),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    final ink = (marker.decoration as BoxDecoration).color!;
+    expect(
+      (ink.computeLuminance() - track.color!.computeLuminance()).abs(),
+      greaterThan(0.3),
+      reason: 'the marker is the same brightness as the track it runs on',
+    );
+    // And a casing, because no flat colour clears the track AND the fixed mid
+    // green of the zone.
+    expect((marker.decoration as BoxDecoration).border, isNotNull);
+    await closeGame(tester);
   });
 
   testWidgets('the drill is REACHABLE — it is in the playable set', (

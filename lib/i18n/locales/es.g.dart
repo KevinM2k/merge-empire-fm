@@ -2208,7 +2208,7 @@ const Map<String, String> esCatalog = <String, String>{
   'settings.autoTier.off': 'Desactivado',
   'settings.autoTier.count': '{count} niveles',
   'settings.autoTier.worth': 'Se vende por {coins}',
-  'settings.autoTier.top_safe': 'Los jugadores WORLD CLASS e ICON nunca se venden automáticamente.',
+  'settings.autoTier.top_safe': 'Los jugadores World Class e Icon nunca se venden automáticamente.',
   'settings.pitchView': 'Vista 2D del campo',
   'settings.pitchView.ours': 'El tuyo',
   'settings.pitchView.opp': 'Rival',

@@ -46,6 +46,7 @@ import 'package:merge_empire_fc/ui/screens/home/home_screen.dart';
 import 'package:merge_empire_fc/ui/screens/settings_screen.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart' show hudBadgeInk;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -211,6 +212,7 @@ void main() {
         for (final row in inksOn(tester))
           if (_ratio(row.ink, row.ground) < 3 &&
               !(row.ground == kit.accent && row.ink == kit.accentInk) &&
+              !_walletBadgePair(row.ink, row.ground) &&
               !_cardVerdictPair(row.ink))
             row,
       ];
@@ -228,6 +230,23 @@ void main() {
     });
   }
 }
+
+/// **A WALLET'S BADGE, printed in its own lightened hue — argued already.**
+///
+/// `hudBadgeColour` fills a chip with the wallet's shop face and `hudBadgeInk`
+/// prints on it, and the pair is deliberately not a 3:1 one: gold is
+/// intrinsically light, flat WHITE on the shop's `#D8A01A` is 2.3, so a target
+/// of 3 is not a target — it is an instruction to stop using the shop's gold.
+/// `hudBadgeInkTarget` is `whiteInkMinContrast`, which is where `inkFor` draws
+/// that line for every filled accent in the app, and a badge is a filled
+/// accent. See `hud.dart`.
+///
+/// The four badges in the HUD have worn this since the bar was built; the
+/// full-time report's payout joined them when it stopped being a `#FFD700`
+/// figure on a dark plate. Matched by CONSTRUCTION rather than by a list of
+/// hexes: the ink has to be the one `hudBadgeInk` derives from that ground.
+bool _walletBadgePair(Color ink, Color ground) =>
+    ink.toARGB32() == hudBadgeInk(ground).toARGB32();
 
 /// **The next-match card's own verdict palette, which is the DARK set in both
 /// themes and is exempt from the sweep.**

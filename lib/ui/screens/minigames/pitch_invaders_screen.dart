@@ -120,18 +120,10 @@ const List<Color> turfStops = [
 ];
 const List<double> turfPositions = [0, 0.55, 1];
 
-/// The slice of [turfStops] that lands behind the occluder band, so its top
-/// edge leaves no seam. The band covers the bottom [occludeTop] of the tile, so
-/// it starts at 1 - occludeTop down the tile's own gradient.
-LinearGradient bandGradient() {
-  const start = 1 - occludeTop;
-  final t = (start - turfPositions[1]) / (1 - turfPositions[1]);
-  return LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Color.lerp(turfStops[1], turfStops[2], t)!, turfStops[2]],
-  );
-}
+// **`bandGradient` HAS GONE WITH THE BAND.** It repainted the slice of the
+// tile's own gradient that the occluder covered, so the band's top edge left no
+// seam — which is only a problem a full-width occluder has. The figure is
+// clipped now and nothing is drawn over the turf, so there is no edge to hide.
 
 const RadialGradient mouthFill = RadialGradient(
   center: Alignment(0, -0.5),
@@ -686,7 +678,23 @@ class _Hole extends StatelessWidget {
                     decoration: BoxDecoration(gradient: tileDish),
                   ),
                 ),
-                // 1. The mouth the figure rises out of.
+                // 1. THE WHOLE MOUTH, once, and UNDER the figure.
+                //
+                // **NOTHING IS PAINTED OVER HIM ANY MORE, and that is the
+                // change.** It used to be three layers: the far wall here, the
+                // figure, then a full-width turf band and the mouth's near half
+                // drawn back over him. The band is the one that did the damage
+                // — it is a straight edge across the whole tile at the mouth's
+                // waist, so what actually cut him was a horizontal line at his
+                // shins with the arc sitting harmlessly BELOW it. Reported from
+                // the couch: the hole is in front of the thing coming out of
+                // it, and the thing should be in front of the hole.
+                //
+                // So the cut moved into a CLIP. The mouth is drawn once,
+                // whole, underneath; the figure is clipped to everything above
+                // the mouth's near arc. Same silhouette — he still sinks into
+                // the hole along a curve — with the hole behind him where it
+                // belongs, and one ellipse instead of one and a half.
                 Positioned(
                   left: w * mouthInset,
                   right: w * mouthInset,
@@ -694,69 +702,41 @@ class _Hole extends StatelessWidget {
                   height: h * mouthHeight,
                   child: const _Mouth(lip: true),
                 ),
-                // 2. The figure, unclipped — it has to be free to paint over
-                // the hole on the way up.
-                Positioned.fill(
-                  child: AnimatedSlide(
-                    offset: occupant == null
-                        ? const Offset(0, 0.8)
-                        : Offset.zero,
-                    duration: Duration(milliseconds: struck ? 110 : 150),
-                    curve: Curves.easeOut,
-                    child: AnimatedScale(
-                      scale: struck && occupant == null ? 0.7 : 1,
-                      duration: const Duration(milliseconds: 110),
-                      child: Builder(
-                        builder: (context) {
-                          // It stands IN the mouth, so it is sized off the
-                          // mouth rather than off the tile.
-                          final glyph = math.min(96.0, w * 0.62);
-                          return Align(
-                            alignment: Alignment(0, figureAlign(glyph / h)),
-                            child: Text(
-                              occupant?.emoji ?? '',
-                              key: ValueKey('pi-figure-$index'),
-                              style: TextStyle(fontSize: glyph, height: 1),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-                // 3a. The turf band that eats the figure's feet. It repaints
-                // the exact slice of the tile gradient behind it, so its top
-                // edge leaves no seam.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: h * occludeTop,
+                // 2. The tile's own foot shadow, which is what stops the
+                // ground in front of the hole reading as flat.
+                const Positioned.fill(
                   child: DecoratedBox(
-                    decoration: BoxDecoration(gradient: bandGradient()),
-                    // And its own foot shadow, which is what stops the band
-                    // reading as a lighter rectangle laid over the tile.
-                    child: const DecoratedBox(
-                      decoration: BoxDecoration(gradient: bandFoot),
-                      child: SizedBox.expand(),
-                    ),
+                    decoration: BoxDecoration(gradient: bandFoot),
                   ),
                 ),
-                // 3b. The near half of the mouth, drawn back over that band so
-                // the hole still reads as a hole and the figure sinks behind an
-                // arc rather than a straight cut.
-                Positioned(
-                  left: w * mouthInset,
-                  right: w * mouthInset,
-                  bottom: h * mouthBottom,
-                  height: h * mouthHeight,
-                  child: ClipRect(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      heightFactor: 0.5,
-                      child: SizedBox(
-                        height: h * mouthHeight,
-                        child: const _Mouth(lip: false),
+                // 3. The figure, cut along the arc rather than under it.
+                Positioned.fill(
+                  child: ClipPath(
+                    clipper: _AboveTheMouth(size: Size(w, h)),
+                    child: AnimatedSlide(
+                      offset: occupant == null
+                          ? const Offset(0, 0.8)
+                          : Offset.zero,
+                      duration: Duration(milliseconds: struck ? 110 : 150),
+                      curve: Curves.easeOut,
+                      child: AnimatedScale(
+                        scale: struck && occupant == null ? 0.7 : 1,
+                        duration: const Duration(milliseconds: 110),
+                        child: Builder(
+                          builder: (context) {
+                            // It stands IN the mouth, so it is sized off the
+                            // mouth rather than off the tile.
+                            final glyph = math.min(96.0, w * 0.62);
+                            return Align(
+                              alignment: Alignment(0, figureAlign(glyph / h)),
+                              child: Text(
+                                occupant?.emoji ?? '',
+                                key: ValueKey('pi-figure-$index'),
+                                style: TextStyle(fontSize: glyph, height: 1),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -770,3 +750,53 @@ class _Hole extends StatelessWidget {
   );
 }
 
+
+/// Everything on a tile that is NOT behind the near wall of the hole.
+///
+/// The figure is clipped to this instead of having the hole painted back over
+/// him — see the note on the stack in [_Hole]. Two bites out of the tile:
+///
+/// - the mouth's NEAR half, an arc, which is what a man standing in a hole is
+///   cut off by;
+/// - the strip of turf below the mouth entirely, so the duck takes him out of
+///   sight rather than sliding him down the grass either side of the rim.
+///
+/// The size comes from the tile's own `LayoutBuilder` rather than from the clip
+/// call, so the two cannot disagree about where the mouth is.
+class _AboveTheMouth extends CustomClipper<Path> {
+  const _AboveTheMouth({required this.size});
+
+  final Size size;
+
+  Rect get _mouth => Rect.fromLTRB(
+    size.width * mouthInset,
+    size.height * (1 - mouthBottom - mouthHeight),
+    size.width * (1 - mouthInset),
+    size.height * (1 - mouthBottom),
+  );
+
+  @override
+  Path getClip(Size _) {
+    final mouth = _mouth;
+    final near = Path.combine(
+      PathOperation.intersect,
+      Path()..addOval(mouth),
+      Path()
+        ..addRect(
+          Rect.fromLTRB(mouth.left, mouth.center.dy, mouth.right, mouth.bottom),
+        ),
+    );
+    final below = Path()
+      ..addRect(
+        Rect.fromLTRB(0, mouth.bottom, size.width, size.height),
+      );
+    return Path.combine(
+      PathOperation.difference,
+      Path()..addRect(Offset.zero & size),
+      Path.combine(PathOperation.union, near, below),
+    );
+  }
+
+  @override
+  bool shouldReclip(_AboveTheMouth old) => old.size != size;
+}

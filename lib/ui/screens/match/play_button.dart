@@ -137,6 +137,19 @@ const double playButtonRimWidth = 1;
 /// running bright at the top and dark at the bottom.
 const double playButtonLabelShadowAlpha = 0.45;
 
+/// That shadow, built — worn by the CUP label and nothing else.
+///
+/// The league face derives its ink from the club and separates by lightness, so
+/// it needs none; the cup face is a fixed purple→amber in both themes and its
+/// label is white, and white has to clear the amber end.
+const List<Shadow> playButtonCupLabelShadows = [
+  Shadow(
+    offset: Offset(0, 1),
+    blurRadius: 3,
+    color: Color.fromRGBO(0, 0, 0, playButtonLabelShadowAlpha),
+  ),
+];
+
 /// **The button's face: the club's colour, lit from above.**
 ///
 /// One hue at two lightnesses rather than two colours. `accentBright` used to
@@ -860,7 +873,20 @@ class _Label extends ConsumerWidget {
     // the face is not, with the saturation kept. On a yellow button it is a
     // deep bronze; on a claret one, a pale rose. Both are the club's colour, and
     // neither is a hole punched in the face.
-    final ink = widget.dead ? kit.textMuted : playButtonInk(kit.accent);
+    // **EXCEPT ON A CUP TIE, WHERE THE FACE IS NOT THE CLUB'S.** A tie wears the
+    // fixed purple→amber above, so deriving the ink from the club's accent
+    // prints a colour chosen for a face that is not there — on a dark club it
+    // came out a deep variant on deep purple, reported from the couch as the
+    // quarter-final label being unreadable in dark mode. The one face that is
+    // the same in both themes gets the one ink that is: white, with the
+    // stylesheet's own shadow back under it, because the gradient's far end is
+    // an amber a flat white does not clear on its own.
+    final isCup = widget.cupRound != null;
+    final ink = widget.dead
+        ? kit.textMuted
+        : isCup
+        ? Colors.white
+        : playButtonInk(kit.accent);
     final blocked = ref.watch(matchBlockedProvider);
 
     // The glyph says which of three states this is: play, paused on a clock, or
@@ -894,7 +920,9 @@ class _Label extends ConsumerWidget {
               // club's own deep or pale variant now — see [playButtonInk] — and
               // it separates by lightness rather than by having something dark
               // smeared under it, which on a dark ink is just a thicker letter.
-              shadows: null,
+              // A cup tie is the exception, and the reason is the one the
+              // stylesheet had: the ink there IS white.
+              shadows: isCup ? playButtonCupLabelShadows : null,
             ),
           ),
         ),

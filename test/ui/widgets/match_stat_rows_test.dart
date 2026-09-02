@@ -196,6 +196,38 @@ void main() {
       expect(plates.length, 2, reason: 'warn is not the plus green');
     });
 
+    testWidgets('THREE OF THEM STAY OUT OF THE ATK/DEF BLOCK', (tester) async {
+      // **Reported from the couch: "the game modifiers overlay the ATK and DEF
+      // ratings when there is more than one. I think we can have 3 so need to
+      // cater for it."** An away grudge against a side in the drop zone is
+      // three, and the row was `MainAxisSize.min` and centred inside a rating
+      // column sitting in a `Clip.none` stack — so it grew straight over the
+      // well between the two sides.
+      await pumpRows(
+        tester,
+        leftMods: [mod(4), mod(3), mod(2)],
+        rightMods: [mod(1)],
+      );
+      await tester.pumpAndSettle();
+
+      final well = tester.getRect(find.byKey(const ValueKey('nm-stat-well')));
+      for (final label in ['+4', '+3', '+2']) {
+        final badge = tester.getRect(
+          find
+              .ancestor(
+                of: find.text(label),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        expect(
+          badge.right,
+          lessThanOrEqualTo(well.left + 0.5),
+          reason: '$label is painted over the ratings',
+        );
+      }
+    });
+
     testWidgets('and the tap tip is reachable without a long press', (
       tester,
     ) async {

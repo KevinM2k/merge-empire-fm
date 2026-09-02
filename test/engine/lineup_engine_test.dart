@@ -388,4 +388,144 @@ void main() {
       expect((lineup.first as Map)['cardInstanceId'], 'starter');
     });
   });
+
+  group('restoreKickoffLineup', () {
+    // A FULL eleven, so the only holes in play are the ones a test makes. With
+    // spare slots open, `refillLineupFromBench` quite correctly puts every
+    // available body somewhere and the assertion is about the refill rather
+    // than about the restore.
+    const midSlot = 5;
+
+    Map<String, dynamic> stateWith({
+      required List<CardInstance?> grid,
+      required List<String?> lineupIds,
+    }) => {
+      'squad': {
+        'formation': '4-3-3',
+        'lineup': [
+          for (var i = 0; i < 11; i++)
+            {
+              'slotId': getFormation('4-3-3').slots[i].slotId,
+              'slotPosition': getFormation('4-3-3').slots[i].slotPosition,
+              'cardInstanceId': lineupIds[i],
+            },
+        ],
+      },
+      'grid': <String, dynamic>{
+        'cells': <dynamic>[for (final c in grid) c?.raw],
+      },
+    };
+
+    String slot(int i) => getFormation('4-3-3').slots[i].slotId;
+
+    /// The eleven that started, as the screen snapshots it.
+    Map<String, String?> kickoffOf(List<String?> ids) => {
+      for (var i = 0; i < 11; i++) slot(i): ids[i],
+    };
+
+    List<String?> idsOf(Map<String, dynamic> state) => [
+      for (final s in (state['squad'] as Map)['lineup'] as List)
+        (s as Map)['cardInstanceId'] as String?,
+    ];
+
+    test('an ordinary swap goes back: the kickoff man returns', () {
+      // "If we only subbed and not injured then you should keep the original
+      // team." A substitution is a change for THIS match.
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i'];
+      final now = [...started]..[midSlot] = 'sub';
+      final state = stateWith(
+        grid: [..._squad(), _card('sub')],
+        lineupIds: now,
+      );
+      expect(restoreKickoffLineup(state, kickoffOf(started)), isTrue);
+      expect(idsOf(state)[midSlot], 'p$midSlot');
+      expect(idsOf(state), isNot(contains('sub')), reason: 'still on the pitch');
+    });
+
+    test('BUT AN INJURY HOLE KEEPS THE COVER THE MANAGER PICKED', () {
+      // "An injured player should be replaced with the sub player." The slot
+      // was EMPTY at kickoff — the sim vacated it before the screen opened —
+      // so there is no original to go back to, and reverting it threw away the
+      // one decision the subs panel exists to make.
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i']
+        ..[midSlot] = null;
+      final now = [...started]..[midSlot] = 'cover';
+      final squad = _squad();
+      squad[midSlot] = _card('p$midSlot', injured: true);
+      final state = stateWith(
+        grid: [...squad, _card('cover')],
+        lineupIds: now,
+      );
+      expect(restoreKickoffLineup(state, kickoffOf(started)), isFalse);
+      expect(idsOf(state)[midSlot], 'cover');
+      expect(idsOf(state), isNot(contains('p$midSlot')));
+    });
+
+    test('and nobody comes back INJURED', () {
+      // A tactic change re-rolls the remainder's injuries, so a man can be hurt
+      // AFTER the kickoff snapshot was taken. `cleanLineup` keeps an injured
+      // card in its slot on purpose — at full time that is exactly wrong.
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i'];
+      final squad = _squad();
+      squad[midSlot] = _card('p$midSlot', injured: true);
+      final state = stateWith(
+        grid: [...squad, _card('spare')],
+        lineupIds: [...started],
+      );
+      expect(restoreKickoffLineup(state, kickoffOf(started)), isTrue);
+      expect(idsOf(state)[midSlot], 'spare', reason: 'the casualty kept his place');
+    });
+
+    test('nor does anyone who has left the club', () {
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i'];
+      final squad = _squad();
+      squad[midSlot] = _card('p$midSlot', loanedOut: 'Ayton');
+      final state = stateWith(
+        grid: [...squad, _card('spare')],
+        lineupIds: [...started],
+      );
+      restoreKickoffLineup(state, kickoffOf(started));
+      expect(idsOf(state)[midSlot], 'spare');
+    });
+
+    test('a hole nobody covered is filled from the bench', () {
+      // The half the old guard skipped: a manager who saw the casualty and made
+      // no change left the side a man light for the next fixture.
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i']
+        ..[midSlot] = null;
+      final squad = _squad();
+      squad[midSlot] = _card('p$midSlot', injured: true);
+      final state = stateWith(
+        grid: [...squad, _card('spare')],
+        lineupIds: [...started],
+      );
+      expect(restoreKickoffLineup(state, kickoffOf(started)), isTrue);
+      expect(idsOf(state)[midSlot], 'spare');
+    });
+
+    test('a match nobody changed reports no change at all', () {
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i'];
+      final state = stateWith(grid: _squad(), lineupIds: [...started]);
+      expect(
+        restoreKickoffLineup(state, kickoffOf(started)),
+        isFalse,
+        reason: 'a write for nothing at the end of every match',
+      );
+    });
+
+    test('a slot the formation no longer has is left alone', () {
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i'];
+      final state = stateWith(grid: _squad(), lineupIds: [...started]);
+      expect(restoreKickoffLineup(state, const {'not-a-slot': 'x'}), isFalse);
+      expect(idsOf(state)[0], 'p0');
+    });
+
+    test('refuses a malformed save', () {
+      expect(restoreKickoffLineup({}, const {}), isFalse);
+      expect(
+        restoreKickoffLineup({'squad': {'lineup': null}}, const {}),
+        isFalse,
+      );
+    });
+  });
 }

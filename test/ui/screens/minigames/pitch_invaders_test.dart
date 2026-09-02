@@ -423,6 +423,56 @@ void main() {
     await closeGame(tester);
   });
 
+  testWidgets('AND NOTHING IS PAINTED OVER HIM — the hole is BEHIND', (
+    tester,
+  ) async {
+    // **Reported from the couch: "the hole is in front of the item coming out
+    // of it. The item needs to be in front of the hole."** It was: the tile
+    // carried a full-width turf band at the mouth's waist, drawn AFTER the
+    // figure, so the thing that actually cut him was a straight horizontal edge
+    // across his shins — with the arc that was supposed to do it sitting
+    // harmlessly underneath. The cut is a clip on the figure now, so the hole
+    // is drawn once and drawn first.
+    await pumpGame(tester);
+    await advance(tester, Whack.leadInMs + 100);
+    final s = stateOf(tester);
+    var up = -1;
+    for (var i = 0; i < 60 && up < 0; i++) {
+      up = s.holes.indexWhere((h) => h != null);
+      if (up < 0) await advance(tester, 100);
+    }
+    expect(up, greaterThanOrEqualTo(0), reason: 'nothing ever came up');
+    await advance(tester, 200);
+
+    final hole = find.byKey(ValueKey('pi-hole-$up'));
+    // He is cut by a CLIP, which is the whole of the fix.
+    final clip = find.descendant(of: hole, matching: find.byType(ClipPath));
+    expect(clip, findsOneWidget);
+    expect(
+      find.descendant(
+        of: clip,
+        matching: find.byKey(ValueKey('pi-figure-$up')),
+      ),
+      findsOneWidget,
+      reason: 'the figure is not the thing being clipped',
+    );
+    // And he is LAST in the tile's stack, so there is nothing left to paint
+    // over him.
+    final stack = tester.widget<Stack>(
+      find.descendant(of: hole, matching: find.byType(Stack)).first,
+    );
+    expect(
+      stack.children.last,
+      isA<Positioned>().having(
+        (p) => p.child,
+        'child',
+        isA<ClipPath>(),
+      ),
+      reason: 'something is drawn after the figure',
+    );
+    await closeGame(tester);
+  });
+
   testWidgets('AND A TILE IS MOST OF THE WIDTH IT CAN BE', (tester) async {
     // A tile is a target you have seven hundred milliseconds to hit, and the
     // board was sharing what the instructions, the score row and the timer left

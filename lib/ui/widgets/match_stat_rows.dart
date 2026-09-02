@@ -382,6 +382,13 @@ class MatchStatRows extends StatelessWidget {
         // inside the well against 30 + 12 + two 19pt floors, so the figures fit
         // there without the furniture having to give anything up.
         final bars = MediaQuery.sizeOf(context).width >= _barsFrom;
+        // The clear air between the card's edge and the ATK/DEF well — which is
+        // NOT `ratingBox`. The rating column is deliberately wide so the figure
+        // can centre under the club name, and it overlaps the well by a good
+        // forty points doing it. That is fine for one centred number and is
+        // exactly what let a row of modifiers grow over the ratings. See
+        // [_Rating._modBand].
+        final modRoom = (w - rowsWidth) / 2;
 
         return Padding(
           padding: const EdgeInsets.only(top: 10, bottom: 9),
@@ -397,6 +404,7 @@ class MatchStatRows extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 SizedBox(
+                  key: const ValueKey('nm-stat-well'),
                   width: rowsWidth,
                   child: _StatWell(left: left, right: right, bars: bars),
                 ),
@@ -411,6 +419,7 @@ class MatchStatRows extends StatelessWidget {
                     // BOTH sides or neither — see [_Rating._modBand].
                     band: leftMods.isNotEmpty || rightMods.isNotEmpty,
                     boot: leftBoot,
+                    modRoom: modRoom,
                     // Always OUTWARD, away from the stat bars.
                     bootOnLeft: true,
                   ),
@@ -425,6 +434,7 @@ class MatchStatRows extends StatelessWidget {
                     mods: rightMods,
                     band: leftMods.isNotEmpty || rightMods.isNotEmpty,
                     boot: rightBoot,
+                    modRoom: modRoom,
                     bootOnLeft: false,
                   ),
                 ),
@@ -712,6 +722,7 @@ class _Rating extends StatelessWidget {
     required this.band,
     required this.boot,
     required this.bootOnLeft,
+    required this.modRoom,
     required this.figureKey,
   });
 
@@ -729,6 +740,9 @@ class _Rating extends StatelessWidget {
   final bool band;
   final bool boot;
   final bool bootOnLeft;
+
+  /// How wide the modifier band may be before it reaches the ATK/DEF well.
+  final double modRoom;
 
   /// The figure's own height, which is what the modifiers hang below.
   static const double _figureHeight = 26;
@@ -797,14 +811,42 @@ class _Rating extends StatelessWidget {
             height: _modBand,
             child: mods.isEmpty
                 ? null
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final mod in mods) ...[
-                        if (mod != mods.first) const SizedBox(width: 2),
-                        _Mod(mod: mod),
-                      ],
-                    ],
+                // **THREE OF THEM USED TO SPILL INTO THE ATK/DEF BLOCK.** The
+                // row was `MainAxisSize.min` and centred inside a rating column
+                // that sits in a `Clip.none` stack, so as soon as a fixture had
+                // more than one modifier the badges grew past the column and
+                // painted straight over the well between the two sides.
+                // Reported from the couch, with the count: an away grudge
+                // against a side in the drop zone is three.
+                //
+                // Two things stop it. It grows OUTWARD, into the card's own
+                // margin, which is where the Lucky Boot already hangs — so the
+                // first badge is nearest the figure it belongs to and nothing
+                // heads for the middle. And it scales down rather than
+                // overflowing, so three badges on a narrow phone are three
+                // smaller badges instead of three badges over the ratings.
+                : Align(
+                    alignment: bootOnLeft
+                        ? Alignment.centerLeft
+                        : Alignment.centerRight,
+                    child: SizedBox(
+                      width: modRoom,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: bootOnLeft
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final mod in mods) ...[
+                              if (mod != mods.first) const SizedBox(width: 2),
+                              _Mod(mod: mod),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
           ),
       ],

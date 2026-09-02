@@ -47,7 +47,7 @@ import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show PosStanding;
 import 'package:merge_empire_fc/engine/lineup_engine.dart'
-    show refillLineupFromBench;
+    show restoreKickoffLineup;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
@@ -83,6 +83,31 @@ typedef _CamShot = ({
   String? minute,
   CamVariant variant,
 });
+
+/// The tactic the side KICKED OFF in.
+///
+/// **The SAVE's, not the result's**, and that is the whole of a report from the
+/// couch: picking a tactic on the next-match card did not filter through, and it
+/// had to be picked again on the strip. `playMatch` never stamps a `strategyId`
+/// — neither does the JS's — because `reSimulateRemainder` is the only thing
+/// that writes one, and it only runs when the manager switches mid-match. So
+/// reading the result alone meant every kickoff was Balanced: the strip lit the
+/// wrong chip, the scoreboard's ATK/DEF carried the wrong multipliers, and the
+/// arrow read a tactic nobody had chosen.
+///
+/// `../merge-empire-fc/src/ui/components/MatchPopup.js` opens on
+/// `state.squad.strategyId` and this is that line. The result still wins where
+/// it has one, which is a screen re-entered after a switch.
+String kickoffStrategy(
+  Map<String, dynamic> result,
+  Map<String, dynamic>? state,
+) {
+  final onResult = result['strategyId'];
+  if (onResult is String && onResult.isNotEmpty) return onResult;
+  final squad = state?['squad'];
+  final saved = squad is Map ? squad['strategyId'] : null;
+  return saved is String && saved.isNotEmpty ? saved : defaultStrategy;
+}
 
 /// **ONE INSET AND ONE GAP for every band on this screen.**
 ///
@@ -327,8 +352,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// still holds him. Null for everything else.
   String? _clipScorerId;
 
-  /// What the side is playing right now.
-  late String _strategy = '${widget.result['strategyId'] ?? defaultStrategy}';
+  /// What the side is playing right now. See [kickoffStrategy] for where the
+  /// opening value comes from and why it is not the result's.
+  late String _strategy = kickoffStrategy(
+    widget.result,
+    ref.read(gameProvider).state,
+  );
 
   /// What Colin would have played, captured when the screen opens.
   ///
@@ -1269,33 +1298,38 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// Put the kickoff eleven back, then cover whatever hole the match left in it.
   ///
-  /// A substitution is a change for THIS match. Leaving it standing would make
-  /// the manager's 70th-minute gamble next week's team without them asking. The
-  /// refill is the other half: carrying an injury's gap forward means kicking
-  /// off the next fixture with ten men and no warning.
-  /// **Only when a change was actually made.** The source restores at every
-  /// full time and refills the bench with it; here the screen puts back what IT
-  /// altered and nothing else, because a save write on the end of every match
-  /// that changed nothing is a write for nothing. The post-match refill of an
-  /// injury's hole belongs to whoever applies the injuries, not to the replay.
+  /// The rule itself is `restoreKickoffLineup` in `engine/lineup_engine.dart`,
+  /// which is where it can be tested without a match running: what a slot goes
+  /// back to depends on what it held at the FIRST whistle, and an injured man
+  /// never goes back at all.
+  ///
+  /// **It runs at every full time, not only after a substitution.** The old
+  /// guard was `_subsUsed == 0`, on the reasoning that the screen should put
+  /// back what it altered and nothing else — but an injury is a hole this screen
+  /// did not make and is the one thing that MUST be covered before the next
+  /// fixture, and a manager who saw the casualty and made no change is exactly
+  /// the case that left the side a man light with no warning. The write is one
+  /// at the end of a match that has just written a result anyway, and the
+  /// engine answers whether anything actually moved, and a match that changed
+  /// nothing writes nothing — which is what the old guard was really protecting
+  /// and it protects it without also skipping the injury case.
   void _restoreKickoffLineup() {
-    if (_lineupRestored || _subsUsed == 0 || _kickoffLineup.isEmpty) return;
+    if (_lineupRestored || _kickoffLineup.isEmpty) return;
     _lineupRestored = true;
-    ref.read(gameProvider).update((s) {
-      final squad = s['squad'];
-      if (squad is! Map<String, dynamic>) return;
-      final lineup = squad['lineup'];
-      if (lineup is! List) return;
-      final kickoff = {
-        for (final row in _kickoffLineup) row['slotId']: row['cardInstanceId'],
-      };
-      for (final row in lineup) {
-        if (row is! Map<String, dynamic>) continue;
-        if (!kickoff.containsKey(row['slotId'])) continue;
-        row['cardInstanceId'] = kickoff[row['slotId']];
-      }
-      refillLineupFromBench(s);
-    });
+    final game = ref.read(gameProvider);
+    final state = game.state;
+    if (state == null) return;
+    final kickoff = <String, String?>{
+      for (final row in _kickoffLineup)
+        '${row['slotId']}': row['cardInstanceId'] as String?,
+    };
+    // Mutated in place and the save armed only if it moved: `update` schedules
+    // a write unconditionally, and a debounced write at the end of EVERY match
+    // is a timer left running behind a screen that has already gone.
+    if (!restoreKickoffLineup(state, kickoff)) return;
+    game
+      ..scheduleSave()
+      ..notifyChanged();
   }
 
   /// Change the tactic, and RE-DECIDE the rest of the match under it.
@@ -1396,10 +1430,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       frame: f,
       result: widget.result,
       isHome: home,
-      // The tactic the side went out in. The sim has already run, so it cannot
-      // change mid-replay — which is why it is read once off the result rather
-      // than watched.
-      strategyId: '${widget.result['strategyId'] ?? 'balanced'}',
+      // **The tactic the side is playing, which on this screen CAN change.**
+      // It was read off the result — a field nothing writes until a switch has
+      // already happened — so the arrow spent every match before the first
+      // switch reading Balanced. See [kickoffStrategy].
+      strategyId: _strategy,
     );
     final events = feedOf(
       f.shown,
@@ -1485,6 +1520,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     leftGoals: home ? f.ourGoals : f.theirGoals,
                     rightGoals: home ? f.theirGoals : f.ourGoals,
                     result: widget.result,
+                    strategyId: _strategy,
                     isHome: home,
                     standings: _standings,
                     minute: f.minute,
@@ -2308,6 +2344,7 @@ class _Scoreboard extends StatelessWidget {
     required this.leftGoals,
     required this.rightGoals,
     required this.result,
+    required this.strategyId,
     required this.isHome,
     required this.standings,
     required this.minute,
@@ -2321,6 +2358,10 @@ class _Scoreboard extends StatelessWidget {
   final int leftGoals;
   final int rightGoals;
   final Map<String, dynamic> result;
+
+  /// The tactic being played RIGHT NOW, so the split moves with the strip.
+  final String strategyId;
+
   final bool isHome;
 
   /// Where the two clubs stood at kick-off, home side first once laid out.
@@ -2358,9 +2399,10 @@ class _Scoreboard extends StatelessWidget {
     // Composed the way the next-match card composes it: OUR split carries the
     // tactic's multipliers, theirs never does. The two screens print the same
     // numbers because they do the same arithmetic on the same fields.
-    final strat =
-        strategies['${result['strategyId'] ?? defaultStrategy}'] ??
-        strategies[defaultStrategy]!;
+    // The LIVE tactic, handed down. It used to be `result['strategyId']`, which
+    // nothing writes until a switch — so the board opened on Balanced's
+    // multipliers whatever the card was set to. See [kickoffStrategy].
+    final strat = strategies[strategyId] ?? strategies[defaultStrategy]!;
     final mult = tacticMultipliers(
       strat,
       (result['oppAttackRatio'] as num?)?.toDouble(),

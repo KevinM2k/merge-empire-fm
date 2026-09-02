@@ -40,7 +40,11 @@ import 'package:merge_empire_fc/util/format.dart';
 /// Half the marker's width, in logical pixels — the JS's `MARKER_HALF_PX`, and
 /// the same reason: the marker is centred on its position rather than hung off
 /// its left edge.
-const double markerHalfPx = 3;
+///
+/// **FOUR, not three.** A six-pixel bar with a one-pixel casing either side has
+/// four pixels of ink left in it; eight leaves six, which is a line rather than
+/// a hair. Asked for from the couch along with the colour — see [markerInk].
+const double markerHalfPx = 4;
 
 /// How long a hit or a miss stays up before the next round starts.
 const Duration throughBallFeedback = Duration(milliseconds: 700);
@@ -51,7 +55,13 @@ const Duration throughBallFeedback = Duration(milliseconds: 700);
 /// `build` — and capped, because five lanes spread the full height of a tall
 /// phone stop being one thing to read down.
 const double laneHeight = 34;
-const double laneGapMost = 30;
+
+/// **FORTY, not thirty.** Five bars a third of an inch apart read as one
+/// striped block, and the round in play is picked out by nothing but which one
+/// has a marker on it. Asked for from the couch: more padding on each. The gap
+/// is still shared out of what the page has left over — this is only the cap —
+/// so a short screen closes up rather than scrolling.
+const double laneGapMost = 40;
 
 /// Where the marker is, as a percentage of the track, [elapsedMs] into a sweep.
 ///
@@ -560,7 +570,7 @@ class _Track extends StatelessWidget {
                         ),
                         child: child,
                       ),
-                      child: const _Marker(colour: Colors.white),
+                      child: _Marker(colour: markerInk(context)),
                     ),
                   )
                 // Frozen where it stopped, in the colour of the answer.
@@ -587,6 +597,28 @@ class _Track extends StatelessWidget {
   );
 }
 
+/// The running marker's colour: the PAGE's ink, not a flat white.
+///
+/// **White is invisible in light mode**, which is the whole of a report from
+/// the couch — the track is `kit.surface2`, and on a daylit page that is very
+/// nearly white, so for most of every sweep the one thing the player is aiming
+/// with simply was not there. It only appeared as it crossed the green zone.
+///
+/// The ink flips with the theme and the CASING under it does the rest: the bar
+/// has to clear the track (light or dark) AND the fixed mid-green zone, which
+/// is the same colour in both themes, so no single flat colour clears
+/// everything. A dark bar in a light sleeve, or the reverse, clears all three.
+Color markerInk(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.light
+    ? const Color(0xFF12181F)
+    : Colors.white;
+
+/// The sleeve drawn under [markerInk] — the opposite end of the same scale.
+Color markerCasing(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.light
+    ? Colors.white
+    : const Color(0xFF12181F);
+
 /// The bar that says where the tap landed.
 class _Marker extends StatelessWidget {
   const _Marker({required this.colour});
@@ -603,6 +635,9 @@ class _Marker extends StatelessWidget {
         decoration: BoxDecoration(
           color: colour,
           borderRadius: BorderRadius.circular(3),
+          // The casing, drawn as a border so the bar keeps its own width and
+          // the hit maths — which is model state, not layout — is untouched.
+          border: Border.all(color: markerCasing(context), width: 1),
         ),
       ),
     ),

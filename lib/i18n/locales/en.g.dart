@@ -2323,7 +2323,7 @@ const Map<String, String> enCatalog = <String, String>{
   'settings.autoTier.off': 'Off',
   'settings.autoTier.count': '{count} tiers',
   'settings.autoTier.worth': 'Sells for {coins}',
-  'settings.autoTier.top_safe': 'WORLD CLASS and ICON players are never auto-sold.',
+  'settings.autoTier.top_safe': 'World Class and Icon players are never auto-sold.',
   'fullReset.permanently_lost': 'Permanently lost:',
   'trophy.world_cup_winners': 'International Cup 2026 Winners',
   'trophy.trophy': 'Trophy',

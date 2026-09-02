@@ -93,12 +93,26 @@ class ThroughBall {
   static const double rewardPerRoundMult = 0.30;
 
   /// Green-zone width, as a percentage of the bar.
+  ///
+  /// **THE TOP LEAGUE WAS UNPLAYABLE, and the arithmetic says so rather than
+  /// taste.** The marker covers 200% of the bar per sweep, so the window on a
+  /// zone `w`% wide is `w / 200 * sweepMs`. At 12% and 700ms the FIRST round of
+  /// a Champions Cup session was 42ms and the fifth — the zone is down to 40%
+  /// of base by then — was 16.8ms, which is one frame. Reported from the couch
+  /// as essentially impossible in the top league.
+  ///
+  /// Sunday League's five rounds run 324ms down to 130ms and are a fair fight.
+  /// These put the Champions Cup at 172ms down to 69ms: about half the time at
+  /// every rung, which is a difficulty curve, and a last round of four frames
+  /// rather than one. Changed in `../merge-empire-fc/src/data/miniGames.js`
+  /// too, with `mini_games_reference.json` re-dumped — the fixture pins the
+  /// whole curve.
   static const double zoneEasyPct = 36;
-  static const double zoneHardPct = 12;
+  static const double zoneHardPct = 30;
 
-  /// One full sweep of the bar.
+  /// One full sweep of the bar. See [zoneHardPct] for why the hard end moved.
   static const double sweepEasyMs = 1800;
-  static const double sweepHardMs = 700;
+  static const double sweepHardMs = 1150;
 
   /// The zone is placed randomly within this band, so the player cannot tap
   /// rhythmically without watching.

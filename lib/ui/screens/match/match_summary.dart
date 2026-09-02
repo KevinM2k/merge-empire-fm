@@ -40,6 +40,8 @@ import 'package:merge_empire_fc/ui/screens/match/summary_league_move.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart'
+    show hudBadgeColour, hudBadgeInk, hudCoinInk;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -1198,36 +1200,17 @@ class _Payout extends StatelessWidget {
               Text('➜', style: TextStyle(color: kit.textMuted)),
               const SizedBox(width: 8),
             ],
-            // **GOLD in both themes, on a plate.** `coinFigureInk` answers a
-            // deep bronze for a light page — reported as not liking the coins
-            // in bronze — and the fix the quests sheet already made is the one
-            // here: the hue is the currency and does not change, so the
-            // contrast is bought with the surface. A dark plate under the
-            // figure in light mode, a faint gold wash in dark.
-            Container(
-              padding: const EdgeInsets.fromLTRB(10, 2, 12, 2),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                color: Theme.of(context).brightness == Brightness.light
-                    ? const Color(0xFF1A1F26).withValues(alpha: 0.88)
-                    : gameGold.withValues(alpha: 0.12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CoinIcon(size: 20, solid: true, color: gameGold),
-                  const SizedBox(width: 6),
-                  Text(
-                    '+${formatCoins(doubled ? total * 2 : total)}',
-                    key: const ValueKey('summary-coins'),
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      color: gameGold,
-                    ),
-                  ),
-                ],
-              ),
+            // **THE HUD'S OWN BADGE, not a second gold.** This was a dark
+            // plate carrying `gameGold` on a light page and a 12% gold wash on
+            // a dark one — two grounds and a vivid `#FFD700` figure, which the
+            // bar itself gave up on four rounds ago. Reported from the couch as
+            // the payout being dark-with-yellow rather than the bar's gold.
+            // `hudBadgeColour` fills it in the wallet's shop face and
+            // `hudBadgeInk` prints on that, so the coins a match pays look like
+            // the coins in the cluster they are about to land in.
+            _CoinBadge(
+              amount: doubled ? total * 2 : total,
+              textKey: const ValueKey('summary-coins'),
             ),
           ],
         ),
@@ -1280,6 +1263,48 @@ class _Payout extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// The match payout, in the coin badge the HUD already wears.
+///
+/// One filled pill in the wallet's shop face with the lightened print on it —
+/// `hudBadgeColour` and `hudBadgeInk`, the pair `HudChip` and the daily
+/// reward's chips both use. It says the same thing on a daylit page as on a
+/// night one, which a `#FFD700` figure does not.
+class _CoinBadge extends StatelessWidget {
+  const _CoinBadge({required this.amount, this.textKey});
+
+  final int amount;
+  final Key? textKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final face = hudBadgeColour(hudCoinInk);
+    final ink = hudBadgeInk(face);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 2, 12, 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: face,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CoinIcon(size: 20, solid: true, color: ink),
+          const SizedBox(width: 6),
+          Text(
+            '+${formatCoins(amount)}',
+            key: textKey,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: ink,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -2208,7 +2208,7 @@ const Map<String, String> itCatalog = <String, String>{
   'settings.autoTier.off': 'Disattivo',
   'settings.autoTier.count': '{count} livelli',
   'settings.autoTier.worth': 'Vale {coins}',
-  'settings.autoTier.top_safe': 'I giocatori WORLD CLASS e ICON non vengono mai venduti automaticamente.',
+  'settings.autoTier.top_safe': 'I giocatori World Class e Icon non vengono mai venduti automaticamente.',
   'settings.pitchView': 'Vista campo 2D',
   'settings.pitchView.ours': 'La tua',
   'settings.pitchView.opp': 'Avversario',
