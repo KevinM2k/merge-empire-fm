@@ -89,12 +89,23 @@ String welcomeLine(OfflineEarnings offline) =>
 ///
 /// Nothing here if there is nothing owed — a resume after two minutes should
 /// not put a card in front of somebody who just answered a text message.
+///
+/// **And nothing here for a SHORT absence either, which is the half that was
+/// missing.** "Is anything owed" was the only gate, and a thirty-second
+/// rewarded video earns something the moment the squad has any income — so the
+/// game welcomed the player back from an ad it had shown them itself. Reported
+/// from the couch. Below [welcomeBackFloorMs] the coins are paid straight in
+/// and no card is queued; they exist nowhere else, so paying is not optional.
 void queueOfflineEarnings({
   required BuildContext Function() context,
   required GameState game,
   required OfflineEarnings offline,
 }) {
   if (offline.earned <= 0) return;
+  if (offline.offlineMs < welcomeBackFloorMs) {
+    collectOfflineEarnings(game, offline.earned.floor());
+    return;
+  }
   enqueuePopup(
     PopupEntry(
       id: 'welcome-back',

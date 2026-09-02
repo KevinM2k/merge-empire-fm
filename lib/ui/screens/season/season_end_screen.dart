@@ -195,12 +195,26 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
         child: Column(
           children: [
             Expanded(
-              // **CENTRED WHEN IT IS SHORT** — see `report_scroll.dart`. The
-              // foot below is pinned, so a season that fits left 420 points of
-              // nothing between the last card and it: half the page.
+              // **TOP, not centred, which reverses what this screen shipped
+              // with.** `ReportScroll` was written because a stack of cards
+              // over a pinned foot left 420 points of nothing here on a
+              // 390×844 phone, and centring was the answer to that hole. It is
+              // the wrong answer for THIS page and full time already knows why:
+              // the first card is the RESULT — the division and where the club
+              // finished — and a result that floats down the page as the
+              // report below it grows or shrinks reads as the page settling
+              // rather than as the verdict. Reported from the couch, naming
+              // the end-of-match screen as the one to follow.
+              //
+              // The centring is still what stops the hole, and it still does:
+              // the minimum height is the viewport, so the cards start at the
+              // top and the foot stays pinned under whatever room is left.
               child: ReportScroll(
+                alignment: Alignment.topCenter,
+                // The end-of-match report's own inset, so walking from one to
+                // the other does not change the margin. It was 13/10.
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(13, 10, 13, 14),
+                  padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

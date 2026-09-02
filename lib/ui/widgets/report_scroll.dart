@@ -56,11 +56,19 @@ class ReportScroll extends StatelessWidget {
 
   /// Where a SHORT page sits in the room it has.
   ///
-  /// Centred is the default and is what the hole above was about. Full time
-  /// asks for [Alignment.topCenter] instead: its first card is the scoreline,
-  /// and a scoreline that floats down the page as the report below it grows or
-  /// shrinks reads as the page settling rather than as the result. Asked for
-  /// directly.
+  /// Centred is the default and is what the hole above was about. **Both
+  /// report screens ask for [Alignment.topCenter] instead**, and for the same
+  /// reason: the first card is the RESULT — the scoreline at full time, the
+  /// division and the finishing place at the end of a season — and a result
+  /// that floats down the page as the report below it grows or shrinks reads
+  /// as the page settling rather than as the verdict. Full time asked for it
+  /// first; the season end was reported later, in as many words, as being
+  /// vertically centred when it should not be.
+  ///
+  /// The default stays centred rather than following them, because the two
+  /// arguments are different: centring is what closes the hole, and topCenter
+  /// is what a page whose first card is a headline wants instead. A third
+  /// report with no headline should get the default.
   final AlignmentGeometry alignment;
   final Widget child;
 

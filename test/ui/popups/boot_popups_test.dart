@@ -259,6 +259,27 @@ void main() {
     expect(activePopupId(), 'daily-reward');
   });
 
+  testWidgets('A SHORT ABSENCE PAYS, BUT DOES NOT INTERRUPT', (tester) async {
+    // **Reported from the couch: the card comes up after watching an ad.** It
+    // did — "is anything owed" was the only gate, and thirty seconds of a
+    // rewarded video earns something as soon as the squad has any income, so
+    // the game welcomed the player back from a video it had shown them itself.
+    final container = await boot(
+      tester,
+      saveWith(
+        claimedToday: true,
+        withPlayers: true,
+        // Half the floor: an ad break, a text message, the shade.
+        lastSeen: DateTime.now().millisecondsSinceEpoch - welcomeBackFloorMs ~/ 2,
+      ),
+    );
+    expect(find.byKey(const ValueKey('welcome-back')), findsNothing);
+    await settleSave(tester);
+    // And the coins are still paid. `lastSeen` has already been stamped, so a
+    // window that closes without paying has burned them.
+    expect(container.read(coinsProvider), greaterThan(0));
+  });
+
   testWidgets('a club with no players is owed no offline earnings', (
     tester,
   ) async {

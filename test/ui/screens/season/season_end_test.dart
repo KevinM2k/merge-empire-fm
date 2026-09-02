@@ -254,14 +254,19 @@ void main() {
     );
   });
 
-  testWidgets('A SHORT SEASON SITS IN THE MIDDLE, not against the top', (
+  testWidgets('A SHORT SEASON STARTS AT THE TOP, like full time', (
     tester,
   ) async {
-    // The foot is pinned so the way out is never more than a thumb away, and
-    // the cards above it usually do not fill the phone — so the page was a
-    // report crammed against the status bar, 420 points of nothing, and then
-    // the button. Measured on a 390x844. Reported as the screen looking a
-    // little ugly, which is what a hole that size looks like.
+    // **THIS REVERSES A DECISION, and the reversal was asked for.** The page
+    // was centred in the room the pinned foot left it, because a stack of
+    // cards over a pinned foot put the report against the status bar with 420
+    // points of nothing under it — measured on this phone. Centring closed
+    // that hole and introduced a different one: the first card is the RESULT,
+    // and a result that floats down the page as the report grows or shrinks
+    // reads as the page settling rather than as the verdict. Reported from the
+    // couch in as many words — the screen is vertically centred, which is
+    // wrong, use the end-of-match screen — and full time has been top-aligned
+    // for exactly this reason since it was asked for there.
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -275,16 +280,14 @@ void main() {
 
     final page = tester.getRect(find.byType(ReportScroll));
     final head = tester.getRect(find.byKey(const ValueKey('season-end-title')));
-    // It used to start hard against the top of its own viewport with the whole
-    // remainder below it. Measured on this phone the hole was 420 points; what
-    // matters is that the room is now ABOVE the first line as well as under
-    // the last card.
+    // The report's own top inset and nothing more — the room falls BELOW the
+    // last card, above the pinned foot, which is where full time puts it.
     expect(
       head.top - page.top,
-      greaterThan(60),
-      reason: 'the page is centred in what the foot leaves it',
+      lessThan(30),
+      reason: 'the result is floating down the page again',
     );
-    // And it still fits, so none of that room came from making it scroll.
+    // And it still fits, so nothing here made the page scroll.
     final position = tester
         .widget<Scrollable>(find.byType(Scrollable).first)
         .controller

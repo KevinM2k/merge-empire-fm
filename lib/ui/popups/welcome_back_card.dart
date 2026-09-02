@@ -52,6 +52,45 @@ String proseDuration(int ms) =>
 /// Whether this window hit the ceiling, so the note is owed.
 bool offlineWasCapped(int offlineMs) => offlineMs >= Idle.maxOfflineMs;
 
+/// Pay the offline coins into the wallet.
+///
+/// **Lifted out of the card, because the card is not the only thing that pays
+/// them.** They exist nowhere else — `lastSeen` is stamped the moment the
+/// window is measured, so a window that closes without paying has burned it —
+/// and a short absence now pays without a card at all. See
+/// [welcomeBackFloorMs].
+void collectOfflineEarnings(GameState game, int earned) {
+  if (earned <= 0) return;
+  game.update((s) {
+    final resources = s['resources'];
+    if (resources is Map<String, dynamic>) {
+      final coins = resources['fanCoins'];
+      resources['fanCoins'] = (coins is num ? coins : 0) + earned;
+    }
+  });
+}
+
+/// How long the app has to have been away before the card is worth showing.
+///
+/// **Reported from the couch: it comes up after watching an ad.** It does —
+/// the only gate was "did this earn anything", and thirty seconds of a rewarded
+/// video earns something as soon as the squad has any income at all. So the
+/// player gets "welcome back, you were away for 30 seconds" for a video the
+/// game itself put in front of them.
+///
+/// **Five minutes, not thirty**, and the question was asked directly. Thirty is
+/// longer than this genre uses: in idle and merge games the offline-earnings
+/// modal is the payoff for the idle loop — it is how a player learns the game
+/// earns while they are gone — and it usually lands after a couple of minutes.
+/// What the threshold is really for is filtering out the absences that are not
+/// absences: an ad break, a text message, the notification shade, a phone call.
+/// Five minutes covers every one of those and keeps the payoff for a real
+/// return. Nothing is lost below the line either — the coins are paid straight
+/// in by [collectOfflineEarnings], because they exist nowhere else.
+///
+/// One number to move if that judgement turns out to be wrong.
+const int welcomeBackFloorMs = 5 * 60 * 1000;
+
 /// Show it, and complete once it is gone. The coins are paid on COLLECT, not at
 /// boot, so the HUD's counter moves when the player asks it to.
 Future<void> showWelcomeBack(
@@ -60,13 +99,7 @@ Future<void> showWelcomeBack(
   required OfflineEarnings offline,
 }) {
   final earned = offline.earned.floor();
-  void collect() => game.update((s) {
-    final resources = s['resources'];
-    if (resources is Map<String, dynamic>) {
-      final coins = resources['fanCoins'];
-      resources['fanCoins'] = (coins is num ? coins : 0) + earned;
-    }
-  });
+  void collect() => collectOfflineEarnings(game, earned);
 
   return showDialog<void>(
     context: context,

@@ -6,16 +6,17 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**9 done, 11 open.** The nine that are done were each a real defect with a
+**11 done, 10 open.** The nine that are done were each a real defect with a
 mechanism behind it, and three of them were shipped code doing nothing: a
 `strategyId` nothing ever wrote, a `skyPaneTint` with no caller, and a turf band
 whose whole job was hiding a seam it was itself making.
 
-The eleven still open split into two piles and the split is worth keeping. Five
-are **one job**: the scene is painted by a handful of very large `paint()`
-methods, and animating hair, stopping the customiser stuttering and fixing the
-dugout's hanging arms are all downstream of taking that apart into layers. The
-other six are ordinary and independent.
+The ten still open split into two piles and the split is worth keeping. Six are
+**one job**: the scene is painted by a handful of very large `paint()` methods,
+and animating hair, stopping the customiser stuttering and fixing the dugout's
+hanging arms are all downstream of taking that apart into layers — with the
+Spine question sitting on top of the same work. The other four are ordinary and
+independent.
 
 ---
 
@@ -102,14 +103,36 @@ other six are ordinary and independent.
       well. They grow outward into the card's own margin now, bounded by the
       clear air rather than by the rating column, which is forty points wider.)
 
+- [x] **The end-of-season screen starts at the top, like full time.** (It was
+      vertically centred, which reverses a decision and the reversal was asked
+      for. `ReportScroll` was written because a stack of cards over a pinned
+      foot left 420 points of nothing here; centring closed that hole and opened
+      a different one, because the first card is the RESULT and a result that
+      drifts down the page as the report grows reads as the page settling. Full
+      time has been `Alignment.topCenter` for exactly this reason since it was
+      asked for there, and the inset now matches it too.)
+
+- [x] **The welcome-back card no longer fires after an ad break.** (The only
+      gate was "did this earn anything", and thirty seconds of a rewarded video
+      earns something the moment the squad has income — so the game welcomed the
+      player back from a video it had shown them itself. **Five minutes, not
+      thirty**, and the opinion was asked for: thirty is longer than this genre
+      uses, because the offline-earnings modal is how a player learns the game
+      earns while they are gone, and it usually lands after a couple of minutes.
+      What the threshold is really filtering is absences that are not absences —
+      an ad, a text, the notification shade, a phone call — and five minutes
+      covers every one. Nothing is lost below the line: the coins are paid
+      straight in, because they exist nowhere else. `welcomeBackFloorMs` is one
+      number to move.)
+
 ---
 
 ## Open
 
 ### One job: the scene is one big `paint()`
 
-These five are the same piece of work seen from five angles, and doing them
-separately would mean doing the hard part five times.
+These six are the same piece of work seen from six angles, and doing them
+separately would mean doing the hard part six times.
 
 - [ ] **Draw the background in LAYERS, not one `paint()`.** Stadium tiers want
       to be layer 1 (nearest), 2, 3 — each a little smaller and further away —
@@ -121,6 +144,13 @@ separately would mean doing the hard part five times.
       parsing belongs here too. Spine is a later question, not this one.
 - [ ] **Animate the hair** — which is what the split is for, and it has to cost
       nothing.
+- [ ] **DECIDE ON SPINE.** Asked for directly: the manager is too static and a
+      bit boring, the dugout cam with him, and the shop's coins and gems could
+      use something better. Researched rather than guessed — see **Spine** at
+      the foot of this file for the licence, the price, what is actually in the
+      examples and what it would cost this repo. Short version: the licence is
+      a real gate, `mix-and-match` IS the manager customiser, and the example
+      ART cannot ship but the example RIGS can.
 - [ ] **The manager customiser stutters on most tabs.** Skin colour and hair
       colour are fine; the rest lag. Same cause, most likely: every tab rebuild
       repaints the whole rig.
@@ -144,11 +174,128 @@ separately would mean doing the hard part five times.
       difference left is that the `ScoutActionBar` sits OUTSIDE the scroller, so
       the top of the tab does not respond to a drag at all. Wants a device to
       confirm before moving the bar.
-- [ ] **The end-of-season screen needs work** — it is vertically centred, which
-      is wrong. Use the end-of-match screen for layout and style.
-- [ ] **The welcome-back card fires after an ad break.** Should want ~30 minutes
-      away, not seconds. (Asked as a question: what do other games do? The
-      common shape is a threshold on real elapsed time, plus a rule that time
-      inside the app's own modal flows does not count.)
 - [ ] **A poof/tap sound worth having.** Carried over from `REMAINING.md` — `pop`
       is a 0.1s blip doing the job of a shatter cue. Needs audio, not code.
+
+---
+
+## Spine
+
+Asked for after the playthrough: *"there are examples of diamonds and coins…
+I wonder if we can use this for our gems/coins sections in the shop? I also
+wonder if there are things we can use in spine to recreate our manager rig —
+make him look more real and better movement… he is a little too static, looks a
+bit boring (same with dugout cam)."*
+
+Both examples are real. Here is what checking actually turned up, because two
+of the four findings change the shape of the decision.
+
+### The licence is a gate, and it has a number on it
+
+The runtimes on GitHub are free to *evaluate*. To ship software containing them
+to people who do not own Spine, **you need a Spine editor licence at the time of
+integration** — that is the Spine Runtimes License Agreement, not a footnote.
+
+The editor is a one-off purchase at the two lower tiers:
+
+| Tier | Price | Note |
+|---|---|---|
+| Essential | $69 (from $99) | **Meshes are not included** |
+| Professional | $379 (from $449) | Everything |
+| Enterprise | $2,499 + $379 per user, annually | **Mandatory** above the threshold below |
+
+Two things in that table matter more than the prices.
+
+**Essential is not the cheap option, it is the wrong option.** Mesh deformation
+is most of what makes a Spine rig look alive — hair that swings, cloth that
+follows, a face that is not a rigid cut-out. It is exactly the row above this
+one. Essential cannot export meshes, so the realistic figure is **$379**.
+
+**And the Enterprise threshold is a shipped-app question, not a studio-size
+one.** "Companies or individuals making more than $500,000 USD via revenue,
+investment income, venture capital, or other financing require Spine Enterprise
+and are not eligible to use Spine Essential or Spine Professional." That is a
+decision about this game's future, and it belongs to you rather than to a queue
+row.
+
+### The example ART cannot ship. The example RIGS can.
+
+This is the finding that changes the coins-and-gems idea, and it is worth
+quoting because it cuts exactly down the middle. Every example carries the same
+`license.txt` — checked on `coin`, `diamond` and `mix-and-match`:
+
+> The images in this project may be redistributed as long as they are
+> accompanied by this license file. **The images may not be used for commercial
+> use of any kind.**
+>
+> **The project file is released into the public domain. It may be used as the
+> basis for derivative work.**
+
+So the shop cannot wear Esoteric's gold coin or their diamond. It *can* wear
+their rig with our own art on it, and that is the expensive half — the bones,
+the timing and the animations are the work, and the images are the part this
+project already generates for itself.
+
+`examples/diamond` (added 2025) is eight bones — `holder`, `top-scale`,
+`top-rotation`, `middle-scale`, `middle-rotation`, `lower-point`,
+`diamond-rotation-control` — and ships `appear`, `disappear`, `idle-still`,
+`idle-rotating`, `idle-rotating-alt-shape`, `rotation`,
+`size-changing-rotation` and a perspective variant. That is a shop gem's whole
+life cycle, already keyed.
+
+### `mix-and-match` is the manager customiser, exactly
+
+This is the strongest case in the whole investigation and it is not the shop.
+`examples/mix-and-match` is 143 bones with `idle`, `walk`, `blink`, `aware`,
+`dance` and `dress-up` — and its skins are split into `hair/`, `eyes/`,
+`eyelids/`, `nose/`, `clothes/`, `legs/` and `accessories/`, with four
+`full-skins/` presets on top. One set of animations, every combination.
+
+That is the customiser's own tab list, and it is the answer to two rows above:
+the customiser stutters because every tab rebuild repaints the whole rig, and
+Spine's model is that the skeleton animates once and the skin is a lookup. The
+demo page's own claim is the point — *"the work of animating only needs to be
+done once, then you can assign different looks to your skeletons while reusing
+all your animations"*, and the runtimes can combine parts from different skins
+at runtime.
+
+### The runtime, practically
+
+`spine_flutter` 4.3.6 on pub.dev: spine-c over FFI, WebAssembly on web,
+Android / iOS / Linux / macOS / Web / Windows. Needs
+`await initSpineFlutter()` in `main()`. **Spine 4.3 exports only.** Supports
+every Spine feature **except two-colour tinting and the screen blend mode** —
+worth checking against `KitTheme` before committing, because the whole palette
+here is derived from the club's kit and a kit-coloured shirt has to be
+expressible as per-slot tinting.
+
+It also brings native libraries per platform into a project that currently has
+none for rendering, which is a bundle-size and a build-complexity cost.
+
+### What it would cost this repo
+
+Not the money — the structure. The manager is a `CustomPainter` chain over SVGs
+**generated from `../merge-empire-fc`** by `gen_manager_art.mjs` into
+`manager_art.g.dart`, with `gesture_reach_test` solving the arm chain against
+`skullOnScreen` and `ManagerWalker` distinguishing `walking: false` from
+`standing` from `idle`. Spine replaces all of it, and it takes the manager's art
+**out of the spec repo** — which is a one-way move away from "the JS is the
+spec" for that art, and the first place this port would have two sources of
+truth.
+
+### The recommendation
+
+**Do the layering work first, and do it whether or not Spine happens.** It is
+the row above and it is not wasted either way: it is what makes the current rig
+cheap enough to animate, it is the only thing that closes the customiser's
+stutter and the dugout's hanging arms, and a repaint budget is exactly what you
+need in hand before deciding whether a native runtime is worth it.
+
+**Then take Spine to the manager, not to the shop.** `mix-and-match` is the
+customiser feature-for-feature and the manager is what was actually reported as
+boring; a spinning gem is something the existing painter can do once the layers
+are split, so the shop is the weaker case for a $379 licence and a native
+dependency.
+
+**Open questions that are yours, not the queue's:** the $500k Enterprise
+threshold, and whether the manager's art leaving the spec repo is acceptable.
