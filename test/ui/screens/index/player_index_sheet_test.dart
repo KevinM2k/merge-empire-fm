@@ -335,17 +335,29 @@ void main() {
 
   group('light and dark', () {
     /// The card's caption band — the strip of colour under the portrait.
+    /// The colour the caption is READ OFF.
+    ///
+    /// **It is a gradient's last stop now, not a `Container.color`.** The band
+    /// was a solid strip UNDER the art — a thumbnail with a label rather than a
+    /// card — and the Players tab has drawn its own the other way since
+    /// `PlayerCard` was written: the picture is the card and the words float on
+    /// it. So what carries the contrast is the bottom of a fade, and that is
+    /// what this reads.
     Color captionOf(WidgetTester tester) {
       final card = find.byKey(const ValueKey('pi-card-$_foundKey'));
       expect(card, findsOneWidget);
-      final band = tester
-          .widgetList<Container>(
-            find.descendant(of: card, matching: find.byType(Container)),
+      final scrims = tester
+          .widgetList<DecoratedBox>(
+            find.descendant(of: card, matching: find.byType(DecoratedBox)),
           )
-          .where((c) => c.color != null && c.color!.a > 0.5)
+          .map((d) => d.decoration)
+          .whereType<BoxDecoration>()
+          .map((b) => b.gradient)
+          .whereType<LinearGradient>()
+          .where((g) => g.colors.last.a > 0.5)
           .toList();
-      expect(band, isNotEmpty, reason: 'the card has no caption band');
-      return band.last.color!;
+      expect(scrims, isNotEmpty, reason: 'the card has no caption scrim');
+      return scrims.last.colors.last;
     }
 
     testWidgets('THE INDEX CARD IS LIGHT IN LIGHT MODE', (tester) async {

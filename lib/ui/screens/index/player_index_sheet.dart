@@ -33,6 +33,10 @@ import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart'
+    show PlayerHeroArt;
+import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart'
+    show showBottomSheetPopup;
 
 /// Reading order down the pitch, which is how a squad is listed everywhere else.
 const Map<String, int> _positionOrder = {'FWD': 0, 'MID': 1, 'DEF': 2, 'GK': 3};
@@ -435,9 +439,15 @@ class _IndexCard extends StatelessWidget {
 
     return GestureDetector(
       key: ValueKey('pi-card-${_key(entry)}'),
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) => _RecipeDialog(entry: entry, discovered: discovered),
+      // **A BOTTOM SHEET, like the squad's own player detail.** It was an
+      // `AlertDialog` — a window over the page with a Close button on it — on
+      // the one screen whose whole content is cards, while tapping a card
+      // anywhere else in the game raises a sheet from the bottom. Asked for
+      // from the couch, along with the observation that the Close button is
+      // unnecessary: tapping outside a sheet is how you shut one.
+      onTap: () => showBottomSheetPopup<void>(
+        context,
+        child: _RecipeSheet(entry: entry, discovered: discovered),
       ),
       child: Container(
         clipBehavior: Clip.antiAlias,
@@ -549,6 +559,72 @@ class _IndexCard extends StatelessWidget {
                         color: discovered ? accentLight : kit.textMuted,
                       ),
                     ),
+                    // **THE CAPTION FLOATS ON THE ART, over a fade.** It was a
+                    // solid band UNDER it, which is a thumbnail with a label
+                    // rather than a card — and the Players tab has drawn its own
+                    // the other way since `PlayerCard` was written: the picture
+                    // IS the card and the words sit on it. Reported from the
+                    // couch, with that comparison. The art fills the tile now
+                    // and the scrim is a gradient, so the figure runs to the
+                    // bottom edge instead of stopping at a rule.
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: light
+                                ? [
+                                    Colors.white.withValues(alpha: 0),
+                                    Colors.white.withValues(alpha: 0.92),
+                                  ]
+                                : [
+                                    Colors.black.withValues(alpha: 0),
+                                    Colors.black.withValues(alpha: 0.85),
+                                  ],
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(5, 12, 5, 5),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                (discovered ? name : '???').toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  color: discovered
+                                      ? (light ? captionInk : Colors.white)
+                                      : kit.textMuted,
+                                ),
+                              ),
+                              Text(
+                                discovered
+                                    ? '${entry.def.position} · T${entry.def.tier}'
+                                    : 'T${entry.def.tier}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  // `accentLight` is a PALE tier colour — it is
+                                  // the tier read off a black scrim. On a white
+                                  // one it is the accent itself that carries.
+                                  color: discovered
+                                      ? (light ? accent : accentLight)
+                                      : kit.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                     // A count of nothing is not a fact worth a badge; every
                     // unfound card carried a `×0` in the corner.
                     if (discovered)
@@ -560,47 +636,6 @@ class _IndexCard extends StatelessWidget {
                           color: count > 0 ? accentLight : kit.textMuted,
                         ),
                       ),
-                  ],
-                ),
-              ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(5, 4, 5, 5),
-                // A scrim's job is contrast, and white does that for dark ink
-                // exactly as well as black does for light.
-                color: light
-                    ? Colors.white.withValues(alpha: 0.82)
-                    : Colors.black.withValues(alpha: 0.7),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      (discovered ? name : '???').toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: discovered
-                            ? (light ? captionInk : Colors.white)
-                            : kit.textMuted,
-                      ),
-                    ),
-                    Text(
-                      discovered
-                          ? '${entry.def.position} · T${entry.def.tier}'
-                          : 'T${entry.def.tier}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        // `accentLight` is a PALE tier colour — it is the tier
-                        // read off a black scrim. On a white one it is the
-                        // accent itself that carries.
-                        color: discovered
-                            ? (light ? accent : accentLight)
-                            : kit.textMuted,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -642,8 +677,16 @@ class _Badge extends StatelessWidget {
 /// The stats half is shown only once discovered — knowing a card's rating
 /// before you have ever seen one is the spoiler the whole screen avoids — but
 /// the scouting half shows either way, because that is how you go and get it.
-class _RecipeDialog extends StatelessWidget {
-  const _RecipeDialog({required this.entry, required this.discovered});
+/// One card's page, raised from the bottom.
+///
+/// **It was an `AlertDialog` with a Close button.** Tapping a card anywhere
+/// else in this game raises a sheet — the squad's own player detail leads with
+/// the full-length figure and puts everything else under it — and this is the
+/// screen that is nothing BUT cards. Asked for from the couch, including the
+/// observation that the button is unnecessary: tapping outside a sheet is how
+/// one is shut, and `showBottomSheetPopup` gives it a drag handle too.
+class _RecipeSheet extends StatelessWidget {
+  const _RecipeSheet({required this.entry, required this.discovered});
 
   final IndexEntry entry;
   final bool discovered;
@@ -665,43 +708,39 @@ class _RecipeDialog extends StatelessWidget {
         ? def.flavourTexts[flavourIndex]
         : def.flavourTexts.first;
 
-    return AlertDialog(
+    return ListView(
       key: ValueKey('pi-recipe-${_key(entry)}'),
-      backgroundColor: kit.surface,
-      content: SizedBox(
-        width: 360,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      children: [
+        // **THE FIGURE, FULL WIDTH AND FULL LENGTH.** `PlayerHeroArt` is the
+        // squad sheet's own — 260 points of him, cropped to the top so the head
+        // survives — and this used to be an 80×110 thumbnail beside a column of
+        // text. An unfound card keeps its `❓`: a silhouette is still the card,
+        // and giving it away is what the whole screen exists not to do.
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: discovered
+              ? PlayerHeroArt(
+                  key: ValueKey('pi-hero-${_key(entry)}'),
+                  position: def.position,
+                  tier: def.tier,
+                  variant: _variantFor(entry.female),
+                )
+              : Container(
+                  height: 200,
+                  alignment: Alignment.center,
+                  color: kit.surface2,
+                  child: const Text('❓', style: TextStyle(fontSize: 56)),
+                ),
+        ),
+        const SizedBox(height: 14),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: 80,
-                    height: 110,
-                    child: discovered
-                        // The same crop as the tile behind it and as the squad
-                        // card — see the grid above.
-                        ? ArtImage(
-                            path: playerImagePath(
-                              def.position,
-                              def.tier,
-                              _variantFor(entry.female),
-                            ),
-                            fit: BoxFit.cover,
-                            alignment: Alignment.topCenter,
-                            fallback: PlayerPortrait(
-                              variantIndex: _variantFor(entry.female),
-                              kitColor: cssColor(theme.accent),
-                            ),
-                          )
-                        : const Center(
-                            child: Text('❓', style: TextStyle(fontSize: 28)),
-                          ),
-                  ),
-                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -822,14 +861,6 @@ class _RecipeDialog extends StatelessWidget {
               ],
             ],
           ),
-        ),
-      ),
-      actions: [
-        ElevatedButton(
-          key: const ValueKey('pi-recipe-close'),
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(t('common.close')),
-        ),
       ],
     );
   }

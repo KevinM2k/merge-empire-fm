@@ -52,8 +52,14 @@ const Map<int, String> tierLabel = {
   5: 'Gold',
   6: 'Gold★',
   7: 'Legend',
-  8: 'WORLD CLASS',
-  9: '⚡ ICON',
+  // **NOT SHOUTED, and the spec is why they were.** `Card.js` writes these two
+  // in caps while the seven below them are in title case — a DOM decision, in a
+  // file whose stylesheet has a note about "WORLD CLASS" being 103px of text
+  // and needing to be squeezed. The port has no such problem and inherited the
+  // shouting anyway, so the top two tiers were the only labels in the game
+  // written in a different case from their neighbours. Reported from the couch.
+  8: 'World Class',
+  9: '⚡ Icon',
 };
 
 const Map<int, String> tierEmoji = {
