@@ -4,6 +4,8 @@ analyzer:
   # Xcode checks Firebase's Swift packages out under build/, Dart tests and all.
   exclude:
     - build/**
+    - android/**
+    - ios/**
   language:
     strict-casts: true
     strict-inference: true
