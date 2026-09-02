@@ -6,7 +6,7 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**14 done, 7 open.** The nine that are done were each a real defect with a
+**15 done, 7 open.** The nine that are done were each a real defect with a
 mechanism behind it, and three of them were shipped code doing nothing: a
 `strategyId` nothing ever wrote, a `skyPaneTint` with no caller, and a turf band
 whose whole job was hiding a seam it was itself making.
@@ -161,6 +161,20 @@ rather than a change.
       still reads behind the near one — and the gestures keep the walk's pair,
       because a gesture returns to the angles it was authored from.)
 
+- [x] **The stadium's decks are depth layers.** (Asked for in as many words:
+      the closest is layer one, layer two a little smaller and further away, and
+      the same for layer three. They were three bands at ONE size stacked
+      vertically with a balcony wall between them, which reads as a single very
+      tall bank of seats rather than a ground with tiers in it. Each deck now
+      carries a `deckDepth` — 0.88 per step back, so a three-decker's top tier
+      is 0.774 — and everything in it takes that one number: the fans, the row
+      pitch, the deck's own height, and the bounce, which would otherwise pop
+      the back tier's heads through the facade above them. Two things besides
+      size sell it: a deck further back fits MORE fans across the same width,
+      because a distant terrace is denser rather than just smaller; and each
+      deck gets its own pass of haze, because what actually sits a tier back is
+      the air in front of it.)
+
 ---
 
 ## Open
@@ -170,14 +184,19 @@ rather than a change.
 These four are the same piece of work seen from four angles, and doing them
 separately would mean doing the hard part four times.
 
-- [ ] **Draw the background in LAYERS, not one `paint()`.** Stadium tiers want
-      to be layer 1 (nearest), 2, 3 — each a little smaller and further away —
-      rather than one flat painting. Split the manager the same way:
-      body/torso/clothes, head, hair, eyes/mouth, accessories, as a stack.
-      `RepaintBoundary` per layer, pass the `Listenable` to the painter, cache
-      the expensive work, use `canvas.save`/`restore` sparingly and no
-      `saveLayer` every frame. Converting the SVGs to Dart `Path`s to skip
-      parsing belongs here too. Spine is a later question, not this one.
+- [ ] **Draw the background in LAYERS, not one `paint()`.** **Half done** — the
+      STADIUM TIERS are layers now (see Done), and the rest of this row is the
+      manager. Split him body/torso/clothes, head, hair, eyes/mouth,
+      accessories, as a stack: `RepaintBoundary` per layer, pass the
+      `Listenable` to the painter, cache the expensive work, `canvas.save` /
+      `restore` sparingly and no `saveLayer` every frame.
+      **Two things on this row turned out to be already done, and are struck
+      rather than carried:** the scene is not one big `paint()` — `pitch_scene`
+      is seven separate painters, each with its own `shouldRepaint` — and SVG
+      paths are already memoised by their `d` string in `svg_canvas.dart`, so
+      "convert SVG to Dart Path to avoid parsing" buys the first frame only.
+      What is genuinely left is the MANAGER's layering, which is what the hair
+      row below needs.
 - [ ] **Animate the hair** — which is what the split is for, and it has to cost
       nothing.
 - [ ] **DECIDE ON SPINE.** Asked for directly: the manager is too static and a

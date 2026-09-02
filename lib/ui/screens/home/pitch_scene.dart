@@ -1323,10 +1323,46 @@ const double _crowdScale = 1.12;
 ///
 /// Shared by the segment, the floodlight height and the horizon, so there is one
 /// answer to "how tall is the stand" rather than three guesses.
-typedef DeckPlan = ({int rows, int decks, List<int> perDeck, List<double> deckHs, double standH});
+typedef DeckPlan = ({
+  int rows,
+  int decks,
+  List<int> perDeck,
+  List<double> deckHs,
+
+  /// How far away each deck is, as a scale on everything drawn in it. See
+  /// [deckDepth].
+  List<double> deckScales,
+  double standH,
+});
 
 /// The lowest tier that has a stand at all.
 const int firstStandTier = 2;
+
+/// **HOW MUCH SMALLER EACH DECK BEHIND THE FRONT ONE IS DRAWN.**
+///
+/// The stand used to be three decks at ONE size stacked vertically with a
+/// balcony wall between them, and what that reads as is a single very tall bank
+/// of seats rather than a ground with tiers in it. Asked for from the couch in
+/// as many words: the closest is layer one, layer two is a little smaller and
+/// further away, and the same again for layer three.
+///
+/// So a deck is a DEPTH now, and one number carries it: the fans, the row
+/// pitch and the deck's own height all take the same scale, because a deck
+/// where only the people shrank would be small fans in a full-size stand.
+///
+/// 0.88 per step, which puts a three-decker's back tier at 0.77 — noticeably
+/// further off without the top of the ground turning into a hairline. The rows
+/// WITHIN a deck already narrow toward the back; this is the same idea one
+/// level up, and the two compound the way they do in a real ground.
+const double _deckDepth = 0.88;
+
+/// The scale for deck [index] of [decks], nearest first at 1.0.
+///
+/// **Index 0 is the FURTHEST deck**, which is the order `_StandPainter` draws
+/// in — highest up the screen, painted first so the deck in front of it
+/// overlaps it — so the exponent counts back from the last entry.
+double deckDepth(int decks, int index) =>
+    math.pow(_deckDepth, decks - 1 - index).toDouble();
 
 DeckPlan deckPlan(int tier) {
   final rows = math.max(1, math.min(7, tier - 1));
@@ -1344,12 +1380,22 @@ DeckPlan deckPlan(int tier) {
     perDeck.add(n);
     left -= n;
   }
+  final deckScales = [for (var d = 0; d < decks; d++) deckDepth(decks, d)];
   final deckHs = [
-    for (final n in perDeck) ((_deckPad + n * _rowPitch) * _crowdScale).roundToDouble(),
+    for (var d = 0; d < decks; d++)
+      ((_deckPad + perDeck[d] * _rowPitch) * _crowdScale * deckScales[d])
+          .roundToDouble(),
   ];
   final standH =
       deckHs.fold<double>(0, (a, b) => a + b) + (decks - 1) * _facadeHeight;
-  return (rows: rows, decks: decks, perDeck: perDeck, deckHs: deckHs, standH: standH);
+  return (
+    rows: rows,
+    decks: decks,
+    perDeck: perDeck,
+    deckHs: deckHs,
+    deckScales: deckScales,
+    standH: standH,
+  );
 }
 
 /// The balcony wall between two decks. The JS's `FACADE_H`.
@@ -1687,6 +1733,14 @@ class _StandPainter extends CustomPainter {
     for (var d = 0; d < plan.decks; d++) {
       final rows = plan.perDeck[d];
       final deckH = plan.deckHs[d];
+      // **HOW FAR BACK THIS DECK IS** — see [deckDepth]. Everything drawn in it
+      // takes the same number, which is what makes it a layer rather than a
+      // band of smaller people.
+      final depth = plan.deckScales[d];
+      // Further away is MORE of them across the same width, which is the other
+      // half of what says "further": a distant terrace is denser, not just
+      // smaller.
+      final deckPerRow = (perRow / depth).round();
       if (d > 0) {
         // The balcony wall between two decks.
         final facade = Rect.fromLTWH(0, deckY, size.width, _facadeHeight);
@@ -1702,15 +1756,19 @@ class _StandPainter extends CustomPainter {
         deckY += _facadeHeight;
       }
       for (var row = 0; row < rows; row++) {
-      // The JS's `y`, measured down from the deck's own top edge.
-      final y = deckY - deckTop + (_deckPad - 1 + row * _rowPitch) * _crowdScale;
-      // The back rows are further away, so they are smaller.
+      // The JS's `y`, measured down from the deck's own top edge, at this
+      // deck's own depth — the rows have to close up as the deck shrinks or
+      // they would run out of the bottom of it.
+      final y =
+          deckY - deckTop + (_deckPad - 1 + row * _rowPitch) * _crowdScale * depth;
+      // The back rows are further away, so they are smaller — and so is the
+      // whole deck, which is the layer this row is in.
       final shoulder =
-          (7 - math.min(2.5, (rows - 1 - row) * 0.5)) * _crowdScale;
+          (7 - math.min(2.5, (rows - 1 - row) * 0.5)) * _crowdScale * depth;
       if (y + shoulder > deckY - deckTop + deckH) continue;
-      for (var i = 0; i < perRow; i++) {
+      for (var i = 0; i < deckPerRow; i++) {
         final x =
-            (i + 0.1 + rng.nextDouble() * 0.8) * (size.width / perRow);
+            (i + 0.1 + rng.nextDouble() * 0.8) * (size.width / deckPerRow);
         // Your own colours get commoner as the support grows; the rest of the
         // stand is replica shirts in whatever they turned up in.
         final shirt = rng.nextDouble() < 0.22
@@ -1725,7 +1783,11 @@ class _StandPainter extends CustomPainter {
         final up = keen < 0.2 + excitement * 0.8;
         final lift = up
             ? math.max(0.0, math.sin((beat + phase) * 2 * math.pi)) *
-                  (1.1 + excitement * 2.4)
+                  (1.1 + excitement * 2.4) *
+                  // A fan two hundred feet further back does not bounce as far
+                  // ON SCREEN, and a lift that ignored the deck's scale would
+                  // pop the back tier's heads out through the facade above it.
+                  depth
             : 0.0;
         _paintFan(
           canvas,
@@ -1736,6 +1798,17 @@ class _StandPainter extends CustomPainter {
           skin: _fanSkins[rng.nextInt(_fanSkins.length)],
         );
       }
+      }
+      // **AND THE AIR IN FRONT OF IT.** Size alone is a small stand rather than
+      // a distant one; what actually sits a tier back is the haze between the
+      // viewer and it. One pass per deck, over that deck's own band only, so
+      // the three layers separate — the whole-terrace wash below is still there
+      // and does a different job, which is sitting the BAND under the sky.
+      if (depth < 1) {
+        canvas.drawRect(
+          Rect.fromLTWH(0, deckY, size.width, deckH),
+          Paint()..color = haze.withValues(alpha: (1 - depth) * 1.4),
+        );
       }
       deckY += deckH;
     }

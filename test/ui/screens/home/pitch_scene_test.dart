@@ -157,6 +157,48 @@ void main() {
       expect(deckPlan(8).decks, 3);
     });
 
+    test('AND EACH DECK IS ITS OWN DEPTH — smaller and further back', () {
+      // **Asked for from the couch: the closest is layer one, layer two is a
+      // little smaller and further away, and the same for layer three.** The
+      // decks used to be three bands at ONE size stacked vertically with a
+      // balcony wall between them, which reads as a single very tall bank of
+      // seats rather than a ground with tiers in it.
+      //
+      // Index 0 is the FURTHEST deck — highest on screen, painted first so the
+      // one in front overlaps it — so the scales run up to 1 at the front.
+      for (final tier in [2, 4, 6, 7, 8]) {
+        final plan = deckPlan(tier);
+        expect(plan.deckScales, hasLength(plan.decks), reason: 'tier $tier');
+        expect(plan.deckScales.last, 1.0, reason: 'the front deck is scaled');
+        for (var d = 1; d < plan.decks; d++) {
+          expect(
+            plan.deckScales[d],
+            greaterThan(plan.deckScales[d - 1]),
+            reason: 'tier $tier deck $d is not nearer than the one behind it',
+          );
+        }
+      }
+      // A single-deck ground is untouched: there is no depth to show.
+      expect(deckPlan(4).deckScales, [1.0]);
+      // And the three-decker's back tier is visibly back without vanishing.
+      expect(deckPlan(8).deckScales.first, closeTo(0.774, 0.001));
+    });
+
+    test('and a deck that is further back is SHORTER too', () {
+      // The height takes the same scale as the people in it. A deck where only
+      // the fans shrank would be small fans in a full-size stand, which is the
+      // opposite of depth.
+      final plan = deckPlan(8);
+      for (var d = 1; d < plan.decks; d++) {
+        if (plan.perDeck[d] != plan.perDeck[d - 1]) continue;
+        expect(
+          plan.deckHs[d],
+          greaterThan(plan.deckHs[d - 1]),
+          reason: 'two decks of equal rows are the same height',
+        );
+      }
+    });
+
     test('and the FRONT deck is the deepest, as a real ground is', () {
       for (final tier in [6, 7, 8]) {
         final plan = deckPlan(tier);
