@@ -401,6 +401,33 @@ double getEffectiveInjuryDuration(
   return base * getInjuryRecoveryMult(state) * traitRecov;
 }
 
+/// Whole minutes until this player is fit, rounded UP, or 0 when he is fit or
+/// due within the minute.
+///
+/// **The catalogues have been promising this since the generator first ran.**
+/// `hint.injured_on_grid` tells the player to "check the Squad tab to see their
+/// recovery time" and `squad.badge.injured_min_left` is " ({min}m left)" in ten
+/// languages — and nothing in the port could reach either, so the answer to
+/// "how long is he out for" was nowhere in the game. Reported from the couch in
+/// those words.
+///
+/// Rounded UP for the same reason [matchCooldownFreeMinsLeft] is: forty seconds
+/// left is still a minute to somebody watching a number. Under a minute reads
+/// as "soon" rather than as "0m", which is what `squad.badge.injured_soon` is
+/// for.
+int injuryMinutesLeft(
+  Map<String, dynamic>? state,
+  CardInstance? card, [
+  int? nowMs,
+]) {
+  if (card == null || !card.injured) return 0;
+  final left =
+      getEffectiveInjuryDuration(state, card) -
+      ((nowMs ?? now()) - (_num(card.raw['injuredAt']) ?? 0));
+  if (left <= 0) return 0;
+  return (left / 60000).ceil();
+}
+
 /// Heals expired injuries, then puts the XI back to eleven — the injury vacated
 /// its victim's slot and nothing else refills it, so without this the team keeps
 /// kicking off a man short long after everyone is fit again.

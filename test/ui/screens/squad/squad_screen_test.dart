@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/util/time.dart' show now;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
@@ -1838,6 +1839,120 @@ void main() {
     await settleSave(tester);
     return instanceId;
   }
+
+  group('THE BENCH OFFERS TO HEAL THEM', () {
+    // "There is no call to action on the bench to heal my injured players."
+    // There was not — but every other part of the feature shipped: a real
+    // `heal_all` AdMob unit for both stores, three strings in ten languages,
+    // and the Magic Sponge's price explicitly set against "the free rewarded
+    // video on the Squad bench". Only the tap was missing.
+    testWidgets('and says how many when somebody is hurt', (tester) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final hurt = container.read(benchProvider).first.instanceId;
+      container.read(gameProvider).update((s) {
+        for (final raw in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+          if (raw is Map<String, dynamic> && raw['instanceId'] == hurt) {
+            raw['injured'] = true;
+            raw['injuredAt'] = now();
+            raw['injuryDurationMs'] = 30 * 60 * 1000;
+          }
+        }
+      });
+      await settleSave(tester);
+
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('squad-heal-all')), findsOneWidget);
+      expect(find.text(t('squad.heal_all_ad', {'n': 1})), findsOneWidget);
+    });
+
+    testWidgets('and keeps its place with nobody hurt, saying so', (
+      tester,
+    ) async {
+      // A control that appears only when it is needed cannot be found before
+      // it is — which is what `squad.heal_all_none` is for.
+      await pumpSquad(tester, cards: 14);
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('squad-heal-all')), findsOneWidget);
+      expect(find.text(t('squad.heal_all_none')), findsOneWidget);
+    });
+  });
+
+  group('AN INJURED MAN SAYS HOW LONG HE IS OUT', () {
+    /// Hurt for [minutes], starting now.
+    Future<String> hurt(
+      WidgetTester tester,
+      ProviderContainer container,
+      String instanceId,
+      int minutes,
+    ) async {
+      container.read(gameProvider).update((s) {
+        final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+        for (final raw in cells) {
+          if (raw is Map<String, dynamic> && raw['instanceId'] == instanceId) {
+            raw['injured'] = true;
+            raw['injuredAt'] = now();
+            raw['injuryDurationMs'] = minutes * 60 * 1000;
+          }
+        }
+      });
+      await settleSave(tester);
+      return instanceId;
+    }
+
+    testWidgets('with the minutes on it', (tester) async {
+      // "An injured player doesn't say how long they are out for. That should
+      // be shown in the player when you click on them in squad." The copy for
+      // it — `squad.badge.injured` and `squad.badge.injured_min_left` — has
+      // shipped in ten languages since the generator first ran with nothing in
+      // `lib/` able to print either.
+      final container = await pumpSquad(tester, cards: 14);
+      final out = await hurt(
+        tester,
+        container,
+        container.read(benchProvider).first.instanceId,
+        12,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-bench-$out')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('detail-injured')), findsOneWidget);
+      // The number, not just the word: the number is the whole report.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('detail-injured')),
+          matching: find.textContaining('12'),
+        ),
+        findsOneWidget,
+      );
+      // And no placeholder survives the two-step substitution.
+      final label = tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('detail-injured')),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+      expect(label, isNot(contains('{')));
+      expect(label, isNot(contains('🚑')), reason: 'the app draws its own');
+    });
+
+    testWidgets('and a fit man carries no badge', (tester) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final fit = container.read(benchProvider).first.instanceId;
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-bench-$fit')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('detail-injured')), findsNothing);
+    });
+  });
 
   group('A BANNED MAN CANNOT BE SENT ON', () {
     testWidgets('the sheet says so, and offers nothing', (tester) async {

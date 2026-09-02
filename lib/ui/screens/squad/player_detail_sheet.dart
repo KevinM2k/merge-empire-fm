@@ -40,6 +40,9 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart'
     show cardRed, suspendedIn;
+import 'package:merge_empire_fc/engine/idle_engine.dart'
+    show injuryMinutesLeft;
+import 'package:merge_empire_fc/ui/widgets/injury_cross.dart';
 import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
@@ -228,6 +231,7 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
               outOnLoan: outOnLoan,
               actionsBelow: !outOnLoan,
               suspended: suspended,
+              injuryMinsLeft: injuryMinutesLeft(state, card),
               divisionIndex: divisions
                   .indexWhere(
                     (d) =>
@@ -395,6 +399,7 @@ class _Header extends StatelessWidget {
     required this.actionsBelow,
     required this.divisionIndex,
     required this.suspended,
+    required this.injuryMinsLeft,
   });
 
   final CardInstance card;
@@ -408,6 +413,9 @@ class _Header extends StatelessWidget {
 
   /// Banned from the next fixture.
   final bool suspended;
+
+  /// Whole minutes until he is fit, 0 when he is fit or due within the minute.
+  final int injuryMinsLeft;
 
   /// Whether Replace/Bench/Send On is floating over the artwork's lower edge.
   ///
@@ -600,6 +608,57 @@ class _Header extends StatelessWidget {
                 children: [
                   Row(
                     children: [
+                      // **HOW LONG HE IS OUT FOR, which the game never said.**
+                      // Reported from the couch: "an injured player doesn't say
+                      // how long they are out for — that should be shown in the
+                      // player when you click on them in squad."
+                      //
+                      // The copy for it has shipped in ten languages the whole
+                      // time and nothing could reach it: `squad.badge.injured`
+                      // is "🚑 Injured{suffix}", and the suffix is
+                      // `squad.badge.injured_min_left` (" ({min}m left)") or
+                      // `squad.badge.injured_soon` under a minute. Even
+                      // `hint.injured_on_grid` sends the player to the Squad tab
+                      // "to see their recovery time" — a promise the port could
+                      // not keep.
+                      //
+                      // The 🚑 goes, like every other emoji the port has taken
+                      // out of shipped copy: it is a DOM flourish, and the app
+                      // draws its own cross. `InjuryCross` is the one the bench
+                      // card and the pitch token already wear, so a hurt man
+                      // carries the same mark wherever he is looked at.
+                      if (card.injured)
+                        Container(
+                          key: const ValueKey('detail-injured'),
+                          padding: const EdgeInsets.fromLTRB(6, 4, 9, 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFCC2222),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const InjuryCross(size: 13),
+                              const SizedBox(width: 5),
+                              Text(
+                                t('squad.badge.injured', {
+                                  'suffix': injuryMinsLeft > 0
+                                      ? t('squad.badge.injured_min_left', {
+                                          'min': injuryMinsLeft,
+                                        })
+                                      : t('squad.badge.injured_soon'),
+                                }).replaceFirst('🚑', '').trim(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (card.injured && (onLoanToUs || outOnLoan))
+                        const SizedBox(width: 6),
                       if (onLoanToUs || outOnLoan)
                         Container(
                           padding: const EdgeInsets.symmetric(

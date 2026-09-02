@@ -79,6 +79,25 @@ List<Map<String, dynamic>> _injuredCards(Map<String, dynamic>? state) {
 
 int injuredCount(Map<String, dynamic>? state) => _injuredCards(state).length;
 
+/// Heal every injured player and put the XI back to eleven. Returns how many.
+///
+/// **One heal, two buyers.** The Magic Sponge pays coins for it and the Squad
+/// bench's rewarded video gets it free three times a day — see the note in
+/// [buyConsumable] on why they have to be the same effect. Lifted out of the
+/// sponge's own case rather than copied: two heals that could drift apart is
+/// exactly the pairing that comment exists to hold together.
+int healAllInjured(Map<String, dynamic> state) {
+  final injured = _injuredCards(state);
+  for (final card in injured) {
+    card['injured'] = false;
+    card['injuredAt'] = null;
+    card['injuryDurationMs'] = null;
+  }
+  // Back in contention for the slot their injury left open.
+  refillLineupFromBench(state);
+  return injured.length;
+}
+
 /// Why a consumable cannot be bought, or null when it can.
 ///
 /// Split out for the same reason `gemItemBlocked` was: the Shop greys a row and
@@ -145,17 +164,10 @@ ConsumablePurchase buyConsumable(Map<String, dynamic> state, String id) {
       // heals the whole squad three times a day — and a coin item nobody should
       // rationally buy is worse than no coin item at all. Matching the ad's
       // effect turns the price into the cost of NOT watching.
-      final injured = _injuredCards(state);
-      for (final card in injured) {
-        card['injured'] = false;
-        card['injuredAt'] = null;
-        card['injuryDurationMs'] = null;
-      }
-      // Back in contention for the slot their injury left open.
-      refillLineupFromBench(state);
+      final healed = healAllInjured(state);
       final shop = _branch(state, 'shop');
       shop['spongeUses'] = spongeUses(state) + 1;
-      return (ok: true, reason: null, id: id, cost: cost, healed: injured.length);
+      return (ok: true, reason: null, id: id, cost: cost, healed: healed);
 
     case 'kit_sponsor':
       _branch(state, 'boosts')['kitSponsorSeason'] = _season(state);

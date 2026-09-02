@@ -15,6 +15,8 @@
 /// Deliberately Flutter-free.
 library;
 
+import 'package:merge_empire_fc/engine/shop_consumables_engine.dart'
+    show healAllInjured;
 import 'package:merge_empire_fc/util/time.dart';
 
 /// Videos a day for the cooldown skip. The JS's `MATCH_COOLDOWN_AD_CAP_PER_DAY`.
@@ -82,6 +84,50 @@ void grantMatchCooldownAd(Map<String, dynamic> state, [int? nowMs]) {
     shop['matchCooldownAdCount'] = 0;
   }
   shop['matchCooldownAdCount'] = _int(shop['matchCooldownAdCount']) + 1;
+}
+
+/// Videos a day for the free heal-all.
+///
+/// Three, and the number is not a guess: `shop_consumables_engine`'s own
+/// comment on the Magic Sponge names "the free rewarded video on the Squad
+/// bench, which heals the whole squad three times a day" as the thing the coin
+/// item has to be priced against. The video was the half of that pairing the
+/// port never built.
+const int healAllAdCapPerDay = 3;
+
+/// How many heal-all videos have been watched TODAY. Same day boundary as
+/// [matchCooldownAdsUsed] — the device's own wall-clock day.
+int healAllAdsUsed(Map<String, dynamic>? state, [int? nowMs]) {
+  final shop = state?['shop'];
+  if (shop is! Map<String, dynamic>) return 0;
+  return shop['healAllAdDay'] == dateString(nowMs ?? now())
+      ? _int(shop['healAllAdCount'])
+      : 0;
+}
+
+/// Heal every injured player, and count the video against the day's cap.
+///
+/// **The same effect the Magic Sponge buys**, because that is what makes the
+/// coin item's price the cost of not watching — see the note in
+/// `buyConsumable`. Returns how many were healed, so the toast can say.
+///
+/// **The cap is checked HERE, inside the grant**, for the reason
+/// `grantMatchCooldownAd`'s caller spells out: a button painted before the
+/// third video must not pay out a fourth.
+int grantHealAllAd(Map<String, dynamic> state, [int? nowMs]) {
+  final at = nowMs ?? now();
+  if (healAllAdsUsed(state, at) >= healAllAdCapPerDay) return 0;
+
+  final healed = healAllInjured(state);
+
+  final shop = _sub(state, 'shop');
+  final today = dateString(at);
+  if (shop['healAllAdDay'] != today) {
+    shop['healAllAdDay'] = today;
+    shop['healAllAdCount'] = 0;
+  }
+  shop['healAllAdCount'] = _int(shop['healAllAdCount']) + 1;
+  return healed;
 }
 
 /// Whether a lucky boot is already waiting to be used.

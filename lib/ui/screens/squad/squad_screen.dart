@@ -10,6 +10,11 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show readableInk, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/engine/free_shelf_engine.dart'
+    show grantHealAllAd, healAllAdCapPerDay;
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/util/event_bus.dart' show emit;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -695,6 +700,7 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        const _HealAllRow(),
         PositionFilterBar(
           keyPrefix: 'bench-filter',
           value: _filter,
@@ -750,6 +756,67 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
             ),
           ),
       ],
+    );
+  }
+}
+
+
+/// The free heal, on the bench where the hurt players are.
+///
+/// **The port had the ad unit, the copy and the coin item priced against this,
+/// and not the button.** Reported from the couch: "there is no call to action
+/// on the bench to heal my injured players." `ad_units.dart` carries a real
+/// `heal_all` placement for both stores; `squad.heal_all_ad` ("Heal all {n}
+/// injured") and `squad.heal_all_none` ("No injured players") ship in ten
+/// languages with no caller; and `buyConsumable`'s own comment prices the Magic
+/// Sponge against "the free rewarded video on the Squad bench, which heals the
+/// whole squad three times a day". Every part of it existed except the tap.
+///
+/// It is here rather than on the Squad page behind it because the bench is
+/// where an injured man is looked at — and it keeps its place with nobody hurt,
+/// which is what `squad.heal_all_none` is for: a control that appears only when
+/// it is needed cannot be found before it is.
+class _HealAllRow extends ConsumerWidget {
+  const _HealAllRow();
+
+  Future<void> _watch(WidgetRef ref) async {
+    final outcome = await watchRewardedAd(ref, healAllPlacement);
+    if (outcome == AdOutcome.rewarded) {
+      var healed = 0;
+      // **The cap is re-read inside the update**, not trusted from the build
+      // that painted the button — the same rule the shop's free shelf follows.
+      ref.read(gameProvider).update((s) => healed = grantHealAllAd(s));
+      // `squad.heal_all_done` — the third of the three shipped strings this
+      // control was missing. Its 🩹 goes for the same reason the 🚑 does.
+      emit(
+        healed > 0 ? 'toast:success' : 'toast:info',
+        healed > 0
+            ? t('squad.heal_all_done').replaceFirst('🩹', '').trim()
+            : t('toast.ad_unavailable'),
+      );
+    } else if (outcome == AdOutcome.unavailable) {
+      emit('toast:info', t('toast.ad_unavailable'));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hurt = ref.watch(injuredCountProvider);
+    final spent = ref.watch(healAllUsedProvider) >= healAllAdCapPerDay;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      child: StoreButton(
+        key: const ValueKey('squad-heal-all'),
+        tone: StoreTone.ad,
+        small: true,
+        leading: const GameIcon('video', size: 14),
+        label: hurt > 0
+            ? t('squad.heal_all_ad', {'n': hurt})
+            : t('squad.heal_all_none'),
+        // Dead rather than gone with nobody hurt or the day's three spent —
+        // `StoreButton`'s own rule, and the label is the reason either way.
+        onTap: hurt > 0 && !spent ? () => _watch(ref) : null,
+      ),
     );
   }
 }
