@@ -1586,6 +1586,11 @@ void main() {
       // confirmation: a substitution asks before it happens.
       await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
       await tester.pumpAndSettle();
+      // **THE BENCH OPENS FILTERED TO THE HOLE'S OWN LINE**, which is the point
+      // of the filter — so a test picking an arbitrary bench card has to widen
+      // it first, the same way a manager looking outside the position would.
+      await tester.tap(find.byKey(const ValueKey('subs-bench-filter-ALL')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
       await confirmSub(tester);
@@ -1612,6 +1617,9 @@ void main() {
           .firstWhere((s) => s.cardInstanceId != null);
       final bench = container.read(benchProvider).first;
       await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+      // The bench opens filtered to the hole's own line — see `makeSub`.
+      await tester.tap(find.byKey(const ValueKey('subs-bench-filter-ALL')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
@@ -2015,6 +2023,9 @@ void main() {
       final bench = container
           .read(benchProvider)
           .firstWhere((b) => b.instanceId != slot.cardInstanceId);
+      // The bench opens filtered to the hole's own line — see `makeSub`.
+      await tester.tap(find.byKey(const ValueKey('subs-bench-filter-ALL')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
       // Nobody comes off — there is nobody there — so the card says only who

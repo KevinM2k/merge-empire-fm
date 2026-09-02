@@ -317,6 +317,21 @@ List<FeedLine> feedOf(
   required String ourName,
   required String theirName,
   required bool isHome,
+
+  /// The clock, so nothing can be said before it happens.
+  ///
+  /// **THE FILLER LINES WERE JUMPING THE CLOCK, and they were the only thing
+  /// that could.** Everything else in this list comes from an event that has
+  /// already been SHOWN — the caller hands `frame.shown` — but the kick-off
+  /// pool's spare lines are minted here at [openingFillMinutes] and merged in
+  /// by minute, with nothing to check them against. So a match in its third
+  /// minute already had "11' Early pressure from the midfield" on the page, and
+  /// a goal in the eighth went in UNDER it. Reported from the couch in exactly
+  /// those terms.
+  ///
+  /// Null means "no clock" — the whole match at once, which is what
+  /// [feedChanceMinutes] wants when it derives the chance filter.
+  int? minute,
   /// The commentary key for each chance the 2D pitch has retold, by minute.
   ///
   /// **A retold chance ALWAYS gets a line, and the line says what was shown**
@@ -473,6 +488,8 @@ List<FeedLine> feedOf(
               for (var i = 0; i < pool.count; i++) '$openFlowPrefix$i',
             ]..remove(e.textKey);
             for (var i = 0; i < openingFillMinutes.length && i < rest.length; i++) {
+              // Not yet, if the clock has not reached it — see [minute].
+              if (minute != null && openingFillMinutes[i] > minute) continue;
               filled.add((
                 minute: openingFillMinutes[i],
                 type: e.type,

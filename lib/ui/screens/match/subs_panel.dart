@@ -40,6 +40,13 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show vsGreenOn, vsRedOn;
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
+import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart'
+    show PositionFilterBar;
+import 'package:merge_empire_fc/engine/squad_rating.dart'
+    show CardStats, getCardStats;
 
 /// One change, as the match screen needs to hear about it.
 typedef SubMade = ({String? offId, String onId, String slotId});
@@ -351,7 +358,7 @@ class _SubSlot extends ConsumerWidget {
 
 /// The bench, as real cards — the Squad tab's own sheet, with a different answer
 /// to a tap.
-class _BenchSheet extends ConsumerWidget {
+class _BenchSheet extends ConsumerStatefulWidget {
   const _BenchSheet({
     required this.slotId,
     required this.offId,
@@ -372,8 +379,26 @@ class _BenchSheet extends ConsumerWidget {
   final Future<bool> Function(String onId) onChosen;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BenchSheet> createState() => _BenchSheetState();
+}
+
+class _BenchSheetState extends ConsumerState<_BenchSheet> {
+  /// Which line the bench is narrowed to, or null until the sheet has worked
+  /// out what the hole is.
+  ///
+  /// **PRE-SET TO THE MAN COMING OFF.** A bench of nineteen is a wall of faces
+  /// and the one question being asked is "who else plays HERE" — the ordering
+  /// answers it first but does not answer it only. Asked for from the couch: a
+  /// quick GK/DEF/MID/ATK filter, auto-selected to the outgoing player's
+  /// position. `PositionFilterBar` is the Squad tab's own and is on every other
+  /// bench in the game.
+  String? _line;
+
+  @override
+  Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final slotId = widget.slotId;
+    final spent = widget.spent;
     // **ORDERED FOR THE HOLE, not by where the card sits in the grid.** The men
     // who play there lead, best first, and the rest follow in the same order —
     // see [benchForSlotProvider]. A bench in grid order is a bench in no order
@@ -385,9 +410,32 @@ class _BenchSheet extends ConsumerWidget {
               .where((slot) => slot.slotId == slotId)
               .map((slot) => slot.slotPosition)
               .firstOrNull;
-    final bench = ref.watch(benchForSlotProvider(slotPosition));
+    final all = ref.watch(benchForSlotProvider(slotPosition));
     final state = ref.watch(gameProvider).state;
     final light = Theme.of(context).brightness == Brightness.light;
+
+    // The hole's own line leads, and `ALL` is the fallback for a sheet opened
+    // with nobody nominated — there is no position to pre-set to then.
+    final line = _line ?? slotPosition ?? benchAllLines;
+    final bench = [
+      for (final entry in all)
+        if (line == benchAllLines || entry.card.position == line) entry,
+    ];
+
+    // **WHAT THE MAN COMING OFF IS WORTH**, so the bench can be read against
+    // him rather than in the abstract. Null when nobody is nominated, and then
+    // no card carries a comparison — a green ATK against nothing is a claim
+    // about nothing.
+    final off = widget.offId == null
+        ? null
+        : _cardById(state, widget.offId!);
+    final offStats = off == null
+        ? null
+        : getCardStats(
+            off,
+            slotPosition: slotPosition,
+            definitionRatios: _ratios(state),
+          );
 
     return Column(
       key: const ValueKey('subs-bench-sheet'),
@@ -399,6 +447,23 @@ class _BenchSheet extends ConsumerWidget {
           subtitle: slotId == null
               ? t('match.subs.pick_off')
               : t('match.subs.pick_on'),
+        ),
+        // **THE FILTER, AND THE LEGEND FOR THE ARROWS, on one row.** That is
+        // where `SquadScreen.js` puts both — see its bench sheet — and the
+        // legend is `squad.form.good` / `squad.form.bad`, translated in ten
+        // catalogues and until now unreachable in the port.
+        Row(
+          children: [
+            Expanded(
+              child: PositionFilterBar(
+                value: line,
+                keyPrefix: 'subs-bench-filter',
+                onChanged: (next) => setState(() => _line = next),
+              ),
+            ),
+            const _FormLegend(),
+            const SizedBox(width: 12),
+          ],
         ),
         if (bench.isEmpty)
           Padding(
@@ -445,7 +510,9 @@ class _BenchSheet extends ConsumerWidget {
                     behavior: HitTestBehavior.opaque,
                     onTap: can
                         ? () async {
-                            final done = await onChosen(entry.instanceId);
+                            final done = await widget.onChosen(
+                              entry.instanceId,
+                            );
                             // Only on a YES. A manager who said no is still
                             // choosing, and taking the bench away would make
                             // trying somebody else a whole extra journey.
@@ -454,16 +521,175 @@ class _BenchSheet extends ConsumerWidget {
                             }
                           }
                         : null,
-                    child: PlayerCard(
-                      key: ValueKey('sub-bench-${entry.instanceId}'),
-                      view: entry.card,
-                      light: light,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: PlayerCard(
+                            key: ValueKey('sub-bench-${entry.instanceId}'),
+                            view: entry.card,
+                            light: light,
+                          ),
+                        ),
+                        if (offStats case final against?) ...[
+                          const SizedBox(height: 3),
+                          _VsOff(
+                            instanceId: entry.instanceId,
+                            them: getCardStats(
+                              _cardById(state, entry.instanceId),
+                              slotPosition: slotPosition,
+                              definitionRatios: _ratios(state),
+                            ),
+                            against: against,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 );
               },
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// **THE POSITION SPLIT IS RATIOED**, and the ratios live in the save — a card
+/// asked for its ATK/DEF without them is asked a different question from the one
+/// the pitch asks. See `squad_rating.dart`.
+Map<String, dynamic> _ratios(Map<String, dynamic>? state) {
+  final raw = state?['definitionRatios'];
+  return raw is Map<String, dynamic> ? raw : const {};
+}
+
+/// What `PositionFilterBar` calls "no filter".
+const String benchAllLines = 'ALL';
+
+/// The legend for the arrows on the cards, where `SquadScreen.js` puts it.
+///
+/// Two words and two glyphs: a green ▲ is a rating point on, a red ▼ is one
+/// off. `squad.form.good` and `squad.form.bad` shipped in ten catalogues with
+/// nothing able to print either of them, which is the tell this whole row came
+/// out of — see [CardView.form].
+class _FormLegend extends StatelessWidget {
+  const _FormLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    Widget half(int form, String key, String delta) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          formGlyph(form),
+          style: TextStyle(
+            fontSize: minFontSize,
+            height: 1,
+            color: formInk(form),
+          ),
+        ),
+        const SizedBox(width: 2),
+        Text(
+          t(key),
+          style: TextStyle(fontSize: minFontSize, color: kit.textMuted),
+        ),
+        const SizedBox(width: 2),
+        Text(
+          delta,
+          style: TextStyle(
+            fontSize: minFontSize,
+            fontWeight: FontWeight.w800,
+            color: formInk(form),
+          ),
+        ),
+      ],
+    );
+    // It shares a row with a scrolling filter bar on a phone, so it gives way
+    // rather than pushing the chips off the end.
+    return Flexible(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Row(
+          key: const ValueKey('subs-form-legend'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            half(1, 'squad.form.good', '+1'),
+            const SizedBox(width: 8),
+            half(-1, 'squad.form.bad', '-1'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A bench card's ATK and DEF, against the man he would replace.
+///
+/// **THE FIGURE ALONE IS NOT THE ANSWER**, which is the whole of why this
+/// exists: a manager reading `62` on a bench card has to remember what the man
+/// coming off is worth, in the ninety seconds a substitution actually takes.
+/// Green is better than him and red is worse — the same pair every stat row and
+/// every quest verdict in the game already uses. Asked for from the couch in
+/// exactly those terms.
+///
+/// Level is MUTED rather than green: "no change" is not good news, and colouring
+/// it as though it were is what makes a scale stop meaning anything.
+class _VsOff extends StatelessWidget {
+  const _VsOff({
+    required this.instanceId,
+    required this.them,
+    required this.against,
+  });
+
+  final String instanceId;
+  final CardStats them;
+  final CardStats against;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    Widget cell(String label, int mine, int theirs) {
+      final delta = mine - theirs;
+      return Expanded(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: minFontSize,
+                  fontWeight: FontWeight.w900,
+                  color: kit.textMuted,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                '$mine',
+                style: TextStyle(
+                  fontSize: minFontSize,
+                  fontWeight: FontWeight.w900,
+                  color: delta == 0
+                      ? kit.textMuted
+                      : delta > 0
+                      ? vsGreenOn(context)
+                      : vsRedOn(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      key: ValueKey('sub-bench-vs-$instanceId'),
+      children: [
+        cell('ATK', them.attack, against.attack),
+        cell('DEF', them.defence, against.defence),
       ],
     );
   }

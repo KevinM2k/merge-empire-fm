@@ -90,6 +90,9 @@ CardView? cardViewFor(
     // handed what to draw and never asked what a trait is; the catalogue is
     // what names it, and the definition is only the fallback.
     trait: _traitFor(card.raw['trait']),
+    // **A RATING POINT, and the card never said so.** `getEffectiveRating` adds
+    // this straight onto the composed figure — see [CardView.form].
+    form: card.form.toInt(),
   );
 }
 

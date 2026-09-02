@@ -1449,6 +1449,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       ourName: us,
       theirName: them,
       isHome: home,
+      // **THE CLOCK, so the atmosphere lines cannot run ahead of it.** Every
+      // other line in the feed comes from an event `f.shown` has already
+      // released; the kick-off pool's spares are minted by the feed itself and
+      // were arriving whole. See [feedOf]'s own note.
+      minute: f.minute,
       clippedChanceKeys: _clippedChanceKeys,
       // One source for the scorer's name, shared with the clip and the replay
       // badge below — see [feedOf]'s own note.

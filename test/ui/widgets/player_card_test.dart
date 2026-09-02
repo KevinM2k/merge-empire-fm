@@ -22,6 +22,25 @@ const CardView _view = (
   maxed: false,
   atCap: false,
   trait: null,
+  form: 0,
+);
+
+/// The base view with one thing changed. Records have no `copyWith`, and the
+/// alternative is a second literal that drifts from the first.
+CardView withForm(int form) => (
+  name: _view.name,
+  tier: _view.tier,
+  rating: _view.rating,
+  position: _view.position,
+  injured: _view.injured,
+  onLoan: _view.onLoan,
+  variant: _view.variant,
+  fitness: _view.fitness,
+  incomePerSec: _view.incomePerSec,
+  maxed: _view.maxed,
+  atCap: _view.atCap,
+  trait: _view.trait,
+  form: form,
 );
 
 Future<void> pumpCard(
@@ -179,6 +198,7 @@ void main() {
           maxed: false,
           atCap: false,
           trait: null,
+          form: 0,
         ), light: true);
         expect(
           chipFillFor(tester, '50').computeLuminance(),
@@ -204,6 +224,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: null,
+        form: 0,
       ));
       final border = decorationOf(tester).border! as Border;
       expect(
@@ -232,6 +253,7 @@ void main() {
       maxed: false,
       atCap: false,
       trait: null,
+      form: 0,
     ));
     expect(find.text('X'), findsOneWidget);
   });
@@ -259,6 +281,7 @@ void main() {
       maxed: false,
       atCap: false,
       trait: null,
+      form: 0,
     ));
     expect(find.byIcon(Icons.healing), findsOneWidget);
     // **AND THE LOAN SAYS SO IN WORDS.** It was a pair of arrows and nothing
@@ -299,6 +322,7 @@ void main() {
       maxed: false,
       atCap: false,
       trait: null,
+      form: 0,
     ));
     expect(tester.takeException(), isNull);
     final text = tester.widget<Text>(find.textContaining('Wojciech'));
@@ -329,6 +353,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: null,
+        form: 0,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -350,6 +375,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: null,
+        form: 0,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -374,6 +400,7 @@ void main() {
           maxed: false,
           atCap: false,
           trait: null,
+          form: 0,
         ));
         expect(tester.takeException(), isNull, reason: '$value');
       }
@@ -442,6 +469,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: (icon: '⚽', level: 'III', title: '⚽ Finisher III'),
+        form: 0,
       ));
       expect(find.byKey(const ValueKey('card-trait')), findsOneWidget);
       expect(find.text('⚽ III'), findsOneWidget);
@@ -466,6 +494,42 @@ void main() {
     testWidgets('and a card with none draws none', (tester) async {
       await pumpCard(tester, _view);
       expect(find.byKey(const ValueKey('card-trait')), findsNothing);
+    });
+  });
+
+  group('FORM IS ON THE CARD', () {
+    // It is a rating POINT — `getEffectiveRating` adds `card.form` straight
+    // onto the composed figure — and `Card.js` has drawn it since the JS
+    // shipped. The port drew the seasons count's slot and not the arrow, so
+    // `squad.form.good` and `squad.form.bad` sat translated in ten catalogues
+    // with nothing able to print either. Reported from the couch: we say form
+    // is down, does it affect ratings, and it needs to be visible.
+    testWidgets('a run of good form is a green arrow', (tester) async {
+      await pumpCard(tester, withForm(1));
+      final arrow = tester.widget<Text>(
+        find.byKey(const ValueKey('card-form')),
+      );
+      expect(arrow.data, formGlyph(1));
+      expect(arrow.style!.color, formInk(1));
+      expect(arrow.semanticsLabel, t('squad.form.good'));
+    });
+
+    testWidgets('and a bad one is a red one, pointing down', (tester) async {
+      await pumpCard(tester, withForm(-1));
+      final arrow = tester.widget<Text>(
+        find.byKey(const ValueKey('card-form')),
+      );
+      expect(arrow.data, formGlyph(-1));
+      expect(arrow.style!.color, formInk(-1));
+      expect(arrow.semanticsLabel, t('squad.form.bad'));
+      expect(formInk(-1), isNot(formInk(1)));
+    });
+
+    testWidgets('and MOST of a squad shows nothing at all', (tester) async {
+      // Zero draws nothing, which is the JS's rule too: an arrow on every card
+      // says nothing about any of them.
+      await pumpCard(tester, withForm(0));
+      expect(find.byKey(const ValueKey('card-form')), findsNothing);
     });
   });
 }

@@ -232,7 +232,34 @@ typedef CardView = ({
   /// for. The emoji is the trait's own and needs no translating; [title] is the
   /// localised `⚽ Finisher III` and it is what a screen reader is given.
   ({String icon, String level, String title})? trait,
+
+  /// **FORM: a rating point, up or down, and it was invisible.**
+  ///
+  /// It is real — `getEffectiveRating` adds `card.form` straight onto the
+  /// composed figure, so a player in bad form is genuinely a point worse than
+  /// the number on his card would otherwise say — and `Card.js` has drawn it
+  /// since the JS shipped: a green ▲ or a red ▼ in the footer row beside the
+  /// seasons count. The port drew the seasons and not the form, and
+  /// `squad.form.good` / `squad.form.bad` sat translated in ten catalogues with
+  /// nothing able to print either. Reported from the couch: we say form is
+  /// down, does it affect ratings, and it needs to be visible.
+  ///
+  /// Zero draws nothing, which is the JS's rule too — most of a squad is on
+  /// neither run, and an arrow on every card says nothing about any of them.
+  int form,
 });
+
+/// The ▲ and ▼ a card's form is drawn as, in the JS's own two colours.
+///
+/// `#4ade80` and `#f87171` are `card.css`'s `.card-form.is-up` / `.is-down`,
+/// which are the same pair `vsGreenOn`/`vsRedOn` resolve to on a dark surface —
+/// so this is the app's own green and red rather than a third one, and it is
+/// stated here because a card is drawn on its own rarity fill rather than on a
+/// pane and cannot ask `glassAccent` what it is standing on.
+Color formInk(int form) =>
+    form > 0 ? const Color(0xFF4ADE80) : const Color(0xFFF87171);
+
+String formGlyph(int form) => form > 0 ? '▲' : '▼';
 
 class PlayerCard extends StatelessWidget {
   const PlayerCard({
@@ -527,15 +554,49 @@ class PlayerCard extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              view.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: captionInk,
-                              ),
+                            // **THE NAME, AND HIS FORM BESIDE IT.** `Card.js`
+                            // puts the arrow in the footer row with the seasons
+                            // count; this port has no seasons line on the card,
+                            // so it goes at the end of the name — which is the
+                            // one place on a bench-width card that is not
+                            // already spoken for, and it is right beside the
+                            // man it is about. See [CardView.form].
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    view.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: captionInk,
+                                    ),
+                                  ),
+                                ),
+                                if (view.form != 0) ...[
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    formGlyph(view.form),
+                                    key: const ValueKey('card-form'),
+                                    // The word, not the glyph, is what a screen
+                                    // reader gets: an arrow read aloud is a
+                                    // shape rather than a fact.
+                                    semanticsLabel: t(
+                                      view.form > 0
+                                          ? 'squad.form.good'
+                                          : 'squad.form.bad',
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: minFontSize,
+                                      height: 1,
+                                      fontWeight: FontWeight.w900,
+                                      color: formInk(view.form),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             if (view.fitness != null) ...[
                               const SizedBox(height: 3),

@@ -432,6 +432,29 @@ void main() {
         expect(lines.last.minute, lessThan(firstA.range[0]));
       });
 
+      test('AND NOTHING IS SAID BEFORE THE CLOCK REACHES IT', () {
+        // The filler is minted by the feed rather than released by the frame,
+        // so it was the one thing in the list that could arrive whole: a match
+        // in its third minute already showed "11' Early pressure from the
+        // midfield", and a goal in the eighth went in UNDER it. Reported from
+        // the couch.
+        List<int> at(int minute) => feedOf(
+          [ev('commentary', minute: 1, textKey: '${openFlowPrefix}0')],
+          ourName: 'Us',
+          theirName: 'Them',
+          isHome: true,
+          minute: minute,
+        ).map((l) => l.minute).toList();
+
+        expect(at(1), [1]);
+        expect(at(openingFillMinutes.first - 1), [1]);
+        expect(at(openingFillMinutes.first), [1, openingFillMinutes.first]);
+        expect(at(openingFillMinutes.last), [1, ...openingFillMinutes]);
+        // And with no clock at all, the whole lot — which is what the chance
+        // filter derives itself against.
+        expect(at(90), [1, ...openingFillMinutes]);
+      });
+
       test('and a line from any OTHER bucket fills nothing', () {
         final lines = feed([
           ev('commentary', minute: 20, textKey: 'commentary.flow.firstA.0'),
