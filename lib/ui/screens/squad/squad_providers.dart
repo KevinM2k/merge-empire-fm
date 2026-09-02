@@ -38,6 +38,15 @@ typedef PitchSlot = ({
   /// nothing there whether he is drawn or not, and drawn is the version a
   /// manager can pick a replacement from. See `LineupSlot.vacatedBy`.
   CardView? vacatedBy,
+
+  /// Who [vacatedBy] IS, by instance id.
+  ///
+  /// **The view alone was not enough.** A substitution's confirmation shows the
+  /// two cards it is swapping and looks the outgoing man up by id — so on an
+  /// INJURY, where the slot is already empty, it had nobody to show and fell
+  /// back to the one-sided "{on} comes on" line. Reported from the couch: an
+  /// injury sub should show the swap like every other one.
+  String? vacatedById,
   bool outOfPosition,
 
   /// What this player is worth IN THIS SLOT, fatigue included — not their card
@@ -190,6 +199,9 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
           vacatedBy: view != null
               ? null
               : cardViewFor(vacatedBy[slot.slotId], proMode: pro),
+          vacatedById: view != null
+              ? null
+              : vacatedBy[slot.slotId]?['instanceId'] as String?,
           // Named rather than punished here: the penalty is the engine's, and
           // the screen's job is to say WHY a rating looks low.
           outOfPosition: view != null && view.position != slot.slotPosition,

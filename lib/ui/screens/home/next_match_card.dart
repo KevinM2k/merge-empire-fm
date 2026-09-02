@@ -29,6 +29,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/cup_engine.dart'
+    show prepareCupRound;
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
+    show cupDue;
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
@@ -86,6 +90,18 @@ Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 final nextMatchProvider = savePick<NextMatch?>((s) {
   final preview = previewFixture(s);
   if (preview == null) return null;
+
+  // **A DUE CUP TIE IS THE NEXT FIXTURE, and this card was still naming the
+  // LEAGUE one.** `previewFixture` only knows the league schedule, so on a cup
+  // week the caption above the card correctly read the cup and its round while
+  // the card underneath showed a completely different club — and the coach
+  // agreed with the card. Reported from the couch: "I had no idea who I was
+  // playing; when the game started it was right, but that first screen was
+  // wrong."
+  //
+  // `prepareCupRound` is the same call the launcher makes, so the two cannot
+  // disagree about who is next. It is read-only — nothing here commits a round.
+  final cupTie = cupDue(s) ? prepareCupRound(s) : null;
 
   final clubName =
       s['clubName'] is String && (s['clubName'] as String).isNotEmpty
@@ -196,14 +212,23 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
     position: posOf(clubName, ours: true),
     posDelta: deltaOf(clubName, ours: true),
   );
+  // The cup tie's own opponent when there is one — see [cupTie]. A cup club is
+  // not in the league table, so it carries no position and no movement arrow,
+  // which is correct rather than missing: there is no table for it to be in.
+  final theirName = cupTie?.opponentName ?? preview.opponentName;
   final themSide = (
-    name: preview.opponentName,
+    name: theirName,
     ours: false,
-    rating: preview.effectiveOppRating?.round(),
-    split: theirs,
-    mods: theirMods,
-    position: posOf(preview.opponentName, ours: false),
-    posDelta: deltaOf(preview.opponentName, ours: false),
+    rating:
+        cupTie?.opponentRating.round() ?? preview.effectiveOppRating?.round(),
+    split: cupTie != null
+        ? fifaSplit(cupTie.opponentRating, cupTie.opponentRating)
+        : theirs,
+    // The league's own modifiers are about the league fixture. A cup tie has no
+    // home advantage in this game and no relegation scrap behind it.
+    mods: cupTie != null ? const <StatMod>[] : theirMods,
+    position: cupTie != null ? null : posOf(theirName, ours: false),
+    posDelta: cupTie != null ? null : deltaOf(theirName, ours: false),
   );
 
   // Where the extra rating came from, when a club asset is supplying some.

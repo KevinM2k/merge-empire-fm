@@ -12,6 +12,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart';
+import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
@@ -1080,5 +1082,55 @@ group('a tie decided on penalties', () {
       expect(find.text('Bobby'), findsWidgets);
       await tester.pump(const Duration(seconds: 3));
     });
+  });
+
+  testWidgets('A SENDING-OFF IS ONE OF THE MOMENTS, with its card', (
+    tester,
+  ) async {
+    // Asked for from the couch: "if a player does get sent off, on the match
+    // summary page where we show the goals, we should have the player who was
+    // sent off with the yellow/red card next to them — yeah there is no replay
+    // of it but it's a big event."
+    final res = result()
+      ..['bookings'] = [
+        {
+          'minute': 63,
+          'type': 'booking',
+          'team': 'home',
+          'player': 'Nolan',
+          'playerInstanceId': 'c9',
+          'card': cardRed,
+        },
+        // Theirs is not ours, and a caution is a line in the commentary.
+        {'minute': 70, 'type': 'booking', 'team': 'away', 'card': cardRed},
+        {
+          'minute': 20,
+          'type': 'booking',
+          'team': 'home',
+          'player': 'Keane',
+          'playerInstanceId': 'c8',
+          'card': cardYellow,
+        },
+      ];
+    await pumpSummary(tester, res);
+    final block = find.byKey(const ValueKey('summary-scorers'));
+    expect(block, findsOneWidget);
+    expect(
+      find.descendant(of: block, matching: find.text('Nolan')),
+      findsOneWidget,
+    );
+    expect(find.descendant(of: block, matching: find.byType(CardGlyph)),
+        findsOneWidget);
+    // A caution is not one of them, and neither is theirs.
+    expect(find.descendant(of: block, matching: find.text('Keane')),
+        findsNothing);
+    // And no replay on a card: the pitch never drew one.
+    expect(
+      find.descendant(
+        of: block,
+        matching: find.byKey(const ValueKey('summary-replay-63')),
+      ),
+      findsNothing,
+    );
   });
 }

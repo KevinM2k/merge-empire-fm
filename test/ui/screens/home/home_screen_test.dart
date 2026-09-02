@@ -6,6 +6,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/cup_engine.dart' show prepareCupRound;
+import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
+    show nextMatchProvider;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
@@ -812,10 +815,28 @@ void main() {
       // The cup engine was reachable by nothing: a club could be entered into a
       // cup and never play a round of it.
       final container = await pumpHome(tester, mutate: cupTieDue);
+      // **Scoped to the BUTTON.** The next-match card names the cup's own
+      // opponent now — it used to show the league fixture on a cup week, which
+      // is the bug this scoping is a side effect of — and this fixture's
+      // opponent has the round in its name.
       expect(
-        find.textContaining(cups.first.rounds.first),
+        find.descendant(
+          of: find.byKey(const ValueKey('play-match')),
+          matching: find.textContaining(cups.first.rounds.first),
+        ),
         findsOneWidget,
         reason: 'the round is the headline, not "Play"',
+      );
+
+      // And the card is about the tie rather than about a league game nobody
+      // is playing next. Reported from the couch: "I had no idea who I was
+      // playing; when the game started it was right, but that first screen was
+      // wrong."
+      expect(
+        container.read(nextMatchProvider)!.right.name,
+        container.read(gameProvider).state == null
+            ? anything
+            : prepareCupRound(container.read(gameProvider).state!)!.opponentName,
       );
 
       await tester.tap(find.byKey(const ValueKey('play-match')));

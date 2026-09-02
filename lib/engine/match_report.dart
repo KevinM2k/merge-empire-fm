@@ -66,6 +66,15 @@ typedef ReportFacts = ({
   /// Who is next, and where. Null when the season has run out of fixtures.
   String? nextOpponent,
   bool nextIsHome,
+
+  /// **AND WHO THE OPPONENT PLAYS NEXT.** Asked for from the couch: the
+  /// write-up is "meant to be a summary about the game for anyone reading it",
+  /// so ending it with only our own next fixture is half a sentence — a reader
+  /// who does not support either club has been told about one of them.
+  ///
+  /// Null when the schedule does not say, which is a cup tie or the last round
+  /// of a season; the beat is simply absent then.
+  String? oppNextOpponent,
 });
 
 /// The whole report, beat by beat.
@@ -97,8 +106,21 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     params: {
       'club': f.clubName,
       'opp': f.opponentName,
+      // **THE SCORE READS THE WAY A SCORE IS WRITTEN: home team first.**
+      // These were our goals then theirs regardless of venue, so an away win
+      // was reported as "a narrow one, 1-0" when the board — and every other
+      // surface in the game — said 0-1. Reported from the couch.
+      //
+      // [ours] and [theirs] are still OUR goals and THEIRS, because several
+      // beats are about us rather than about the fixture; [score] is the pair
+      // written out in the order a reader expects, and the headline uses that.
       'ours': f.ours,
       'theirs': f.theirs,
+      'score': f.isHome ? '${f.ours}-${f.theirs}' : '${f.theirs}-${f.ours}',
+      // Who that score belongs to, left and right, so a sentence can name them
+      // in the same order.
+      'homeTeam': f.isHome ? f.clubName : f.opponentName,
+      'awayTeam': f.isHome ? f.opponentName : f.clubName,
       'venue': f.isHome ? 'home' : 'away',
     },
   ));
@@ -224,10 +246,20 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
 
   // ── 6. And who is next ───────────────────────────────────────────────────
   final next = f.nextOpponent;
+  final theirNext = f.oppNextOpponent;
   if (next != null && next.isNotEmpty) {
     beats.add((
-      key: f.nextIsHome ? 'report.next.home' : 'report.next.away',
-      params: {'club': f.clubName, 'opp': next},
+      key: theirNext != null && theirNext.isNotEmpty
+          ? (f.nextIsHome ? 'report.next.home_both' : 'report.next.away_both')
+          : (f.nextIsHome ? 'report.next.home' : 'report.next.away'),
+      params: {
+        'club': f.clubName,
+        'opp': next,
+        // The club this match was against, and who THEY play next — see
+        // [ReportFacts.oppNextOpponent].
+        'them': f.opponentName,
+        'theirNext': theirNext ?? '',
+      },
     ));
   }
 

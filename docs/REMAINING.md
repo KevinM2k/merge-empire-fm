@@ -8,6 +8,9 @@ rough sense of size, not a target.
 
 ---
 
+**The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
+the couch's reports are ticked off one at a time. What follows is the summary.
+
 ## Playtest, 2 Sep 2026 — the referee, the write-up, and a phone on a cable
 
 The longest single session on this queue, and the first one profiled on a real

@@ -802,6 +802,44 @@ void main() {
     await settleSave(tester);
   });
 
+  testWidgets('A GRUDGE OPENS WITH TWO LINES, not one said twice', (
+    tester,
+  ) async {
+    // **The cache was keyed on the minute, not on the line.** `feedOf` seeds a
+    // commentary row `1-c`, so the engine's opening flow line and the grudge's
+    // own `commentary.snub` — both minute 1 — shared an entry and the second
+    // rendered the first's text. Reported from the couch: the same commentary
+    // item twice at the start of a grudge match.
+    await pumpMatch(
+      tester,
+      matchResult(
+        events: [
+          {
+            'minute': 1,
+            'type': 'commentary',
+            'textKey': 'commentary.snub',
+            'textParams': {'opp': 'Ayton'},
+          },
+          {
+            'minute': 1,
+            'type': 'commentary',
+            'textKey': 'commentary.flow.open.1',
+          },
+        ],
+      ),
+    );
+    stateOf(tester).skipToEnd();
+    await tester.pumpAndSettle();
+    final snub = t('commentary.snub', {'opp': 'Ayton'});
+    await reachFeed(tester, find.text(snub));
+    expect(find.text(snub), findsOneWidget);
+    expect(
+      find.text(t('commentary.flow.open.1')),
+      findsOneWidget,
+      reason: 'the second line printed the first line\'s text',
+    );
+  });
+
   group('THE REFEREE', () {
     // Nothing in the spec books anybody, so all of this is the port's own — and
     // the rule that shapes it is that a SECOND YELLOW is not a straight red.
@@ -2144,6 +2182,57 @@ void main() {
         before,
         reason: 'the substitution became next week\'s team',
       );
+      await settleSave(tester);
+    });
+
+    testWidgets('A MAN WHO IS OFF CANNOT SCORE AFTERWARDS', (tester) async {
+      // **The remainder is re-rolled against the side that is actually on the
+      // pitch**, and a substitution did not do it — only a tactic switch did.
+      // So bringing your best striker on at 60' changed nothing about the
+      // result, and `match_sub_scores` was unwinnable: it asks for a goal
+      // attributed to a man who came on, `reSimulateRemainder` draws its
+      // scorers from the LIVE lineup, and nothing re-drew them after a change.
+      //
+      // Asserted from the other end because it is the deterministic half: the
+      // man taken OFF is out of the pool, so no goal after the change can be
+      // his. Before the fix the kickoff event kept his name on the 70th-minute
+      // goal.
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        matchResult(
+          events: [
+            {
+              'minute': 70,
+              'type': 'goal',
+              'team': 'home',
+              'scorer': 'Starter',
+              'scorerInstanceId': 'c0',
+            },
+          ],
+        ),
+        save: squadSave(),
+      );
+      await tester.pump(minuteDurationFor(5));
+      await openSubs(tester);
+      final swap = await makeSub(tester, container, spent: {});
+      expect(swap.off, isNotNull);
+
+      final after = [
+        for (final e
+            in stateOf(tester).widget.result['events'] as List<dynamic>)
+          if (e is Map<String, dynamic> &&
+              e['type'] == 'goal' &&
+              ((e['minute'] as num?) ?? 0) > 5)
+            e['scorerInstanceId'],
+      ];
+      expect(
+        after,
+        isNot(contains(swap.off)),
+        reason: 'a substituted player scored after he had been taken off',
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
       await settleSave(tester);
     });
 

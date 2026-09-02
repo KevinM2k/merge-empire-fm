@@ -25,6 +25,9 @@ import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/quests.dart' show getQuest;
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show displayText;
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart'
+    show cardSendsOff, cardYellow;
+import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
@@ -1018,7 +1021,7 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
     if (raw is! List) return const SizedBox.shrink();
     final save = ref.read(gameProvider).state;
 
-    final goals = <({String name, int minute})>[];
+    final goals = <({String name, int minute, String? card})>[];
     for (final entry in raw) {
       final e = _map(entry);
       if (e == null || e['type'] != 'goal' || e['team'] != 'home') continue;
@@ -1028,9 +1031,40 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
           cardDisplayName(save, '${e['scorerInstanceId'] ?? ''}') ??
           '${e['scorer'] ?? ''}';
       if (name.isEmpty) continue;
-      goals.add((name: name, minute: _num(e['minute']).toInt()));
+      goals.add((name: name, minute: _num(e['minute']).toInt(), card: null));
+    }
+
+    // **AND A SENDING-OFF GOES IN THE SAME LIST.** Asked for from the couch:
+    // "if a player does get sent off, on the match summary page where we show
+    // the goals, we should have the player who was sent off with the
+    // yellow/red card next to them — yeah there is no replay of it but it's a
+    // big event." It is, and it was the one thing that happened in the match
+    // that this block did not mention.
+    //
+    // OURS only, and only the dismissals: a caution is a line in the
+    // commentary, and the whole point of this block is the handful of moments
+    // that decided the afternoon. The glyph says WHICH — a second yellow and a
+    // straight red are different offences.
+    final cards = result['bookings'];
+    if (cards is List) {
+      for (final entry in cards) {
+        final b = _map(entry);
+        if (b == null || b['team'] == 'away') continue;
+        final card = '${b['card'] ?? cardYellow}';
+        if (!cardSendsOff(card)) continue;
+        final name =
+            cardDisplayName(save, '${b['playerInstanceId'] ?? ''}') ??
+            '${b['player'] ?? ''}';
+        if (name.isEmpty) continue;
+        goals.add((
+          name: name,
+          minute: _num(b['minute']).toInt(),
+          card: card,
+        ));
+      }
     }
     if (goals.isEmpty) return const SizedBox.shrink();
+    goals.sort((a, b) => a.minute.compareTo(b.minute));
 
     final ink = glassAccent(context, kit.accentBright);
     final clip = _clip;
@@ -1059,7 +1093,10 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
                   // all.** Three names and three minutes in a box is a list of
                   // something; the glyph is what says of what. Asked for from
                   // the couch with the rest of the shot.
-                  GameIcon('ball', size: 13, color: ink),
+                  if (g.card case final card?)
+                    CardGlyph(card: card, height: 13)
+                  else
+                    GameIcon('ball', size: 13, color: ink),
                   const SizedBox(width: 6),
                   // **THE MINUTE IS A COLUMN, on the left.** It trailed the
                   // name, so with three scorers the names started in three
@@ -1107,7 +1144,11 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
                   // as well as one `clipFor` would refuse anyway, leaving a
                   // control that does nothing. Asked for from the couch, in
                   // exactly those terms: no 2D pitch, no replays, here too.
-                  if (ref.watch(settingPick<bool>('cutawayOurTeam', true)))
+                  // No replay for a card: the 2D pitch never drew one, and a
+                  // control that rebuilds a passage nobody was shown is a
+                  // control that does nothing.
+                  if (g.card == null &&
+                      ref.watch(settingPick<bool>('cutawayOurTeam', true)))
                   TextButton.icon(
                     key: ValueKey('summary-replay-${g.minute}'),
                     // A text link, not a moulded button: it sits on a row of

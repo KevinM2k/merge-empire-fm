@@ -216,5 +216,42 @@ ReportFacts? reportFactsFor(
     posDelta: was == null || row == null ? null : was - (at + 1),
     nextOpponent: preview?.opponentName,
     nextIsHome: preview?.isHome ?? true,
+    oppNextOpponent: _nextFor(save, '${result['opponentName'] ?? ''}'),
   );
+}
+
+/// Who [club] plays in the next round, out of the season's own schedule.
+///
+/// **The AI's fixtures are in there too.** `generateSeasonFixtures` writes
+/// every pairing in the division, not only ours — the player's own rows are the
+/// ones with a null team — so the opponent's next opponent is a lookup rather
+/// than a guess. Null when the schedule has run out, which is the last round of
+/// a season, and null for a cup tie, which has no league schedule at all.
+String? _nextFor(Map<String, dynamic>? save, String club) {
+  if (club.isEmpty) return null;
+  final prog = save?['progression'];
+  if (prog is! Map<String, dynamic>) return null;
+  final fixtures = prog['seasonFixtures'];
+  if (fixtures is! List) return null;
+  final played = (prog['seasonMatchesPlayed'] as num?)?.toInt() ?? 0;
+  final ours = save?['clubName'];
+
+  ({int round, String opponent})? best;
+  for (final raw in fixtures) {
+    final f = _map(raw);
+    if (f == null) continue;
+    final round = (f['round'] as num?)?.toInt() ?? 0;
+    // Rounds are one-based and `seasonMatchesPlayed` counts finished ones, so
+    // the next round is the one after the count.
+    if (round <= played) continue;
+    // A null team is the player's club — that is how the schedule marks it.
+    final home = '${f['homeTeam'] ?? ours ?? ''}';
+    final away = '${f['awayTeam'] ?? ours ?? ''}';
+    final other = home == club ? away : (away == club ? home : null);
+    if (other == null || other.isEmpty) continue;
+    if (best == null || round < best.round) {
+      best = (round: round, opponent: other);
+    }
+  }
+  return best?.opponent;
 }

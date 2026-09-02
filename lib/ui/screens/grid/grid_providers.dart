@@ -126,6 +126,12 @@ CardView? cardViewFor(
   if (raw is! Map<String, dynamic>) return null;
   final trait = getTrait(raw['id'] as String?);
   if (trait == null) return null;
+  // **`none` IS NOT A TRAIT, it is the absence of one.** Its own description
+  // says so — "No trait — clears any existing trait" — and it is in the bank
+  // because a roll has to be able to land on nothing. Drawing it put a badge on
+  // the card announcing that the card has no badge, which is the same card as
+  // one that was never rolled. Reported from the couch.
+  if (trait.type == 'none') return null;
   final level = (raw['level'] as num?)?.toInt();
   return (
     icon: trait.icon,

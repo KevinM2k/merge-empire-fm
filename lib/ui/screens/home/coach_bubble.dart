@@ -16,6 +16,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/cup_engine.dart'
+    show prepareCupRound;
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
+    show cupDue;
+import 'package:merge_empire_fc/engine/booking_engine.dart'
+    show suspendedIn;
+import 'package:merge_empire_fc/data/players.dart' show getCardName;
+import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
+    show gridCells;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/manager_hint_engine.dart';
@@ -45,13 +55,41 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
   final tips = <CoachTip>[];
 
   if (preview != null) {
+    // **AND HE TALKS ABOUT THE FIXTURE THAT IS ACTUALLY NEXT.** `previewFixture`
+    // only knows the LEAGUE schedule, so on a cup week he was giving a read on
+    // a club the player was not about to play — the head-to-head record, the
+    // grudge, the rating gap, all about the wrong opponent, and all agreeing
+    // with a card that was also wrong. Reported from the couch together.
+    //
+    // A cup tie has no league history, no grudge and no table position, so the
+    // only read that survives is the rating gap — and that is the one that
+    // matters before a knockout.
+    final cupTie = cupDue(s) ? prepareCupRound(s) : null;
+    if (cupTie != null) {
+      final gap = preview.effectiveSquadRating - cupTie.opponentRating;
+      if (gap <= -5) {
+        tips.add((
+          id: 'gap_higher',
+          text: t('manager.rating_gap_higher', {'opp': cupTie.opponentName}),
+        ));
+      } else if (gap >= 5) {
+        tips.add((
+          id: 'gap_lower',
+          text: t('manager.rating_gap_lower', {'opp': cupTie.opponentName}),
+        ));
+      }
+    }
     final opponent = preview.opponentName;
     final ourRating = preview.effectiveSquadRating;
     final theirRating = preview.effectiveOppRating;
 
     // A grudge is the one thing that makes a weaker side dangerous, so it
     // outranks the rating comparison rather than sitting under it.
-    if (preview.grudgeBoost > 0) {
+    //
+    // **None of the league reads apply to a cup tie** — the grudge, the
+    // head-to-head and the table are all about a fixture that is not the next
+    // one. See [cupTie].
+    if (cupTie == null && preview.grudgeBoost > 0) {
       tips.add((id: 'grudge', text: t('manager.grudge', {'opp': opponent})));
     }
 
@@ -102,7 +140,46 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
       ));
     }
 
-    if (theirRating != null) {
+    // **WHO CANNOT PLAY THIS ONE, above every read on the opponent.** Asked
+    // for from the couch alongside the red card: he should mention a
+    // suspension the way he mentions an injury — and he was mentioning
+    // neither, so both went in. It outranks the rating comparison because it
+    // is the one thing on this bubble the manager has to ACT on before kick-off:
+    // a hole in the eleven is a decision, a rating gap is a mood.
+    //
+    // Named, and joined, because "someone is banned" is not usable advice. The
+    // ban is `booking_engine.suspendedIn`; the injury is the card's own flag.
+    final banned = suspendedIn(s);
+    final out = <String>[];
+    final hurt = <String>[];
+    for (final raw in gridCells(s)) {
+      final card = CardInstance.from(raw);
+      if (card == null) continue;
+      final named = getCardName(card.raw, t('common.veteran'));
+      if (banned.contains(card.instanceId)) {
+        out.add(named);
+      } else if (card.injured) {
+        hurt.add(named);
+      }
+    }
+    if (out.isNotEmpty) {
+      tips.add((
+        id: 'suspended',
+        text: tPoolStable('manager.suspended', out.join('|'), {
+          'names': out.join(', '),
+        }),
+      ));
+    }
+    if (hurt.isNotEmpty) {
+      tips.add((
+        id: 'injured',
+        text: tPoolStable('manager.injured_out', hurt.join('|'), {
+          'names': hurt.join(', '),
+        }),
+      ));
+    }
+
+    if (theirRating != null && cupTie == null) {
       final gap = ourRating - theirRating;
       if (gap <= -5) {
         tips.add((

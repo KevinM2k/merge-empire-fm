@@ -80,7 +80,7 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
-    show CoachAction, showCoachAside, showCoachCard;
+    show CoachAction, showCoachCard;
 
 /// One dugout-cam shot, as the screen has decided it. Everything the widget
 /// needs and nothing it can work out for itself.
@@ -1518,26 +1518,28 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (best == null || best.effRating <= booked) return;
     _bookingAdvised = true;
     if (!mounted) return;
-    setState(() => _paused = true);
-    // **THE SMALL ONE, bottom left.** A caution is a remark, not a decision —
-    // reported from the couch as the big card being the wrong shape for it.
-    // See [showCoachAside]; a sending-off keeps the full card, because that
-    // one IS a decision about the ten who are left.
-    final swap = await showCoachAside(
-      context,
-      label: t('coach.booked.title'),
-      body: t('coach.booked.body', {
+    // **IT IS A REMARK, so it behaves like every other thing he says.**
+    //
+    // It went through a card, then through a small bespoke bubble, and both
+    // were wrong in the same way: it paused the match, it lost his head, the
+    // bubble was narrower than the one every other line uses, and it carried a
+    // button that made the substitution for you. Reported from the couch, in
+    // those terms — "it shouldn't pause game, it shouldn't have a button to
+    // take them off, its our decision at that point."
+    //
+    // So it is `_say`, which is the same channel as his reaction to a goal:
+    // the head, the full-width bubble, the pitch still lit and still running,
+    // and it clears itself after [_coachDwell]. The manager opens the subs
+    // panel if they want to; the tip's job is to tell them there is a decision
+    // to make, not to make it.
+    _say(
+      t('coach.booked.body', {
         'player': player,
         'rating': booked,
         'sub': best.card.name,
         'subRating': best.effRating,
       }),
-      actionLabel: t('coach.booked.swap'),
     );
-    if (!mounted) return;
-    setState(() => _paused = false);
-    if (swap != true || frame.finished) return;
-    await openSubs(openOn: slot.slotId);
   }
 
   Future<void> _onSendingOff(String player) async {
@@ -1584,6 +1586,23 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     onList.add(sub.onId);
     widget.result['subbedOnIds'] = onList;
 
+    // **AND THE REST OF THE MATCH IS PLAYED BY THE SIDE THAT IS ON IT.**
+    //
+    // The scoreline is generated at kickoff, and everything that changes the
+    // ELEVEN re-rolls what is left: a tactic switch has always done it, a
+    // sending-off does it now, and a substitution did not — so bringing your
+    // best striker on at 60' changed nothing at all about the result.
+    //
+    // **`match_sub_scores` is the proof rather than the opinion.** That quest
+    // asks for a goal attributed to a man who came on, `reSimulateRemainder`
+    // draws its scorers from the LIVE lineup, and nothing re-drew them after a
+    // change — so no such event could exist and the quest was unwinnable. The
+    // panel writes the swap to the save before this runs, so the lineup this
+    // re-rolls against is the one with him on it.
+    // **The injuries are LEFT ALONE.** A substitution changes who is on the
+    // pitch, not how dangerously the side is playing — see the flag's own note.
+    _resimulate(_minute, _strategy, rerollInjuries: false);
+
     final state = ref.read(gameProvider).state;
     final onName = cardById(state, sub.onId)?.name() ?? '';
     final offName = sub.offId == null
@@ -1606,6 +1625,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         card: null,
         playerId: null,
       ));
+      _timeline = timelineOf(widget.result, bookings: _bookings);
     });
   }
 
@@ -1684,7 +1704,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         }
       }
     });
-    _resimulate(minute, _strategy);
+    // Same reasoning as a substitution: losing a man is not a change of
+    // approach, so the injuries the match had coming still come.
+    _resimulate(minute, _strategy, rerollInjuries: false);
     if (mounted) {
       setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
     }
@@ -1720,7 +1742,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// the baseline goals are counted from those kept EVENTS rather than from the
   /// scoreboard tally. Passing the tally would drop a goal the feed has already
   /// promised, and the screen would end 2-1 with the engine calling it a draw.
-  void _resimulate(int at, String strategyId) {
+  void _resimulate(int at, String strategyId, {bool rerollInjuries = true}) {
     final raw = widget.result['events'];
     final kept = [
       for (final e in raw is List ? raw : const [])
@@ -1744,6 +1766,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       ours,
       theirs,
       ref.read(gameProvider).state,
+      rerollInjuries: rerollInjuries,
     );
     widget.result['events'] = [...kept, ...fresh];
   }
@@ -2446,8 +2469,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   static const Set<String> _replayableLine = {'goal', 'chance'};
 
   /// What this line says, decided once — see [_lineText].
+  ///
+  /// **THE KEY IS PART OF THE CACHE KEY, and leaving it out printed the same
+  /// sentence twice.** `feedOf` seeds a commentary row on its MINUTE — `1-c` —
+  /// so two commentary events in the same minute shared a cache entry and the
+  /// second one rendered the first one's text. The grudge match is where that
+  /// shows: the engine inserts `commentary.snub` at minute 1 and the opening
+  /// flow line is already there, so a hostile fixture opened by saying the same
+  /// thing twice. Reported from the couch.
+  ///
+  /// The seed still decides WHICH variant of a pool is picked — that is what
+  /// makes a line stable across rebuilds — and the key decides which pool. Two
+  /// different pools in one minute are two different lines.
   String _textFor(FeedLine line) => _lineText.putIfAbsent(
-    '${line.type}-${line.seed}',
+    '${line.type}-${line.seed}-${line.key}',
     () => tPoolUnused(line.key, line.seed, _poolUsed, line.params),
   );
 

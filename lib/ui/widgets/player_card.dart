@@ -906,16 +906,18 @@ class _Ribbon extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 4)],
       ),
-      // It shares a row with the two chips and they win: a long localised
-      // label shrinks rather than pushing either of them off the card.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
+      // **IT DOES NOT SHRINK BELOW THE FLOOR.** The `FittedBox` was there so a
+      // long localised label gave way to the two chips beside it — and on a
+      // bench card it was scaling `★ MAX ★` down to something nobody could
+      // read. Reported from the couch: the badge should use the minimum size
+      // font always. It ellipsises instead, which is what the chips do.
+      child: ClipRect(
         child: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: minFontSize,
             fontWeight: FontWeight.w900,
             letterSpacing: 0.4,
             color: foreground,

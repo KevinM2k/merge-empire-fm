@@ -11,6 +11,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/players.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -217,5 +218,48 @@ void main() {
     expect(c.read(coachTacticPickProvider), pick);
     expect(find.text(t('strategy.$pick.name').toUpperCase()), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
+  });
+
+  group('HE NAMES WHO CANNOT PLAY THIS ONE', () {
+    // Asked for from the couch alongside the red card: Colin should mention a
+    // suspension the way he mentions an injury — and he was mentioning
+    // neither. A hole in the eleven is the one thing on this bubble a manager
+    // has to act on before kick-off.
+    /// A fresh save has an empty grid, so the card is planted rather than
+    /// found.
+    List<String> idsWith(Map<String, dynamic> extra) {
+      final c = boot();
+      c.read(gameProvider).update((s) {
+        final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+        cells[0] = <String, dynamic>{
+          'instanceId': 'c0',
+          'definitionId': players.first.id,
+          ...extra,
+        };
+      });
+      return c.read(coachTipsProvider).map((t) => t.id).toList();
+    }
+
+    test('a banned player earns a tip of his own', () {
+      expect(idsWith({'suspendedUntilMatch': 999}), contains('suspended'));
+    });
+
+    test('and so does an injured one', () {
+      expect(idsWith({'injured': true}), contains('injured'));
+    });
+
+    test('and a ban outranks the injury when a man has both', () {
+      // He cannot play either way; the ban is the one that carries into the
+      // NEXT fixture as well, so it is the sentence worth spending.
+      final ids = idsWith({'suspendedUntilMatch': 999, 'injured': true});
+      expect(ids, contains('suspended'));
+      expect(ids, isNot(contains('injured')));
+    });
+
+    test('and a fit squad hears about neither', () {
+      final ids = boot().read(coachTipsProvider).map((t) => t.id).toList();
+      expect(ids, isNot(contains('suspended')));
+      expect(ids, isNot(contains('injured')));
+    });
   });
 }

@@ -1480,8 +1480,22 @@ List<Map<String, dynamic>> reSimulateRemainder(
   String strategyId,
   int currentOurGoals,
   int currentTheirGoals,
-  Map<String, dynamic>? state,
-) {
+  Map<String, dynamic>? state, {
+  /// Whether the remaining injuries are thrown away and rolled again.
+  ///
+  /// **True for a TACTIC change and false for anything else.** Re-rolling is
+  /// the whole point there — the multiplier is the tactic's, so dropping out of
+  /// High Press has to genuinely lower the risk and switching into it has to
+  /// raise it.
+  ///
+  /// A SUBSTITUTION is a different thing entirely: it changes who is on the
+  /// pitch, not how dangerously the side is playing. Left on, it made a sub a
+  /// way to cancel an injury that was already coming and re-roll for a better
+  /// one — an exploit, and one the suite found rather than reasoning: with
+  /// subs re-rolling, a re-simulated remainder injured a bench player between
+  /// two substitutions and the cap test could not bring him on.
+  bool rerollInjuries = true,
+}) {
   final strat = strategies[strategyId] ?? strategies[defaultStrategy];
   final addedTime = _num(result['addedTime'])?.toInt() ?? 0;
   final matchDuration = 90 + addedTime;
@@ -1654,7 +1668,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // disappears.
   final rawLog = result['injuryLog'];
   final injuryLog = rawLog is List ? rawLog : <Object?>[];
-  {
+  if (rerollInjuries) {
     var cancelled = 0;
     for (final raw in injuryLog) {
       final entry = _map(raw);
@@ -1725,7 +1739,10 @@ List<Map<String, dynamic>> reSimulateRemainder(
       (hardSim?['injuries'] is List
           ? (hardSim!['injuries'] as List).length
           : (result['injuredName'] != null ? 1 : 0));
-  if (!fixedRating &&
+  // And a fresh roll is the other half of the same decision: a substitution
+  // does not invent an injury either, it just changes who is on the pitch.
+  if (rerollInjuries &&
+      !fixedRating &&
       priorInjuryCount < 2 &&
       healthyCards.isNotEmpty &&
       fraction > 0.15) {

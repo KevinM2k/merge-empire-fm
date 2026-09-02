@@ -18,6 +18,7 @@ void main() {
     int? points = 20,
     int? posDelta = 0,
     String? nextOpponent = 'Ayton',
+    String? oppNextOpponent,
     bool isCup = false,
   }) => (
     ours: ours,
@@ -38,6 +39,7 @@ void main() {
     posDelta: posDelta,
     nextOpponent: nextOpponent,
     nextIsHome: false,
+    oppNextOpponent: oppNextOpponent,
   );
 
   List<String> keysOf(ReportFacts f) =>
@@ -167,6 +169,14 @@ void main() {
 
     test('and the last word is who is next, when there is one', () {
       expect(keysOf(facts()).last, 'report.next.away');
+      // **And BOTH clubs' next fixtures when the schedule knows them.** Asked
+      // for from the couch: the write-up is a summary for anyone reading it, so
+      // ending on only our own next game tells a reader about one of the two
+      // sides.
+      expect(
+        keysOf(facts(oppNextOpponent: 'Beeches')).last,
+        'report.next.away_both',
+      );
       expect(
         keysOf(facts(nextOpponent: null)).last,
         isNot(startsWith('report.next')),

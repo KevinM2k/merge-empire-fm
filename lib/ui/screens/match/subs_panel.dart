@@ -162,7 +162,12 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
     // And a man who is off the pitch cannot be taken off it.
     if (on != null && widget.sentOff.contains(on)) return;
     setState(() => _openFor = slot.slotId);
-    _openBench(slot.slotId, on);
+    // **AN INJURED MAN IS STILL THE MAN COMING OFF.** The sim empties his slot
+    // before the panel opens, so `cardInstanceId` is null and the confirmation
+    // had nobody to show — it fell back to the one-sided "{on} comes on" line
+    // while every other substitution got two cards and an arrow. Reported from
+    // the couch. `vacatedById` is who the hole belongs to.
+    _openBench(slot.slotId, on ?? slot.vacatedById);
   }
 
   /// The bench, from the bottom, the way the Squad tab opens it. A null
@@ -352,6 +357,7 @@ class _SubSlot extends ConsumerWidget {
           cardInstanceId: slot.cardInstanceId,
           card: slot.card,
           vacatedBy: slot.vacatedBy,
+          vacatedById: slot.vacatedById,
           outOfPosition: slot.outOfPosition,
           effRating: (slot.effRating * yellowCardRatingMult).round(),
           penalty: slot.penalty,
@@ -392,6 +398,7 @@ class _SubSlot extends ConsumerWidget {
                         cardInstanceId: null,
                         card: slot.vacatedBy,
                         vacatedBy: null,
+                        vacatedById: null,
                         outOfPosition: false,
                         effRating: 0,
                         penalty: 0,
