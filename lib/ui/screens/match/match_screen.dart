@@ -2653,27 +2653,39 @@ class _TacticButton extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GameIcon(
-                tacticIconName(id),
-                size: 17,
-                color: active ? tacticInk(context, id) : hue,
-              ),
-              const SizedBox(height: 1),
-              Text(
-                t('strategy.$id.short'),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.2,
-                  fontWeight: active ? FontWeight.w900 : FontWeight.w700,
-                  color: active ? tacticInk(context, id) : kit.textMuted,
+          // **IT SHRINKS RATHER THAN OVERFLOWING.** An icon, a gap and a 12pt
+          // line come to 44.4 inside a 46-point strip, which is 1.6 points of
+          // headroom — gone the moment a phone is set to a larger system font,
+          // and Android's default often is. Reported from a device as an
+          // overflow along the bottom of the tactic bar.
+          //
+          // `scaleDown` only ever acts when the content genuinely will not fit,
+          // so at ordinary settings nothing here changes at all.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GameIcon(
+                  tacticIconName(id),
+                  size: 17,
+                  color: active ? tacticInk(context, id) : hue,
                 ),
-              ),
-            ],
+                const SizedBox(height: 1),
+                Text(
+                  t('strategy.$id.short'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.2,
+                    fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+                    color: active ? tacticInk(context, id) : kit.textMuted,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

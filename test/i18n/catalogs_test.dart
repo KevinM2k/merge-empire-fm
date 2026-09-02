@@ -16,13 +16,13 @@ void main() {
   Set<String> placeholders(String s) =>
       placeholder.allMatches(s).map((m) => m.group(0)!).toSet();
 
-  test('ten catalogues, 2715 keys each', () {
+  test('ten catalogues, 2717 keys each', () {
     expect(catalogs.length, 10);
-    // `match.report_head` is the newest — the write-up's own heading, which had
-    // been borrowing the commentary tab's word. **It is English in all ten**:
-    // the translations are queued rather than guessed, at the user's own
-    // instruction. Bump this WITH the generator run, never instead of it.
-    expect(en.length, 2715);
+    // `quest.match_no_cards` and `quest.season_clean_record` are the newest:
+    // the referee books players now, so a match played without a card is
+    // something to aim at. Bump this WITH the generator run, never instead of
+    // it.
+    expect(en.length, 2717);
   });
 
   test('the shipped catalogues match the list the detector narrows to', () {

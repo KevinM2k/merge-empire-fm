@@ -36,7 +36,12 @@ const double pitchTokenWidth = 74;
 /// to clear. Measured rather than declared — the token is built out of a tier
 /// strip, art, a name and a position chip — and pinned by a test, so changing
 /// any of those parts fails loudly instead of quietly crowding the pitch.
-const double pitchTokenHeight = 97;
+///
+/// **97 until the name went up to the type floor**, which is three points of
+/// line box. The test that pins this is what caught it, which is the point of
+/// pinning it: the pitch is three points tighter, and that is the price of a
+/// name a player can actually read.
+const double pitchTokenHeight = 100;
 
 /// How much clear grass a pair of tokens must have between them, as a fraction
 /// of the token's own size. The knob for "the pitch feels tight": 1.0 would let
@@ -265,16 +270,16 @@ class PitchToken extends StatelessWidget {
     final plate = light ? const Color(0xE6FFFFFF) : const Color(0x8C000000);
     final plateInk = light ? const Color(0xFF1A1F26) : Colors.white;
 
-    // Shrink the name to fit rather than clipping it — a cut-off name reads
-    // worse than a small one.
+    // **THE NAME IS SET AT THE FLOOR AND SHRUNK BY THE BOX, not specified
+    // small.** It stepped down to seven points for a long surname, which is
+    // below the type floor the whole app was given — reported from the couch as
+    // the squad page's cards being too small. `FittedBox(scaleDown)` is the
+    // documented way out of that floor: the STYLE is [minFontSize], and only a
+    // name that genuinely will not fit 74 points is scaled by the layout.
+    //
+    // A token is also scaled bodily by `pitchTokenScale` on a crowded
+    // formation, so a hard 12 here would be a hard 12 times that anyway.
     final surname = card.name.split(' ').last;
-    final nameSize = surname.length > 14
-        ? 7.0
-        : surname.length > 12
-        ? 8.0
-        : surname.length > 9
-        ? 9.0
-        : 10.0;
 
     return SizedBox(
       width: pitchTokenWidth,
@@ -370,7 +375,7 @@ class PitchToken extends StatelessWidget {
                             fill: pBg.withValues(alpha: 0.93),
                             edge: pColor,
                             ink: pColor,
-                            size: 9.5,
+                            size: 11,
                           ),
                         ),
                         // **The same badge the bench draws**, at the foot of
@@ -413,7 +418,7 @@ class PitchToken extends StatelessWidget {
                                     : 'squad.form.bad',
                               ),
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 11,
                                 height: 1,
                                 fontWeight: FontWeight.w900,
                                 color: formInk(card.form),
@@ -446,17 +451,20 @@ class PitchToken extends StatelessWidget {
                     width: double.infinity,
                     color: plate,
                     padding: const EdgeInsets.fromLTRB(2, 2, 2, 3),
-                    child: Text(
-                      surname,
-                      maxLines: 1,
-                      overflow: TextOverflow.clip,
-                      softWrap: false,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: nameSize,
-                        height: 1.4,
-                        fontWeight: FontWeight.w800,
-                        color: plateInk,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        surname,
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: minFontSize,
+                          height: 1.4,
+                          fontWeight: FontWeight.w800,
+                          color: plateInk,
+                        ),
                       ),
                     ),
                   ),

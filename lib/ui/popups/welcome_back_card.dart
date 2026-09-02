@@ -31,6 +31,8 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -68,6 +70,16 @@ void collectOfflineEarnings(GameState game, int earned) {
       resources['fanCoins'] = (coins is num ? coins : 0) + earned;
     }
   });
+  // **AND THE COINS FLY.** The write alone is silent: `CoinFlight` launches off
+  // `coins:updated` and nothing announced this one, so the biggest single
+  // payment in the game — a night's worth of income — landed with the counter
+  // simply reading a bigger number. Reported from the couch. Every other reward
+  // in the app announces itself the same way.
+  final resources = game.state?['resources'];
+  emit(
+    'coins:updated',
+    resources is Map<String, dynamic> ? resources['fanCoins'] : null,
+  );
 }
 
 /// How long the app has to have been away before the card is worth showing.
@@ -191,15 +203,27 @@ class WelcomeBackCardState extends State<WelcomeBackCard> {
                   const SizedBox(height: 2),
                   // The number is the point of the card, and the old one never
                   // said it.
-                  Text(
-                    '+${formatCoins(earned)} 💰',
+                  // **THE COIN ICON, not the money-bag emoji.** Every priced
+                  // control in the app draws the game's own coin; a 💰 renders
+                  // as whatever the platform's font decides and is the one
+                  // thing on this card that does not belong to the game.
+                  // Reported from the couch, here and on the club assets.
+                  Row(
                     key: const ValueKey('welcome-back-amount'),
-                    style: TextStyle(
-                      color: kit.accentBright,
-                      fontSize: 26,
-                      height: 1.1,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '+${formatCoins(earned)}',
+                        style: TextStyle(
+                          color: kit.accentBright,
+                          fontSize: 26,
+                          height: 1.1,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GameIcon('coin', size: 22, color: kit.accentBright),
+                    ],
                   ),
                   if (capped) ...[
                     const SizedBox(height: 12),

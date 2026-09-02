@@ -57,6 +57,12 @@ abstract final class QuestAction {
   static const String lateWinner = 'late_winner';
   static const String awayWin = 'away_win';
 
+  /// **THE REFEREE'S NOTEBOOK, which nothing scored off before.** The port
+  /// books players — see `booking_engine.dart` — and a match played without a
+  /// card is a real thing a manager can aim at, so it is a quest. Asked for
+  /// from the couch as soon as the cards went in.
+  static const String noCards = 'no_cards';
+
   // ── Season-scoped, accumulated ───────────────────────────────────────────
   static const String cleanSheetsSeason = 'clean_sheets_season';
   static const String goalsSeason = 'goals_season';
@@ -68,6 +74,9 @@ abstract final class QuestAction {
   static const String awayWins = 'away_wins';
   static const String homeWins = 'home_wins';
   static const String hatTricks = 'hat_tricks';
+
+  /// Matches finished with a clean sheet from the referee, over a season.
+  static const String cleanRecordSeason = 'clean_record_season';
   static const String scoringRun = 'scoring_run';
 
   // ── Match-scoped, the awkward ones ───────────────────────────────────────
@@ -445,6 +454,7 @@ const Set<String> perMatchActions = {
   QuestAction.underdogWins,
   QuestAction.comebackWins,
   QuestAction.hatTricks,
+  QuestAction.cleanRecordSeason,
   QuestAction.cleanSheetRun,
   QuestAction.winRun,
   QuestAction.unbeatenRun,
@@ -627,6 +637,19 @@ const List<QuestDef> questBank = [
     tags: [QuestTag.margin],
     reward: (coins: 28),
     icon: 'target',
+  ),
+  QuestDef(
+    id: 'match_no_cards',
+    scope: 'match',
+    action: QuestAction.noCards,
+    // Ninety minutes without the referee reaching for a pocket. The one quest
+    // on the list that is about how you play rather than what you score, and
+    // the cards are the port's own — nothing in the spec books anybody.
+    minDiv: _Div.al,
+    target: _one,
+    tags: [QuestTag.injury],
+    reward: (coins: 20),
+    icon: 'shield',
   ),
   QuestDef(
     id: 'match_no_injury',
@@ -1044,6 +1067,18 @@ const List<QuestDef> questBank = [
     target: _seasonScout,
     reward: (coins: 70),
     icon: 'userAdd',
+  ),
+  QuestDef(
+    id: 'season_clean_record',
+    scope: 'season',
+    action: QuestAction.cleanRecordSeason,
+    // Matches finished with nothing in the referee's book. A season is
+    // fourteen, so half of them is a real ask without needing a perfect record.
+    minDiv: _Div.al,
+    target: _halfPlus4,
+    tags: [QuestTag.injury],
+    reward: (coins: 80),
+    icon: 'shield',
   ),
   QuestDef(
     id: 'season_wins',

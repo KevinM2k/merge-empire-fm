@@ -2618,6 +2618,8 @@ const Map<String, String> deCatalog = <String, String>{
   'quest.match_score_scaling': 'Erziele {n} Tore',
   'quest.match_win_margin_2': 'Gewinne mit {n} Toren Vorsprung',
   'quest.match_win_margin_scaling': 'Gewinne mit {n} Toren Vorsprung',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': 'Beende das Spiel ohne Verletzung',
   'quest.match_both_halves': 'Triff in beiden Halbzeiten',
   'quest.match_away_win': 'Gewinne auswärts',

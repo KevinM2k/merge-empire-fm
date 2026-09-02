@@ -590,10 +590,15 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
                             }
                           }
                         : null,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    // **THE COMPARISON IS ON THE CARD, not under it.** It was
+                    // a row below the portrait, so the tile read as a card and
+                    // a caption — two objects for one player — and the figures
+                    // were the furthest thing on the tile from the face they
+                    // are about. Asked for from the couch: the ATK/DEF rating
+                    // should be IN the card.
+                    child: Stack(
                       children: [
-                        Expanded(
+                        Positioned.fill(
                           child: PlayerCard(
                             key: ValueKey('sub-bench-${entry.instanceId}'),
                             view: entry.card,
@@ -601,15 +606,19 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
                           ),
                         ),
                         if (offStats case final against?) ...[
-                          const SizedBox(height: 3),
-                          _VsOff(
-                            instanceId: entry.instanceId,
-                            them: getCardStats(
-                              _cardById(state, entry.instanceId),
-                              slotPosition: slotPosition,
-                              definitionRatios: _ratios(state),
+                          Positioned(
+                            left: 3,
+                            right: 3,
+                            bottom: 3,
+                            child: _VsOff(
+                              instanceId: entry.instanceId,
+                              them: getCardStats(
+                                _cardById(state, entry.instanceId),
+                                slotPosition: slotPosition,
+                                definitionRatios: _ratios(state),
+                              ),
+                              against: against,
                             ),
-                            against: against,
                           ),
                         ],
                       ],
@@ -729,10 +738,10 @@ class _VsOff extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: minFontSize,
                   fontWeight: FontWeight.w900,
-                  color: kit.textMuted,
+                  color: Color(0xD9FFFFFF),
                 ),
               ),
               const SizedBox(width: 3),
@@ -754,12 +763,24 @@ class _VsOff extends StatelessWidget {
       );
     }
 
-    return Row(
-      key: ValueKey('sub-bench-vs-$instanceId'),
-      children: [
-        cell('ATK', them.attack, against.attack),
-        cell('DEF', them.defence, against.defence),
-      ],
+    // **A GROUND, because it sits on the portrait now.** Under the card it had
+    // the sheet's own surface behind it; over the art it needs one of its own
+    // or the figures are read off whatever the player's shirt happens to be.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xB8000000),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          key: ValueKey('sub-bench-vs-$instanceId'),
+          children: [
+            cell('ATK', them.attack, against.attack),
+            cell('DEF', them.defence, against.defence),
+          ],
+        ),
+      ),
     );
   }
 }

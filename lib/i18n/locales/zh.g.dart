@@ -2618,6 +2618,8 @@ const Map<String, String> zhCatalog = <String, String>{
   'quest.match_score_scaling': '打进{n}球',
   'quest.match_win_margin_2': '净胜{n}球取胜',
   'quest.match_win_margin_scaling': '净胜{n}球取胜',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': '全场无人受伤',
   'quest.match_both_halves': '上下半场均有进球',
   'quest.match_away_win': '客场取胜',

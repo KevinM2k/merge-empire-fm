@@ -2618,6 +2618,8 @@ const Map<String, String> itCatalog = <String, String>{
   'quest.match_score_scaling': 'Segna {n} gol',
   'quest.match_win_margin_2': 'Vinci con {n} gol di scarto',
   'quest.match_win_margin_scaling': 'Vinci con {n} gol di scarto',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': 'Finisci senza infortuni',
   'quest.match_both_halves': 'Segna in entrambi i tempi',
   'quest.match_away_win': 'Vinci in trasferta',

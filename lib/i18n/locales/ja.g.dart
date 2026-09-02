@@ -2618,6 +2618,8 @@ const Map<String, String> jaCatalog = <String, String>{
   'quest.match_score_scaling': '{n}ゴール決める',
   'quest.match_win_margin_2': '{n}点差で勝つ',
   'quest.match_win_margin_scaling': '{n}点差で勝つ',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': '負傷者なしで終える',
   'quest.match_both_halves': '前後半ともに得点する',
   'quest.match_away_win': 'アウェイで勝つ',

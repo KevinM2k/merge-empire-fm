@@ -2618,6 +2618,8 @@ const Map<String, String> koCatalog = <String, String>{
   'quest.match_score_scaling': '{n}골 넣기',
   'quest.match_win_margin_2': '{n}골 차로 승리하기',
   'quest.match_win_margin_scaling': '{n}골 차로 승리하기',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': '부상 없이 경기 마치기',
   'quest.match_both_halves': '전후반 모두 득점하기',
   'quest.match_away_win': '원정에서 승리하기',

@@ -2618,6 +2618,8 @@ const Map<String, String> arCatalog = <String, String>{
   'quest.match_score_scaling': 'سجّل {n} أهداف',
   'quest.match_win_margin_2': 'افـز بفارق {n} أهداف',
   'quest.match_win_margin_scaling': 'افـز بفارق {n} أهداف',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': 'أنهِ المباراة دون إصابات',
   'quest.match_both_halves': 'سجّل في الشوطين',
   'quest.match_away_win': 'افـز خارج ملعبك',

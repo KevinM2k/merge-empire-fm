@@ -2618,6 +2618,8 @@ const Map<String, String> ptCatalog = <String, String>{
   'quest.match_score_scaling': 'Marca {n} golos',
   'quest.match_win_margin_2': 'Vence por {n} golos',
   'quest.match_win_margin_scaling': 'Vence por {n} golos',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': 'Termina sem lesões',
   'quest.match_both_halves': 'Marca nas duas partes',
   'quest.match_away_win': 'Vence fora de casa',

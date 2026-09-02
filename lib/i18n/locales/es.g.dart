@@ -2618,6 +2618,8 @@ const Map<String, String> esCatalog = <String, String>{
   'quest.match_score_scaling': 'Marca {n} goles',
   'quest.match_win_margin_2': 'Gana por {n} goles',
   'quest.match_win_margin_scaling': 'Gana por {n} goles',
+  'quest.match_no_cards': 'Finish with no bookings',
+  'quest.season_clean_record': 'Play {n} matches with no bookings',
   'quest.match_no_injury': 'Termina sin lesiones',
   'quest.match_both_halves': 'Marca en ambas partes',
   'quest.match_away_win': 'Gana a domicilio',

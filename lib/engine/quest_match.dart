@@ -249,6 +249,8 @@ bool evaluateMatchQuest(
       return _flag(result?['won']) && (ourGoals - theirGoals) >= target;
     case QuestAction.noInjury:
       return (_num(result?['injuryCount'])?.toInt() ?? 0) == 0;
+    case QuestAction.noCards:
+      return _ourCards(result) == 0;
     case QuestAction.awayWin:
       return _flag(result?['won']) && result?['isHome'] == false;
     case QuestAction.defScores:
@@ -500,6 +502,8 @@ QuestLive liveMatchQuestStatus(
       );
     case QuestAction.noInjury:
       return alive((_num(partial?['injuryCount'])?.toInt() ?? 0) == 0);
+    case QuestAction.noCards:
+      return alive(_ourCards(partial) == 0);
     case QuestAction.awayWin:
       return alive(partial?['isHome'] == false);
     case QuestAction.underdogWin:
@@ -652,6 +656,9 @@ void applyMatchToSeasonQuests(
   // result-derived counters live here.
   if (ourGoals > 0) advanceQuest(state, QuestAction.goalsSeason, ourGoals);
   if (cleanSheet) advanceQuest(state, QuestAction.cleanSheetsSeason);
+  if (_ourCards(result) == 0) {
+    advanceQuest(state, QuestAction.cleanRecordSeason);
+  }
   if (_wonAsUnderdog(result)) advanceQuest(state, QuestAction.underdogWins);
   if (_isComeback(result)) advanceQuest(state, QuestAction.comebackWins);
   if (won && result?['isHome'] == false) {
@@ -689,4 +696,25 @@ void applyMatchToSeasonQuests(
     QuestAction.scoringRun,
     _num(streaks['scoring']) ?? 0,
   );
+}
+
+/// How many cards OUR side picked up, off the rows the match screen wrote onto
+/// the result.
+///
+/// **Theirs do not count**, and the absence of a `playerInstanceId` is how they
+/// are told apart — the port never names an opposition player, so their rows
+/// carry a card and a minute and nothing else. A result from before the referee
+/// existed, or from a test that never played one, has no `bookings` at all and
+/// reads as a clean record, which is the right answer for a match in which
+/// nobody was booked.
+int _ourCards(Map<String, dynamic>? result) {
+  final rows = result?['bookings'];
+  if (rows is! List) return 0;
+  var n = 0;
+  for (final raw in rows) {
+    final row = _map(raw);
+    if (row == null || row['team'] == 'away') continue;
+    n++;
+  }
+  return n;
 }

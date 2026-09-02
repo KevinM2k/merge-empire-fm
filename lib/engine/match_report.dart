@@ -214,6 +214,10 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
         'pos': ordinalOf(pos),
         'pts': pts,
         'n': delta.abs(),
+        // One place, two places. The catalogue carries the plural as a
+        // fragment the way `trophy.summary` already does — "1 places" was
+        // reported from the couch.
+        's': delta.abs() == 1 ? '' : 's',
       },
     ));
   }
